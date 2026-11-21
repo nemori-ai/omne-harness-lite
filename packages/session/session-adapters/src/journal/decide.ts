@@ -2,20 +2,42 @@ import type {
   AgentCheckpoint,
   AgentOperationId,
   JournalCommitState,
+  PendingCall,
+  StepId,
   VoidedIntent,
 } from '@omne-harness/agent-contract'
 import { canonical } from '../testing/canonical.ts'
 import {
   REVIVABLE_EXCLUSIONS,
   BATCH_MAX_FACTS,
+  FACT_MAX_BYTES,
+  bytesOf,
   factKey,
+  holdText,
+  materialHold,
   refOf,
   type Batch,
   type BatchEnvelope,
   type CursorMembers,
   type FactBody,
+  type HoldKind,
+  type HoldRef,
+  type ResultKey,
 } from './facts.ts'
-import type { ExecutionView } from './view.ts'
+import { handoffKey, type ExecutionView } from './view.ts'
+
+// The calls a checkpoint still waits on: its calls, those of its batch, those of its passages.
+export function checkpointCalls(checkpoint: AgentCheckpoint): PendingCall[] {
+  return [
+    ...checkpoint.calls,
+    ...(checkpoint.batch?.actions.flatMap(action => (action.call ? [action.call] : [])) ?? []),
+    ...checkpoint.passages.flatMap(passage =>
+      passage.operations.flatMap(operation =>
+        'pending' in operation && operation.pending ? [operation.pending] : [],
+      ),
+    ),
+  ]
+}
 
 export function cursorOf(checkpoint: AgentCheckpoint, state: JournalCommitState): CursorMembers {
   return {
@@ -43,9 +65,49 @@ export function cursorOf(checkpoint: AgentCheckpoint, state: JournalCommitState)
       checkpoint.adoptedRequest === null || checkpoint.adoptedRequest === undefined
         ? null
         : refOf(checkpoint.adoptedRequest),
-    ...(checkpoint.modelRetry === undefined ? {} : { modelRetry: checkpoint.modelRetry }),
     state: state.kind,
+    admissionsFrom:
+      checkpoint.replyAdmissionRead.kind === 'verified'
+        ? Number(checkpoint.replyAdmissionRead.prefix.sequence)
+        : 0,
   }
+}
+
+// Everything the checkpoint holds open, named one at a time.
+export function heldBy(checkpoint: AgentCheckpoint): HoldRef[] {
+  const actions = [
+    ...checkpoint.calls.map(call => call.action),
+    ...(checkpoint.batch?.actions.map(action => action.id) ?? []),
+  ]
+  const consumptions = [
+    ...checkpointCalls(checkpoint).map(call => call.consumption),
+    ...(checkpoint.compaction === null ? [] : [checkpoint.compaction.consumption]),
+  ]
+  const handoffs = (checkpoint.batch?.slots ?? []).flatMap(slot =>
+    slot.handoff === null ? [] : [handoffKey(slot.handoff)],
+  )
+  const named = (kind: HoldKind, ids: readonly string[]): HoldRef[] =>
+    [...new Set(ids)].map(id => [kind, id])
+  return [
+    ...named('action', actions),
+    ...named('consumption', consumptions),
+    ...named('handoff', handoffs),
+    ...named('material', heldMaterials(checkpoint)),
+  ]
+}
+
+// The sources a checkpoint still reads: the request or answer each batch action was judged with,
+// and the request every call was fixed on.
+function heldMaterials(checkpoint: AgentCheckpoint): string[] {
+  const sources = (checkpoint.batch?.actions ?? []).flatMap(({ judgment }) =>
+    judgment.kind === 'allowed'
+      ? [judgment.request]
+      : judgment.kind === 'denied' && judgment.answer !== undefined
+        ? [judgment.answer]
+        : [],
+  )
+  for (const call of checkpointCalls(checkpoint)) sources.push(call.fixed)
+  return [...new Set(sources.map(source => materialHold(canonical(source))))]
 }
 
 export type BlobStore = ReadonlyMap<string, unknown>
@@ -74,7 +136,7 @@ function held<T>(blobs: BlobStore, ref: Readonly<{ digest: string }>, what: stri
 }
 
 export function checkpointOf(
-  view: Pick<ExecutionView, 'cursor' | 'steps' | 'requests' | 'voided' | 'intents'>,
+  view: Pick<ExecutionView, 'cursor' | 'steps' | 'voided'>,
   blobs: BlobStore,
 ): AgentCheckpoint {
   const { cursor } = view
@@ -91,16 +153,14 @@ export function checkpointOf(
     const { step, basis } = fact
     if (fact.intent === 'tool')
       return { kind: 'tool', step, action: fact.action, cause: fact.cause, basis }
-    const request = view.requests.find(item => item.step === step && item.attempt === fact.attempt)
-    const reference = request?.reference
-    const intent = [...view.intents.values()].find(
-      item => item.pending.kind === 'model' && item.pending.reference === reference,
-    )
-    if (reference === undefined || intent === undefined)
-      throw new TypeError(
-        `the Journal holds no call.intended for the voided request ${step}/${fact.attempt}`,
-      )
-    return { kind: 'model', step, action: intent.action, reference, cause: fact.cause, basis }
+    return {
+      kind: 'model',
+      step,
+      action: fact.action,
+      reference: fact.reference,
+      cause: fact.cause,
+      basis,
+    }
   })
   const checkpoint: AgentCheckpoint = {
     schema: need('schema'),
@@ -130,13 +190,9 @@ export function checkpointOf(
     voided: structuredClone(voided),
   }
   const adopted = need('adoptedRequest')
-  const withAdopted: AgentCheckpoint =
-    adopted === null
-      ? { ...checkpoint, adoptedRequest: null }
-      : { ...checkpoint, adoptedRequest: held(blobs, adopted, 'adoptedRequest') }
-  return cursor.modelRetry === undefined
-    ? withAdopted
-    : { ...withAdopted, modelRetry: structuredClone(cursor.modelRetry) }
+  return adopted === null
+    ? { ...checkpoint, adoptedRequest: null }
+    : { ...checkpoint, adoptedRequest: held(blobs, adopted, 'adoptedRequest') }
 }
 
 export function movedMembers(
@@ -159,6 +215,53 @@ export function cursorMoved(
   const members = movedMembers(view.cursor, cursorOf(checkpoint, state))
   if (Object.keys(members).length === 0) return null
   return { kind: 'cursor.moved', step: checkpoint.step, members }
+}
+
+type HoldChanged = Extract<FactBody, { kind: 'hold.changed' }> &
+  Readonly<{ held: HoldRef[]; released: HoldRef[] }>
+
+const holdFact = (step: StepId, held: HoldRef[], released: HoldRef[]): HoldChanged => ({
+  kind: 'hold.changed',
+  step,
+  held,
+  released,
+})
+
+// The holds a commit's checkpoint gains and lets go, a fact at a time until full; none, no fact.
+export function holdsMoved(
+  view: Pick<ExecutionView, 'holds'>,
+  checkpoint: AgentCheckpoint,
+): HoldChanged[] {
+  const next = heldBy(checkpoint)
+  const wanted = new Set(next.map(holdText))
+  const open = view.holds.filter(hold => !hold.released)
+  const had = new Set(open.map(hold => holdText([hold.kind, hold.id])))
+  const changes: (readonly ['held' | 'released', HoldRef])[] = [
+    ...next.filter(ref => !had.has(holdText(ref))).map(ref => ['held', ref] as const),
+    ...open
+      .filter(hold => !wanted.has(holdText([hold.kind, hold.id])))
+      .map(hold => ['released', [hold.kind, hold.id]] as const),
+  ]
+  const facts: HoldChanged[] = []
+  let fact = holdFact(checkpoint.step, [], [])
+  for (const [side, ref] of changes) {
+    const grown = { ...fact, [side]: [...fact[side], ref] }
+    if (bytesOf(grown) > FACT_MAX_BYTES) {
+      facts.push(fact)
+      fact = holdFact(checkpoint.step, [], [])
+    }
+    fact[side].push(ref)
+  }
+  if (fact.held.length + fact.released.length > 0) facts.push(fact)
+  return facts
+}
+
+// The cursor of a checkpoint no cursor preceded, with everything it holds.
+export function cursorPlaced(checkpoint: AgentCheckpoint, state: JournalCommitState): FactBody[] {
+  return [
+    { kind: 'cursor.moved', step: checkpoint.step, members: cursorOf(checkpoint, state) },
+    ...holdsMoved({ holds: [] }, checkpoint),
+  ]
 }
 
 export type BatchRefusal =
@@ -206,16 +309,10 @@ export function keyKnown(view: ExecutionView, key: string): boolean {
       return view.steps.some(item => `${item.step}#${item.batch.id}` === name)
     case 'call':
       return view.intents.has(name as never)
-    case 'associated':
-      return (
-        view.intents.get(name as never)?.association !== null && view.intents.has(name as never)
-      )
     case 'received':
-      return view.results.get(name as never)?.received !== null && view.results.has(name as never)
+      return (view.results.get(name as ResultKey)?.received ?? null) !== null
     case 'reply':
       return view.admissions.some(item => String(item.sequence) === name)
-    case 'batch':
-      return view.batches.has(name as never)
     case 'candidate':
       return view.finish.candidates.some(item => item.candidate === name)
     case 'ended':

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { plugin } from './basis-support.ts'
 
 describe('isolate-hides-instances-not-data', () => {
-  it('子 isolate 属性解析抛错，不回退父标签已注入的服务', async () => {
+  it('子 isolate 里按名取得读不到父标签的服务；属性解析却回退到祖先已注入的那一份', async () => {
     const ctx = new Context()
     const observed: string[] = []
     const provider = await ctx.plugin(
@@ -23,9 +23,7 @@ describe('isolate-hides-instances-not-data', () => {
           )
           await inner.isolate('scoped').plugin(
             plugin('isolated-child', child => {
-              expect(() => Reflect.get(child, 'scoped')).toThrow(
-                'cannot get property "scoped" without inject',
-              )
+              expect(Reflect.get(child, 'scoped')).toBe('parent-instance')
               expect(child.get('scoped')).toBeUndefined()
               expect(child.get('scoped', false)).toBeUndefined()
               observed.push('isolated-child')
@@ -43,6 +41,46 @@ describe('isolate-hides-instances-not-data', () => {
       await parent.dispose()
       await provider.dispose()
     }
+  })
+
+  it('子 isolate 里有自己的提供者：inject 与按名取得读到它，没 inject 的属性解析仍读到祖先那一份', async () => {
+    const ctx = new Context()
+    const seen: Record<string, unknown> = {}
+    await ctx.plugin(plugin('parent-provider', inner => inner.provide('scoped', 'parent-instance')))
+    await ctx.plugin(
+      plugin(
+        'parent-consumer',
+        async inner => {
+          const scope = inner.isolate('scoped')
+          await scope.plugin(
+            plugin('isolated-provider', child => child.provide('scoped', 'isolated-instance')),
+          )
+          await scope.plugin(
+            plugin(
+              'injecting-child',
+              child => {
+                seen['injected property'] = Reflect.get(child, 'scoped')
+                seen['injected get'] = child.get('scoped')
+              },
+              ['scoped'],
+            ),
+          )
+          await scope.plugin(
+            plugin('plain-child', child => {
+              seen['plain property'] = Reflect.get(child, 'scoped')
+              seen['plain get'] = child.get('scoped')
+            }),
+          )
+        },
+        ['scoped'],
+      ),
+    )
+    expect(seen).toEqual({
+      'injected property': 'isolated-instance',
+      'injected get': 'isolated-instance',
+      'plain property': 'parent-instance',
+      'plain get': 'isolated-instance',
+    })
   })
 
   it('隔离不及于数据', async () => {

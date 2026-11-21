@@ -10,6 +10,7 @@ import {
 } from '../agent-adoptions/definition-mappings.ts'
 import {
   openRequestJournal,
+  type ListFilters,
   type PrincipalFacts,
   type SessionListEntry,
   type SessionListing,
@@ -22,18 +23,27 @@ import {
 import {
   DEFAULT_SESSION_INTAKE_LIMITS,
   type SessionDirectory,
+  type SessionFailure,
+  type SessionId,
+  type SessionListFilter,
   type SessionListItem,
+  type SessionListPage,
 } from '@omne-harness/session-contract'
-import { parseInstant } from '@omne-harness/utc-instant'
+import type { Outcome } from '@omne-harness/operation-result'
+import { encodeInstant, parseInstant, type Instant } from '@omne-harness/utc-instant'
 import { z } from 'zod'
 import {
-  modesInitialization,
-  type ModesCreation,
-} from '../../assembly/session-modes-initialization.ts'
+  contextInitialization,
+  type ContextCreation,
+} from '../../assembly/session-context-initialization.ts'
 import { LOCAL_HISTORY_KINDS } from '../../local/operator-defaults.ts'
 import { defineRow } from '../../row.ts'
 import { accessIdentityOfCall, memberActingOfCall } from '../server-entry/identity.ts'
 import { runFailureCauses } from './causes.ts'
+import { modelTargets } from './model-targets.ts'
+import { workspaceTargets } from './workspace-targets.ts'
+import { workspaceSelections } from './workspace-selections.ts'
+import { sessionPermissionModes } from './permission-modes.ts'
 
 const positive = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER)
 
@@ -94,31 +104,72 @@ function instantOf(text: string | null): SessionListEntry['createdAt'] | undefin
 function entryOf(item: SessionListItem): SessionListEntry | undefined {
   const createdAt = instantOf(item.createdAt)
   const lastActivityAt = instantOf(item.lastActivityAt)
-  if (createdAt === undefined || lastActivityAt === undefined) return undefined
+  const archivedAt = instantOf(item.archivedAt)
+  if (createdAt === undefined || lastActivityAt === undefined || archivedAt === undefined)
+    return undefined
+  const { session, lifecycle, title, archivedBy, relation, root, depth, attendance, definition } =
+    item
   return {
-    session: item.session,
+    session,
     createdAt,
     lastActivityAt,
-    lifecycle: item.lifecycle,
-    title: item.title,
+    lifecycle,
+    title,
+    relation: relation.kind,
+    parent: relation.kind === 'child' ? relation.parent : null,
+    origin: relation.kind === 'handoff' ? relation.origin : null,
+    root,
+    depth,
+    attendance,
+    definition,
+    archivedAt,
+    archivedBy,
   }
+}
+
+/** The filters of the protocol as the directory reads them: a null one narrows nothing. */
+function filterOf({ relation, parent, attendance, definition }: ListFilters): SessionListFilter {
+  return {
+    ...(relation === null ? {} : { kind: relation }),
+    ...(parent === null ? {} : { parent: parent as SessionId }),
+    ...(attendance === null ? {} : { attendance }),
+    ...(definition === null ? {} : { definition }),
+  }
+}
+
+// The archive times are the clock's ISO text in milliseconds, so a bound is put in that form; a
+// bound finer than a millisecond is cut to it.
+function boundOf(instant: Instant | null): string | null | undefined {
+  if (instant === null) return null
+  const millis = Date.parse(encodeInstant(instant))
+  return Number.isNaN(millis) ? undefined : new Date(millis).toISOString()
+}
+
+async function pageOf(
+  answer: Promise<Outcome<SessionListPage, SessionFailure>>,
+): ReturnType<SessionListing['list']> {
+  const result = await answer
+  if ('failure' in result) {
+    const { kind } = result.failure
+    return { refused: kind === 'invalid' || kind === 'denied' ? kind : 'basis-unavailable' }
+  }
+  const items: SessionListEntry[] = []
+  for (const item of result.ok.items) {
+    const entry = entryOf(item)
+    if (entry === undefined) return { refused: 'basis-unavailable' }
+    items.push(entry)
+  }
+  return { ok: { items, next: result.ok.next, completeness: result.ok.completeness } }
 }
 
 export function sessionListingOf(directory: SessionDirectory<Principal>): SessionListing {
   return {
-    async list(input) {
-      const result = await directory.list(input)
-      if ('failure' in result) {
-        const { kind } = result.failure
-        return { refused: kind === 'invalid' || kind === 'denied' ? kind : 'basis-unavailable' }
-      }
-      const items: SessionListEntry[] = []
-      for (const item of result.ok.items) {
-        const entry = entryOf(item)
-        if (entry === undefined) return { refused: 'basis-unavailable' }
-        items.push(entry)
-      }
-      return { ok: { items, next: result.ok.next, completeness: result.ok.completeness } }
+    list: ({ filter, ...input }) => pageOf(directory.list({ ...input, filter: filterOf(filter) })),
+    listArchived: async ({ filter, ...input }) => {
+      const from = boundOf(input.from)
+      const to = boundOf(input.to)
+      if (from === undefined || to === undefined) return { refused: 'invalid' }
+      return pageOf(directory.listArchived({ ...input, from, to, filter: filterOf(filter) }))
     },
   }
 }
@@ -129,7 +180,7 @@ function definitionsOf(ctx: Context) {
 }
 
 function prepareCreation(input: SessionCreateInput): SessionCreateInput {
-  const { initialization } = modesInitialization(input as unknown as ModesCreation)
+  const { initialization } = contextInitialization(input as unknown as ContextCreation)
   return { ...input, creation: { ...input.creation, initialization } }
 }
 
@@ -141,6 +192,10 @@ const plugin = createSessionAccessPlugin({
   definitions: definitionsOf,
   listing: sessionListingOf,
   causes: runFailureCauses,
+  modelTargets,
+  workspaceTargets,
+  workspaceSelections,
+  permissionModes: sessionPermissionModes,
   prepareCreation,
 })
 

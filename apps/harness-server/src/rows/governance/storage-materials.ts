@@ -7,6 +7,7 @@ import {
   settingsStandaloneMaterials,
   settingsValueProjectionMaterials,
 } from '@omne-harness/settings-local'
+import { settingsStandaloneCurrentMaterials } from '@omne-harness/settings-local/preparation'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
 import type { ToolRelease } from '../../entry/tool-release.ts'
 import { governanceCurrentParticipant } from './adoption-current.ts'
@@ -22,6 +23,11 @@ import {
 } from './session-permission-basis.ts'
 import { targetSnapshotParticipant } from './target-snapshot.ts'
 import { permissionBasisGuardParticipant, permissionBasisParticipant } from './permission-basis.ts'
+import { INDEPENDENT_SETTINGS_CONFIGURATION } from './independent-settings.ts'
+import {
+  HELD_SETTINGS_CONFIGURATION,
+  heldSettingsCurrentParticipants,
+} from './held-settings-current.ts'
 import { projectionReadHandler } from './projection-read.ts'
 import { PROJECTION_READ_MEMBERS } from './storage-combinations.ts'
 import {
@@ -70,6 +76,8 @@ export function governanceStorageMaterials(
     permissionBasisParticipant(),
     permissionBasisGuardParticipant(),
     ...tenantSettingsCurrentParticipants(TENANT_SETTINGS_CONFIGURATION),
+    ...heldSettingsCurrentParticipants(HELD_SETTINGS_CONFIGURATION),
+    ...settingsStandaloneCurrentMaterials('tenant', INDEPENDENT_SETTINGS_CONFIGURATION),
   ]
   const migrations = owners.flatMap(owner => owner.migrations)
   return {

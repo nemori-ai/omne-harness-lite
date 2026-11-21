@@ -2,7 +2,6 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type * as M from '@omne-harness/model-contract'
 import type * as T from '@omne-harness/tool-contract'
-import type { RetryPolicy } from '@omne-harness/retry'
 import type {
   ActionAdmission,
   Access,
@@ -23,13 +22,16 @@ import type {
   AgentRuntime,
   AgentRuntimeControl,
   CallerCommit,
+  ContextCompaction,
+  CompactionInputReader,
+  CompactionProviderBinding,
+  AgentReceivedCommits,
   CurrentConditions,
   DecisionCards,
   DurableEvidence,
   ExtensionImplementations,
   JournalCapabilities,
   MessageHandoff,
-  ModelContextReader,
   ModelSelection,
   RegisteredReads,
   Reply,
@@ -44,6 +46,7 @@ export type AgentRuntimeBinding = Readonly<{
 }>
 
 export type AgentConfiguration = Readonly<{
+  compactionProvider: CompactionProviderBinding
   observerBufferBytes: number
   reconciliationDelaysMs: readonly number[]
   reconciliationBatchLimit: number
@@ -52,7 +55,6 @@ export type AgentConfiguration = Readonly<{
   jointCommits: readonly Exclude<CallerCommit['kind'], 'none'>[]
   coordination: JournalCapabilities['coordination']
   loopGuardPolicy: Adoption
-  modelRetry: RetryPolicy
   maxRunSteps?: number
 }>
 
@@ -76,8 +78,10 @@ export type AgentDependencies<P, B extends ContentBlock> = Readonly<{
   adoptions: AgentAdoptions<P>
   conditions: CurrentConditions<P>
   requests: RequestPreparation<P>
+  compaction: ContextCompaction<P>
+  compactionInputs: CompactionInputReader<P>
+  received: AgentReceivedCommits<P, B>
   selection: ModelSelection<P>
-  modelContext: ModelContextReader<P>
   extensions: ExtensionImplementations<P>
   cards: DecisionCards<P>
   admission: ActionAdmission<P>
@@ -86,7 +90,6 @@ export type AgentDependencies<P, B extends ContentBlock> = Readonly<{
   reads: RegisteredReads<P>
   registration: AgentRegistrationHandle<P> | null
   clock: AgentClock
-  random: () => number
 }>
 
 export type ToolCallDescription =

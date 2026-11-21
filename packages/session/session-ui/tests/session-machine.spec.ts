@@ -76,6 +76,14 @@ describe('新建会话', () => {
     expect(next.state).toMatchObject({ kind: 'creating', createCallId: 'c1', confirm: 'no' })
     expect(next.effects).toEqual([{ kind: 'create-session', createCallId: 'c1' }])
   })
+
+  it('a create that names a model asks Session for a session with that model', () => {
+    const next = step(INITIAL, { kind: 'create', createCallId: 'c1', model: 'openai/gpt-x' })
+    expect(next.effects).toEqual([
+      { kind: 'create-session', createCallId: 'c1', model: 'openai/gpt-x' },
+    ])
+  })
+
   it('建会话中：不变，不发第二次', () => {
     const creating = step(INITIAL, { kind: 'create', createCallId: 'c1' }).state
     expect(step(creating, { kind: 'create', createCallId: 'c2' })).toEqual({
@@ -247,6 +255,7 @@ describe('发消息与认回', () => {
           acceptId: 'a1',
           inputId: 'i1',
           text: '你好',
+          attachments: [],
         },
       ])
     }
@@ -946,7 +955,7 @@ describe('L1–L5 会话列表', () => {
   const A = listed('ses_a', '第一个')
   const B = listed('ses_b', '第二个')
   const C = listed('ses_c', '第三个')
-  it('L1 未读：读第一页，cursor 为空，不传 limit 与 includeArchived', () => {
+  it('L1 未读：读第一页，cursor 为空，不传 limit', () => {
     const next = stepList(UNREAD, { kind: 'list-load' })
     expect(next.list).toMatchObject({ kind: 'reading', cursor: null, shown: null })
     expect(next.effects).toEqual([{ kind: 'list-sessions', token: 1, cursor: null }])

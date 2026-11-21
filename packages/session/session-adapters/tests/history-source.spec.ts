@@ -1,7 +1,6 @@
 import { Context, Service } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import { judgeMessage } from '@omne-harness/message'
-import { createContextAccounting } from '@omne-harness/request-context'
 import type {
   Access,
   ContextHolderParts,
@@ -9,11 +8,7 @@ import type {
   HistoryEvidence,
   HistoryReadResult,
 } from '@omne-harness/request-context-cordis-contract'
-import {
-  decodeRecoveryGrantRef,
-  type ContextTarget,
-  type HistoryCursor,
-} from '@omne-harness/request-context-contract'
+import { type ContextTarget, type HistoryCursor } from '@omne-harness/request-context-contract'
 import {
   ContextHolderSourcesService,
   contextHolderSourcesKey,
@@ -40,13 +35,19 @@ import {
   sessionAdoptedRequestsKey,
 } from '@omne-harness/session-cordis-contract/cordis'
 import { createSessionHistorySource } from '../src/cordis/history-source.ts'
-import { agentContextReady } from './fixtures/agent-context-ready.ts'
-import { invocation, m0Checkpoint, type FixedValues } from './fixtures/adopted-request.ts'
+import {
+  invocation,
+  m0Checkpoint,
+  samplePrefix,
+  type FixedValues,
+} from './fixtures/adopted-request.ts'
 import { ok, scene, type SceneQualification } from './fixtures/common-journal.ts'
+import { take } from './fixtures/progression.ts'
 
 type Call = Readonly<{ method: string; caller: unknown; principal: unknown }>
 type Faults = {
   epochChangedAt: number | null
+  compactionEpochChanged?: boolean
   scopes?: WorkSnapshot['contextScopes']
   page?: (page: Extract<ModelViewRead, { kind: 'page' }>) => ModelViewRead
 }
@@ -71,6 +72,8 @@ async function world(
     session: true,
   }
   const s = await scene(`history-session-${++sessions}`, undefined, qualification)
+  // The first step takes the input the Run began with: the model view holds it from here.
+  await take(s)
   const port = s.backend.transactions
   const calls: Call[] = []
   const faults: Faults = { epochChangedAt: null }
@@ -82,6 +85,15 @@ async function world(
       calls.push({ method, caller, principal: input.principal })
     const history = port.history as unknown as SessionFaces<unknown>['history']
     return {
+      readForkPoint: input => history.readForkPoint(input),
+      readCompactionContext: async input => {
+        record('history.readCompactionContext', input)
+        if (faults.compactionEpochChanged)
+          return {
+            ok: { kind: 'epoch-changed', current: { epoch: `${input.basis.epoch}+1`, upper: '1' } },
+          }
+        return history.readCompactionContext(input)
+      },
       begin: input => (record('history.begin', input), history.begin(input)),
       next: input => (record('history.next', input), history.next(input)),
       since: input => (record('history.since', input), history.since(input)),
@@ -104,11 +116,6 @@ async function world(
       },
     }
   }
-  const readWork = async (input: SessionAccess<unknown>) => {
-    const answer = await (port as unknown as SessionFaces<unknown>['work']).readWork(input)
-    if (!('ok' in answer) || faults.scopes === undefined) return answer
-    return { ok: { ...answer.ok, contextScopes: faults.scopes } }
-  }
   class Session extends SessionService<unknown> {
     get history(): SessionFaces<unknown>['history'] {
       return historyOf(this[Service.resolveConfig]())
@@ -116,9 +123,17 @@ async function world(
     get work(): SessionFaces<unknown>['work'] {
       const caller = this[Service.resolveConfig]()
       return {
-        readWork: async (input: SessionAccess<unknown>) => {
-          calls.push({ method: 'work.readWork', caller, principal: input.principal })
-          return readWork(input)
+        readCurrentScope: async (input: SessionAccess<unknown>) => {
+          calls.push({ method: 'work.readCurrentScope', caller, principal: input.principal })
+          if (typeof input.principal !== 'string')
+            throw new Error('the fixture expects a string principal')
+          const answer = await port.readCurrentScope({ ...input, principal: input.principal })
+          return !('ok' in answer) || faults.scopes === undefined
+            ? answer
+            : { ok: faults.scopes.at(-1) ?? null }
+        },
+        readWork: async () => {
+          throw new Error('the history resolver must not read the whole snapshot')
         },
       } as unknown as SessionFaces<unknown>['work']
     }
@@ -350,17 +365,17 @@ describe('contextHolderSources conformance against the history source sub-plugin
 })
 
 describe('every Session call carries the access of the part call', () => {
-  it('reads the history as reader and readWork as coordinator, with the principal of the access', async () => {
+  it('reads the history as reader and current scope as coordinator, with the principal of the access', async () => {
     const w = await world()
     const { parts } = await w.borrow()
     const ev = await resolved(w, parts)
     await readAll(parts, w.access, ev)
     const methods = new Set(w.calls.map(call => call.method))
-    expect(methods).toEqual(new Set(['work.readWork', 'history.readModelView']))
+    expect(methods).toEqual(new Set(['work.readCurrentScope', 'history.readModelView']))
     for (const call of w.calls) {
       expect(call.principal).toBe('tester')
       expect(call.caller).toEqual({
-        caller: call.method === 'work.readWork' ? 'coordinator' : 'reader',
+        caller: call.method === 'work.readCurrentScope' ? 'coordinator' : 'reader',
       })
     }
   })
@@ -430,7 +445,7 @@ describe('the history read translates the Session model view', () => {
     })
     if (first.kind !== 'page') throw new Error('not a page')
     const [row] = first.page.rows
-    expect(row).toMatchObject({ seq: '0', entry: '3', message: { role: 'user' } })
+    expect(row).toMatchObject({ seq: '0', entry: '7', message: { role: 'user' } })
     expect(typeof row?.bytes).toBe('string')
     expect(row).not.toHaveProperty('sourceCall')
     expect(first.page.next).toEqual({ evidence: ev, after: '0' })
@@ -648,6 +663,24 @@ describe('the history head resolver', () => {
 })
 
 describe('the compaction window', () => {
+  it('reads the current judgment window without replaying raw history or the full work snapshot', async () => {
+    const w = await world()
+    const { parts } = await w.borrow()
+    await w.remind(2)
+    const start = w.calls.length
+    const ev = await resolved(w, parts)
+    const answer = await parts.history.compactionContext({
+      access: w.access,
+      evidence: ev,
+      coverTo: '7' as never,
+    })
+    expect(answer.kind).toBe('context')
+    expect(
+      w.calls
+        .slice(start)
+        .filter(call => ['history.begin', 'history.next', 'work.readWork'].includes(call.method)),
+    ).toEqual([])
+  })
   it('holds the covered prefix and the tail up to the fixed upper bound, with the open lower bound', async () => {
     const w = await world()
     const { parts } = await w.borrow()
@@ -657,15 +690,15 @@ describe('the compaction window', () => {
     const answer = await parts.history.compactionContext({
       access: w.access,
       evidence: ev,
-      coverTo: '7' as never,
+      coverTo: '8' as never,
     })
     if (answer.kind !== 'context') throw new Error(JSON.stringify(answer))
     expect(answer.evidence).toEqual(ev)
-    expect(answer.value.base).toEqual({ kind: 'initial' })
-    expect(answer.value.covered.map(row => row.ref)).toEqual(['1', '2', '3', '4', '5', '6', '7'])
-    expect(answer.value.after.map(row => row.ref)).toEqual(['8', '9'])
-    for (const ref of answer.value.open) expect(Number(ref)).toBeLessThanOrEqual(9)
-    expect(w.calls.filter(c => c.method === 'work.readWork').at(-1)?.caller).toEqual({
+    expect(answer.value.base).toEqual({ kind: 'initial', pairings: [] })
+    expect(answer.value.covered.map(row => row.ref)).toEqual(['1', '7', '8'])
+    expect(answer.value.after.map(row => row.ref)).toEqual(['9', '10'])
+    for (const ref of answer.value.open) expect(Number(ref)).toBeLessThanOrEqual(10)
+    expect(w.calls.filter(c => c.method === 'work.readCurrentScope').at(-1)?.caller).toEqual({
       caller: 'coordinator',
     })
   })
@@ -680,14 +713,14 @@ describe('the compaction window', () => {
       await parts.history.compactionContext({
         access: w.access,
         evidence: ev,
-        coverTo: '8' as never,
+        coverTo: '9' as never,
       }),
     ).toEqual({ kind: 'invalid', field: 'coverTo', reason: 'upper-out-of-range' })
-    w.faults.epochChangedAt = w.calls.filter(c => c.method === 'history.readModelView').length + 2
+    w.faults.compactionEpochChanged = true
     const changed = await parts.history.compactionContext({
       access: w.access,
       evidence: ev,
-      coverTo: '7' as never,
+      coverTo: '8' as never,
     })
     expect(changed.kind).toBe('epoch-changed')
   })
@@ -777,14 +810,25 @@ describe('the narrow adoption source reads the a part of the session', () => {
       candidate: record.candidate,
       order: '1',
       committed: saved.fixed,
-      windowTokens: record.windowTokens,
-      accounting: { kind: 'unsettled' },
-      forecast: record.forecast,
       continuation: null,
     }
     expect(Object.keys(answer.value).sort()).toEqual(Object.keys(expected).sort())
     for (const [field, value] of Object.entries(expected))
       expect(answer.value[field as keyof typeof answer.value], field).toEqual(value)
+  })
+
+  it('completes the prefix a request was built on with the call it was sent as and its fixed evidence', async () => {
+    const { w, target, source } = await adoptedWorld()
+    const prefix = samplePrefix(target)
+    const { saved } = savedOf(target, '1', '1', { continuation: prefix })
+    w.provider.state.saved = saved
+    const answer = await source()
+    if (answer.kind !== 'value' || answer.value === null) throw new Error(JSON.stringify(answer))
+    expect(answer.value.continuation).toEqual({
+      ...prefix,
+      call: { tenant: target.tenant, call: 'mcall_1' },
+      fixed: saved.fixed,
+    })
   })
 
   it('the token changes when a new M0 is saved, and only then', async () => {
@@ -897,6 +941,7 @@ describe('the narrow adoption source reads the a part of the session', () => {
 
   it('the coverage evidence that the real agent-context mints for a ready preparation passes the check', async () => {
     const w = await world()
+    const { agentContextReady } = await import('./fixtures/agent-context-ready.ts')
     const { ready, target: fixed } = await agentContextReady(w.s.access.tenant)
     const bindings = ok(await w.s.backend.transactions.readWork(w.s.access)).contextScopes ?? []
     const last = bindings.at(-1)
@@ -918,47 +963,6 @@ describe('the narrow adoption source reads the a part of the session', () => {
     expect(answer).toMatchObject({
       kind: 'value',
       value: { order: '1', committed: ready.source, candidate: 'action-1' },
-    })
-  })
-
-  it('the window usage of the real accounting is not-fixed before the first M0 and an estimate after it', async () => {
-    const { w, parts, target } = await adoptedWorld()
-    const accounting = createContextAccounting<unknown>({
-      sourceAuthority: { check: async () => ({ kind: 'allowed' }) },
-      readEligibility: parts.eligibility,
-      adoptedSource: parts.adopted,
-      recoveryAuthority: {
-        check: async () => ({ kind: 'allowed' }),
-        checkFact: async () => ({ kind: 'allowed' }),
-      },
-      limits: { maxTargets: 4, maxFactsPerTarget: 16, maxRevisionsPerDispatch: 8 },
-    })
-    const grant = decodeRecoveryGrantRef('grant_1')
-    if ('failure' in grant) throw new Error('the fixture grant is invalid')
-    const rebuilt = await accounting.recovery.rebuildAccounts({
-      access: { scope: 'system', principal: 'host', grant: grant.ok },
-      target,
-      replay: {
-        snapshot: evidence('accounts'),
-        facts: (async function* (): AsyncGenerator<never> {})(),
-      },
-    })
-    expect(rebuilt.kind).toBe('rebuilt')
-    const usage = () => accounting.inbox.usage({ access: w.access, target })
-    expect(await usage()).toEqual({ kind: 'value', value: { kind: 'not-fixed' } })
-    const { saved, record } = savedOf(target, '1', '1', {
-      windowTokens: '128000',
-      forecast: { kind: 'estimate', usedTokens: '1200' },
-    })
-    w.provider.state.saved = saved
-    expect(await usage()).toMatchObject({
-      kind: 'value',
-      value: {
-        kind: 'estimate',
-        candidate: record.candidate,
-        usedTokens: '1200',
-        windowTokens: '128000',
-      },
     })
   })
 })
@@ -1041,7 +1045,7 @@ describe('a page after the cursor costs the same at N = 10 and N = 100 rows', ()
   })
 })
 
-describe('the sub-plugins on real Cordis 4.0.4', () => {
+describe('the sub-plugins on real Cordis 4.1.0', () => {
   it('stay absent while session is absent', async () => {
     const ctx = new Context()
     const w = await world({ ctx, mount: ['lowerBound', 'source'] })

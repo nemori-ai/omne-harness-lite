@@ -7,7 +7,6 @@ import {
   type ModelReceiverState,
   readModelDeliveryMaterial,
 } from '@omne-harness/agent'
-import { sampleAccountHandoff } from '@omne-harness/agent-contract/testing'
 import {
   decodeDispatchId,
   decodeModelCallId,
@@ -17,11 +16,7 @@ import {
   resolveModelInvocationRef,
   type ModelDelivery,
 } from '@omne-harness/model-contract'
-import {
-  decodeAgentExecutionId,
-  type AgentAccountHandoff,
-  type AgentAccountOutcome,
-} from '@omne-harness/agent-contract'
+import { decodeAgentExecutionId } from '@omne-harness/agent-contract'
 import { modelDeliveryMaterial, modelReceivedDraft } from '../src/receiving-material.ts'
 import { createExecutionCoordinator } from '../src/loop/coordinator.ts'
 import {
@@ -57,6 +52,7 @@ async function setup() {
   const coordinator = createExecutionCoordinator({
     ports: assembly.dependencies,
     binding: options().binding,
+    compactionProvider: options().configuration.compactionProvider,
     evaluator: agentEvaluator,
     access: alice,
     execution: execution(),
@@ -81,20 +77,12 @@ async function setup() {
   const pushed = await pusher.settled({ tenant: alice.tenant, call: reference.call })
   if (pushed.delivery === null) throw new Error('frozen envelope required')
   assembly.controls.access.check.always(() => ({ kind: 'allowed', evidence: evidence('access') }))
-  const sent: AgentAccountHandoff[] = []
-  let outlet: AgentAccountOutcome = { kind: 'received' }
   const dependencies: ModelReceiverDependencies<string> = {
     provider: assembly.controls.journal.provider,
     access: assembly.controls.access.port,
     targets: assembly.controls.journal.targets,
     models: assembly.dependencies.models.calls,
     capacity: () => ({ records: 10, bytes: 1000000, attachments: 10, inFlight: 2 }),
-    outlet: {
-      async deliver(input) {
-        sent.push(input.handoff)
-        return outlet
-      },
-    },
   }
   const state = createModelReceiverState<string>()
   const receiver = createAgentModelReceiver(dependencies, state)
@@ -111,10 +99,6 @@ async function setup() {
     state,
     receiver,
     push,
-    sent,
-    outlet(value: AgentAccountOutcome) {
-      outlet = value
-    },
   }
 }
 
@@ -312,91 +296,20 @@ function withAccount(delivery: ModelDelivery, revision = '1'): ModelDelivery {
     throw new Error('one actual dispatch required')
   const call = ok(resolveModelInvocationRef(delivery.key.reference, alice.tenant)).call
   const account = {
-    ...sampleAccountHandoff(alice.tenant, 'receiver', revision).account,
     subject: { kind: 'model_call' as const, id: call },
+    usage: [{ name: 'input', state: 'known' as const, lexeme: '0', unit: 'token' as const }],
+    cost: [],
+    trimmed: { state: 'unknown' as const, unit: 'token' as const },
+    place: 'suite',
+    duration: { state: 'unknown' as const },
+    receipt: 'received' as const,
+    revision,
   }
   return { ...delivery, accounts: [{ dispatch: delivery.accounts[0].dispatch, account }] }
 }
 
-describe('received account outbox and capacity', () => {
-  it('keeps unknown accounting pending with the identical tuple and recovers from saved entries', async () => {
-    const s = await setup(),
-      delivery = withAccount(s.delivery)
-    s.outlet({ kind: 'unknown' })
-    const input = { access: alice, delivery, signal: new AbortController().signal }
-    expect(await s.receiver.push(input)).toHaveProperty('ok')
-    expect(s.sent).toHaveLength(1)
-    expect(s.receiver.inspect().pending).toBe(1)
-    s.outlet({ kind: 'received' })
-    const assembled = createAgentModelReceiver(s.dependencies, s.state)
-    await assembled.retry({ access: alice, execution: execution(), signal: input.signal })
-    expect(s.sent).toHaveLength(2)
-    expect(s.sent[1]).toEqual(s.sent[0])
-    expect(assembled.inspect().pending).toBe(0)
-    await assembled.recover({ access: alice, execution: execution(), signal: input.signal })
-    expect(s.sent).toHaveLength(2)
-  })
-  it.each([
-    { kind: 'conflict' },
-    { kind: 'denied' },
-    { kind: 'invalid', field: 'account', reason: 'rejected' },
-  ] as const)('preserves hard $kind accounting failure across reassembly', async outcome => {
-    const s = await setup(),
-      delivery = withAccount(s.delivery)
-    s.outlet(outcome)
-    const input = { access: alice, delivery, signal: new AbortController().signal }
-    expect(await s.receiver.push(input)).toHaveProperty('ok')
-    expect(s.receiver.inspect().blocked).toBe(1)
-    s.outlet({ kind: 'received' })
-    const assembled = createAgentModelReceiver(s.dependencies, s.state)
-    await assembled.recover({ access: alice, execution: execution(), signal: input.signal })
-    expect(s.sent).toHaveLength(1)
-    expect(assembled.inspect().blocked).toBe(1)
-  })
-  it('sends no account for null and sends a later account independently', async () => {
-    const s = await setup()
-    expect(await s.push()).toHaveProperty('ok')
-    expect(s.sent).toEqual([])
-    ok(await s.coordinator.runExecution())
-    expect(
-      (await loadWithEntries(s.dependencies.provider, { ...alice, execution: execution() })).state
-        .kind,
-    ).toBe('ended')
-    const result = withAccount(s.delivery)
-    if (result.kind !== 'result' || !result.accounts[0]?.account)
-      throw new Error('account required')
-    const item = result.accounts[0]
-    if (item.account === null) throw new Error('account required')
-    const account: ModelDelivery = {
-      kind: 'account',
-      key: {
-        kind: 'account',
-        reference: result.key.reference,
-        dispatch: item.dispatch,
-        revision: item.account.revision,
-      },
-      consumer: result.consumer,
-      account: item.account,
-    }
-    expect(
-      await s.receiver.push({
-        access: alice,
-        delivery: account,
-        signal: new AbortController().signal,
-      }),
-    ).toHaveProperty('ok')
-    expect(s.sent).toHaveLength(1)
-    expect(s.sent[0]).toMatchObject({
-      dispatch: item.dispatch,
-      resultVersion: null,
-      account: item.account,
-    })
-    expect(
-      (await loadWithEntries(s.dependencies.provider, { ...alice, execution: execution() }))
-        .entries,
-    ).toHaveLength(2)
-  })
-  it('rejects a partial dispatch set and sends every non-null dispatch after joint publication', async () => {
+describe('reception capacity', () => {
+  it('rejects a partial dispatch set and accepts the complete set after joint publication', async () => {
     const s = await setup(),
       delivery = withAccount(s.delivery)
     if (delivery.kind !== 'result' || !delivery.accounts[0]) throw new Error('result required')
@@ -419,7 +332,6 @@ describe('received account outbox and capacity', () => {
     }
     expect(await s.receiver.push({ ...input, delivery: complete })).toHaveProperty('ok')
     await drainTasks(s.state)
-    expect(s.sent.map(item => item.dispatch)).toEqual([original.dispatch, dispatch])
     expect(
       (await loadWithEntries(s.dependencies.provider, { ...alice, execution: execution() }))
         .entries,
@@ -624,7 +536,6 @@ describe('receiver failure boundaries', () => {
           signal: new AbortController().signal,
         }),
       ).toEqual({ failure: { kind: 'unavailable', dependency: 'responsibility' } })
-      expect(s.sent).toEqual([])
       expect(receiver.inspect().diagnostics).toHaveLength(1)
     },
   )
@@ -702,7 +613,6 @@ it('refuses a non-original admission, result relation, tenant, and authoritative
   expect(
     (await loadWithEntries(s.dependencies.provider, { ...alice, execution: execution() })).entries,
   ).toEqual([])
-  expect(s.sent).toEqual([])
 })
 
 it.each(['same', 'different'] as const)(
@@ -821,7 +731,6 @@ it('does not return a saved receipt whose owner is unrelated to the frozen consu
       signal: new AbortController().signal,
     }),
   ).toEqual({ failure: { kind: 'outcome-unknown' } })
-  expect(s.sent).toEqual([])
   expect(receiver.inspect().diagnostics).toHaveLength(1)
 })
 
@@ -861,7 +770,6 @@ describe('maintenance isolation and independent saved', () => {
     'denies %s for a foreign tenant, revoked principal, or absent execution',
     async method => {
       const s = await setup()
-      s.outlet({ kind: 'invalid', field: 'account', reason: 'private-account' })
       ok(
         await s.receiver.push({
           access: alice,
@@ -887,67 +795,6 @@ describe('maintenance isolation and independent saved', () => {
       }
     },
   )
-  it('returns first and repeated saved while the actual outlet remains pending', async () => {
-    const s = await setup(),
-      entered = Promise.withResolvers<void>(),
-      release = Promise.withResolvers<void>()
-    let sends = 0
-    const receiver = createAgentModelReceiver(
-      {
-        ...s.dependencies,
-        capacity: () => ({ records: 10, bytes: 1000000, attachments: 10, inFlight: 1 }),
-        outlet: {
-          async deliver() {
-            sends++
-            entered.resolve()
-            await release.promise
-            return { kind: 'received' }
-          },
-        },
-      },
-      s.state,
-    )
-    const input = {
-      access: alice,
-      delivery: withAccount(s.delivery),
-      signal: new AbortController().signal,
-    }
-    const pushed = receiver.push(input)
-    await entered.promise
-    try {
-      expect(
-        await Promise.race([
-          pushed,
-          new Promise(resolve => setTimeout(() => resolve('still-waiting'), 50)),
-        ]),
-      ).toHaveProperty('ok')
-      expect(await receiver.push(input)).toHaveProperty('ok')
-      expect([...s.state.active.values()]).toEqual([0])
-      expect(s.state.outletActive.size).toBe(1)
-      expect(sends).toBe(1)
-      const late = withAccount(s.delivery, '2')
-      if (late.kind !== 'result' || !late.accounts[0]?.account) throw new Error('account required')
-      const item = late.accounts[0]
-      if (!item.account) throw new Error('account required')
-      const later: ModelDelivery = {
-        kind: 'account',
-        consumer: late.consumer,
-        key: {
-          kind: 'account',
-          reference: late.key.reference,
-          dispatch: item.dispatch,
-          revision: item.account.revision,
-        },
-        account: item.account,
-      }
-      expect(await receiver.push({ ...input, delivery: later })).toHaveProperty('ok')
-      expect([...s.state.active.values()]).toEqual([0])
-    } finally {
-      release.resolve()
-      await pushed
-      await drainTasks(s.state)
-    }
-  })
   it.each(['targets', 'access', 'inspect', 'dispatches'] as const)(
     'names the actual throwing %s dependency',
     async dependency => {
@@ -982,7 +829,6 @@ describe('maintenance isolation and independent saved', () => {
         }),
       ).toEqual({ failure: { kind: 'unavailable', dependency } })
       expect(receiver.inspect().diagnostics).toHaveLength(1)
-      expect(s.sent).toEqual([])
     },
   )
 })
@@ -1021,11 +867,9 @@ it.each(['retry', 'recover'] as const)(
   'keeps %s reports within two tenants with the same execution and another execution in one tenant',
   async method => {
     const s = await setup()
-    s.outlet({ kind: 'invalid', field: 'account', reason: 'private-original' })
-    ok(
-      await s.receiver.push({ access: alice, delivery: withAccount(s.delivery), signal: signal() }),
-    )
-    await drainTasks(s.state)
+    s.assembly.controls.journal.failNext('received', { kind: 'commit-unknown', outcome: 'applied' })
+    expect(await s.push()).toHaveProperty('failure.kind', 'outcome-unknown')
+    expect(s.receiver.inspect().pending).toBe(1)
     const original = ok(resolveModelInvocationRef(s.pending.reference, alice.tenant))
     for (const [access, id, suffix] of [
       [{ ...alice, tenant: tenantB }, execution(), 'tenant-b'],
@@ -1057,13 +901,12 @@ it.each(['retry', 'recover'] as const)(
       )
       expect(ok(await s.receiver[method]({ access, execution: id, signal: signal() }))).toEqual({
         pending: 0,
-        blocked: 0,
         diagnostics: [],
       })
     }
     expect(
       ok(await s.receiver[method]({ access: alice, execution: execution(), signal: signal() })),
-    ).toMatchObject({ blocked: 1 })
+    ).toEqual({ pending: 0, diagnostics: [] })
   },
 )
 
@@ -1120,7 +963,7 @@ it('preserves explicit denied from the Journal entries read of maintenance witho
   expect(
     await receiver.recover({ access: alice, execution: execution(), signal: signal() }),
   ).toHaveProperty('failure.kind', 'denied')
-  expect(receiver.inspect()).toEqual({ pending: 0, blocked: 0, diagnostics: [] })
+  expect(receiver.inspect()).toEqual({ pending: 0, diagnostics: [] })
 })
 
 it.each(['targets', 'access', 'final-access'] as const)(
@@ -1218,197 +1061,7 @@ it('rechecks qualification after an awaited entries read and denies the final re
   revoked = true
   release.resolve()
   expect(await pending).toHaveProperty('failure.kind', 'denied')
-  expect(s.sent).toEqual([])
 })
-
-it('keeps the actual outlet task through cancellation and reassembly and fences the old driver', async () => {
-  const s = await setup(),
-    entered = Promise.withResolvers<void>(),
-    release = Promise.withResolvers<void>()
-  const oldSent: AgentAccountHandoff[] = [],
-    newSent: AgentAccountHandoff[] = []
-  const old = createAgentModelReceiver(
-    {
-      ...s.dependencies,
-      outlet: {
-        async deliver(input) {
-          oldSent.push(input.handoff)
-          entered.resolve()
-          await release.promise
-          return { kind: 'received' }
-        },
-      },
-    },
-    s.state,
-  )
-  const delivery = withAccount(s.delivery)
-  ok(await old.push({ access: alice, delivery, signal: signal() }))
-  await entered.promise
-  const next = createAgentModelReceiver(
-    {
-      ...s.dependencies,
-      outlet: {
-        async deliver(input) {
-          newSent.push(input.handoff)
-          return { kind: 'received' }
-        },
-      },
-    },
-    s.state,
-  )
-  const stop = new AbortController()
-  const waiting = next.retry({ access: alice, execution: execution(), signal: stop.signal })
-  stop.abort()
-  expect(await waiting).toHaveProperty('failure.diagnostic', 'maintenance-cancelled')
-  expect(s.state.outletActive.size).toBe(1)
-  expect(s.state.outletTasks.size).toBe(1)
-  expect(newSent).toEqual([])
-  const late = withAccount(s.delivery, '2')
-  if (late.kind !== 'result' || !late.accounts[0]?.account) throw new Error('account required')
-  const item = late.accounts[0]
-  if (!item.account) throw new Error('account required')
-  const later: ModelDelivery = {
-    kind: 'account',
-    consumer: late.consumer,
-    key: {
-      kind: 'account',
-      reference: late.key.reference,
-      dispatch: item.dispatch,
-      revision: item.account.revision,
-    },
-    account: item.account,
-  }
-  ok(await old.push({ access: alice, delivery: later, signal: signal() }))
-  release.resolve()
-  await drainTasks(s.state)
-  expect(oldSent).toHaveLength(1)
-  expect(newSent).toHaveLength(0)
-  expect(s.state.outletActive.size).toBe(0)
-  expect(
-    ok(await next.retry({ access: alice, execution: execution(), signal: signal() })).pending,
-  ).toBe(0)
-  expect(newSent).toHaveLength(1)
-  expect(newSent[0]?.account.revision).toBe('2')
-})
-
-it.each([
-  { method: 'retry', completion: 'new-first' },
-  { method: 'recover', completion: 'new-first' },
-  { method: 'retry', completion: 'old-first' },
-  { method: 'recover', completion: 'old-first' },
-] as const)(
-  '$method skips the actual outlet task after reassembly and preserves tasks finishing $completion',
-  async ({ method, completion }) => {
-    const s = await setup(),
-      entered = Promise.withResolvers<void>(),
-      release = Promise.withResolvers<void>(),
-      releaseNew = Promise.withResolvers<void>()
-    const delivery = withAccount(s.delivery)
-    if (delivery.kind !== 'result' || !delivery.accounts[0]) throw new Error('result required')
-    const call = ok(resolveModelInvocationRef(delivery.key.reference, alice.tenant)).call
-    const original = ok(await s.dependencies.models.dispatches({ ...alice, call }))[0]
-    if (!original) throw new Error('actual first dispatch required')
-    const second = ok(decodeDispatchId('mdisp_successor'))
-    s.assembly.controls.models.recordDispatch({
-      tenant: alice.tenant,
-      call,
-      record: { ...original, dispatch: second, account: null },
-    })
-    const oldSent: AgentAccountHandoff[] = [],
-      newSent: AgentAccountHandoff[] = []
-    const old = createAgentModelReceiver(
-      {
-        ...s.dependencies,
-        outlet: {
-          async deliver(input) {
-            oldSent.push(input.handoff)
-            entered.resolve()
-            await release.promise
-            return { kind: 'received' }
-          },
-        },
-      },
-      s.state,
-    )
-    try {
-      ok(
-        await old.push({
-          access: alice,
-          delivery: {
-            ...delivery,
-            accounts: [
-              ...delivery.accounts,
-              { dispatch: second, account: delivery.accounts[0].account },
-            ],
-          },
-          signal: signal(),
-        }),
-      )
-      await entered.promise
-      const oldTasks = [...s.state.outletTasks.entries()]
-      const oldActive = [...s.state.outletActive]
-      expect(oldTasks).toHaveLength(1)
-      expect(oldActive).toHaveLength(1)
-      expect(old.inspect().pending).toBe(2)
-      const next = createAgentModelReceiver(
-        {
-          ...s.dependencies,
-          outlet: {
-            async deliver(input) {
-              newSent.push(input.handoff)
-              if (completion === 'old-first') await releaseNew.promise
-              return { kind: 'received' }
-            },
-          },
-        },
-        s.state,
-      )
-      let completed = false
-      const driven = next[method]({ access: alice, execution: execution(), signal: signal() }).then(
-        result => {
-          completed = true
-          return result
-        },
-      )
-      await expect.poll(() => newSent.map(handoff => handoff.dispatch)).toEqual([second])
-      expect(oldSent.map(handoff => handoff.dispatch)).toEqual([original.dispatch])
-      for (const [key, task] of oldTasks) expect(s.state.outletTasks.get(key)).toBe(task)
-      for (const key of oldActive) expect(s.state.outletActive.has(key)).toBe(true)
-      if (completion === 'new-first') {
-        await expect.poll(() => completed).toBe(true)
-        expect(ok(await driven).pending).toBe(1)
-        expect([...s.state.outletTasks.entries()]).toEqual(oldTasks)
-        expect([...s.state.outletActive]).toEqual(oldActive)
-        release.resolve()
-      } else {
-        const newTasks = [...s.state.outletTasks.entries()].filter(
-          ([key]) => !oldActive.includes(key),
-        )
-        expect(newTasks).toHaveLength(1)
-        expect(s.state.outletActive.size).toBe(2)
-        release.resolve()
-        await expect.poll(() => s.state.outletTasks.size).toBe(1)
-        for (const [key, task] of newTasks) expect(s.state.outletTasks.get(key)).toBe(task)
-        expect([...s.state.outletActive]).toEqual(newTasks.map(([key]) => key))
-        releaseNew.resolve()
-        ok(await driven)
-      }
-      await drainTasks(s.state)
-      expect(oldSent.map(handoff => handoff.dispatch)).toEqual([original.dispatch])
-      expect(newSent.map(handoff => handoff.dispatch)).toEqual([second])
-      expect(s.state.outletActive.size).toBe(0)
-      expect(s.state.outletTasks.size).toBe(0)
-      expect(
-        ok(await next[method]({ access: alice, execution: execution(), signal: signal() })).pending,
-      ).toBe(0)
-      expect(newSent).toHaveLength(1)
-    } finally {
-      release.resolve()
-      releaseNew.resolve()
-      await drainTasks(s.state)
-    }
-  },
-)
 
 it('freezes the original binding workset before authorization and excludes a concurrently added instance', async () => {
   const s = await setup(),
@@ -1433,7 +1086,6 @@ it('freezes the original binding workset before authorization and excludes a con
   )
   if (inspected.kind !== 'found') throw new Error('original call required')
   const foreignReads: string[] = [],
-    sends: string[] = [],
     limitedTargets: unknown[] = []
   let first = true
   const receiver = createAgentModelReceiver(
@@ -1471,16 +1123,6 @@ it('freezes the original binding workset before authorization and excludes a con
         },
         dispatches: () => s.dependencies.models.dispatches({ ...alice, call: originalRef.call }),
       },
-      outlet: {
-        async deliver(input) {
-          sends.push(input.access.principal)
-          return {
-            kind: 'invalid',
-            field: 'account',
-            reason: input.handoff.call === laterRef ? 'private-later-binding' : 'original-binding',
-          }
-        },
-      },
       provider: {
         ...s.dependencies.provider,
         materials: {
@@ -1496,9 +1138,12 @@ it('freezes the original binding workset before authorization and excludes a con
     },
     s.state,
   )
-  ok(await receiver.push({ access: alice, delivery: withAccount(s.delivery), signal: signal() }))
+  s.assembly.controls.journal.failNext('received', { kind: 'commit-unknown', outcome: 'applied' })
+  expect(
+    await receiver.push({ access: alice, delivery: s.delivery, signal: signal() }),
+  ).toHaveProperty('failure.kind', 'outcome-unknown')
   await drainTasks(s.state)
-  const maintaining = receiver.recover({
+  const maintaining = receiver.retry({
     access: { ...alice, principal: 'limited' },
     execution: execution(),
     signal: signal(),
@@ -1554,13 +1199,10 @@ it('freezes the original binding workset before authorization and excludes a con
     })),
   }
   ok(await receiver.push({ access: alice, delivery, signal: signal() }))
-  await Promise.all(s.state.outletTasks.values())
   release.resolve()
   const report = ok(await maintaining)
-  expect(report.blocked).toBe(1)
-  expect(JSON.stringify(report)).not.toContain('private-later-binding')
+  expect(report.diagnostics).toEqual([])
   expect(foreignReads).toEqual([])
-  expect(sends).toEqual(['alice', 'alice'])
   ok(
     await receiver.retry({
       access: { ...alice, principal: 'limited' },
@@ -1696,37 +1338,30 @@ it.each(['unknown', 'saved'] as const)(
   },
 )
 
-it.each(['denied', 'unavailable', 'throw'] as const)(
-  'preserves %s from the outbound qualification instead of returning a successful report',
-  async failure => {
+it.each(['retry', 'recover'] as const)(
+  '%s of an execution whose calls all have their results has nothing pending',
+  async method => {
     const s = await setup()
-    s.outlet({ kind: 'unknown' })
-    ok(
-      await s.receiver.push({ access: alice, delivery: withAccount(s.delivery), signal: signal() }),
-    )
-    await drainTasks(s.state)
     let checks = 0
     const receiver = createAgentModelReceiver(
       {
         ...s.dependencies,
+        targets: { ...s.dependencies.targets, forExecution: async () => ({ ok: [] }) },
         access: {
           async check() {
             checks++
-            if (checks === 2) {
-              if (failure === 'throw') throw new Error('access unavailable')
-              return failure === 'denied'
-                ? { kind: 'denied' }
-                : { kind: 'unavailable', diagnostic: 'access offline' }
-            }
             return { kind: 'allowed', evidence: evidence('allowed') }
           },
         },
       },
-      s.state,
+      createModelReceiverState<string>(),
     )
-    const reply = await receiver.retry({ access: alice, execution: execution(), signal: signal() })
-    expect(reply).toHaveProperty('failure.kind', failure === 'denied' ? 'denied' : 'unavailable')
-    expect(s.sent).toHaveLength(1)
-    expect(receiver.inspect().pending).toBe(1)
+    const answer = await receiver[method]({
+      access: alice,
+      execution: execution(),
+      signal: new AbortController().signal,
+    })
+    expect(answer).toEqual({ ok: expect.objectContaining({ pending: 0 }) })
+    expect(checks).toBe(0)
   },
 )

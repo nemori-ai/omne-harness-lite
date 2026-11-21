@@ -1,5 +1,13 @@
 import readPermissionMode from '../../src/worker/read-permission-mode.ts'
+import callLeftMigration from '../../src/worker/call-left-migration.ts'
+import forkMigration from '../../src/worker/fork-migration.ts'
+import compactionIndexMigration from '../../src/worker/compaction-index-migration.ts'
+import readEntryMessage from '../../src/worker/read-entry-message.ts'
+import readCompactionContext from '../../src/worker/read-compaction-context.ts'
+import readCurrentScope from '../../src/worker/read-current-scope.ts'
+import checkCompactionInput from '../../src/worker/check-compaction-input.ts'
 import permissionMigration from '../../src/worker/permission-current-migration.ts'
+import authorizationContextMigration from '../../src/worker/authorization-context-migration.ts'
 import readPermissionCurrent from '../../src/worker/read-permission-current.ts'
 import ordinaryBasis from '../../src/worker/ordinary-basis.ts'
 import { SESSION_LOG_PARTICIPANTS } from '../../src/participants.ts'
@@ -35,6 +43,7 @@ import indexMigration from '../../src/worker/execution-index-migration.ts'
 import recordMigration from '../../src/worker/execution-record-migration.ts'
 import executionRecord from '../../src/worker/execution-record.ts'
 import factBlobMigration from '../../src/worker/fact-blob-migration.ts'
+import itemMigration from '../../src/worker/item-migration.ts'
 import factBodyMigration from '../../src/worker/fact-body-migration.ts'
 import migration from '../../src/worker/migration.ts'
 import evidenceMigration from '../../src/worker/operation-evidence-migration.ts'
@@ -42,6 +51,9 @@ import participant from '../../src/worker/participant.ts'
 import preadmissionMigration from '../../src/worker/preadmission-migration.ts'
 import readBinding from '../../src/worker/read-binding.ts'
 import readBlob from '../../src/worker/read-blob.ts'
+import readBlobs from '../../src/worker/read-blobs.ts'
+import readExecutionItems from '../../src/worker/read-execution-items.ts'
+import readExecutionOpenItems from '../../src/worker/read-execution-open-items.ts'
 import readExecutionBatches from '../../src/worker/read-execution-batches.ts'
 import readExecutionEvents from '../../src/worker/read-execution-events.ts'
 import readExecutionOpen from '../../src/worker/read-execution-open.ts'
@@ -49,14 +61,20 @@ import readExecutionOperation from '../../src/worker/read-execution-operation.ts
 import readExecutionSession from '../../src/worker/read-execution-session.ts'
 import readHistoryRoot from '../../src/worker/read-history-root.ts'
 import readHistory from '../../src/worker/read-history.ts'
+import readInheritedHistory from '../../src/worker/read-inherited-history.ts'
 import readInput from '../../src/worker/read-input.ts'
 import readModelSelection from '../../src/worker/read-model-selection.ts'
+import readForkPoint from '../../src/worker/read-fork-point.ts'
 import readModelView from '../../src/worker/read-model-view.ts'
 import readPending from '../../src/worker/read-pending.ts'
+import readSearchEntries from '../../src/worker/read-search-entries.ts'
+import readSearchSessions from '../../src/worker/read-search-sessions.ts'
+import readSearchStamp from '../../src/worker/read-search-stamp.ts'
 import readPreadmission from '../../src/worker/read-preadmission.ts'
 import readReferences from '../../src/worker/read-references.ts'
 import readReleasedScopes from '../../src/worker/read-released-scopes.ts'
 import readWorkIndex from '../../src/worker/read-work-index.ts'
+import readCallsLeft from '../../src/worker/read-calls-left.ts'
 import readWorkReads from '../../src/worker/read-work-reads.ts'
 import readWorkVersion from '../../src/worker/read-work-version.ts'
 import readWork from '../../src/worker/read-work.ts'
@@ -64,24 +82,38 @@ import stateItemMigration from '../../src/worker/state-item-migration.ts'
 import attemptGrantMigration from '../../src/worker/attempt-grant-migration.ts'
 import scopeIndexMigration from '../../src/worker/scope-index-migration.ts'
 import sessionListMigration from '../../src/worker/session-list-migration.ts'
+import sessionArchiveMigration from '../../src/worker/session-archive-migration.ts'
+import sessionStandingMigration from '../../src/worker/session-standing-migration.ts'
+import readArchivedSessions from '../../src/worker/read-archived-sessions.ts'
 import readSessionList from '../../src/worker/read-session-list.ts'
 import readScopeOwner from '../../src/worker/read-scope-owner.ts'
 import statePartMigration from '../../src/worker/state-part-migration.ts'
 
 const HANDLERS: readonly ReadHandlerModule[] = [
+  checkCompactionInput,
+  readCompactionContext,
+  readEntryMessage,
   readPermissionMode,
   readPermissionCurrent,
   readWork,
+  readCurrentScope,
   readWorkVersion,
   readBinding,
   readWorkIndex,
+  readCallsLeft,
   readWorkReads,
   readInput,
   readModelSelection,
   readHistory,
+  readInheritedHistory,
+  readForkPoint,
   readModelView,
   readPending,
+  readSearchSessions,
+  readSearchStamp,
+  readSearchEntries,
   readSessionList,
+  readArchivedSessions,
   readReferences,
   readReleasedScopes,
   readScopeOwner,
@@ -91,6 +123,9 @@ const HANDLERS: readonly ReadHandlerModule[] = [
   readExecutionEvents,
   readExecutionOperation,
   readBlob,
+  readBlobs,
+  readExecutionItems,
+  readExecutionOpenItems,
   readExecutionSession,
   readPreadmission,
 ]
@@ -108,13 +143,20 @@ const MIGRATIONS: readonly MigrationModule[] = [
   stateItemMigration,
   attemptGrantMigration,
   permissionMigration,
+  authorizationContextMigration,
   scopeIndexMigration,
   sessionListMigration,
+  sessionArchiveMigration,
+  sessionStandingMigration,
   preadmissionMigration,
   admissionAttemptMigration,
   statePartMigration,
   factBodyMigration,
   factBlobMigration,
+  itemMigration,
+  compactionIndexMigration,
+  callLeftMigration,
+  forkMigration,
 ]
 
 export type StorageCall =
@@ -163,7 +205,7 @@ const textLength = (value: SqlValue): number =>
 function rowsOf(db: DatabaseSync, sql: string, params: readonly SqlValue[]): QueryRows {
   const statement = db.prepare(sql)
   statement.setReadBigInts(true)
-  if (/^\s*(SELECT|WITH)/i.test(sql)) {
+  if (/^\s*(SELECT|WITH|EXPLAIN)/i.test(sql)) {
     const rows = statement.all(...(params as never[])) as Record<string, SqlCell>[]
     const columns = rows[0] === undefined ? [] : Object.keys(rows[0])
     return {
@@ -432,6 +474,7 @@ export function createSqliteStorage(): SqliteStorage {
 }
 
 export function migratedPort(): Readonly<{
+  db: DatabaseSync
   port: {
     execute(sql: string, params?: readonly SqlValue[]): QueryRows
     requireFact(): null
@@ -445,5 +488,5 @@ export function migratedPort(): Readonly<{
     provideFact: () => undefined,
   }
   for (const module of MIGRATIONS) module.up(port)
-  return { port }
+  return { port, db }
 }

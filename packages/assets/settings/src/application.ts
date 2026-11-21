@@ -1,5 +1,11 @@
 import { z } from 'zod'
-import { SettingsChangeSchema, SettingsTargetSchema, decideSettingsChange } from './commands.ts'
+import {
+  SettingsChangeSchema,
+  SettingsTargetSchema,
+  decideSettingsChange,
+  sameTarget,
+  targetSortKey,
+} from './commands.ts'
 import { evaluateSettings, type SettingResolution } from './evaluation.ts'
 import { SettingsIdSchema, type SettingItem, type SettingDefinitions } from './schema.ts'
 import type {
@@ -61,9 +67,7 @@ function requestIsSelectable(request: SettingsViewRequest): boolean {
 }
 function targetKey(view: SettingsTargetView): string {
   return JSON.stringify([
-    view.target.scopeRef,
-    view.target.policyId,
-    view.target.targetRef,
+    ...targetSortKey(view.target),
     view.definitionRef.providerId,
     view.definitionRef.definitionId,
   ])
@@ -95,23 +99,16 @@ function entriesOf(basis: SettingsBasis): readonly SettingsCatalogEntry[] | Sett
       })
     }
   }
+  const entryKey = (entry: SettingsCatalogEntry) =>
+    JSON.stringify([
+      ...targetSortKey(entry.target),
+      entry.definitionRef.providerId,
+      entry.definitionRef.definitionId,
+      entry.item.id,
+    ])
   entries.sort((a, b) => {
-    const left = JSON.stringify([
-      a.target.scopeRef,
-      a.target.policyId,
-      a.target.targetRef,
-      a.definitionRef.providerId,
-      a.definitionRef.definitionId,
-      a.item.id,
-    ])
-    const right = JSON.stringify([
-      b.target.scopeRef,
-      b.target.policyId,
-      b.target.targetRef,
-      b.definitionRef.providerId,
-      b.definitionRef.definitionId,
-      b.item.id,
-    ])
+    const left = entryKey(a)
+    const right = entryKey(b)
     return left < right ? -1 : left > right ? 1 : 0
   })
   return entries
@@ -200,12 +197,7 @@ export function createSettingsQueries<Context>(port: SettingsReadPort<Context>) 
       if ('kind' in basis) return basis
       if (basis.completeness !== 'complete') return unavailable
       const command = parsed.data.command
-      const view = basis.views.find(
-        view =>
-          view.target.policyId === command.target.policyId &&
-          view.target.targetRef === command.target.targetRef &&
-          view.target.scopeRef === command.target.scopeRef,
-      )
+      const view = basis.views.find(view => sameTarget(view.target, command.target))
       if (!view) return { kind: 'rejected' as const, reason: 'forbidden' as const }
       return decideSettingsChange({
         command,

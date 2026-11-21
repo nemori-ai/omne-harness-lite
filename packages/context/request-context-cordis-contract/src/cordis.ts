@@ -1,7 +1,6 @@
 import { Service, type Context } from '@deepseek-ai/cordis'
 import type {
   AssemblyOperations,
-  ContextAccountingInbox,
   CompactionPolicy,
   ContextSourceRegistry,
   ContextTarget,
@@ -61,23 +60,6 @@ export abstract class RequestContextTrustService<P>
 }
 export const requestContextTrustKey = RequestContextTrustService.provide
 
-export abstract class ContextAccountingInboxService<P>
-  extends Service
-  implements ContextAccountingInbox<P>
-{
-  static readonly provide = 'contextAccountingInbox'
-  constructor(ctx: Context) {
-    super(ctx, ContextAccountingInboxService.provide)
-  }
-  abstract receive(
-    ...args: Parameters<ContextAccountingInbox<P>['receive']>
-  ): ReturnType<ContextAccountingInbox<P>['receive']>
-  abstract usage(
-    ...args: Parameters<ContextAccountingInbox<P>['usage']>
-  ): ReturnType<ContextAccountingInbox<P>['usage']>
-}
-export const contextAccountingInboxKey = ContextAccountingInboxService.provide
-
 /**
  * The parts that a source holder lends to the borrower that registers source sets. The holder
  * provides a subclass. A lease is an effect of the borrower's fiber: that fiber unloading ends the
@@ -108,7 +90,6 @@ declare module '@deepseek-ai/cordis' {
   interface Context {
     requestContext: RequestContextService<unknown>
     requestContextTrust: RequestContextTrustService<unknown>
-    contextAccountingInbox: ContextAccountingInboxService<unknown>
     contextHolderSources: ContextHolderSourcesService<unknown>
   }
   interface Events {

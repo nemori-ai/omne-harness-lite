@@ -144,6 +144,7 @@ function fixedRequest(consumer: ToolInvokeRequest['consumer']): ToolInvokeReques
     },
     command: null,
     arguments: { original: '{}', effective: '{}', complete: true },
+    label: { intent: null, tool: 'read_file', command: null, preview: '' },
     settings: adoption('settings'),
     context: adoption('context'),
     workspace: null,
@@ -214,7 +215,14 @@ async function suggestTool(
   })
   opened.push(host)
   host.controls.adoptions.define(definitions.first, {
-    definition: { category: 'AgentDefinition', name: 'tool', references: [], attributes: [] },
+    definition: {
+      category: 'AgentDefinition',
+      type: 'master',
+      summary: 'Works on what the person asks for.',
+      name: 'tool',
+      references: [],
+      attributes: [],
+    },
     evaluator: agentEvaluator,
     extensions: [],
   })

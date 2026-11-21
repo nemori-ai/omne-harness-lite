@@ -6,13 +6,36 @@ import { fixtureTenant } from '../../entry/support.ts'
 
 const A = fixtureTenant('a')
 const principal = {} as never
-const declaration = { title: 't', purpose: 'p', appliesAt: 'a', clearEffect: 'c' }
-const WEB = { category: 'tool', name: 'Web' }
-const SHELL = { category: 'tool', name: 'Shell' }
+const declaration = {
+  title: 't',
+  purpose: 'p',
+  appliesAt: 'a',
+  clearEffect: 'c',
+  group: { id: 'g', title: 'G', description: 'Group' },
+}
+const WEB = { kind: 'asset', category: 'tool', name: 'Web' } as const
+const SHELL = { kind: 'asset', category: 'tool', name: 'Shell' } as const
+const CALENDAR = {
+  kind: 'independent',
+  providerId: 'calendar',
+  definitionId: 'environment',
+} as const
+type Owner = SettingView['owner']
+type OwnerQuery = Parameters<TenantSettingsPort['describe']>[0]['owner']
+
+function sameOwner(owner: Owner, query: OwnerQuery): boolean {
+  if (owner.kind === 'asset' && query.kind === 'asset') return owner.name === query.name
+  return (
+    owner.kind === 'independent' &&
+    query.kind === 'independent' &&
+    owner.providerId === query.providerId &&
+    owner.definitionId === query.definitionId
+  )
+}
 
 function secret(item: string): SecretView {
   return {
-    asset: WEB,
+    owner: WEB,
     item,
     revision: '0',
     declaration,
@@ -22,9 +45,9 @@ function secret(item: string): SecretView {
     editable: { kind: 'yes' },
   }
 }
-function ordinary(item: string, asset = SHELL): SettingView {
+function ordinary(item: string, owner: Owner = SHELL): SettingView {
   return {
-    asset,
+    owner,
     item,
     revision: '3',
     declaration,
@@ -47,15 +70,16 @@ function secretFace(
   refuse: Partial<Record<keyof SecretSettings, Refused>> = {},
 ): SecretSettings {
   const find = (asset: { name: string }, item: string) =>
-    items.find(view => view.asset.name === asset.name && view.item === item)
+    items.find(view => sameOwner(view.owner, { kind: 'asset', ...asset }) && view.item === item)
   return {
     list: async input => {
       calls.push('secret.list')
       if (refuse.list !== undefined) return refuse.list as never
+      const { asset } = input
       return {
         kind: 'listed',
         items: items.filter(
-          view => input.asset === undefined || view.asset.name === input.asset.name,
+          view => asset === undefined || sameOwner(view.owner, { kind: 'asset', ...asset }),
         ),
       }
     },
@@ -85,17 +109,21 @@ function catalogFace(
   calls: Calls,
   refuse: Refused | null = null,
 ): TenantSettingsPort {
-  const find = (asset: { name: string }, item: string) =>
-    items.find(view => view.asset.name === asset.name && view.item === item)
+  const find = (owner: OwnerQuery, item: string) =>
+    items.find(view => sameOwner(view.owner, owner) && view.item === item)
   return {
     list: async input => {
       calls.push(`catalog.list:${String(input.after)}:${String(input.limit)}`)
       if (refuse !== null) return refuse
       if (input.after !== null && !/^\d+$/.test(input.after)) return { kind: 'unavailable' }
+      const { scope } = input
+      const asset = scope.kind === 'asset' ? scope.asset : undefined
       const selected = items.filter(
-        view => input.asset === undefined || view.asset.name === input.asset.name,
+        view =>
+          view.owner.kind === scope.kind &&
+          (asset === undefined || sameOwner(view.owner, { kind: 'asset', ...asset })),
       )
-      if (input.asset !== undefined && selected.length === 0) return { kind: 'not-visible' }
+      if (asset !== undefined && selected.length === 0) return { kind: 'not-visible' }
       const offset = input.after === null ? 0 : Number(input.after)
       return {
         kind: 'listed',
@@ -107,20 +135,20 @@ function catalogFace(
     describe: async input => {
       calls.push('catalog.describe')
       if (refuse !== null) return refuse
-      const found = find(input.asset, input.item)
+      const found = find(input.owner, input.item)
       return found === undefined ? { kind: 'not-visible' } : { kind: 'described', item: found }
     },
     set: async input => {
       calls.push(`catalog.set:${input.value.kind}`)
       if (refuse !== null) return refuse
-      return find(input.asset, input.item) === undefined
+      return find(input.owner, input.item) === undefined
         ? { kind: 'not-visible' }
         : { kind: 'written', revision: '4' }
     },
     clear: async input => {
       calls.push('catalog.clear')
       if (refuse !== null) return refuse
-      return find(input.asset, input.item) === undefined
+      return find(input.owner, input.item) === undefined
         ? { kind: 'not-visible' }
         : { kind: 'written', revision: '4' }
     },
@@ -143,18 +171,18 @@ function port(setup: Setup = {}) {
   return { calls, port: unifySettings({ secrets: () => s, catalog: () => c }) }
 }
 
-const item = (asset: typeof WEB, name: string) => ({ principal, tenant: A, asset, item: name })
-const write = (asset: typeof WEB, name: string, expectedRevision: string) => ({
-  ...item(asset, name),
+const item = (owner: OwnerQuery, name: string) => ({ principal, tenant: A, owner, item: name })
+const write = (owner: OwnerQuery, name: string, expectedRevision: string) => ({
+  ...item(owner, name),
   operation: 'op-1',
   expectedRevision,
 })
 const listOf = (after: string | null, limit: number, asset?: { name: string }) => ({
   principal,
   tenant: A,
+  scope: asset === undefined ? ({ kind: 'asset' } as const) : ({ kind: 'asset', asset } as const),
   after,
   limit,
-  ...(asset === undefined ? {} : { asset }),
 })
 const names = (answer: Awaited<ReturnType<TenantSettingsPort['list']>>) =>
   answer.kind === 'listed' ? answer.items.map(view => view.item) : answer.kind
@@ -402,5 +430,38 @@ describe('the unified settings port: list pages', () => {
     const page = await q.port.list(listOf(null, 1000))
     expect(names(page)).toHaveLength(100)
     expect(page).toMatchObject({ next: 's:100' })
+  })
+})
+
+describe('the unified settings port: an independent setting never reaches the secret face', () => {
+  const calendar = [ordinary('timezone', CALENDAR)]
+
+  it('lists the independent settings from the catalog alone', async () => {
+    const p = port({ catalog: [...calendar, ordinary('limits.lines')] })
+    const listed = await p.port.list({ ...listOf(null, 10), scope: { kind: 'independent' } })
+    expect(names(listed)).toEqual(['timezone'])
+    expect(p.calls).toEqual(['catalog.list:null:10'])
+  })
+
+  it('describes, sets and clears an independent item through the catalog alone', async () => {
+    const p = port({ catalog: calendar })
+    expect((await p.port.describe(item(CALENDAR, 'timezone'))).kind).toBe('described')
+    expect(
+      await p.port.set({
+        ...write(CALENDAR, 'timezone', '3'),
+        value: { kind: 'ordinary', value: 'Asia/Tokyo' },
+      }),
+    ).toEqual({ kind: 'written', revision: '4' })
+    expect(await p.port.clear(write(CALENDAR, 'timezone', '3'))).toEqual({
+      kind: 'written',
+      revision: '4',
+    })
+    expect(
+      await p.port.set({
+        ...write(CALENDAR, 'nothing', '0'),
+        value: { kind: 'secret', secret: 'sentinel-unify' },
+      }),
+    ).toEqual({ kind: 'not-visible' })
+    expect(p.calls.some(call => call.startsWith('secret'))).toBe(false)
   })
 })

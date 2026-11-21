@@ -3,15 +3,16 @@ import type {
   AssetsHoldingResult,
   AssetsVersionResult,
 } from '@omne-harness/assets-local'
-import type { SettingsTarget } from '@omne-harness/settings'
+import type { AssetTarget } from '@omne-harness/settings'
 import { canonicalDigest } from '@omne-harness/tool'
 import { TOOL_GOVERNANCE_OWNER } from '../../entry/tool-permission-release.ts'
+import type { ToolRelease } from '../../entry/tool-release.ts'
 import type { ToolReleaseEntry } from '../../entry/tool-release-manifest.ts'
 import { toolAssetPublication } from './tool-assets.ts'
 
 export type ToolAssetInstallation =
-  | Readonly<{ kind: 'ready'; target: SettingsTarget }>
-  | Readonly<{ kind: 'inactive'; target: SettingsTarget }>
+  | Readonly<{ kind: 'ready'; target: AssetTarget }>
+  | Readonly<{ kind: 'inactive'; target: AssetTarget }>
   | Readonly<{ kind: 'unavailable'; phase: 'publication' | 'holding' }>
 
 type Installation = Readonly<{
@@ -62,8 +63,8 @@ async function publish(input: Installation, publication: Publication): Promise<b
   return matchesPublication(await owner.readVersion(lookup), publication)
 }
 
-async function hold(input: Installation, publication: Publication, target: SettingsTarget) {
-  const lookup = { holdingRef: target.targetRef, scopeRef: target.scopeRef }
+async function hold(input: Installation, publication: Publication, target: AssetTarget) {
+  const lookup = { holdingRef: target.holdingRef, scopeRef: target.scopeRef }
   let current = await input.owner.readHolding(lookup)
   if (current.kind !== 'absent') return current
   const command = {
@@ -91,7 +92,7 @@ async function hold(input: Installation, publication: Publication, target: Setti
 async function select(
   input: Installation,
   publication: Publication,
-  target: SettingsTarget,
+  target: AssetTarget,
   current: Extract<AssetsHoldingResult, { kind: 'holding' }>,
 ): Promise<ToolAssetInstallation> {
   if (current.holding.assetRef !== publication.assetRef)
@@ -100,7 +101,7 @@ async function select(
     return { kind: 'inactive', target }
   if (current.selected?.version === publication.pinned.version) return { kind: 'ready', target }
   const command = {
-    holdingRef: target.targetRef,
+    holdingRef: target.holdingRef,
     scopeRef: target.scopeRef,
     expectedRevision: current.holding.revision,
     change: {
@@ -126,10 +127,20 @@ export async function installToolAsset(input: Installation): Promise<ToolAssetIn
     : { kind: 'unavailable', phase: 'holding' }
 }
 
-export function toolAssetTarget(entry: ToolReleaseEntry, tenantRef: string): SettingsTarget {
+export function toolAssetTarget(entry: ToolReleaseEntry, tenantRef: string): AssetTarget {
   return {
-    policyId: 'asset',
+    kind: 'asset',
+    holdingRef: `harness.preinstalled.tool.${entry.asset.name}`,
     scopeRef: tenantRef,
-    targetRef: `harness.preinstalled.tool.${entry.asset.name}`,
   }
+}
+
+/** The asset targets a release governs in a tenant: their definitions come from the release. */
+export function releaseToolTargets(
+  release: ToolRelease | undefined,
+  tenantRef: string,
+): readonly AssetTarget[] {
+  return release?.kind === 'trusted'
+    ? release.manifest.entries.map(entry => toolAssetTarget(entry, tenantRef))
+    : []
 }

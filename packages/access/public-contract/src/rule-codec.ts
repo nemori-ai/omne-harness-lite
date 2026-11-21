@@ -18,6 +18,7 @@ type LeafValues = {
   readonly string: string
   readonly session: string
   readonly 'page-bytes': string
+  readonly bytes: Uint8Array
   readonly revision: string
   readonly boolean: boolean
   readonly null: null
@@ -26,6 +27,7 @@ type LeafValues = {
   readonly login: LoginStateId
   readonly tenant: TenantId
   readonly instant: Instant
+  readonly 'plain-date': string
   readonly 'positive-integer': number
   readonly count: number
   readonly 'page-limit': number

@@ -12,7 +12,7 @@ import { secretView } from './fixtures/views.ts'
 const SENTINEL = 'sentinel-secret-7f3a91c2'
 const VIEW = secretView({ editable: { kind: 'yes' } })
 const KEY = keyOf(VIEW)
-const TARGET = { asset: VIEW.asset, item: VIEW.item }
+const TARGET = { owner: VIEW.owner, item: VIEW.item }
 
 function run(state: State, ...events: Event[]): { state: State; effects: unknown[] } {
   let current = state

@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import {
   admissionActionOf,
   cardDraftOf,
+  type AgentExecutionId,
   type CardReply,
   type CardRequest,
   type CardRoundId,
@@ -10,6 +11,7 @@ import {
   type PassageId,
 } from '@omne-harness/agent-contract'
 import type { Card, CardRef } from '@omne-harness/human-intervention'
+import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 
 export const AGENT_CARDS_OWNER = '@omne-harness/harness-server/agent-cards'
@@ -19,8 +21,13 @@ const TITLE_LIMIT = 256
 const digestOf = (parts: readonly string[]): string =>
   createHash('sha256').update(JSON.stringify(parts)).digest('hex')
 
-export function roundKey(passage: PassageId, round: CardRoundId): string {
-  return digestOf([passage, round])
+// Passage and round identities repeat in every execution, so the round is keyed within its execution.
+export function roundKey(
+  execution: AgentExecutionId,
+  passage: PassageId,
+  round: CardRoundId,
+): string {
+  return digestOf([execution, passage, round])
 }
 
 export function roundWait(key: string, destination: string) {
@@ -31,24 +38,24 @@ export function roundOperation(key: string, step: string): string {
   return `agent-cards/${key}/${step}`
 }
 
-type Question = Readonly<{
-  kind: 'admission' | 'extension'
-  cardId: string
-  title: string
-  description: string
-  declineConsequence: string
-  options: readonly Readonly<{ id: string; label: string; description: string }>[]
-}>
+type Question =
+  | Readonly<{
+      kind: 'extension'
+      cardId: string
+      title: string
+      description: string
+      declineConsequence: string
+      options: readonly Readonly<{ id: string; label: string; description: string }>[]
+    }>
+  // Its body is the draft's detail as the admission filled it; registration checks its shape.
+  | Readonly<Record<string, unknown> & { kind: 'release'; cardId: string }>
 
 export type RoundCards = Readonly<{
   kind: 'admission' | 'agent-extension'
   questions: readonly Question[]
 }>
 
-const DECLINE = {
-  admission: 'The action is not admitted this time.',
-  'agent-extension': 'The extension gets no answer.',
-} as const
+const EXTENSION_DECLINE = 'The extension gets no answer.'
 
 function titleOf(explanation: string): string {
   const line = explanation.trim().split('\n', 1)[0] ?? ''
@@ -74,21 +81,39 @@ export function roundCards(
     admitted !== null && drafts.every(draft => draft.about.action === admitted)
       ? 'admission'
       : 'agent-extension'
-  return succeed({
-    kind,
-    questions: drafts.map((draft, index) => ({
-      kind: kind === 'admission' ? 'admission' : 'extension',
-      cardId: `c${String(index + 1)}`,
-      title: titleOf(draft.explanation),
-      description: draft.explanation,
-      declineConsequence: DECLINE[kind],
-      options: draft.options.map(option => ({
-        id: option.id,
-        label: option.label,
-        description: option.label,
-      })),
-    })),
-  })
+  const questions: Question[] = []
+  for (const [index, draft] of drafts.entries()) {
+    const cardId = `c${String(index + 1)}`
+    if (kind === 'admission') {
+      const release = releaseOf(draft)
+      if (release === null) return fail('an admission draft carries no release card')
+      questions.push({ ...release, cardId })
+    } else
+      questions.push({
+        kind: 'extension',
+        cardId,
+        title: titleOf(draft.explanation),
+        description: draft.explanation,
+        declineConsequence: EXTENSION_DECLINE,
+        options: draft.options.map(option => ({
+          id: option.id,
+          label: option.label,
+          description: option.label,
+        })),
+      })
+  }
+  return succeed({ kind, questions })
+}
+
+// Only an admission's own chain carries a release card; an extension's draft never becomes one.
+function releaseOf(
+  draft: DecisionCardDraft,
+): Readonly<Record<string, unknown> & { kind: 'release' }> | null {
+  if (draft.detail?.kind !== 'object') return null
+  const body = JSON.parse(writeJsonText(draft.detail)) as Readonly<Record<string, unknown>>
+  return body['kind'] === 'release'
+    ? (body as Readonly<Record<string, unknown> & { kind: 'release' }>)
+    : null
 }
 
 const CARD_RECORD = 'hitl-card/'
@@ -115,6 +140,18 @@ export function cardRefOf(evidence: DurableEvidence, tenantRef: string): CardRef
   return cardEvidence(card).digest === evidence.digest ? card : null
 }
 
+// A release card hands the gate it was made for back with the answer, as the admission wrote it.
+function gateOf(question: Card['question']): JsonValue | null {
+  if (question.kind !== 'release' || question.gate === undefined) return null
+  return {
+    kind: 'object',
+    entries: Object.entries(question.gate).map(([key, value]) => ({
+      key,
+      value: { kind: 'string', value },
+    })),
+  }
+}
+
 export function replyOf(card: Card): CardReply {
   if (card.kind === 'pending') return { kind: 'pending' }
   if (card.kind === 'invalidated')
@@ -136,7 +173,7 @@ export function replyOf(card: Card): CardReply {
   }
   switch (reply.kind) {
     case 'selection':
-      return { kind: 'chosen', option: reply.optionId, value: null, evidence }
+      return { kind: 'chosen', option: reply.optionId, value: gateOf(card.question), evidence }
     case 'text':
       return { kind: 'remark', text: reply.text, evidence }
     case 'decline':

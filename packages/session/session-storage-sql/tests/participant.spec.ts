@@ -8,7 +8,9 @@ import {
 import { storedText } from './fixtures/entry-text.ts'
 import { packText } from './fixtures/packed.ts'
 import { readHistory } from '../src/worker/history-index.ts'
-import { initializationReceipts, maintainModelView, resultOf } from '../src/worker/participant.ts'
+import { initializationReceipts } from '../src/worker/command-reads.ts'
+import { resultOf } from '../src/worker/participant.ts'
+import { maintainModelView } from '../src/worker/commit-write.ts'
 import { migratedPort } from './fixtures/sqlite-storage.ts'
 
 const receipt = {

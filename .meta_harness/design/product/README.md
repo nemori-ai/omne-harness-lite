@@ -27,7 +27,9 @@
 | [MCP产品设计](mcp/design.md) | [未决](mcp/design.md#未决问题与待定事项) | [领域](../../../docs/domains/mcp/README.md) | [工程与规格](../../../packages/mcp/SPEC.md) |
 | [人在回路产品设计](human-intervention/design.md) | [未决](human-intervention/design.md#未决问题与待定事项) | [领域](../../../docs/domains/human-intervention/README.md) | [工程与规格](../../../packages/human-intervention/SPEC.md#总体架构) |
 | [日历产品设计](calendars/design.md) | [未决](calendars/design.md#未决问题与待定事项) | [领域](../../../docs/domains/calendars/README.md) | [工程与规格](../../../packages/calendar/SPEC.md) |
-| [通知产品候选](notifications/design.md) | [未决](notifications/design.md#未决问题与待定事项) | [领域](../../../docs/domains/notifications/README.md) | [工程与规格](../../../packages/notification/SPEC.md#总体架构) |
+| [通知产品设计](notifications/design.md) | [未决](notifications/design.md#未决问题与待定事项) | [领域](../../../docs/domains/notifications/README.md) | [工程与规格](../../../packages/notification/SPEC.md#总体架构) |
+| [用量与花费产品设计](usage-and-cost/design.md) | [未决](usage-and-cost/design.md#未决问题与待定事项) | [领域](../../../docs/domains/usage-and-cost/README.md) | [工程与规格](../../../packages/usage/SPEC.md#总体架构) |
+| [媒体产品设计](media/design.md) | [未决](media/design.md#未决问题与待定事项) | [领域](../../../docs/domains/media/README.md) | [工程与规格](../../../packages/media/SPEC.md#总体架构) |
 | [日程与作业产品设计](schedules-and-jobs/design.md) | [未决](schedules-and-jobs/design.md#未决问题与待定事项) | [领域](../../../docs/domains/schedules-and-jobs/README.md) | [工程与规格](../../../packages/schedule/SPEC.md) |
 | [桌面应用](desktop-application/design.md) | [未决](desktop-application/design.md#未决问题与待定事项) | 不是一个领域：它是一种交付面，四部分的规则归身份、会话、资产与人在回路 | [应用的规格](../../../apps/desktop/SPEC.md) |
 

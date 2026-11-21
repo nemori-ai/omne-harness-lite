@@ -7,7 +7,6 @@ declare const brand: unique symbol
 export type RequestContextRef<K extends string> = string & { readonly [brand]: K }
 export type CandidateRef = RequestContextRef<'CandidateRef'>
 export type PositionRef = RequestContextRef<'PositionRef'>
-export type PlanId = RequestContextRef<'PlanId'>
 export type EpochId = RequestContextRef<'EpochId'>
 export type BatchRef = RequestContextRef<'BatchRef'>
 export type PassageRef = RequestContextRef<'PassageRef'>
@@ -15,15 +14,12 @@ export type RegistrationRef = RequestContextRef<'RegistrationRef'>
 export type SourceGeneration = RequestContextRef<'SourceGeneration'>
 export type GroupToken = RequestContextRef<'GroupToken'>
 export type CommitOrder = RequestContextRef<'CommitOrder'>
-export type AccountingGeneration = RequestContextRef<'AccountingGeneration'>
-export type RecoveryGrantRef = RequestContextRef<'RecoveryGrantRef'>
 export type PrincipalKey = RequestContextRef<'PrincipalKey'>
 export type HistorySequence = RequestContextRef<'HistorySequence'>
 export type ContextTarget = Readonly<{ tenant: TenantId; scope: ScopeRef }>
 export type RefKind =
   | 'CandidateRef'
   | 'PositionRef'
-  | 'PlanId'
   | 'EpochId'
   | 'BatchRef'
   | 'PassageRef'
@@ -31,8 +27,6 @@ export type RefKind =
   | 'SourceGeneration'
   | 'GroupToken'
   | 'CommitOrder'
-  | 'AccountingGeneration'
-  | 'RecoveryGrantRef'
   | 'PrincipalKey'
   | 'HistorySequence'
 export type RefRejection = Readonly<{
@@ -60,7 +54,6 @@ function decode<K extends RefKind>(
 }
 export const decodeCandidateRef = (v: unknown) => decode(v, 'CandidateRef')
 export const decodePositionRef = (v: unknown) => decode(v, 'PositionRef')
-export const decodePlanId = (v: unknown) => decode(v, 'PlanId')
 export const decodeEpochId = (v: unknown) => decode(v, 'EpochId')
 export const decodeBatchRef = (v: unknown) => decode(v, 'BatchRef')
 export const decodePassageRef = (v: unknown) => decode(v, 'PassageRef')
@@ -68,8 +61,6 @@ export const decodeRegistrationRef = (v: unknown) => decode(v, 'RegistrationRef'
 export const decodeSourceGeneration = (v: unknown) => decode(v, 'SourceGeneration')
 export const decodeGroupToken = (v: unknown) => decode(v, 'GroupToken')
 export const decodeCommitOrder = (v: unknown) => decode(v, 'CommitOrder')
-export const decodeAccountingGeneration = (v: unknown) => decode(v, 'AccountingGeneration')
-export const decodeRecoveryGrantRef = (v: unknown) => decode(v, 'RecoveryGrantRef')
 export const decodePrincipalKey = (v: unknown) => decode(v, 'PrincipalKey')
 export const decodeHistorySequence = (v: unknown) => decode(v, 'HistorySequence')
 export function compareHistorySequence(left: HistorySequence, right: HistorySequence): number {

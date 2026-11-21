@@ -1,4 +1,6 @@
+import { releasedDeclaration } from '../../../src/entry/permission-declarations.ts'
 import { toolAssetTarget } from '../../../src/rows/governance/tool-installation-assets.ts'
+import { openTenantAssets } from '../../../src/rows/tenant-assets/host.ts'
 import { canonicalText } from '@omne-harness/authorization'
 import { CurrentPermissionService } from '../../../src/rows/governance/current-permission-service.ts'
 // @module-tag slow
@@ -7,7 +9,7 @@ import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   inProcessPrincipalAuthority,
   standingPrincipalRef,
@@ -23,14 +25,34 @@ import { IdentitySqlPlugin } from '@omne-harness/identity-sql/cordis'
 import { createSqliteStorage } from '@omne-harness/sqlite-provider'
 import { storageKey } from '@omne-harness/sql-contract/cordis'
 import { access, organizationCodec } from '@omne-harness/legal-identity'
-import { createSettingsRegistry } from '@omne-harness/settings'
-import { createCategoryRegistry } from '@omne-harness/assets'
-import { createAssetsLocal } from '@omne-harness/assets-local'
+import {
+  createIndependentSettingsPoint,
+  createSettingsRegistry,
+  SettingDefinitionsSchema,
+  targetSortKey,
+  type SettingDefinitions,
+} from '@omne-harness/settings'
+import {
+  capabilityId,
+  createCategoryPoint,
+  pinBody,
+  readBodyText,
+  type BodyContract,
+} from '@omne-harness/assets'
+import { toolCategoryDisplay } from '@omne-harness/tool-contract'
+import { createAssetsLocal, createTenantPublisher } from '@omne-harness/assets-local'
 import { createToolAssetCategory } from '../../../src/rows/governance/tool-assets.ts'
+import { governedCapture } from '../../../src/rows/governance/governed-capture.ts'
+import { GOVERNANCE_PROJECTION_READ } from '../../../src/rows/governance/storage-materials.ts'
+import { calendarEnvironmentSettings } from '@omne-harness/calendar-local'
+import { sessionIntakeSettings } from '@omne-harness/session-adapters/cordis'
+
+const SHIPPED_INDEPENDENT_SETTINGS = [calendarEnvironmentSettings, sessionIntakeSettings]
 import {
   combinationManifest,
   manifestDigest,
   type SqlMaterialCatalog,
+  type SqlStorage,
 } from '@omne-harness/sql-contract'
 import {
   createIdentityQualifiedSettingsPreparation,
@@ -59,6 +81,7 @@ import {
 } from '../../../src/rows/session-storage/directory.ts'
 import { prepareTenantDirectory } from '../../../src/rows/session-storage/initialize.ts'
 import { TenantGovernanceHost } from '../../../src/rows/governance/tenant-host.ts'
+import { createTenantSettingsFace } from '../../../src/rows/governance/tenant-settings-service.ts'
 import {
   openOrganizationSettingsSources,
   organizationSettingsSource,
@@ -183,12 +206,18 @@ async function world(extraParticipants: SqlMaterialCatalog['participants'] = [])
   })
   const published = await directory.ensureRegistered(tenantRef)
   if (published.kind !== 'ready') throw new Error(JSON.stringify(published))
+  const toolCategory = createCategoryPoint()
+  toolCategory.contribute({
+    contract: createToolAssetCategory(release),
+    display: toolCategoryDisplay,
+  })
   const options: TenantGovernanceOptions = {
     materials,
     storage: made.storage,
     domain,
     scope,
     catalogPrincipal: principal,
+    capture: governedCapture(toolCategory),
     destination: 'harness.governance',
     identity: {
       verifier: authority.verifier,
@@ -223,6 +252,17 @@ async function world(extraParticipants: SqlMaterialCatalog['participants'] = [])
       return result.ok
     },
     installationPrincipal: installation.ok,
+    loginPrincipal() {
+      const actor = authority.issuer.issueSystem({ component: 'identity-login-fixture' })
+      if ('failure' in actor) throw new Error('login actor')
+      const result = authority.issuer.issueActingForTenant({
+        actor: actor.ok,
+        tenant: principal.tenant,
+        work: { owner: 'identity-login', work: 'lgn_runtime' },
+      })
+      if ('failure' in result) throw new Error('login principal')
+      return result.ok
+    },
     directory,
     async reopenStorage() {
       await made.control.close({ initiator: 'disposal' })
@@ -673,16 +713,41 @@ async function installedWorld(extraParticipants: SqlMaterialCatalog['participant
   for (const entry of w.release.manifest.entries)
     for (const definition of entry.governance.declaration.settings)
       expect(registry.registerContribution(definition).kind).toBe('registered')
+  const independent = createIndependentSettingsPoint(registry)
+  for (const definition of SHIPPED_INDEPENDENT_SETTINGS) independent.contribute(definition)
   const sources = await openOrganizationSettingsSources(w.options)
   if (sources.kind !== 'created') throw new Error(JSON.stringify(sources))
   cleanup.push(sources.close)
   const targets = sources.targets
-  function prepare(organizationTargets = targets) {
+  const categories = createCategoryPoint()
+  categories.contribute({
+    contract: createToolAssetCategory(w.release),
+    display: toolCategoryDisplay,
+  })
+  const packageRoot = realpathSync(mkdtempSync(join(tmpdir(), 'governance-assets-')))
+  cleanup.push(() => rmSync(packageRoot, { recursive: true, force: true }))
+  let local: ReturnType<typeof openTenantAssets> | undefined
+  const tenantAssets = () =>
+    (local ??= openTenantAssets(
+      { storage: w.options.storage, materials: w.options.materials, packageRoot, categories },
+      w.options.domain,
+    ))
+  cleanup.push(async () => (await local)?.close())
+  function prepare(
+    organizationTargets = targets,
+    independentSettings: () => readonly SettingDefinitions[] = () => independent.list(),
+    storage: SqlStorage = w.options.storage,
+  ) {
     const prepared = prepareInstalledTenantGovernance({
       ...w.options,
+      storage,
       installationPrincipal: w.installationPrincipal,
       release: w.release,
+      permissionDeclarations: () => w.release.manifest.entries.map(releasedDeclaration),
       organizationTargets,
+      categories,
+      tenantAssets,
+      independentSettings,
       registry,
       clock: { now: () => 1794096000000 },
       cursorLifetimeMs: 60000,
@@ -690,8 +755,11 @@ async function installedWorld(extraParticipants: SqlMaterialCatalog['participant
     w.setDestination(prepared.destination)
     return prepared
   }
-  return { w, sources, prepare }
+  return { w, sources, prepare, registry, categories, independent }
 }
+
+// Ask declares no gate, so it has no settings to select.
+const selectable = (definitionId: string) => definitionId !== 'tool.Ask'
 
 it('installs the actual Tool release and adopts its original holdings before exposing the tenant backend', async () => {
   const { w, prepare } = await installedWorld()
@@ -710,18 +778,27 @@ it('installs the actual Tool release and adopts its original holdings before exp
   expect(catalog).toMatchObject({ kind: 'page', completeness: 'complete' })
   if (catalog.kind !== 'page') throw new Error(JSON.stringify(catalog))
   expect(catalog.items.map(item => item.declaration.reference.definitionId).sort()).toEqual([
+    'tool.Agents',
     'tool.Ask',
+    'tool.BkgToolCalls',
+    'tool.Calendar',
     'tool.Files',
+    'tool.Notifications',
+    'tool.Schedules',
+    'tool.Screen',
+    'tool.Sessions',
     'tool.Shell',
+    'tool.Skills',
+    'tool.SwitchWorkspace',
     'tool.TodoItems',
     'tool.Tools',
     'tool.Web',
   ])
-  expect(
-    catalog.items.every(
-      item => item.availability === 'available' && item.selectedTargets.length === 1,
-    ),
-  ).toBe(true)
+  for (const item of catalog.items)
+    expect(
+      [item.availability, item.selectedTargets.length],
+      item.declaration.reference.definitionId,
+    ).toEqual(['available', selectable(item.declaration.reference.definitionId) ? 1 : 0])
   const settings = await prepared.readSettings({
     deploymentRef: w.options.scope.deploymentId,
     mode: 'management',
@@ -730,7 +807,32 @@ it('installs the actual Tool release and adopts its original holdings before exp
   })
   expect(settings).toMatchObject({ completeness: 'complete' })
   if ('kind' in settings) throw new Error(JSON.stringify(settings))
-  expect(settings.views).toHaveLength(6)
+  const keyText = (key: readonly string[]) => JSON.stringify(key)
+  const viewed = settings.views.map(view => keyText(targetSortKey(view.target).slice(1)))
+  expect(viewed.sort()).toEqual(
+    [
+      ['independent', 'calendar', 'environment'],
+      ['independent', 'session', 'intake'],
+      ...[
+        'Agents',
+        'BkgToolCalls',
+        'Calendar',
+        'Files',
+        'Notifications',
+        'Schedules',
+        'Screen',
+        'Sessions',
+        'Shell',
+        'Skills',
+        'SwitchWorkspace',
+        'TodoItems',
+        'Tools',
+        'Web',
+      ].map(name => ['asset', `harness.preinstalled.tool.${name}`]),
+    ]
+      .map(keyText)
+      .sort(),
+  )
   const tool = w.release.manifest.entries.find(entry => entry.asset.name === 'Shell')!
   const principal = w.workPrincipal('request-session')
   const { ledgerWorld } =
@@ -742,6 +844,7 @@ it('installs the actual Tool release and adopts its original holdings before exp
     operation: { owner: 'tool', operationId: fixture.input.call },
     definition: tool.asset.adoption,
     effectiveArguments: fixture.input.request.arguments.effective,
+    gate: { id: 'run', title: '执行', default: 'ask' as const },
     origin: {
       kind: 'tool-call' as const,
       call: fixture.input.call,
@@ -755,7 +858,9 @@ it('installs the actual Tool release and adopts its original holdings before exp
   expect(request).toMatchObject({
     scope: { tenantId: w.options.scope.tenantRef, sessionId: 'request-session' },
     operation: action.operation,
-    definition: tool.governance.interpretations[0]!.definition.reference,
+    definition: tool.governance.interpretations.find(
+      value => value.binding.enforcementKey === 'tool.run',
+    )!.definition.reference,
   })
   const targets = settings.views.filter(
     view =>
@@ -814,8 +919,11 @@ it.each([false, true])(
     const original = await prepare().open()
     if (original.kind !== 'created') throw new Error(JSON.stringify(original))
     cleanup.push(original.close)
-    const categories = createCategoryRegistry()
-    categories.register(createToolAssetCategory(w.release))
+    const categories = createCategoryPoint()
+    categories.contribute({
+      contract: createToolAssetCategory(w.release),
+      display: toolCategoryDisplay,
+    })
     const assets = createAssetsLocal({
       ...governanceStorageCombinations(w.options.materials).assets,
       domain: w.options.domain,
@@ -825,16 +933,16 @@ it.each([false, true])(
     cleanup.push(assets.close)
     const organization = organizationCodec.encode(w.principal.tenant.organization)
     if (!organization.ok) throw new Error('organization encoding failed')
-    const lookups = w.release.manifest.entries.map(entry => ({
-      holding: {
-        holdingRef: `harness.preinstalled.tool.${entry.asset.name}`,
-        scopeRef: w.options.scope.tenantRef,
-      },
-      source: organizationSettingsSource({
-        organizationId: organization.value,
-        definition: entry.governance.declaration.settings[0]!,
-      }).target,
-    }))
+    const lookups = w.release.manifest.entries.flatMap(entry =>
+      entry.governance.declaration.settings.slice(0, 1).map(definition => ({
+        holding: {
+          holdingRef: `harness.preinstalled.tool.${entry.asset.name}`,
+          scopeRef: w.options.scope.tenantRef,
+        },
+        source: organizationSettingsSource({ organizationId: organization.value, definition })
+          .target,
+      })),
+    )
     if (disabled) {
       for (const { holding } of lookups) {
         expect(
@@ -873,7 +981,9 @@ it.each([false, true])(
     if (catalog.kind !== 'page') throw new Error(JSON.stringify(catalog))
     expect(catalog.items).toHaveLength(w.release.manifest.entries.length)
     for (const item of catalog.items) {
-      expect(item.selectedTargets).toHaveLength(disabled ? 0 : 1)
+      expect(item.selectedTargets).toHaveLength(
+        !disabled && selectable(item.declaration.reference.definitionId) ? 1 : 0,
+      )
       if (!disabled) expect(item.availability).toBe('available')
     }
     const after = await Promise.all(
@@ -885,6 +995,67 @@ it.each([false, true])(
     expect(after).toEqual(before)
   },
 )
+
+// The projection read of the catalog answers as scripted; every other read goes to the store.
+async function scriptedCatalogReads() {
+  const { w, prepare } = await installedWorld()
+  const base = w.options.storage
+  type Read = Awaited<ReturnType<typeof base.read>>
+  const script: { next: ((requestKey: string) => Read) | null } = { next: null }
+  const storage: typeof base = {
+    database: base.database,
+    registerCombination: input => base.registerCombination(input),
+    commit: (input, options) => base.commit(input, options),
+    query: identity => base.query(identity),
+    read: (input, options) =>
+      script.next !== null && input.handler === GOVERNANCE_PROJECTION_READ
+        ? Promise.resolve(script.next(input.requestKey))
+        : base.read(input, options),
+  }
+  // A new assembly for each attempt, as the host of the tenant makes one after a failure.
+  const open = async () => {
+    const opened = await prepare(undefined, undefined, storage).open()
+    if (opened.kind === 'created') cleanup.push(opened.close)
+    else if ('close' in opened) await opened.close()
+    return opened
+  }
+  return { script, open }
+}
+
+it('names the closed reason of a storage read that kept the tenant governance from opening, not its diagnostic', async () => {
+  const { script, open } = await scriptedCatalogReads()
+  script.next = requestKey => ({
+    kind: 'unavailable',
+    requestKey,
+    reason: 'read_timeout',
+    diagnostic: 'the reader ran 5000 ms on SELECT secret FROM somewhere',
+  })
+  const opened = await open()
+  expect(opened).toMatchObject({
+    kind: 'unavailable',
+    phase: 'installation',
+    reason: 'tool installation catalog (read_timeout)',
+  })
+  expect(JSON.stringify(opened)).not.toContain('SELECT')
+})
+
+it('does not name the reason of an earlier failure once a read came back', async () => {
+  const { script, open } = await scriptedCatalogReads()
+  script.next = requestKey => ({
+    kind: 'unavailable',
+    requestKey,
+    reason: 'queue_timeout',
+    diagnostic: null,
+  })
+  expect(await open()).toMatchObject({ reason: 'tool installation catalog (queue_timeout)' })
+  // The store answers now; the projection itself gives no catalog, which is no storage reason.
+  script.next = requestKey => ({
+    kind: 'read',
+    requestKey,
+    output: { kind: 'stopped', participant: 'suite', reply: null },
+  })
+  expect(await open()).toMatchObject({ kind: 'unavailable', reason: 'tool installation catalog' })
+})
 
 it('retains and retries close responsibility for an unavailable installation', async () => {
   const w = await world()
@@ -953,6 +1124,49 @@ it('closes an interrupted installation and resumes from original partial holding
   expect(catalog.items.every(item => item.availability === 'available')).toBe(true)
 })
 
+it('a group that cannot be opened leaves the tenant, the other group and the asset settings available', async () => {
+  const { w, prepare } = await installedWorld()
+  const altered: SettingDefinitions = {
+    ...calendarEnvironmentSettings,
+    groups: calendarEnvironmentSettings.groups.map(group => ({
+      ...group,
+      description: `${group.description}（同一版本的另一份内容）`,
+    })),
+  }
+  const request = {
+    deploymentRef: w.options.scope.deploymentId,
+    mode: 'management' as const,
+    targets: [],
+    selectionRef: null,
+  }
+  const earlier = prepare(undefined, () => [altered, sessionIntakeSettings])
+  const first = await earlier.open()
+  if (first.kind !== 'created') throw new Error(JSON.stringify(first))
+  expect(await earlier.readSettings(request)).toHaveProperty('views')
+  expect(await first.close()).toEqual({ kind: 'closed' })
+
+  const later = prepare(undefined, () => SHIPPED_INDEPENDENT_SETTINGS)
+  const runtime = await later.open()
+  expect(runtime).toMatchObject({ kind: 'created' })
+  if (runtime.kind !== 'created') throw new Error(JSON.stringify(runtime))
+  cleanup.push(runtime.close)
+  const settings = await later.readSettings(request)
+  if ('kind' in settings) throw new Error(JSON.stringify(settings))
+  expect(settings).toMatchObject({ completeness: 'complete', unavailableProviders: [] })
+  const independent = settings.views.filter(view => view.target.kind === 'independent')
+  expect(independent.map(view => view.definition.providerId).sort()).toEqual([
+    'calendar',
+    'session',
+  ])
+  expect(independent.find(view => view.definition.providerId === 'calendar')?.definition).toEqual(
+    altered,
+  )
+  expect(settings.views.filter(view => view.target.kind === 'asset')).toHaveLength(
+    w.release.manifest.entries.filter(entry => entry.governance.declaration.settings.length > 0)
+      .length,
+  )
+})
+
 it('preserves a nonempty Settings assignment across default tenant installation remount', async () => {
   const configuration = {
     destination: 'settings.installation-preservation',
@@ -967,8 +1181,8 @@ it('preserves a nonempty Settings assignment across default tenant installation 
   const entry = w.release.manifest.entries.find(value => value.asset.name === 'Shell')
   if (!entry) throw new Error('Shell release absent')
   const target = {
-    policyId: 'asset',
-    targetRef: 'harness.preinstalled.tool.Shell',
+    kind: 'asset' as const,
+    holdingRef: 'harness.preinstalled.tool.Shell',
     scopeRef: w.options.scope.tenantRef,
   }
   const request = {
@@ -1093,7 +1307,7 @@ it('preserves a nonempty Settings assignment across default tenant installation 
     definitionRef: view.definitionRef,
     expectedRevision: 0,
     sourceId: 'tenant',
-    itemId: 'invoke',
+    itemId: 'run',
     action: { kind: 'set', value: { pick: 'deny', allowedSet: null } },
   })
   expect(staged).toMatchObject({ kind: 'prepared' })
@@ -1112,7 +1326,7 @@ it('preserves a nonempty Settings assignment across default tenant installation 
     id: 'tenant',
     values: [
       {
-        itemId: 'invoke',
+        itemId: 'run',
         value: { kind: 'value', value: { pick: 'deny', allowedSet: null } },
         locked: false,
       },
@@ -1128,4 +1342,496 @@ it('preserves a nonempty Settings assignment across default tenant installation 
   const after = await next.readSettings(request)
   if ('kind' in after) throw new Error(JSON.stringify(after))
   expect(after.views).toEqual(before.views)
+})
+
+it('opens a group of independent settings declared only in this test, and keeps its target when it is withdrawn', async () => {
+  const { w, prepare, independent } = await installedWorld()
+  const gadget = SettingDefinitionsSchema.parse({
+    providerId: 'test.gadget',
+    definitionId: 'environment',
+    version: '1',
+    groups: [
+      { id: 'general', parentId: null, title: '小工具', description: '只在这个用例里', order: 0 },
+    ],
+    items: [
+      {
+        id: 'mode',
+        groupId: 'general',
+        category: 'preference',
+        presentation: {
+          title: '方式',
+          description: '小工具怎样跑',
+          impact: '下一次读时生效',
+          clear: '回到默认',
+          adoption: 'next-read',
+        },
+        valueSchema: { type: 'string' },
+        default: { kind: 'value', value: 'quiet' },
+        merge: 'override',
+        sensitivity: 'ordinary',
+      },
+    ],
+  })
+  const withdraw = independent.contribute(gadget)
+  const assembly = prepare()
+  const runtime = await assembly.open()
+  if (runtime.kind !== 'created') throw new Error(JSON.stringify(runtime))
+  cleanup.push(runtime.close)
+  const request = {
+    deploymentRef: w.options.scope.deploymentId,
+    mode: 'management' as const,
+    targets: [],
+    selectionRef: null,
+  }
+  const groups = async () => {
+    const read = await assembly.readSettings(request)
+    if ('kind' in read) throw new Error(JSON.stringify(read))
+    return read.views
+      .filter(view => view.target.kind === 'independent')
+      .map(view => targetSortKey(view.target).slice(2).join('/'))
+      .sort()
+  }
+  const opened = await groups()
+  expect(opened).toEqual(['calendar/environment', 'session/intake', 'test.gadget/environment'])
+  const host = new TenantGovernanceHost({ domains: w.directory.lookup, prepare: () => assembly })
+  cleanup.push(async () => {
+    await host.close(monotonicClock.now() + 3000)
+  })
+  const face = createTenantSettingsFace({
+    host,
+    scope: w.options.scope,
+    storage: w.options.storage,
+    release: () => w.release,
+    identity: { verifier: w.options.identity.verifier, standing: w.options.identity.standing },
+    active: () => true,
+  })
+  const login = w.loginPrincipal()
+  const independentList = async () => {
+    const page = await face.list({
+      principal: login,
+      tenant: login.tenant,
+      scope: { kind: 'independent' },
+      after: null,
+      limit: 100,
+    })
+    if (page.kind !== 'listed') throw new Error(JSON.stringify(page))
+    return page.items.map(view =>
+      view.owner.kind === 'independent'
+        ? `${view.owner.providerId}/${view.owner.definitionId}/${view.item}/${view.declaration.group.title}`
+        : `asset/${view.item}`,
+    )
+  }
+  const listedBefore = await independentList()
+  expect(listedBefore).toContain('test.gadget/environment/mode/小工具')
+  expect(listedBefore.filter(text => text.startsWith('asset/'))).toEqual([])
+  withdraw()
+  expect(await groups()).toEqual(opened)
+  expect(await independentList()).toEqual(listedBefore)
+})
+
+it('lists the settings of a holding whose category exists only in this test, beside the tools, from the definition its version stored', async () => {
+  const { w, prepare, categories } = await installedWorld()
+  const gadget = SettingDefinitionsSchema.parse({
+    providerId: 'test.gadget',
+    definitionId: 'preferences',
+    version: '1',
+    groups: [{ id: 'general', parentId: null, title: 'General', description: 'Gadget', order: 0 }],
+    items: [
+      {
+        id: 'enabled',
+        groupId: 'general',
+        category: 'preference',
+        presentation: {
+          title: 'Enabled',
+          description: 'Whether the gadget runs',
+          impact: 'Used on next read',
+          clear: 'Use the outer value',
+          adoption: 'next-read',
+        },
+        valueSchema: { type: 'boolean' },
+        default: { kind: 'value', value: false },
+        merge: 'override',
+        sensitivity: 'ordinary',
+      },
+    ],
+  })
+  const contract: BodyContract = {
+    category: 'gadget',
+    schema: { kind: 'null' },
+    judge: () => ({ ok: true }),
+    deriveDeclarations: () => ({ entries: [] }),
+    references: () => [],
+    settings: () => gadget,
+  }
+  const display = { title: 'Gadget', summary: 'A category that exists only in this test.' }
+  const withdraw = categories.contribute({ contract, display })
+  const assembly = prepare()
+  const runtime = await assembly.open()
+  if (runtime.kind !== 'created') throw new Error(JSON.stringify(runtime))
+  cleanup.push(runtime.close)
+  const assets = createAssetsLocal({
+    ...governanceStorageCombinations(w.options.materials).assets,
+    domain: w.options.domain,
+    storage: w.options.storage,
+    categories,
+  })
+  cleanup.push(assets.close)
+  const identity = capabilityId('gadget', 'one')
+  const body = readBodyText('{}', {
+    maxBytes: 100,
+    maxDepth: 4,
+    maxItems: 4,
+    maxMembers: 4,
+    maxStringLength: 16,
+    maxNumberLength: 16,
+  })
+  if (!identity.ok || body.kind !== 'ok') throw new Error('gadget fixture')
+  const tenantRef = w.options.scope.tenantRef
+  expect(
+    await assets.publish({
+      operationId: 'gadget-publish',
+      assetRef: 'test/gadget/one',
+      pinned: pinBody({ identity: identity.id, version: '1', source: 'test', body: body.value }),
+      expectedRevision: 0,
+    }),
+  ).toMatchObject({ kind: 'committed' })
+  expect(
+    await assets.hold({
+      operationId: 'gadget-hold',
+      holdingRef: 'test.gadget.one',
+      scopeRef: tenantRef,
+      assetRef: 'test/gadget/one',
+      selection: { kind: 'follow' },
+      sources: [
+        {
+          sourceId: 'tenant',
+          ownerRef: 'test.gadget',
+          scope: { kind: 'tenant', subjectRef: tenantRef },
+        },
+      ],
+      grants: [{ sourceId: 'tenant', actions: ['set', 'clear'] }],
+    }),
+  ).toMatchObject({ kind: 'committed' })
+  const host = new TenantGovernanceHost({ domains: w.directory.lookup, prepare: () => assembly })
+  cleanup.push(async () => {
+    await host.close(monotonicClock.now() + 3000)
+  })
+  const face = createTenantSettingsFace({
+    host,
+    scope: w.options.scope,
+    storage: w.options.storage,
+    release: () => w.release,
+    identity: { verifier: w.options.identity.verifier, standing: w.options.identity.standing },
+    active: () => true,
+  })
+  const login = w.loginPrincipal()
+  async function listed() {
+    const page = await face.list({
+      principal: login,
+      tenant: login.tenant,
+      scope: { kind: 'asset' },
+      after: null,
+      limit: 100,
+    })
+    if (page.kind !== 'listed') throw new Error(JSON.stringify(page))
+    expect(page.completeness).toBe('complete')
+    return page.items.map(item =>
+      item.owner.kind === 'asset'
+        ? `${item.owner.category}/${item.owner.name}/${item.item}`
+        : `independent/${item.item}`,
+    )
+  }
+  const tools = w.release.manifest.entries
+    .flatMap(entry => entry.gates.map(gate => `tool/${entry.asset.name}/${gate.id}`))
+    .sort()
+  const first = await listed()
+  expect(first).toEqual(['gadget/one/enabled', ...tools])
+
+  withdraw()
+  expect(await listed()).toEqual(first)
+
+  categories.contribute({ contract, display: { title: 'Renamed', summary: 'Another name.' } })
+  expect(await listed()).toEqual(first)
+})
+
+const presentation = (title: string) => ({
+  title,
+  description: `${title} of the gadget`,
+  impact: 'Used on next read',
+  clear: 'Use the outer value',
+  adoption: 'next-read' as const,
+})
+/** The settings a gadget version declares: the version is part of the definition, as for model providers. */
+function gadgetDefinition(version: string) {
+  return SettingDefinitionsSchema.parse({
+    providerId: 'test.gadget',
+    definitionId: 'preferences',
+    version,
+    groups: [{ id: 'general', parentId: null, title: 'General', description: 'Gadget', order: 0 }],
+    items: [
+      {
+        id: 'enabled',
+        groupId: 'general',
+        category: 'preference',
+        presentation: presentation('Enabled'),
+        valueSchema: { type: 'boolean' },
+        default: { kind: 'value', value: false },
+        merge: 'override',
+        sensitivity: 'ordinary',
+      },
+      {
+        id: 'mode',
+        groupId: 'general',
+        category: 'governance',
+        presentation: presentation('Mode'),
+        valueSchema: { type: 'string' },
+        default: { kind: 'value', value: 'off' },
+        merge: 'override',
+        sensitivity: 'ordinary',
+      },
+      {
+        id: 'token',
+        groupId: 'general',
+        category: 'binding',
+        presentation: presentation('Token'),
+        valueSchema: { type: 'string' },
+        default: { kind: 'absent' },
+        merge: 'override',
+        sensitivity: 'secret',
+      },
+    ],
+  })
+}
+const gadgetContract: BodyContract = {
+  category: 'gadget',
+  schema: { kind: 'null' },
+  judge: () => ({ ok: true }),
+  deriveDeclarations: () => ({ entries: [] }),
+  references: () => [],
+  settings: (_body, context) => gadgetDefinition(context?.definition ?? 'unpinned'),
+}
+const GADGET = { kind: 'asset', category: 'gadget', name: 'one' } as const
+
+function gadgetBody(text: string) {
+  const body = readBodyText(text, {
+    maxBytes: 100,
+    maxDepth: 4,
+    maxItems: 4,
+    maxMembers: 4,
+    maxStringLength: 16,
+    maxNumberLength: 16,
+  })
+  if (body.kind !== 'ok') throw new Error('gadget body')
+  return body.value
+}
+
+/**
+ * A tenant with one gadget published the way a tenant publishes, through the real governance
+ * writer. `beforeHeldCommit` runs once, just before the commit of a held target reaches storage.
+ */
+async function heldGadget(beforeHeldCommit?: (world: HeldGadget) => Promise<void>) {
+  const { w, prepare, categories } = await installedWorld()
+  categories.contribute({
+    contract: gadgetContract,
+    display: { title: 'Gadget', summary: 'A category that exists only in this test.' },
+  })
+  const base = w.options.storage
+  let armed = beforeHeldCommit
+  const storage: SqlStorage = {
+    database: base.database,
+    registerCombination: input => base.registerCombination(input),
+    async commit(input, options) {
+      const run = armed
+      if (
+        run !== undefined &&
+        input.combinationVersion.startsWith('harness-governance-heldSettingsCommit/')
+      ) {
+        armed = undefined
+        await run(world)
+      }
+      return base.commit(input, options)
+    },
+    query: identity => base.query(identity),
+    read: (input, options) => base.read(input, options),
+  }
+  const assembly = prepare(undefined, undefined, storage)
+  const runtime = await assembly.open()
+  if (runtime.kind !== 'created') throw new Error(JSON.stringify(runtime))
+  cleanup.push(runtime.close)
+  const assets = createAssetsLocal({
+    ...governanceStorageCombinations(w.options.materials).assets,
+    domain: w.options.domain,
+    storage: base,
+    categories,
+  })
+  cleanup.push(assets.close)
+  const tenantRef = w.options.scope.tenantRef
+  const publisher = createTenantPublisher(assets, tenantRef)
+  const made = capabilityId('gadget', 'one')
+  if (!made.ok) throw new Error('gadget identity')
+  const capability = made.id
+  async function publish(operationId: string, text: string) {
+    const outcome = await publisher.publish({
+      operationId,
+      capability,
+      content: { kind: 'data', body: gadgetBody(text) },
+    })
+    if (outcome.kind !== 'published') throw new Error(JSON.stringify(outcome))
+    return outcome
+  }
+  async function holding() {
+    const held = await assets.readHeldCapability({ capability })
+    if (held.kind !== 'holding') throw new Error(JSON.stringify(held))
+    return held.holding
+  }
+  async function change(
+    operationId: string,
+    change: Readonly<{ kind: 'remove' }> | Readonly<{ kind: 'setEnabled'; enabled: boolean }>,
+  ) {
+    const current = await holding()
+    const result = await assets.changeHolding({
+      operationId,
+      holdingRef: current.holdingRef,
+      scopeRef: tenantRef,
+      expectedRevision: current.revision,
+      change,
+    })
+    expect(result).toMatchObject({ kind: 'committed', changed: true })
+  }
+  const host = new TenantGovernanceHost({ domains: w.directory.lookup, prepare: () => assembly })
+  cleanup.push(async () => {
+    await host.close(monotonicClock.now() + 3000)
+  })
+  const face = createTenantSettingsFace({
+    host,
+    scope: w.options.scope,
+    storage: base,
+    release: () => w.release,
+    identity: { verifier: w.options.identity.verifier, standing: w.options.identity.standing },
+    active: () => true,
+  })
+  const login = w.loginPrincipal()
+  const item = (id: string) => ({ principal: login, tenant: login.tenant, owner: GADGET, item: id })
+  async function revision(id: string) {
+    const described = await face.describe(item(id))
+    if (described.kind !== 'described') throw new Error(JSON.stringify(described))
+    return described.item.revision
+  }
+  async function set(id: string, operation: string, value: unknown, at?: string) {
+    return face.set({
+      ...item(id),
+      operation,
+      expectedRevision: at ?? (await revision(id)),
+      value: { kind: 'ordinary', value: value as never },
+    })
+  }
+  async function clear(id: string, operation: string) {
+    return face.clear({ ...item(id), operation, expectedRevision: await revision(id) })
+  }
+  const world = { face, item, publish, change, holding, set, clear, revision }
+  await publish('gadget-publish-1', '{"v":1}')
+  return world
+}
+type HeldGadget = Awaited<ReturnType<typeof heldGadget>>
+
+describe('the ordinary settings of an asset that no release governs (#1390)', () => {
+  it('lists them with the definition the held version stored, the list complete, the official tools beside them', async () => {
+    const world = await heldGadget()
+    const { face, item } = world
+    const listed = await face.list({
+      ...item('enabled'),
+      scope: { kind: 'asset' },
+      after: null,
+      limit: 100,
+    })
+    if (listed.kind !== 'listed') throw new Error(JSON.stringify(listed))
+    expect(listed.completeness).toBe('complete')
+    expect(
+      listed.items
+        .filter(value => value.owner.kind === 'asset' && value.owner.category === 'gadget')
+        .map(value => value.item),
+    ).toEqual(['enabled', 'mode', 'token'])
+  })
+
+  it('writes a legal value, answers no-change for the same value, invalid for a wrong one, conflict for a stale revision', async () => {
+    const world = await heldGadget()
+    const before = await world.revision('enabled')
+    expect(await world.set('enabled', 'set-true', true)).toEqual({
+      kind: 'written',
+      revision: String(Number(before) + 1),
+    })
+    expect(await world.face.describe(world.item('enabled'))).toMatchObject({
+      item: { own: { kind: 'set', value: true }, effective: { source: 'tenant' } },
+    })
+    expect(await world.set('enabled', 'set-true-again', true)).toEqual({ kind: 'no-change' })
+    expect(await world.set('enabled', 'set-text', 'yes')).toMatchObject({ kind: 'invalid' })
+    expect(await world.set('enabled', 'set-stale', false, before)).toEqual({ kind: 'conflict' })
+  })
+
+  it('clears a value back to the default, and a clear with nothing set is no-change', async () => {
+    const world = await heldGadget()
+    await world.set('enabled', 'set-true', true)
+    expect(await world.clear('enabled', 'clear-1')).toMatchObject({ kind: 'written' })
+    expect(await world.face.describe(world.item('enabled'))).toMatchObject({
+      item: { own: { kind: 'unset' }, effective: { value: { kind: 'set', value: false } } },
+    })
+    expect(await world.clear('enabled', 'clear-2')).toEqual({ kind: 'no-change' })
+  })
+
+  it('writes the settings of a disabled holding: disabling keeps them and those who may change them still can', async () => {
+    const world = await heldGadget()
+    await world.change('disable', { kind: 'setEnabled', enabled: false })
+    expect(await world.set('enabled', 'set-disabled', true)).toMatchObject({ kind: 'written' })
+  })
+
+  it('a second write with the same operation is the first one: it takes effect once', async () => {
+    const world = await heldGadget()
+    const at = await world.revision('enabled')
+    const first = await world.set('enabled', 'set-once', true, at)
+    expect(first).toMatchObject({ kind: 'written' })
+    expect(await world.set('enabled', 'set-once', true, at)).toEqual(first)
+    expect(await world.revision('enabled')).toBe((first as { revision: string }).revision)
+  })
+
+  it('a permission item without the governance declaration that interprets it is not writable; it is still described', async () => {
+    const world = await heldGadget()
+    expect(await world.face.describe(world.item('mode'))).toMatchObject({ kind: 'described' })
+    expect(await world.set('mode', 'set-mode', 'on')).toEqual({
+      kind: 'not-writable',
+      reason: 'not-a-source',
+    })
+  })
+
+  it('a secret item is not writable through this path', async () => {
+    const world = await heldGadget()
+    expect(await world.set('token', 'set-token', 'sk-1')).toMatchObject({ kind: 'not-writable' })
+  })
+
+  it('a holding removed between prepare and commit leaves no effective value: the write is unavailable', async () => {
+    const world = await heldGadget(async w => w.change('remove-before-commit', { kind: 'remove' }))
+    expect(await world.set('enabled', 'set-then-removed', true)).toEqual({ kind: 'unavailable' })
+    expect(await world.face.describe(world.item('enabled'))).toEqual({ kind: 'not-visible' })
+  })
+
+  it('a version with another definition published between prepare and commit makes the write a conflict', async () => {
+    const world = await heldGadget(async w => {
+      await w.publish('gadget-publish-2', '{"v":2}')
+    })
+    expect(await world.set('enabled', 'set-then-new-version', true)).toEqual({ kind: 'conflict' })
+    expect(await world.face.describe(world.item('enabled'))).toMatchObject({
+      item: { own: { kind: 'unset' } },
+    })
+  })
+
+  it('a holding removed and created again under the same name starts from the defaults', async () => {
+    const world = await heldGadget()
+    await world.set('enabled', 'set-old', true)
+    const old = await world.holding()
+    await world.change('remove', { kind: 'remove' })
+    await world.publish('gadget-publish-again', '{"v":3}')
+    expect((await world.holding()).holdingRef).not.toBe(old.holdingRef)
+    expect(await world.face.describe(world.item('enabled'))).toMatchObject({
+      item: { own: { kind: 'unset' }, effective: { value: { kind: 'set', value: false } } },
+    })
+  })
 })

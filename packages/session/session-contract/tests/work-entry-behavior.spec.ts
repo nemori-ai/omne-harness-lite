@@ -5,9 +5,15 @@ import {
   projectSessionLog,
   openWork,
   type ConsumptionId,
+  type InputId,
   type SessionLogObservation,
 } from '@omne-harness/session-contract'
-import { evidence, operationId, succeeded } from '@omne-harness/session-contract/testing'
+import {
+  evidence,
+  operationId,
+  ordinaryInput,
+  succeeded,
+} from '@omne-harness/session-contract/testing'
 import { compactionReads } from '../src/model-view.ts'
 import { requiredWorkEntries } from '../src/work-entry-state.ts'
 import { open, participation } from './scene.ts'
@@ -15,6 +21,23 @@ import { open, participation } from './scene.ts'
 async function controlledIntent() {
   const s = await open()
   const { run, advance } = await s.active()
+  // The step took the first input: its delivery is the row the model view holds.
+  succeeded(
+    await s.commit({
+      kind: 'recordMessage',
+      input: {
+        ...s.base,
+        operation: operationId('deliver-first'),
+        participation: { ...participation(run.execution.execution, 'delivered'), written: '0' },
+        value: {
+          deliveries: [{ input: 'first' as InputId, message: ordinaryInput('first').message }],
+          source: evidence('step-one'),
+          admission: evidence('step-one'),
+        },
+      },
+    }),
+    'deliver',
+  )
   const consumption = 'entry-index-consumption' as ConsumptionId
   const registration = {
     kind: 'tool-intent' as const,
@@ -123,7 +146,7 @@ function compactionCommand(
       operation: operationId('compact'),
       participation: participation(snapshot.run.execution.execution, 'context-transition'),
       judgment: evidence('summary'),
-      value: { kind: 'compaction' as const, message: message.ok },
+      value: { kind: 'compaction' as const, message: message.ok, epoch: 'current' },
     },
   }
 }
@@ -146,10 +169,12 @@ describe('trusted work-entry references', () => {
     const rows = s.port.controls.entriesOf(s.access.tenant, s.access.session)
     const firstRequired = rows.findIndex(row => required.includes(row.id))
     const through = rows[firstRequired - 1]!.id
-    const user = rows.find(row => row.kind === 'message.user')!.id
+    const user = rows.find(row => row.kind === 'message.delivered')!.id
     const reads = compactionReads(rows, snapshot, through)!
     const command = compactionCommand(snapshot, rows[0]!.id, through, [user])
-    expect(decide(snapshot, command, [], null, { compaction: reads }).kind).toBe('entries')
+    expect(
+      decide(snapshot, command, [], null, { compaction: reads, compactionEpoch: 'current' }).kind,
+    ).toBe('entries')
     expect(reads.after.filter(row => required.some(ref => ref === String(row.ref)))).toHaveLength(5)
     expect(
       reads.after
@@ -161,13 +186,16 @@ describe('trusted work-entry references', () => {
       expect(
         decide(snapshot, command, [], null, {
           compaction: { ...reads, open: reads.open.filter(ref => String(ref) !== missing) },
+          compactionEpoch: 'current',
         }),
       ).toMatchObject({
         kind: 'rejected',
         failure: { kind: 'invalid', field: 'reads.compaction.open' },
       })
     const { workEntryIndex: _index, ...missingIndex } = snapshot
-    expect(decide(missingIndex, command, [], null, { compaction: reads })).toMatchObject({
+    expect(
+      decide(missingIndex, command, [], null, { compaction: reads, compactionEpoch: 'current' }),
+    ).toMatchObject({
       kind: 'rejected',
       failure: { kind: 'unavailable', owner: 'session-history' },
     })
@@ -270,11 +298,13 @@ describe('trusted work-entry references', () => {
     const snapshot = await s.read()
     const rows = s.port.controls.entriesOf(s.access.tenant, s.access.session)
     const required = requiredWorkEntries(snapshot)
-    const user = rows.find(row => row.kind === 'message.user')!.id
+    const user = rows.find(row => row.kind === 'message.delivered')!.id
     const reads = compactionReads(rows, snapshot, rows.at(-1)!.id)!
     for (const retained of [[user], [user, ...required]]) {
       const command = compactionCommand(snapshot, rows[0]!.id, rows.at(-1)!.id, retained)
-      expect(decide(snapshot, command, [], null, { compaction: reads })).toMatchObject({
+      expect(
+        decide(snapshot, command, [], null, { compaction: reads, compactionEpoch: 'current' }),
+      ).toMatchObject({
         kind: 'rejected',
         failure: { kind: 'invalid', field: 'value.message' },
       })

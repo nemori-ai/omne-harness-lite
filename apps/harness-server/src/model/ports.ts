@@ -1,7 +1,11 @@
 import type { Context } from '@deepseek-ai/cordis'
-import type { ModelHostPort, ModelRecordsPort } from './composition.ts'
+import type { ModelHostPort, ModelReadersPort, ModelRecordsPort } from './composition.ts'
 
-export type ModelRowPorts = Readonly<{ records: ModelRecordsPort; host: ModelHostPort }>
+export type ModelRowPorts = Readonly<{
+  records: ModelRecordsPort
+  host: ModelHostPort
+  readers: ModelReadersPort
+}>
 
 const registered = new WeakMap<Context, ModelRowPorts>()
 
@@ -19,4 +23,8 @@ export function modelRecordsPortOf(ctx: Context): ModelRecordsPort | undefined {
 
 export function modelHostPortOf(ctx: Context): ModelHostPort | undefined {
   return registered.get(ctx.root)?.host
+}
+
+export function modelReadersPortOf(ctx: Context): ModelReadersPort | undefined {
+  return registered.get(ctx.root)?.readers
 }

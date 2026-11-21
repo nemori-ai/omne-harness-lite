@@ -12,7 +12,7 @@ import type {
   NeedBinding,
   NeedRequest,
   NeedValue,
-  PerRequestEntry,
+  PerReadEntry,
   ReadRefusalReason,
   ReadResult,
   Registration,
@@ -20,6 +20,7 @@ import type {
   SnapshotResult,
   SourceEvidence,
   UnknownCause,
+  ScopeRef,
 } from '@omne-harness/runtime-context-contract'
 import { validate } from './validation.js'
 import {
@@ -52,12 +53,76 @@ type Checked<P> = Readonly<{
   s: ScopeState
   gate: Authorized<P>
 }>
-type Item = PerRequestEntry | Refusal
+type Item = PerReadEntry | Refusal
 
 export type BindCaller = Readonly<{ consumer?: ConsumerClass | undefined }>
 
 function cacheable(item: Item): item is CachedItem {
   return item.kind === 'value' || item.kind === 'none' || item.kind === 'missing'
+}
+
+const FENCED = (key: ContextBlockKey) =>
+  ({ key, kind: 'missing', cause: 'source-unavailable' }) as const
+
+/** One hop into an ancestor: its tenant, its binding and its replay fence, each time (CX-20, CX-24). */
+async function hop<P>(
+  world: World<P>,
+  s: ScopeState,
+  e: Eligibility<P>,
+): Promise<'open' | 'closed' | 'foreign'> {
+  if (!tenantEquals(s.tenant, e.tenant)) return 'foreign'
+  if (await world.bound(s.scope, e.tenant)) return 'foreign'
+  return s.fence === 'open' ? 'open' : 'closed'
+}
+
+type Located = Readonly<{ found: Found; d: Descriptor }>
+const NO_VALUE = (key: ContextBlockKey) => ({ key, kind: 'missing', cause: 'no-value' }) as const
+
+// Where a block is registered for this reader. An ancestor is a hop too: a replaying ancestor
+// discloses nothing, so the block is missing: not empty, and not the value it held before.
+async function located<P>(
+  world: World<P>,
+  e: Eligibility<P>,
+  key: ContextBlockKey,
+): Promise<Located | PerReadEntry> {
+  const found = world.registration(e.scope, key)
+  const d = world.descriptors.get(key)
+  if (!found || !d || world.incompatible.has(found.s.scope.ref + '\0' + key)) return NO_VALUE(key)
+  const crossing = found.s.scope.ref === e.scope.ref ? 'open' : await hop(world, found.s, e)
+  if (crossing === 'closed') return FENCED(key)
+  const own = crossing === 'open' && tenantEquals(found.s.tenant, e.tenant)
+  return own ? { found, d } : NO_VALUE(key)
+}
+
+type Inherited = Readonly<{ found: Found; stored: Stored | undefined }>
+
+async function fromAncestors<P>(
+  world: World<P>,
+  from: ScopeRef | undefined,
+  key: ContextBlockKey,
+  e: Eligibility<P>,
+): Promise<Inherited | 'fenced' | null> {
+  for (let parent = from; parent;) {
+    const candidate = world.registration(parent, key)
+    const crossing = candidate ? await hop(world, candidate.s, e) : 'foreign'
+    if (crossing === 'closed') return 'fenced'
+    if (!candidate || crossing === 'foreign') return null
+    const stored = candidate.s.values.get(key)
+    if (stored?.present) return { found: candidate, stored }
+    parent = candidate.s.scope.parent
+  }
+  return null
+}
+
+async function inheritedValue<P>(
+  world: World<P>,
+  { found, d }: Located,
+  key: ContextBlockKey,
+  e: Eligibility<P>,
+): Promise<Inherited | 'fenced'> {
+  const stored = found.s.values.get(key)
+  if (d.volatility === 'per-read' || stored?.present) return { found, stored }
+  return (await fromAncestors(world, found.s.scope.parent, key, e)) ?? { found, stored }
 }
 
 export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
@@ -90,31 +155,11 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
     return { kind: 'checked', e, s, gate: decided }
   }
 
-  async function inheritedValue(
-    found: Found,
-    key: ContextBlockKey,
-    d: Descriptor,
-    e: Eligibility<P>,
-  ) {
-    let stored = found.s.values.get(key)
-    if (d.volatility === 'per-request') return { found, stored }
-    let parent = found.s.scope.parent
-    while (!stored?.present && parent) {
-      const candidate = world.registration(parent, key)
-      if (!candidate || !tenantEquals(candidate.s.tenant, e.tenant)) break
-      if (await world.bound(candidate.s.scope, e.tenant)) break
-      const value = candidate.s.values.get(key)
-      if (value?.present) return { found: candidate, stored: value }
-      parent = candidate.s.scope.parent
-    }
-    return { found, stored }
-  }
-
   function fromOutcome(
     key: ContextBlockKey,
     d: Descriptor,
     outcome: SupplyOutcome,
-  ): PerRequestEntry | Refusal | null {
+  ): PerReadEntry | Refusal | null {
     switch (outcome.kind) {
       case 'refused':
         return { kind: 'refused', reason: 'unauthorized' }
@@ -131,11 +176,11 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
     }
   }
 
-  async function perRequest(
+  async function perRead(
     key: ContextBlockKey,
     d: Descriptor,
     source: ScopeState,
-  ): Promise<{ entry: PerRequestEntry | Refusal } | { stored: Stored }> {
+  ): Promise<{ entry: PerReadEntry | Refusal } | { stored: Stored }> {
     const producer = supplier.producerFor(source, key)
     if (!producer || !supplier.isCurrent(producer) || !producer.supply)
       return {
@@ -166,7 +211,7 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
     found: Found,
     key: ContextBlockKey,
     d: Descriptor,
-  ): Promise<PerRequestEntry | Refusal | null> {
+  ): Promise<PerReadEntry | Refusal | null> {
     const s = found.s
     if (s.needsSupply.get(key) !== s.replayEpoch) return null
     const producer = supplier.producerFor(s, key)
@@ -220,22 +265,21 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
   }
 
   async function readBlock(e: Eligibility<P>, key: ContextBlockKey): Promise<Item> {
-    let found = world.registration(e.scope, key)
-    const d = world.descriptors.get(key)
-    if (!found || !d || world.incompatible.has(found.s.scope.ref + '\0' + key))
-      return { key, kind: 'missing', cause: 'no-value' }
-    if (!tenantEquals(found.s.tenant, e.tenant)) return { key, kind: 'missing', cause: 'no-value' }
-    if (d.kind === 'supplied' && d.volatility !== 'per-request') {
-      const refreshed = await refresh(found, key, d)
+    const where = await located(world, e, key)
+    if (!('found' in where)) return where
+    const { d } = where
+    if (d.kind === 'supplied' && d.volatility !== 'per-read') {
+      const refreshed = await refresh(where.found, key, d)
       if (refreshed) return refreshed
     }
-    const inherited = await inheritedValue(found, key, d, e)
-    found = inherited.found
+    const inherited = await inheritedValue(world, where, key, e)
+    if (inherited === 'fenced') return FENCED(key)
+    const { found } = inherited
     let stored = inherited.stored
     if (stored?.refused) return { kind: 'refused', reason: 'unauthorized' }
     if (stored?.unknown) return { key, kind: 'unknown', cause: 'source-unknown' }
-    if (d.volatility === 'per-request') {
-      const supplied = await perRequest(key, d, found.s)
+    if (d.volatility === 'per-read') {
+      const supplied = await perRead(key, d, found.s)
       if ('entry' in supplied) return supplied.entry
       stored = supplied.stored
     }
@@ -272,7 +316,7 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
   async function stableItems(checked: Checked<P>): Promise<Map<ContextBlockKey, Item>> {
     const items = new Map<ContextBlockKey, Item>()
     for (const key of checked.e.keys) {
-      if (world.descriptors.get(key)?.volatility === 'per-request') continue
+      if (world.descriptors.get(key)?.volatility === 'per-read') continue
       const item = await readBlock(checked.e, key)
       items.set(key, item)
       if (!cacheable(item)) break
@@ -356,14 +400,14 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
       const stable = await readStable(checked)
       const blocks: BlockEntry[] = [],
         missing: MissingItem[] = [],
-        perRequestEntries: PerRequestEntry[] = []
+        perReadEntries: PerReadEntry[] = []
       for (const key of e.keys) {
         const d = world.descriptors.get(key)
-        const item = d?.volatility === 'per-request' ? await readBlock(e, key) : stable.get(key)
+        const item = d?.volatility === 'per-read' ? await readBlock(e, key) : stable.get(key)
         if (!item) continue
         if (item.kind === 'refused') return item
-        if (d?.volatility === 'per-request') {
-          perRequestEntries.push(item)
+        if (d?.volatility === 'per-read') {
+          perReadEntries.push(item)
           continue
         }
         if (item.kind === 'unknown') return { kind: 'unknown', cause: item.cause }
@@ -399,7 +443,7 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
         cursor,
         blocks,
         missing,
-        perRequest: perRequestEntries,
+        perRead: perReadEntries,
       }
       const result = disclose(checked, value)
       if ('kind' in result) return result
@@ -519,7 +563,7 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
           cursor: next.value.cursor,
           entries: next.value.blocks.filter(b => prior.get(b.key)?.revision !== b.revision),
           missing: next.value.missing,
-          perRequest: next.value.perRequest,
+          perRead: next.value.perRead,
         },
       }
     }

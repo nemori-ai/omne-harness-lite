@@ -9,6 +9,7 @@ export type {
   ModelMaterializationEvidenceReader,
   PiMaterializationOptions,
 } from './materialization-proof.ts'
+export type { ModelReceiveEvidenceReader } from './receive-evidence.ts'
 export {
   createPiSendResources,
   SendResourceDefect,
@@ -18,3 +19,6 @@ export {
   type RequestDisclosure,
   type SendResourceDefectReason,
 } from './send-resources.ts'
+export { officialProfiles } from './official-profiles.ts'
+export { COST_LOOKUP_OWNER } from './plugins/cost-lookups.ts'
+export { officialProfileAdoption } from './profile-source.ts'

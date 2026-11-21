@@ -171,7 +171,7 @@ it('retains removed holding identities and allows a fresh holding without revivi
   ).toEqual({ kind: 'rejected', reason: 'holding_removed' })
 })
 function targetInput() {
-  return { holdingRef: target.targetRef, scopeRef: target.scopeRef }
+  return { holdingRef: target.holdingRef, scopeRef: target.scopeRef }
 }
 
 it('serializes concurrent publications against one current asset revision', async () => {
@@ -235,6 +235,6 @@ it('refuses a holding and a read of a holding in another scope', async () => {
     }),
   ).toEqual({ kind: 'rejected', reason: 'forbidden' })
   expect(
-    await world.owner.readHolding({ holdingRef: target.targetRef, scopeRef: 'tenant-b' }),
+    await world.owner.readHolding({ holdingRef: target.holdingRef, scopeRef: 'tenant-b' }),
   ).toEqual({ kind: 'rejected', reason: 'forbidden' })
 })

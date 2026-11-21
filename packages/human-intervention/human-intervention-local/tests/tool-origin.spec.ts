@@ -36,7 +36,7 @@ function toolRegistration(request: RegisterRequest): RegisterRequest {
     questions: [
       ...request.questions,
       {
-        kind: 'approval',
+        kind: 'question',
         cardId: 'approve',
         title: 'Delete the file?',
         description: 'The agent wants to delete notes.txt',
@@ -58,7 +58,7 @@ async function registerIndependent(w: World) {
     operation: w.operation('register-independent'),
     preparationRef: 'prepared-independent',
     origin: {
-      kind: 'independent',
+      kind: 'agent-extension',
       originRef: 'form',
       wait: { ...w.request.origin.wait, owner: 'independent', waitId: 'independent-1' },
       positionRef: 'step-a',
@@ -117,13 +117,13 @@ it('registers a tool card batch and lists it in the pool and in its session, eac
   expect(await pool(w, { sessionRef: SESSION, originKind: 'tool' })).toEqual(inSession)
   expect(await pool(w, { originKind: 'tool' })).toEqual(inSession)
   expect(await pool(w, { sessionRef: 'session-2' })).toEqual([])
-  expect(await pool(w, { sessionRef: SESSION, originKind: 'independent' })).toEqual([])
-  expect((await pool(w, { originKind: 'independent' })).map(item => item.origin)).toEqual([
+  expect(await pool(w, { sessionRef: SESSION, originKind: 'agent-extension' })).toEqual([])
+  expect((await pool(w, { originKind: 'agent-extension' })).map(item => item.origin)).toEqual([
     independent.origin,
   ])
   const all = await pool(w)
   expect(all.slice(0, 2)).toEqual(inSession)
-  expect(all.map(item => item.origin.kind)).toEqual(['tool', 'tool', 'independent'])
+  expect(all.map(item => item.origin.kind)).toEqual(['tool', 'tool', 'agent-extension'])
 
   expect(
     await w.app.getRequest(
@@ -289,13 +289,13 @@ it('tells a late reply the decision of a card that was answered before the origi
   })
 }, 30000)
 
-it('passes the independent origin to the assembly and registers it without a guard', async () => {
+it('passes an origin without a session to the assembly and registers it without a guard', async () => {
   const { state, guards } = switchableGuards()
   const w = await open(guards, false)
   const registered = await w.app.registerRequest(w.principal, w.request)
   expect(registered).toMatchObject({ kind: 'registered' })
   expect(state.calls).toEqual([w.request.origin])
-  expect((await pool(w, { originKind: 'independent' })).map(item => item.origin)).toEqual([
+  expect((await pool(w, { originKind: 'agent-extension' })).map(item => item.origin)).toEqual([
     w.request.origin,
   ])
 }, 30000)

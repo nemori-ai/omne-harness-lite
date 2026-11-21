@@ -42,7 +42,12 @@ beforeEach(() => {
   if (declared.kind !== 'defined') throw new Error('invalid fixture')
   definition = declared.definition
 })
-const target = { policyId: 'independent', targetRef: 'service', scopeRef: 'tenant-a' }
+const target = {
+  kind: 'independent',
+  providerId: 'example',
+  definitionId: 'preferences',
+  scopeRef: 'tenant-a',
+} as const
 const definitionRef = {
   providerId: 'example',
   definitionId: 'preferences',

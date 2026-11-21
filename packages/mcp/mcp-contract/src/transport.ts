@@ -9,7 +9,7 @@ import type {
   TaskReport,
   UnusableCause,
 } from './outcomes.ts'
-import type { HttpCredentialHandle, ProcessHandle } from './ports.ts'
+import type { HttpCredentialHandle } from './ports.ts'
 import type { PeerIdentity, Untrusted } from './values.ts'
 import type { Outcome } from '@omne-harness/operation-result'
 
@@ -73,20 +73,13 @@ export interface McpTransport {
   close(): Promise<void>
 }
 
-export type TransportMaterial =
-  | Readonly<{
-      kind: 'stdio'
-      process: ProcessHandle
-      generation: Generation
-      instructionsByteLimit: number
-    }>
-  | Readonly<{
-      kind: 'streamable-http'
-      target: ConnectionTarget
-      credential?: HttpCredentialHandle
-      generation: Generation
-      instructionsByteLimit: number
-    }>
+export type TransportMaterial = Readonly<{
+  kind: 'streamable-http'
+  target: ConnectionTarget
+  credential?: HttpCredentialHandle
+  generation: Generation
+  instructionsByteLimit: number
+}>
 
 export interface McpTransportFactory {
   open(

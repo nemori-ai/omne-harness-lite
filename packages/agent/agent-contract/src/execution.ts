@@ -1,4 +1,5 @@
 import type { Message } from '@omne-harness/message'
+import type { CompactionTaskIdentity } from './compaction.ts'
 import type * as M from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
 import type * as T from '@omne-harness/tool-contract'
@@ -110,8 +111,10 @@ export type FinishAuthorization =
   | Readonly<{ kind: 'cancel'; control: AgentOperationId; source: DurableEvidence }>
 export type ExecutionControl =
   | Readonly<{ kind: 'interrupt-model'; call: M.ModelCallId; reason: DurableEvidence }>
+  // Each Tool control asks Tool for one intent. An urgent input sends `release-tool`; a
+  // cancellation sends `withdraw-tool`.
   | Readonly<{
-      kind: 'interrupt-tool' | 'background-tool'
+      kind: 'interrupt-tool' | 'background-tool' | 'release-tool' | 'withdraw-tool'
       call: T.ToolCallId
       reason: DurableEvidence
     }>
@@ -128,7 +131,8 @@ export type ControlStageFact = Readonly<{
   state: 'reached' | 'unresolved'
   source: DurableEvidence
 }>
-type ToolControl = Extract<ExecutionControl, { kind: 'interrupt-tool' | 'background-tool' }>
+type ToolControl = Extract<ExecutionControl, { call: T.ToolCallId }>
+type ModelControl = Extract<ExecutionControl, { kind: 'interrupt-model' }>
 export type ControlRecord = Readonly<{
   operation: AgentOperationId
   stages: Readonly<
@@ -140,11 +144,20 @@ export type ControlRecord = Readonly<{
   (
     | Readonly<{
         command: ToolControl
+        modelInvocation?: never
         toolInvocation: T.ToolInvocationRef
         toolOperation: T.ToolOperationRef | null
       }>
     | Readonly<{
-        command: Exclude<ExecutionControl, ToolControl>
+        command: ModelControl
+        /** The invocation the Journal resolved at acceptance; a control never looks its call up later. */
+        modelInvocation: M.ModelInvocationRef
+        toolInvocation?: never
+        toolOperation?: never
+      }>
+    | Readonly<{
+        command: Exclude<ExecutionControl, ToolControl | ModelControl>
+        modelInvocation?: never
         toolInvocation?: never
         toolOperation?: never
       }>
@@ -367,11 +380,16 @@ export type AgentAccessOperation =
   | 'exclude-message-handoff'
   | 'settle'
   | 'migrate-cancellation'
+  | 'compaction.admit'
+  | 'compaction.inspect'
+  | 'compaction.cancel'
+  | 'compaction.acknowledge'
 export type AgentAccessTarget =
   | Readonly<{ kind: 'scope'; scope: DurableEvidence; definition: Adoption }>
   | Readonly<{ kind: 'instance'; instance: AgentInstanceId }>
   | Readonly<{ kind: 'execution'; execution: AgentExecutionId }>
   | Readonly<{ kind: 'input-entry'; execution: AgentExecutionId; operation: AgentOperationId }>
+  | Readonly<{ kind: 'compaction'; task: CompactionTaskIdentity }>
 export type AgentAccessDecision =
   | Readonly<{ kind: 'allowed'; evidence: DurableEvidence }>
   | Readonly<{ kind: 'denied' }>

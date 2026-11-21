@@ -1,6 +1,11 @@
 import { expect, it } from 'vitest'
 import { succeed } from '@omne-harness/operation-result'
-import { adoption, evidence, operationId } from '@omne-harness/session-contract/testing'
+import {
+  adoption,
+  evidence,
+  memoryOtherAccess,
+  operationId,
+} from '@omne-harness/session-contract/testing'
 import { createRuntimeContext } from '@omne-harness/runtime-context'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import { createTestAuthorityPorts } from '@omne-harness/runtime-context-contract/testing'
@@ -140,6 +145,7 @@ it('publishes original Session mode changes through a coordinator Cordis fiber a
             operation: operationId('deny-mode'),
             declaration: {
               kind: 'permission-mode',
+              expectedRevision: '0',
               value: 'never',
               authorization: evidence('mode-change'),
             },
@@ -190,6 +196,7 @@ it('publishes original Session mode changes through a coordinator Cordis fiber a
             operation: operationId('auto-mode'),
             declaration: {
               kind: 'permission-mode',
+              expectedRevision: '1',
               value: 'auto_permission',
               authorization: evidence('mode-change'),
             },
@@ -216,10 +223,34 @@ it('publishes original Session mode changes through a coordinator Cordis fiber a
         },
       ],
     })
+    expect(await producer.readPermissionMode(scene.sessionAccess)).toEqual({
+      kind: 'read',
+      mode: 'auto_permission',
+      revision: '2',
+    })
+    expect(await producer.readModes(scene.sessionAccess)).toMatchObject({
+      kind: 'read',
+      modes: { permission: 'auto_permission', collaboration: expect.any(String) },
+      revision: '2',
+    })
+    expect(
+      await producer.readPermissionMode({
+        ...scene.sessionAccess,
+        tenant: memoryOtherAccess(null).tenant,
+      }),
+    ).toEqual({ kind: 'unavailable' })
+    expect(
+      await producer.readModes({ ...scene.sessionAccess, session: 'missing' as never }),
+    ).toEqual({ kind: 'unavailable' })
+    expect(
+      await producer.readPermissionMode({ ...scene.sessionAccess, session: 'missing' as never }),
+    ).toEqual({ kind: 'unavailable' })
     await notify(['session.permission-assigned'])
     await plugin.dispose()
     expect(await bound.reader.read([need])).toHaveProperty('kind', 'missing')
     expect(await producer.refresh(work.session)).toEqual({ kind: 'unavailable' })
+    expect(await producer.readPermissionMode(scene.sessionAccess)).toEqual({ kind: 'unavailable' })
+    expect(await producer.readModes(scene.sessionAccess)).toEqual({ kind: 'unavailable' })
   } finally {
     await context.dispose()
     await runtime.close()

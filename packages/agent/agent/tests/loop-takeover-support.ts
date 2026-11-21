@@ -7,12 +7,10 @@ import {
   type ResultPart,
   type Termination,
 } from '@omne-harness/model-contract'
-import { parseRetryPolicy, type RetryPolicy } from '@omne-harness/retry'
 import type { TenantId } from '@omne-harness/legal-identity'
 import {
   createExecutionCoordinator,
   createResumedCoordinator,
-  type ExecutionEntry,
   type ResumeEntry,
 } from '../src/loop/coordinator.ts'
 import { options } from './factory-support.ts'
@@ -29,20 +27,10 @@ import { alice, loopAssembly, type LoopAssembly } from './loop-support.ts'
 
 export type Dependencies = AgentDependencies<Principal, ContentBlock>
 export type Settle = Readonly<{ termination: Termination; parts: readonly ResultPart[] }>
-export type Retrying = Parameters<NonNullable<ExecutionEntry<Principal>['modelRetrying']>>
 export type Counts = { loads: number; received: number; inputs: number }
 
 export const START = '1970-01-01T00:00:00Z'
 export const at = (seconds: number) => new Date(Date.parse(START) + seconds * 1000).toISOString()
-
-export const policy = (change: Partial<RetryPolicy> = {}) =>
-  parseRetryPolicy({
-    maxAttempts: 3,
-    maxElapsedMs: 60_000,
-    delaysMs: [1000, 2000],
-    jitter: 0.5,
-    ...change,
-  })
 
 export const failed = (): Settle => ({
   termination: {
@@ -78,7 +66,6 @@ type Admitted = Readonly<{ tenant: TenantId; call: ModelCallId }>
 export type Takeover = Readonly<{
   assembly: LoopAssembly
   admitted: Admitted[]
-  retrying: Retrying[]
   counts: Counts
   coordinator(): ReturnType<typeof createExecutionCoordinator>
   rebuild(): Promise<ReturnType<typeof createResumedCoordinator>>
@@ -92,6 +79,7 @@ export function resumeEntry(
   return {
     ports: dependencies,
     binding: options().binding,
+    compactionProvider: options().configuration.compactionProvider,
     evaluator: agentEvaluator,
     access: alice,
     execution: execution(),
@@ -148,11 +136,10 @@ function counting(d: Dependencies, counts: Counts): Dependencies {
 
 export async function takeover(
   script: readonly (Settle | null)[],
-  retry: RetryPolicy = policy(),
   wrap: (d: Dependencies) => Dependencies = d => d,
+  change: Partial<ResumeEntry<Principal>> = {},
 ): Promise<Takeover> {
   const admitted: Admitted[] = []
-  const retrying: Retrying[] = []
   const counts: Counts = { loads: 0, received: 0, inputs: 0 }
   const settle = async (index: number, result: Settle) => {
     const call = admitted[index]
@@ -192,15 +179,11 @@ export async function takeover(
       counts,
     ),
   )
-  const entry = resumeEntry(assembly.dependencies, {
-    modelRetry: { policy: retry, random: () => 0 },
-    modelRetrying: (...event: Retrying) => retrying.push(event),
-  })
+  const entry = resumeEntry(assembly.dependencies, change)
   let rebuilds = 0
   return {
     assembly,
     admitted,
-    retrying,
     counts,
     settle,
     coordinator: () =>

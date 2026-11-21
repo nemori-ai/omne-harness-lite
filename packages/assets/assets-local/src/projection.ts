@@ -20,8 +20,8 @@ function selectedTarget(
   binding: SettingsProjectionBinding,
   target: SettingsTargetProjection['target'],
 ) {
-  if (target.policyId !== 'asset' || target.scopeRef !== scopeRef(binding.domain)) return null
-  const holding = readHolding(port, binding.domain, target.targetRef)
+  if (target.kind !== 'asset' || target.scopeRef !== scopeRef(binding.domain)) return null
+  const holding = readHolding(port, binding.domain, target.holdingRef)
   if (!holding || holding.state !== 'held') return null
   const selected = selectedVersion(port, holding)
   return selected === null ? null : { holding, ...selected }
@@ -52,18 +52,30 @@ function targetView(
   const current = selectedTarget(port, binding, target)
   return current === null ? null : settingsView(current, target)
 }
-function captureTargets(port: ParticipantPort, binding: SettingsProjectionBinding, scope: string) {
+function heldOutside(port: ParticipantPort, domain: string, excluded: readonly string[]) {
+  const ranges = excluded.map(category => `[${canonical(category)},`)
+  const outside = ranges.map(() => ' AND NOT (capability_key > ? AND capability_key < ?)').join('')
+  return port
+    .execute(
+      `SELECT holding_ref FROM al_holdings WHERE scope_key = ? AND state = 'held'${outside} ORDER BY holding_ref LIMIT 129`,
+      [domain, ...ranges.flatMap(prefix => [prefix, `${prefix.slice(0, -1)}-`])],
+    )
+    .rows.map(row => String(row[0]))
+}
+function captureTargets(
+  port: ParticipantPort,
+  binding: SettingsProjectionBinding,
+  scope: string,
+  excluded: readonly string[],
+) {
   const targets = binding.request.targets
-  const selected =
-    targets.length === 0 && binding.request.mode === 'management'
-      ? port
-          .execute(
-            "SELECT holding_ref FROM al_holdings WHERE scope_key = ? AND state = 'held' ORDER BY holding_ref LIMIT 129",
-            [canonical(binding.domain)],
-          )
-          .rows.map(row => ({ policyId: 'asset', targetRef: String(row[0]), scopeRef: scope }))
-      : targets.filter(target => target.policyId === 'asset')
-  return selected
+  if (targets.length > 0 || binding.request.mode !== 'management')
+    return targets.filter(target => target.kind === 'asset')
+  return heldOutside(port, canonical(binding.domain), excluded).map(holdingRef => ({
+    kind: 'asset' as const,
+    holdingRef,
+    scopeRef: scope,
+  }))
 }
 function currentViews(
   port: ParticipantPort,
@@ -95,6 +107,7 @@ function currentViews(
 export function capture(
   port: ParticipantPort,
   binding: SettingsProjectionBinding,
+  excluded: readonly string[],
   publication = false,
 ) {
   const fail = (reason: 'forbidden' | 'limit_exceeded' | 'invalid_input') => ({
@@ -110,7 +123,7 @@ export function capture(
   const scope = scopeRef(binding.domain)
   if (scope === null || (current && !equal(current.domain, binding.domain)))
     return fail('forbidden')
-  const selected = captureTargets(port, binding, scope)
+  const selected = captureTargets(port, binding, scope, excluded)
   if (selected.length > 128) return fail('limit_exceeded')
   if (publication) return capturePublications(port, binding, selected)
   const currentTargets = currentViews(port, binding, selected)

@@ -7,7 +7,6 @@ import {
 } from '@omne-harness/agent-contract'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
-import { parseRetryPolicy } from '@omne-harness/retry'
 import type { AgentConfiguration, AgentRuntimeOptions } from './construction.ts'
 
 type JointCommitKind = AgentConfiguration['jointCommits'][number]
@@ -74,6 +73,20 @@ function judgeJointCommits(value: unknown): Failure | undefined {
 }
 
 function judgeConfiguration(configuration: AgentConfiguration): Failure | undefined {
+  const compaction = configuration.compactionProvider
+  if (
+    typeof compaction !== 'object' ||
+    compaction === null ||
+    typeof compaction.authority !== 'string' ||
+    compaction.authority.length === 0
+  )
+    return invalid('configuration.compactionProvider', 'type')
+  const rejected = structure(
+    'configuration.compactionProvider.adoption',
+    judgeAdoption(compaction.adoption),
+    'Adoption',
+  )
+  if (rejected !== undefined) return rejected
   for (const key of POSITIVE_SAFE)
     if (!isPositiveSafeInteger(configuration[key])) return invalid(`configuration.${key}`, 'range')
   for (const key of NON_NEGATIVE)
@@ -84,11 +97,6 @@ function judgeConfiguration(configuration: AgentConfiguration): Failure | undefi
     return invalid('configuration.maxRunSteps', 'range')
   if (!COORDINATION_MODES.includes(configuration.coordination))
     return invalid('configuration.coordination', 'unknown-mode')
-  try {
-    parseRetryPolicy(configuration.modelRetry)
-  } catch {
-    return invalid('configuration.modelRetry', 'range')
-  }
   return (
     judgeJointCommits(configuration.jointCommits) ??
     structure(

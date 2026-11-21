@@ -1,16 +1,21 @@
-import type {
-  FileIdentity,
-  FileInformation,
-  FileRequest,
-  FileSystemFacility,
-  HandleGeneration,
-  ObjectToken,
+import {
+  fileEffects,
+  type FileEffect,
+  type FileIdentity,
+  type FileInformation,
+  type FileRequest,
+  type FileSystemFacility,
+  type HandleGeneration,
+  type ObjectToken,
+  type ScopedFileOperation,
 } from '@omne-harness/execution-environment-contract'
 import type { HostFilesLimits } from '../host-file-tree.ts'
 import { failed, reject } from '../host-paths.ts'
 import { createMacosPaths, requestRefusal, type RootIdentity } from './paths.ts'
 import type { Metadata, NativeInput, NativeReply } from './protocol.ts'
 import { invoke } from './transport.ts'
+
+type Identity = () => Promise<RootIdentity | undefined>
 
 type Files = Pick<
   FileSystemFacility<unknown>,
@@ -35,30 +40,19 @@ function pageValid(offset: number, limit: number, maximum: number): boolean {
   )
 }
 
-export function createMacosFiles(
-  options: Readonly<{
-    rootIdentity?: () => Promise<RootIdentity | undefined>
-    limits: HostFilesLimits
-    prerequisite(): Promise<boolean>
-    issue(object: ObjectToken): HandleGeneration
-  }>,
-): Files {
-  const endpoint = createMacosPaths(options.rootIdentity)
-  const identity = (info: Metadata): FileIdentity => {
-    const object = { token: info.token }
-    return { object, version: info.version, handle: options.issue(object) }
-  }
-  const information = (info: Metadata): FileInformation => ({
-    ...identity(info),
-    type: info.type,
-    sizeBytes: info.size,
-    modifiedMs: info.modified,
-  })
-  const run = async (
+type NativeScope = Readonly<{
+  endpoints: Readonly<Record<FileEffect, ReturnType<typeof createMacosPaths>>>
+  rooted(effect: FileEffect): boolean
+  prerequisite(): Promise<boolean>
+}>
+
+/** The native call of one request: its path by the root of its effect, a target by the root of the target's. */
+function nativeRunner(at: NativeScope) {
+  return async (
     request: FileRequest<unknown>,
-    operation: NativeInput['operation'],
+    operation: Exclude<NativeInput['operation'], 'observe'> & ScopedFileOperation,
     extra: Partial<NativeInput> = {},
-    target?: { readonly path: string; readonly named: ObjectToken | null },
+    target?: Readonly<{ path: string; named: ObjectToken | null; effect: FileEffect }>,
   ) => {
     const refusal = requestRefusal(request)
     if (refusal !== undefined) return failed(request.requestId, refusal, 'unresolved')
@@ -70,25 +64,27 @@ export function createMacosFiles(
       ['read', 'stat', 'list'].includes(operation) || (operation === 'write' && !extra.create)
         ? 'unresolved'
         : 'notFound'
-    const source = await endpoint(
+    const effect = fileEffects[operation].path
+    const source = await at.endpoints[effect](
       request.path,
       operation === 'mkdir' && extra.recursive,
       operation === 'list' || operation === 'search',
     )
     if (!source.ok) return failed(request.requestId, source.failure, missing)
-    const destination = target === undefined ? undefined : await endpoint(target.path)
+    const destination =
+      target === undefined ? undefined : await at.endpoints[target.effect](target.path)
     if (destination !== undefined && !destination.ok)
       return failed(request.requestId, destination.failure, 'notFound')
     if (
-      (options.rootIdentity !== undefined || !['read', 'stat', 'write'].includes(operation)) &&
-      !(await options.prerequisite())
+      (at.rooted(effect) || !['read', 'stat', 'write'].includes(operation)) &&
+      !(await at.prerequisite())
     )
       return reject(request.requestId, 'unavailable')
     const result = await invoke({
       ...source.value,
       named: request.named?.token ?? '',
       path: request.path,
-      rooted: options.rootIdentity !== undefined,
+      rooted: at.rooted(effect),
       operation,
       ...extra,
       ...(destination?.ok
@@ -96,12 +92,39 @@ export function createMacosFiles(
             targetRoot: destination.value.root,
             expectedTargetRoot: destination.value.expectedRoot,
             targetSegments: destination.value.segments,
+            targetRooted: target !== undefined && at.rooted(target.effect),
             targetNamed: target?.named?.token ?? '',
           }
         : {}),
     })
     return typeof result === 'string' ? failed(request.requestId, result, missing) : result
   }
+}
+
+export function createMacosFiles(
+  options: Readonly<{
+    rootIdentity: Readonly<Record<FileEffect, Identity | undefined>>
+    limits: HostFilesLimits
+    prerequisite(): Promise<boolean>
+    issue(object: ObjectToken): HandleGeneration
+  }>,
+): Files {
+  const roots = options.rootIdentity
+  const identity = (info: Metadata): FileIdentity => {
+    const object = { token: info.token }
+    return { object, version: info.version, handle: options.issue(object) }
+  }
+  const information = (info: Metadata): FileInformation => ({
+    ...identity(info),
+    type: info.type,
+    sizeBytes: info.size,
+    modifiedMs: info.modified,
+  })
+  const run = nativeRunner({
+    endpoints: { read: createMacosPaths(roots.read), write: createMacosPaths(roots.write) },
+    rooted: effect => roots[effect] !== undefined,
+    prerequisite: options.prerequisite,
+  })
   const changed = async (
     original: Parameters<Files['move']>[0] | Parameters<Files['copy']>[0],
     operation: 'move' | 'copy',
@@ -110,6 +133,7 @@ export function createMacosFiles(
     const target = {
       ...request.target,
       named: request.target.named === null ? null : { ...request.target.named },
+      effect: fileEffects[operation].target,
     }
     const result = await run(
       request,

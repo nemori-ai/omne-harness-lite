@@ -1,3 +1,4 @@
+// @module-tag slow
 import { afterEach, expect, it } from 'vitest'
 import { createGovernanceCollection } from '@omne-harness/governance-local'
 import { governanceAdoptionWorld } from './governance-adoption-world.ts'
@@ -56,7 +57,7 @@ it('adopts the real held Tool release through public Governance and real Identit
   expect(
     await w.owner.changeHolding({
       operationId: 'disable',
-      holdingRef: w.target.targetRef,
+      holdingRef: w.target.holdingRef,
       scopeRef: w.target.scopeRef,
       expectedRevision: 1,
       change: { kind: 'setEnabled', enabled: false },

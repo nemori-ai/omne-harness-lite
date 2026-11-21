@@ -29,7 +29,6 @@ import {
   type Snapshot,
 } from './ledger-decider.ts'
 import {
-  commonOf,
   deleteTasks,
   gate,
   nextState,
@@ -37,9 +36,9 @@ import {
   waitingInQueue,
   wrongPhase,
   type HoldOutcome,
-  type StateBody,
   type WriteCommand,
 } from './ledger-start.ts'
+import { commonOf, resumePlanningBody, type StateBody } from './ledger-state.ts'
 import type { CallRecord, OperationReceipt, TenantId, WaitLedgerRecord } from './ledger-store.ts'
 
 type Resume = Extract<ToolStartRecord, { kind: 'resume' }>
@@ -202,8 +201,8 @@ export function decideResumePlan(
   const gated = gate(snapshot, command)
   if ('failure' in gated) return reply(gated)
   const record = gated.ok
-  const suspended = record.state
-  if (suspended.phase !== 'suspended') return reply(wrongPhase(suspended.phase))
+  const body = resumePlanningBody(record.state, record.start)
+  if (body === null) return reply(wrongPhase(record.state.phase))
   const current = record.preparations.at(-1)
   if (current?.purpose !== 'resume') return reply(invalid('call', 'no-resume-planned'))
   if (!same(command.request, record.request))
@@ -223,13 +222,6 @@ export function decideResumePlan(
     adoption: current.adoption,
     inputDigest: command.inputDigest,
     purpose: 'resume',
-  }
-  const body: StateBody = {
-    ...commonOf(suspended),
-    phase: 'suspended',
-    checkpoint: suspended.checkpoint,
-    relation: 'foreground',
-    wait: suspended.wait,
   }
   const state = nextState(record, body, mint.revision)
   return {

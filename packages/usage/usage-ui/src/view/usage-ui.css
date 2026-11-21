@@ -1,0 +1,120 @@
+.usage-page {
+  display: grid;
+  gap: var(--omne-space-section);
+  padding: var(--omne-space-page);
+}
+.usage-page-title {
+  margin: 0;
+  font-size: var(--omne-text-title);
+}
+.usage-panel {
+  display: grid;
+  gap: var(--omne-space-block);
+  min-width: 0;
+}
+.usage-panel[data-position='status'] {
+  display: block;
+}
+.usage-panel-bar,
+.usage-edit-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--omne-space-inline);
+}
+.usage-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--omne-space-block);
+}
+.usage-panel[data-position='session'] .usage-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+.usage-panel[data-position='status'] .usage-grid {
+  display: block;
+}
+.usage-card {
+  display: grid;
+  align-content: start;
+  gap: var(--omne-space-inline);
+  min-width: 0;
+  padding: var(--omne-space-block);
+  border: 1px solid var(--omne-line);
+  border-radius: var(--omne-radius-card);
+  background: var(--omne-surface-panel);
+}
+.usage-panel[data-position='status'] .usage-card {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.usage-card[data-width='1'] {
+  grid-column: span 1;
+}
+.usage-card[data-width='2'] {
+  grid-column: span 2;
+}
+.usage-card[data-width='3'] {
+  grid-column: 1 / -1;
+}
+.usage-panel[data-position='session'] .usage-card {
+  grid-column: 1 / -1;
+}
+.usage-card-note,
+.usage-card-wait {
+  margin: 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+}
+.usage-card-wait {
+  display: grid;
+  gap: 0.2em;
+}
+.usage-card-title {
+  color: var(--omne-ink-primary);
+}
+.usage-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--omne-space-section);
+}
+.usage-edit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--omne-space-inline);
+  padding-top: var(--omne-space-inline);
+  border-top: 1px dashed var(--omne-line);
+}
+.usage-edit-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+}
+.usage-share-list ul,
+.usage-example-sparklines ul {
+  display: grid;
+  gap: 0.3em;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.usage-share-list li,
+.usage-example-sparklines li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--omne-space-inline);
+  font-variant-numeric: tabular-nums;
+}
+.usage-share-list,
+.usage-example-sparklines {
+  display: grid;
+  gap: var(--omne-space-inline);
+  margin: 0;
+}
+.usage-reading-text {
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+}

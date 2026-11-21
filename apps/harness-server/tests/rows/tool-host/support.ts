@@ -2,7 +2,9 @@ import {
   cpSync,
   existsSync,
   lstatSync,
+  mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   rmSync,
@@ -33,7 +35,8 @@ import {
 } from '../../../src/entry/tool-release.ts'
 import {
   constructionTree,
-  locateToolDefinitions,
+  locateReleasePackages,
+  TOOL_DEFINITIONS_PACKAGE,
   loadToolRelease,
   type ToolReleaseManifest,
   type ToolReleaseSnapshot,
@@ -70,14 +73,36 @@ export const TEST_CONSTRUCTION = Object.freeze({
     resultMaxBytes: 4096,
     executable: process.execPath,
     argsPrefix: [],
-    cwd: MEMBER,
     env: {},
   },
-  Files: { resultMaxBytes: 4096 },
+  Files: {
+    resultMaxBytes: 4096,
+    openMaxBytes: 65_536,
+    imageMaxWidth: 256,
+    imageMaxHeight: 256,
+    imageMaxDecodedBytes: 262_144,
+    imageConcurrency: 2,
+  },
   Tools: { resultMaxBytes: 4096, outputModalities: ['text'] },
   TodoItems: { resultMaxBytes: 1_048_576 },
+  BkgToolCalls: { resultMaxBytes: 65_536 },
   Ask: { resultMaxBytes: 1_048_576 },
   Web: { resultMaxBytes: 4096, maxSearchResults: 10 },
+  Skills: { resultMaxBytes: 4096 },
+  Calendar: { resultMaxBytes: 4096 },
+  Schedules: { resultMaxBytes: 4096 },
+  Notifications: { resultMaxBytes: 4096 },
+  Sessions: { resultMaxBytes: 4096 },
+  Agents: { resultMaxBytes: 4096 },
+  SwitchWorkspace: { resultMaxBytes: 4096 },
+  Screen: {
+    resultMaxBytes: 4096,
+    captureMaxLongSide: 2048,
+    imageMaxWidth: 4096,
+    imageMaxHeight: 4096,
+    imageMaxDecodedBytes: 67_108_864,
+    imageConcurrency: 2,
+  },
 })
 
 export function tree(value: unknown): JsonValue {
@@ -86,15 +111,32 @@ export function tree(value: unknown): JsonValue {
   return read
 }
 
-// 清理时先单独删掉副本的 `node_modules` 这个链接本身、确认它已不在，再删副本；
-// 递归进链接目标会删掉原包真实的依赖目录。
+// 副本的每个依赖各是一个 junction，指向原包依赖的真实路径。原包里的依赖链接在 Windows 上
+// 可能是相对符号链接，穿过一个指向整个 `node_modules` 的 junction 去解析会落到临时目录旁边。
+// 清理时先逐个删掉这些链接本身、确认都已不在，再删副本；递归进链接目标会删掉原包真实的依赖目录。
+function linkDependencies(from: string, to: string): string[] {
+  mkdirSync(to)
+  const links: string[] = []
+  for (const entry of readdirSync(from, { withFileTypes: true })) {
+    if (entry.name.startsWith('.')) continue
+    const source = join(from, entry.name)
+    if (entry.name.startsWith('@')) {
+      links.push(...linkDependencies(source, join(to, entry.name)))
+      continue
+    }
+    const link = join(to, entry.name)
+    symlinkSync(realpathSync(source), link, 'junction')
+    links.push(link)
+  }
+  return links
+}
+
 export async function packageCopy(tamper: boolean): Promise<{ root: string; remove(): void }> {
-  const source = await locateToolDefinitions(MEMBER)
+  const source = (await locateReleasePackages(MEMBER))[TOOL_DEFINITIONS_PACKAGE]
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'tool-release-copy-')))
   cpSync(join(source, 'package.json'), join(root, 'package.json'))
   cpSync(join(source, 'dist'), join(root, 'dist'), { recursive: true })
-  const link = join(root, 'node_modules')
-  symlinkSync(join(source, 'node_modules'), link, 'junction')
+  const links = linkDependencies(join(source, 'node_modules'), join(root, 'node_modules'))
   if (tamper) {
     const file = join(root, 'dist', 'index.js')
     const bytes = readFileSync(file)
@@ -104,16 +146,25 @@ export async function packageCopy(tamper: boolean): Promise<{ root: string; remo
   return {
     root,
     remove: () => {
-      if (lstatSync(link, { throwIfNoEntry: false })?.isSymbolicLink()) unlinkSync(link)
-      if (existsSync(link))
-        throw new Error(`fixture: ${link} is still present; not removing ${root}`)
+      for (const link of links) {
+        if (lstatSync(link, { throwIfNoEntry: false })?.isSymbolicLink()) unlinkSync(link)
+        if (existsSync(link))
+          throw new Error(`fixture: ${link} is still present; not removing ${root}`)
+      }
       rmSync(root, { recursive: true, force: true })
     },
   }
 }
 
+/** The release with its tool-definitions package read from the given root, the others as installed. */
 export const releaseFrom = (packageRoot: string) => (): Promise<ToolReleaseSnapshot> =>
-  loadToolRelease({ ...productionReleaseInput(), packageRoot: async () => packageRoot })
+  loadToolRelease({
+    ...productionReleaseInput(),
+    packageRoots: async () => ({
+      ...(await locateReleasePackages(MEMBER)),
+      [TOOL_DEFINITIONS_PACKAGE]: packageRoot,
+    }),
+  })
 
 class EmptyResidency extends ToolResidencyReaderService {
   readonly referencing: ToolResidencyReaderService['referencing'] = async () =>

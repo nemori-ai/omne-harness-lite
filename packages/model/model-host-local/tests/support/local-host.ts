@@ -1,7 +1,12 @@
 import { testExecutor } from './executor.ts'
 import { join } from 'node:path'
 import { accountCodec, organizationCodec, tenant, tenantEquals } from '@omne-harness/legal-identity'
-import { createModelRuntime, type ModelConfiguration } from '@omne-harness/model'
+import {
+  createDefaultRetryPolicy,
+  createModelRuntime,
+  verifyRetryDecision,
+  type ModelConfiguration,
+} from '@omne-harness/model'
 import { createTestModelDependencies } from '@omne-harness/model/testing'
 import {
   decodeModelCallId,
@@ -16,12 +21,33 @@ import { anthropicTokenizerResources, createAnthropicFamily } from '@omne-harnes
 import { createOpenAiFamily, openAiTokenizerResources } from '@omne-harness/pi-ai-openai'
 import { composeFamilies, type ProxyConfig } from '@omne-harness/pi-ai-transport'
 import { GATEWAY_END_MARKER } from '@omne-harness/pi-ai-transport/testing'
-import { assembleLocalModel, type LocalModelConfig } from '@omne-harness/model-host-local'
+import type { RetryPolicy } from '@omne-harness/retry'
+import {
+  assembleLocalModel,
+  type LocalModelConfig,
+  type ModelReceiveEvidenceReader,
+} from '@omne-harness/model-host-local'
 import { createTestCredentials } from './credentials.ts'
 import { factorySupplier } from './profiles.ts'
 
 export const PLACEHOLDER = 'placeholder-factory-credential'
 export const ROUTE_PATH = '/api/v1/chat/completions'
+export const MESSAGES_PATH = '/api/v1/messages'
+export const RESPONSES_PATH = '/api/v1/responses'
+
+/** Whether a request went to an interface of the test gateway. */
+export function isGatewayPath(path: string | undefined): boolean {
+  return path === ROUTE_PATH || path === MESSAGES_PATH || path === RESPONSES_PATH
+}
+
+/** The test gateway's route: the three interfaces at one origin. */
+export function gatewayEndpoints(origin: string | URL) {
+  return {
+    'chat-completions': { url: new URL(ROUTE_PATH, origin).href, endMarker: GATEWAY_END_MARKER },
+    messages: { url: new URL(MESSAGES_PATH, origin).href, endMarker: null },
+    responses: { url: new URL(RESPONSES_PATH, origin).href, endMarker: GATEWAY_END_MARKER },
+  }
+}
 
 const CONSUMER = 'local-model-consumer'
 const TEST_ADOPTION: Adoption = {
@@ -82,8 +108,6 @@ const CONFIGURATION: ModelConfiguration = {
   observerCheckIntervalMs: 25,
   resultPageTargetBytes: 1024,
   readIdleMs: 1000,
-  retryBackoffMs: 0,
-  cleanupRetryMs: 0,
 }
 
 export function decoded<T>(outcome: { ok: T } | { failure: unknown }): T {
@@ -127,6 +151,7 @@ export type LocalHostInput = Readonly<{
   label: string
   directory: string
   gateway: Gateway
+  retry?: RetryPolicy
 }>
 
 export type Gateway = Readonly<{
@@ -152,6 +177,7 @@ export function assembleLocalHost(input: LocalHostInput) {
   const unavailable = (): { failure: ModelFailure } => ({
     failure: { kind: 'unavailable', dependency: 'local-model-test', diagnostic: 'not-supplied' },
   })
+  const receive: { reader: ModelReceiveEvidenceReader | undefined } = { reader: undefined }
   const memory = createTestModelDependencies<typeof principal>({
     start: '2026-10-23T00:00:00.000Z',
     maxWaiters: 32,
@@ -183,16 +209,9 @@ export function assembleLocalHost(input: LocalHostInput) {
             ? { ok: given.source }
             : unavailable(),
         materialization: given => ({ ok: evidence(`${given.call}/${given.dispatch}`) }),
-        receive: given => ({
-          ok: {
-            window: given.window,
-            batchDigest: given.batchDigest,
-            paused: true,
-            noPrefetch: true,
-          },
-        }),
+        receive: given => receive.reader?.prove(given) ?? unavailable(),
         lateFact: unavailable,
-        retry: unavailable,
+        retry: input.retry === undefined ? unavailable : verifyRetryDecision,
         handoff: given =>
           given.call === call &&
           given.evidence.kind === 'processed' &&
@@ -246,8 +265,7 @@ export function assembleLocalHost(input: LocalHostInput) {
     },
     routes: {
       openrouter: {
-        url: new URL(ROUTE_PATH, gateway.url).href,
-        endMarker: GATEWAY_END_MARKER,
+        endpoints: gatewayEndpoints(gateway.url),
         accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
         auth: { kind: 'bearer', item: 'apiKey' },
       },
@@ -259,9 +277,20 @@ export function assembleLocalHost(input: LocalHostInput) {
     maxRetainedAttempts: 4,
     preparation: { maxCitedCalls: 8, supplierOf: factorySupplier() },
   })
+  receive.reader = host.receive
   const sent = recording(host.send)
+  const retry =
+    input.retry === undefined
+      ? memory.dependencies.retry
+      : createDefaultRetryPolicy<typeof principal>({
+          adoption: request.retryPolicy,
+          policy: input.retry,
+          replayResend: { max: 1 },
+          clock: memory.dependencies.clock,
+          random: () => 0,
+        })
   const provider = createModelRuntime(
-    { ...memory.dependencies, send: sent.boundary },
+    { ...memory.dependencies, send: sent.boundary, retry },
     CONFIGURATION,
   )
   const access = { principal, tenant: scope }

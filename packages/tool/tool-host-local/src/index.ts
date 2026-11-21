@@ -3,6 +3,11 @@ export type {
   StartPermitRequirements,
 } from './start-permit-requirements.ts'
 export { createLocalToolLoader, type LocalToolLoaderInput } from './author-loader.ts'
+export {
+  createLocalReleaseDetails,
+  type LocalReleaseDetailsInput,
+  type ReleaseDetailAttach,
+} from './release-details.ts'
 export { createLocalToolBindings, type LocalToolBindingsInput } from './executor-binding.ts'
 export type { LocalAuthorExecution } from './live-author-execution.ts'
 export { createLocalCallRecords } from './call-records.ts'
@@ -127,4 +132,4 @@ export { createLocalToolResultDelivery, type LocalDeliveryInput } from './result
 export { createLocalToolForwarding } from './tool-forwarding.ts'
 export type { LocalToolForwarding, LocalToolForwardingInput } from './tool-forwarding.ts'
 
-export { TOOL_FORWARDING_OWNER } from './invocation-forwarding.ts'
+export { TOOL_FORWARDING_OWNER, forwardIntentOfCall } from './invocation-forwarding.ts'

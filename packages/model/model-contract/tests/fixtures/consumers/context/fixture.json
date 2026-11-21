@@ -1,6 +1,6 @@
 {
   "role": "context",
-  "description": "A context assembler that consumes profiles, request preparation, metering and message conversion",
+  "description": "A context assembler that consumes profiles, request preparation and metering",
   "dependencies": [
     "@omne-harness/content-block",
     "@omne-harness/json-text",

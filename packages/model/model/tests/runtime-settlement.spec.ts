@@ -425,27 +425,43 @@ it('returns the original settle failure first and reports cached release failure
   }
 })
 
-it('does not infer an interrupted control or silently decide a retry policy', async () => {
-  for (const termination of [
-    { kind: 'interrupted', stop: 'confirmed' },
-    {
+function provenEmpty(f: ReturnType<typeof runtimeFixture>) {
+  const adapter = f.options.evidence[0]
+  if (!adapter) throw new Error('missing evidence adapter')
+  adapter.receive = input => ({
+    ok: { window: input.window, batchDigest: input.batchDigest, paused: true, noPrefetch: true },
+  })
+}
+
+it('does not infer an interrupted control', async () => {
+  const f = runtimeFixture(batching)
+  provenEmpty(f)
+  try {
+    const termination = { kind: 'interrupted', stop: 'confirmed' } as const
+    expect(await finish(f, [end({ kind: 'ended', termination })])).toHaveProperty('failure')
+    expect((await inspect(f)).phase).not.toBe('settled')
+    expect(f.channel(f.admit.call)).toMatchObject({ starts: 1, reads: 1, returns: 1, closes: 1 })
+  } finally {
+    await f.dispose()
+  }
+})
+
+it('does not decide a retry without a policy: the call settles as policy-unavailable', async () => {
+  const f = runtimeFixture(batching)
+  provenEmpty(f)
+  try {
+    const termination = {
       kind: 'failed',
       fault: { cause: 'upstream-unavailable', upstreamStatus: '503', diagnostic: 'try-later' },
-    },
-  ] as const) {
-    const f = runtimeFixture(batching)
-    const adapter = f.options.evidence[0]
-    if (!adapter) throw new Error('missing evidence adapter')
-    adapter.receive = input => ({
-      ok: { window: input.window, batchDigest: input.batchDigest, paused: true, noPrefetch: true },
+    } as const
+    expect(await finish(f, [end({ kind: 'ended', termination })])).toEqual({ ok: undefined })
+    expect((await settlement(f)).termination).toEqual({
+      kind: 'failed',
+      fault: { cause: 'policy-unavailable', upstreamStatus: null, diagnostic: 'unavailable' },
     })
-    try {
-      expect(await finish(f, [end({ kind: 'ended', termination })])).toHaveProperty('failure')
-      expect((await inspect(f)).phase).not.toBe('settled')
-      expect(f.channel(f.admit.call)).toMatchObject({ starts: 1, reads: 1, returns: 1, closes: 1 })
-    } finally {
-      await f.dispose()
-    }
+    expect(f.channel(f.admit.call)).toMatchObject({ starts: 1, reads: 1, returns: 1, closes: 1 })
+  } finally {
+    await f.dispose()
   }
 })
 
@@ -471,8 +487,9 @@ it('binds a real interrupted receipt to the control confirmed by its original pr
   }
 })
 
-it('does not recover an original terminal from mutable dispatch history in a new runtime', async () => {
+it('settles from a new runtime with the ending the store holds, not with the dispatch history', async () => {
   let fail = true
+  let rewritten = false
   const f = runtimeFixture(batching, commands => ({
     ...commands,
     settle: input =>
@@ -481,10 +498,24 @@ it('does not recover an original terminal from mutable dispatch history in a new
             failure: { kind: 'unavailable', dependency: 'settle-test', diagnostic: 'offline' },
           })
         : commands.settle(input),
+    dispatches: async input => {
+      const records = await commands.dispatches(input)
+      if (!rewritten || 'failure' in records) return records
+      return {
+        ok: records.ok.map(record => ({
+          ...record,
+          terminal: {
+            kind: 'failed',
+            fault: { cause: 'upstream-unavailable', diagnostic: 'history', upstreamStatus: null },
+          } as const,
+        })),
+      }
+    },
   }))
   try {
     await finish(f, answer)
     fail = false
+    rewritten = true
     const successor = createModelRuntime(f.dependencies, configuration)
     unbox(
       await successor.driver.drive(
@@ -497,7 +528,8 @@ it('does not recover an original terminal from mutable dispatch history in a new
         new AbortController().signal,
       ),
     )
-    expect((await inspect(f)).phase).not.toBe('settled')
+    expect((await settlement(f)).termination).toEqual(completed)
+    expect(JSON.stringify(await savedParts(f))).toContain('kept')
     expect(f.channel(f.admit.call).starts).toBe(1)
     expect(await f.drive()).toMatchObject({ failure: { kind: 'stale-instance' } })
   } finally {

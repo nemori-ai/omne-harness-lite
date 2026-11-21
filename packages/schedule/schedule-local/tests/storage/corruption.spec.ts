@@ -15,7 +15,7 @@ test('malformed stored data is unavailable rather than absent or an empty list',
   const path = join(
     w.root,
     'domains',
-    `${Buffer.from('schedule.management').toString('hex')}.sqlite`,
+    `${Buffer.from(w.combination.transactionDomain).toString('hex')}.sqlite`,
   )
   const db = new DatabaseSync(path)
   try {

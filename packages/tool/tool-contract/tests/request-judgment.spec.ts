@@ -1,7 +1,12 @@
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import { describe, expect, it } from 'vitest'
 import { organizationCodec, workspaceEquals } from '@omne-harness/legal-identity'
-import { type FixedToolRequest, type ToolInvokeRequest } from '@omne-harness/tool-contract'
+import {
+  pinnedFiles,
+  type FixedToolRequest,
+  type ToolDefinition,
+  type ToolInvokeRequest,
+} from '@omne-harness/tool-contract'
 import { judgeFixedToolRequest, judgeToolInvokeRequest } from '@omne-harness/tool-contract/provider'
 import { testingWorkspace } from '@omne-harness/tool-contract/testing'
 import { adoption, commandsDefinition, evidence, functionDefinition } from './tool-values.ts'
@@ -19,6 +24,7 @@ function request(): FixedToolRequest {
     invocation: { kind: 'direct', source: evidence('source') },
     command: null,
     arguments: { original: '{"path":"a"}', effective: '{"path":"a"}', complete: true },
+    label: { intent: null, tool: functionDefinition().name, command: null, preview: '' },
     settings: adoption('settings'),
     context: adoption('context'),
     workspace: null,
@@ -112,8 +118,67 @@ describe('ordinary invoke request judgment', () => {
   })
 
   it('accepts a declared command through the ordinary invoke entry', () => {
-    const value = { ...commands, command: 'read' }
+    const value = {
+      ...commands,
+      command: 'read',
+      label: { intent: null, tool: 'files', command: 'read', preview: '' },
+    }
     expect(judgeToolInvokeRequest(value)).toEqual({ ok: value })
+  })
+})
+
+describe('the label of a request (TL-50, TL-51)', () => {
+  const shellTool = (): ToolDefinition => {
+    const source = commandsDefinition()
+    if (source.kind !== 'commands') throw new Error('commands')
+    return {
+      ...source,
+      backgroundAllowed: true,
+      commands: source.commands.map(command =>
+        command.name === 'shell' ? { ...command, background: { unless: [] } } : command,
+      ),
+    }
+  }
+  const shell = (intent: string | null): FixedToolRequest => ({
+    ...request(),
+    availability: { ...request().availability, definition: shellTool() } as never,
+    command: 'shell',
+    label: { intent, tool: 'files', command: 'shell', preview: 'sleep 60' },
+  })
+
+  it('a command that may go to the background is refused without an intent', () => {
+    expect(rejection(shell(null))).toEqual({ field: 'label.intent', reason: 'required' })
+    expect(judgeFixedToolRequest(shell('wait a minute'))).toEqual({ ok: shell('wait a minute') })
+  })
+
+  it('a command without background permission is admitted without an intent', () => {
+    const read = {
+      ...shell(null),
+      command: 'read',
+      label: { intent: null, tool: 'files', command: 'read', preview: '' },
+    }
+    expect(judgeFixedToolRequest(read)).toEqual({ ok: read })
+  })
+
+  it('an intent in the label is one line within the bound', () => {
+    expect(rejection(shell('a\nb'))).toEqual({ field: 'label.intent', reason: 'multiline' })
+    const exact = { ...shell('x'), label: { ...shell('x').label, preview: 'p'.repeat(120) } }
+    expect(judgeFixedToolRequest(exact)).toEqual({ ok: exact })
+    expect(
+      rejection({ ...shell('x'), label: { ...shell('x').label, preview: 'p'.repeat(121) } }),
+    ).toEqual({
+      field: 'label.preview',
+      reason: 'too-long',
+    })
+  })
+
+  it('the intent decides nothing: the same request without it differs only in its label', () => {
+    const read = (intent: string | null): FixedToolRequest => ({
+      ...request(),
+      label: { ...request().label, intent },
+    })
+    const judged = [judgeFixedToolRequest(read(null)), judgeFixedToolRequest(read('look'))]
+    expect(judged.map(value => 'ok' in value)).toEqual([true, true])
   })
 })
 
@@ -134,6 +199,7 @@ describe('request judgment', () => {
         reason: 'dependency-unavailable:file-system',
       },
       command: 'read',
+      label: { intent: null, tool: 'files', command: 'read', preview: '' },
     }
     expect(judgeFixedToolRequest(value)).toEqual({ ok: value })
   })
@@ -321,6 +387,86 @@ describe('request judgment', () => {
     })
   })
 
+  it('request judgment: the pinned directory is a path with the workspace instance it belongs to, or is left out', () => {
+    const workspace = testingWorkspace(WORKSPACE_TEXT)
+    const plain = { path: '/srv/default', workspace: null }
+    const attached = { path: '/srv/blog', workspace: { id: workspace, instance: 'wsi_blog' } }
+    const scoped = [{ write: '/srv/blog' }, {}, { read: '/srv/blog', write: '/srv/blog' }].map(
+      files => ({ ...attached, files }),
+    )
+    for (const directory of [plain, attached, ...scoped]) {
+      const fixed = judgeFixedToolRequest({ ...request(), directory })
+      if ('failure' in fixed) throw new Error(JSON.stringify(fixed.failure))
+      expect(fixed.ok.directory).toEqual(directory)
+      expect(Object.isFrozen(fixed.ok.directory)).toBe(true)
+      const invoke = judgeToolInvokeRequest({ ...invokeRequest(), directory })
+      if ('failure' in invoke) throw new Error(JSON.stringify(invoke.failure))
+      expect(invoke.ok.directory).toEqual(directory)
+    }
+    const rebuilt = judgeFixedToolRequest({
+      ...request(),
+      directory: {
+        ...attached,
+        workspace: { id: { name: 'WorkspaceId', text: WORKSPACE_TEXT }, instance: 'wsi_blog' },
+      },
+    })
+    if ('failure' in rebuilt) throw new Error('a directory rebuilt from stored data was rejected')
+    const pinned = rebuilt.ok.directory?.workspace
+    expect(pinned !== null && pinned !== undefined && workspaceEquals(pinned.id, workspace)).toBe(
+      true,
+    )
+    // A request that names no directory has none; it is not null.
+    const without = judgeFixedToolRequest(request())
+    expect('ok' in without && 'directory' in without.ok).toBe(false)
+
+    const bad: [string, unknown, { field: string; reason: string }][] = [
+      ['null', null, { field: 'directory', reason: 'type' }],
+      ['a bare path', '/srv/blog', { field: 'directory', reason: 'type' }],
+      ['an empty path', { ...plain, path: '' }, { field: 'directory.path', reason: 'empty' }],
+      [
+        'no workspace member',
+        { path: '/srv/blog' },
+        { field: 'directory.workspace', reason: 'missing' },
+      ],
+      [
+        'a workspace without its instance',
+        { path: '/srv/blog', workspace: { id: workspace } },
+        { field: 'directory.workspace.instance', reason: 'missing' },
+      ],
+      [
+        'an instance without its workspace',
+        { path: '/srv/blog', workspace: { id: WORKSPACE_TEXT, instance: 'wsi_blog' } },
+        { field: 'directory.workspace.id', reason: 'type' },
+      ],
+      [
+        'an unknown member',
+        { ...plain, root: '/srv' },
+        { field: 'directory.root', reason: 'unknown-field' },
+      ],
+      [
+        'files that are not a scope',
+        { ...attached, files: '/srv' },
+        { field: 'directory.files', reason: 'type' },
+      ],
+      [
+        'an empty root',
+        { ...attached, files: { write: '' } },
+        { field: 'directory.files.write', reason: 'empty' },
+      ],
+      [
+        'a scope with another side',
+        { ...attached, files: { root: '/srv' } },
+        { field: 'directory.files.root', reason: 'unknown-field' },
+      ],
+    ]
+    for (const [label, directory, expected] of bad) {
+      expect(rejection({ ...request(), directory }), label).toEqual(expected)
+      const invoke = judgeToolInvokeRequest({ ...invokeRequest(), directory })
+      if ('ok' in invoke) throw new Error(`${label} was accepted`)
+      expect(invoke.failure, label).toEqual(expected)
+    }
+  })
+
   it('request judgment: a scope is an owner, a key and the evidence of the grant', () => {
     const { scope } = request()
     expect(rejection({ ...request(), scope: { owner: scope.owner, key: scope.key } })).toEqual({
@@ -449,3 +595,10 @@ it.each(['self', 'ancestor'] as const)(
     expect(judged).toHaveProperty('failure.reason', 'cycle')
   },
 )
+
+it('a call pinned to a directory reads and writes below it unless its scope was pinned too', () => {
+  const plain = { path: '/srv/blog', workspace: null }
+  expect(pinnedFiles(plain)).toEqual({ read: '/srv/blog', write: '/srv/blog' })
+  expect(pinnedFiles({ ...plain, files: { write: '/srv/blog' } })).toEqual({ write: '/srv/blog' })
+  expect(pinnedFiles({ ...plain, files: {} })).toEqual({})
+})

@@ -1,7 +1,7 @@
 ---
 id: inject-has-no-optional-form
 upstream: cordis
-version: 4.0.4
+version: 4.1.0
 kind: negative
 symbols:
   - "fiber.ts: Fiber 构造时遍历 inject 的每一项，任一必需服务缺席即停在 PENDING；inject 没有「可选」写法"
@@ -10,11 +10,11 @@ symbols:
   - "reflect.ts: ctx.get 用当前上下文的隔离映射把名字换成键，再直接读整棵树共用的服务表（_getImpl），不沿 fiber 链向上找，同一个隔离范围里任何插件 provide 的服务都读得到"
 lines:
   - "fiber.ts:139-154"
-  - "fiber.ts:314-319"
-  - "fiber.ts:574-579, 611-623"
-  - "reflect.ts:233-243"
+  - "fiber.ts:320-325"
+  - "fiber.ts:580-585, 617-628"
+  - "reflect.ts:247-257"
 probe: packages/assembly/kernel-basis/tests/inject-has-no-optional-form.spec.ts
-checked: 2026-11-15
+checked: 2026-11-20
 ---
 
 # `inject` 没有可选形式；可选依赖只能走 `ctx.get`，而 `ctx.get` 看得见整棵树
@@ -27,7 +27,7 @@ fiber 停在 `PENDING`，插件体不跑。**`inject` 的数组形式与对象�
 
 **想当然的理解**：把一项写进 `inject` 但允许它缺席，插件体自己判断 `undefined`。
 
-**实际（4.0.4 取证）**：写进 `inject` 就等于「没有它我不跑」。要表达可选依赖，唯一的路是不写进 `inject`、
+**实际（4.1.0 取证）**：写进 `inject` 就等于「没有它我不跑」。要表达可选依赖，唯一的路是不写进 `inject`、
 在需要时用 `ctx.get(name)` 现取：提供者不在或非 `ACTIVE` 时返回 `undefined`，出现之后能取到，
 而且提供者换代**不会**让调用方重跑（因为没有登记依赖）。
 
@@ -42,14 +42,14 @@ fiber 停在 `PENDING`，插件体不跑。**`inject` 的数组形式与对象�
 
 | symbol / 语义位置 | 读到了什么 | 怎样复核 |
 |---|---|---|
-| `fiber.ts` 构造（314–319 行）与 `_refresh`（611–623 行）：遍历 `inject` | 每一项都登记为必需依赖；缺席 ⇒ 状态停在 `PENDING` | 用对象形式 `inject: { missing: undefined }` 装一个插件，观察插件体不跑、`fiber.state === PENDING` |
+| `fiber.ts` 构造（320–325 行）与 `_refresh`（617–628 行）：遍历 `inject` | 每一项都登记为必需依赖；缺席 ⇒ 状态停在 `PENDING` | 用对象形式 `inject: { missing: undefined }` 装一个插件，观察插件体不跑、`fiber.state === PENDING` |
 | `fiber.ts` `FiberState` 注释 | `PENDING` = waiting for required services | 读源码 139–154 行 |
-| `reflect.ts` `get(name, strict=true)`（233–243 行） | 提供者 fiber 非 `ACTIVE` ⇒ 返回 `undefined`；不抛错 | 在没有提供者时 `ctx.get('x')`，得 `undefined` |
-| `reflect.ts` `_getImpl`（237–243 行）：按隔离键直接读共用服务表，不沿 fiber 链 | 同一个隔离范围里，兄弟插件 provide 的服务能被解析 | 先装消费者、再装提供者，消费者持有的 ctx 能取到提供者的实例 |
+| `reflect.ts` `get(name, strict=true)`（247–257 行） | 提供者 fiber 非 `ACTIVE` ⇒ 返回 `undefined`；不抛错 | 在没有提供者时 `ctx.get('x')`，得 `undefined` |
+| `reflect.ts` `_getImpl`（251–257 行）：按隔离键直接读共用服务表，不沿 fiber 链 | 同一个隔离范围里，兄弟插件 provide 的服务能被解析 | 先装消费者、再装提供者，消费者持有的 ctx 能取到提供者的实例 |
 
 ## 探针断言什么
 
-探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.0.4 核对：
+探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.1.0 核对：
 
 1. `inject: { missing: undefined }` 的插件：插件体没跑，`fiber.state` 为 `PENDING`。
 2. 不 inject 的消费者：装载时 `resolveOptional(ctx, 'credentials')` 为 `undefined`；随后装一个兄弟插件 provide `credentials`（gen A），

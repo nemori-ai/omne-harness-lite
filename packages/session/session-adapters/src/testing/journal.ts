@@ -1,7 +1,45 @@
+import { compactionGeneration } from '@omne-harness/agent-contract'
 import { pendingCalls } from './pending.ts'
-import { createHash } from 'node:crypto'
-import { canonical } from './canonical.ts'
+import { controlStageOf, controlTarget, type ToolControlRecord } from './journal-controls.ts'
+import { canonical, canonicalOfKept } from './canonical.ts'
+import { openEffectsAt, openSnapshotItems } from './execution-open-set.ts'
 import type { JournalCell, TransactionAnswer } from './root.ts'
+import { closedObligations, landClosed, landOnce } from './closed-items.ts'
+import { landEntry } from './closed-rows.ts'
+import { eventPage } from './event-pages.ts'
+import {
+  admissionCounters,
+  admissionProjectionOf,
+  admit,
+  damagedLedger,
+  knownAdmission,
+  originLedger,
+  readAdmissionPage,
+  readingAdmissions,
+  checkedReadPosition,
+  rebuild,
+  type AdmissionRecord,
+  type AdmissionLedger,
+  type AdmissionScope,
+  type AdmissionCounters,
+  type AdmissionDamage,
+  type AdmissionPageLimits,
+} from './reply-admissions.ts'
+import { closedBindingOf } from './binding-targets.ts'
+import { createInputRanges } from './input-ranges.ts'
+import { issueFacts, LEDGER_KINDS, obligationChanges, touchedBy } from './obligation-ledger.ts'
+import {
+  fixAnswer,
+  keptAnswer,
+  operationAnswer,
+  reachedStamp,
+  receiptIn,
+  recognitionBatch,
+  recognitionOf,
+  recognizedAnswer,
+  restoredAnswer,
+  type AnswerKeeping,
+} from './operation-answers.ts'
 import type {
   AcceptedInput,
   AgentCheckpoint,
@@ -15,10 +53,11 @@ import type {
   CallerCommit,
   CommandReceipt,
   ConsumerRef,
+  ConsumptionId,
   ControlRecord,
   ControlStage,
   EffectIntent,
-  EventPage,
+  ReceivedEntry,
   DurableEvidence,
   ExecutionControl,
   ExecutionHandoff,
@@ -37,16 +76,7 @@ import type {
   JournalCommit,
   ModelReplyAdmission,
   OriginalInputAcceptance,
-  PendingCall,
-  ReplyAdmissionFrom,
-  ReplyAdmissionGapReason,
-  ReplyAdmissionItem,
   ReplyAdmissionPage,
-  ReplyAdmissionPageCursor,
-  ReplyAdmissionPrefix,
-  ReplyAdmissionProjection,
-  ReplyAdmissionRead,
-  ReplyAdmissionSequence,
   ResultResponsibility,
   TerminalObservation,
   Adoption,
@@ -66,11 +96,9 @@ import type {
   LegacyF2Entry,
   LegacyInvocationReturn,
   MigrationRecord,
-  SettlementRequest,
   SettlementResult,
   ObligationDisposition,
   RecoveryContinuation,
-  StepId,
   TerminalParticipantFact,
   ToolAssociationRecord,
 } from '@omne-harness/agent-contract'
@@ -79,8 +107,6 @@ import {
   decodeActionId,
   decodeAgentExecutionId,
   decodeAgentOperationId,
-  decodeReplyAdmissionPageCursor,
-  decodeReplyAdmissionSequence,
 } from '@omne-harness/agent-contract'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { decodeModelCallId, resolveModelInvocationRef } from '@omne-harness/model-contract'
@@ -102,6 +128,7 @@ import {
   batchIdOf,
   frozenSet,
   journalEvidence,
+  operationText,
   revisionOf,
   openKey,
   semanticKey,
@@ -117,11 +144,13 @@ import {
   blobsOf,
   checkpointOf,
   cursorMoved,
-  cursorOf as cursorMembersOf,
+  holdsMoved,
+  cursorPlaced,
   emptyExecutionView,
-  fold,
   modelAttempt,
   receiptOf as batchReceiptOf,
+  sourceOpen,
+  stampOfReceipt,
   BATCH_MAX_FACTS,
   refOf,
   voidedFacts,
@@ -157,18 +186,36 @@ import {
   candidateOfView,
   listOfView,
   listsIssued,
-  issueFacts,
-  obligationChanges,
   callObligations,
   resultObligations,
-  LEDGER_KINDS,
-  touchedBy,
   routeOfView,
   settlementBlock,
   settlementOfFact,
   supersessionOf,
   type RecordedSettlement,
 } from './journal-finishing.ts'
+import { settlementKeeping } from './settlement-answers.ts'
+import {
+  type CandidateRequest,
+  type CustodyRequest,
+  type HandoffApply,
+  copy,
+  custodyTargetFailure,
+  custodyBasis,
+  custodyChain,
+  custodyGroups,
+  handoffRecord,
+  heldHandoff,
+  acceptedInput,
+  inputAcceptanceOf,
+  invalid,
+  preparedHandoff,
+  retiredHandoff,
+  sameEvidence,
+  sameValue,
+  undetermined,
+  validatedCustody,
+} from './journal-handoff-checks.ts'
 
 export type JointCommitKind = Exclude<CallerCommit['kind'], 'none'>
 
@@ -209,12 +256,6 @@ export type ParticipantResponse =
   | 'fail-unknown'
   | 'conflict'
   | 'unsupported'
-
-export type JointFact = Readonly<{
-  execution: AgentExecutionId
-  operation: AgentOperationId
-  caller: Exclude<CallerCommit, { kind: 'none' }>
-}>
 
 type Qualification<P, X> = (input: Access<P> & X) => boolean
 
@@ -310,8 +351,6 @@ export type MemoryAgentJournal<P> = Readonly<{
     tenant?: TenantId,
   ): boolean
 
-  joint(): readonly JointFact[]
-
   seedLegacyCandidate(
     execution: AgentExecutionId,
     candidate: AgentOperationId,
@@ -342,28 +381,6 @@ type Attachment = {
   status: 'active' | 'detached' | 'superseded'
   handoff: DurableEvidence | null
   handoffRevision: number
-}
-
-type Range = Readonly<{ from: number; to: number }>
-
-function takenRange(
-  execution: Readonly<{ id: AgentExecutionId; inputs: readonly Readonly<{ id: InputId }>[] }>,
-  batch: Readonly<{ id: InputBatchId; ordered: readonly InputId[] }>,
-): Range | undefined {
-  const [first] = batch.ordered
-  if (first !== undefined) {
-    const from = execution.inputs.findIndex(input => input.id === first)
-    return from < 0 ? undefined : { from, to: from + batch.ordered.length }
-  }
-  const named = /\/batch\/(0|[1-9][0-9]*)-(0|[1-9][0-9]*)$/u.exec(String(batch.id))
-  if (named === null) return undefined
-  const from = Number(named[1])
-  const to = Number(named[2])
-  return from === to &&
-    to <= execution.inputs.length &&
-    batchIdOf(execution.id, from, to) === batch.id
-    ? { from, to }
-    : undefined
 }
 
 export const DEFAULT_EVENT_SCHEMA: Adoption = Object.freeze({
@@ -403,9 +420,11 @@ export type MemoryExecution = {
   stageReceipts: Map<string, CommandReceipt>
 
   observed: Map<TerminalObservation['passage'], CommandReceipt>
-  admissions: AdmissionRecord[]
+  admissions: (AdmissionRecord | undefined)[]
   admissionLedger: AdmissionLedger
   entries: AgentJournalEntry[]
+  // Every entry each consumption it still holds received, in order.
+  deliveries: Map<ConsumptionId, readonly ReceivedEntry[]>
   handoffs: HandoffRecord[]
   custodyAttempts: Map<AgentOperationId, CustodyAttempt>
   finishing: FinishingRecords
@@ -434,6 +453,7 @@ type Committed = Readonly<{
   key: string
   value: unknown
   receipt: CommandReceipt
+  match?: string
 }>
 type Excluded = Readonly<{
   kind: 'excluded'
@@ -464,7 +484,6 @@ export type OperationRecord = Committed | Rejected | Excluded | Pending
 export type Attempt<R> =
   | Readonly<{ kind: 'answer'; value: Outcome<R, Failure> }>
   | Readonly<{ kind: 'unknown' }>
-  | Readonly<{ kind: 'write'; value: R; receipt: CommandReceipt; apply: () => void }>
   | Readonly<{
       kind: 'batch'
       facts: readonly FactBody[]
@@ -473,6 +492,8 @@ export type Attempt<R> =
       derive: (answer: Answer) => R
       project: (batch: PublishedBatch, view: ExecutionView) => void
       receiptState?: CommandReceipt['state']
+      // What else a repeat under another key may match to be recognized, kept with the answer.
+      match?: string
     }>
   | Readonly<{
       kind: 'reject'
@@ -482,25 +503,18 @@ export type Attempt<R> =
       project: (batch: PublishedBatch, view: ExecutionView) => void
     }>
 
+const CALL_STAGES: ReadonlySet<ControlStage> = new Set([
+  'intent-established',
+  'producer-confirmed',
+  'physically-stopped',
+  'duty-released',
+])
 const STAGES: Readonly<Record<ExecutionControl['kind'], ReadonlySet<ControlStage>>> = {
-  'interrupt-model': new Set([
-    'intent-established',
-    'producer-confirmed',
-    'physically-stopped',
-    'duty-released',
-  ]),
-  'interrupt-tool': new Set([
-    'intent-established',
-    'producer-confirmed',
-    'physically-stopped',
-    'duty-released',
-  ]),
-  'background-tool': new Set([
-    'intent-established',
-    'producer-confirmed',
-    'physically-stopped',
-    'duty-released',
-  ]),
+  'interrupt-model': CALL_STAGES,
+  'interrupt-tool': CALL_STAGES,
+  'background-tool': CALL_STAGES,
+  'release-tool': CALL_STAGES,
+  'withdraw-tool': CALL_STAGES,
   cancel: new Set([
     'intent-established',
     'qualification-revoked',
@@ -517,60 +531,12 @@ const conflict = (operation: AgentOperationId): Extract<Failure, { kind: 'confli
   kind: 'conflict',
   operation,
 })
-const invalid = (field: string, reason: string): Failure => ({ kind: 'invalid', field, reason })
-
-function copy<T>(value: T): T {
-  return structuredClone(value)
-}
 
 function sameResultKey(
   left: ResultResponsibility['result'],
   right: ResultResponsibility['result'],
 ) {
-  return (
-    left.producer.kind === right.producer.kind &&
-    left.producer.call === right.producer.call &&
-    left.version === right.version
-  )
-}
-
-type ToolControlRecord = Extract<ControlRecord, { toolInvocation: ToolInvocationRef }>
-type ControlTarget =
-  | Pick<ToolControlRecord, 'command' | 'toolInvocation' | 'toolOperation'>
-  | Pick<Exclude<ControlRecord, ToolControlRecord>, 'command'>
-
-function controlTarget(
-  command: ExecutionControl,
-  calls: readonly PendingCall[],
-  tenant: TenantId,
-): Outcome<ControlTarget, Failure> {
-  if (command.kind === 'cancel' || command.kind === 'suspend') return succeed({ command })
-  if (command.kind === 'interrupt-model') {
-    const matches = calls.some(pending => {
-      if (pending.kind !== 'model') return false
-      const parts = resolveModelInvocationRef(pending.reference, tenant)
-      return 'ok' in parts && parts.ok.call === command.call
-    })
-    return matches
-      ? succeed({ command })
-      : fail(invalid('command.call', 'not a call of this execution'))
-  }
-  let matched: Extract<PendingCall, { association: 'associated' }> | undefined
-  let admission: ToolOperationParts['admission'] | undefined
-  let ambiguous = false
-  for (const pending of calls) {
-    if (pending.kind !== 'tool' || pending.association !== 'associated') continue
-    const parts = resolveToolInvocationRef(pending.reference, tenant)
-    if ('failure' in parts)
-      return fail(invalid('command.call', 'invalid-tool-invocation-reference'))
-    if (parts.ok.call !== command.call) continue
-    if (matched !== undefined && admission !== parts.ok.admission) ambiguous = true
-    matched = pending
-    admission = parts.ok.admission
-  }
-  if (ambiguous) return fail(invalid('command.call', 'ambiguous-associated-tool-call'))
-  if (matched === undefined) return fail(invalid('command.call', 'no-associated-tool-call'))
-  return succeed({ command, toolInvocation: matched.reference, toolOperation: null })
+  return canonical(left.producer) === canonical(right.producer) && left.version === right.version
 }
 
 function interruptionsOf(
@@ -599,7 +565,7 @@ function interruptionsOf(
 }
 
 function isToolControl(record: ControlRecord): record is ToolControlRecord {
-  return record.command.kind === 'interrupt-tool' || record.command.kind === 'background-tool'
+  return record.command.kind.endsWith('-tool')
 }
 const MALFORMED_RETAINED_TOOL_INVOCATION =
   'memory-journal:malformed-retained-tool-invocation' as ToolInvocationRef
@@ -621,14 +587,6 @@ function exactDataFields(value: unknown, fields: readonly string[]): boolean {
 type RetainedFaultInput = Parameters<
   MemoryAgentJournal<unknown>['setRetainedToolInvocationFault']
 >[0]
-
-export function operationText(
-  tenant: string,
-  execution: AgentExecutionId,
-  operation: AgentOperationId,
-) {
-  return JSON.stringify([tenant, execution, operation])
-}
 
 function retainedFaultKey(input: RetainedFaultInput): string | undefined {
   if (!exactDataFields(input, ['tenant', 'execution', 'control', 'fault'])) return undefined
@@ -732,526 +690,22 @@ function attachedRecord(
   }
 }
 
-export type AdmissionRecord = Readonly<{
-  fact: ModelReplyAdmission
-  publication: DurableEvidence
-  basis: DurableEvidence | null
-  present: boolean
-}>
-
-export type AdmissionProjection = Readonly<{
-  rule: Adoption
-  consecutive: number
-  total: number
-  last: DurableEvidence | null
-  sequence: number
-  basis: DurableEvidence
-}>
-
-export type AdmissionLedger = Readonly<{
-  origin: DurableEvidence | null
-  retainedFrom: number
-  rangesFrom: number
-  projection: AdmissionProjection
-}>
-
-export type AdmissionScope = Readonly<{
-  parts: readonly string[]
-  owner: string
-  mint(record: string, revision: number): DurableEvidence
-}>
-
-export type AdmissionCounters = {
-  seeks: number
-  scanned: number
-  decoded: number
-  pages: number
-  folds: number
-  loads: number
-  checkpointWrites: number
-}
-
-function admissionCounters(): AdmissionCounters {
-  return { seeks: 0, scanned: 0, decoded: 0, pages: 0, folds: 0, loads: 0, checkpointWrites: 0 }
-}
-
-export type AdmissionDamage =
-  | Readonly<{ kind: 'missing-fact'; sequence: number }>
-  | Readonly<{ kind: 'missing-basis'; sequence: number }>
-  | Readonly<{ kind: 'retention'; from: number }>
-  | Readonly<{ kind: 'range-unavailable'; below: number }>
-
-export type AdmissionPageLimits = Readonly<{ items: number | null; bytes: number | null }>
-
-const PREFIX = 'reply-admission-prefix'
-const RANGE = 'reply-admissions'
-const CURSOR = 'rac1.'
-
-function sequenceText(value: number): ReplyAdmissionSequence {
-  const decoded = decodeReplyAdmissionSequence(String(value))
-  if ('failure' in decoded) throw new Error(`memory Journal minted an invalid sequence: ${value}`)
-  return decoded.ok
-}
-
-function recordOf(scope: AdmissionScope, kind: string, sequence: number): string {
-  return `${JSON.stringify(scope.parts)}/${kind}/${sequence}`
-}
-
-function parseRecord(
-  record: string,
-  kind: string,
-): Readonly<{ parts: readonly string[]; sequence: bigint }> | undefined {
-  const marker = `/${kind}/`
-  const at = record.lastIndexOf(marker)
-  if (at < 0) return undefined
-  const decoded = decodeReplyAdmissionSequence(record.slice(at + marker.length))
-  if ('failure' in decoded) return undefined
-  try {
-    const parts: unknown = JSON.parse(record.slice(0, at))
-    if (!Array.isArray(parts) || !parts.every(part => typeof part === 'string')) return undefined
-    return { parts, sequence: BigInt(decoded.ok) }
-  } catch {
-    return undefined
-  }
-}
-
-function scopeFailure(
-  scope: AdmissionScope,
-  parts: readonly string[],
-  field: string,
-  action: string,
-): Failure | undefined {
-  if (parts[0] !== scope.parts[0]) return { kind: 'denied', action }
-  if (canonical(parts) !== canonical(scope.parts))
-    return { kind: 'invalid', field, reason: 'not of this execution' }
-  return undefined
-}
-
-function originLedger(scope: AdmissionScope, rule: Adoption, revision: number) {
-  const origin = scope.mint(recordOf(scope, PREFIX, 0), revision)
-  const ledger: AdmissionLedger = {
-    origin,
-    retainedFrom: 1,
-    rangesFrom: 0,
-    projection: { rule, consecutive: 0, total: 0, last: null, sequence: 0, basis: origin },
-  }
-  return ledger
-}
-
-function stepProjection(
-  projection: AdmissionProjection,
-  fact: ModelReplyAdmission,
-  basis: DurableEvidence,
-): AdmissionProjection {
-  return fact.decision === 'rejected'
-    ? {
-        ...projection,
-        consecutive: projection.consecutive + 1,
-        total: projection.total + 1,
-        sequence: projection.sequence + 1,
-        basis,
-      }
-    : {
-        ...projection,
-        consecutive: 0,
-        last: fact.source,
-        sequence: projection.sequence + 1,
-        basis,
-      }
-}
-
-function admit(
-  scope: AdmissionScope,
-  ledger: AdmissionLedger,
-  fact: ModelReplyAdmission,
-  revision: number,
-  publication: DurableEvidence,
-): Readonly<{ record: AdmissionRecord; ledger: AdmissionLedger }> {
-  const sequence = ledger.projection.sequence + 1
-  const basis = scope.mint(recordOf(scope, PREFIX, sequence), revision)
-  return {
-    record: { fact, publication, basis, present: true },
-    ledger: { ...ledger, projection: stepProjection(ledger.projection, fact, basis) },
-  }
-}
-
-function admissionKey(fact: ModelReplyAdmission): string {
-  return JSON.stringify([fact.call, fact.resultVersion])
-}
-
-function throughOf(scope: AdmissionScope, ledger: AdmissionLedger): DurableEvidence {
-  const sequence = ledger.projection.sequence
-  return scope.mint(recordOf(scope, RANGE, sequence), sequence)
-}
-
-function admissionProjectionOf(
-  scope: AdmissionScope,
-  ledger: AdmissionLedger,
-  rule: Adoption,
-): Outcome<ReplyAdmissionProjection, Failure> {
-  const projection = ledger.projection
-  if (canonical(projection.rule) !== canonical(rule))
-    return fail({
-      kind: 'unavailable',
-      owner: scope.owner,
-      diagnostic: 'the reply admission rule changed without a conversion of the projection',
-    })
-  return succeed({
-    through: throughOf(scope, ledger),
-    rule: projection.rule,
-    lastAdmission: projection.last,
-    consecutiveDenials: String(projection.consecutive),
-    totalDenials: String(projection.total),
-    prefix: { sequence: sequenceText(projection.sequence), basis: projection.basis },
-  })
-}
-
-function rowsOf(
-  records: readonly (AdmissionRecord | undefined)[],
-  start: number,
-  count: number,
-  counters: AdmissionCounters,
-): (AdmissionRecord | undefined)[] {
-  if (count > 0) counters.seeks += 1
-  const rows: (AdmissionRecord | undefined)[] = []
-  for (let index = start; index < start + count && index < records.length; index += 1) {
-    counters.scanned += 1
-    rows.push(records[index])
-  }
-  return rows
-}
-
-function rebuild(
-  records: readonly (AdmissionRecord | undefined)[],
-  ledger: AdmissionLedger,
-  rule: Adoption,
-  counters: AdmissionCounters,
-): AdmissionProjection | undefined {
-  if (ledger.origin === null || ledger.retainedFrom > 1) return undefined
-  let projection: AdmissionProjection = {
-    rule,
-    consecutive: 0,
-    total: 0,
-    last: null,
-    sequence: 0,
-    basis: ledger.origin,
-  }
-  for (const row of rowsOf(records, 0, records.length, counters)) {
-    counters.folds += 1
-    if (row === undefined || !row.present || row.basis === null) return undefined
-    projection = stepProjection(projection, row.fact, row.basis)
-  }
-  return projection
-}
-
-type Resolved =
-  | Readonly<{ kind: 'resolved'; sequence: number }>
-  | Readonly<{ kind: 'refused'; failure: Failure }>
-  | Readonly<{ kind: 'missing'; sequence: number }>
-
-function resolvePrefix(
-  scope: AdmissionScope,
-  records: readonly (AdmissionRecord | undefined)[],
-  ledger: AdmissionLedger,
-  prefix: ReplyAdmissionPrefix,
-  field: string,
-  action: string,
-  counters: AdmissionCounters,
-): Resolved {
-  const refused = (reason: string): Resolved => ({
-    kind: 'refused',
-    failure: { kind: 'invalid', field, reason },
-  })
-  if (prefix.basis.owner !== scope.owner) return refused('not a basis of this Journal')
-  const parsed = parseRecord(prefix.basis.record, PREFIX)
-  if (parsed === undefined) return refused('not a prefix basis')
-  const scoped = scopeFailure(scope, parsed.parts, field, action)
-  if (scoped !== undefined) return { kind: 'refused', failure: scoped }
-  if (String(parsed.sequence) !== prefix.sequence)
-    return refused('the sequence is not the one of the basis')
-  if (parsed.sequence > BigInt(ledger.projection.sequence))
-    return refused('beyond the published facts')
-  const sequence = Number(parsed.sequence)
-  counters.seeks += 1
-  const stored = sequence === 0 ? ledger.origin : (records[sequence - 1]?.basis ?? null)
-  if (stored === null) return { kind: 'missing', sequence }
-  if (!sameEvidence(stored, prefix.basis)) return refused('not the basis of this prefix')
-  return { kind: 'resolved', sequence }
-}
-
-function digestOf(text: string): string {
-  return createHash('sha256').update(text).digest('hex').slice(0, 24)
-}
-
-function cursorOf(
-  scope: AdmissionScope,
-  origin: DurableEvidence | null,
-  from: number,
-  through: number,
-  at: number,
-): ReplyAdmissionPageCursor {
-  const tenant = digestOf(scope.parts[0] ?? '')
-  const bound = digestOf(JSON.stringify([scope.parts, origin?.digest ?? null]))
-  const decoded = decodeReplyAdmissionPageCursor(
-    `${CURSOR}${tenant}.${bound}.${from}.${through}.${at}`,
-  )
-  if ('failure' in decoded) throw new Error('memory Journal minted an invalid cursor')
-  return decoded.ok
-}
-
-function cursorPosition(
-  scope: AdmissionScope,
-  origin: DurableEvidence | null,
-  cursor: string,
-  from: number,
-  through: number,
-  action: string,
-): Outcome<number, Failure> {
-  const refused = (reason: string) => fail<Failure>({ kind: 'invalid', field: 'after', reason })
-  const fields = cursor.startsWith(CURSOR) ? cursor.slice(CURSOR.length).split('.') : []
-  if (fields.length !== 5) return refused('not a cursor of this Journal')
-  const [tenant, bound, start, end, at] = fields
-  if (tenant !== digestOf(scope.parts[0] ?? '')) return fail({ kind: 'denied', action })
-  if (bound !== digestOf(JSON.stringify([scope.parts, origin?.digest ?? null])))
-    return refused('another execution or execution origin')
-  if (start !== String(from)) return refused('another lower bound')
-  if (end !== String(through)) return refused('another range')
-  const position = Number(at)
-  if (!/^[1-9][0-9]*$/u.test(at ?? '') || !Number.isSafeInteger(position))
-    return refused('not a position')
-  if (position <= from || position >= through) return refused('outside the range')
-  return succeed(position)
-}
-
-function resolveThrough(
-  scope: AdmissionScope,
-  ledger: AdmissionLedger,
-  through: DurableEvidence,
-  action: string,
-): Outcome<number, Failure> | Readonly<{ gap: ReplyAdmissionGapReason }> {
-  const refused = fail<Failure>({ kind: 'invalid', field: 'through', reason: 'not a range' })
-  if (through.owner !== scope.owner) return refused
-  const parsed = parseRecord(through.record, RANGE)
-  if (parsed === undefined) return refused
-  const scoped = scopeFailure(scope, parsed.parts, 'through', action)
-  if (scoped !== undefined) return fail(scoped)
-  if (parsed.sequence > BigInt(ledger.projection.sequence)) return refused
-  const sequence = Number(parsed.sequence)
-  if (!sameEvidence(through, scope.mint(recordOf(scope, RANGE, sequence), sequence))) return refused
-  if (sequence < ledger.rangesFrom) return { gap: 'range-unavailable' }
-  return succeed(sequence)
-}
-
-export type AdmissionReadRequest = Readonly<{
-  from: ReplyAdmissionFrom
-  through: DurableEvidence
-  after: ReplyAdmissionPageCursor | null
-  limit: number
-}>
-
-function readAdmissionPage(
-  scope: AdmissionScope,
-  records: readonly (AdmissionRecord | undefined)[],
-  ledger: AdmissionLedger,
-  request: AdmissionReadRequest,
-  limits: AdmissionPageLimits,
-  revision: number,
-  action: string,
-  counters: AdmissionCounters,
-): Outcome<ReplyAdmissionPage, Failure> {
-  const gap = (reason: ReplyAdmissionGapReason) =>
-    succeed<ReplyAdmissionPage>({
-      kind: 'gap',
-      reason,
-      recovery: scope.mint(`${JSON.stringify(scope.parts)}/reply-admission-recovery`, revision),
-    })
-  if (!Number.isSafeInteger(request.limit) || request.limit < 1)
-    return fail({ kind: 'invalid', field: 'limit', reason: 'not a positive integer' })
-  const through = resolveThrough(scope, ledger, request.through, action)
-  if ('gap' in through) return gap(through.gap)
-  if ('failure' in through) return through
-  const target = through.ok
-  let from: number
-  if (request.from.kind === 'origin') {
-    if (ledger.origin === null)
-      return fail({
-        kind: 'unavailable',
-        owner: scope.owner,
-        diagnostic: 'no trusted origin of the reply admission facts',
-      })
-    from = 0
-  } else {
-    const resolved = resolvePrefix(
-      scope,
-      records,
-      ledger,
-      request.from.prefix,
-      'from',
-      action,
-      counters,
-    )
-    if (resolved.kind === 'refused') return fail(resolved.failure)
-    if (resolved.kind === 'missing') return gap('missing-basis')
-    from = resolved.sequence
-  }
-  if (from > target)
-    return fail({ kind: 'invalid', field: 'from', reason: 'after the end of the range' })
-  let start = from
-  if (request.after !== null) {
-    const position = cursorPosition(scope, ledger.origin, request.after, from, target, action)
-    if ('failure' in position) return position
-    start = position.ok
-  }
-  const startBasis = start === 0 ? ledger.origin : (records[start - 1]?.basis ?? null)
-  if (startBasis === null) return gap('missing-basis')
-  const startPrefix = { sequence: sequenceText(start), basis: startBasis }
-  counters.pages += 1
-  if (start === target)
-    return succeed({
-      kind: 'page',
-      through: request.through,
-      start: startPrefix,
-      end: startPrefix,
-      items: [],
-      tail: { kind: 'complete' },
-    })
-  if (start + 1 < ledger.retainedFrom) return gap('retention')
-  const count = Math.min(request.limit, limits.items ?? request.limit, target - start)
-  const items: ReplyAdmissionItem[] = []
-  let bytes = 0
-  const bases: (DurableEvidence | null)[] = []
-  for (const [offset, row] of rowsOf(records, start, count, counters).entries()) {
-    if (row === undefined || !row.present) {
-      if (items.length === 0) return gap('missing-fact')
-      break
-    }
-    const size = canonical(row.fact).length
-    if (limits.bytes !== null && items.length > 0 && bytes + size > limits.bytes) break
-    bytes += size
-    counters.decoded += 1
-    items.push({
-      sequence: sequenceText(start + offset + 1),
-      fact: row.fact,
-      publication: row.publication,
-    })
-    bases.push(row.basis)
-  }
-  while (items.length > 0 && bases.at(-1) === null) {
-    items.pop()
-    bases.pop()
-  }
-  if (items.length === 0) return gap('missing-basis')
-  const last = items.at(-1)!
-  const end: ReplyAdmissionPrefix = { sequence: last.sequence, basis: bases.at(-1)! }
-  const reached = start + items.length
-  return succeed({
-    kind: 'page',
-    through: request.through,
-    start: startPrefix,
-    end,
-    items,
-    tail:
-      reached === target
-        ? { kind: 'complete' }
-        : { kind: 'more', next: cursorOf(scope, ledger.origin, from, target, reached) },
-  })
-}
-
-function checkReadPosition(
-  scope: AdmissionScope,
-  records: readonly (AdmissionRecord | undefined)[],
-  ledger: AdmissionLedger,
-  saved: ReplyAdmissionRead,
-  next: ReplyAdmissionRead,
-  action: string,
-  counters: AdmissionCounters,
-): Failure | undefined {
-  const field = 'checkpoint.replyAdmissionRead'
-  if (canonical(saved) === canonical(next)) return undefined
-  if (next.kind !== 'verified')
-    return { kind: 'invalid', field, reason: 'a verified read position does not go back' }
-  const resolved = resolvePrefix(scope, records, ledger, next.prefix, field, action, counters)
-  if (resolved.kind === 'refused') return resolved.failure
-  if (resolved.kind === 'missing')
-    return {
-      kind: 'unavailable',
-      owner: scope.owner,
-      diagnostic: `missing-basis: the basis of the prefix ${resolved.sequence} cannot be resolved`,
-    }
-  if (saved.kind === 'verified' && BigInt(next.prefix.sequence) < BigInt(saved.prefix.sequence))
-    return { kind: 'invalid', field, reason: 'the read position goes back' }
-  return undefined
-}
-
-function damagedLedger(
-  records: readonly (AdmissionRecord | undefined)[],
-  ledger: AdmissionLedger,
-  damage: AdmissionDamage,
-): Readonly<{ records: (AdmissionRecord | undefined)[]; ledger: AdmissionLedger }> | undefined {
-  const next = [...records]
-  switch (damage.kind) {
-    case 'missing-fact':
-    case 'missing-basis': {
-      if (damage.kind === 'missing-basis' && damage.sequence === 0)
-        return { records: next, ledger: { ...ledger, origin: null } }
-      const row = next[damage.sequence - 1]
-      if (row === undefined) return undefined
-      next[damage.sequence - 1] =
-        damage.kind === 'missing-fact' ? { ...row, present: false } : { ...row, basis: null }
-      return { records: next, ledger }
-    }
-    case 'retention':
-      return { records: next, ledger: { ...ledger, retainedFrom: damage.from } }
-    case 'range-unavailable':
-      return { records: next, ledger: { ...ledger, rangesFrom: damage.below } }
-    default: {
-      const _exhaustive: never = damage
-      return _exhaustive
-    }
-  }
-}
-
-function sameEvidence(left: DurableEvidence | null, right: DurableEvidence | null): boolean {
-  if (left === null || right === null) return left === right
-  return (
-    left.owner === right.owner &&
-    left.record === right.record &&
-    left.revision === right.revision &&
-    left.digest === right.digest
-  )
-}
-
 function sameShape(checkpoint: AgentCheckpoint): AgentCheckpoint {
   return {
     ...checkpoint,
     adoptedRequest: checkpoint.adoptedRequest ?? null,
-    modelRetry: checkpoint.modelRetry ?? null,
   }
 }
 
 function producerCallOf(result: ProducedResult): ProducerCall {
   return {
-    producer: result.producer.kind,
-    call: String(result.producer.call),
+    ...(result.producer.kind === 'compaction'
+      ? { producer: 'compaction' as const, task: result.producer.task }
+      : { producer: result.producer.kind, call: String(result.producer.call) }),
     version: result.version,
     delivery: result.delivery,
     source: copy(result.source),
   }
-}
-
-function sameValue(left: unknown, right: unknown): boolean {
-  return canonical(left) === canonical(right)
-}
-
-function handoffRecord(
-  execution: Execution,
-  reference: HandoffReference,
-): HandoffRecord | undefined {
-  return execution.handoffs.find(record => sameValue(record.handoff, reference))
-}
-
-function undetermined(record: HandoffRecord): boolean {
-  return record.history.kind === 'pending' && record.retirement === null
 }
 
 function handoffsOf(
@@ -1322,42 +776,15 @@ export function createJournal<P>(
   const eventSchema: Adoption = options.eventSchema ?? DEFAULT_EVENT_SCHEMA
   let admissionRule: Adoption = options.replyAdmissionRule ?? DEFAULT_REPLY_ADMISSION_RULE
   const state = () => cell.state().agent
-  const caches = new WeakMap<
-    Execution,
-    {
-      batches: Map<InputBatchId, Range>
-      watermarks: Map<string, Range>
-    }
-  >()
   const admissionStatistics = admissionCounters()
   let pageLimits: AdmissionPageLimits = { items: null, bytes: null }
-  const cache = (execution: Execution) => {
-    let value = caches.get(execution)
-    if (!value) {
-      const original = cell.original(execution)
-      const prior = original === undefined ? undefined : caches.get(original)
-      if (prior) {
-        value = {
-          batches: new Map(prior.batches),
-          watermarks: new Map(prior.watermarks),
-        }
-        caches.set(execution, value)
-        return value
-      }
-      value = { batches: new Map(), watermarks: new Map() }
-      for (const event of execution.events)
-        if (event.body.kind === 'input-taken') {
-          const range = takenRange(execution, event.body.batch)
-          if (range !== undefined) value.batches.set(event.body.batch.id, range)
-        }
-      caches.set(execution, value)
-    }
-    return value
-  }
   const executionKey = (tenant: TenantId, id: AgentExecutionId) => {
     const encoded = tenantCodec.encode(tenant)
     return JSON.stringify([encoded.ok ? encoded.value : null, id])
   }
+  const ranges = createInputRanges(cell.namespace, execution =>
+    executionKey(execution.tenant, execution.id),
+  )
 
   const writeFaults = new Map<JournalWrite, WriteFault[]>()
   const readFaults = new Map<JournalRead, number>()
@@ -1403,19 +830,6 @@ export function createJournal<P>(
     return succeed(execution)
   }
 
-  function recognized<R>(
-    input: ExecutionMutation<P>,
-    key: string,
-  ): Outcome<R, Failure> | undefined {
-    const at = operationKey(input.tenant, input.execution, input.operation)
-    const record = at === undefined ? undefined : state().operations.get(at)
-    if (record?.kind === 'rejected') {
-      return fail(record.key === key ? copy(record.failure) : conflict(input.operation))
-    }
-    if (record?.kind !== 'committed') return undefined
-    return record.key === key ? succeed(copy(record.value) as R) : fail(conflict(input.operation))
-  }
-
   function nextEvidence(execution: Execution, what: string, revision: number): DurableEvidence {
     const serial = execution.serial + 1
     if (cell.writing()) execution.serial = serial
@@ -1429,8 +843,7 @@ export function createJournal<P>(
     input: ExecutionMutation<P>,
     key: string,
   ): CommandReceipt | undefined {
-    const at = operationKey(input.tenant, input.execution, input.operation)
-    const record = at === undefined ? undefined : state().operations.get(at)
+    const record = operationAnswer(state(), input)
     if (record?.kind === 'committed' && record.key === key) return copy(record.receipt)
     const execution = state().executions.get(executionKey(input.tenant, input.execution))
     if (execution === undefined) return undefined
@@ -1491,6 +904,7 @@ export function createJournal<P>(
     }
     if (execution.events.at(-1)?.body.kind === 'ended') return
     for (const body of bodies) {
+      if (body.kind === 'input-taken') ranges.taken(execution, body.batch)
       execution.events.push({
         execution: execution.id,
         sequence: String(execution.events.length + 1),
@@ -1512,11 +926,17 @@ export function createJournal<P>(
     prepare: () => Attempt<R>,
     beforeRecognition?: () => Failure | undefined,
     onDropped?: () => void,
+    keeping?: AnswerKeeping<R>,
   ): Promise<Outcome<R, Failure>> {
     const entered = enter(method, input)
     if ('failure' in entered) return entered
     await cell.wait(input, method)
     let decision: JointDecision | null = null
+    const { fault } = entered.ok
+    const transacted = () =>
+      cell.transact(input, method, () =>
+        run(method, fault, input, key, prepare, beforeRecognition, decision, onDropped, keeping),
+      )
     if (method === 'commit' || method === 'recordResult') {
       const caller =
         method === 'commit'
@@ -1537,32 +957,22 @@ export function createJournal<P>(
           return fail(outrunParticipation)
         decision = qualified.ok
       }
-      if (options.prepareResult && (caller.kind === 'custody' || caller.kind === 'processed')) {
+      if (
+        options.prepareResult &&
+        (caller.kind === 'custody' || caller.kind === 'processed') &&
+        caller.result.producer.kind !== 'compaction'
+      ) {
         const refused = beforeRecognition?.()
         if (refused) return fail(refused)
         const preview = prepare()
-        if (preview.kind === 'answer')
-          return cell.transact(input, method, () =>
-            run(
-              method,
-              entered.ok.fault,
-              input,
-              key,
-              prepare,
-              beforeRecognition,
-              decision,
-              onDropped,
-            ),
-          )
+        if (preview.kind === 'answer') return transacted()
         if (preview.kind === 'unknown')
           return fail({ kind: 'commit-unknown', operation: input.operation })
         const failure = await options.prepareResult(input, method)
         if (failure) return fail(failure)
       }
     }
-    return cell.transact(input, method, () =>
-      run(method, entered.ok.fault, input, key, prepare, beforeRecognition, decision, onDropped),
-    )
+    return transacted()
   }
 
   function enter(
@@ -1590,6 +1000,7 @@ export function createJournal<P>(
     beforeRecognition?: () => Failure | undefined,
     decision: JointDecision | null = null,
     onDropped?: () => void,
+    keeping?: AnswerKeeping<R>,
   ): TransactionAnswer<R> {
     const answered = (outcome: Outcome<R, Failure>): TransactionAnswer<R> => ({
       kind: 'answered',
@@ -1617,8 +1028,7 @@ export function createJournal<P>(
       return answered(pending.key === key ? commitUnknown : fail(conflict(input.operation)))
     }
     const exclude = (reason: 'dropped' | 'no-write') => {
-      const fixed = state().operations.get(at)?.kind
-      if (fixed === 'committed' || fixed === 'rejected') return
+      if (operationAnswer(state(), input) !== undefined) return
       cell.touch()
       state().operations.set(at, {
         kind: 'excluded',
@@ -1641,7 +1051,21 @@ export function createJournal<P>(
       const rejected = check()
       if (rejected !== undefined) return { kind: 'answered', value: fail(rejected) }
       const prepared = prepare()
-      if (prepared.kind === 'answer') return { kind: 'answered', value: prepared.value }
+      if (prepared.kind === 'answer') {
+        // A refusal may be an exact repeat whose answer this core has not read: that answer holds.
+        if ('failure' in prepared.value) {
+          const original = operationAnswer(state(), input, true)
+          if (original?.key === key)
+            return {
+              kind: 'answered',
+              value:
+                original.kind === 'committed'
+                  ? succeed(restoredAnswer(original.value, keeping))
+                  : fail(copy(original.failure)),
+            }
+        }
+        return { kind: 'answered', value: prepared.value }
+      }
       if (prepared.kind === 'unknown') return prepared
       if (prepared.kind === 'reject') {
         const appended = append(input, key, {
@@ -1654,7 +1078,7 @@ export function createJournal<P>(
         })
         if ('failure' in appended) return { kind: 'answered', value: appended }
         cell.touch()
-        state().operations.set(at, {
+        fixAnswer(state(), at, input, {
           kind: 'rejected',
           key,
           failure: prepared.failure,
@@ -1676,24 +1100,17 @@ export function createJournal<P>(
           }
         }
         cell.touch()
-        state().operations.set(at, { kind: 'committed', key, value: copy(value), receipt })
+        fixAnswer(state(), at, input, {
+          kind: 'committed',
+          key,
+          value: keptAnswer(value, keeping),
+          receipt,
+          ...(prepared.match === undefined ? {} : { match: prepared.match }),
+        })
         return { kind: 'wrote', value }
       }
-      prepared.apply()
-      const captured = cell.committed(input, method, prepared.receipt)
-      if (captured) return { kind: 'answered', value: fail(captured) }
-      if (method !== 'tryFinish') {
-        const participation = cell.participate(input, method, prepared.receipt, decision)
-        if (participation !== undefined) return { kind: 'answered', value: fail(participation) }
-      }
-      cell.touch()
-      state().operations.set(at, {
-        kind: 'committed',
-        key,
-        value: copy(prepared.value),
-        receipt: prepared.receipt,
-      })
-      return { kind: 'wrote', value: prepared.value }
+      const _exhaustive: never = prepared
+      return _exhaustive
     }
 
     const decide = (run: Run) => {
@@ -1701,8 +1118,7 @@ export function createJournal<P>(
       if (run.kind === 'unknown') hold()
     }
     const hold = () => {
-      const fixed = state().operations.get(at)?.kind
-      if (fixed === 'committed' || fixed === 'rejected') return
+      if (operationAnswer(state(), input) !== undefined) return
       cell.touch()
       state().operations.set(at, {
         kind: 'pending',
@@ -1776,11 +1192,13 @@ export function createJournal<P>(
     const advanced = advances({ ...built, pub })
     const rev = advanced ? current + 1 : current
     const batch: PublishedBatch = { ...built, envelope: { ...envelope, rev }, pub }
+    const prior = agent.view
+    const landed = landOnce(agent, prior, batch)
+    if (landed === null) return fail(conflict(input.operation))
     for (const [digest, value] of prepared.blobs)
       if (!agent.blobs.has(digest)) agent.blobs.set(digest, copy(value))
     agent.log = [...agent.log, batch]
-    const prior = agent.view
-    agent.view = fold(agent.view, batch)
+    agent.view = landed
     const folded = agent.view.executions.get(input.execution)
     if (folded === undefined || folded.revision !== rev)
       throw new TypeError('the fold did not reach the revision the envelope names')
@@ -1808,76 +1226,9 @@ export function createJournal<P>(
       for (const [digest, value] of owed.blobs)
         if (!agent.blobs.has(digest)) agent.blobs.set(digest, copy(value))
       agent.log = [...agent.log.slice(0, -1), amended]
-      agent.view = fold(prior, amended)
+      agent.view = landClosed(agent, prior, amended)
     }
     return succeed({ value, receipt, advanced })
-  }
-
-  function controlStageOf(
-    record: ControlRecord,
-    stage: ControlStage,
-    state: 'reached' | 'unresolved',
-    source: DurableEvidence,
-    step: StepId | null = null,
-  ): FactBody {
-    return {
-      kind: 'control.stage',
-      control: record.operation,
-      command: copy(record.command),
-      toolInvocation: record.toolInvocation === undefined ? null : copy(record.toolInvocation),
-      toolOperation: record.toolOperation === undefined ? null : copy(record.toolOperation),
-      stage,
-      state,
-      source,
-      step,
-    }
-  }
-
-  function recognitionOf<R>(
-    target: AgentOperationId | undefined,
-    revision: number,
-    value: (receipt: CommandReceipt) => R,
-    receiptState: CommandReceipt['state'] = 'applied',
-  ): Attempt<R> {
-    if (target === undefined || !state().view.ops.has(target))
-      return answer(
-        fail({
-          kind: 'unavailable',
-          owner: JOURNAL_OWNER,
-          diagnostic: `the fact recognized at revision ${String(revision)} is not in the folded view`,
-        }),
-      )
-    return {
-      kind: 'batch',
-      facts: [{ kind: 'op.recognized', target }],
-      blobs: [],
-      kinds: [],
-      derive: derived => {
-        const receipt = receiptIn(derived)
-        if (receipt.revision !== revisionOf(revision))
-          throw new TypeError('a recognition answered another revision than the recognized fact')
-        return value(receipt)
-      },
-      project: () => {},
-      receiptState,
-    }
-  }
-
-  function recognitionBatch(
-    target: AgentOperationId | undefined,
-    revision: number,
-    receiptState: CommandReceipt['state'],
-  ): Attempt<CommandReceipt> {
-    return recognitionOf(target, revision, receipt => receipt, receiptState)
-  }
-
-  function reachedBy(execution: AgentExecutionId, revision: number): AgentOperationId | undefined {
-    return state().view.executions.get(execution)?.reached.get(revision)
-  }
-
-  function receiptIn(derived: Answer): CommandReceipt {
-    if (!('receipt' in derived)) throw new TypeError(`a ${derived.kind} answer carries no receipt`)
-    return derived.receipt
   }
 
   function ownEvidence(
@@ -1940,14 +1291,11 @@ export function createJournal<P>(
       facts.flatMap(fact => (fact.kind === 'op.excluded' ? [fact.operation] : [])),
     )
     const out: FactBody[] = []
-    for (const [at, record] of state().operations) {
-      if (record.kind !== 'excluded' || record.execution !== input.execution) continue
+    for (const [at, record] of state().operations.excludedOf(input.execution)) {
       if (at !== operationKey(input.tenant, input.execution, record.operation)) continue
-      if (
-        carried.has(record.operation) ||
-        before.excluded.has(record.operation) ||
-        before.ops.has(record.operation)
-      )
+      if (carried.has(record.operation) || before.excluded.has(record.operation)) continue
+      // An operation the store answered is not excluded: the answer is read back before deciding.
+      if (operationAnswer(state(), { ...input, operation: record.operation }, true) !== undefined)
         continue
       out.push({
         kind: 'op.excluded',
@@ -1962,8 +1310,9 @@ export function createJournal<P>(
 
   function fencedOperations(execution: Execution): FactBody[] {
     const out: FactBody[] = []
-    for (const record of state().operations.values()) {
+    for (const [, record] of state().operations.pendingOf(execution.id)) {
       if (!pendingOf(record, execution) || record.key.startsWith('received:')) continue
+      if (operationAnswer(state(), record, true) !== undefined) continue
       out.push({
         kind: 'op.excluded',
         operation: record.operation,
@@ -1998,7 +1347,7 @@ export function createJournal<P>(
   }
 
   function fence(execution: Execution): void {
-    for (const [key, record] of state().operations) {
+    for (const [key, record] of state().operations.pendingOf(execution.id)) {
       if (!pendingOf(record, execution) || record.key.startsWith('received:')) continue
       state().operations.set(key, {
         kind: 'excluded',
@@ -2028,42 +1377,6 @@ export function createJournal<P>(
     })
   }
 
-  function inputBoundary(execution: Execution): Range {
-    const taken = execution.checkpoint.inputBatch
-    const range = taken === null ? undefined : cache(execution).batches.get(taken.id)
-    if (taken !== null && range === undefined)
-      throw new Error('original input batch range is unavailable')
-    const from = range?.to ?? 0
-    return { from, to: execution.inputs.length }
-  }
-
-  function watermarkRange(execution: Execution, record: string): Range | undefined {
-    const issued = cache(execution).watermarks.get(record)
-    if (issued !== undefined) return issued
-    const prefix = `${cell.namespace}/${execution.id}/inputs/`
-    if (!record.startsWith(prefix)) return undefined
-    const match = /^(0|[1-9][0-9]*)-(0|[1-9][0-9]*)$/.exec(record.slice(prefix.length))
-    if (match === null) return undefined
-    const from = Number(match[1])
-    const to = Number(match[2])
-    if (to < from || to > execution.inputs.length) return undefined
-    if (from !== 0 && ![...cache(execution).batches.values()].some(range => range.to === from))
-      return undefined
-    const range = { from, to }
-    cache(execution).watermarks.set(record, range)
-    return range
-  }
-
-  function watermarkOf(execution: Execution): DurableEvidence {
-    const range = inputBoundary(execution)
-    const evidence = journalEvidence(
-      `${cell.namespace}/${execution.id}/inputs/${range.from}-${range.to}`,
-      range.to,
-    )
-    cache(execution).watermarks.set(evidence.record, range)
-    return evidence
-  }
-
   function admissionScope(tenant: TenantId, id: AgentExecutionId): AdmissionScope {
     const encoded = tenantCodec.encode(tenant)
     return {
@@ -2081,21 +1394,19 @@ export function createJournal<P>(
     )
     if ('failure' in replyAdmissions) return replyAdmissions
     const unresolved: AgentOperationId[] = []
-    for (const record of state().operations.values()) {
-      if (pendingOf(record, execution)) {
-        unresolved.push(record.operation)
-      }
-    }
+    for (const [, record] of state().operations.pendingOf(execution.id))
+      if (pendingOf(record, execution)) unresolved.push(record.operation)
     const emitted = execution.events.length
     const groups = custodyGroups(execution)
+    const shown = stateOf(execution)
     // One-level copy is enough: the core replaces elements and never mutates them in place, so a snapshot keeps what it saw. A deep copy cost every `load` the whole history.
     return succeed<ExecutionSnapshot>({
       ...copy({
         execution: execution.id,
         revision: revisionOf(execution.revision),
-        state: stateOf(execution),
+        state: shown,
         checkpoint: execution.checkpoint,
-        inputWatermark: watermarkOf(execution),
+        inputWatermark: ranges.watermarkOf(execution),
         history: journalEvidence(`${cell.namespace}/${execution.id}/history`, execution.revision),
         replyAdmissions: replyAdmissions.ok,
         executionAttachment: activeAttachment(execution)?.authority ?? null,
@@ -2108,49 +1419,22 @@ export function createJournal<P>(
         },
       }),
       controls: [...execution.controls],
-      results: [...execution.results],
-      effects: [...execution.effects],
       terminalObservations: [...execution.observations],
-      handoffs: handoffsOf(execution, handoff => custodyOf(execution, handoff, groups)),
+      ...openSnapshotItems(
+        { execution, shown, from: ranges.takenFrom(execution) },
+        handoffsOf(execution, handoff => custodyOf(execution, handoff, groups)),
+      ),
     })
   }
 
-  function readPage(
-    execution: Execution,
-    after: string | null,
-    limit: number,
-  ): Outcome<EventPage, Failure> {
-    const position = sequenceOf(after)
-    if (position === undefined || position > execution.events.length) {
-      return fail(invalid('after', 'not a sequence of this execution'))
-    }
-    if (!Number.isSafeInteger(limit) || limit < 1 || limit > readLimit) {
-      return fail(invalid('limit', `not a positive integer up to ${readLimit}`))
-    }
-    if (position + 1 < execution.retainedFrom) {
-      return succeed({
-        kind: 'gap',
-        retainedFrom: String(execution.retainedFrom),
-        recovery: journalEvidence(`${cell.namespace}/${execution.id}/recovery`, execution.revision),
-      })
-    }
-    const events = execution.events.slice(position, position + limit)
-    if (events.some(event => !event) || Array.from(events).some(event => !event)) {
-      cell.quarantine('confirmed original event gap')
-      return fail({
-        kind: 'unavailable',
-        owner: 'session-history',
-        diagnostic: 'confirmed original event gap',
-      })
-    }
-    const next = position + events.length
-    return succeed({
-      kind: 'page',
-      events: copy(events),
-      next: String(next),
-      caughtUp: next === execution.events.length,
-    })
-  }
+  const readPage = (execution: Execution, after: string | null, limit: number) =>
+    eventPage(
+      { table: state(), namespace: cell.namespace, readLimit, mint, eventSchema },
+      execution,
+      after,
+      limit,
+      () => cell.quarantine('confirmed original event gap'),
+    )
 
   function stateOf(execution: Execution): ExecutionState {
     if (execution.state.kind !== 'settling') return execution.state
@@ -2162,7 +1446,7 @@ export function createJournal<P>(
 
   function pendingWrites(execution: Execution, operation: AgentOperationId) {
     const found: { operation: AgentOperationId; method: string }[] = []
-    for (const record of state().operations.values()) {
+    for (const [, record] of state().operations.pendingOf(execution.id)) {
       if (pendingOf(record, execution) && record.operation !== operation)
         found.push({ operation: record.operation, method: record.key.split(':')[0] ?? '' })
     }
@@ -2176,7 +1460,7 @@ export function createJournal<P>(
       revision: execution.revision,
       checkpoint: execution.checkpoint,
       results: execution.results,
-      entries: execution.entries,
+      entries: [...execution.deliveries.values()].flatMap(list => list.slice(0, 1)),
       effects: execution.effects,
       interruptionsOf: (effect: EffectIntent) =>
         interruptionsOf(effect, execution.controls, execution.tenant),
@@ -2206,6 +1490,7 @@ export function createJournal<P>(
       LEDGER_KINDS,
       room,
       touchedBy(facts),
+      obligation => sourceOpen(obligation, viewOf(id)),
     )
     return changes.facts.length === 0 ? null : changes
   }
@@ -2235,7 +1520,7 @@ export function createJournal<P>(
         },
         controls: execution.controls,
         results: execution.results,
-        entries: execution.entries,
+        entries: [...execution.deliveries.values()].flatMap(list => list.slice(0, 1)),
         effects: execution.effects,
         interruptionsOf: effect => interruptionsOf(effect, execution.controls, execution.tenant),
         modelCallOf: effect => {
@@ -2326,8 +1611,6 @@ export function createJournal<P>(
     )
   }
 
-  type HandoffApply = (revision: number, evidence: DurableEvidence) => void
-
   function handoffWrite(
     execution: Execution,
     input: JournalCommit<P>,
@@ -2341,7 +1624,7 @@ export function createJournal<P>(
     }
     switch (change.kind) {
       case 'prepare':
-        return preparedHandoff(execution, input, change.request)
+        return preparedHandoff(execution, input, change.request, state())
       case 'resolve':
         return resolvedHandoff(execution, input, change.outcome)
       case 'retire':
@@ -2351,47 +1634,6 @@ export function createJournal<P>(
         return _exhaustive
       }
     }
-  }
-
-  function preparedHandoff(
-    execution: Execution,
-    input: JournalCommit<P>,
-    request: Extract<NonNullable<JournalCommit<P>['handoff']>, { kind: 'prepare' }>['request'],
-  ): Outcome<HandoffApply, Failure> {
-    const reference = request.reference
-    if (reference.execution !== execution.id)
-      return fail(invalid('handoff', 'the request is not of this execution'))
-    if (execution.checkpoint.currentHandoff !== null)
-      return fail(invalid('checkpoint.currentHandoff', 'another H is still the current one'))
-    if (!sameValue(input.checkpoint.currentHandoff, reference))
-      return fail(invalid('checkpoint.currentHandoff', 'P points the checkpoint at its H'))
-    if (request.predecessor !== input.expected)
-      return fail(invalid('handoff', 'the predecessor of P is the expected revision'))
-    if (handoffRecord(execution, reference) !== undefined)
-      return fail(invalid('handoff', 'the H is already prepared'))
-    const occupied = execution.handoffs.find(
-      record =>
-        record.request.kind === 'execution' &&
-        sameValue(record.request.position, request.position) &&
-        undetermined(record),
-    )
-    if (occupied !== undefined)
-      return fail(invalid('handoff', 'the source position has an undetermined handoff'))
-    if (request.predecessorHandoff !== null) {
-      const predecessor = handoffRecord(execution, request.predecessorHandoff)
-      if (predecessor === undefined || predecessor.retirement === null)
-        return fail(invalid('handoff', 'the predecessor handoff is not retired'))
-    }
-    return succeed((_revision, evidence) => {
-      execution.handoffs.push({
-        handoff: copy(reference),
-        request: copy(request),
-        prepared: evidence,
-        resolution: null,
-        history: { kind: 'pending' },
-        retirement: null,
-      })
-    })
   }
 
   function resolvedHandoff(
@@ -2470,97 +1712,27 @@ export function createJournal<P>(
     })
   }
 
-  function retiredHandoff(
-    execution: Execution,
-    input: JournalCommit<P>,
-    change: Extract<NonNullable<JournalCommit<P>['handoff']>, { kind: 'retire' }>,
-  ): Outcome<HandoffApply, Failure> {
-    const request = change.excluded.request
-    if (request.kind !== 'execution')
-      return fail(invalid('handoff', 'a retire applies to an internal request'))
-    const record = handoffRecord(execution, request.reference)
-    if (record === undefined || !sameValue(record.request, request))
-      return fail(invalid('handoff', 'the exclusion does not name the prepared request'))
-    if (!undetermined(record))
-      return fail(invalid('handoff', 'the H already has its history disposition'))
-    if (record.resolution !== null && record.resolution.kind !== 'excluded')
-      return fail(invalid('handoff', 'a recorded H is not retired'))
-    if (!sameValue(execution.checkpoint.currentHandoff, request.reference))
-      return fail(invalid('checkpoint.currentHandoff', 'the H is not the current one'))
-    if (input.checkpoint.currentHandoff !== null)
-      return fail(invalid('checkpoint.currentHandoff', 'a retire clears the pointer'))
-    if (input.checkpoint.position !== request.position.node)
-      return fail(invalid('checkpoint.position', 'a retire keeps the source node'))
-    if (
-      input.events.length > 0 ||
-      input.effects.length > 0 ||
-      input.replyAdmission !== null ||
-      input.caller.kind !== 'none'
-    )
-      return fail(invalid('handoff', 'a retire carries no event, effect, admission or caller'))
-    return succeed(revision => {
-      record.resolution = copy(change.excluded)
-      record.history = { kind: 'not-applicable' }
-      record.retirement = {
-        operation: input.operation,
-        revision: revisionOf(revision),
-        reason: copy(change.reason),
-      }
-    })
-  }
-
-  function custodyGroups(
-    execution: Execution,
-  ): ReadonlyMap<string, readonly (readonly [AgentOperationId, CustodyAttempt])[]> {
-    const groups = new Map<string, (readonly [AgentOperationId, CustodyAttempt])[]>()
-    for (const entry of execution.custodyAttempts.entries()) {
-      const key = canonical(entry[1].handoff)
-      const group = groups.get(key)
-      if (group === undefined) groups.set(key, [entry])
-      else group.push(entry)
-    }
-    return groups
-  }
-
   function custodyOf(
     execution: Execution,
     handoff: HandoffReference,
-    groups: ReadonlyMap<
-      string,
-      readonly (readonly [AgentOperationId, CustodyAttempt])[]
-    > = custodyGroups(execution),
+    groups: ReturnType<typeof custodyGroups> = custodyGroups(execution),
   ): Exclude<ExecutionHandoff['custody'], null> | null {
-    const attempts = groups.get(canonical(handoff)) ?? []
-    const root = attempts.find(([, attempt]) => attempt.custody === null)
-    if (root === undefined) return null
-    const stateOf = (operation: AgentOperationId): 'committed' | 'excluded' | undefined => {
+    return custodyChain(groups.get(canonicalOfKept(handoff)) ?? [], operation => {
       const at = operationKey(execution.tenant, execution.id, operation)
-      const record = at === undefined ? undefined : state().operations.get(at)
-      return record?.kind === 'committed' || record?.kind === 'excluded' ? record.kind : undefined
-    }
-    const chain: Exclude<ExecutionHandoff['custody'], null>['chain'][number][] = []
-    let committed: AgentOperationId | null = null
-    let current: AgentOperationId | null = root[0]
-    let predecessor: AgentOperationId | null = null
-    while (current !== null) {
-      const fixed = stateOf(current)
-      if (fixed === undefined) break
-      chain.push({ operation: current, predecessor, state: fixed })
-      if (fixed === 'committed') committed = current
-      const next = attempts.find(
-        ([, attempt]) => attempt.custody?.predecessor.operation === current,
+      const held = at === undefined ? undefined : state().operations.get(at)
+      // The log decides: an exclusion folded into the view holds over a write still held pending.
+      if (held?.kind === 'excluded' || viewOf(execution.id).excluded.has(operation))
+        return 'excluded'
+      const answer = operationAnswer(
+        state(),
+        { tenant: execution.tenant, execution: execution.id, operation },
+        true,
       )
-      predecessor = current
-      current = next?.[0] ?? null
-    }
-    return { root: root[0], chain, committed }
+      return answer?.kind === 'committed' ? 'committed' : undefined
+    })
   }
 
-  type CandidateVariant = Extract<
-    SettlementRequest<P>,
-    { kind: 'establish-cancellation' | 'migrate-cancellation' | 'judge-cancellation' }
-  >
-  type CustodyVariant = Exclude<SettlementRequest<P>, CandidateVariant>
+  type CandidateVariant = CandidateRequest<P>
   type CancellationRoute = Extract<FinishRoute, { kind: 'cancellation' }>
 
   function recordedBatch(
@@ -2655,7 +1827,7 @@ export function createJournal<P>(
           origin: copy(control.stages.accepted.source),
           conclusion: { kind: 'cancelled', cause: copy(cause) },
           failure: null,
-          inputWatermark: watermarkOf(execution),
+          inputWatermark: ranges.watermarkOf(execution),
           checkpoint: copy(execution.checkpoint),
           conditions: copy(
             control.stages['intent-established']?.source ?? control.stages.accepted.source,
@@ -2847,54 +2019,9 @@ export function createJournal<P>(
     }
   }
 
-  function custodyTargetFailure(execution: Execution, input: CustodyVariant): Failure | undefined {
-    const finishing = execution.finishing
-    const known = (candidate: AgentOperationId, route: DurableEvidence): Failure | undefined =>
-      candidateOf(finishing, candidate) === undefined
-        ? invalid('candidate', 'not a candidate of this execution')
-        : routeOf(finishing, route) === undefined
-          ? invalid('route', 'not a route of this execution')
-          : undefined
-    switch (input.kind) {
-      case 'record-card-reconciliation': {
-        const passage = execution.checkpoint.passages.find(item => item.id === input.passage)
-        const round =
-          passage?.progress.kind === 'asked'
-            ? passage.progress.rounds.find(item => item.round === input.round)
-            : undefined
-        if (passage === undefined || round === undefined)
-          return invalid('round', 'not a card round of this execution')
-        return known(input.candidate, input.route)
-      }
-      case 'record-legacy-return': {
-        const passage = execution.checkpoint.passages.find(item => item.id === input.passage)
-        if (passage === undefined || passage.position !== 'before_terminal')
-          return invalid('passage', 'not a before-terminal passage of this execution')
-        if (!sameEvidence(passage.input, input.request))
-          return invalid('request', 'not the input record of the passage')
-        return known(input.candidate, input.route)
-      }
-      case 'record-tool-association': {
-        const effect = execution.effects.find(item => item.action === input.intent.action)
-        if (
-          effect === undefined ||
-          effect.pending.kind !== 'tool' ||
-          finishing.effectOperations.get(input.intent.action) !== input.intent.intent ||
-          !sameValue(effect.pending.position, input.intent.position)
-        )
-          return invalid('intent', 'not a Tool intent of this execution')
-        return undefined
-      }
-      default: {
-        const _exhaustive: never = input
-        return _exhaustive
-      }
-    }
-  }
-
   function settleCustody(
     execution: Execution,
-    input: CustodyVariant,
+    input: CustodyRequest<P>,
     key: string,
   ): Attempt<SettlementResult> {
     const finishing = execution.finishing
@@ -3139,7 +2266,11 @@ export function createJournal<P>(
         if (existing !== undefined && !tenantEquals(existing.tenant, input.tenant)) {
           return answer(fail(denied('open')))
         }
-        const original = recognized<{ receipt: CommandReceipt; authority: Authority }>(input, key)
+        const original = recognizedAnswer<{ receipt: CommandReceipt; authority: Authority }>(
+          state(),
+          input,
+          key,
+        )
         if (original !== undefined) return answer(original)
         if (existing !== undefined) return answer(fail(conflict(input.operation)))
         const malformed = acceptanceFailure('open', input, acceptance)
@@ -3201,11 +2332,7 @@ export function createJournal<P>(
             outcome: refOf(outcome),
             history: outcome.record,
           },
-          {
-            kind: 'cursor.moved',
-            step: checkpoint.step,
-            members: cursorMembersOf(checkpoint, { kind: 'advancing' }),
-          },
+          ...cursorPlaced(checkpoint, { kind: 'advancing' }),
           ...bound.facts,
         ]
         const blobs: Blob[] = [
@@ -3259,6 +2386,7 @@ export function createJournal<P>(
                 view.revision,
               ),
               entries: [],
+              deliveries: new Map(),
               handoffs: [inputHandoff(acceptance, input.operation, view.revision)],
               custodyAttempts: new Map(),
               finishing: emptyFinishing(),
@@ -3277,7 +2405,11 @@ export function createJournal<P>(
         const found = owned(input, 'attach')
         if ('failure' in found) return answer(found)
         const execution = found.ok
-        const original = recognized<{ receipt: CommandReceipt; authority: Authority }>(input, key)
+        const original = recognizedAnswer<{ receipt: CommandReceipt; authority: Authority }>(
+          state(),
+          input,
+          key,
+        )
         if (original !== undefined) return answer(original)
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
         if (!grantHolds(input, 'attach')) return answer(fail(denied('attach')))
@@ -3343,7 +2475,7 @@ export function createJournal<P>(
         const found = owned(input, 'detach')
         if ('failure' in found) return answer(found)
         const execution = found.ok
-        const original = recognized<DurableEvidence>(input, key)
+        const original = recognizedAnswer<DurableEvidence>(state(), input, key)
         if (original !== undefined) return answer(original)
         const target = execution.attachments.find(
           attachment =>
@@ -3354,7 +2486,7 @@ export function createJournal<P>(
         if (target.handoff !== null) {
           const handoff = target.handoff
           return recognitionOf(
-            reachedBy(execution.id, target.handoffRevision),
+            reachedStamp(state(), execution.id, target.handoffRevision),
             target.handoffRevision,
             () => copy(handoff),
           )
@@ -3420,7 +2552,7 @@ export function createJournal<P>(
             !completeEvidence(fact.source))
         )
           return answer(fail(invalid('replyAdmission', 'incomplete original admission')))
-        const original = recognized<CommandReceipt>(input, key)
+        const original = recognizedAnswer<CommandReceipt>(state(), input, key)
         if (original !== undefined) return answer(original)
         if (!holds(execution, input.authority)) return answer(fail({ kind: 'stale-advance' }))
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
@@ -3464,26 +2596,90 @@ export function createJournal<P>(
         let admission: ModelReplyAdmission | null = null
         if (input.replyAdmission !== null) {
           const fact = input.replyAdmission
-          const key = admissionKey(fact)
-          const known = execution.admissions.find(record => admissionKey(record.fact) === key)
+          const known = knownAdmission(execution.admissions, fact)
           if (known !== undefined && known.fact.decision !== fact.decision) {
             return answer(fail(conflict(input.operation)))
           }
           if (known === undefined) admission = copy(fact)
         }
         const scope = admissionScope(execution.tenant, execution.id)
-        const readFailure = checkReadPosition(
-          scope,
-          execution.admissions,
-          execution.admissionLedger,
-          execution.checkpoint.replyAdmissionRead,
-          input.checkpoint.replyAdmissionRead,
-          'commit',
-          admissionStatistics,
-        )
+        const readFailure = checkedReadPosition(state(), execution, scope, {
+          next: input.checkpoint.replyAdmissionRead,
+          counters: admissionStatistics,
+        })
         if (readFailure !== undefined) return answer(fail(readFailure))
         const handoffChange = handoffWrite(execution, input)
         if ('failure' in handoffChange) return answer(handoffChange)
+        const compacted = input.caller.kind === 'context-transition' ? input.caller.value : null
+        const consumed =
+          input.caller.kind === 'processed' && input.caller.result.producer.kind === 'compaction'
+            ? input.caller
+            : compacted === null
+              ? null
+              : {
+                  result: {
+                    producer: { kind: 'compaction' as const, task: compacted.task },
+                    version: compacted.result.version,
+                    delivery: null,
+                    source: compacted.result.evidence,
+                  },
+                  consumption: compacted.consumption,
+                }
+        const resultIndex =
+          consumed === null
+            ? -1
+            : execution.results.findIndex(
+                item =>
+                  sameValue(item.result, consumed.result) &&
+                  item.consumption === consumed.consumption,
+              )
+        const responsibility = execution.results[resultIndex]
+        if (consumed !== null && responsibility === undefined)
+          return answer(
+            fail(invalid('caller', 'the result has no durable consumer responsibility')),
+          )
+        if (compacted !== null) {
+          const task = execution.checkpoint.compaction
+          const preparation = execution.checkpoint.requestPreparation
+          const held = cell.state().receiving.materials.get(canonical(compacted.received))
+          const material = held?.value
+          if (
+            task === null ||
+            !sameValue(task.task, compacted.task) ||
+            task.consumption !== compacted.consumption ||
+            !sameValue(task.result, compacted.result) ||
+            !sameValue(task.received, compacted.received) ||
+            !sameValue(responsibility?.custody, compacted.received) ||
+            preparation?.kind !== 'needs-compaction' ||
+            preparation.id !== compacted.preparation ||
+            !sameValue(preparation.input, task.input) ||
+            !sameValue(compacted.history, task.input.source) ||
+            !sameValue(compacted.message.derivation, compactionGeneration(task.task)) ||
+            responsibility?.completion !== null
+          )
+            return answer(
+              fail(
+                invalid('caller', 'the compaction result is not the current unprocessed result'),
+              ),
+            )
+          if (
+            held?.execution !== execution.id ||
+            material?.kind !== 'compaction' ||
+            !sameValue(material.result, consumed?.result) ||
+            material.outcome.kind !== 'completed' ||
+            !sameValue(material.outcome.message, compacted.message)
+          )
+            return answer(
+              fail(invalid('caller', 'the compaction message is not the durably retained result')),
+            )
+        }
+        if (
+          consumed !== null &&
+          input.caller.kind === 'processed' &&
+          responsibility?.completion !== null &&
+          !sameValue(responsibility?.completion, input.caller.completion)
+        )
+          return answer(fail(conflict(input.operation)))
         if (input.caller.kind !== 'none') {
           const response = responses.get(input.caller.kind)?.shift() ?? 'participate'
           switch (response) {
@@ -3534,6 +2730,16 @@ export function createJournal<P>(
         const caller = input.caller
         const facts: FactBody[] = []
         const blobs: Blob[] = []
+        const completion = caller.kind === 'processed' ? caller.completion : evidence
+        if (consumed !== null)
+          facts.push({
+            kind: 'result.handled',
+            consumption: consumed.consumption,
+            result: producerCallOf(consumed.result),
+            stage: 'processed',
+            evidence: copy(completion),
+            step: null,
+          })
         const view = viewOf(execution.id)
         const taken = input.checkpoint.inputBatch
         if (
@@ -3641,6 +2847,7 @@ export function createJournal<P>(
           facts.push({
             kind: 'handoff.prepared',
             handoff: copy(handoff.request.reference),
+            step: handoff.request.position.step,
             request: refOf(handoff.request),
             prepared: evidence,
           })
@@ -3704,10 +2911,14 @@ export function createJournal<P>(
         const moved = cursorMoved(view, input.checkpoint, input.state)
         if (moved !== null) {
           blobs.push(...blobsOf(input.checkpoint))
-          facts.push(moved)
+          facts.push(moved, ...holdsMoved(view, input.checkpoint))
         }
         const bound = receiving.newBindings(
-          { ...execution, checkpoint: input.checkpoint, effects: execution.effects },
+          {
+            ...execution,
+            checkpoint: input.checkpoint,
+            effects: openEffectsAt(execution, stateOf(execution), input.checkpoint),
+          },
           input.authority.instance,
         )
         facts.push(...bound.facts)
@@ -3716,7 +2927,12 @@ export function createJournal<P>(
           kind: 'batch',
           facts,
           blobs,
-          kinds: caller.kind === 'none' ? [] : [caller.kind],
+          kinds:
+            caller.kind === 'none' ||
+            ((caller.kind === 'custody' || caller.kind === 'processed') &&
+              caller.result.producer.kind === 'compaction')
+              ? []
+              : [caller.kind],
           derive: receiptIn,
           project: (_batch, folded) => {
             if (folded.revision !== revision)
@@ -3729,6 +2945,17 @@ export function createJournal<P>(
             )
               throw new TypeError('the folded facts name another checkpoint than the commit')
             execution.checkpoint = checkpoint
+            if (consumed !== null && responsibility !== undefined) {
+              execution.results[resultIndex] = { ...responsibility, completion: copy(completion) }
+              execution.resultRevisions.set(
+                semanticKey('responsibility', [
+                  consumed.result.producer,
+                  consumed.result.version,
+                  consumed.consumption,
+                ]),
+                revision,
+              )
+            }
             receiving.applyBindings(execution, bound)
             execution.state = copy(input.state)
             for (const effect of input.effects) {
@@ -3759,13 +2986,6 @@ export function createJournal<P>(
               execution.admissionLedger = admitted.ledger
             }
             admissionStatistics.checkpointWrites += 1
-            if (caller.kind !== 'none') {
-              state().jointFacts.push({
-                execution: execution.id,
-                operation: input.operation,
-                caller: copy(caller),
-              })
-            }
             execution.revision = revision
             appendEvents(execution, input.events, evidence)
           },
@@ -3784,7 +3004,7 @@ export function createJournal<P>(
         const found = owned(input, 'submit')
         if ('failure' in found) return answer(found)
         const execution = found.ok
-        const original = recognized<CommandReceipt>(input, key)
+        const original = recognizedAnswer<CommandReceipt>(state(), input, key)
         if (original !== undefined) return answer(original)
         const lineage = input.lineage
         if (lineage.kind === 'new-input') {
@@ -3797,11 +3017,11 @@ export function createJournal<P>(
           return answer(fail(invalid('lineage', 'a recognizing operation is not the original one')))
         }
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
-        const known = execution.inputs.find(accepted => accepted.id === input.value.id)
+        const accepted = acceptedInput(state(), execution, input.value.id, lineage.kind)
+        const known = accepted?.value
         if (lineage.kind === 'recognize-input') {
           const entry = lineage.original.entry
-          const acceptedBy = operationKey(input.tenant, input.execution, entry.operation)
-          const record = acceptedBy === undefined ? undefined : state().operations.get(acceptedBy)
+          const record = operationAnswer(state(), { ...input, operation: entry.operation }, true)
           const acceptedValue = entry.kind === 'invoke' ? entry.initial : entry.value
           if (record?.kind !== 'committed' || known === undefined || known.id !== acceptedValue.id)
             return answer(
@@ -3813,7 +3033,7 @@ export function createJournal<P>(
             )
           if (semanticKey('input', known) !== semanticKey('input', input.value))
             return answer(fail(conflict(input.operation)))
-          const stored = handoffRecord(execution, lineage.original.handoff)
+          const stored = heldHandoff(state(), execution, lineage.original.handoff)
           if (
             stored === undefined ||
             !sameValue(stored.request, lineage.original.outcome.request) ||
@@ -3821,10 +3041,13 @@ export function createJournal<P>(
             !sameValue(stored.resolution.outcome.origin, lineage.original.outcome.origin)
           )
             return answer(fail(invalid('lineage', 'the original lineage is not the one on record')))
-          const at = execution.inputRevisions.get(known.id)
-          if (at === undefined)
-            throw new Error('session Journal defect: an accepted input has no revision')
-          return recognitionBatch(entry.operation, at, 'accepted')
+          const at = accepted!.revision
+          const reached = reachedStamp(state(), execution.id, at)
+          return recognitionBatch(
+            reached?.op === entry.operation ? reached : undefined,
+            at,
+            'accepted',
+          )
         }
         if (known !== undefined) return answer(fail(conflict(input.operation)))
         if (input.value.source === null) return answer(fail(denied('submit')))
@@ -3877,7 +3100,7 @@ export function createJournal<P>(
         const found = owned(input, 'control')
         if ('failure' in found) return answer(found)
         const execution = found.ok
-        const original = recognized<CommandReceipt>(input, key)
+        const original = recognizedAnswer<CommandReceipt>(state(), input, key)
         if (original !== undefined) return answer(original)
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
         const target = controlTarget(input.command, pendingCalls(execution), execution.tenant)
@@ -3922,7 +3145,7 @@ export function createJournal<P>(
         const found = owned(input, 'acknowledge')
         if ('failure' in found) return answer(found)
         const execution = found.ok
-        const original = recognized<CommandReceipt>(input, key)
+        const original = recognizedAnswer<CommandReceipt>(state(), input, key)
         if (original !== undefined) return answer(original)
         const through = sequenceOf(input.through)
         if (through === undefined || through < 1 || through > execution.events.length) {
@@ -3930,7 +3153,7 @@ export function createJournal<P>(
         }
         if (through <= execution.acknowledged)
           return recognitionBatch(
-            reachedBy(execution.id, execution.acknowledgedAt),
+            reachedStamp(state(), execution.id, execution.acknowledgedAt),
             execution.acknowledgedAt,
             'applied',
           )
@@ -3955,7 +3178,7 @@ export function createJournal<P>(
         const found = owned(input, 'recordResult')
         if ('failure' in found) return answer(found)
         const execution = found.ok
-        const original = recognized<CommandReceipt>(input, key)
+        const original = recognizedAnswer<CommandReceipt>(state(), input, key)
         if (original !== undefined) return answer(original)
         if (
           !input.result.version ||
@@ -4021,7 +3244,7 @@ export function createJournal<P>(
           semanticKey('responsibility', known) === semanticKey('responsibility', responsibility)
         ) {
           const at = execution.resultRevisions.get(resultKey) ?? execution.revision
-          return recognitionBatch(reachedBy(execution.id, at), at, 'applied')
+          return recognitionBatch(reachedStamp(state(), execution.id, at), at, 'applied')
         }
         const evidence = ownEvidence(execution.id, key, execution.revision + 1)
         const call = producerCallOf(input.result)
@@ -4045,7 +3268,10 @@ export function createJournal<P>(
           kind: 'batch',
           facts,
           blobs: [],
-          kinds: transfer.kind === 'none' ? [] : [transfer.kind],
+          kinds:
+            transfer.kind === 'none' || input.result.producer.kind === 'compaction'
+              ? []
+              : [transfer.kind],
           derive: receiptIn,
           project: (_batch, view) => {
             const index = execution.results.indexOf(known ?? responsibility)
@@ -4098,7 +3324,7 @@ export function createJournal<P>(
           const found = owned(input, method)
           if ('failure' in found) return answer(found)
           const execution = found.ok
-          const original = recognized<CommandReceipt>(input, key)
+          const original = recognizedAnswer<CommandReceipt>(state(), input, key)
           if (original !== undefined) return answer(original)
           if (attachment?.kind === 'malformed') {
             return answer(fail(invalid('toolOperation', 'malformed-tool-operation-reference')))
@@ -4123,7 +3349,7 @@ export function createJournal<P>(
             const first = execution.stageReceipts.get(stageKey)
             if (first !== undefined) {
               const at = Number(first.revision)
-              return recognitionBatch(reachedBy(execution.id, at), at, 'applied')
+              return recognitionBatch(reachedStamp(state(), execution.id, at), at, 'applied')
             }
           }
           const ended = execution.state.kind === 'ended'
@@ -4195,59 +3421,23 @@ export function createJournal<P>(
       const request =
         input.original.kind === 'recorded' ? input.original.outcome.request : input.original.request
       const reference = request.reference
-      const validated = (execution: Execution): Outcome<CustodyAttempt, Failure> => {
-        const record = handoffRecord(execution, reference)
-        if (record === undefined || !sameValue(record.request, request))
-          return fail(invalid('original', 'the request is not on the authoritative record'))
-        if (record.resolution !== null && !sameValue(record.resolution, input.original))
-          return fail(conflict(input.operation))
-        const attempt: CustodyAttempt = {
-          handoff: copy(reference),
-          original: copy(input.original),
-          custody: input.custody === null ? null : copy(input.custody),
-        }
-        const chain = custodyOf(execution, reference)
-        const custody = input.custody
-        if (custody === null) {
-          if (chain !== null && chain.root !== input.operation)
-            return fail(invalid('operation', 'the H already has its custody root'))
-          return succeed(attempt)
-        }
-        if (chain === null || custody.custodyRoot !== chain.root)
-          return fail(invalid('operation', 'the custody root is not the root of this H'))
-        const rootAttempt = execution.custodyAttempts.get(chain.root)
-        if (rootAttempt === undefined || !sameValue(rootAttempt.original, input.original))
-          return fail(conflict(input.operation))
-        const last = chain.chain.at(-1)
-        if (last === undefined || last.operation !== custody.predecessor.operation)
-          return fail(invalid('operation', 'the predecessor is not the last attempt'))
-        if (last.state !== 'excluded')
-          return fail(invalid('operation', 'the predecessor is not permanently excluded'))
-        const excludedChain = chain.chain.map(item => item.operation)
-        if (
-          custody.priorExcluded.length !== excludedChain.length ||
-          custody.priorExcluded.some(
-            (item, index) =>
-              item.operation !== excludedChain[index] ||
-              item.predecessor !== (index === 0 ? null : excludedChain[index - 1]),
-          )
-        )
-          return fail(invalid('operation', 'the exclusion chain is not the chain of the root'))
-        return succeed(attempt)
+      const validated = (execution: Execution, need: boolean) => {
+        const basis = custodyBasis(state(), execution, reference, need)
+        const chain = custodyOf(execution, reference, basis.groups)
+        return { record: basis.record, checked: validatedCustody(basis, input, request, chain) }
       }
       const prepare = (): Attempt<CommandReceipt> => {
         const found = owned(input, 'recordHandoff')
         if ('failure' in found) return answer(found)
         const execution = found.ok
-        const original = recognized<CommandReceipt>(input, key)
+        const original = recognizedAnswer<CommandReceipt>(state(), input, key)
         if (original !== undefined) return answer(original)
         const at = operationKey(input.tenant, input.execution, input.operation)
         const fixed = at === undefined ? undefined : state().operations.get(at)
         if (fixed?.kind === 'excluded')
           return answer(fail(invalid('operation', 'operation-permanently-excluded')))
-        const checked = validated(execution)
+        const { record, checked } = validated(execution, true)
         if ('failure' in checked) return answer(checked)
-        const record = handoffRecord(execution, reference)
         if (record === undefined) throw new Error('recordHandoff: the validated record is missing')
         execution.custodyAttempts.set(input.operation, checked.ok)
         const custody = input.custody
@@ -4290,7 +3480,7 @@ export function createJournal<P>(
         if ('failure' in found) return
         const execution = found.ok
         if (execution.custodyAttempts.has(input.operation)) return
-        const checked = validated(execution)
+        const { checked } = validated(execution, false)
         if (!('failure' in checked)) execution.custodyAttempts.set(input.operation, checked.ok)
       }
       return write('recordHandoff', input, key, prepare, undefined, dropped)
@@ -4307,7 +3497,7 @@ export function createJournal<P>(
           const found = owned(input, 'prepareFinish')
           if ('failure' in found) return answer(found)
           const execution = found.ok
-          const original = recognized<Issued>(input, key)
+          const original = recognizedAnswer<Issued>(state(), input, key)
           if (original !== undefined) return answer(original)
           const authorization = input.authorization
           if (authorization.kind === 'advancement' && !holds(execution, authorization.authority))
@@ -4345,6 +3535,8 @@ export function createJournal<P>(
             viewOf(execution.id).finish.obligations,
             `${cell.namespace}/${execution.id}`,
             execution.revision,
+            obligation => sourceOpen(obligation, viewOf(execution.id)),
+            ids => closedObligations(state(), execution.id, ids),
           )
           return {
             kind: 'batch',
@@ -4387,7 +3579,7 @@ export function createJournal<P>(
           const found = owned(input, 'tryFinish')
           if ('failure' in found) return answer(found)
           const execution = found.ok
-          const original = recognized<FinishResult>(input, key)
+          const original = recognizedAnswer<FinishResult>(state(), input, key)
           if (original !== undefined) return answer(original)
           const changed = answer<FinishResult>(
             succeed({ kind: 'changed', revision: revisionOf(execution.revision) }),
@@ -4434,7 +3626,7 @@ export function createJournal<P>(
             return changed
           const closure = obligationsOf(execution, candidate, input.operation).items
           if (projectionOf(closure) !== projectionOf(list.items)) return changed
-          const boundary = watermarkRange(execution, candidate.inputWatermark.record)
+          const boundary = ranges.watermarkRange(execution, candidate.inputWatermark.record)
           if (boundary === undefined || boundary.to < execution.inputs.length) return changed
           const check = blockedReason(execution, candidate, closure, list.items)
           if (check.kind === 'changed') return changed
@@ -4497,11 +3689,16 @@ export function createJournal<P>(
 
     commitSettlement(input) {
       const key = semanticKey('commitSettlement', input)
-      return write('commitSettlement', input, key, () => {
+      const keeping = settlementKeeping(() => ({
+        records: state().executions.get(executionKey(input.tenant, input.execution))?.finishing,
+        view: viewOf(input.execution),
+        blobs: state().blobs,
+      }))
+      const prepare = (): Attempt<SettlementResult> => {
         const found = owned(input, 'commitSettlement')
         if ('failure' in found) return answer(found)
         const execution = found.ok
-        const original = recognized<SettlementResult>(input, key)
+        const original = recognizedAnswer(state(), input, key, keeping)
         if (original !== undefined) return answer(original)
         switch (input.kind) {
           case 'establish-cancellation':
@@ -4517,7 +3714,8 @@ export function createJournal<P>(
             return _exhaustive
           }
         }
-      })
+      }
+      return write('commitSettlement', input, key, prepare, undefined, undefined, keeping)
     },
 
     recordTerminalObservation(input) {
@@ -4526,7 +3724,7 @@ export function createJournal<P>(
         const found = owned(input, 'recordTerminalObservation')
         if ('failure' in found) return answer(found)
         const execution = found.ok
-        const original = recognized<CommandReceipt>(input, key)
+        const original = recognizedAnswer<CommandReceipt>(state(), input, key)
         if (original !== undefined) return answer(original)
         const index = execution.observations.findIndex(item => item.passage === input.passage)
         const item = execution.observations[index]
@@ -4545,7 +3743,7 @@ export function createJournal<P>(
             return answer(fail(conflict(input.operation)))
           const first = execution.observed.get(input.passage)
           if (first !== undefined)
-            return recognitionBatch(first.operation, Number(first.revision), 'applied')
+            return recognitionBatch(stampOfReceipt(first), Number(first.revision), 'applied')
         }
         const planned = plannedReceipt(execution, input.operation, key)
         const observed = input.observed
@@ -4603,6 +3801,12 @@ export function createJournal<P>(
       return snapshotOf(found.ok)
     },
 
+    async inputAcceptance(input) {
+      const found = owned(input, 'inputAcceptance')
+      if ('failure' in found) return found
+      return succeed(copy(inputAcceptanceOf(state(), found.ok, viewOf(found.ok.id), input.input)))
+    },
+
     async readFinish(input) {
       const fault = readFault('readFinish')
       if (fault !== undefined) return fault
@@ -4623,7 +3827,7 @@ export function createJournal<P>(
       const found = owned(input, 'inputs')
       if ('failure' in found) return found
       const execution = found.ok
-      const range = watermarkRange(execution, input.watermark.record)
+      const range = ranges.watermarkRange(execution, input.watermark.record)
       if (
         range === undefined ||
         !sameEvidence(
@@ -4636,7 +3840,7 @@ export function createJournal<P>(
       )
         return fail(invalid('watermark', 'not a watermark of this execution'))
       const id = batchIdOf(execution.id, range.from, range.to)
-      cache(execution).batches.set(id, range)
+      ranges.minted(execution, id, range)
       const taken = execution.inputs.slice(range.from, range.to)
       return succeed({
         batch: {
@@ -4654,15 +3858,17 @@ export function createJournal<P>(
       const found = owned(input, 'readReplyAdmissions')
       if ('failure' in found) return found
       const execution = found.ok
-      return readAdmissionPage(
-        admissionScope(execution.tenant, execution.id),
-        execution.admissions,
-        execution.admissionLedger,
-        input,
-        pageLimits,
-        execution.revision,
-        'readReplyAdmissions',
-        admissionStatistics,
+      return readingAdmissions(state(), execution, rows =>
+        readAdmissionPage(
+          admissionScope(execution.tenant, execution.id),
+          rows,
+          execution.admissionLedger,
+          input,
+          pageLimits,
+          execution.revision,
+          'readReplyAdmissions',
+          admissionStatistics,
+        ),
       )
     },
 
@@ -4678,7 +3884,9 @@ export function createJournal<P>(
         return fail(denied('query'))
       }
       const at = operationKey(input.tenant, input.execution, input.operation)
-      const record = at === undefined ? undefined : state().operations.get(at)
+      const held = at === undefined ? undefined : state().operations.get(at)
+      const record =
+        held ?? (execution === undefined ? undefined : operationAnswer(state(), input, true))
       if (execution === undefined && record === undefined) return fail(denied('query'))
       if (record === undefined || record.kind === 'pending') return succeed({ kind: 'unknown' })
       if (record.kind === 'excluded') {
@@ -4747,6 +3955,10 @@ export function createJournal<P>(
   const receiving = createJournalReceiving<P>({
     owned,
     operations: () => state().operations,
+    answered: (input, need) => operationAnswer(state(), input, need),
+    closedBinding: (input, reference) => closedBindingOf(state(), input.execution, reference),
+    closed: state,
+    viewOf,
     authorize: cell.authorize,
     gate: cell.gate,
     state: () => cell.state().receiving,
@@ -4754,13 +3966,14 @@ export function createJournal<P>(
     touch: () => cell.touch(),
     namespace: cell.namespace,
     operationKey,
-    indexed: operation => state().view.ops.has(operation),
     write,
     holds,
     receiptOf,
     ownEvidence,
-    projectEntry: (execution, entry, cause) =>
-      appendEvents(execution, [{ kind: 'entry', entry }], cause),
+    projectEntry: (execution, entry, cause) => {
+      appendEvents(execution, [{ kind: 'entry', entry }], cause)
+      landEntry(state(), execution, entry)
+    },
     ...(options.custodian === undefined ? {} : { custodian: options.custodian }),
   })
   return {
@@ -4817,10 +4030,8 @@ export function createJournal<P>(
         const matches = [...state().executions.values()].filter(value => value.id === execution)
         const owner = tenant ?? (matches.length === 1 ? matches[0]?.tenant : undefined)
         if (owner === undefined && matches.length > 1) return false
-        for (const [key, record] of state().operations) {
+        for (const [key, record] of state().operations.pendingOf(execution)) {
           if (
-            record.kind !== 'pending' ||
-            record.execution !== execution ||
             record.operation !== operation ||
             (owner !== undefined && !tenantEquals(record.tenant, owner))
           ) {
@@ -4846,7 +4057,6 @@ export function createJournal<P>(
         return false
       })
     },
-    joint: () => copy(state().jointFacts),
     seedLegacyCandidate(id, candidate, tenant) {
       return cell.mutateExecution(id, () => {
         const matches = [...state().executions.values()].filter(
@@ -4863,7 +4073,7 @@ export function createJournal<P>(
           origin: legacy('origin'),
           conclusion: { kind: 'cancelled', cause: legacy('cause') },
           failure: null,
-          inputWatermark: watermarkOf(execution),
+          inputWatermark: ranges.watermarkOf(execution),
           checkpoint: copy(execution.checkpoint),
           conditions: legacy('conditions'),
         }

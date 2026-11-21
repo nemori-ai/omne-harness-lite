@@ -1,7 +1,7 @@
 import { Service, type Context, type Plugin } from '@deepseek-ai/cordis'
-import { createModelRuntime } from '@omne-harness/model'
+import { createDefaultRetryPolicy, createModelRuntime } from '@omne-harness/model'
 import type { DurableEvidence } from '@omne-harness/model-contract'
-import type { ModelRetryPolicy, ModelSendBoundary } from '@omne-harness/model-contract/provider'
+import type { ModelSendBoundary } from '@omne-harness/model-contract/provider'
 import {
   ModelSendBoundaryService,
   modelClockKey,
@@ -16,23 +16,19 @@ import {
 import {
   createModelRuntimeLocalPlugin,
   type ModelHostDrain,
+  type ResultPushRecovery,
 } from '@omne-harness/model-host-local/cordis'
+import { tenantCodec, type Access } from '@omne-harness/legal-identity'
+import { fail, succeed } from '@omne-harness/operation-result'
+import type { TenantDomains } from '@omne-harness/sql-contract'
+import { tenantDomainsKey } from '@omne-harness/sql-contract/cordis'
+import { TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY } from '../../entry/tenant-domain-scanner.ts'
+import type { ModelHostBinding } from '../../model/composition.ts'
 import { qualifyingCommands } from '../../model/commands-qualifying.ts'
 import { modelHostPortOf } from '../../model/ports.ts'
 import { defineRow, type RowHandle } from '../../row.ts'
 import { monotonicClock } from '../../shutdown.ts'
 import { modelHostConfig, type ModelHostConfig } from './config.ts'
-
-const RETRY_UNAVAILABLE = {
-  kind: 'unavailable' as const,
-  dependency: 'model-retry-policy',
-  diagnostic: 'not-configured',
-}
-
-export const unavailableRetry: ModelRetryPolicy<unknown> = Object.freeze({
-  inspect: async () => ({ failure: RETRY_UNAVAILABLE }),
-  decide: async () => ({ failure: RETRY_UNAVAILABLE }),
-})
 
 export function lateBoundSendBoundary(ctx: Context): ModelSendBoundary<unknown> {
   const boundary: ModelSendBoundary<unknown> = {
@@ -53,7 +49,46 @@ export function lateBoundSendBoundary(ctx: Context): ModelSendBoundary<unknown> 
   return Object.freeze(boundary)
 }
 
+/** The cost lookup of the send boundary this tree provides at the moment it is asked. */
+function lateBoundCostLookup(ctx: Context): NonNullable<ModelSendBoundary<unknown>['lookupCost']> {
+  return (input, signal) => {
+    const service: unknown = ctx.get(modelSendBoundaryKey)
+    if (!(service instanceof ModelSendBoundaryService))
+      return Promise.resolve({ kind: 'unavailable', diagnostic: 'send boundary is not provided' })
+    const lookup = (service as ModelSendBoundary<unknown>).lookupCost
+    return lookup?.call(service, input, signal) ?? Promise.resolve({ kind: 'unsupported' })
+  }
+}
+
 type Drain = (signal: AbortSignal) => Promise<ModelHostDrain>
+
+/** The start scan reads every tenant the storage holds, each with its own scan access. */
+function startScan(ctx: Context, binding: ModelHostBinding): ResultPushRecovery {
+  return {
+    async scopes() {
+      const directory = ctx.get(tenantDomainsKey) as TenantDomains<unknown>
+      const listed = await directory.enumerate({
+        principal: ctx.get(TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY),
+      })
+      if (listed.kind === 'denied') return fail({ kind: 'denied', action: 'tenant-domains' })
+      if (listed.kind === 'unavailable')
+        return fail({
+          kind: 'unavailable',
+          dependency: tenantDomainsKey,
+          diagnostic: listed.diagnostic,
+        })
+      const scopes: Access<unknown>[] = []
+      for (const entry of listed.entries) {
+        const tenant = tenantCodec.parse(entry.tenant)
+        if (!tenant.ok) continue
+        const access = binding.scanAccess(tenant.value)
+        if ('failure' in access) return access
+        scopes.push(access.ok)
+      }
+      return succeed(scopes)
+    },
+  }
+}
 
 export type ModelHostRowInput = Readonly<{
   lostContact?: (instance: string) => DurableEvidence | null
@@ -66,7 +101,13 @@ function hostPlugin(
 ): Plugin.Object {
   return {
     name: 'model-host',
-    inject: [modelCommandsKey, modelClockKey, modelHostAuthorityKey],
+    inject: [
+      modelCommandsKey,
+      modelClockKey,
+      modelHostAuthorityKey,
+      tenantDomainsKey,
+      TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY,
+    ],
     apply(ctx: Context) {
       const port = modelHostPortOf(ctx)
       if (port === undefined)
@@ -85,7 +126,12 @@ function hostPlugin(
         releaseExecution: binding.releaseExecution,
         qualifyObservation: access => binding.qualifyObservation(access),
         observation: observation.ok,
-        results: { ledger: binding.ledger, limits: config.results },
+        results: {
+          ledger: binding.ledger,
+          limits: config.results,
+          recovery: startScan(ctx, binding),
+          lookup: lateBoundCostLookup(ctx),
+        },
         ...(input.lostContact === undefined ? {} : { lostContact: input.lostContact }),
         provider: ({ host, commands, clock, liveness }) =>
           createModelRuntime(
@@ -98,7 +144,7 @@ function hostPlugin(
               clock,
               instances: host,
               send,
-              retry: unavailableRetry,
+              retry: createDefaultRetryPolicy({ ...config.retry, clock, random: Math.random }),
               liveness,
             },
             config.runtime,
@@ -169,7 +215,13 @@ export function createModelHostRow(input: ModelHostRowInput = {}) {
         modelStreamReferencesKey,
         modelStreamObservationKey,
       ],
-      injects: [modelCommandsKey, modelClockKey, modelHostAuthorityKey],
+      injects: [
+        modelCommandsKey,
+        modelClockKey,
+        modelHostAuthorityKey,
+        tenantDomainsKey,
+        TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY,
+      ],
       sameProviderGroup: null,
     },
     lifecycle: { kind: 'body', phase: 'business' },

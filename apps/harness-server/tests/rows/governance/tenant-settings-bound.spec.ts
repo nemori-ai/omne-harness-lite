@@ -129,7 +129,7 @@ async function world(organization: Rule | null, own: Rule | null = null) {
         completeness: 'complete',
         unavailableProviders: [],
       }),
-      assetOf: () => ({ category: 'tool', name: 'Shell' }),
+      holdingOf: async () => ({ category: 'tool', name: 'Shell' }),
     },
     permissions: createTenantSettingsPermissions({
       scope: { deploymentId: 'deployment', logicalServiceId: 'service' },
@@ -151,7 +151,12 @@ async function world(organization: Rule | null, own: Rule | null = null) {
       },
     },
   })
-  const item = { principal: 'login', tenant, asset: { name: 'Shell' }, item: itemId }
+  const item = {
+    principal: 'login',
+    tenant,
+    owner: { kind: 'asset', name: 'Shell' } as const,
+    item: itemId,
+  }
   return { face, item, writes }
 }
 
@@ -201,10 +206,10 @@ it('an organization locked to deny and ask with a tenant pick of auto shows the 
     item: {
       kind: 'permission',
       own: 'auto',
-      effective: { kind: 'value', value: 'ask', source: 'default' },
+      effective: { kind: 'value', value: 'ask', source: 'organization' },
       bound: ['deny', 'ask'],
       editable: { kind: 'yes' },
-      default: 'ask',
+      default: 'auto',
     },
   })
 })

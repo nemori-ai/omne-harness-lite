@@ -12,7 +12,6 @@ import type {
 } from '@omne-harness/tool-contract'
 import {
   decodeToolInstanceId,
-  decodeToolInstant,
   signBodyPermit,
   type SealedToolBody,
   type ToolBodyManifest,
@@ -22,7 +21,6 @@ import {
   type ToolBodyWriteFailure,
   type ToolBodyWriteReply,
   type ToolBodyWrites,
-  type ToolInstant,
   type ToolPrimitiveFailure,
 } from '@omne-harness/tool-contract/provider'
 import { bodyRepresentation } from './body-representation.ts'
@@ -44,6 +42,9 @@ import {
   sealBodyEntry,
   type BodyEntryRecord,
 } from './ledger-body-entries.ts'
+import { instantAfter } from './instant.ts'
+
+export { instantAfter }
 import type { Decision, Mint, Snapshot } from './ledger-decider.ts'
 import type { LedgerDomain } from './ledger-store.ts'
 import { resultBodyPolicy, type BodyPolicy } from './result-offloading.ts'
@@ -137,12 +138,6 @@ const PRIMITIVE: { [K in ToolFailure['kind']]: Primitive<K> } = {
 function primitive(failure: ToolFailure, operation: string): ToolBodyWriteFailure {
   const map = PRIMITIVE[failure.kind] as Primitive<ToolFailure['kind']>
   return map(failure, operation)
-}
-
-export function instantAfter(now: ToolInstant, ms: number): ToolInstant {
-  const decoded = decodeToolInstant(new Date(Date.parse(now) + ms).toISOString())
-  if ('failure' in decoded) throw new Error('ledger minted an illegal instant')
-  return decoded.ok
 }
 
 const storeUnavailable = (diagnostic: string): Outcome<never, ToolFailure> =>

@@ -1,13 +1,18 @@
 {
   "parallel": {
-    "memberDivisor": 3,
-    "workerDivisor": 4,
     "maxWorkersPerMember": 8,
-    "minimum": 2,
-    "memoryPerWorkerMiB": 512,
-    "sampleMs": 500,
     "reserveCores": 2,
-    "concurrentRuns": 2
+    "tokensPerWorker": [
+      {
+        "member": "apps/harness-server",
+        "tier": "slow",
+        "tokens": 2,
+        "why": "没有实测读数时的起始值：用例里另起服务端进程，6 个进程一个令牌一个时过载变红。运行器量到这个成员这一层的 CPU 之后以读数为准"
+      }
+    ],
+    "weight": { "floor": 0.5, "ceiling": 4, "readings": 3, "minProcessSeconds": 10 },
+    "batchSeconds": 90,
+    "startupShare": 0.05
   },
   "affected": {
     "excludeRoots": ["examples"],
@@ -18,12 +23,15 @@
       "tsconfig*.json",
       "vitest.tiers.mts",
       "scripts/check.sh",
+      "scripts/check-bootstrap.mjs",
+      "scripts/prepare-native.mjs",
       "scripts/check-design.sh",
       "scripts/metrics.sh",
       "scripts/slot-unless-plan-only.sh",
       "scripts/test-tier.sh",
       "tools/test-runner/test-runs.config.json",
       "tools/test-runner/src/testing/scope.ts",
+      "tools/test-runner/src/testing/path-pattern.ts",
       "tools/test-runner/src/testing/turbo.ts",
       "tools/test-runner/src/testing/cli.ts",
       "tools/test-runner/src/testing/config.ts",
@@ -31,9 +39,18 @@
       "tools/test-runner/src/testing/steps.ts",
       "tools/test-runner/src/testing/support.ts",
       "tools/test-runner/src/testing/timing-reporter.ts",
+      "tools/test-runner/src/testing/read-sets.ts",
+      "tools/test-runner/src/testing/read-recorder.ts",
+      "tools/test-runner/src/testing/read-set-reporter.ts",
       "tools/test-runner/src/testing/typecheck-scope.ts",
       "tools/test-runner/src/testing/member-turbo.ts",
       "tools/test-runner/src/testing/parallelism.ts",
+      "tools/test-runner/src/testing/cpu-meter.ts",
+      "tools/test-runner/src/testing/batches.ts",
+      "tools/test-runner/src/testing/read-set-skip.ts",
+      "tools/test-runner/src/testing/token-pool.ts",
+      "tools/test-runner/src/testing/token-ledger.ts",
+      "tools/test-runner/src/testing/member-history.ts",
       "tools/test-runner/src/testing/coverage-parallel.ts",
       "tools/test-runner/src/testing/check.ts",
       "tools/test-runner/src/testing/check-graph.ts",

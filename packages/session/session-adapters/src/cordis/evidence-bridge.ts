@@ -123,6 +123,16 @@ function refusalOf(guard: GuardCommand, command: SessionCommand, tenant: string)
   return null
 }
 
+// What a person declares adopts nothing from the deployment; its qualification is checked at the
+// commit, a model's target by Model before it, and a workspace's attachment by Workspace before it.
+const PERSON_DECLARATIONS: ReadonlySet<string> = new Set([
+  'authorization-expression',
+  'permission-assignment',
+  'permission-mode',
+  'model',
+  'workspace',
+])
+
 export class SessionEvidenceBridgeProvider<P = unknown> extends SessionEvidenceBridgeService<P> {
   static readonly inject = [
     sessionAdoptionSourceKey,
@@ -182,8 +192,9 @@ export class SessionEvidenceBridgeProvider<P = unknown> extends SessionEvidenceB
     return succeed(materials)
   }
 
+  // A permission write is checked in its own transaction; a model's legality was judged with Model.
   private sourcesFor(command: SessionCommand): Source<P>[] {
-    if (command.kind === 'change' && command.input.declaration.kind === 'permission-assignment')
+    if (command.kind === 'change' && PERSON_DECLARATIONS.has(command.input.declaration.kind))
       return []
     const sources: Source<P>[] = []
     if (ADOPTION.has(command.kind)) sources.push(this.adoption)

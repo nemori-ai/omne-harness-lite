@@ -1,0 +1,266 @@
+[
+  {
+    "kind": "block-open",
+    "index": "0",
+    "mode": "append",
+    "content": "thinking"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "I'm counting the numb"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "ers from 1 to 99"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ":"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 33 are"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " div"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "isible by 3, and"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 14 are div"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "isible by 7."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Four"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " of"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " them are divisible by 21"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ", so I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "'m remov"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "ing those"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " from both coun"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "ts."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " That leaves 39"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " num"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "bers that are"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " div"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "isible by exactly one of"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 3 or 7, which"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " is odd, so the answer"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " is Lima."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "\n\n"
+  },
+  {
+    "kind": "block-open",
+    "index": "1",
+    "mode": "append",
+    "content": "tool-arguments"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "{\"city\": \"Lima"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\"}"
+  },
+  {
+    "kind": "block-seal",
+    "index": "0",
+    "block": {
+      "kind": "thinking",
+      "id": "b0",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "I'm counting the numbers from 1 to 99: 33 are divisible by 3, and 14 are divisible by 7. Four of them are divisible by 21, so I'm removing those from both counts. That leaves 39 numbers that are divisible by exactly one of 3 or 7, which is odd, so the answer is Lima.\n\n"
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "1",
+    "block": {
+      "kind": "tool_call",
+      "id": "b1",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "callId": "toolu_01JEBxjNfTdKcYvQmJq7bx4S",
+      "name": "get_weather",
+      "arguments": {
+        "kind": "object",
+        "entries": [
+          {
+            "key": "city",
+            "value": {
+              "kind": "string",
+              "value": "Lima"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "2",
+    "block": {
+      "kind": "reasoning_state",
+      "id": "b2",
+      "visibility": {
+        "toHuman": false,
+        "toModel": true
+      },
+      "payload": "[{\"signature\":\"CAIS1QQK4wIIExgCKkCITPMwXHeSas8DQbSMF22MlEqhDoNjaFSJuAcoZ8Ls4UxHsEXe1pLZiy3j2AIgafUMXwrkIHDn3GeFORJckdvMMg1jbGF1ZGUtb3B1cy01OAFCCHRoaW5raW5nWiQwZDk4M2YzZi00OWZhLTRhNDYtODI1NC1iMWJiMjQ5MWEyYTl6HnVwcm9mXzAxMUNlU1dQR2FOOUQ2V1dIeTdvbkpOZ5oBDwoNY2xhdWRlLW9wdXMtNagBhtT11wbCAT0IBRAAGg8Bg3ACEJcDTzcF1nQEJq0gAjIEEnHPJToEEpEzoUIE8ZJGdkoEl6SmilABWgTZBeFWYAJoAXAB2gFgChZwcmVmaXhfYmVmb3JlX2Jsb2NrX3YxEiCVbYI4VBC9kIIjfMHFHaFSEWWCBtOfQiD6YD4Fje+ZvSIAMiDCwBPIapyS4i+Wbz2GF3aPi3pEyQKtzAl7+h4JivtOH0gIEgxfy2jpJ/zqxgEo3GIaDDVkLWmAUkt03EuxkyIw1sZJ+V4gXPUrkJyqrnu9qcu6AtZVUORuoTtbWCdg9fpqIqCfvCgHei4/4Fi4J7vLKp4B2CP93uQE5zYzykZ+fS5SqXdqwPQofl9Hg0z7JO6Hy09hTIMc9HWmZWGNUMDac9wIYySd+IsZ/GWBlay8DJs+usTUskvsMRGR/WTVcwJr+K4BJPEnkvuySBrv31AguQogRwGIqzZ54zsGxhQnjpMfOwgqZ4oMJ/MSC6VATKvIRjTVSNBG1agnTtJJ1ZtoYeFafYljVPj+smoILKd21cIYAQ==.eyJlbmRwb2ludF9zbHVnIjoiYW50aHJvcGljL2NsYXVkZS1vcHVzLTUtMjAyNjA3MjN8YW50aHJvcGljIn0\",\"thinking\":\"I'm counting the numbers from 1 to 99: 33 are divisible by 3, and 14 are divisible by 7. Four of them are divisible by 21, so I'm removing those from both counts. That leaves 39 numbers that are divisible by exactly one of 3 or 7, which is odd, so the answer is Lima.\\n\\n\",\"type\":\"thinking\"}]",
+      "pairs": [
+        "b0"
+      ]
+    }
+  },
+  {
+    "kind": "account",
+    "event": "usage",
+    "value": {
+      "usage": [
+        {
+          "name": "input",
+          "state": "known",
+          "lexeme": "443",
+          "unit": "token"
+        },
+        {
+          "name": "output",
+          "state": "known",
+          "lexeme": "139",
+          "unit": "token"
+        },
+        {
+          "name": "cache-read",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "cache-write",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "reasoning",
+          "state": "known",
+          "lexeme": "88",
+          "unit": "token"
+        }
+      ],
+      "cost": [
+        {
+          "state": "known",
+          "lexeme": "0.00569",
+          "unit": "openrouter-credit",
+          "source": "billable"
+        }
+      ],
+      "trimmed": {
+        "state": "unknown",
+        "unit": "token"
+      },
+      "place": "openrouter/Anthropic",
+      "duration": {
+        "state": "unknown"
+      },
+      "revision": "1"
+    }
+  },
+  {
+    "kind": "ended",
+    "termination": {
+      "kind": "completed",
+      "reason": "tool-suggestions"
+    }
+  }
+]

@@ -28,7 +28,7 @@ function action(view: ScheduleView, kind: ScheduleCommand['action'], extra = {})
     action: kind,
     scheduleId: view.scheduleId,
     ...(kind === 'update' ? {} : { reason: null }),
-    meta: { operationKey: randomUUID(), expectedRevision: view.revision, consentRef: null },
+    meta: { operationKey: randomUUID(), expectedRevision: view.revision },
     ...extra,
   })
 }
@@ -37,7 +37,7 @@ async function create(w: World, draft = false) {
     await w.commands.create(context, {
       definition,
       initial: draft ? { kind: 'draft', reason: 'Prepare' } : { kind: 'active' },
-      meta: { operationKey: randomUUID(), expectedRevision: null, consentRef: null },
+      meta: { operationKey: randomUUID(), expectedRevision: null },
     }),
   )
 }
@@ -93,6 +93,7 @@ test('draft revision, promotion, discard and active controls persist immutable r
   })
   if (firstPage.kind !== 'ok') throw new Error(JSON.stringify(firstPage))
   expect(firstPage.value.items.map(item => item.action)).toEqual(['create', 'reviseDraft'])
+  expect(firstPage.value.items.map(item => item.revision)).toEqual([1, 2])
   const nextPage = await w.store.readRevisions({
     access: readAccess(),
     request: { scheduleId: draft.scheduleId, cursor: firstPage.value.nextCursor, limit: 2 },
@@ -169,30 +170,6 @@ test('replace transfers one holding to the current author and preserves both lin
       action(predecessor, 'replace', { successor: definition, reason: 'Old CAS' }),
     ),
   ).toMatchObject({ kind: 'rejected', error: { code: 'revision_conflict' } })
-}, 15000)
-
-test('reconfirm retains pause and saves the adopted consent', async () => {
-  const w = await world()
-  const paused = saved(await w.commands.execute(context, action(await create(w), 'pause')))
-  const consent = {
-    kind: 'adopt',
-    guardRef: 'consent:guard',
-    adoption: {
-      grantRef: 'grant:new',
-      generation: 2,
-      adoptionKind: 'blanket',
-      scope: 'standing',
-      adoptedAt: now,
-    },
-  } as const
-  await w.configure({ access: { ...access(), consent } })
-  const reconfirmed = saved(
-    await w.commands.execute(
-      context,
-      action(paused, 'reconfirmConsent', { newConsentRef: 'grant:new', reason: 'Consent again' }),
-    ),
-  )
-  expect(reconfirmed).toMatchObject({ control: 'paused', consentAdoption: consent.adoption })
 }, 15000)
 
 test('a preobserved record loses CAS inside SQL and quota capacity serializes parallel creates', async () => {

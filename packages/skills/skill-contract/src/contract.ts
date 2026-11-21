@@ -5,23 +5,27 @@ import {
   readSnapshot,
   refusal,
   type BodyContract,
+  type CategoryDisplay,
   type JsonValue,
   type Judgment,
 } from '@omne-harness/assets'
+
+export const skillCategoryDisplay: CategoryDisplay = Object.freeze({
+  title: '技能',
+  summary: '一份说明加配套文件，代理需要时读取。',
+  creation: '一个目录，根下有 SKILL.md，配套文件放在它旁边。',
+})
 import { isPackageDigest } from './digest.ts'
+import { skillLayout } from './layout.ts'
 import { isSkillName } from './names.ts'
 import {
   DESCRIPTION_LIMIT,
   fieldsOf,
   firstFinding,
   isSkillDescription,
-  readScripts,
-  readSettings,
   unknownKeys,
   type Finding,
-  type Read,
 } from './parse/shape.ts'
-import type { SettingDeclaration } from './values.ts'
 
 const schemaRead = readBodyText(
   JSON.stringify({
@@ -30,8 +34,6 @@ const schemaRead = readBodyText(
       name: 'string',
       description: 'string',
       tools: { category: 'tool', name: 'string' },
-      scripts: { entry: 'string', runKind: 'string', facilities: 'string[]', parameters: 'json' },
-      settings: { name: 'string', category: 'preference|binding|placement-identity|governance' },
       package: { digest: 'string' },
     },
   }),
@@ -51,15 +53,12 @@ export function skillBodyContract(): BodyContract {
   return {
     category: 'skill',
     schema,
+    layout: skillLayout,
     judge,
     deriveDeclarations(body, context) {
       const decision = judge(body, context)
       if (!decision.ok) throw new TypeError(`skill body failed judgment: ${decision.rejected}`)
-      return {
-        entries: extensionOf(body).value.map(
-          setting => `setting:${setting.category}:${setting.name}`,
-        ),
-      }
+      return { entries: [] }
     },
     references(body, context) {
       const decision = judge(body, context)
@@ -73,7 +72,28 @@ export function skillBodyContract(): BodyContract {
         return id.id
       })
     },
+    summarize(body, context) {
+      const decision = judge(body, context)
+      if (!decision.ok) throw new TypeError(`skill body failed judgment: ${decision.rejected}`)
+      const tools = toolRefs(body) ?? []
+      return {
+        title: stringField(body, 'name') ?? '',
+        description: stringField(body, 'description') ?? '',
+        facts: [
+          { name: '文件', text: `${fileCount(body)} 个` },
+          {
+            name: '依赖',
+            text: tools.length === 0 ? '无' : tools.map(tool => tool.name).join('、'),
+          },
+        ],
+      }
+    },
   }
+}
+
+function fileCount(body: JsonValue): number {
+  const entries = field(field(body, 'manifest'), 'entries')
+  return entries?.kind === 'array' ? entries.items.length : 0
 }
 
 function judge(body: unknown, context?: { capabilityName?: string }): Judgment {
@@ -84,11 +104,11 @@ function judge(body: unknown, context?: { capabilityName?: string }): Judgment {
     return refusal('name-mismatch')
   if (!isSkillName(name)) return refusal('name-invalid')
   if (toolRefs(body) === undefined) return refusal('incomplete-reference')
-  const first = firstFinding(extensionOf(body).findings)
+  const first = firstFinding(extensionOf(body))
   return first === undefined ? { ok: true } : refusal(first.code)
 }
 
-function extensionOf(body: unknown): Read<readonly SettingDeclaration[]> {
+function extensionOf(body: unknown): readonly Finding[] {
   const findings: Finding[] = []
   const description = field(body, 'description')
   if (
@@ -99,9 +119,6 @@ function extensionOf(body: unknown): Read<readonly SettingDeclaration[]> {
       code: 'malformed',
       detail: `description is not text of 1 to ${DESCRIPTION_LIMIT} characters`,
     })
-  const scripts = readScripts(field(body, 'scripts'), { normalized: true })
-  const settings = readSettings(field(body, 'settings'))
-  findings.push(...scripts.findings, ...settings.findings)
   const pack = field(body, 'package')
   if (pack !== undefined) {
     const fields = fieldsOf(pack)
@@ -110,7 +127,7 @@ function extensionOf(body: unknown): Read<readonly SettingDeclaration[]> {
     if (digest?.kind !== 'string' || !isPackageDigest(digest.value))
       findings.push({ code: 'malformed', detail: 'package.digest is not a package digest' })
   }
-  return { value: settings.value, findings }
+  return findings
 }
 
 function toolRefs(body: unknown): readonly { category: string; name: string }[] | undefined {

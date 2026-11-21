@@ -1,3 +1,5 @@
+import type { ContextScopeBinding } from './values.ts'
+import type { SessionCallBinding } from './call-settlement.ts'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -19,11 +21,13 @@ import type {
   FreezeVerdict,
   IdleObservation,
   ProducedResult,
+  ProducerRef,
   ResidentAdoption,
   RoutedInput,
   ScopeReleaseDisposition,
   WorkSnapshot,
 } from './values.ts'
+import type { BackgroundCallState } from './background-calls.ts'
 import type { ControlOperationResolution, SessionModelSelection } from './control-values.ts'
 import type {
   SessionEntriesObservation,
@@ -130,6 +134,29 @@ export type ScopeReleaseReadback = Readonly<{
   dispositions: readonly ScopeReleaseDisposition[]
   source: DurableEvidence
 }>
+// Controls by reference a call no step waits on. `recorded`: Tool holds the control (a resend
+// recalls it); `ended`: the call already settled. Neither is a physical stop.
+export interface SessionCallControl {
+  control(
+    input: Readonly<{
+      tenant: TenantId
+      session: SessionId
+      control: SessionOperationId
+      producer: Extract<ProducerRef, { kind: 'tool' }>
+      intent: 'stop' | 'withdraw'
+    }>,
+  ): Reply<'recorded' | 'ended'>
+}
+/** Session asks the called side for the state of one call by its reference; it keeps none of it. */
+export interface SessionCallStates {
+  read(
+    input: Readonly<{
+      tenant: TenantId
+      session: SessionId
+      producer: Extract<ProducerRef, { kind: 'tool' }>
+    }>,
+  ): Reply<BackgroundCallState>
+}
 export interface ScopeReleasePort {
   release(
     input: Readonly<{
@@ -169,7 +196,7 @@ export type MutationName =
   | 'create'
   | 'completeInitialization'
   | 'change'
-  | 'setRelation'
+  | 'setResident'
   | 'configureAutoArchive'
   | 'considerAutoArchive'
   | 'recordIdle'
@@ -193,7 +220,9 @@ export type SessionCommand = {
             judgment?: DurableEvidence
             expected?: SessionRevision
           }>
-        : unknown)
+        : K extends 'stopCall'
+          ? Readonly<{ initiator?: import('./background-calls.ts').StopInitiator }>
+          : unknown)
   }>
 }[MutationName]
 export type GuardCommand = Readonly<{
@@ -275,6 +304,11 @@ export interface SessionTransactionPort<P> {
     }>,
   ): ReturnType<Mutations[K]>
   readWork(input: SessionAccess<P>): Reply<WorkSnapshot>
+  readCurrentScope(input: SessionAccess<P>): Reply<ContextScopeBinding | null>
+  /** The binding of the call of one producer, in the snapshot or after it left; null when there is none. */
+  readCall(
+    input: SessionAccess<P> & Readonly<{ producer: ProducerRef }>,
+  ): Reply<SessionCallBinding | null>
   readInput(
     input: SessionAccess<P> & Readonly<{ input: InputId }>,
   ): Reply<Extract<RoutedInput, { kind: 'ordinary' }>>

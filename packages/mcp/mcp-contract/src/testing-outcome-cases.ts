@@ -371,14 +371,14 @@ const faultCases: readonly ClassifyOutcomeCase[] = [
   },
 ]
 
-const noAnswerCases: readonly ClassifyOutcomeCase[] = (
-  ['stream-broken', 'process-exited', 'abandoned'] as const
-).map(cause => ({
-  name: `unknown: sent without an answer (${cause})`,
-  answer: { kind: 'no-answer', cause },
-  issuedAt,
-  expected: { kind: 'unknown', cause },
-}))
+const noAnswerCases: readonly ClassifyOutcomeCase[] = (['stream-broken', 'abandoned'] as const).map(
+  cause => ({
+    name: `unknown: sent without an answer (${cause})`,
+    answer: { kind: 'no-answer', cause },
+    issuedAt,
+    expected: { kind: 'unknown', cause },
+  }),
+)
 
 export const classifyOutcomeCases: readonly ClassifyOutcomeCase[] = [
   ...completeCases,

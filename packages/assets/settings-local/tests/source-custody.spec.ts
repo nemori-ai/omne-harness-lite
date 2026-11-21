@@ -64,7 +64,7 @@ function held(
   }
 }
 it('freezes a complete set atomically, recognizes reordered input and refuses route or set changes', async () => {
-  const other = { ...source, target: { ...source.target, targetRef: 'other' } }
+  const other = { ...source, target: { ...source.target, definitionId: 'other' } }
   const { w, ref, plan } = await setup([source, other])
   const rolled = await w.source({ kind: 'plan', input: plan }, true)
   expect(rolled.kind).toBe('rolled_back')
@@ -240,7 +240,7 @@ it('records old-attempt replies without authorizing another request or changing 
 it('pages request metadata through the attempt primary key without loading snapshots', async () => {
   const sources = Array.from({ length: 65 }, (_, i) => ({
     ...source,
-    target: { ...source.target, targetRef: `source-${i}` },
+    target: { ...source.target, definitionId: `source-${i}` },
   }))
   const { w, ref, plan } = await setup(sources)
   await w.source({ kind: 'plan', input: plan })
@@ -310,7 +310,7 @@ it('records terminal recognition directly after a lost held reply', async () => 
 })
 it('serializes competing manifests without publishing a mixed request set', async () => {
   const { w, ref, plan } = await setup()
-  const other = { ...source, target: { ...source.target, targetRef: 'competing' } }
+  const other = { ...source, target: { ...source.target, definitionId: 'competing' } }
   const results = await Promise.all([
     w.source({ kind: 'plan', input: plan }),
     w.source({ kind: 'plan', input: { ...plan, sources: [other] } }),

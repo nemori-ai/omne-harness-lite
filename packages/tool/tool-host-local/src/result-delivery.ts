@@ -13,6 +13,7 @@ import {
   type ToolLedgerStore,
 } from '@omne-harness/tool'
 import {
+  decodeToolOperationId,
   encodeToolInvocationRef,
   judgeToolDelivery,
   type ConsumerRef,
@@ -40,6 +41,7 @@ import {
   type ResultValueCommitment,
 } from './delivery-state.ts'
 import { processMonotonicMs } from './clock.ts'
+import { createDeliveryPacing, tenantKey, type Owed } from './delivery-pacing.ts'
 
 export type DeliveryPosition<P, B extends ContentBlock> = Readonly<{
   access(input: Readonly<{ tenant: TenantId; call: ToolCallId }>): Reply<CallAccess<P>>
@@ -67,14 +69,7 @@ export type LocalDeliveryInput<P, B extends ContentBlock> = Readonly<{
 
 export const ABSENT_RECEIVER = 'tool-result-receiver'
 
-type Pace = { until: number; delay: number; dependency: string }
-
 type Turn = { last: Promise<unknown> | null; queued: number }
-
-function tenantKey(tenant: TenantId): string | null {
-  const encoded = tenantCodec.encode(tenant)
-  return encoded.ok ? encoded.value : null
-}
 
 function restoreTenant(value: unknown): TenantId | null {
   if (!isTenantShape(value)) return null
@@ -87,6 +82,25 @@ function restoreTenant(value: unknown): TenantId | null {
 function storedTenantKey(value: unknown): string | null {
   const tenant = restoreTenant(value)
   return tenant === null ? null : tenantKey(tenant)
+}
+
+function placeholderPayload<B extends ContentBlock>(
+  call: CallRecord,
+  task: Extract<ToolTask, { kind: 'placeholder' }>,
+): Extract<ToolDelivery<B>, { kind: 'placeholder' }> | null {
+  const tenant = restoreTenant(call.tenant)
+  if (tenant === null) return null
+  const reference = encodeToolInvocationRef({ tenant, call: call.call, admission: call.admission })
+  if ('failure' in reference) return null
+  return {
+    kind: 'placeholder',
+    key: { kind: 'placeholder', producer: 'tool', reference: reference.ok },
+    consumer: task.consumer,
+    delivery: task.delivery,
+    source: task.source,
+    label: call.request.label,
+    evidence: task.evidence,
+  }
 }
 
 function resultDeliveryBase(call: CallRecord, result: ResultRecord): DeliveryBase | null {
@@ -138,10 +152,6 @@ function fingerprintOf(value: ResultRecord['value']): ToolCanonicalFingerprint {
   return encoded.ok.fingerprint
 }
 
-function callKeyOf(access: Readonly<{ tenant: TenantId; call: ToolCallId }>): string {
-  return JSON.stringify([tenantKey(access.tenant), access.call])
-}
-
 function describeFailure(failure: object): string {
   const fields = failure as Record<string, unknown>
   const named = ['dependency', 'action', 'field', 'reason', 'diagnostic'].flatMap(name =>
@@ -161,6 +171,8 @@ function describeError(error: unknown): string {
 }
 
 type Sweep = { owed: Set<string>; certain: boolean }
+
+const OWED_TASKS: ReadonlySet<ToolTask['kind']> = new Set(['deliver', 'account', 'placeholder'])
 
 function wait<T>(promise: Promise<T>, signal: AbortSignal): Promise<T | null> {
   if (signal.aborted) {
@@ -193,41 +205,17 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
   const turns = new Map<string, Turn>()
   const pacing = input.pacing ?? { initialMs: 1000, maxMs: 60_000 }
   const now = input.now ?? processMonotonicMs
-  const paced = new Map<string, Map<string, Pace>>()
-
-  function pacedOf(access: CallAccess<P>, record: DeliveryRecord): Pace | undefined {
-    return paced.get(callKeyOf(access))?.get(record.digest)
-  }
-
-  function unpace(access: CallAccess<P>, record: DeliveryRecord): void {
-    const key = callKeyOf(access)
-    const entries = paced.get(key)
-    if (entries === undefined) return
-    entries.delete(record.digest)
-    if (entries.size === 0) paced.delete(key)
-  }
-
-  function unpaceCall(access: Readonly<{ tenant: TenantId; call: ToolCallId }>): void {
-    paced.delete(callKeyOf(access))
-  }
-
-  function retainPaced(access: CallAccess<P>, owed: ReadonlySet<string>): void {
-    const key = callKeyOf(access)
-    const entries = paced.get(key)
-    if (entries === undefined) return
-    for (const digest of entries.keys()) if (!owed.has(digest)) entries.delete(digest)
-    if (entries.size === 0) paced.delete(key)
-  }
 
   function say(message: string): void {
     try {
       input.warn?.(message)
     } catch {}
   }
+  const paced = createDeliveryPacing({ pacing, now, say })
 
   async function current(access: CallAccess<P>): Reply<CallAccess<P>> {
     const denied = () => {
-      unpaceCall(access)
+      paced.forget(access)
       return fail({ kind: 'denied', action: 'recover' } as const)
     }
     const recovered = await input.position.access({ tenant: access.tenant, call: access.call })
@@ -287,7 +275,7 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
     signal: AbortSignal,
   ): Reply<DeliveryRecord> {
     if (record.phase.kind !== 'frozen') return succeed(record)
-    const waiting = pacedAway(access, record)
+    const waiting = paced.away(access, record)
     if (waiting !== null) return deliveryUnavailable(waiting.dependency)
     const qualified = await current(access)
     if ('failure' in qualified) return qualified
@@ -311,93 +299,63 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
     const payload = { ...record.payload, value: value.ok }
     if ('failure' in judgeToolDelivery({ tenant: access.tenant, delivery: payload }))
       return deliveryUnavailable('delivery-value')
+    const custody = await exchange(access, record, receiver.ok, payload, signal)
+    if ('failure' in custody) return custody
+    return state.save(access, { ...record, phase: { kind: 'saved', evidence: custody.ok } }, record)
+  }
+
+  async function exchange(
+    access: CallAccess<P>,
+    owed: Owed,
+    receiver: ToolResultReceiver<P, B>,
+    delivery: ToolDelivery<B>,
+    signal: AbortSignal,
+  ): Reply<DurableEvidence> {
     const ready = await current(access)
     if ('failure' in ready) return ready
     if (signal.aborted) return deliveryUnavailable('delivery-wait')
     let saved
     try {
       saved = await wait(
-        receiver.ok.push({
-          access: ready.ok,
-          delivery: structuredClone(payload),
-          signal,
-        }),
+        receiver.push({ access: ready.ok, delivery: structuredClone(delivery), signal }),
         signal,
       )
     } catch (error) {
-      failed(access, record, `the push threw ${describeError(error)}`)
+      paced.failed(access, owed, `the push threw ${describeError(error)}`)
       return deliveryUnavailable('delivery-receiver')
     }
     if (saved === null) return deliveryUnavailable('delivery-receiver')
     if ('failure' in saved) {
-      if (saved.failure.kind === 'unavailable') pace(access, record, saved.failure)
-      else failed(access, record, `the push answered ${describeFailure(saved.failure)}`)
+      if (saved.failure.kind === 'unavailable') paced.unavailable(access, owed, saved.failure)
+      else paced.failed(access, owed, `the push answered ${describeFailure(saved.failure)}`)
       return deliveryUnavailable('delivery-receiver')
     }
-    unpace(access, record)
+    paced.settled(access, owed)
     const evidence = judgeHandoff({ kind: 'retained', custody: saved.ok.evidence })
     if (
-      canonicalDigest(saved.ok.key) !== canonicalDigest(record.payload.key) ||
+      canonicalDigest(saved.ok.key) !== canonicalDigest(delivery.key) ||
       'failure' in evidence ||
       evidence.ok.kind !== 'retained' ||
-      evidence.ok.custody.owner !== record.payload.consumer.owner
+      evidence.ok.custody.owner !== delivery.consumer.owner
     )
       return deliveryUnavailable('delivery-receipt')
-    return state.save(
-      access,
-      { ...record, phase: { kind: 'saved', evidence: evidence.ok.custody } },
-      record,
-    )
+    return succeed(evidence.ok.custody)
   }
 
-  function pacedAway(access: CallAccess<P>, record: DeliveryRecord): Pace | null {
-    const waiting = pacedOf(access, record)
-    return waiting !== undefined && now() < waiting.until ? waiting : null
-  }
-
-  async function receiverOf(
-    access: CallAccess<P>,
-    record: DeliveryRecord,
-  ): Reply<ToolResultReceiver<P, B>> {
+  async function receiverOf(access: CallAccess<P>, record: Owed): Reply<ToolResultReceiver<P, B>> {
     let receiver
     try {
       receiver = await input.position.receiver(structuredClone(record.payload.consumer))
     } catch (error) {
-      failed(access, record, `the lookup threw ${describeError(error)}`)
+      paced.failed(access, record, `the lookup threw ${describeError(error)}`)
       return deliveryUnavailable('delivery-receiver')
     }
     if ('failure' in receiver) {
-      if (receiver.failure.kind === 'unavailable') pace(access, record, receiver.failure)
-      else failed(access, record, `the lookup answered ${describeFailure(receiver.failure)}`)
+      if (receiver.failure.kind === 'unavailable')
+        paced.unavailable(access, record, receiver.failure)
+      else paced.failed(access, record, `the lookup answered ${describeFailure(receiver.failure)}`)
     }
     return receiver
-  }
-
-  function failed(access: CallAccess<P>, record: DeliveryRecord, reason: string): void {
-    unpace(access, record)
-    say(
-      `result delivery ${String(record.payload.delivery)} of call ${String(access.call)} of tenant ` +
-        `${String(tenantKey(access.tenant))} stays owed: the receiver of the consumer owner ` +
-        `${record.payload.consumer.owner} failed definitively (${reason}); it is not paced, the next drive pushes again`,
-    )
-  }
-
-  function pace(
-    access: CallAccess<P>,
-    record: DeliveryRecord,
-    cause: Readonly<{ dependency: string; diagnostic?: string }>,
-  ): void {
-    const last = pacedOf(access, record)
-    const delay = last === undefined ? pacing.initialMs : Math.min(last.delay * 2, pacing.maxMs)
-    const key = callKeyOf(access)
-    const entries = paced.get(key) ?? new Map<string, Pace>()
-    entries.set(record.digest, { until: now() + delay, delay, dependency: cause.dependency })
-    paced.set(key, entries)
-    say(
-      `result delivery ${String(record.payload.delivery)} of call ${String(access.call)} stays owed: ` +
-        `the receiver of the consumer owner ${record.payload.consumer.owner} is unavailable ` +
-        `(${cause.dependency}${cause.diagnostic === undefined ? '' : `: ${cause.diagnostic}`}); the next push is in ${String(delay)} ms`,
-    )
   }
 
   async function released(access: CallAccess<P>, record: DeliveryRecord): Promise<boolean> {
@@ -535,6 +493,37 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
     return 'ok' in finished && finished.ok.phase.kind === 'done'
   }
 
+  // The placeholder goes first: while it is owed, no result of the call is pushed.
+  async function deliverPlaceholder(
+    access: CallAccess<P>,
+    call: CallRecord,
+    tasks: readonly ToolTask[],
+    signal: AbortSignal,
+    sweep: Sweep,
+  ): Promise<'none' | 'released' | 'owed'> {
+    const task = tasks.find(item => item.kind === 'placeholder')
+    if (task?.kind !== 'placeholder') return 'none'
+    const payload = placeholderPayload<B>(call, task)
+    const operation = decodeToolOperationId(`${task.operation}/release-placeholder`)
+    if (payload === null || 'failure' in operation) return 'owed'
+    const owed: Owed = { digest: canonicalDigest(payload), payload }
+    sweep.owed.add(owed.digest)
+    if (paced.away(access, owed) !== null) return 'owed'
+    if ('failure' in judgeToolDelivery({ tenant: access.tenant, delivery: payload })) return 'owed'
+    const receiver = await receiverOf(access, owed)
+    if ('failure' in receiver) return 'owed'
+    const custody = await exchange(access, owed, receiver.ok, payload, signal)
+    if ('failure' in custody) return 'owed'
+    const released = await input.commands.releasePlaceholder({
+      ...access,
+      operation: operation.ok,
+      delivery: task.delivery,
+      consumer: task.consumer,
+      evidence: { kind: 'retained', custody: custody.ok },
+    })
+    return 'ok' in released ? 'released' : 'owed'
+  }
+
   async function deliver(
     access: CallAccess<P>,
     request: FixedToolRequest,
@@ -567,13 +556,13 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
     )
       return deliveryUnavailable('delivery-call')
     const tasks = read.records.flatMap(row =>
-      row.kind === 'task' && (row.task.kind === 'deliver' || row.task.kind === 'account')
-        ? [row.task]
-        : [],
+      row.kind === 'task' && OWED_TASKS.has(row.task.kind) ? [row.task] : [],
     )
     let pending = tasks.length
     const sweep: Sweep = { owed: new Set(), certain: true }
-    for (const row of read.records) {
+    const first = await deliverPlaceholder(qualified.ok, call.call, tasks, signal, sweep)
+    if (first === 'released') pending -= 1
+    for (const row of first === 'owed' ? [] : read.records) {
       if (row.kind !== 'result' || signal.aborted) continue
       const base = resultDeliveryBase(call.call, row.result)
       if (
@@ -597,7 +586,7 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
       )
         pending -= 1
     }
-    if (!signal.aborted && sweep.certain) retainPaced(qualified.ok, sweep.owed)
+    if (!signal.aborted && sweep.certain) paced.retain(qualified.ok, sweep.owed)
     return succeed({ pending })
   }
 
@@ -657,7 +646,7 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
       if (qualified === null || qualified.kind === 'unavailable')
         return deliveryUnavailable('delivery-access')
       if (qualified.kind === 'denied') {
-        unpaceCall(access)
+        paced.forget(access)
         return fail({ kind: 'denied', action: 'recover' })
       }
       if (shutdown.signal.aborted || access.signal.aborted)
@@ -675,12 +664,10 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
       return (await wait(running, access.signal)) ?? deliveryUnavailable('delivery-wait')
     },
     pacedEntries(): number {
-      let entries = 0
-      for (const call of paced.values()) entries += call.size
-      return entries
+      return paced.entries()
     },
     release(call: Readonly<{ tenant: TenantId; call: ToolCallId }>): void {
-      unpaceCall(call)
+      paced.forget(call)
     },
     async close(): Promise<void> {
       shutdown.abort()

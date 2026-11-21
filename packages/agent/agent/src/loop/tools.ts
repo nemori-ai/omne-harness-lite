@@ -7,6 +7,7 @@ import {
   type ActionBatch,
   type ActionId,
   type ActionSlot,
+  type ActionBatchId,
   type ActionToolCall,
   type AdmissionDecision,
   type Adoption,
@@ -17,6 +18,7 @@ import {
   type CardRemark,
   type ConsumerRef,
   type DecisionCardDraft,
+  type DenialCategory,
   type DurableEvidence,
   type Failure,
   type Material,
@@ -28,6 +30,7 @@ import {
 import type { BlockId, ContentBlock } from '@omne-harness/content-block'
 import {
   resolveToolInvocationRef,
+  type BackgroundSource,
   type ToolCallId,
   type ToolInvokeRequest,
   type ToolDelivery,
@@ -94,12 +97,13 @@ export function toolConsumer(execution: AgentExecutionId, action: Action): Consu
 
 export type ToolAdmission =
   | Readonly<{ kind: 'judged'; action: Action }>
-  | Readonly<{ kind: 'denied'; action: Action; reason: string }>
+  | Readonly<{ kind: 'denied'; action: Action; category: DenialCategory }>
   | Readonly<{
       kind: 'allowed'
       action: Action
       evidence: DurableEvidence
       request: ToolInvokeRequest
+      notice?: string
     }>
   | Readonly<{ kind: 'asked'; action: Action; card: DecisionCardDraft; evidence: DurableEvidence }>
   | Readonly<{ kind: 'unavailable'; owner: string; diagnostic: string }>
@@ -120,6 +124,9 @@ function notAnswered(owner: string, failure: Failure): Outcome<ToolAdmission, Fa
   return fail(failure)
 }
 
+const noticed = (notice: string | undefined): Readonly<{ notice?: string }> =>
+  notice === undefined ? {} : { notice }
+
 function notAllowed(
   action: Action,
   decision: Exclude<AdmissionDecision, { kind: 'allow' }>,
@@ -127,8 +134,11 @@ function notAllowed(
   if (decision.kind === 'deny')
     return succeed({
       kind: 'denied',
-      action: { ...action, judgment: { kind: 'denied', evidence: decision.evidence } },
-      reason: decision.reason,
+      action: {
+        ...action,
+        judgment: { kind: 'denied', evidence: decision.evidence, ...noticed(decision.notice) },
+      },
+      category: decision.category,
     })
   if (decision.kind === 'unavailable')
     return unavailableAdmission('agentActionAdmission', decision.diagnostic)
@@ -149,6 +159,7 @@ export async function admitToolAction<P>(
   action: Action,
   original: ActionToolCall,
   handBack: HandBack | null,
+  batch?: Readonly<{ id: ActionBatchId; pass: string }>,
 ): Promise<Outcome<ToolAdmission, Failure>> {
   if (action.judgment.kind !== 'pending') return judged(action)
   if (original.callId !== action.original.callId)
@@ -179,6 +190,7 @@ export async function admitToolAction<P>(
     definition,
     permissions: [],
     decision: handBack,
+    ...(batch === undefined ? {} : { batch }),
   })
   if ('failure' in admitted) return notAnswered('agentActionAdmission', admitted.failure)
   if (admitted.ok.kind !== 'allow') return notAllowed(action, admitted.ok)
@@ -190,7 +202,13 @@ export async function admitToolAction<P>(
   if ('failure' in prepared) return notAnswered('agentToolRequests', prepared.failure)
   const request = checkedRequest(prepared.ok, definition, input.consumer, action, original)
   if ('failure' in request) return request
-  return succeed({ kind: 'allowed', action, evidence: admitted.ok.evidence, request: request.ok })
+  return succeed({
+    kind: 'allowed',
+    action,
+    evidence: admitted.ok.evidence,
+    request: request.ok,
+    ...noticed(admitted.ok.notice),
+  })
 }
 
 async function answered<P>(
@@ -235,7 +253,10 @@ export async function preserveAllowedRequest<P>(
     value: { kind: 'facts', schema: fixedToolRequestSchema, value: json(request) },
   })
   if ('failure' in stored) return stored
-  return succeed({ ...action, judgment: { kind: 'allowed', evidence, request: stored.ok } })
+  return succeed({
+    ...action,
+    judgment: { kind: 'allowed', evidence, request: stored.ok, ...noticed(allowed.notice) },
+  })
 }
 
 function uncheckedRecord(execution: AgentExecutionId, batch: ActionBatch): string {
@@ -387,18 +408,83 @@ export function toolCallOf<P>(access: Access<P>, pending: AssociatedToolCall): T
   return minted(resolveToolInvocationRef(pending.reference, access.tenant)).call
 }
 
+type ReturnKind = 'result' | 'placeholder'
+type ToolReturn<K extends ReturnKind> = Extract<ToolDelivery<ContentBlock>, { kind: K }>
+
+export type ReceivedToolDelivery<K extends ReturnKind> = Readonly<{
+  entry: ReceivedEntry
+  delivery: ToolReturn<K>
+  pending: AssociatedToolCall
+}>
+
+/** The first kept entry of the call, trying the kinds in order: a placeholder before a result. */
 export function toolReceivedOf(
   received: readonly ReceivedEntry[],
   pending: AssociatedToolCall,
+  kinds: readonly ReturnKind[],
 ): ReceivedEntry | undefined {
-  return received.find(
-    entry =>
-      entry.delivery.producer === 'tool' &&
-      entry.delivery.key.kind === 'result' &&
-      entry.delivery.key.reference === pending.reference &&
-      entry.consumption === pending.consumption &&
-      canonical(entry.consumer) === canonical(pending.position),
+  const of = (kind: ReturnKind) =>
+    received.find(
+      entry =>
+        entry.delivery.producer === 'tool' &&
+        entry.delivery.key.kind === kind &&
+        entry.delivery.key.reference === pending.reference &&
+        entry.consumption === pending.consumption &&
+        canonical(entry.consumer) === canonical(pending.position),
+    )
+  return kinds.map(of).find(entry => entry !== undefined)
+}
+
+/** Whether the material holds a delivery of the kind its entry names, and one of the kinds. */
+export function isToolReturnOf<K extends ReturnKind>(
+  delivery: ToolDelivery<ContentBlock> | null | undefined,
+  kinds: readonly K[],
+  entry: ReceivedEntry,
+): delivery is ToolReturn<K> {
+  return (
+    delivery != null &&
+    delivery.kind === entry.delivery.key.kind &&
+    (kinds as readonly string[]).includes(delivery.kind)
   )
+}
+
+/** The slot a kept placeholder or result fills, and the produced result it records. */
+export function receivedSlot(
+  action: ActionId,
+  call: ToolCallId,
+  { entry, delivery }: ReceivedToolDelivery<ReturnKind>,
+): Readonly<{ slot: ActionSlot; result: ProducedResult }> {
+  const common = { action, each: null, candidateDigest: null, handoff: null }
+  if (delivery.kind === 'placeholder') {
+    const result = toolPlaceholderProduced(call, delivery)
+    const slot = {
+      ...common,
+      kind: 'background',
+      placeholder: result,
+      confirmation: entry.material,
+    }
+    return { slot: slot as ActionSlot, result }
+  }
+  const result = toolProduced(call, delivery)
+  const { terminal } = delivery
+  return {
+    slot: {
+      ...common,
+      kind: 'result',
+      result,
+      terminal,
+      custody: entry.material,
+      completion: null,
+    },
+    result,
+  }
+}
+
+/** A slot that T2 passes with no conclusions, or null when it is not ready to pass. */
+export function passingSlot(slot: ActionSlot | undefined): ActionSlot | null {
+  if (slot?.kind === 'background') return slot.candidateDigest === null ? slot : null
+  if (slot === undefined || slot.each !== null) return null
+  return slot.kind === 'denied' || slot.kind === 'result' ? { ...slot, each: [] } : null
 }
 
 export function toolProduced(
@@ -413,6 +499,27 @@ export function toolProduced(
   }
 }
 
+export const PLACEHOLDER_VERSION = 'placeholder'
+
+export function toolPlaceholderProduced(
+  call: ToolCallId,
+  delivery: Extract<ToolDelivery<ContentBlock>, { kind: 'placeholder' }>,
+): ProducedResult {
+  return {
+    producer: { kind: 'tool', call },
+    version: PLACEHOLDER_VERSION,
+    delivery: delivery.delivery,
+    source: delivery.evidence,
+  }
+}
+
+const PLACEHOLDER_REASONS: Readonly<Record<BackgroundSource['kind'], string>> = {
+  launched: 'started in the background',
+  control: 'moved to the background on request',
+  threshold: 'moved to the background after its foreground threshold',
+  'foreground-limit': 'moved to the background at its foreground time limit',
+}
+
 type MessageBlock = Exclude<ContentBlock, Readonly<{ kind: 'thinking' }>>
 const VISIBLE = { toHuman: true, toModel: true } as const
 
@@ -421,6 +528,20 @@ function toolMessageId(execution: AgentExecutionId, action: Action): Message['id
     .update(JSON.stringify([execution, action.id]))
     .digest('hex')
   return `msg_${body.slice(0, 40)}_tool` as Message['id']
+}
+
+function noticeOf(action: Action): readonly MessageBlock[] {
+  const { judgment } = action
+  const settled = judgment.kind === 'allowed' || judgment.kind === 'denied'
+  if (!settled || judgment.notice === undefined) return []
+  return [
+    {
+      kind: 'text',
+      id: `${action.id}/notice` as BlockId,
+      visibility: VISIBLE,
+      text: judgment.notice,
+    },
+  ]
 }
 
 function toolMessage(
@@ -434,7 +555,11 @@ function toolMessage(
     visibility: VISIBLE,
     callId: action.original.callId,
   }
-  return { id: toolMessageId(execution, action), role: 'tool', blocks: [marker, ...body] }
+  return {
+    id: toolMessageId(execution, action),
+    role: 'tool',
+    blocks: [marker, ...body, ...noticeOf(action)],
+  }
 }
 
 export function toolResultCandidate(
@@ -449,6 +574,24 @@ export function toolResultCandidate(
   )
 }
 
+export function placeholderCandidate(
+  execution: AgentExecutionId,
+  action: Action,
+  call: ToolCallId,
+  source: BackgroundSource,
+): Message {
+  return toolMessage(execution, action, [
+    {
+      kind: 'text',
+      id: `${action.id}/placeholder` as BlockId,
+      visibility: VISIBLE,
+      text:
+        `The call ${call} ${PLACEHOLDER_REASONS[source.kind]}. It is still running, and this message is not its result. ` +
+        `Its outcome will arrive later as a system reminder that names call ${call}. Do not call it again to get the outcome.`,
+    },
+  ])
+}
+
 export function uncheckedCandidate(execution: AgentExecutionId, action: Action): Message {
   return toolMessage(execution, action, [
     {
@@ -460,30 +603,42 @@ export function uncheckedCandidate(execution: AgentExecutionId, action: Action):
   ])
 }
 
-export function deniedCandidate(execution: AgentExecutionId, action: Action): Message {
-  return toolMessage(execution, action, [
-    {
-      kind: 'text',
-      id: `${action.id}/denied` as BlockId,
-      visibility: VISIBLE,
-      text: 'The tool call was denied and did not run.',
-    },
-  ])
+const DENIALS: Readonly<Record<DenialCategory, string>> = {
+  rule: 'The tool call was denied by a rule or a prohibition and did not run.',
+  'not-released': 'The tool call did not run: the person did not allow it this time.',
+  prohibited:
+    'The tool call did not run: the person prohibited this capability, so later calls to it are denied too.',
+  'card-closed':
+    'The tool call did not run: its approval card was closed before the person answered.',
+  guidance:
+    'The tool call did not run. The person answered the approval card with guidance instead of a decision. Their words follow.',
 }
 
-export function guidedCandidate(
+/** The fixed message of a denial category; the person's own words follow only guidance. */
+export function deniedCandidate(
   execution: AgentExecutionId,
   action: Action,
-  words: string,
+  denial: Readonly<{ category: DenialCategory; words: string | null }>,
 ): Message {
+  const words =
+    denial.words !== null
+      ? [
+          {
+            kind: 'text' as const,
+            id: `${action.id}/guidance` as BlockId,
+            visibility: VISIBLE,
+            text: denial.words,
+          },
+        ]
+      : []
   return toolMessage(execution, action, [
     {
       kind: 'text',
       id: `${action.id}/denied` as BlockId,
       visibility: VISIBLE,
-      text: 'The tool call was denied and did not run. The person answered the approval card with guidance instead of a decision. Their words follow.',
+      text: DENIALS[denial.category],
     },
-    { kind: 'text', id: `${action.id}/guidance` as BlockId, visibility: VISIBLE, text: words },
+    ...words,
   ])
 }
 

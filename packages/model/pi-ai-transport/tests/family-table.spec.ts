@@ -83,7 +83,9 @@ function bindingFor(supplier: Supplier, adoption: Adoption, seen: Probe): PiFami
   }
   return {
     supplier,
+    endpoint: 'chat-completions',
     adoption,
+    mediaLimits: () => null,
     counting,
     rules: { plan: () => ({ failure: refused }) },
     meter: {

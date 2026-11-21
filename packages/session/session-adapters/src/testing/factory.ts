@@ -1,10 +1,11 @@
+import { decideCreation } from './intake.ts'
 import { toolReleases } from './result-release.ts'
 import { captureModelSettlement } from './model-settlement.ts'
 import { resultPreparation, preparationOperation } from './result-preparation.ts'
 import { publicationHooks } from './publication.ts'
 import { captureBackground } from './background.ts'
 import { normalizeControls } from './control.ts'
-import { createFrontier, commandScope, defaultBudget } from './frontier.ts'
+import { createFrontier, commandScope, defaultBudget, runStartInputs } from './frontier.ts'
 import { emptyHistory } from './empty-history.ts'
 import { sessionView } from './session-view.ts'
 import {
@@ -12,7 +13,6 @@ import {
   type AgentJournal,
   type AgentExecutionId,
   type DurableEvidence,
-  type CallerCommit,
   type ExecutionMutation,
   type Failure,
   type CommandReceipt,
@@ -21,10 +21,9 @@ import {
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
+  cancellationDriveOf,
   commandDigest,
-  decide,
   reduce,
-  deriveSessionOperation,
   judgeCompletion,
   mutationAccessRequest,
   type SessionAccess,
@@ -41,8 +40,6 @@ import {
   type CommittedBatch,
   type GuardCommand,
   type HistoryEntry,
-  type RunTerminal,
-  deriveDriveOperation,
 } from '@omne-harness/session-contract'
 import type { InitializationSource } from './ports.ts'
 import {
@@ -54,7 +51,6 @@ import {
 } from './root.ts'
 import {
   createJournal,
-  operationText,
   outrunParticipation,
   type JointDecision,
   type JournalWrite,
@@ -74,8 +70,10 @@ import {
   HistoryFailure,
 } from './history.ts'
 import { canonical, digestOf, materializeModelView, rowData } from './session-values.ts'
-import { journalEvidence } from './journal-values.ts'
+import { journalEvidence, operationText } from './journal-values.ts'
 import type { SessionDirectory } from './session-directory.ts'
+import { cancelBatchRow, sessionCaller } from './factory-values.ts'
+import { jointCommandOf, joinsSession, type JointState } from '../joint-command.ts'
 
 type OpenInput<P> = Parameters<AgentJournal<P>['open']>[0]
 type AttachInput<P> = Parameters<AgentJournal<P>['attach']>[0]
@@ -232,7 +230,8 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
           )
           if (method === 'recordResult' && execution) {
             const value = input as Parameters<AgentJournal<P>['recordResult']>[0]
-            normalizedResult(root, execution, value.consumption, value.result)
+            if (value.result.producer.kind !== 'compaction')
+              normalizedResult(root, execution, value.consumption, value.result)
           }
           if (execution && run) {
             if (method === 'commit') {
@@ -352,88 +351,38 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     cells.set(key, cell)
     return cell
   }
+
+  function jointState(
+    cell: JournalCell<P>,
+    input: ExecutionMutation<P>,
+    method: JournalWrite,
+  ): JointState {
+    const root = cell.state()
+    const execution = root.agent.executions.get(executionKey(root, input.execution))
+    return {
+      accepted: execution?.inputs.filter(() => true),
+      snapshot: root.session?.snapshot,
+      resultOf: caller =>
+        execution
+          ? succeed(normalizedResult(root, execution, caller.consumption, caller.result).result)
+          : fail(denied(method)),
+    }
+  }
+
   function jointCommand(
     cell: JournalCell<P>,
     input: ExecutionMutation<P>,
     method: JournalWrite,
     receipt: CommandReceipt,
   ): Outcome<SessionCommand, Failure> | undefined {
-    let caller: CallerCommit = { kind: 'none' }
-    if (method === 'commit') caller = (input as Parameters<AgentJournal<P>['commit']>[0]).caller
-    if (method === 'recordResult')
-      caller = (input as Parameters<AgentJournal<P>['recordResult']>[0]).transfer
-    if (caller.kind === 'none') return undefined
-    const operation = deriveSessionOperation({
-      kind: 'participation',
-      execution: input.execution,
-      operation: input.operation,
-      joint: caller.kind,
-    })
-    const common = { tenant: cell.tenant, session: cell.session, operation }
-    const participation = {
-      execution: input.execution,
-      operation: input.operation,
-      joint: caller.kind,
-      written: receipt.revision,
-      handover: receipt.evidence,
-    }
-    switch (caller.kind) {
-      case 'message':
-        return succeed({
-          kind: 'recordMessage',
-          input: {
-            ...common,
-            participation,
-            value: {
-              message: caller.message,
-              source: caller.source,
-              admission: caller.admission,
-              consumption: null,
-            },
-          },
-        })
-      case 'context-transition':
-        if (caller.value.message.role !== 'compaction')
-          return fail({ kind: 'invalid', field: 'caller.value.message', reason: 'not compaction' })
-        return succeed({
-          kind: 'commitDerived',
-          input: {
-            ...common,
-            participation,
-            value: { kind: 'compaction', message: caller.value.message },
-            judgment: caller.admission,
-          },
-        })
-      case 'custody':
-      case 'processed': {
-        const execution = cell
-          .state()
-          .agent.executions.get(executionKey(cell.state(), input.execution))
-        if (!execution) return fail(denied(method))
-        const result = normalizedResult(
-          cell.state(),
-          execution,
-          caller.consumption,
-          caller.result,
-        ).result
-        const consumption = String(caller.consumption) as ConsumptionId
-        return succeed(
-          caller.kind === 'custody'
-            ? {
-                kind: 'preserveResult',
-                input: { ...common, participation, consumption, result, custody: caller.retained },
-              }
-            : {
-                kind: 'completeConsumption',
-                input: {
-                  ...common,
-                  participation,
-                  completion: { consumption, result, completion: caller.completion },
-                },
-              },
-        )
-      }
-    }
+    return jointCommandOf(
+      cell,
+      input,
+      method,
+      receipt,
+      sessionCaller(input, method),
+      jointState(cell, input, method),
+    )
   }
   async function qualifyJoint(
     cell: JournalCell<P>,
@@ -511,38 +460,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     return true
   }
 
-  function fieldOf(value: unknown, key: string): unknown {
-    return typeof value === 'object' && value !== null && !Array.isArray(value)
-      ? Object.entries(value).find(([name]) => name === key)?.[1]
-      : undefined
-  }
-
-  function cancelBatchRow(root: CommonRoot, terminal: RunTerminal): HistoryEntry {
-    for (const row of root.sources.rowsById.values())
-      if (
-        row.kind === 'run.terminal' &&
-        canonical(row.origin.source) === canonical(terminal.evidence)
-      )
-        return row
-    throw new Error('session double defect: a Run terminal without its SE26 row')
-  }
-
-  function terminalControl(
-    root: CommonRoot,
-    execution: AgentExecutionId,
-    terminal: RunTerminal,
-  ): string | undefined {
-    for (const row of root.sources.rowsById.values()) {
-      if (row.kind !== 'control.requested') continue
-      if (canonical(row.origin.source) !== canonical(terminal.evidence)) continue
-      const operation = fieldOf(rowData(row)['progress'], 'operation')
-      const control = root.session?.snapshot.controls.find(item => item.operation === operation)
-      if (control === undefined) return undefined
-      return deriveDriveOperation({ kind: 'control', execution, control: control.operation })
-    }
-    return undefined
-  }
-
   function terminalParticipant(
     cell: JournalCell<P>,
     execution: AgentExecutionId,
@@ -580,10 +497,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
         }
         case 'cancelled':
           return fact(judged.terminal.evidence, {
-            kind:
-              terminalControl(cell.state(), execution, judged.terminal) === control
-                ? 'ready'
-                : 'changed',
+            kind: cancellationDriveOf(judged.terminal, execution) === control ? 'ready' : 'changed',
           })
         case 'terminal':
           return fact(judged.terminal.evidence, { kind: 'changed' })
@@ -647,7 +561,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
       if (finish.authorization.kind === 'cancel' && checked.kind === 'cancelled') {
         if (
           finish.intent.conclusion.kind !== 'cancelled' ||
-          terminalControl(cell.state(), input.execution, checked.terminal) !==
+          cancellationDriveOf(checked.terminal, input.execution) !==
             String(finish.authorization.control)
         )
           return { kind: 'changed' }
@@ -765,6 +679,8 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
   const frontier = createFrontier<P>(options.budget ?? defaultBudget, interpretEvent)
   const transactions: SessionTransactionPort<P> = {
     readInput: base.readInput,
+    readCall: base.readCall,
+    readCurrentScope: base.readCurrentScope,
     queryOperation: base.queryOperation,
     queryControlOperation: base.queryControlOperation,
     readModelSelection: base.readModelSelection,
@@ -778,12 +694,10 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
       try {
         return await base.readWork(input)
       } catch (error) {
-        if (error instanceof HistoryFailure) {
-          if (error.failure.kind === 'quarantined')
-            cellOf(input.tenant, input.session).quarantine(error.failure.diagnostic)
-          return fail(error.failure)
-        }
-        throw error
+        if (!(error instanceof HistoryFailure)) throw error
+        if (error.failure.kind === 'quarantined')
+          cellOf(input.tenant, input.session).quarantine(error.failure.diagnostic)
+        return fail(error.failure)
       }
     },
     commit: (async input => {
@@ -805,8 +719,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
         guards: input.guards,
         decision: qualification.ok,
       }
-      if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
-        return fail<SessionFailure>({ kind: 'unsupported' })
       const cell = cellOf(command.input.tenant, command.input.session)
       try {
         const held = cell.current().session
@@ -849,6 +761,13 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     let view = views.get(key)
     if (!view) {
       view = createJournal(cell, {
+        participates: (input, method) =>
+          joinsSession(
+            input,
+            method,
+            sessionCaller(input, method),
+            jointState(cell, input, method),
+          ),
         prepareResult: resultPreparation(cell, publications, base.commitLog, agentFailure),
         qualifyParticipation: (input, method, receipt) =>
           qualifyJoint(cell, input, method, receipt),
@@ -946,13 +865,8 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
         quarantine: cell.quarantine,
         root: () => cell.current().position,
         facts: () => {
-          const agent = cell.current().agent
-          return {
-            log: agent.log,
-            view: agent.view,
-            blobs: agent.blobs as ReadonlyMap<string, unknown>,
-            namespace: cell.namespace,
-          }
+          const { log, view, closed, blobs } = cell.current().agent
+          return { log, view, closed, blobs, namespace: cell.namespace }
         },
         records: () => cell.current().agent.executions as ReadonlyMap<string, MemoryExecution>,
         operations: () => cell.current().agent.operations as ReadonlyMap<string, OperationRecord>,
@@ -1121,6 +1035,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
             item => item.kind !== 'observed',
           )
           for (const responsibility of execution.results) {
+            if (responsibility.result.producer.kind === 'compaction') continue
             const consumption = String(responsibility.consumption) as ConsumptionId
             const existing = state.snapshot.consumptions.find(item => item.id === consumption)
             if (
@@ -1232,7 +1147,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
         const refusal = options.initialization.verify(command, guards)
         if (refusal) return fail(refusal)
         const first = batches[0],
-          prepared = decide(null, command, guards, null, { compaction: null })
+          prepared = decideCreation(command, guards)
         if (
           !first ||
           prepared.kind !== 'entries' ||
@@ -1249,7 +1164,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
         for (const batch of batches) {
           const scope: import('@omne-harness/session-contract').SessionInputScope =
             batch.entries.some(row => row.kind === 'run.started')
-              ? { kind: 'selected', inputs: snapshot?.pending.slice(0, 1) ?? [] }
+              ? { kind: 'selected', inputs: runStartInputs(snapshot) }
               : { kind: 'pending', inputs: snapshot?.pending ?? [] }
           const material = snapshot ? emptyHistory(snapshot, scope) : undefined
           const outcome = reduce(

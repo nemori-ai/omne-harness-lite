@@ -1,9 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import {
+  batchCallKeys,
   reduce,
   type HistoryEntry,
+  type SessionCall,
   type SessionHistoryIndex,
   type SessionHistoryReads,
+  type SettledCallLookup,
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import { type DomainRef, type JsonValue, type SqlStorage } from '@omne-harness/sql-contract'
@@ -20,6 +23,7 @@ export const WORK_VERSION_HANDLER = 'session.work-version'
 const WORK_INDEX_HANDLER = 'session.work-index'
 const WORK_READS_HANDLER = 'session.work-reads'
 const HISTORY_HANDLER = 'session.history'
+const CALLS_LEFT_HANDLER = 'session.calls-left'
 
 export type WorkCacheBounds = Readonly<{ sessions?: number; bytes?: number }>
 
@@ -430,6 +434,25 @@ async function decisionBasis(
   }>
 }
 
+// The calls the batch names that the held snapshot does not hold, as the store had them before the batch.
+async function callsLeftFor(
+  reach: WorkReach,
+  held: WorkSnapshot,
+  fold: WorkFold,
+  entries: readonly HistoryEntry[],
+): Promise<SettledCallLookup | null> {
+  const keys = batchCallKeys(held, { revision: fold.tail, entries } as never)
+  // A batch that does not decode names nothing here: the reduction says what is wrong with it.
+  if (keys === null || keys.consumptions.length + keys.producers.length === 0) return () => []
+  const read = await readOne(reach, CALLS_LEFT_HANDLER, {
+    keys: encodeValue(keys),
+    through: String(BigInt(fold.tail) - 1n),
+  })
+  if (!('output' in read) || read.output['kind'] !== 'calls') return null
+  const calls = decodeValue(read.output['calls'] as JsonValue) as readonly SessionCall[]
+  return () => calls
+}
+
 async function folded(
   reach: WorkReach,
   counts: WorkFoldCounts,
@@ -452,7 +475,12 @@ async function folded(
     previous = { ...previous, historyIndex: basis.index }
     reads = basis.reads
   }
-  const reduced = reduce(previous, { revision: fold.tail, entries } as never, reads)
+  const left = await callsLeftFor(reach, held, fold, entries)
+  if (left === null) {
+    counts.stale += 1
+    return null
+  }
+  const reduced = reduce(previous, { revision: fold.tail, entries } as never, reads, left)
   if (reduced.kind === 'quarantined') {
     counts.quarantined += 1
     return null

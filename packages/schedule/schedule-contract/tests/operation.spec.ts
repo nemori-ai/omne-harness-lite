@@ -15,20 +15,20 @@ const request = {
     scheduleId: '00000000-0000-4000-8000-000000000001',
     action: 'update',
     patch: { kind: 'label', label: '中文😀/ é' },
-    meta: { expectedRevision: 3, consentRef: 'consent:批准', operationKey: '原操作' },
+    meta: { expectedRevision: 3, operationKey: '原操作' },
   },
 }
 const parse = (value: unknown) => ScheduleOperationIntentInputSchema.parse(value)
 const golden =
-  '{"aggregateRef":"00000000-0000-4000-8000-000000000001","consentRef":"consent:批准","expectedRevision":3,"operation":"schedule.update","owner":{"kind":"tenant","ownerId":"owner","tenantId":"tenant"},"payload":{"action":"update","patch":{"kind":"label","label":"中文😀/ é"}},"protocol":"omne.calendar-schedule/1"}'
+  '{"aggregateRef":"00000000-0000-4000-8000-000000000001","expectedRevision":3,"operation":"schedule.update","owner":{"kind":"tenant","ownerId":"owner","tenantId":"tenant"},"payload":{"action":"update","patch":{"kind":"label","label":"中文😀/ é"}},"protocol":"omne.calendar-schedule/1"}'
 
 describe('original operation identity', () => {
   it('matches independently encoded Python UTF-8 and SHA-256 golden', () => {
     const value = parse(request)
     expect(canonicalizeScheduleOperation(value)).toBe(golden)
-    expect(Buffer.byteLength(golden, 'utf8')).toBe(319)
+    expect(Buffer.byteLength(golden, 'utf8')).toBe(289)
     expect(fingerprintScheduleOperation(value)).toBe(
-      '03a34cb988f16acb22e4fc053645e9c50d38c3a5d5a6677b18c4c91e0e3ea550',
+      'ea9bfbcb79e47e43f497fb7515757c7b67d5ab7724e10b904797dcab7731afa9',
     )
     expect(createScheduleOperationIntent(value).address).toEqual({
       protocol: 'omne.calendar-schedule/1',
@@ -53,7 +53,6 @@ describe('original operation identity', () => {
   })
   it.each([
     { ...request, owner: { ...request.owner, ownerId: 'other' } },
-    { ...request, input: { ...request.input, meta: { ...request.input.meta, consentRef: null } } },
     {
       ...request,
       input: { ...request.input, meta: { ...request.input.meta, expectedRevision: 4 } },
@@ -154,16 +153,16 @@ it('fingerprints the complete create payload with the same cross-language JCS ru
         },
       },
       initial: { kind: 'draft', reason: '确认' },
-      meta: { operationKey: 'first', expectedRevision: null, consentRef: null },
+      meta: { operationKey: 'first', expectedRevision: null },
     },
   })
   const encoded = canonicalizeScheduleOperation(input)
   expect(encoded).toBe(
-    '{"aggregateRef":null,"consentRef":null,"expectedRevision":null,"operation":"schedule.create","owner":{"kind":"system","systemScopeRef":"system:1"},"payload":{"definition":{"binding":{"calendar":null,"kind":"explicit","timezone":"Asia/Tokyo"},"calendarOverlay":null,"label":"计划😀/","limits":{"eligibleLimit":null,"excludeDates":[],"jobLimit":null},"purpose":{"catchUp":{"kind":"none"},"kind":"execution","misfire":{"kind":"lapse"},"notifications":[],"overlap":"skip","scope":{"kind":"fleet"},"work":{"input":{"empty":[],"negative":-2,"nullValue":null,"tiny":1e-7},"kind":"program","programRef":"program:1"}},"recurrence":{"kind":"once","localAt":"2026-11-04T10:00:00"}},"initial":{"kind":"draft","reason":"确认"}},"protocol":"omne.calendar-schedule/1"}',
+    '{"aggregateRef":null,"expectedRevision":null,"operation":"schedule.create","owner":{"kind":"system","systemScopeRef":"system:1"},"payload":{"definition":{"binding":{"calendar":null,"kind":"explicit","timezone":"Asia/Tokyo"},"calendarOverlay":null,"label":"计划😀/","limits":{"eligibleLimit":null,"excludeDates":[],"jobLimit":null},"purpose":{"catchUp":{"kind":"none"},"kind":"execution","misfire":{"kind":"lapse"},"notifications":[],"overlap":"skip","scope":{"kind":"fleet"},"work":{"input":{"empty":[],"negative":-2,"nullValue":null,"tiny":1e-7},"kind":"program","programRef":"program:1"}},"recurrence":{"kind":"once","localAt":"2026-11-04T10:00:00"}},"initial":{"kind":"draft","reason":"确认"}},"protocol":"omne.calendar-schedule/1"}',
   )
-  expect(Buffer.byteLength(encoded, 'utf8')).toBe(759)
+  expect(Buffer.byteLength(encoded, 'utf8')).toBe(741)
   expect(fingerprintScheduleOperation(input)).toBe(
-    'ed4cfe1527393e844e829b2c2722866627eb56249c61a731f420fb1da38b8808',
+    '180c51d6734313970904a3579ef23a3773656496d0d1d7f2ae3daa7dc44036a0',
   )
   expect(encoded).toContain('"tiny":1e-7')
   expect(encoded).toContain('"negative":-2')

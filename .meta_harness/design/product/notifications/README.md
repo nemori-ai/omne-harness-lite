@@ -2,7 +2,7 @@
 id: PD-notifications
 title: 通知
 status: draft
-revision: 2
+revision: 6
 relations:
   supersedes: []
   depends-on: []
@@ -11,7 +11,7 @@ relations:
 
 # 通知
 
-本 topic 保存完整产品能力定义，整体产品接受尚无依据。领域分解的评审与正式文档位置不表示产品或技术接受，也不表示实现支持。上层已接受责任仍由领域正文维护。
+本 topic 保存完整产品能力定义。产品负责人已确认本文的需求与规则；实现到哪一步看源码、包组规格与卡。上层已接受责任仍由领域正文维护。
 
 ## 阅读入口
 

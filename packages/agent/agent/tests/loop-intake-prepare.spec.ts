@@ -29,6 +29,7 @@ function coordinator(assembly: LoopAssembly) {
   return createExecutionCoordinator({
     ports: assembly.dependencies,
     binding: options().binding,
+    compactionProvider: options().configuration.compactionProvider,
     evaluator: agentEvaluator,
     access: alice,
     execution: execution(),
@@ -237,12 +238,6 @@ describe('I1 prepares at the fixed input boundary', () => {
           return d.selection.select(input)
         },
       },
-      modelContext: {
-        read(input) {
-          log.push('context')
-          return d.modelContext.read(input)
-        },
-      },
       requests: {
         ...d.requests,
         prepare(input) {
@@ -264,11 +259,10 @@ describe('I1 prepares at the fixed input boundary', () => {
     }))
     assembly.release.open()
     ok(await run(assembly))
-    expect(log.slice(0, 8)).toEqual([
+    expect(log.slice(0, 7)).toEqual([
       'conditions',
       'conditions',
       'select',
-      'context',
       'prepare-first',
       'select',
       'prepare-review',
@@ -294,7 +288,7 @@ describe('I1 prepares at the fixed input boundary', () => {
     expect(saved[0]?.priorConditions).toEqual(initial?.conditions.source)
   })
 
-  it('new execution reads with no adopted coverage, then M0 adopts the returned coverage', async () => {
+  it('M0 adopts the coverage of the ready preparation', async () => {
     let recorded: AgentCheckpoint | null = null
     const assembly = await loopAssembly([execution()], d => ({
       ...d,
@@ -308,9 +302,6 @@ describe('I1 prepares at the fixed input boundary', () => {
     }))
     assembly.release.open()
     ok(await run(assembly))
-    const [read] = assembly.controls.modelContext.read.calls
-    expect(read?.adopted).toBeNull()
-    expect(read?.transition).toBeNull()
     const final = (await snapshot(assembly)).checkpoint
     expect(final.requestPreparation).toBeNull()
     expect(recorded).toMatchObject({ adoptedContext: final.adoptedContext })
@@ -355,7 +346,7 @@ describe('I1 prepares at the fixed input boundary', () => {
     ])
   })
 
-  it.each(['conditions', 'selection', 'modelContext', 'requests'] as const)(
+  it.each(['conditions', 'selection', 'requests'] as const)(
     'unavailable %s saves one I1 wait without preparing or calling Model',
     async port => {
       let modelCalls = 0
@@ -379,12 +370,6 @@ describe('I1 prepares at the fixed input boundary', () => {
           selection: {
             select: input =>
               port === 'selection' ? Promise.resolve(fail(unavailable)) : d.selection.select(input),
-          },
-          modelContext: {
-            read: input =>
-              port === 'modelContext'
-                ? Promise.resolve(fail(unavailable))
-                : d.modelContext.read(input),
           },
           requests: {
             ...d.requests,
@@ -522,7 +507,7 @@ describe('I1 preparation outcomes', () => {
       )
       expect(finishes[0]?.failure?.source).toEqual(read.checkpoint.requestPreparation?.source)
       expect(assembly.controls.requests.prepare.calls).toHaveLength(1)
-      expect(assembly.controls.requests.derive.calls).toHaveLength(0)
+      expect(assembly.controls.requests.assessCompaction.calls).toHaveLength(0)
     },
   )
 
@@ -679,39 +664,32 @@ describe('I1 preparation outcomes', () => {
     expect((await snapshot(assembly)).state.kind).toBe('ended')
   })
 
-  it('needs-compaction preserves preparation and ends with unsupported-path', async () => {
+  it('needs-compaction waits for the frozen input without starting a model call', async () => {
     let prepared: Preparation | null = null
-    let finalizations = 0
-    const assembly = await loopAssembly([execution()], d => ({
-      ...d,
-      journal: {
-        ...d.journal,
-        tryFinish(input) {
-          finalizations += 1
-          return d.journal.tryFinish(input)
-        },
-      },
-    }))
+    const assembly = await loopAssembly([execution()])
     assembly.controls.requests.prepare.always(input => {
       prepared = {
         ...preparationBase(input),
         kind: 'needs-compaction',
         original: { input: evidence('original-input'), alterations: [], beforeModelCall: null },
-        progress: { plan: evidence('plan'), bound: '2', completed: '0' },
+        input: {
+          source: evidence('frozen-input'),
+          schema: options().configuration.compactionProvider.adoption,
+          digest: 'input',
+        },
       }
       return { ok: prepared }
     })
     ok(await run(assembly))
     const read = await snapshot(assembly)
     expect(read.checkpoint.requestPreparation).toEqual(prepared)
-    expect(read.settlement.candidate?.failure).toMatchObject({
-      kind: 'node-failed',
-      node: 'I1',
-      category: 'unsupported-path',
+    expect(read.state).toMatchObject({
+      kind: 'waiting',
+      waits: [{ kind: 'dependency', position: 'C0' }],
     })
-    expect(finalizations).toBe(1)
-    expect(read.state.kind).toBe('ended')
-    expect(assembly.controls.requests.derive.calls).toHaveLength(0)
+    expect(read.checkpoint.calls).toEqual([])
+    expect(read.settlement.candidate).toBeNull()
+    expect(assembly.controls.requests.assessCompaction.calls).toHaveLength(0)
     expect(assembly.controls.requests.resume.calls).toHaveLength(0)
   })
 })

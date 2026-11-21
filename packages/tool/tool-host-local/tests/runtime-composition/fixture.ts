@@ -135,6 +135,7 @@ export async function fixture(
     waits: readonly ToolWaitContract<unknown, 'ask'>[]
     decisions: ToolDecisionBridge<unknown>
   }>,
+  backgroundAllowed = false,
 ) {
   const root = new Context()
   const memory = createMemoryToolLedgerStore()
@@ -145,6 +146,7 @@ export async function fixture(
     due: memory.due,
     commit: memory.commit,
     scanPending: memory.scanPending,
+    usage: memory.usage,
   }
   const clock = createLocalToolClock()
   const deliveries: ToolDelivery<ToolMessageContentBlock>[] = []
@@ -267,6 +269,7 @@ export async function fixture(
           inputCompatible: true,
           outputCompatible: true,
           attachmentsReadable: true,
+          productsStorable: true,
         }),
     },
   })
@@ -345,7 +348,7 @@ export async function fixture(
         operation: operation.ok,
         implementation: {
           description: 'Executable composition fixture',
-          backgroundAllowed: false,
+          backgroundAllowed,
           declarations: fixed.availability.definition.declarations,
         },
       })

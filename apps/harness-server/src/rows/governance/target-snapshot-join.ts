@@ -41,7 +41,7 @@ function publishedDeclaration(input: Input, declaration: TargetSnapshot['declara
   if (publications.length !== 1) return false
   return input.released.some(
     released =>
-      released.publication.kind === input.binding.target.policyId &&
+      released.publication.kind === input.binding.target.kind &&
       equal(released.publication.reference, publications[0]!.publicationRef) &&
       equal(released.declaration, declaration),
   )

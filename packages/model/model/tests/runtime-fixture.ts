@@ -7,13 +7,22 @@ import {
 } from '@omne-harness/model'
 import { createTestModelDependencies, type MemoryModelEvidence } from '@omne-harness/model/testing'
 import { createScriptedTransport } from '@omne-harness/model-contract/testing'
-import { type ModelCallId, type ModelInstanceId } from '@omne-harness/model-contract'
+import {
+  type FixedModelRequest,
+  type ModelCallId,
+  type ModelInstanceId,
+} from '@omne-harness/model-contract'
 import {
   type ModelCommands,
+  type ModelRetryPolicy,
   type Publication,
   type TransportFact,
 } from '@omne-harness/model-contract/provider'
 import { fixture, instance, op, proof } from './memory-fixture.ts'
+
+type Refusal =
+  | NonNullable<Parameters<typeof createScriptedTransport>[0]['rejection']>['failure']
+  | null
 
 export const configuration: ModelConfiguration = {
   outputBatchBytes: 1024,
@@ -22,8 +31,6 @@ export const configuration: ModelConfiguration = {
   observerCheckIntervalMs: 25,
   resultPageTargetBytes: 128,
   readIdleMs: 1000,
-  retryBackoffMs: 0,
-  cleanupRetryMs: 0,
 }
 function deferred<T>() {
   let resolve!: (value: T) => void
@@ -46,6 +53,8 @@ export function runtimeFixture(
   ) => ModelCommands<ReturnType<typeof fixture>['principal']>,
   handoff?: MemoryModelEvidence['handoff'],
   liveness?: ModelLiveness,
+  retry?: ModelRetryPolicy<ReturnType<typeof fixture>['principal']>,
+  fallbacks: readonly FixedModelRequest['suppliers'][number][] = [],
 ) {
   const f = fixture()
   const assembly = createTestModelDependencies({
@@ -61,25 +70,28 @@ export function runtimeFixture(
         layerOf: () => fail({ kind: 'unavailable' }),
         resolve: () => succeed(new Map([['apiKey', 'synthetic']])),
       },
-      sources: [
-        {
-          profile: f.admit.request.profile,
-          supplier: f.admit.request.suppliers[0].adoption,
-          provider: f.admit.request.suppliers[0].provider,
-          model: f.admit.request.suppliers[0].model,
-          official: true,
-          current: () => ({ ok: { authorized: true } }),
-        },
-      ],
+      sources: [f.admit.request.suppliers[0], ...fallbacks].map(supplier => ({
+        profile: f.admit.request.profile,
+        supplier: supplier.adoption,
+        provider: supplier.provider,
+        model: supplier.model,
+        official: true,
+        current: () => ({ ok: { authorized: true } }),
+      })),
     },
   })
   type Channel = {
     ready: ReturnType<typeof deferred<void>>
     reads: number
     starts: number
+    /** What each prepared transport was told to leave out. */
+    resent: (readonly string[])[]
     returns: number
     closes: number
+    suppliers: string[]
     releaseFails: boolean
+    /** A refusal every prepare of this call answers; none by default. */
+    refusal: Refusal
     beforeRelease(): Promise<void>
     finish(): void
     fail(): void
@@ -100,9 +112,12 @@ export function runtimeFixture(
         ready,
         reads: 0,
         starts: 0,
+        resent: [],
         returns: 0,
         closes: 0,
+        suppliers: [],
         releaseFails: false,
+        refusal: null,
         beforeRelease: async () => {},
         finish() {
           done = true
@@ -180,13 +195,20 @@ export function runtimeFixture(
         },
         facts: [],
         ending: { kind: 'terminated', termination: { kind: 'completed', reason: 'stop' } },
-        rejection: null,
+        rejection: stream.refusal && { at: 'prepare', failure: stream.refusal },
       })
       return {
         ok: {
-          transport: script.transport,
+          transport: {
+            ...script.transport,
+            prepare(request, supplier, dispatch) {
+              stream.resent.push([...dispatch.resent])
+              return script.transport.prepare(request, supplier, dispatch)
+            },
+          },
           startWithCredential() {
             stream.starts++
+            stream.suppliers.push(demand.supplier.adoption.name)
             return stream.iterable
           },
           async release() {
@@ -202,6 +224,7 @@ export function runtimeFixture(
   const publications = new Map<ModelCallId, Publication>()
   const published = new Map<ModelCallId, ReturnType<typeof deferred<void>>>()
   const drives: Promise<unknown>[] = []
+  const scheduled: Parameters<typeof assembly.dependencies.instances.schedule>[0][] = []
   const results = new Map<ModelCallId, unknown>()
   const instances = {
     ...assembly.dependencies.instances,
@@ -214,6 +237,7 @@ export function runtimeFixture(
       return result
     },
     async schedule(input: Parameters<typeof assembly.dependencies.instances.schedule>[0]) {
+      scheduled.push(input)
       const result = await assembly.dependencies.instances.schedule(input)
       if ('failure' in result || published.has(input.call)) return result
       const ready = deferred<void>()
@@ -239,11 +263,36 @@ export function runtimeFixture(
       return result
     },
   }
-  const dependencies = { ...assembly.dependencies, commands: recorded, send, instances }
+  const dependencies = {
+    ...assembly.dependencies,
+    commands: recorded,
+    send,
+    instances,
+    ...(retry === undefined ? {} : { retry }),
+  }
   const provider = createModelRuntime(
     liveness === undefined ? dependencies : { ...dependencies, liveness },
     { ...configuration, ...config },
   )
+  /** Drives the call from a new process: a new runtime and a new sender over the same store. */
+  function restart(call: ModelCallId, next: ModelInstanceId) {
+    const sender = assembly.controls.send.createSender({ resources, commands: recorded })
+    const successor = createModelRuntime(
+      { ...dependencies, send: sender },
+      { ...configuration, ...config },
+    )
+    return successor.driver.drive(
+      {
+        principal: f.principal,
+        tenant: f.tenant,
+        call,
+        operation: op(`restart-${next}`),
+        instance: next,
+        continuity: proof(call),
+      },
+      new AbortController().signal,
+    )
+  }
   return {
     ...f,
     ...assembly,
@@ -254,6 +303,7 @@ export function runtimeFixture(
     openInputs,
     publications,
     results,
+    scheduled,
     drive(call: ModelCallId = f.admit.call) {
       return provider.driver.drive(
         {
@@ -277,20 +327,13 @@ export function runtimeFixture(
       await eventually(() => preserveInputs.length >= before + facts.length || results.has(call))
       for (let i = 0; i < 100; i++) await Promise.resolve()
     },
+    /** Hands the call to a new process and returns once that process published its instance. */
     async replace(call: ModelCallId, next: ModelInstanceId) {
-      const successor = createModelRuntime(dependencies, { ...configuration, ...config })
-      return successor.driver.drive(
-        {
-          principal: f.principal,
-          tenant: f.tenant,
-          call,
-          operation: op(`replacement-${call}`),
-          instance: next,
-          continuity: proof(call),
-        },
-        new AbortController().signal,
-      )
+      drives.push(restart(call, next))
+      await eventually(() => publications.get(call)?.execution.instance === next)
+      return { ok: undefined }
     },
+    restart,
     async dispose() {
       disposing = true
       for (const stream of channels.values()) {

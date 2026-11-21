@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
+  SavedModelSelection,
   CommitReceipt,
   HistoryPage,
   OperationResolution,
@@ -13,7 +14,10 @@ import type {
   SessionManagement,
   SessionOperationId,
   SessionRevision,
+  InputFate,
+  PendingPage,
   SessionWaiting,
+  WaitingCall,
   SessionWork,
 } from '@omne-harness/session-contract'
 import { evidence } from '@omne-harness/session-contract/testing'
@@ -24,14 +28,23 @@ import type { SessionAccessFaces } from '../../src/ports.ts'
 type P = Principal
 type FaceMethod =
   | 'create'
+  | 'interrupt'
+  | 'change'
   | 'accept'
   | 'queryOperation'
   | 'cancelRun'
   | 'stopCall'
   | 'retryRun'
+  | 'change'
   | 'history.begin'
   | 'history.next'
   | 'readWaiting'
+  | 'readPending'
+  | 'readWaitingCalls'
+  | 'readInputFate'
+  | 'control'
+  | 'readBackgroundCalls'
+  | 'readModelSelection'
 
 export type SessionDoubleRecord = Readonly<{
   method: FaceMethod
@@ -49,19 +62,22 @@ type SessionRecord = {
   readonly tenant: TenantId
   readonly runs: Set<string>
   readonly entries: Readonly<{ id: string; kind: string; payload: unknown }>[]
+  /** The model the session stands at, and the revision of the commit that saved it. */
+  model: { selection: SavedModelSelection; at: SessionRevision } | null
 }
 
 export type SessionDoubleControls = Readonly<{
   calls(): readonly SessionDoubleRecord[]
   committed(): ReadonlyMap<SessionOperationId, Committed>
   throwOn(method: FaceMethod, error: unknown): void
-  refuseToolTargets(refuse: boolean): void
   checkExistenceOnQuery(check: boolean): void
   failWith(failure: SessionFailure): void
   failNext(...failures: readonly SessionFailure[]): void
   failQueryWith(failure: SessionFailure | undefined): void
   resolveQueryWith(resolution: OperationResolution | undefined): void
   answerControlWith(answer: ControlAnswer | undefined): void
+  settleBackgroundAt(state: 'propagating' | 'reconciled'): void
+  listBackground(calls: readonly Readonly<{ kind: 'tool'; call: string }>[]): void
   loseAnswers(count: number): void
   restore(): void
   addRun(session: SessionId, run: string): void
@@ -71,6 +87,9 @@ export type SessionDoubleControls = Readonly<{
   ): void
   sessions(): ReadonlyMap<string, SessionRecord>
   waitWith(waiting: SessionWaiting | null): void
+  pendingWith(page: PendingPage): void
+  waitingCallsWith(calls: readonly WaitingCall[]): void
+  fateWith(fates: Readonly<Record<string, InputFate>>): void
 }>
 
 export type SessionDouble = Readonly<{
@@ -100,13 +119,17 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
   const sessions = new Map<string, SessionRecord>()
   const throwing = new Map<FaceMethod, unknown>()
   let forcedFailure: SessionFailure | undefined
-  let refuseTool = true
+  let pendingAnswer: PendingPage = { inputs: [], next: null }
+  let waitingCallsAnswer: readonly WaitingCall[] = []
+  let fates: Readonly<Record<string, InputFate>> = {}
   let existenceOnQuery = true
   let commits = 0
   let lostAnswers = 0
   let queryFailure: SessionFailure | undefined
   let queryResolution: OperationResolution | undefined
   let controlAnswer: ControlAnswer | undefined
+  let backgroundState: 'propagating' | 'reconciled' = 'propagating'
+  let backgroundList: readonly Readonly<{ kind: 'tool'; call: string }>[] = []
   const failures: SessionFailure[] = []
   let waitingAnswer: SessionWaiting | null = null
 
@@ -181,7 +204,7 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
     return succeed(receipt)
   }
 
-  const management: Pick<SessionManagement<P>, 'create'> = {
+  const management: Pick<SessionManagement<P>, 'create' | 'interrupt' | 'change'> = {
     async create(input) {
       record('create', input, input.creation)
       if (accessDenied(input)) return fail({ kind: 'denied', action: 'create' })
@@ -189,23 +212,140 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
         session: input.session,
         creation: input.creation,
       })
-      if ('ok' in outcome && !sessions.has(sessionKey(input)))
-        sessions.set(sessionKey(input), { tenant: input.tenant, runs: new Set(), entries: [] })
+      if ('ok' in outcome && !sessions.has(sessionKey(input))) {
+        const initial = input.creation.initialModelSelection
+        const model = initial === undefined ? null : { selection: initial, at: outcome.ok.revision }
+        sessions.set(sessionKey(input), {
+          tenant: input.tenant,
+          runs: new Set(),
+          entries: [],
+          model,
+        })
+      }
       if ('failure' in outcome) return outcome
       return succeed({ receipt: outcome.ok, state: {} as never })
     },
+    async interrupt(input) {
+      record('interrupt', input, input.urgent)
+      if (accessDenied(input)) return fail({ kind: 'denied', action: 'interrupt' })
+      const found = existing(input)
+      if (found === undefined) return fail({ kind: 'denied', action: 'interrupt' })
+      const outcome = commit('interrupt', input.operation, {
+        session: input.session,
+        urgent: input.urgent,
+      })
+      if ('failure' in outcome) return outcome
+      const progress = found.runs.size > 0 ? ({ operation: input.operation } as never) : null
+      return succeed({ receipt: outcome.ok, progress })
+    },
+    async change(input) {
+      record('change', input, input.declaration)
+      if (accessDenied(input)) return fail({ kind: 'denied', action: 'change' })
+      const found = existing(input)
+      if (found === undefined) return fail({ kind: 'denied', action: 'change' })
+      const outcome = commit('change', input.operation, { declaration: input.declaration })
+      const { declaration } = input
+      if ('ok' in outcome && declaration.kind === 'model')
+        found.model = {
+          selection: { name: declaration.name, basis: declaration.basis },
+          at: outcome.ok.revision,
+        }
+      return outcome
+    },
+  }
+
+  // The refusal every read of one session gives: no access and no session answer alike.
+  const readRefusal = (access: SessionAccess<P>, action: string) => {
+    if (accessDenied(access) || existing(access) === undefined)
+      return fail<SessionFailure>({ kind: 'denied', action })
+    return forcedFailure === undefined ? null : fail<SessionFailure>(forcedFailure)
   }
 
   const work: Pick<
     SessionWork<P>,
-    'accept' | 'queryOperation' | 'cancelRun' | 'stopCall' | 'retryRun' | 'readWaiting'
+    | 'accept'
+    | 'queryOperation'
+    | 'cancelRun'
+    | 'stopCall'
+    | 'retryRun'
+    | 'readWaiting'
+    | 'readPending'
+    | 'readWaitingCalls'
+    | 'readInputFate'
+    | 'control'
+    | 'readBackgroundCalls'
+    | 'readModelSelection'
   > = {
+    async readModelSelection(input) {
+      record('readModelSelection', input, {})
+      const refusal = readRefusal(input, 'readModelSelection')
+      if (refusal !== null) return refusal
+      const saved = existing(input)?.model ?? null
+      if (saved === null) return fail({ kind: 'not-ready' })
+      const source = evidence('double/model-selection')
+      return succeed({ selection: saved.selection, revision: saved.at, source })
+    },
+    async control(input) {
+      record('control', input, input.intent)
+      if (accessDenied(input)) return fail({ kind: 'denied', action: 'control' })
+      if (existing(input) === undefined) return fail({ kind: 'denied', action: 'control' })
+      const outcome = commit('control', input.operation, { kind: 'control', intent: input.intent })
+      if ('failure' in outcome) return outcome
+      const progress = {
+        operation: input.operation,
+        target: { kind: 'session' },
+        intent: { kind: 'control', value: input.intent },
+        state: backgroundState,
+        pending: [],
+      } as never
+      const collapsed =
+        input.intent.kind === 'archive' ? { runs: 1, backgroundCalls: backgroundList.length } : null
+      return succeed({ receipt: outcome.ok, progress, collapsed })
+    },
+    async readBackgroundCalls(input) {
+      record('readBackgroundCalls', input, {})
+      if (accessDenied(input)) return fail({ kind: 'denied', action: 'readBackgroundCalls' })
+      if (existing(input) === undefined)
+        return fail({ kind: 'denied', action: 'readBackgroundCalls' })
+      if (forcedFailure !== undefined) return fail(forcedFailure)
+      return succeed(
+        backgroundList.map((producer, index) => ({
+          id: `b${index + 1}`,
+          producer,
+          label: { intent: 'build', tool: 'Shell', command: 'execute', preview: 'pnpm build' },
+          source: 'launched' as const,
+          status: 'running' as const,
+          stop:
+            index === 0
+              ? null
+              : { initiator: 'user' as const, reason: 'not needed', progress: 'accepted' as const },
+          lastLine: null,
+        })),
+      )
+    },
     async readWaiting(input) {
       record('readWaiting', input, {})
       if (accessDenied(input)) return fail({ kind: 'denied', action: 'readWaiting' })
       if (existing(input) === undefined) return fail({ kind: 'denied', action: 'readWaiting' })
       if (forcedFailure !== undefined) return fail(forcedFailure)
       return succeed(waitingAnswer)
+    },
+    async readPending(input) {
+      record('readPending', input, { after: input.after, limit: input.limit })
+      const refusal = readRefusal(input, 'readPending')
+      return refusal ?? succeed(pendingAnswer)
+    },
+    async readWaitingCalls(input) {
+      record('readWaitingCalls', input, {})
+      const refusal = readRefusal(input, 'readWaitingCalls')
+      return refusal ?? succeed(waitingCallsAnswer)
+    },
+    async readInputFate(input) {
+      record('readInputFate', input, { input: input.input })
+      const refusal = readRefusal(input, 'readInputFate')
+      if (refusal !== null) return refusal
+      const fate = fates[input.input]
+      return fate === undefined ? fail({ kind: 'denied', action: 'readInputFate' }) : succeed(fate)
     },
     async retryRun(input) {
       record('retryRun', input, { run: input.run })
@@ -257,9 +397,11 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
       return succeed({ operation: input.operation, source: outcome.ok.source, answer })
     },
     async stopCall(input) {
-      record('stopCall', input, { producer: input.producer })
+      record('stopCall', input, {
+        producer: input.producer,
+        ...(input.reason === undefined ? {} : { reason: input.reason }),
+      })
       if (accessDenied(input)) return fail({ kind: 'denied', action: 'stopCall' })
-      if (refuseTool && input.producer.kind === 'tool') return fail({ kind: 'unsupported' })
       if (existing(input) === undefined) return fail({ kind: 'denied', action: 'stopCall' })
       const outcome = commit('stopCall', input.operation, {
         kind: 'stopCall',
@@ -303,12 +445,20 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
 
   const history: Pick<SessionHistory<P>, 'begin' | 'next'> = {
     async begin(input) {
-      record('history.begin', input, { kinds: input.kinds, pageBytes: input.pageBytes })
+      const asked = { kinds: input.kinds, pageBytes: input.pageBytes }
+      record(
+        'history.begin',
+        input,
+        input.inherited === true ? { ...asked, inherited: true } : asked,
+      )
       if (accessDenied(input)) return fail({ kind: 'denied', action: 'history.begin' })
       const session = existing(input)
       if (session === undefined) return fail({ kind: 'denied', action: 'history.begin' })
       if (forcedFailure !== undefined) return fail(forcedFailure)
-      return succeed(page(session, 0, input.pageBytes))
+      const first = page(session, 0, input.pageBytes)
+      return succeed(
+        input.inherited === true ? { ...first, from: 'source-session' as SessionId } : first,
+      )
     },
     async next(input) {
       record('history.next', input, { cursor: input.cursor })
@@ -329,9 +479,6 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
       throwOn: (method: FaceMethod, error: unknown) => {
         throwing.set(method, error)
       },
-      refuseToolTargets: (refuse: boolean) => {
-        refuseTool = refuse
-      },
       checkExistenceOnQuery: (check: boolean) => {
         existenceOnQuery = check
       },
@@ -349,6 +496,12 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
       },
       answerControlWith: (answer: ControlAnswer | undefined) => {
         controlAnswer = answer
+      },
+      settleBackgroundAt: (state: 'propagating' | 'reconciled') => {
+        backgroundState = state
+      },
+      listBackground: (list: readonly Readonly<{ kind: 'tool'; call: string }>[]) => {
+        backgroundList = list
       },
       loseAnswers: (count: number) => {
         lostAnswers = count
@@ -370,6 +523,15 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
       sessions: () => new Map(sessions),
       waitWith: (waiting: SessionWaiting | null) => {
         waitingAnswer = waiting
+      },
+      pendingWith: (page: PendingPage) => {
+        pendingAnswer = page
+      },
+      waitingCallsWith: (calls: readonly WaitingCall[]) => {
+        waitingCallsAnswer = calls
+      },
+      fateWith: (given: Readonly<Record<string, InputFate>>) => {
+        fates = given
       },
     }),
   })

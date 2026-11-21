@@ -94,27 +94,58 @@ export type Termination =
   | Readonly<{ kind: 'completed'; reason: 'stop' | 'limit' | 'tool-suggestions' }>
   | Readonly<{ kind: 'failed'; fault: ModelFault }>
   | Readonly<{ kind: 'interrupted'; control: ModelOperationId }>
+/** The replay range of a completed result: what its reasoning state belongs to, and on what prefix. */
+export type SettledReplay = Readonly<{
+  scope: string
+  format: string
+  prefix?: string
+  /** The call that produced the result; the meter counts carried reasoning by its output. */
+  call?: string
+}>
 export type Settlement = Readonly<{
   version: ResultVersion
   termination: Termination
   cursor: OutputCursor
   source: DurableEvidence
+  replay?: SettledReplay
 }>
+export type CleanupStage = 'pending' | 'running' | 'blocked' | 'released'
+/** Why no consumer will ever save a settled result: its receiver refused it, or it cannot be read. */
+export type AbandonBasis =
+  | Readonly<{ kind: 'refused'; refusal: 'denied' | 'invalid' | 'conflict' }>
+  | Readonly<{ kind: 'unreadable'; reason: string }>
 export type CustodyState =
   | Readonly<{ kind: 'producer' }>
   | Readonly<{
       kind: 'acknowledged'
       operation: ModelOperationId
       receipt: DurableEvidence
-      cleanup: 'pending' | 'running' | 'blocked' | 'released'
+      cleanup: CleanupStage
       diagnostic: string | null
     }>
+  | Readonly<{
+      kind: 'abandoned'
+      operation: ModelOperationId
+      basis: AbandonBasis
+      record: DurableEvidence
+      cleanup: CleanupStage
+      diagnostic: string | null
+    }>
+// How far the real dispatches of one call got: how many the fixed request allows, how many were
+// prepared, the fault of the last one that failed, and the instant of a decided next one.
+export type DispatchProgress = Readonly<{
+  allowed: number
+  made: number
+  last: ModelFault | null
+  notBefore: string | null
+}>
 export type CallState = Readonly<{
   call: ModelCallId
   revision: Revision
   consumer: ConsumerRef
   control: ControlState
   custody: CustodyState
+  attempts?: DispatchProgress
 }> &
   (
     | Readonly<{ phase: 'accepted' }>
@@ -162,4 +193,14 @@ export type AckReceipt = Readonly<{
   call: ModelCallId
   result: ResultVersion
   custody: Extract<CustodyState, { kind: 'acknowledged' }>
+}>
+export type AbandonInput<P> = Mutation<P> &
+  Readonly<{
+    result: ResultVersion
+    basis: AbandonBasis
+  }>
+export type AbandonReceipt = Readonly<{
+  call: ModelCallId
+  result: ResultVersion
+  custody: Extract<CustodyState, { kind: 'abandoned' }>
 }>

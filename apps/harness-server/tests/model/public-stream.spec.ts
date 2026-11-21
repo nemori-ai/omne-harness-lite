@@ -2,8 +2,12 @@
 import { describe, expect, it } from 'vitest'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
 import type { PrincipalIssuer } from '@omne-harness/identity'
-import type { ModelInvocationRef } from '@omne-harness/model-contract'
-import { onReleaseTree, pollUntil, type ReleaseTree } from '../support/release-tree.ts'
+import {
+  applyModelStreamDelta,
+  type ModelInvocationRef,
+  type ModelStreamSnapshot,
+} from '@omne-harness/model-contract'
+import { historyOf, onReleaseTree, pollUntil, type ReleaseTree } from '../support/release-tree.ts'
 import {
   absentReference,
   anotherPerson,
@@ -15,6 +19,11 @@ import {
   textAnswer,
   type LoginAccess,
 } from './public-stream-support.ts'
+
+function unboxed<T>(outcome: { ok: T } | { failure: unknown }): T {
+  if ('failure' in outcome) throw new Error(JSON.stringify(outcome.failure))
+  return outcome.ok
+}
 
 function services(tree: ReleaseTree) {
   const { references, observation } = publicStream(tree.scope)
@@ -80,6 +89,64 @@ describe('the public Model stream on the release tree', () => {
       expect(kinds[0]).toBe('snapshot')
       expect(kinds).toContain('delta')
       expect(text).toContain('Hello world')
+    })
+  })
+
+  it('the snapshot with every delta applied in turn is the reply the session received (C11)', async () => {
+    const gateway = heldAnswer('Hello', ' world')
+    await onReleaseTree({ script: gateway.script }, async tree => {
+      const access = await loginAccess(tree)
+      const session = await tree.startSession('say hello')
+      const reference = await pollUntil(
+        'the main call registration',
+        () => newestMainCall(tree.scope, access, session),
+        found => found !== null,
+      )
+      if (reference === null) throw new Error('unreachable')
+      const current = await currentStream(tree, access, reference)
+      const stop = new AbortController()
+      const frames: { kind: string; value?: unknown }[] = []
+      const observed = (async () => {
+        for await (const frame of services(tree).observation.observe({
+          ref: current.ref,
+          access,
+          signal: stop.signal,
+        })) {
+          frames.push(frame)
+          if (frame.kind === 'snapshot') gateway.release()
+          if (frame.kind === 'ended' || frame.kind === 'gap') break
+        }
+      })()
+      const entries = await pollUntil(
+        'the Run to end',
+        () => historyOf(tree, session),
+        value => value.some(entry => entry.kind === 'run.terminal'),
+      )
+      await Promise.race([observed, new Promise(resolve => setTimeout(resolve, 1000))])
+      stop.abort()
+      await observed.catch(() => {})
+
+      const [first, ...rest] = frames
+      expect(first?.kind).toBe('snapshot')
+      expect(rest.some(frame => frame.kind === 'delta')).toBe(true)
+      let snapshot = first?.value as ModelStreamSnapshot
+      for (const frame of rest)
+        if (frame.kind === 'delta')
+          snapshot = unboxed(
+            applyModelStreamDelta({
+              tenant: access.tenant,
+              before: snapshot,
+              delta: frame.value as never,
+            }),
+          )
+      const text = snapshot.value.blocks
+        .map(block =>
+          block.kind === 'sealed' && block.block.kind === 'text' ? block.block.text : '',
+        )
+        .join('')
+      expect(snapshot.value.blocks.every(block => block.kind === 'sealed')).toBe(true)
+      expect(text).toBe('Hello world')
+      expect(JSON.stringify(entries)).toContain('Hello world')
     })
   })
 

@@ -10,7 +10,12 @@ import {
   agentReceivedCommitsKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import { rowDeclarationOf } from '../../../src/row.ts'
-import { agentJournalRow, agentJournalCombination } from '../../../src/rows/agent-journal/index.ts'
+import {
+  agentJournalRow,
+  agentJournalCombination,
+  createAgentJournalRow,
+} from '../../../src/rows/agent-journal/index.ts'
+import { releaseCancellation } from '../../../src/entry/cancellation-installation.ts'
 import { compositeManifestDigest } from '../../../src/rows/session-storage/composite.ts'
 import { storageCatalog } from '../../../src/rows/storage/catalog.ts'
 import {
@@ -32,19 +37,26 @@ async function start(): Promise<LoadedTree> {
   const storage = storageRows(base)
   const tree = await loadTree({
     base,
-    rows: [...storage.specs, declared(agentJournalRow, agentJournalCombination())],
+    // No Runtime Context here: the row under test is the release row without telling the model.
+    rows: [
+      ...storage.specs,
+      declared(createAgentJournalRow({ cancellation: releaseCancellation }), {
+        combinationVersion: agentJournalCombination().combinationVersion,
+      }),
+    ],
   })
   release.push(() => tree.dispose())
   return tree
 }
 
 describe('the agent-journal row: declaration', () => {
-  it('is the real row: provides the Journal, receiving and adopted-request keys, injects the three keys, no shutdown phase, group `agent-journal`', () => {
+  it('is the real row: provides the Journal, compaction input, receiving and adopted-request keys, injects the storage, access and Runtime Context keys, no shutdown phase, group `agent-journal`', () => {
     expect(rowDeclarationOf(agentJournalRow)).toEqual({
       row: 'agent-journal',
       implementation: 'real',
       manifest: {
         provides: [
+          'agentCompactionInputs',
           'agentJournal',
           'agentJournalEntries',
           'agentMaterials',
@@ -54,7 +66,13 @@ describe('the agent-journal row: declaration', () => {
           'agentToolReceptionTargets',
           'sessionAdoptedRequests',
         ],
-        injects: ['sessionAccessCheck', 'storage', 'tenantDomainLookup'],
+        injects: [
+          'sessionAccessCheck',
+          'storage',
+          'tenantDomainLookup',
+          'runtimeContext',
+          'runtimeContextReaderEligibility',
+        ],
         phase: null,
         sameProviderGroup: 'agent-journal',
       },
@@ -66,7 +84,7 @@ describe('the agent-journal row: declaration', () => {
     const manifest = compositeManifestDigest(storageCatalog())
     if (manifest.kind !== 'manifest') throw new Error(manifest.diagnostic)
     expect(agentJournalCombination()).toEqual({
-      combinationVersion: 'session-composite/13',
+      combinationVersion: 'session-composite/19',
       manifestDigest: manifest.digest,
     })
   })

@@ -37,6 +37,36 @@ import { migratedPort } from './fixtures/sqlite-storage.ts'
 
 const SESSION = 'session-1'
 
+it('shares the complete compaction body across durable custody and handoff blobs', async () => {
+  const a = await session()
+  const message = { role: 'compaction', blocks: [{ kind: 'text', text: 'one stored summary' }] }
+  const payloads = [
+    canonicalText({ outcome: { kind: 'completed', message } }),
+    canonicalText({ request: { candidate: message }, decision: { message } }),
+  ]
+  const committed = await a.provider.storage.commit({
+    identity: identity('shared-compaction'),
+    combinationVersion: 'c1',
+    manifestDigest: 'a'.repeat(64),
+    commands: [
+      executionRecordBlobFacts({ tenant: TENANT_A, blobs: payloads.map(value => block(value)) }),
+    ],
+  })
+  expect(committed.kind).toBe('committed')
+  const stored = a.provider.select('dom_0', 'SELECT digest, payload FROM sl_blob').rows
+  expect(stored).toHaveLength(3)
+  expect(stored.filter(row => unpacked(row[1]).includes('one stored summary'))).toHaveLength(1)
+  for (const payload of payloads) {
+    const result = decodeExecutionRecordBlob(
+      await read(a, 'execution-record.blob', {
+        tenant: textOf(TENANT_A),
+        digest: blobDigest(payload),
+      }),
+    )
+    expect(result).toMatchObject({ kind: 'blob', payload, digest: blobDigest(payload) })
+  }
+})
+
 const block = (payload: string, media = 'application/json'): ExecutionBlobRecord => ({
   digest: blobDigest(payload),
   media,
@@ -75,6 +105,7 @@ function nth(n: number, over: Partial<ExecutionRecordWrite> = {}): ExecutionReco
     digest: `sha256:op-${String(n)}`,
     facts: factsOf(n, execution),
     blobs: [],
+    items: [],
     boundaries: [
       {
         execution,
@@ -283,7 +314,7 @@ describe('one publication appends one batch', () => {
   })
 
   it.each([
-    ['no fact', { facts: [] }],
+    ['no fact', { facts: [] }, 'no fact'],
     [
       'more facts than a batch holds',
       {
@@ -292,22 +323,32 @@ describe('one publication appends one batch', () => {
           body: index,
         })),
       },
+      `${String(EXECUTION_BATCH_MAX_FACTS + 1)} facts in one batch`,
     ],
     [
       'a body past the bound',
       { facts: [{ kind: 'batch', body: 'x'.repeat(EXECUTION_FACT_MAX_BYTES) }] },
+      'a fact',
     ],
     [
       'two events of one sequence',
       { facts: [...factsOf(1, 'exe_1'), ...factsOf(1, 'exe_1').slice(1)] },
+      'two facts emit one event',
     ],
-    ['a block whose digest is not its payload', { blobs: [{ ...block('a'), payload: 'b' }] }],
-  ] satisfies readonly (readonly [string, Partial<ExecutionRecordWrite>])[])(
-    'refuses %s as unsupported and writes nothing',
-    async (_, over) => {
+    [
+      'a block whose digest is not its payload',
+      { blobs: [{ ...block('a'), payload: 'b' }] },
+      'a blob',
+    ],
+  ] satisfies readonly (readonly [string, Partial<ExecutionRecordWrite>, string])[])(
+    'refuses %s as unsupported, names the rule it breaks, and writes nothing',
+    async (_, over, rule) => {
       const a = await session()
       const result = await commit(a, nth(1, over))
-      expect(result).toMatchObject({ kind: 'rolled_back', reply: { kind: 'unsupported' } })
+      expect(result).toMatchObject({
+        kind: 'rolled_back',
+        reply: { kind: 'unsupported', reason: `the publication is malformed: ${rule}` },
+      })
       expect(agentRows(a)).toEqual({ facts: 0, blobs: 0, operations: 0, roots: 0, heads: 0 })
     },
   )

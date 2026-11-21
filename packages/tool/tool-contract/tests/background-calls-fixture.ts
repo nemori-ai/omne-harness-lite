@@ -7,6 +7,7 @@ import {
   type ToolState,
 } from '@omne-harness/tool-contract'
 import {
+  decodeToolDeliveryId,
   decodeToolResultVersion,
   decodeToolRevision,
   type ToolBackgroundCallSource,
@@ -28,6 +29,11 @@ export function tenant(account = 'a') {
   )
   assert.ok(value.ok)
   return value.value
+}
+function placeholderDelivery() {
+  const decoded = decodeToolDeliveryId('d0')
+  assert.ok('ok' in decoded)
+  return decoded.ok
 }
 export function callId(value = 'call-1') {
   const decoded = decodeToolCallId(value)
@@ -53,12 +59,27 @@ export const input = { tenant: tenant(), scope: scope('original-scope'), princip
 export function state(): ToolState {
   return {
     call: callId(),
+    label: { intent: 'build', tool: 'Shell', command: 'execute', preview: 'pnpm build' },
     revision: revision(),
     source: evidence('state'),
     phase: 'accepted',
     relation: 'background',
     wait: { kind: 'none' },
-    foreground: { kind: 'background', call: callId(), source: { kind: 'launched' } },
+    foreground: {
+      kind: 'background',
+      call: callId(),
+      source: { kind: 'launched' },
+      delivery: {
+        kind: 'pending',
+        delivery: placeholderDelivery(),
+        consumer: {
+          owner: 'consumer',
+          work: 'work-1',
+          position: 'position-1',
+          purpose: 'tool-result',
+        },
+      },
+    },
     execution: { kind: 'not-started' },
     effect: { kind: 'not-started' },
     timing: { kind: 'paused', accumulatedMs: '0' },

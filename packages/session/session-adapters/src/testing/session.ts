@@ -1,4 +1,6 @@
-import { commandScope } from './frontier.ts'
+import { admittedGuards, derivedTerms } from './intake.ts'
+import { commandScope, runStartInputs } from './frontier.ts'
+import { boundCall, compactionContextForView } from '@omne-harness/session-contract'
 import type { ToolRelease } from './result-release.ts'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
@@ -27,12 +29,9 @@ import type {
   SessionId,
   SessionOperationId,
   SessionRevision,
-  RoutedInput,
-  InputId,
   WorkSnapshot,
   CommitReceipt,
   HistoryEntry,
-  HistoryPage,
   OperationResolution,
   PendingReason,
   SessionFailure,
@@ -61,14 +60,16 @@ import type { InitializationSource, HistorySource } from './ports.ts'
 import {
   canonical as canonicalText,
   digestOf,
-  decodedRow,
   rowData,
   materializeModelView,
   compactionReads,
+  forkPointRead,
+  modelViewPage,
 } from './session-values.ts'
 import type { SessionState } from './root.ts'
+import { admittedInputs, withInputs } from './inputs.ts'
 import type { SessionDirectory } from './session-directory.ts'
-const TESTING_OWNER = '@omne-harness/session-adapters/testing'
+import { TESTING_OWNER, decodeCursor, historyPage } from './session-pages.ts'
 type Recall = (receipt: CommitReceipt) => unknown
 
 type Store = SessionState
@@ -81,16 +82,6 @@ function logReceiptOf(
     ? (answer as SessionLogReceipt)
     : null
 }
-
-type Cursor = Readonly<{
-  tenant: string
-  session: SessionId
-  kinds: readonly string[]
-  direction: 'forward' | 'backward'
-  upper: number
-  scanned: number
-  pageBytes: number
-}>
 
 export interface MemorySessionTransactions<P> extends SessionTransactionPort<P> {
   readonly durability: 'none'
@@ -185,30 +176,6 @@ function keyOf(tenant: TenantId, session: SessionId): Outcome<string, SessionFai
   return succeed(`${text.value}\u0000${session}`)
 }
 
-function entryBytes(entry: HistoryEntry): number {
-  return Buffer.byteLength(canonicalText(entry), 'utf8')
-}
-
-function encodeCursor(cursor: Cursor): string {
-  return Buffer.from(JSON.stringify(cursor), 'utf8').toString('base64url')
-}
-
-function decodeCursor(text: string): Cursor | null {
-  try {
-    const parsed: unknown = JSON.parse(Buffer.from(text, 'base64url').toString('utf8'))
-    if (typeof parsed !== 'object' || parsed === null) return null
-    const cursor = parsed as Record<string, unknown>
-    if (typeof cursor['tenant'] !== 'string' || typeof cursor['session'] !== 'string') return null
-    if (!Array.isArray(cursor['kinds']) || typeof cursor['upper'] !== 'number') return null
-    if (typeof cursor['scanned'] !== 'number' || typeof cursor['pageBytes'] !== 'number')
-      return null
-    if (cursor['direction'] !== 'forward' && cursor['direction'] !== 'backward') return null
-    return cursor as Cursor
-  } catch {
-    return null
-  }
-}
-
 export function pendingReasonsOf(snapshot: WorkSnapshot): readonly PendingReason[] {
   const reasons: PendingReason[] = []
   if (snapshot.tasks.some(task => task.kind === 'initialization')) reasons.push('initialization')
@@ -220,7 +187,7 @@ export function pendingReasonsOf(snapshot: WorkSnapshot): readonly PendingReason
   else if (
     snapshot.lifecycle !== 'archived' &&
     snapshot.autoArchive?.kind === 'enabled' &&
-    !(snapshot.relation?.kind === 'main' && snapshot.relation.resident)
+    snapshot.resident !== true
   )
     reasons.push('idle-armed')
   if (snapshot.consumptions.some(item => item.results.some(result => result.release === 'pending')))
@@ -290,7 +257,7 @@ function resultOf(command: SessionCommand, snapshot: WorkSnapshot): Recall {
     case 'control':
     case 'interrupt': {
       const progress = snapshot.controls.find(item => item.operation === command.input.operation)
-      return receipt => ({ receipt, progress })
+      return receipt => ({ receipt, progress: progress ?? null })
     }
     case 'cancelRun':
     case 'stopCall': {
@@ -315,14 +282,6 @@ const mint = (record: string, content: unknown): DurableEvidence => ({
   revision: '1',
   digest: `sha256:${digestOf(content)}`,
 })
-
-function firstInputOf(
-  inputs: ReadonlyMap<InputId, Extract<RoutedInput, { kind: 'ordinary' }>>,
-  first: InputId | undefined,
-) {
-  const stored = first === undefined ? undefined : inputs.get(first)
-  return stored === undefined ? {} : { firstInput: { input: stored.input, origin: stored.origin } }
-}
 
 function runLookup(snapshot: WorkSnapshot, run: RunId): SessionRunLookup {
   const history = snapshot.executions?.find(item => item.run === run)
@@ -353,14 +312,6 @@ function callLookup(snapshot: WorkSnapshot, producer: ProducerRef): SessionCallL
         terminal: null,
       }
     : { kind: 'absent', producer, covered: snapshot.revision }
-}
-
-function admittedInput(command: SessionCommand): Extract<RoutedInput, { kind: 'ordinary' }> | null {
-  if (command.kind === 'accept' && command.input.value.kind === 'ordinary')
-    return command.input.value
-  if (command.kind === 'create') return command.input.creation.initial
-  if (command.kind === 'interrupt') return command.input.urgent
-  return null
 }
 
 export type MemorySessionTransactionOptions<P> = Readonly<{
@@ -410,8 +361,6 @@ export function createSessionTransactions<P>(
 
   const commit = (input: PreparedCommit): Outcome<unknown, SessionFailure> => {
     const command: SessionCommand = input.command
-    if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
-      return fail({ kind: 'unsupported' })
     const key = keyOf(command.input.tenant, command.input.session)
     if ('failure' in key) return key
     const blocked = stores.gate(key.ok)
@@ -446,7 +395,7 @@ export function createSessionTransactions<P>(
     }
     const selected =
       command.kind === 'startRun'
-        ? store?.snapshot.pending.slice(0, 1)
+        ? runStartInputs(store?.snapshot)
         : command.kind === 'receive' && command.input.fact.kind === 'input-handover'
           ? [command.input.fact.input]
           : undefined
@@ -472,7 +421,8 @@ export function createSessionTransactions<P>(
       store === undefined
         ? null
         : { ...store.snapshot, ...(material === undefined ? {} : { historyIndex: material.index }) }
-    const decision = decide(prepared, command, input.guards, null, {
+    const decision = decide(prepared, command, admittedGuards(command, input.guards), null, {
+      ...(store === undefined ? {} : { compactionEpoch: `${key.ok}/${store.modelView.epoch}` }),
       ...(material === undefined ? {} : { history: material.reads }),
       compaction:
         command.kind === 'commitDerived' &&
@@ -486,9 +436,6 @@ export function createSessionTransactions<P>(
         : {}),
       ...(command.kind === 'stopCall' && store !== undefined
         ? { calls: [callLookup(store.snapshot, command.input.producer)] }
-        : {}),
-      ...(command.kind === 'startRun' && store !== undefined
-        ? firstInputOf(store.inputs, store.snapshot.pending[0])
         : {}),
       initializationReceipts: [
         ...(command.kind === 'completeInitialization' ? (store?.operations.values() ?? []) : []),
@@ -541,7 +488,7 @@ export function createSessionTransactions<P>(
       const result =
         snapshot.autoArchive?.kind !== 'enabled'
           ? 'disabled'
-          : snapshot.relation?.kind === 'main' && snapshot.relation.resident
+          : snapshot.resident === true
             ? 'exempt'
             : observation === undefined
               ? 'not-due'
@@ -599,9 +546,7 @@ export function createSessionTransactions<P>(
         ? { form: 'control' as const }
         : {}),
     })
-    const inputs = new Map(store?.inputs)
-    const admitted = admittedInput(command)
-    if (admitted !== null) inputs.set(admitted.input, admitted)
+    const inputs = withInputs(store?.inputs, admittedInputs(command, decision.admitted))
     const target: Store = {
       lastCommit: receipt,
       frozenReceipt: entries.some(entry => entry.kind === 'session.frozen')
@@ -655,6 +600,7 @@ export function createSessionTransactions<P>(
       start,
       saved: store.snapshot.entriesProgress ?? [],
       record: held?.record ?? null,
+      derived: derivedTerms(),
     })
     if (decision.kind === 'rejected') return fail(decision.failure)
     if (decision.kind === 'recovered') {
@@ -704,56 +650,35 @@ export function createSessionTransactions<P>(
       lastCommit: receipt,
       entries: [...store.entries, ...entries],
       operations,
+      inputs: withInputs(store.inputs, decision.admitted ?? []),
       modelView: materializeModelView(store.modelView, entries, [...store.entries, ...entries]),
     })
     return succeed(answer)
   }
 
-  const page = (store: Store, cursor: Cursor): HistoryPage => {
-    const upper = Math.min(cursor.upper, store.entries.length)
-    const forward = cursor.direction === 'forward'
-    const matches = (entry: HistoryEntry): boolean =>
-      cursor.kinds.length === 0 || cursor.kinds.includes(entry.kind)
-    const taken: HistoryEntry[] = []
-    let scanned = cursor.scanned
-    let bytes = 0
-    while (forward ? scanned < upper : scanned < upper) {
-      const index = forward ? scanned : upper - scanned - 1
-      const entry = store.entries[index] as HistoryEntry
-      if (matches(entry)) {
-        const size = entryBytes(entry)
-        if (taken.length > 0 && bytes + size > cursor.pageBytes) break
-        taken.push(entry)
-        bytes += size
-      }
-      scanned += 1
-    }
-    const exhausted = scanned >= upper
-    const next: Cursor = { ...cursor, upper, scanned }
-    const token = encodeCursor(next)
-    if (!exhausted) issuedCursors.add(token)
-    return {
-      source: TESTING_OWNER,
-      interpreter: store.snapshot.interpreter,
-      upper: store.entries[upper - 1]?.revision ?? store.snapshot.revision,
-      entries: taken,
-      scannedThrough: String(scanned),
-      next: exhausted ? null : token,
-      exhausted,
-      annotations: store.entries.slice(0, upper).filter(entry => {
-        const decoded = decodedRow(entry)
-        return (
-          'ok' in decoded &&
-          decoded.ok.kind === 'history.annotated' &&
-          'targets' in decoded.ok &&
-          !taken.includes(entry) &&
-          decoded.ok.targets.some(target => taken.some(row => row.id === target))
-        )
-      }),
-    }
-  }
-
   const history: SessionHistory<P> = {
+    readCompactionContext: async input => {
+      const store = await storeOf(input, 'history.readCompactionContext')
+      if ('failure' in store) return store
+      const key = keyOf(input.tenant, input.session)
+      if ('failure' in key) return key
+      const view = store.ok.modelView
+      const current = { epoch: `${key.ok}/${view.epoch}`, upper: String(view.rows.length) }
+      if (input.basis.epoch !== current.epoch) return succeed({ kind: 'epoch-changed', current })
+      const upper = Number(input.basis.upper)
+      if (!Number.isInteger(upper) || upper < 1 || upper > view.rows.length)
+        return fail({ kind: 'invalid', field: 'basis', reason: 'invalid model view bounds' })
+      const value = compactionContextForView(
+        store.ok.entries,
+        store.ok.snapshot,
+        view.rows,
+        upper,
+        input.coverTo,
+      )
+      return value === null
+        ? fail({ kind: 'invalid', field: 'coverTo', reason: 'outside the current window' })
+        : succeed({ kind: 'context', basis: input.basis, value })
+    },
     begin: async input => {
       const store = await storeOf(input, 'history.begin')
       if ('failure' in store) return store
@@ -771,7 +696,7 @@ export function createSessionTransactions<P>(
         else upper = at
       }
       return succeed(
-        page(store.ok, {
+        historyPage(store.ok, issuedCursors, {
           tenant,
           session: input.session,
           kinds: input.kinds,
@@ -794,7 +719,7 @@ export function createSessionTransactions<P>(
         cursor.session !== input.session
       )
         return fail({ kind: 'invalid', field: 'cursor', reason: 'not a cursor of this session' })
-      return succeed(page(store.ok, cursor))
+      return succeed(historyPage(store.ok, issuedCursors, cursor))
     },
     since: async input => {
       const store = await storeOf(input, 'history.since')
@@ -806,7 +731,7 @@ export function createSessionTransactions<P>(
         return fail({ kind: 'invalid', field: 'after', reason: 'not an entry of this session' })
       const tenant = (tenantCodec.encode(input.tenant) as { ok: true; value: string }).value
       return succeed(
-        page(store.ok, {
+        historyPage(store.ok, issuedCursors, {
           tenant,
           session: input.session,
           kinds: input.kinds,
@@ -817,43 +742,14 @@ export function createSessionTransactions<P>(
         }),
       )
     },
+    readForkPoint: async input => {
+      const store = await storeOf(input, 'history.readModelView')
+      return forkPointRead(store, keyOf(input.tenant, input.session))
+    },
     readModelView: async input => {
       const store = await storeOf(input, 'history.readModelView')
       if ('failure' in store) return store
-      if (!Number.isInteger(input.pageBytes) || input.pageBytes < 1)
-        return fail({ kind: 'invalid', field: 'pageBytes', reason: 'not a positive integer' })
-      const view = store.ok.modelView
-      const key = keyOf(input.tenant, input.session)
-      if ('failure' in key) return key
-      const current = { epoch: `${key.ok}/${view.epoch}`, upper: String(view.rows.length) }
-      if (input.basis !== null && !input.basis.epoch.startsWith(`${key.ok}/`))
-        return fail({ kind: 'invalid', field: 'basis', reason: 'another session' })
-      if (input.basis !== null && input.basis.epoch !== current.epoch)
-        return succeed({ kind: 'epoch-changed', current })
-      const basis = input.basis ?? current
-      const after = input.after === null ? 0 : Number(input.after)
-      const upper = Number(basis.upper)
-      if (
-        !Number.isInteger(after) ||
-        !Number.isInteger(upper) ||
-        after < 0 ||
-        upper > view.rows.length ||
-        after > upper
-      )
-        return fail({ kind: 'invalid', field: 'basis', reason: 'invalid model view bounds' })
-      const rows = []
-      let bytes = 0
-      for (const row of view.rows.slice(after, upper)) {
-        if (rows.length > 0 && bytes + row.bytes > input.pageBytes) break
-        rows.push(row)
-        bytes += row.bytes
-      }
-      return succeed({
-        kind: 'page',
-        basis,
-        rows,
-        next: after + rows.length < upper ? String(after + rows.length) : null,
-      })
+      return modelViewPage(store.ok.modelView, keyOf(input.tenant, input.session), input)
     },
   }
 
@@ -871,14 +767,19 @@ export function createSessionTransactions<P>(
     readWork: async input => {
       const store = await storeOf(input, 'readWork')
       if ('failure' in store) return store
-      const material = options.history?.read(store.ok.snapshot, store.ok.entries, {
-        kind: 'pending',
-        inputs: store.ok.snapshot.pending,
-      })
-      return succeed({
-        ...store.ok.snapshot,
-        ...(material === undefined ? {} : { historyIndex: material.index }),
-      })
+      const { snapshot, entries } = store.ok
+      const scope = { kind: 'pending', inputs: snapshot.pending } as const
+      const material = options.history?.read(snapshot, entries, scope)
+      const index = material === undefined ? {} : { historyIndex: material.index }
+      return succeed({ ...snapshot, ...index })
+    },
+    readCurrentScope: async input => {
+      const store = await storeOf(input, 'readCurrentScope')
+      return 'failure' in store ? store : succeed(store.ok.snapshot.contextScopes?.at(-1) ?? null)
+    },
+    readCall: async input => {
+      const store = await storeOf(input, 'readWork')
+      return 'failure' in store ? store : succeed(boundCall(store.ok.snapshot, input.producer))
     },
     readInput: async input => {
       const store = await storeOf(input, 'readInput')
@@ -894,11 +795,10 @@ export function createSessionTransactions<P>(
       const held = store.ok.operations.get(input.operation)
       if (held?.form === 'control' || store.ok.answers.has(input.operation))
         return fail({ kind: 'conflict', operation: input.operation })
-      const resolution: OperationResolution =
-        held === undefined
-          ? { kind: 'unknown' }
-          : { kind: 'committed', receipt: held.record.receipt }
-      return succeed(resolution)
+      const receipt = held?.record.receipt
+      return succeed<OperationResolution>(
+        receipt === undefined ? { kind: 'unknown' } : { kind: 'committed', receipt },
+      )
     },
     queryControlOperation: async input => {
       const store = await storeOf(input, 'queryControlOperation')

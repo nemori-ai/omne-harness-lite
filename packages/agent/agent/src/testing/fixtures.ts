@@ -20,7 +20,6 @@ import type {
   HandoffResolution,
   InputOrigin,
   MessageHandoff,
-  ModelContextReader,
   ModelSelection,
   RegisteredReads,
   RequestPreparation,
@@ -165,7 +164,7 @@ export function createScriptedMessageHandoff<P>(): ScriptedMessageHandoff<P> {
 export type ScriptedRequestPreparation<P> = Readonly<{
   port: RequestPreparation<P>
   prepare: ScriptOf<RequestPreparation<P>['prepare']>
-  derive: ScriptOf<RequestPreparation<P>['derive']>
+  assessCompaction: ScriptOf<RequestPreparation<P>['assessCompaction']>
   resume: ScriptOf<RequestPreparation<P>['resume']>
 }>
 
@@ -221,7 +220,7 @@ export function readyPreparation<P>(input: PrepareInput<P>): ReadyPreparation {
     },
     budget: testEvidence(`budget/${input.action}`),
     recipient: input.selection.recipient,
-    coverage: input.context.coverage,
+    coverage: testEvidence(`coverage/${input.position.work}`),
   }
 }
 
@@ -236,18 +235,18 @@ export function createScriptedRequestPreparation<P>(): ScriptedRequestPreparatio
       input: { system, messages, tools, toolChoice, parameters, representation, source },
     })
   })
-  const derive = scriptedMethod<
-    In<RequestPreparation<P>['derive']>,
-    Out<RequestPreparation<P>['derive']>
+  const assessCompaction = scriptedMethod<
+    In<RequestPreparation<P>['assessCompaction']>,
+    Out<RequestPreparation<P>['assessCompaction']>
   >(() => fail({ kind: 'unsupported' }))
   const resume = scriptedMethod<
     In<RequestPreparation<P>['resume']>,
     Out<RequestPreparation<P>['resume']>
   >(() => fail({ kind: 'unsupported' }))
   return {
-    port: { prepare: prepare.call, derive: derive.call, resume: resume.call },
+    port: { prepare: prepare.call, assessCompaction: assessCompaction.call, resume: resume.call },
     prepare: prepare.script,
-    derive: derive.script,
+    assessCompaction: assessCompaction.script,
     resume: resume.script,
   }
 }
@@ -262,26 +261,6 @@ export function createScriptedModelSelection<P>(): ScriptedModelSelection<P> {
     unavailable('agentModelSelection'),
   )
   return { port: { select: select.call }, select: select.script }
-}
-
-export type ScriptedModelContext<P> = Readonly<{
-  port: ModelContextReader<P>
-  read: ScriptOf<ModelContextReader<P>['read']>
-}>
-
-export function createScriptedModelContext<P>(): ScriptedModelContext<P> {
-  const read = scriptedMethod<
-    In<ModelContextReader<P>['read']>,
-    Out<ModelContextReader<P>['read']>
-  >(input =>
-    succeed({
-      recipient: input.recipient,
-      content: 'full',
-      source: testEvidence(`context/${input.position.work}`),
-      coverage: testEvidence(`coverage/${input.position.work}`),
-    }),
-  )
-  return { port: { read: read.call }, read: read.script }
 }
 
 type Resolution = Extract<Out<AgentAdoptions<unknown>['resolve']>, { ok: unknown }>['ok']

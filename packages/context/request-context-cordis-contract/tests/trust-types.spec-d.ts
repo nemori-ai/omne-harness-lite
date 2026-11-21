@@ -4,10 +4,7 @@ import type {
   PrincipalBinding,
   SourceRegistrationAuthority,
 } from '@omne-harness/request-context-contract'
-import type {
-  ContextAccountingInboxService,
-  RequestContextTrustService,
-} from '@omne-harness/request-context-cordis-contract/cordis'
+import type { RequestContextTrustService } from '@omne-harness/request-context-cordis-contract/cordis'
 import type { RequestContextTrust } from '@omne-harness/request-context-cordis-contract'
 
 expectTypeOf<RequestContextTrust<string>>().toEqualTypeOf<
@@ -47,9 +44,4 @@ expectTypeOf<RequestContextTrustService<string>['principalBinding']>().toEqualTy
 >()
 expectTypeOf<RequestContextTrustService<string>['registrationAuthority']>().toEqualTypeOf<
   RequestContextTrust<string>['registrationAuthority']
->()
-expectTypeOf<ContextAccountingInboxService<string>['receive']>().parameters.toEqualTypeOf<
-  Parameters<
-    import('@omne-harness/request-context-contract').ContextAccountingInbox<string>['receive']
-  >
 >()

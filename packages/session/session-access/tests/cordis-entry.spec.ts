@@ -94,10 +94,11 @@ async function assemble({
       },
       definitions: () => resolveDefinition,
       listing: directory => ({
-        list: async input => {
+        list: async ({ filter: _filter, ...input }) => {
           const answered = await directory.list({ ...input, principal: input.principal })
           return 'ok' in answered ? { ok: answered.ok as never } : { refused: 'basis-unavailable' }
         },
+        listArchived: async () => ({ refused: 'basis-unavailable' }),
       }),
       prepareCreation: input => {
         prepared.push(input.creation.purpose)
@@ -327,7 +328,10 @@ describe('the session access plugin on real Cordis', () => {
           }),
         },
         definitions: () => resolveDefinition,
-        listing: () => ({ list: async () => ({ refused: 'basis-unavailable' }) }),
+        listing: () => ({
+          list: async () => ({ refused: 'basis-unavailable' }),
+          listArchived: async () => ({ refused: 'basis-unavailable' }),
+        }),
       }),
       {
         maxPageBytes: 65536,

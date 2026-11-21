@@ -10,8 +10,6 @@ export const configuration = {
   observerCheckIntervalMs: 25,
   resultPageTargetBytes: 128,
   readIdleMs: 1000,
-  retryBackoffMs: 0,
-  cleanupRetryMs: 0,
 }
 function assembled() {
   const f = fixture()

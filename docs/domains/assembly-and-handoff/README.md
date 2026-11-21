@@ -26,6 +26,8 @@
 
 内核辅助是同组的另一个成员，名字是 `kernel-basis`。它提供 Cordis 插件辅助和测试装配。操作结果归 `packages/common/operation-result`。它不是求值、采用和交接成员 `assembly`。业务成员可以依赖 `kernel-basis` 的公开入口。业务成员不读取 `assembly` 来取得全局服务或隐式依赖。目录和封存路径归[组织原则](../../architecture/structure.md#组织原则)。
 
+时间源是同组的第三个成员，名字是 `time-source`。它拥有一个装配好的系统里的那一条时间线：墙钟与单调钟的读数，以及这两个钟上的等待。它不依赖 Cordis。各领域的时钟端口仍归各领域，应用的装配把同一个时间源适配成这些端口，见[时间](../../architecture/runtime/time.md)。
+
 进程级的应用装配（插件树、运行时对象与桥接）不是本责任的定义求值；单机首条租户路径的应用装配见[应用装配](../../architecture/runtime/application-assembly.md)。
 
 ## 主路径与交接

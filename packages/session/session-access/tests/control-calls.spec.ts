@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { SessionFailure, SessionId } from '@omne-harness/session-contract'
+import type { SessionId } from '@omne-harness/session-contract'
 import {
   DEFINITION,
   createWorld,
@@ -135,6 +135,17 @@ describe('what stop-call hands to Session and answers', () => {
     expect(call?.principal).toMatchObject({ kind: 'acting-for-tenant', tenant: ALICE.tenant })
   })
 
+  it('passes the reason when the body gives one, and never a stopper (C19, C22)', async () => {
+    const world = createWorld()
+    const session = await created(world)
+    await ops(world)['stop-call'](as(login()), { ...bodyOf(session), reason: 'not needed' })
+    const call = world.session.controls.calls()[1]
+    expect(call?.input).toEqual({
+      producer: { kind: 'model', call: 'call-9' },
+      reason: 'not needed',
+    })
+  })
+
   it('answers requested with the control id and the producer of the message', async () => {
     const world = createWorld()
     const session = await created(world)
@@ -149,34 +160,19 @@ describe('what stop-call hands to Session and answers', () => {
     })
   })
 
-  it('answers unsupported to a Tool target whatever Session answered, even a requested stop', async () => {
+  it('answers a requested stop of a Tool target with the Tool call it names', async () => {
     const world = createWorld()
     const session = await created(world)
-    world.session.controls.refuseToolTargets(false)
     world.session.controls.answerControlWith(REQUESTED)
     expect(await ops(world)['stop-call'](as(login()), bodyOf(session, 'tool'))).toEqual({
-      outcome: 'unsupported',
-      body: {},
+      outcome: 'succeeded',
+      body: {
+        kind: 'requested',
+        controlId: 'control-7',
+        producer: { kind: 'tool', call: 'call-9' },
+      },
     })
   })
-
-  it.each([
-    ['frozen', { kind: 'frozen', verdict: null }],
-    ['unsupported', { kind: 'unsupported' }],
-    ['stale-advance', { kind: 'stale-advance', current: null }],
-  ] as const)(
-    'answers unsupported to a Tool target when Session fails with %s, not basis-unavailable',
-    async (_name, failure) => {
-      const world = createWorld()
-      const session = await created(world)
-      world.session.controls.refuseToolTargets(false)
-      world.session.controls.failWith(failure as SessionFailure)
-      expect(await ops(world)['stop-call'](as(login()), bodyOf(session, 'tool'))).toEqual({
-        outcome: 'unsupported',
-        body: {},
-      })
-    },
-  )
 })
 
 describe('the first page of read-history against the deployment bound, digit by digit', () => {

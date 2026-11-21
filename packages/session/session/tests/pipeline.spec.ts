@@ -9,7 +9,6 @@ import {
   creation,
   evidence,
   operationId,
-  intakeInput,
   ordinaryInput,
   succeeded,
 } from '@omne-harness/session-contract/testing'
@@ -163,28 +162,6 @@ describe('step 3: a refusal that the snapshot decides', () => {
     expect(h.identity.controls.asked().length).toBe(asked)
     expect(h.view.calls().map(call => call.method)).toEqual(['queryOperation', 'readWork'])
   })
-
-  it('a refusal that needs the stored input is left to the commit: a first input from another origin is login-required', async () => {
-    const h = await service()
-    await h.create()
-    expect(
-      'ok' in
-        (await h.faces('intake').work.accept({
-          ...h.access(),
-          operation: operationId('accept-input-1'),
-          value: intakeInput('input-1'),
-        })),
-    ).toBe(true)
-    const answer = await h.faces('coordinator').work.startRun({
-      ...h.access(),
-      operation: operationId('start'),
-      entry: 'interactive',
-      candidate,
-      instance: { owner: 'agent', id: 'instance-1' },
-    })
-    expect(failureOf(answer)).toEqual({ kind: 'login-required' })
-    expect(h.view.calls().map(call => call.method)).toContain('commit')
-  })
 })
 
 describe('step 4: material owners', () => {
@@ -229,35 +206,6 @@ describe('step 4: material owners', () => {
       instance: { owner: 'agent', id: 'instance-1' },
     })
     expect(failureOf(answer)).toMatchObject({ kind: 'unavailable', owner: 'evidence' })
-  })
-
-  it('accept of an ordinary input needs the slot list: absent is unavailable, a non-empty list is not orchestrated, empty runs no slot', async () => {
-    const h = await service({ admission: null })
-    await h.create()
-    const accept = (name: string) =>
-      h.faces('intake').work.accept({
-        ...h.access(),
-        operation: operationId(name),
-        value: ordinaryInput(name),
-      })
-    expect(failureOf(await accept('a'))).toMatchObject({
-      kind: 'unavailable',
-      owner: 'sessionAdmission',
-    })
-    h.setAdmission([
-      {
-        name: 'slot',
-        run: () => Promise.reject(new Error('not called')),
-      },
-    ])
-    expect(failureOf(await accept('b'))).toMatchObject({
-      kind: 'unavailable',
-      owner: 'sessionAdmission',
-    })
-    h.setAdmission([])
-    expect(await accept('c')).toHaveProperty('ok')
-    const snapshot = succeeded(await h.backend.transactions.readWork(h.access()), 'read')
-    expect(snapshot.pending).toHaveLength(1)
   })
 })
 
@@ -409,19 +357,15 @@ describe('step 5: the commit', () => {
     })
   })
 
-  it('stopCall of a Tool target is unsupported, with no lookup and no material (contract 控制与模型选择)', async () => {
+  it('stopCall of a Tool target takes the path of any call: an unbound call answers not-found', async () => {
     const h = await service()
     await h.create()
-    const asked = h.identity.controls.asked().length
-    h.view.reset()
     const answer = await h.faces('intake').work.stopCall({
       ...h.access(),
       operation: operationId('stop-tool'),
       producer: { kind: 'tool', call: 'call-1' } as never,
     })
-    expect(failureOf(answer)).toEqual({ kind: 'unsupported' })
-    expect(h.view.calls().map(call => call.method)).toEqual(['commit'])
-    expect(h.identity.controls.asked().length).toBe(asked)
+    expect(answer).toMatchObject({ ok: { answer: { kind: 'not-found' } } })
   })
 })
 

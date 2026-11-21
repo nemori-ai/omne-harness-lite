@@ -26,14 +26,8 @@ import {
   type Mint,
   type Snapshot,
 } from './ledger-decider.ts'
-import {
-  commonOf,
-  gate,
-  nextState,
-  wrongPhase,
-  type StateBody,
-  type WriteCommand,
-} from './ledger-start.ts'
+import { gate, nextState, wrongPhase, type WriteCommand } from './ledger-start.ts'
+import { commonOf, type StateBody } from './ledger-state.ts'
 import {
   taskKey,
   type CallRecord,

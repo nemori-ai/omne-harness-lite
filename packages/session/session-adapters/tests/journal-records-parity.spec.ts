@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import type { PendingCall } from '@omne-harness/agent-contract'
+import type { PendingCall, PendingHandoff } from '@omne-harness/agent-contract'
 import { decodeActionId } from '@omne-harness/agent-contract'
+import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { sampleReceivedModelResult } from '@omne-harness/agent-contract/testing'
-import { evidence } from '@omne-harness/session-contract/testing'
+import { assistantMessage, evidence } from '@omne-harness/session-contract/testing'
 import {
   EXECUTION_FIELDS,
   fieldTexts,
@@ -14,6 +15,7 @@ import {
   type ExecutionField,
 } from '../src/testing/journal-records.ts'
 import { canonical } from '../src/testing/canonical.ts'
+import { fullViewOf } from '../src/testing/closed-items.ts'
 import { JOURNAL_OWNER } from '../src/testing/journal-values.ts'
 import { ok, operation, scene } from './fixtures/common-journal.ts'
 
@@ -141,6 +143,87 @@ describe('the reader records projected from the fold', () => {
         entry: committed.value.entry,
       }),
     )
+    const { key } = result.delivery
+    if (key.kind !== 'result') throw new Error('fixture: a Model result key')
+    const handled = ok(await journal.load({ ...s.access, execution: s.execution }))
+    await commit('processed', {
+      // The step is done with the first call: its result closes once processed.
+      checkpoint: { ...handled.checkpoint, calls: [pending2] },
+      events: [
+        {
+          kind: 'producer',
+          result: {
+            producer: {
+              kind: 'model',
+              call: ok(resolveModelInvocationRef(key.reference, s.access.tenant)).call,
+            },
+            version: key.result,
+            delivery: null,
+            source: evidence('produced'),
+          },
+          consumption: result.consumption,
+        },
+      ],
+    })
+    const replyCall = ok(resolveModelInvocationRef(key.reference, s.access.tenant)).call
+    ok(
+      await journal.control({
+        ...s.access,
+        execution: s.execution,
+        operation: operation('interrupt'),
+        command: { kind: 'interrupt-model', call: replyCall, reason: evidence('interrupt') },
+      }),
+    )
+    const atReply = ok(await journal.load({ ...s.access, execution: s.execution }))
+    const step = atReply.checkpoint.step
+    const request: PendingHandoff = {
+      kind: 'execution',
+      reference: { kind: 'execution', execution: s.execution, operation: operation('reply') },
+      predecessor: atReply.revision,
+      position: { step, node: 'I3', slot: null },
+      source: {
+        kind: 'model-reply',
+        step,
+        action: pending.action,
+        call: replyCall,
+        result: {
+          producer: { kind: 'model', call: replyCall },
+          version: key.result,
+          delivery: null,
+          source: evidence('reply-result'),
+        },
+      },
+      candidate: assistantMessage('a reply the admission rejects'),
+      originalAdvance: authority,
+      predecessorHandoff: null,
+    }
+    await commit('prepare-reply', {
+      checkpoint: { ...atReply.checkpoint, position: 'Q2', currentHandoff: request.reference },
+      handoff: { kind: 'prepare', request },
+    })
+    const beforeJa = ok(await journal.load({ ...s.access, execution: s.execution }))
+    await commit('reject-reply', {
+      checkpoint: { ...beforeJa.checkpoint, position: 'Q4', currentHandoff: null },
+      replyAdmission: {
+        step,
+        action: pending.action,
+        call: replyCall,
+        resultVersion: key.result,
+        decision: 'rejected',
+        source: evidence('rejected'),
+      },
+      handoff: {
+        kind: 'resolve',
+        outcome: {
+          request,
+          origin: null,
+          provider: { owner: 'suite', name: 'handoff', revision: '1', digest: 'suite:handoff' },
+          qualification: evidence('qualification/reply'),
+          record: evidence('record/reply'),
+          decision: { kind: 'rejected', reason: 'malformed', evidence: evidence('rejected') },
+        },
+      },
+    })
     ok(
       await s.view.materials.preserve({
         ...s.access,
@@ -173,11 +256,14 @@ describe('the reader records projected from the fold', () => {
       }),
     )
 
-    const { view, blobs, namespace } = s.view.controls.facts()
+    const { view, closed, blobs, namespace } = s.view.controls.facts()
     const written = [...s.view.controls.records().values()].find(item => item.id === s.execution)
     if (written === undefined) throw new Error('the writer keeps no record of the execution')
-    const folded = view.executions.get(s.execution)
-    if (folded === undefined) throw new Error('the fold holds no view of the execution')
+    const open = view.executions.get(s.execution)
+    if (open === undefined) throw new Error('the fold holds no view of the execution')
+    // The writer keeps every record it wrote: compare it with the projection of the whole record.
+    expect(open.intents.size).toBe(1)
+    const folded = fullViewOf(open, closed)
     const context = {
       tenant: s.access.tenant,
       blobs,
@@ -197,11 +283,12 @@ describe('the reader records projected from the fold', () => {
     }
     const projected = projectExecution(folded, context)
     const diff = fieldsDiff(written, projected)
+    // A core holds the open operations (exclusions); what one answered is a closed item.
     const writtenOps = [...s.view.controls.operations().entries()]
-      .filter(([, record]) => record.kind !== 'pending')
-      .map(([key, record]) => [key, record.kind === 'excluded' ? { ...record, key: '' } : record])
+      .filter(([, record]) => record.kind === 'excluded')
+      .map(([key, record]) => [key, { ...record, key: '' }])
       .sort()
-    const projectedOps = [...projectOperations(folded, context, projected).entries()].sort()
+    const projectedOps = [...projectOperations(folded, context).entries()].sort()
     const opsDiff = writtenOps.flatMap(([key, record], index) => {
       const other = projectedOps[index]
       return other !== undefined && other[0] === key && canonical(other[1]) === canonical(record)
@@ -253,7 +340,6 @@ describe('the reader records projected from the fold', () => {
           'materials',
           'deliveries',
           'aliases',
-          'consumerExecutions',
           'pendingBindings',
           'targets',
           'callTargets',
@@ -266,7 +352,8 @@ describe('the reader records projected from the fold', () => {
     expect(lines.filter(line => line.includes('DIFFER'))).toEqual([])
     expect(writtenReceiving.deliveries.size).toBeGreaterThanOrEqual(2)
     expect(writtenReceiving.materials.size).toBeGreaterThanOrEqual(2)
-    expect(writtenReceiving.aliases.size).toBeGreaterThan(writtenReceiving.deliveries.size)
+    // A recognition is answered from its closed answer: only received operations keep an alias.
+    expect(writtenReceiving.aliases.size).toBe(writtenReceiving.deliveries.size)
     expect(writtenReceiving.targets.size).toBe(2)
     expect(writtenFragments.callOrigins.size).toBe(2)
   })

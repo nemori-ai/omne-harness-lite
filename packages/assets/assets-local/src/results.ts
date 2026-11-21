@@ -7,11 +7,12 @@ import type {
 import type { AssetsOperationResult } from './types.ts'
 import { equal, identity } from './encoding.ts'
 import { PARTICIPANT, PROTOCOL, receiptSchema, type Mutation } from './schema.ts'
+export type SameOperation = (recorded: Mutation) => boolean
 export function receiptResult(
   result: CommitResultV2 | QueryResultV2,
   domain: DomainRef,
   operationId: string,
-  command?: Mutation,
+  same?: SameOperation,
 ): AssetsOperationResult {
   const unknown = { kind: 'unknown' as const, operationId }
   if (!equal(result.identity, identity(domain, operationId))) return unknown
@@ -22,7 +23,7 @@ export function receiptResult(
     case 'not_committed':
       return { kind: 'not_found' }
     case 'identity_conflict':
-      return receiptResult(result.existing, domain, operationId, command)
+      return receiptResult(result.existing, domain, operationId, same)
     case 'rejected_before_accept':
       return {
         kind: 'rejected',
@@ -35,19 +36,65 @@ export function receiptResult(
       }
     case 'committed':
     case 'rolled_back':
-      return terminalReceipt(result, domain, operationId, command)
+      return terminalReceipt(result, domain, operationId, same)
   }
 }
+/** The domain revision a commit made just now left; a receipt answered again is not new. */
+export function freshDomainRevision(
+  result: CommitResultV2,
+  domain: DomainRef,
+  operationId: string,
+): number | undefined {
+  return result.kind === 'committed' && !result.recalled
+    ? decodeReceipt(result, domain, operationId)?.domainRevision
+    : undefined
+}
+
+export type PublicationRecall =
+  | Readonly<{
+      kind: 'published'
+      category: string
+      name: string
+      version: string
+      holdingRef: string
+      changed: boolean
+    }>
+  | Exclude<AssetsOperationResult, Readonly<{ kind: 'committed' }>>
+
+/** The outcome of a publication by its operation; another kind of command under it is a conflict. */
+export function publicationRecall(
+  result: QueryResultV2,
+  domain: DomainRef,
+  operationId: string,
+): PublicationRecall {
+  let recorded: Mutation | undefined
+  const answer = receiptResult(result, domain, operationId, command => {
+    recorded = command
+    return command.kind === 'publishAndHold'
+  })
+  if (answer.kind !== 'committed') return answer
+  if (recorded?.kind !== 'publishAndHold') return { kind: 'unknown', operationId }
+  const { category, name, version, holding } = recorded
+  return {
+    kind: 'published',
+    category,
+    name,
+    version,
+    holdingRef: holding.holdingRef,
+    changed: answer.changed,
+  }
+}
+
 function terminalReceipt(
   result: ReceiptV2,
   domain: DomainRef,
   operationId: string,
-  command?: Mutation,
+  same?: SameOperation,
 ): AssetsOperationResult {
   const unknown = { kind: 'unknown' as const, operationId }
   const receipt = decodeReceipt(result, domain, operationId)
   if (!receipt) return unknown
-  if (command && !equal(receipt.binding.command, command))
+  if (same && !same(receipt.binding.command))
     return { kind: 'rejected', reason: 'operation_conflict' }
   if (receipt.result.kind === 'committed' && receipt.result.operationId !== operationId)
     return unknown

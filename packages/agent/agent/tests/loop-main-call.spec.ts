@@ -46,6 +46,7 @@ function coordinator(assembly: LoopAssembly) {
   return createExecutionCoordinator({
     ports: assembly.dependencies,
     binding: options().binding,
+    compactionProvider: options().configuration.compactionProvider,
     evaluator: agentEvaluator,
     access: alice,
     execution: execution(),
@@ -705,6 +706,67 @@ it.each<readonly [string, SealedPart]>([
     expect(assembly.controls.pusher?.acknowledgements()).toHaveLength(direct ? 0 : 1)
   },
 )
+
+it('the reply keeps the sealed reasoning state of a result with a replay range, and carries the range (R2-D268)', async () => {
+  const state: SealedPart = {
+    kind: 'sealed',
+    trims: [],
+    block: {
+      kind: 'reasoning_state',
+      id: REASONING_ID,
+      visibility: { toHuman: false, toModel: true },
+      payload: 'opaque',
+      pairs: [],
+    },
+  }
+  const range = { scope: 'gateway/lab/model-a', format: 'lab-v1', call: 'mcall_producing' }
+  const assembly = await loopAssembly([execution()])
+  const c = coordinator(assembly)
+  ok(await c.accept())
+  ok(await c.runExecution())
+  const pending = (await load(assembly)).checkpoint.calls[0]
+  const receiver = assembly.controls.receiver
+  if (pending?.kind !== 'model' || !receiver) throw new Error('original call and receiver required')
+  const version = ok(decodeResultVersion('mrver_reasoning'))
+  ok(
+    await receiver.push({
+      access: alice,
+      signal: new AbortController().signal,
+      delivery: {
+        kind: 'result',
+        key: { kind: 'result', reference: pending.reference, result: version },
+        consumer: pending.position,
+        parts: [state, answerText],
+        accounts: [],
+        settlement: {
+          version,
+          cursor: ok(decodeOutputCursor('2')),
+          source: evidence('direct-delivery'),
+          termination: COMPLETED,
+          replay: range,
+        },
+      },
+    }),
+  )
+  ok(await c.runExecution())
+  const page = ok(
+    await assembly.dependencies.journal.output.read({
+      ...alice,
+      execution: execution(),
+      after: null,
+      limit: 100,
+    }),
+  )
+  if (page.kind !== 'page') throw new Error('new execution must have contiguous events')
+  const replies = page.events.flatMap(event =>
+    event.body.kind === 'message' ? [event.body.message] : [],
+  )
+  expect(replies).toHaveLength(1)
+  const reply = replies[0]
+  if (reply?.role !== 'assistant') throw new Error('an assistant reply required')
+  expect(reply.blocks).toEqual([state.block, answerText.block])
+  expect(reply.replay).toEqual({ ...range, at: [0] })
+})
 
 it('an input submitted during the call leaves the fixed request intact and reaches the next boundary', async () => {
   const assembly = await loopAssembly([execution()]),

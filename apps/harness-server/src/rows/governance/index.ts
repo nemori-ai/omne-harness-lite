@@ -1,4 +1,6 @@
+import { permissionDeclarationsOf } from '../../entry/permission-declarations.ts'
 import type { Context } from '@deepseek-ai/cordis'
+import { agentDecisionCardsKey } from '@omne-harness/agent-cordis-contract/cordis'
 import { z } from 'zod'
 import { standingPrincipalRef } from '@omne-harness/identity'
 import {
@@ -12,7 +14,10 @@ import {
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { fail } from '@omne-harness/operation-result'
 import { GovernanceIdSchema } from '@omne-harness/governance-contract'
-import { createSettingsRegistry } from '@omne-harness/settings'
+import { assetCategoriesKey, independentSettingsKey } from '@omne-harness/assets-cordis-contract'
+import { IndependentSettingsService } from '@omne-harness/assets-cordis-contract/cordis'
+import { toolCategoryDisplay } from '@omne-harness/tool-contract'
+import { createIndependentSettingsPoint, createSettingsRegistry } from '@omne-harness/settings'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
 import { toolContributionAuthorityKey } from '@omne-harness/tool-cordis-contract/cordis'
 import { defineRow } from '../../row.ts'
@@ -29,7 +34,13 @@ import {
 } from './session-permission-backend-service.ts'
 import { createToolGovernanceDefinitionSource } from './tool-definition-source.ts'
 import { prepareInstalledTenantGovernance } from './tenant-installation.ts'
+import { createToolAssetCategory } from './tool-assets.ts'
+import {
+  provideTenantIndependentSettings,
+  tenantIndependentSettingsKey,
+} from './independent-settings-service.ts'
 import { TenantGovernanceHost } from './tenant-host.ts'
+import { tenantAssetsKey } from '../tenant-assets/service.ts'
 import { tenantDomainRegistrationKey } from './tenant-domain-registration-service.ts'
 import { openOrganizationSettingsSources } from './organization-settings.ts'
 import { permissionOriginsOf } from './permission-origins.ts'
@@ -89,6 +100,8 @@ export const governanceRow = defineRow({
       standingDestinationResolverKey,
       currentToolPermissionKey,
       tenantSettingsKey,
+      independentSettingsKey,
+      tenantIndependentSettingsKey,
     ],
     injects: [
       storageKey,
@@ -100,6 +113,8 @@ export const governanceRow = defineRow({
       governanceDirectoryPrincipalsKey,
       governanceInstallationPrincipalsKey,
       toolContributionAuthorityKey,
+      assetCategoriesKey,
+      tenantAssetsKey,
     ],
     sameProviderGroup: null,
   },
@@ -109,12 +124,20 @@ export const governanceRow = defineRow({
     const release = releaseOf(ctx)
     const materials = await productionStorageCatalog(async () => release)
     if (release.kind !== 'trusted') throw new Error('governance Tool release unavailable')
+    ctx.assetCategories.contribute({
+      contract: createToolAssetCategory(release),
+      display: toolCategoryDisplay,
+      generalCreation: 'closed',
+    })
+    const categories = ctx.assetCategories.view
     const registry = createSettingsRegistry({ capacity: 1024 })
     ctx.effect(() => () => registry.close(), 'governance.settings-registry.close')
     for (const entry of release.manifest.entries)
       for (const definition of entry.governance.declaration.settings)
         if (registry.registerContribution(definition).kind !== 'registered')
           throw new Error('governance Settings definition registration failed')
+    const independent = createIndependentSettingsPoint(registry)
+    new IndependentSettingsService(ctx, independent)
     const identity = {
       verifier: ctx.principalVerifier,
       standing: ctx.tenantStanding,
@@ -153,7 +176,11 @@ export const governanceRow = defineRow({
           installationPrincipal,
           login: () => ctx.identityGovernance,
           release,
+          categories,
+          tenantAssets: () => ctx.tenantAssets.open(tenantRef),
+          independentSettings: () => independent.list(),
           permissionOrigins: () => permissionOriginsOf(ctx),
+          permissionDeclarations: () => permissionDeclarationsOf(ctx),
           organizationTargets: sources.targets,
           scope,
           domain,
@@ -201,6 +228,7 @@ export const governanceRow = defineRow({
       },
       'governance.tenant-settings.active',
     )
+    provideTenantIndependentSettings(ctx, { host, deploymentRef: config.deploymentId })
     provideTenantSettings(ctx, {
       host,
       scope: config,
@@ -211,6 +239,7 @@ export const governanceRow = defineRow({
         standing: { read: input => ctx.tenantStanding.read(input) },
       },
       active: () => active,
+      cards: () => ctx.get(agentDecisionCardsKey, false),
     })
     ctx.effect(
       () => () => host.close(monotonicClock.now() + config.closeTimeoutMs),

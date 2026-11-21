@@ -41,6 +41,7 @@ import { monotonicClock, runShutdown, stopPredecessors } from './shutdown.ts'
 import { releaseToolRequestsOf } from './entry/tool-requests.ts'
 import { createAgentHostRow } from './rows/agent-host/index.ts'
 import { createModelHostRow } from './rows/model-host/index.ts'
+import { createModelRecordsRow } from './rows/model-records/index.ts'
 import { createToolRecordsRow } from './rows/tool-runtime/index.ts'
 import { acquireStateLock, lostContactBy, type StateLock } from './state-lock.ts'
 import { prepareStartupDirectory } from './startup-directory.ts'
@@ -408,6 +409,8 @@ export type RunServeOptions = Readonly<{
   entryObjects?: readonly EntryObjectModule[]
   manifests?: ReadonlyMap<RowId, RowManifest>
   visibility?: Visibility
+  /** How the host row chooses its screen backend; absent: by the system this process runs on. */
+  hostScreen?: Parameters<typeof createExecutionHostBinding>[1]
 }>
 
 export type ServeResult = Readonly<{
@@ -494,6 +497,9 @@ export async function runServe(options: RunServeOptions): Promise<ServeResult> {
       lostContact: lostContactBy(() => lock, 'instance'),
     }),
     modelHostRow: createModelHostRow({ lostContact: lostContactBy(() => lock, 'call') }),
+    modelRecordsRow: createModelRecordsRow({
+      adopt: target => lostContactBy(() => lock, 'call')(target.call),
+    }),
     toolRecordsRow: createToolRecordsRow({ lostContact: lostContactBy(() => lock, 'instance') }),
   }
   try {
@@ -685,7 +691,7 @@ async function runServeWithHostFiles(
   const { stderr } = options
   // Sealed after `shutdown-result`; every writer below gets this one.
   const write = sealedAfterShutdownResult(options.write, stderr)
-  const executionHost = createExecutionHostBinding(hostFiles)
+  const executionHost = createExecutionHostBinding(hostFiles, options.hostScreen)
   const telemetry = createTelemetryBinding({
     write,
     stderr,

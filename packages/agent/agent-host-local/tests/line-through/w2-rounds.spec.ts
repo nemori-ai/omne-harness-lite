@@ -136,9 +136,32 @@ describe('J1 negative control of the history read criterion', () => {
 })
 
 describe('J1 replay block', () => {
-  it.todo(
-    'J1 the request of round 2 replays the reasoning_state block of round 1 (named deviation)',
-  )
+  it('J1 the request of round 2 replays the reasoning_state block of round 1', async () => {
+    const range = { scope: 'recipient/model', format: 'w2-v1' }
+    const w = await openW2World({
+      earlier: 'session',
+      model: a =>
+        a.index === 0
+          ? {
+              parts: [reasoningStateBlock('rs1', 'sealed-round-1'), replyText('r0', 'answer 0')],
+              reason: 'stop',
+              cost: '0',
+              outputTokens: '12',
+              replay: { ...range, call: String(a.call) },
+            }
+          : { parts: [replyText(`r${a.index}`, `answer ${a.index}`)], reason: 'stop' },
+    })
+    worlds.push(w)
+    await w.createSession('j1-replay')
+    await w.runRound(1, 'first question')
+    await w.runRound(2, 'second question')
+    const second = w.assembled[1] ?? []
+    const reply = second.find(message => message.role === 'assistant')
+    if (reply?.role !== 'assistant') throw new Error('round 2 carries the reply of round 1')
+    expect(reply.blocks.map(block => block.kind)).toEqual(['reasoning_state', 'text'])
+    expect(reply.blocks[0]).toMatchObject({ payload: 'sealed-round-1' })
+    expect(reply.replay).toMatchObject({ ...range, at: [0] })
+  })
 })
 
 describe('J2: a Tool result enters the next Model request', () => {

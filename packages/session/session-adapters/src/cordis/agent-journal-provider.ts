@@ -7,6 +7,7 @@ import type {
   AgentMaterials,
   AgentReceivedCommits,
   AgentReceivedRecords,
+  CompactionInputStore,
   Failure,
   ModelReceptionTargets,
   ToolReceptionTargets,
@@ -17,13 +18,14 @@ import {
   AgentMaterialsService,
   AgentReceivedCommitsService,
   AgentReceivedRecordsService,
+  CompactionInputStoreService,
   ModelReceptionTargetsService,
   ToolReceptionTargetsService,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type { SessionAccessCheck, SessionId } from '@omne-harness/session-contract'
+import type { SessionId } from '@omne-harness/session-contract'
 import type {
   SessionAdoptedRequestRead,
   SessionAdoptedRequests,
@@ -37,9 +39,7 @@ import {
   SESSION_READ_PROTOCOL,
   decodeSessionExecution,
 } from '@omne-harness/session-storage-sql/participants'
-import type { SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
-import type { JournalCombination } from '../journal-commit.ts'
 import {
   createSessionLogJournal,
   materialSessionOf,
@@ -47,25 +47,28 @@ import {
   type SessionLogJournalProvider,
 } from './agent-journal.ts'
 import { announcePublished } from './published-queue.ts'
+import { createSqlCompactionInputs } from './compaction-inputs-sql.ts'
+import { createModelReminders } from './model-reminders.ts'
+import type { StepDirectory } from './working-directory-step.ts'
+import type { DescriptorCatalog } from '@omne-harness/runtime-context-contract'
+import {
+  runtimeContextKey,
+  runtimeContextReaderEligibilityKey,
+} from '@omne-harness/runtime-context-cordis-contract/cordis'
 
 const OWNER = 'session-log-journal'
 const LOGGER = 'session-adapters/agent-journal'
 const ROUTE_CACHE_ENTRIES = 4096
 
-export type ExecutionRoutedJournalOptions<P> = Readonly<{
-  storage: SqlStorage
-  tenantDomainLookup: TenantDomainLookup
-  sessionAccessCheck: SessionAccessCheck<P>
-  combination: JournalCombination
-  routeCacheEntries?: number
-  cancellation?: SessionLogJournalOptions<P>['cancellation']
-  published?: (tenant: TenantId, session: SessionId, execution: AgentExecutionId) => void
-  fault?: SessionLogJournalOptions<P>['fault']
-  report?: SessionLogJournalOptions<P>['report']
-}>
+export type ExecutionRoutedJournalOptions<P> = SessionLogJournalOptions<P> &
+  Readonly<{
+    routeCacheEntries?: number
+    published?: (tenant: TenantId, session: SessionId, execution: AgentExecutionId) => void
+  }>
 
 type Journal<P> = AgentJournal<P>
 type RoutedJournal<P> = Journal<P> & Required<Pick<Journal<P>, 'readFinish'>>
+
 type Materials<P> = AgentMaterials<P, ContentBlock>
 type SessionView<P> = SessionLogJournalProvider<P>
 type Scope = Readonly<{ tenant: TenantId; execution: AgentExecutionId }>
@@ -77,16 +80,49 @@ const unavailable = (diagnostic: string): Failure => ({
   diagnostic,
 })
 
+// An optional read the routed Journal does not hold answers unavailable, never an empty value.
+const unread = <T>(answer: Outcome<T, Failure> | undefined, what: string): Outcome<T, Failure> =>
+  answer ?? fail(unavailable(`the session Journal has no ${what} read`))
+
+async function indexedSession<P>(
+  options: ExecutionRoutedJournalOptions<P>,
+  tenant: string,
+  execution: Scope['execution'],
+  action: string,
+): Promise<Outcome<SessionId, Failure>> {
+  let found
+  try {
+    found = await options.tenantDomainLookup.lookup({ tenant })
+  } catch (error) {
+    return fail(unavailable(`tenant domain lookup threw: ${String(error)}`))
+  }
+  if (found.kind !== 'ready')
+    return fail(
+      unavailable(
+        found.kind === 'unregistered' ? 'the tenant has no transaction domain' : found.diagnostic,
+      ),
+    )
+  let result
+  try {
+    result = await options.storage.read({
+      domain: found.domain,
+      handler: SESSION_EXECUTION_HANDLER,
+      protocol: SESSION_READ_PROTOCOL,
+      requestKey: randomUUID(),
+      input: { tenant, execution },
+    })
+  } catch (error) {
+    return fail(unavailable(`the execution index read threw: ${String(error)}`))
+  }
+  if (result.kind !== 'read') return fail(unavailable('the execution index is not readable'))
+  const indexed = decodeSessionExecution(result.output)
+  if (indexed === 'malformed') return fail(unavailable('the execution index row is malformed'))
+  if (indexed === null) return fail({ kind: 'denied', action })
+  return succeed(indexed.session as SessionId)
+}
+
 export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalOptions<P>) {
-  const journals = createSessionLogJournal<P>({
-    storage: options.storage,
-    tenantDomainLookup: options.tenantDomainLookup,
-    sessionAccessCheck: options.sessionAccessCheck,
-    combination: options.combination,
-    ...(options.cancellation === undefined ? {} : { cancellation: options.cancellation }),
-    ...(options.fault === undefined ? {} : { fault: options.fault }),
-    ...(options.report === undefined ? {} : { report: options.report }),
-  })
+  const journals = createSessionLogJournal<P>(options)
   const limit = options.routeCacheEntries ?? ROUTE_CACHE_ENTRIES
   const routes = new Map<string, Route<P>>()
   let closed = false
@@ -109,35 +145,9 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     const cached = routes.get(key)
     if (cached !== undefined) return succeed(cached)
 
-    let found
-    try {
-      found = await options.tenantDomainLookup.lookup({ tenant: tenant.value })
-    } catch (error) {
-      return fail(unavailable(`tenant domain lookup threw: ${String(error)}`))
-    }
-    if (found.kind !== 'ready')
-      return fail(
-        unavailable(
-          found.kind === 'unregistered' ? 'the tenant has no transaction domain' : found.diagnostic,
-        ),
-      )
-    let result
-    try {
-      result = await options.storage.read({
-        domain: found.domain,
-        handler: SESSION_EXECUTION_HANDLER,
-        protocol: SESSION_READ_PROTOCOL,
-        requestKey: randomUUID(),
-        input: { tenant: tenant.value, execution: scope.execution },
-      })
-    } catch (error) {
-      return fail(unavailable(`the execution index read threw: ${String(error)}`))
-    }
-    if (result.kind !== 'read') return fail(unavailable('the execution index is not readable'))
-    const indexed = decodeSessionExecution(result.output)
-    if (indexed === 'malformed') return fail(unavailable('the execution index row is malformed'))
-    if (indexed === null) return fail({ kind: 'denied', action })
-    const session = indexed.session as SessionId
+    const indexed = await indexedSession(options, tenant.value, scope.execution, action)
+    if ('failure' in indexed) return indexed
+    const session = indexed.ok
     const route = { session, view: journals.forSession({ tenant: scope.tenant, session }) }
     remember(key, route)
     return succeed(route)
@@ -214,26 +224,17 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     recordTerminalObservation: input =>
       written('recordTerminalObservation', input, j => j.recordTerminalObservation(input)),
     readCancellationInstallation: input =>
-      routed(
-        'readCancellationInstallation',
-        input,
-        async j =>
-          (await j.readCancellationInstallation?.(input)) ??
-          fail(unavailable('the session Journal has no cancellation installation read')),
+      routed('readCancellationInstallation', input, async j =>
+        unread(await j.readCancellationInstallation?.(input), 'cancellation installation'),
       ),
     load: input => routed('load', input, j => j.load(input)),
     inputs: input => routed('inputs', input, j => j.inputs(input)),
     readReplyAdmissions: input =>
       routed('readReplyAdmissions', input, j => j.readReplyAdmissions(input)),
     readFinish: input =>
-      routed(
-        'readFinish',
-        input,
-        async j =>
-          (await j.readFinish?.(input)) ??
-          fail(unavailable('the session Journal has no finish read')),
-      ),
+      routed('readFinish', input, async j => unread(await j.readFinish?.(input), 'finish')),
     query: input => routed('query', input, j => j.query(input)),
+    inputAcceptance: input => routed('inputAcceptance', input, j => j.inputAcceptance(input)),
     output: {
       read: input => routed('read', input, j => j.output.read(input)),
       async *events(input) {
@@ -257,13 +258,13 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
   const adoptedRequests: SessionAdoptedRequests<P> = {
     async readAdoptedRequest(input): Promise<SessionAdoptedRequestRead> {
       if (closed) return { kind: 'unavailable', diagnostic: 'the agentJournal plugin has stopped' }
-      const { access, session } = input
+      const { access, session, reference } = input
       if (!tenantCodec.encode(access.tenant).ok) return { kind: 'denied' }
       let decision
       try {
         decision = await options.sessionAccessCheck.check({
           access,
-          operation: 'history.readModelView',
+          operation: 'history.readAdoptedRequest',
           target: { kind: 'session', session },
         })
       } catch (error) {
@@ -271,7 +272,7 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
       }
       if (decision.kind === 'denied') return { kind: 'denied' }
       if (decision.kind !== 'allowed') return decision
-      const read = await journals.readAdopted({ tenant: access.tenant, session })
+      const read = await journals.readAdopted({ tenant: access.tenant, session, reference })
       if (read.kind !== 'value' || read.value === null) return read
       return { kind: 'value', value: { ...read.value } }
     },
@@ -355,6 +356,17 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     },
   }
 
+  const compactionInputs = createSqlCompactionInputs({
+    storage: options.storage,
+    tenantDomainLookup: options.tenantDomainLookup,
+    sessionAccessCheck: options.sessionAccessCheck,
+    combination: options.combination,
+    async sessionOf(input) {
+      const route = await routeOf(input, 'compaction-input')
+      return 'failure' in route ? route : succeed(route.ok.session)
+    },
+  })
+
   return {
     journal,
     entries,
@@ -363,6 +375,7 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     targets,
     toolTargets,
     adoptedRequests,
+    compactionInputs,
     close(): void {
       closed = true
       routes.clear()
@@ -463,6 +476,17 @@ class SessionLogMaterials extends AgentMaterialsService<unknown, ContentBlock> {
   }
 }
 
+class SessionLogCompactionInputs extends CompactionInputStoreService<unknown> {
+  readonly freeze: CompactionInputStore<unknown>['freeze']
+  readonly read: CompactionInputStore<unknown>['read']
+
+  constructor(ctx: Context, inputs: CompactionInputStore<unknown>) {
+    super(ctx)
+    this.freeze = inputs.freeze
+    this.read = inputs.read
+  }
+}
+
 class SessionLogReceivedCommits extends AgentReceivedCommitsService<unknown, ContentBlock> {
   readonly commit: AgentReceivedCommits<unknown, ContentBlock>['commit']
   readonly query: AgentReceivedCommits<unknown, ContentBlock>['query']
@@ -514,8 +538,21 @@ class SessionLogAdoptedRequests extends SessionAdoptedRequestsService<unknown> {
   }
 }
 
+const JOURNAL_INJECT: Readonly<Record<string, unknown>> = {
+  [storageKey]: null,
+  [tenantDomainLookupKey]: null,
+  [sessionAccessCheckKey]: null,
+}
+
+// Telling the model reads Runtime Context as the model, with the eligibility the scope holder hands over.
+const REMINDING_INJECT: Readonly<Record<string, unknown>> = {
+  ...JOURNAL_INJECT,
+  [runtimeContextKey]: { consumer: 'model' },
+  [runtimeContextReaderEligibilityKey]: null,
+}
+
 export class SessionLogAgentJournalProvider extends AgentJournalService<unknown> {
-  static readonly inject = [storageKey, tenantDomainLookupKey, sessionAccessCheckKey]
+  static readonly inject: Readonly<Record<string, unknown>> = JOURNAL_INJECT
   static readonly Config = configSchema
 
   readonly capabilities: AgentJournal<unknown>['capabilities']
@@ -539,6 +576,7 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
   readonly readReplyAdmissions: AgentJournal<unknown>['readReplyAdmissions']
   readonly readFinish: NonNullable<AgentJournal<unknown>['readFinish']>
   readonly query: AgentJournal<unknown>['query']
+  readonly inputAcceptance: AgentJournal<unknown>['inputAcceptance']
   readonly output: AgentJournal<unknown>['output']
 
   constructor(
@@ -546,6 +584,8 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
     config: AgentJournalProviderConfig,
     cancellation?: SessionLogJournalOptions<unknown>['cancellation'],
     report?: SessionLogJournalOptions<unknown>['report'],
+    descriptors?: DescriptorCatalog,
+    directory?: StepDirectory<unknown>,
   ) {
     super(ctx)
     const logger = ctx.logger(LOGGER)
@@ -560,6 +600,18 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
         announcePublished(ctx, line => logger.warn(line), { tenant, session, execution }),
       fault: diagnostic => logger.error(diagnostic),
       report: report ?? logged,
+      ...(descriptors === undefined
+        ? {}
+        : {
+            reminders: createModelReminders<unknown>({
+              eligibility: {
+                current: request => ctx[runtimeContextReaderEligibilityKey].current(request),
+              },
+              runtimeContext: { bind: eligibility => ctx[runtimeContextKey].bind(eligibility) },
+              descriptors,
+            }),
+          }),
+      ...(directory === undefined ? {} : { directory }),
       storage: ctx.storage,
       tenantDomainLookup: ctx.tenantDomainLookup,
       sessionAccessCheck: ctx.sessionAccessCheck,
@@ -594,9 +646,11 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
     this.readReplyAdmissions = journal.readReplyAdmissions
     this.readFinish = journal.readFinish
     this.query = journal.query
+    this.inputAcceptance = journal.inputAcceptance
     this.output = journal.output
     new SessionLogJournalEntries(ctx, routed.entries)
     new SessionLogMaterials(ctx, routed.materials)
+    new SessionLogCompactionInputs(ctx, routed.compactionInputs)
     new SessionLogReceivedCommits(ctx, routed.received)
     new SessionLogReceivedRecords(ctx, routed.received)
     new SessionLogReceptionTargets(ctx, routed.targets)
@@ -609,15 +663,20 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
 export type SessionAgentJournalPluginInput = Readonly<{
   cancellation?: SessionLogJournalOptions<unknown>['cancellation']
   report?: SessionLogJournalOptions<unknown>['report']
+  /** The blocks the model may be told; given, each step first tells the model the runtime context. */
+  reminders?: Readonly<{ descriptors: DescriptorCatalog }>
+  /** Given, each step first makes the working directory of the session the one in force. */
+  workingDirectory?: (ctx: Context) => StepDirectory<unknown>
 }>
 
 export function createSessionAgentJournalPlugin(
   input: SessionAgentJournalPluginInput = {},
 ): typeof SessionLogAgentJournalProvider {
-  const { cancellation, report } = input
+  const { cancellation, report, reminders, workingDirectory } = input
   return class SessionLogAgentJournalPlugin extends SessionLogAgentJournalProvider {
+    static override readonly inject = reminders === undefined ? JOURNAL_INJECT : REMINDING_INJECT
     constructor(ctx: Context, config: AgentJournalProviderConfig) {
-      super(ctx, config, cancellation, report)
+      super(ctx, config, cancellation, report, reminders?.descriptors, workingDirectory?.(ctx))
     }
   }
 }

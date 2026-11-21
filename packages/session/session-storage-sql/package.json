@@ -32,10 +32,12 @@
   "dependencies": {
     "@omne-harness/json-text": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/message": "workspace:*",
     "@omne-harness/operation-result": "workspace:*",
     "@omne-harness/permissions": "workspace:*",
     "@omne-harness/session-contract": "workspace:*",
     "@omne-harness/session-cordis-contract": "workspace:*",
+    "@omne-harness/session-search": "workspace:*",
     "@omne-harness/sql-contract": "workspace:*",
     "zod": "catalog:"
   },

@@ -17,6 +17,7 @@ function backend(w: World, storage: SqlStorage) {
   return createScheduleManagementSqlBackend({
     storage,
     scope: w.scope,
+    transactionDomain: w.combination.transactionDomain,
     combinationVersion: w.combination.combinationVersion,
     manifestDigest: w.combination.manifestDigest,
     guards: w.guards,
@@ -175,7 +176,7 @@ test('a fault after both replacement records and quota transfer rolls the whole 
   const created = await w.commands.create(context, {
     definition,
     initial: { kind: 'active' },
-    meta: { operationKey: 'before-fault', expectedRevision: null, consentRef: null },
+    meta: { operationKey: 'before-fault', expectedRevision: null },
   })
   if (created.kind !== 'committed') throw new Error(JSON.stringify(created))
   const before = w.sql('SELECT record FROM sc_schedules')
@@ -185,7 +186,7 @@ test('a fault after both replacement records and quota transfer rolls the whole 
     scheduleId: created.value.scheduleId,
     successor: { ...definition, label: 'Must roll back' },
     reason: 'Fault probe',
-    meta: { operationKey: 'fault-replace', expectedRevision: 1, consentRef: null },
+    meta: { operationKey: 'fault-replace', expectedRevision: 1 },
   })
   expect(result.kind).toBe('unknown')
   expect(w.sql('SELECT record FROM sc_schedules')).toEqual(before)

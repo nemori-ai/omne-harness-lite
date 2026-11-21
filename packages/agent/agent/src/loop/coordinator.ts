@@ -10,39 +10,32 @@ import type {
   Access,
   AgentCheckpoint,
   AgentEvaluator,
-  AgentEventBody,
   AgentExecutionId,
-  AgentInstant,
   AgentOperationId,
   Authority,
   CallerCommit,
   CommandReceipt,
   ControlRecord,
-  ExecutionControl,
   ConsumerRef,
   ConsumptionId,
   ActionId,
-  EffectIntent,
   DurableEvidence,
   ExecutionRevision,
   ExecutionSnapshot,
   ExecutionState,
-  JournalCommitState,
   Failure,
   FinishAuthorization,
   FailureCandidate,
   FinishCandidateContent,
-  HandoffChange,
   HandoffOutcome,
+  HandoffReference,
   InputBatch,
   InputHandoff,
   InvokeRuntimeContext,
   LoopFacts,
   MessageSource,
-  ModelContextRead,
   OriginalInputAcceptance,
   PendingHandoff,
-  ModelReplyAdmission,
   Next,
   PendingCall,
   Preparation,
@@ -53,6 +46,7 @@ import type {
   ReceivedEntry,
   ReplyAdmissionPrefix,
   ReplyAdmissionRead,
+  CompactionProviderBinding,
 } from '@omne-harness/agent-contract'
 import type * as M from '@omne-harness/model-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -74,20 +68,18 @@ import {
 } from './identities.ts'
 import {
   adopted,
-  afterAdmission,
   afterPresentRefused,
   afterPresented,
   afterReply,
   chainOf,
+  denialOf,
   extensionPassages,
-  guidanceOf,
-  handBackOf,
   humanWaits,
   needOfAction,
   presentRequest,
-  withChosenRewrite,
 } from './admission-chain.ts'
-import type { PassageNeed } from './passages.ts'
+import { cardClosing } from './card-closing.ts'
+import { judgeCancellation } from './cancellation-judgment.ts'
 import { canonical } from '../canonical.ts'
 import { waitForExecutionChange, type HeldPosition, type ReconciliationPacer } from './wait.ts'
 import { diagnosticOf } from './diagnostic.ts'
@@ -97,10 +89,11 @@ import {
   REPLY_ADMISSION_PAGE_LIMIT,
   sentPosition,
 } from './admission-read.ts'
-import { LOOP_NODES, successor, type Label, type LoopNode } from './nodes.ts'
+import { LOOP_NODES, successor, type LoopNode } from './nodes.ts'
 import { attemptWrite, originalJournal, type OriginalWrite } from './original-write.ts'
 import { localFailure, nodeFailureCategory, type NodeFailureCategory } from './node-failure.ts'
 import { readBatchToolCalls } from './action-source.ts'
+import { judgeBatch } from './batch-judging.ts'
 import { answeredByPort, notingPorts } from './port-answers.ts'
 import {
   consumeModelResult,
@@ -112,7 +105,6 @@ import {
   type ModelOutcome,
   type ModelResult,
 } from './model-result.ts'
-import { modelRetryNotDue, retryModelCall, type ModelRetryEntry } from './model-retry.ts'
 import { readModelDeliveryMaterial } from '../receiving-material.ts'
 import {
   advanceAcceptedControl,
@@ -122,21 +114,22 @@ import {
 } from '../control.ts'
 import {
   actionOf,
-  admitToolAction,
   candidateDigest,
   answeredCandidate,
   deniedCandidate,
-  guidedCandidate,
   uncheckedCandidate,
   deniedUnchecked,
-  deniedForRefusedAdmission,
   deniedSlot,
   preserveAllowedRequest,
   sentToolRequest,
   toolCallOf,
   toolIntentOf,
-  toolProduced,
+  placeholderCandidate,
+  isToolReturnOf,
+  passingSlot,
+  receivedSlot,
   toolReceivedOf,
+  type ReceivedToolDelivery,
   toolCallAnswerOf,
   toolResultCandidate,
   openToolCalls,
@@ -145,13 +138,40 @@ import {
   toolCall,
   unsent,
   type AssociatedToolCall,
-  type ToolAdmission,
 } from './tools.ts'
 import { contactMainCall } from './contact.ts'
 import { sameAuthority, sameRecipient } from './same.ts'
+import { cancelCompaction } from './compaction.ts'
 import { contactToolCalls } from './tool-contact.ts'
 import { readToolDeliveryMaterial } from '../tool-receiving-material.ts'
-import type { ToolDelivery } from '@omne-harness/tool-contract'
+import {
+  historyCaller,
+  required,
+  step,
+  type CommitEvent,
+  type Handler,
+  type Iteration,
+  type ModelPendingCall,
+  type OpenState,
+  type ReadyPreparation,
+  type Step,
+  type Write,
+} from './coordinator-steps.ts'
+import { compactionNodes, invalidCompaction, originalCompactionOf } from './compaction-nodes.ts'
+import {
+  adoptedRequestOf,
+  capabilityResult,
+  recordedOutcome,
+  replaceAction,
+  replaceSlot,
+  replyPosition,
+} from './coordinator-helpers.ts'
+import {
+  cancelInterrupt,
+  cannotFit,
+  slotSource,
+  type InternalSource,
+} from './coordinator-helpers.ts'
 
 export type LoopPorts<P> = Pick<
   AgentDependencies<P, ContentBlock>,
@@ -160,7 +180,6 @@ export type LoopPorts<P> = Pick<
   | 'conditions'
   | 'requests'
   | 'selection'
-  | 'modelContext'
   | 'handoff'
   | 'clock'
   | 'materials'
@@ -169,12 +188,16 @@ export type LoopPorts<P> = Pick<
   | 'toolRequests'
   | 'admission'
   | 'cards'
+  | 'compaction'
+  | 'compactionInputs'
+  | 'received'
 >
 
 export type ExecutionEntry<P> = Readonly<{
   ports: LoopPorts<P>
   binding: AgentRuntimeBinding
   jointCommits?: AgentConfiguration['jointCommits']
+  compactionProvider: CompactionProviderBinding
   evaluator: AgentEvaluator
   access: Access<P>
   execution: AgentExecutionId
@@ -196,8 +219,7 @@ export type ExecutionEntry<P> = Readonly<{
   toolConcurrency?: number
   maxRunSteps?: number
   report?: (report: ReplyAdmissionReadReport) => void
-}> &
-  ModelRetryEntry
+}>
 
 export type ReplyAdmissionReadReport = Readonly<{
   kind: 'origin-reread'
@@ -240,55 +262,8 @@ export type ResumeEntry<P> = Omit<ExecutionEntry<P>, 'operation' | 'initial' | '
 
 type Invoked = Pick<ExecutionEntry<unknown>, 'operation' | 'initial' | 'grant'>
 
-type ReadyPreparation = Extract<Preparation, { kind: 'ready' }>
-type InternalSource = Exclude<MessageSource, { kind: 'external-input' }>
-type ModelPendingCall = Extract<PendingCall, { kind: 'model' }>
-type OpenState = JournalCommitState
-export type CommitEvent = Exclude<AgentEventBody, { kind: 'ended' | 'entry' }>
+export type { CommitEvent } from './coordinator-steps.ts'
 
-type Write = Readonly<{
-  checkpoint?: Partial<Omit<AgentCheckpoint, 'position'>>
-  state?: OpenState
-  finish?: FinishCandidateContent
-  events?: readonly CommitEvent[]
-  effects?: readonly EffectIntent[]
-  replyAdmission?: ModelReplyAdmission
-  handoff?: HandoffChange
-  caller?: CallerCommit
-  operation?: AgentOperationId
-  recordsFact?: true
-}>
-
-function historyCaller(
-  jointCommits: AgentConfiguration['jointCommits'],
-  fixed: HandoffOutcome,
-): CallerCommit {
-  const { request, decision, record } = fixed
-  if (request.kind !== 'execution' || decision.kind !== 'prepared') return { kind: 'none' }
-  const source = request.source
-  switch (source.kind) {
-    case 'model-reply':
-      return { kind: 'none' }
-    case 'context-transition':
-      return jointCommits.includes('context-transition')
-        ? { kind: 'context-transition', value: source.transition, admission: decision.admission }
-        : { kind: 'none' }
-    case 'tool-result':
-    case 'action-denied':
-    case 'reminder':
-      return jointCommits.includes('message')
-        ? {
-            kind: 'message',
-            message: decision.message,
-            source: record,
-            admission: decision.admission,
-          }
-        : { kind: 'none' }
-  }
-}
-
-type Step = Readonly<{ on: Label; commit: Write | null }>
-type Handler = () => Promise<Outcome<Step, Failure>>
 type Movement = Readonly<{ to: LoopNode | null; yielded: boolean }>
 
 type Candidate =
@@ -304,26 +279,6 @@ type Candidate =
       candidate: Message
       returnTo: 'I3'
     }>
-
-type Iteration = {
-  step: StepId
-  batch: InputBatch | null
-  action: ActionId
-  consumption: ConsumptionId
-  position: ConsumerRef
-  conditions: RuntimeConditions | null
-  selected: SelectedModel | null
-  context: ModelContextRead | null
-  preparation: Preparation | null
-  ready: ReadyPreparation | null
-  pending: ModelPendingCall | null
-  lost: DurableEvidence | null
-  result: ModelResult | null
-  admission: 'new' | 'unknown' | 'accepted'
-}
-
-const step = (on: Label, commit: Write | null = {}): Outcome<Step, Failure> =>
-  succeed({ on, commit })
 
 export const DEFECT_OWNER = `${AGENT_OWNER}#defect`
 
@@ -344,15 +299,12 @@ function heldAfter(
   return { revision, emittedThrough: emitted === 0n ? null : String(emitted) }
 }
 
-const CARD_ROUND_CLOSING = '#502 stage 3'
-const OUT_ROUNDS: readonly PassageNeed[] = ['present', 'read', 'closed']
+const RETURN_KINDS = ['placeholder', 'result'] as const
 
+// An admission chain still asking ends with the Run once its cards are withdrawn; an extension's does not.
 function pendingPassage(passages: readonly Passage[]): Failure | null {
-  const pending = passages.find(passage => passage.progress.kind !== 'applied')
-  if (pending === undefined) return null
-  return extensionPassages([pending]).length === 0
-    ? notYet('R0', 'an admission passage with an open card round', CARD_ROUND_CLOSING)
-    : notYet('R0', 'a pending passage', '#502 stage 3')
+  const pending = extensionPassages(passages).some(passage => passage.progress.kind !== 'applied')
+  return pending ? notYet('R0', 'a pending passage', '#502 stage 3') : null
 }
 
 function notYet(node: LoopNode, what: string, card: string): Failure {
@@ -403,11 +355,6 @@ function modelFailure(node: LoopNode, failure: M.ModelFailure): Failure {
   }
 }
 
-function required<T>(value: T | null, what: string): T {
-  if (value === null) throw new Error(`coordinator defect: ${what} is not set`)
-  return value
-}
-
 type UnsupportedRecovery = Readonly<{ kind: 'unsupported'; node: string; card: string }>
 type Recovery = Outcome<LoopNode | 'evaluate', UnsupportedRecovery>
 
@@ -419,7 +366,7 @@ function recoveryCard(node: string): string {
 
 function recoveryTarget(node: string): Recovery {
   if (
-    /^[CX]/u.test(node) ||
+    node.startsWith('X') ||
     !LOOP_NODES.includes(node as LoopNode) ||
     ['E0', 'E1', 'E2', 'U0', 'Q1', 'R0', 'W0', 'F0', 'H0', 'M2', 'Q5'].includes(node)
   )
@@ -438,8 +385,6 @@ function batchRecovery(position: string, batch: ActionBatch): string {
 }
 
 function callRecovery(position: string, call: PendingCall): Recovery {
-  if (call.purpose === 'compaction')
-    return fail({ kind: 'unsupported', node: 'M1', card: '#502 stage 4' })
   if (call.purpose === 'action') return recoveryTarget('T0')
   if (call.purpose === 'extension') return recoveryTarget('X2')
   if (['M0', 'M6', 'M1', 'M3', 'M4', 'M5', 'I3'].includes(position)) return recoveryTarget(position)
@@ -448,13 +393,23 @@ function callRecovery(position: string, call: PendingCall): Recovery {
 }
 
 function preparationRecovery(at: AgentCheckpoint): Recovery | null {
+  if (at.requestPreparation?.kind === 'cannot-fit') return succeed('F1')
   if (at.compaction !== null) {
     const ended = at.compaction.ended
-    return recoveryTarget(ended === 'committed' ? 'I1' : ended === 'failed' ? 'F1' : 'C1')
+    return recoveryTarget(
+      ended === 'committed'
+        ? 'C4'
+        : ended === 'failed'
+          ? 'F1'
+          : at.currentHandoff !== null
+            ? 'C3'
+            : at.compaction.received !== null
+              ? 'C2'
+              : 'C1',
+    )
   }
   const prepared = at.requestPreparation
   if (prepared === null) return null
-  if (prepared.kind === 'cannot-fit') return succeed('F1')
   return recoveryTarget('C0')
 }
 
@@ -503,11 +458,13 @@ const DEPENDENCY_PORTS = [
   'conditions',
   'requests',
   'selection',
-  'modelContext',
   'admission',
   'handoff',
   'materials',
   'clock',
+  'compaction',
+  'compactionInputs',
+  'received',
 ] as const satisfies readonly Exclude<keyof LoopPorts<unknown>, 'toolRequests'>[]
 
 export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): ExecutionCoordinator {
@@ -567,10 +524,11 @@ function coordinate<P>(
   let finishWait = false
   let endReported = false
   let reportedWait: string | null = null
-  let reissueObligations = false
+  let finishChanged = false
   let cancellationChanged = false
   let waits: readonly Waiting[] = []
   const unsentRounds = new Set<CardRoundId>()
+  const closing = cardClosing(ports, access, execution, unsentRounds)
   let waitingAt: LoopNode = 'E1'
   let yieldedWait = false
   let savedWait = false
@@ -611,7 +569,12 @@ function coordinate<P>(
     })
   }
 
-  async function commit(node: LoopNode, to: string, write: Write): Promise<Outcome<void, Failure>> {
+  async function commit(
+    node: LoopNode,
+    to: string,
+    proposal: Write | (() => Write),
+  ): Promise<Outcome<void, Failure>> {
+    const write = typeof proposal === 'function' ? proposal() : proposal
     const base = required(checkpoint, 'checkpoint')
     const after = required(revision, 'revision')
     const operation = write.operation ?? journalOperation(node, 'commit', after)
@@ -653,7 +616,7 @@ function coordinate<P>(
           return fail({ kind: 'stale-advance' })
         if (canonical(latest.ok.checkpoint) === canonical(base)) {
           revision = latest.ok.revision
-          return commit(node, to, write)
+          return commit(node, to, proposal)
         }
       }
       return committed
@@ -663,6 +626,39 @@ function coordinate<P>(
     checkpoint = next
     state = nextState
     return succeed(undefined)
+  }
+
+  async function saveHandoff(
+    node: LoopNode,
+    to: string,
+    value: Pick<PendingHandoff, 'position' | 'source' | 'candidate'>,
+    checkpointFor: (reference: HandoffReference) => Write['checkpoint'] = () => ({}),
+  ): Promise<Outcome<PendingHandoff, Failure>> {
+    let request: PendingHandoff | null = null
+    const saved = await commit(node, to, () => {
+      const predecessor = required(revision, 'revision')
+      const reference = {
+        kind: 'execution' as const,
+        execution,
+        operation: handoffOperation(value.source.kind, value.position, predecessor),
+      }
+      request = {
+        ...value,
+        kind: 'execution',
+        reference,
+        predecessor,
+        originalAdvance: required(authority, 'authority'),
+        predecessorHandoff: null,
+      }
+      return {
+        checkpoint: { ...checkpointFor(reference), currentHandoff: reference },
+        handoff: { kind: 'prepare', request },
+        operation: handoffStage(reference.operation, 'prepare'),
+      }
+    })
+    return 'failure' in saved
+      ? saved
+      : succeed(required<PendingHandoff>(request, 'saved handoff request'))
   }
 
   async function cancelledAdvance(failure: Failure): Promise<boolean> {
@@ -1037,10 +1033,6 @@ function coordinate<P>(
     }
   }
 
-  function replyPosition(step: StepId): PendingHandoff['position'] {
-    return { step, node: 'I3', slot: null }
-  }
-
   function replyRecord(step: StepId, call: M.ModelCallId) {
     return required(snapshot, 'snapshot').handoffs.find(
       record =>
@@ -1075,12 +1067,6 @@ function coordinate<P>(
     const reply = record.request.candidate
     if (reply.role !== 'assistant') return fail(defect('I4: the admitted reply is not a reply'))
     return succeed({ step: at, reply, produced: record.request.source.result })
-  }
-
-  function recordedOutcome(
-    resolution: ExecutionSnapshot['handoffs'][number]['resolution'],
-  ): HandoffOutcome | undefined {
-    return resolution?.kind === 'recorded' ? resolution.outcome : undefined
   }
 
   function replyApplication(
@@ -1156,28 +1142,14 @@ function coordinate<P>(
       if (existing?.request.kind === 'execution') {
         request = existing.request
       } else {
-        const predecessor = required(revision, 'revision')
         const position = replyPosition(current.step)
-        request = {
-          kind: 'execution',
-          reference: {
-            kind: 'execution',
-            execution,
-            operation: handoffOperation('model-reply', position, predecessor),
-          },
-          predecessor,
+        const prepared = await saveHandoff('Q1', 'Q2', {
           position,
           source: subject.source,
           candidate: subject.candidate,
-          originalAdvance: required(authority, 'authority'),
-          predecessorHandoff: null,
-        }
-        const prepared = await commit('Q1', 'Q2', {
-          checkpoint: { currentHandoff: request.reference },
-          handoff: { kind: 'prepare', request },
-          operation: handoffStage(request.reference.operation, 'prepare'),
         })
         if ('failure' in prepared) return prepared
+        request = prepared.ok
       }
       pendingHandoff = request
       const fixed = await prepareHandoff(request)
@@ -1288,7 +1260,7 @@ function coordinate<P>(
       cancellationChanged = false
       return finishDependencyWait('F1')
     }
-    if (reissueObligations) {
+    if (finishChanged) {
       finishRefused = false
       return step('reconciled', null)
     }
@@ -1304,7 +1276,7 @@ function coordinate<P>(
     return step('wait', null)
   }
 
-  function refusedFinishRoute(read: LoopFacts): Outcome<Step, Failure> {
+  async function refusedFinishRoute(read: LoopFacts): Promise<Outcome<Step, Failure>> {
     finishRefused = false
     if (finishUnavailable !== null) {
       const failure = finishUnavailable
@@ -1315,6 +1287,8 @@ function coordinate<P>(
     const latest = required(snapshot, 'snapshot')
     if (latest.controls.length > 0)
       return fail(notYet('R0', 'a terminal control responsibility', '#502 stage 5'))
+    const withdrawn = await closing.withdrawOpen(latest.checkpoint, 'R0/finish', decided)
+    if ('failure' in withdrawn) return withdrawn
     const pending = pendingPassage(latest.checkpoint.passages)
     if (pending !== null) return fail(pending)
     if (
@@ -1489,9 +1463,11 @@ function coordinate<P>(
       if (advancementOf(snapshot).kind !== 'current') return step('reconciled', null)
       if (cancellationOf(snapshot) !== undefined) return cancelledReconcile()
       if (fault !== null) {
+        const withdrawn = await closing.withdrawOpen(snapshot.checkpoint, 'R0/fault', fault)
+        if ('failure' in withdrawn) return withdrawn
         const pending = pendingPassage(snapshot.checkpoint.passages)
         if (pending !== null) return fail(pending)
-        if (reissueObligations) {
+        if (finishChanged) {
           finishRefused = false
           return step('reconciled', null)
         }
@@ -1504,7 +1480,7 @@ function coordinate<P>(
         return waitFor('R0', read.failure, readFacts)
       }
       facts = read.ok
-      return finishRefused ? refusedFinishRoute(read.ok) : step('reconciled', null)
+      return finishRefused ? await refusedFinishRoute(read.ok) : step('reconciled', null)
     },
   } satisfies Partial<Record<LoopNode, Handler>>
 
@@ -1529,19 +1505,24 @@ function coordinate<P>(
       if ('failure' in restored) return restored
       const result = restored.ok.result
       current.result = result
-      if (result.kind === 'interrupted') return step('partial', { checkpoint: { calls: [] } })
+      // Processing closes a received result's duty; a lost call never had a result in custody.
+      const caller: CallerCommit =
+        (entry.jointCommits ?? []).includes('processed') && current.lost === null
+          ? {
+              kind: 'processed',
+              result: result.produced,
+              consumption: required(current.pending, 'pending call').consumption,
+              completion: restored.ok.completion,
+            }
+          : { kind: 'none' }
+      if (result.kind === 'interrupted')
+        return step('partial', { checkpoint: { calls: [] }, caller })
       if (result.kind === 'unusable') {
-        const retried = await retryModelCall(
-          entry,
-          current.step,
-          result,
-          () => required(checkpoint, 'checkpoint').modelRetry ?? null,
-          ports.clock,
-        )
-        if ('failure' in retried) return retried
-        const lost = lostIntent(required(checkpoint, 'checkpoint'), current)
-        if (retried.ok !== null)
-          return step('retry', { checkpoint: { calls: [], modelRetry: retried.ok, ...lost } })
+        if (current.lost !== null)
+          return step('lost', {
+            checkpoint: { calls: [], ...lostIntent(required(checkpoint, 'checkpoint'), current) },
+            caller,
+          })
         if (decided?.kind !== 'try-finish' || decided.failure?.kind !== 'no-reply') {
           const instant = await ports.clock.now()
           if ('failure' in instant) return instant
@@ -1572,7 +1553,7 @@ function coordinate<P>(
             failure,
           }
         }
-        return step('try-finish', null)
+        return step('try-finish', { caller })
       }
       const pending = required(current.pending, 'pending call')
       const call = invocationParts(pending.reference, access.tenant).call
@@ -1599,14 +1580,14 @@ function coordinate<P>(
         }
       }
       const decision = outcome.decision.kind
+      const processed =
+        caller.kind === 'processed' ? { ...caller, completion: outcome.record } : caller
       outcome = null
       candidate = null
       pendingHandoff = null
-      if (decision !== 'prepared') return step('rejected', { checkpoint: { calls: [] } })
-      const retrying = (required(checkpoint, 'checkpoint').modelRetry ?? null) !== null
-      return step('admitted', {
-        checkpoint: { calls: [], ...(retrying ? { modelRetry: null } : {}) },
-      })
+      if (decision !== 'prepared')
+        return step('rejected', { checkpoint: { calls: [] }, caller: processed })
+      return step('admitted', { checkpoint: { calls: [] }, caller: processed })
     },
     async I4() {
       const admitted = admittedReply()
@@ -1642,10 +1623,6 @@ function coordinate<P>(
       const current = await readFacts(read.ok)
       if ('failure' in current) return current
       facts = current.ok
-      const retry = required(checkpoint, 'checkpoint').modelRetry ?? null
-      const notDue = await modelRetryNotDue(retry, ports.clock)
-      if ('failure' in notDue) return notDue
-      if (notDue.ok !== null) return waitFor('I8', notDue.ok, null)
       const evaluated = await evaluate('I8', current.ok)
       if ('failure' in evaluated) return evaluated
       if (
@@ -1668,22 +1645,6 @@ function coordinate<P>(
           })
     },
   } satisfies Partial<Record<LoopNode, Handler>>
-
-  function replaceAction(batch: ActionBatch, action: Action): ActionBatch {
-    return {
-      ...batch,
-      actions: batch.actions.map(item => (item.id === action.id ? action : item)),
-    }
-  }
-
-  function replaceSlot(batch: ActionBatch, slot: ActionSlot): ActionBatch {
-    return {
-      ...batch,
-      slots: batch.slots.some(item => item.action === slot.action)
-        ? batch.slots.map(item => (item.action === slot.action ? slot : item))
-        : [...batch.slots, slot],
-    }
-  }
 
   async function receivedOfConsumption(
     consumption: ConsumptionId,
@@ -1732,26 +1693,21 @@ function coordinate<P>(
     return read
   }
 
-  type ReceivedToolResult = Readonly<{
-    entry: ReceivedEntry
-    delivery: Extract<ToolDelivery<ContentBlock>, { kind: 'result' }>
-    pending: AssociatedToolCall
-  }>
-
-  async function receivedToolResult(
+  async function receivedToolDelivery<K extends 'result' | 'placeholder'>(
     action: Action,
-  ): Promise<Outcome<ReceivedToolResult | null, Failure>> {
+    kinds: readonly K[],
+  ): Promise<Outcome<ReceivedToolDelivery<K> | null, Failure>> {
     const pending = toolCall(action)
     if (pending === null) return succeed(null)
     const received = await receivedOfConsumption(pending.consumption)
     if ('failure' in received) return received
-    const found = toolReceivedOf(received.ok, pending)
+    const found = toolReceivedOf(received.ok, pending, kinds)
     if (found === undefined) return succeed(null)
     const { material: source, ...expected } = found
     const material = await ports.materials.read({ ...access, source })
     if ('failure' in material) return material
     const delivery = readToolDeliveryMaterial(access, material.ok, expected)
-    if (delivery?.kind !== 'result')
+    if (!isToolReturnOf(delivery, kinds, found))
       return fail({
         kind: 'invalid',
         field: 'received.material',
@@ -1883,19 +1839,6 @@ function coordinate<P>(
     return 'failure' in saved ? saved : succeed({ batch: next, progressed: true })
   }
 
-  function slotSource(action: Action, slot: ActionSlot): InternalSource {
-    if (slot.kind === 'denied')
-      return { kind: 'action-denied', action: action.id, evidence: slot.evidence }
-    if (slot.kind !== 'result')
-      throw new Error(`coordinator defect: no message of a ${slot.kind} slot`)
-    return {
-      kind: 'tool-result',
-      action: action.id,
-      call: toolCallOf(access, required(toolCall(action), 'associated Tool call')),
-      result: slot.result,
-    }
-  }
-
   async function slotCandidate(
     action: Action,
     slot: ActionSlot,
@@ -1916,12 +1859,8 @@ function coordinate<P>(
     if (answer === undefined) {
       if (deniedUnchecked(execution, currentBatch(), action))
         return succeed(uncheckedCandidate(execution, action))
-      const words = guidanceOf(required(checkpoint, 'checkpoint').passages, action.id)
-      return succeed(
-        words === null
-          ? deniedCandidate(execution, action)
-          : guidedCandidate(execution, action, words),
-      )
+      const denial = denialOf(required(checkpoint, 'checkpoint').passages, action.id)
+      return succeed(deniedCandidate(execution, action, denial))
     }
     const material = await ports.materials.read({ ...access, source: answer })
     if ('failure' in material) return material
@@ -1931,6 +1870,15 @@ function coordinate<P>(
     return succeed(answeredCandidate(execution, action, text))
   }
 
+  async function backgroundCandidate(action: Action): Promise<Outcome<Message, Failure>> {
+    const received = await receivedToolDelivery(action, ['placeholder'])
+    if ('failure' in received) return received
+    if (received.ok === null)
+      return fail(defect('T2: a background slot without its received placeholder'))
+    const call = toolCallOf(access, received.ok.pending)
+    return succeed(placeholderCandidate(execution, action, call, received.ok.delivery.source))
+  }
+
   async function computedCandidate(
     action: Action,
     slot: ActionSlot,
@@ -1938,8 +1886,9 @@ function coordinate<P>(
     if (slot.each !== null && slot.each.length > 0)
       return fail(notYet('T2', 'a single-result passage with conclusions', '#502 stage 5'))
     if (slot.kind === 'denied') return deniedSlotCandidate(action)
+    if (slot.kind === 'background') return backgroundCandidate(action)
     if (slot.kind !== 'result') return fail(defect(`T2: no candidate of a ${slot.kind} slot`))
-    const received = await receivedToolResult(action)
+    const received = await receivedToolDelivery(action, ['result'])
     if ('failure' in received) return received
     if (received.ok === null) return fail(defect('T2: a result slot without its received entry'))
     return succeed(toolResultCandidate(execution, action, received.ok.delivery.value.content))
@@ -1953,31 +1902,10 @@ function coordinate<P>(
   ): Promise<Outcome<PendingHandoff, Failure>> {
     const candidate = await slotCandidate(action, slot)
     if ('failure' in candidate) return candidate
-    const predecessor = required(revision, 'revision')
     const position = { step: required(checkpoint, 'checkpoint').step, node: 'T5', slot: action.id }
-    const request: PendingHandoff = {
-      kind: 'execution',
-      reference: {
-        kind: 'execution',
-        execution,
-        operation: handoffOperation(source.kind, position, predecessor),
-      },
-      predecessor,
-      position,
-      source,
-      candidate: candidate.ok,
-      originalAdvance: required(authority, 'authority'),
-      predecessorHandoff: null,
-    }
-    const prepared = await commit('T5', 'T5', {
-      checkpoint: {
-        currentHandoff: request.reference,
-        batch: replaceSlot(batch, { ...slot, handoff: request.reference }),
-      },
-      handoff: { kind: 'prepare', request },
-      operation: handoffStage(request.reference.operation, 'prepare'),
-    })
-    return 'failure' in prepared ? prepared : succeed(request)
+    return saveHandoff('T5', 'T5', { position, source, candidate: candidate.ok }, reference => ({
+      batch: replaceSlot(batch, { ...slot, handoff: reference }),
+    }))
   }
 
   async function slotOutcome(
@@ -2026,18 +1954,24 @@ function coordinate<P>(
     })
   }
 
-  type SlotAdmission = 'admitted' | 'rejected' | 'wait'
+  type SlotAdmission =
+    | Readonly<{ kind: 'wait' }>
+    | Readonly<{ kind: 'admitted' | 'rejected'; completion: DurableEvidence }>
 
   function disposedSlot(
     existing: ExecutionSnapshot['handoffs'][number],
     source: InternalSource,
   ): Outcome<SlotAdmission, Failure> {
-    if (existing.history.kind === 'committed') return succeed('admitted')
     const recorded = recordedOutcome(existing.resolution)
+    if (existing.history.kind === 'committed')
+      return succeed({
+        kind: 'admitted',
+        completion: required(recorded ?? null, 'committed H outcome').record,
+      })
     if (recorded?.decision.kind !== 'rejected')
       return fail(notYet('T5', 'a retired tool message handoff', '#502 stage 5'))
     rejectedMessage = { source, evidence: recorded.decision.evidence }
-    return succeed('rejected')
+    return succeed({ kind: 'rejected', completion: recorded.record })
   }
 
   function slotHandoff(slot: ActionSlot): ExecutionSnapshot['handoffs'][number] | undefined {
@@ -2068,9 +2002,8 @@ function coordinate<P>(
     const batch = currentBatch()
     const slot = slotOf(batch, action.id)
     if (slot === undefined) return fail(defect('T5 with an action without a slot'))
-    if (slot.kind === 'background' || slot.kind === 'dispatched')
-      return fail(notYet('T5', 'a background placeholder message', '#502 stage 5'))
-    const source = slotSource(action, slot)
+    if (slot.kind === 'dispatched') return fail(defect('T5 with a dispatched slot'))
+    const source = slotSource(access, action, slot)
     const existing = slotHandoff(slot)
     if (existing !== undefined && existing.history.kind !== 'pending')
       return disposedSlot(existing, source)
@@ -2082,7 +2015,7 @@ function coordinate<P>(
     const request = prepared.ok
     const fixed = await slotOutcome(request, existing)
     if ('failure' in fixed) return fixed
-    return fixed.ok === 'wait' ? succeed('wait') : admitFixed(request, fixed.ok, source)
+    return fixed.ok === 'wait' ? succeed({ kind: 'wait' }) : admitFixed(request, fixed.ok, source)
   }
 
   async function admitFixed(
@@ -2092,9 +2025,26 @@ function coordinate<P>(
   ): Promise<Outcome<SlotAdmission, Failure>> {
     const applied = await applySlotMessage(request, fixed)
     if ('failure' in applied) return applied
-    if (fixed.decision.kind === 'prepared') return succeed('admitted')
+    if (fixed.decision.kind === 'prepared')
+      return succeed({ kind: 'admitted', completion: fixed.record })
     rejectedMessage = { source, evidence: fixed.decision.evidence }
-    return succeed('rejected')
+    return succeed({ kind: 'rejected', completion: fixed.record })
+  }
+
+  async function completeSlotProcessing(
+    action: Action,
+    completion: DurableEvidence,
+  ): Promise<Outcome<void, Failure>> {
+    const batch = currentBatch()
+    const slot = required(slotOf(batch, action.id) ?? null, 'admitted tool slot')
+    if (slot.kind !== 'result' || slot.completion !== null) return succeed(undefined)
+    const pending = required(toolCall(action), 'associated Tool call')
+    return commit('T5', 'T5', {
+      checkpoint: { batch: replaceSlot(batch, { ...slot, completion }) },
+      caller: (entry.jointCommits ?? []).includes('processed')
+        ? { kind: 'processed', result: slot.result, consumption: pending.consumption, completion }
+        : { kind: 'none' },
+    })
   }
 
   type RoundCards =
@@ -2216,67 +2166,19 @@ function coordinate<P>(
       const batch = currentBatch()
       const parts = await batchToolCalls(batch)
       if ('failure' in parts) return parts
-      let passages = required(checkpoint, 'checkpoint').passages
-      const answers: Extract<ToolAdmission, { kind: 'judged' | 'allowed' }>[] = []
-      const opened: CardRoundId[] = []
-      for (const action of batch.actions) {
-        if (needOfAction(passages, action) !== 'judge') {
-          answers.push({ kind: 'judged', action })
-          continue
-        }
-        const chain = chainOf(passages, action)
-        const handBack = handBackOf(chain)
-        const original = parts.ok.get(action.original.callId)
-        if (original === undefined)
-          return fail({
-            kind: 'invalid',
-            field: 'original.callId',
-            reason: 'the preserved reply has no tool call of this call id',
-          })
-        const admitted = await admitToolAction(
-          ports,
-          access,
-          execution,
-          required(authority, 'authority'),
-          withChosenRewrite(action, chain, handBack),
-          original,
-          handBack,
-        )
-        if ('failure' in admitted) return admitted
-        if (admitted.ok.kind === 'unavailable') return waitFor('A0', admitted.ok, null)
-        if (admitted.ok.kind === 'refused') {
-          if (batch.actions.some(item => OUT_ROUNDS.includes(needOfAction(passages, item))))
-            return fail(
-              notYet(
-                'A0',
-                'closing the card rounds of a batch that is denied as a whole',
-                CARD_ROUND_CLOSING,
-              ),
-            )
-          const denied = deniedForRefusedAdmission(execution, batch, admitted.ok, answers)
-          return step('judged', { checkpoint: { batch: { ...batch, actions: denied } } })
-        }
-        if (chain === null && admitted.ok.kind !== 'asked') {
-          answers.push(
-            admitted.ok.kind === 'denied'
-              ? { kind: 'judged', action: admitted.ok.action }
-              : admitted.ok,
-          )
-          continue
-        }
-        const instant = await ports.clock.now()
-        if ('failure' in instant) return instant
-        const judged = afterAdmission(passages, admitted.ok, chain, instant.ok)
-        if ('failure' in judged)
-          return fail(defect(`A0: ${judged.failure.step} is not defined here`))
-        passages = judged.ok.passages
-        if (judged.opened !== undefined) opened.push(judged.opened)
-        answers.push(
-          admitted.ok.kind === 'allowed'
-            ? admitted.ok
-            : { kind: 'judged', action: judged.ok.action },
-        )
+      const judging = {
+        ports,
+        access,
+        execution,
+        authority: required(authority, 'authority'),
+        closing,
       }
+      const saved = required(checkpoint, 'checkpoint').passages
+      const judged = await judgeBatch(judging, batch, parts.ok, saved)
+      if ('failure' in judged) return judged
+      if (judged.ok.kind === 'wait') return waitFor('A0', judged.ok.failure, null)
+      if (judged.ok.kind === 'ended') return step('judged', { checkpoint: judged.ok.checkpoint })
+      const { answers, passages, opened } = judged.ok
       const budget = entry.toolConcurrency
       const actions: Action[] = []
       for (const answer of answers) {
@@ -2304,10 +2206,10 @@ function coordinate<P>(
       const passages = required(checkpoint, 'checkpoint').passages
       const needs = batch.actions.map(action => needOfAction(passages, action))
       if (needs.includes('judge')) return step('judge', null)
-      if (needs.includes('closed'))
-        return fail(
-          notYet('A1', 'a card round that was closed without an answer', CARD_ROUND_CLOSING),
-        )
+      if (needs.includes('closed')) {
+        const ended = await closing.endAnswerless(batch, passages)
+        return 'failure' in ended ? ended : step('carded', { checkpoint: ended.ok })
+      }
       if (needs.includes('present')) return presentRounds(batch, passages)
       if (needs.includes('read')) return readCards(batch, passages)
       const approved = batch.actions
@@ -2356,7 +2258,7 @@ function coordinate<P>(
         action => slotOf(batch, action.id)?.kind === 'dispatched',
       )
       for (const action of dispatched) {
-        const received = await receivedToolResult(action)
+        const received = await receivedToolDelivery(action, RETURN_KINDS)
         if ('failure' in received) return received
         if (received.ok !== null) return step('received', null)
       }
@@ -2371,21 +2273,12 @@ function coordinate<P>(
       const events: CommitEvent[] = []
       for (const action of batch.actions) {
         if (slotOf(batch, action.id)?.kind !== 'dispatched') continue
-        const received = await receivedToolResult(action)
+        const received = await receivedToolDelivery(action, RETURN_KINDS)
         if ('failure' in received) return received
         if (received.ok === null) continue
-        const { entry: kept, delivery, pending } = received.ok
-        const result = toolProduced(toolCallOf(access, pending), delivery)
-        batch = replaceSlot(batch, {
-          kind: 'result',
-          action: action.id,
-          result,
-          terminal: delivery.terminal,
-          custody: kept.material,
-          each: null,
-          candidateDigest: null,
-          handoff: null,
-        })
+        const { pending } = received.ok
+        const { slot, result } = receivedSlot(action.id, toolCallOf(access, pending), received.ok)
+        batch = replaceSlot(batch, slot)
         calls = calls.filter(call => call.kind !== 'tool' || call.action !== action.id)
         events.push({ kind: 'producer', result, consumption: pending.consumption })
       }
@@ -2396,10 +2289,8 @@ function coordinate<P>(
       if ('failure' in read) return read
       let batch = currentBatch()
       for (const action of batch.actions) {
-        const slot = slotOf(batch, action.id)
-        if (slot === undefined || slot.each !== null) continue
-        if (slot.kind !== 'denied' && slot.kind !== 'result') continue
-        const passed = { ...slot, each: [] }
+        const passed = passingSlot(slotOf(batch, action.id))
+        if (passed === null) continue
         const candidate = await computedCandidate(action, passed)
         if ('failure' in candidate) return candidate
         batch = replaceSlot(batch, { ...passed, candidateDigest: candidateDigest(candidate.ok) })
@@ -2430,8 +2321,10 @@ function coordinate<P>(
       for (const action of currentBatch().actions) {
         const admitted = await admitSlot(action)
         if ('failure' in admitted) return admitted
-        if (admitted.ok === 'wait') return step('wait', null)
-        if (admitted.ok === 'rejected') return step('rejected', null)
+        if (admitted.ok.kind === 'wait') return step('wait', null)
+        const processed = await completeSlotProcessing(action, admitted.ok.completion)
+        if ('failure' in processed) return processed
+        if (admitted.ok.kind === 'rejected') return step('rejected', null)
       }
       return step('admitted')
     },
@@ -2461,20 +2354,10 @@ function coordinate<P>(
     },
   } satisfies Partial<Record<LoopNode, Handler>>
 
-  async function capabilityResult<T>(
-    result: Promise<Outcome<T, Failure>>,
-  ): Promise<Outcome<T, Failure>> {
-    const answer = await result
-    if ('failure' in answer && answer.failure.kind === 'denied')
-      return fail(localFailure('rejected', answer.failure))
-    return answer
-  }
-
   const prepareRequest = {
     async I1() {
       const current = required(iteration, 'iteration')
       const advance = required(authority, 'authority')
-      const history = required(snapshot, 'snapshot').history
       const readConditions = () =>
         ports.conditions.read({
           ...access,
@@ -2491,33 +2374,13 @@ function coordinate<P>(
         return selected.failure.kind === 'unavailable'
           ? waitFor('I1', selected.failure, () => select(conditions.ok))
           : selected
-      const readContext = () =>
-        capabilityResult(
-          ports.modelContext.read({
-            ...access,
-            advance,
-            position: current.position,
-            recipient: selected.ok.recipient,
-            history,
-            adopted: required(checkpoint, 'checkpoint').adoptedContext,
-            transition: null,
-          }),
-        )
-      const context = await readContext()
-      if ('failure' in context)
-        return context.failure.kind === 'unavailable'
-          ? waitFor('I1', context.failure, readContext)
-          : context
-      const prepared = await prepare(conditions.ok, selected.ok, context.ok, null, null)
+      const prepared = await prepare(conditions.ok, selected.ok, null, null)
       if ('failure' in prepared)
         return prepared.failure.kind === 'unavailable'
-          ? waitFor('I1', prepared.failure, () =>
-              prepare(conditions.ok, selected.ok, context.ok, null, null),
-            )
+          ? waitFor('I1', prepared.failure, () => prepare(conditions.ok, selected.ok, null, null))
           : prepared
       current.conditions = conditions.ok
       current.selected = selected.ok
-      current.context = context.ok
       current.preparation = prepared.ok
       if (prepared.ok.kind === 'ready')
         return fail(
@@ -2534,10 +2397,7 @@ function coordinate<P>(
         },
       }
       if (prepared.ok.kind === 'needs-compaction') {
-        const saved = await commit('I1', 'I1', write)
-        return 'failure' in saved
-          ? saved
-          : fail(localFailure('unsupported-path', { kind: 'unsupported' as const }))
+        return step('compact', write)
       }
       return step(prepared.ok.kind === 'cannot-fit' ? 'try-finish' : 'prepared', write)
     },
@@ -2554,19 +2414,41 @@ function coordinate<P>(
           : selected
       if (!sameRecipient(selected.ok, required(current.selected, 'selection')))
         return fail(notYet('P1', 'a changed selection', '#502 1.5'))
-      const context = required(current.context, 'context')
-      const prepareAgain = () => prepare(conditions, selected.ok, context, current.preparation, [])
+      const prepareAgain = () => prepare(conditions, selected.ok, current.preparation, [])
       const prepared = await prepareAgain()
       if ('failure' in prepared)
         return prepared.failure.kind === 'unavailable'
           ? waitFor('P1', prepared.failure, prepareAgain)
           : prepared
+      if (prepared.ok.kind === 'needs-compaction') {
+        if (required(checkpoint, 'checkpoint').compaction !== null)
+          return fail(invalidCompaction('a preparation cannot start another compaction task'))
+        return step('compact', { checkpoint: { requestPreparation: prepared.ok } })
+      }
+      if (prepared.ok.kind === 'cannot-fit')
+        return step('try-finish', { checkpoint: { requestPreparation: prepared.ok } })
       if (prepared.ok.kind !== 'ready')
         return fail(notYet('P1', `a ${prepared.ok.kind} preparation`, '#502 1.5 and stage 4'))
       current.ready = prepared.ok
       return step('ready')
     },
   } satisfies Partial<Record<LoopNode, Handler>>
+
+  const compact = compactionNodes<P>({
+    ports,
+    access,
+    execution,
+    provider: entry.compactionProvider,
+    jointCommits: entry.jointCommits ?? [],
+    authority: () => authority,
+    checkpoint: () => checkpoint,
+    advancing,
+    waitFor,
+    saveHandoff,
+    prepareHandoff,
+    select,
+    restoredIteration,
+  })
 
   function select(conditions: RuntimeConditions) {
     const current = required(iteration, 'iteration')
@@ -2587,7 +2469,6 @@ function coordinate<P>(
   function prepare(
     conditions: RuntimeConditions,
     selection: SelectedModel,
-    context: ModelContextRead,
     previous: Preparation | null,
     beforeModelCall: readonly never[] | null,
   ) {
@@ -2604,7 +2485,6 @@ function coordinate<P>(
         definition: binding.definition,
         conditions,
         selection,
-        context,
         previous,
         alterations: [],
         beforeModelCall,
@@ -2614,21 +2494,6 @@ function coordinate<P>(
 
   function mainPosition(step: StepId): ConsumerRef {
     return { owner: AGENT_OWNER, work: `${execution}/${step}`, position: 'I3', purpose: 'main' }
-  }
-
-  function adoptedRequestOf(
-    pending: ModelPendingCall,
-    ready: ReadyPreparation,
-  ): Pick<AgentCheckpoint, 'adoptedRequest'> {
-    if (pending.purpose !== 'main' || ready.purpose !== 'main') return {}
-    return {
-      adoptedRequest: {
-        reference: pending.reference,
-        fixed: ready.source,
-        schema: ready.schema,
-        record: ready.state,
-      },
-    }
   }
 
   function attemptOf(of: StepId): number {
@@ -2670,7 +2535,6 @@ function coordinate<P>(
       position: mainPosition(of),
       conditions: null,
       selected: null,
-      context: null,
       preparation: null,
       ready: null,
       pending: null,
@@ -2710,6 +2574,8 @@ function coordinate<P>(
         checkpoint: {
           calls: [pending],
           adoptedContext: ready.coverage,
+          requestPreparation: null,
+          compaction: null,
           ...adoptedRequestOf(pending, ready),
         },
         effects: [{ action: current.action, pending, authority: required(authority, 'authority') }],
@@ -2991,25 +2857,11 @@ function coordinate<P>(
     return succeed(undefined)
   }
 
-  function cancelInterrupt(
-    control: ControlRecord,
-    pending: PendingCall,
-  ): Readonly<{ stage: string; command: ExecutionControl }> | null {
-    const reason = control.stages.accepted.source
-    if (pending.kind === 'model') {
-      const call = invocationParts(pending.reference, access.tenant).call
-      return { stage: `interrupt/${call}`, command: { kind: 'interrupt-model', call, reason } }
-    }
-    if (pending.association !== 'associated') return null
-    const call = toolCallOf(access, pending)
-    return { stage: `interrupt-tool/${call}`, command: { kind: 'interrupt-tool', call, reason } }
-  }
-
   async function interruptForCancel(
     control: ControlRecord,
     pending: PendingCall,
   ): Promise<Outcome<void, Failure>> {
-    const interrupt = cancelInterrupt(control, pending)
+    const interrupt = cancelInterrupt(access, control, pending)
     if (interrupt === null) return succeed(undefined)
     const operation = controlOperation(execution, control.operation, interrupt.stage)
     const accepted = await journalAt('F0').control({
@@ -3104,7 +2956,7 @@ function coordinate<P>(
       candidate,
     })
     if ('ok' in prepared) {
-      reissueObligations = false
+      finishChanged = false
       return succeed(null)
     }
     if (prepared.failure.kind === 'changed') {
@@ -3128,7 +2980,7 @@ function coordinate<P>(
       return step('reconcile', null)
     }
     if (finished.ok.kind !== 'ended') {
-      if (finished.ok.kind === 'changed') reissueObligations = true
+      if (finished.ok.kind === 'changed') finishChanged = true
       finishRefused = true
       return step('reconcile', null)
     }
@@ -3145,10 +2997,23 @@ function coordinate<P>(
       if (control === undefined) return fail(defect('F0 without effective cancellation'))
       const revoked = await establishCancellation(journalAt('F0'), access, execution, control)
       if ('failure' in revoked) return revoked
+      const task = read.ok.checkpoint.compaction
+      if (task !== null && task.ended === null) {
+        const cancelled = await cancelCompaction(ports, {
+          ...access,
+          execution,
+          state: task,
+          preparation: originalCompactionOf(checkpoint).id,
+          completion: control.stages.accepted.source,
+        })
+        if ('failure' in cancelled) return cancelled
+      }
       for (const pending of read.ok.checkpoint.calls) {
         const interrupted = await interruptForCancel(control, pending)
         if ('failure' in interrupted) return interrupted
       }
+      const withdrawn = await closing.withdrawOpen(read.ok.checkpoint, 'F0/cancel', control)
+      if ('failure' in withdrawn) return withdrawn
       return step('cancelled', null)
     },
     async F1() {
@@ -3206,7 +3071,7 @@ function coordinate<P>(
       ) {
         const instant = await ports.clock.now()
         if ('failure' in instant) return instant
-        decided = cannotFit(at.step, preparation, instant.ok)
+        decided = cannotFit(execution, at.step, preparation, instant.ok)
       }
       const next = required(decided, 'decision')
       if (next.kind !== 'try-finish') throw new Error(`coordinator defect: F1 after ${next.kind}`)
@@ -3234,28 +3099,13 @@ function coordinate<P>(
     async F2() {
       const read = await load()
       if ('failure' in read) return read
-      const control = cancellationOf(read.ok)
-      const candidate = read.ok.settlement.candidate
-      const route = read.ok.settlement.route
-      if (control !== undefined && candidate !== null && route?.kind === 'cancellation') {
-        const judged = await journalAt('F2').commitSettlement({
-          ...access,
-          execution,
-          operation: journalOperation('F2', 'cancel-judge', read.ok.revision),
-          kind: 'judge-cancellation',
-          authorization: {
-            kind: 'cancel',
-            control: control.operation,
-            source: control.stages.accepted.source,
-          },
-          expected: read.ok.revision,
-          installation: route.installation,
-          candidate: candidate.candidate,
-          route: route.record,
-        })
-        return 'failure' in judged ? refusedSettlement(judged.failure) : step('proceed', null)
-      }
-      return step('proceed', { state: { kind: 'settling' } })
+      const judged = await judgeCancellation(journalAt('F2'), { ...access, execution }, read.ok, {
+        control: cancellationOf(read.ok),
+        operation: journalOperation('F2', 'cancel-judge', read.ok.revision),
+        again: finishChanged,
+      })
+      if (judged === null) return step('proceed', { state: { kind: 'settling' } })
+      return 'failure' in judged ? refusedSettlement(judged.failure) : step('proceed', null)
     },
     async F3() {
       const before = await load()
@@ -3266,7 +3116,7 @@ function coordinate<P>(
         return step('reconcile', null)
       }
       const authorization = finishAuthorization(before.ok)
-      if (before.ok.state.intent.obligations === null || reissueObligations) {
+      if (before.ok.state.intent.obligations === null || finishChanged) {
         const issued = await issueObligations(before.ok, candidate.candidate, authorization)
         if ('failure' in issued) return issued
         if (issued.ok !== null) return issued.ok
@@ -3301,29 +3151,13 @@ function coordinate<P>(
     },
   } satisfies Partial<Record<LoopNode, Handler>>
 
-  function cannotFit(
-    of: StepId,
-    preparation: Extract<Preparation, { kind: 'cannot-fit' }>,
-    at: AgentInstant,
-  ): Extract<Next, { kind: 'try-finish' }> {
-    const failure: FailureCandidate = {
-      kind: 'cannot-fit',
-      step: of,
-      at,
-      source: preparation.source,
-      reason: preparation.reason,
-      context: preparation.source,
-    }
-    const cause = agentEvidence(`${execution}/${of}/cannot-fit`, failure)
-    return { kind: 'try-finish', conclusion: { kind: 'fail', cause }, failure }
-  }
-
   const handlers: Partial<Record<LoopNode, Handler>> = {
     ...admitMessage,
     ...runExecutionNodes,
     ...runIter,
     ...runTools,
     ...prepareRequest,
+    ...compact,
     ...callModel,
     ...settle,
   }

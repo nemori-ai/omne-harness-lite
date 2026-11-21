@@ -16,6 +16,8 @@ import {
   type Mutation,
   type MutationBinding,
   type Failure,
+  type Summary,
+  type Version,
 } from './schema.ts'
 
 function rejected(reason: Failure['reason']): Failure {
@@ -30,6 +32,20 @@ function nextRevision(port: ParticipantPort, domain: DomainRef): number {
     [canonical({ domain, revision })],
   )
   return revision
+}
+/** A version and its asset summary are written by the same command, so in the same transaction. */
+function writeVersion(port: ParticipantPort, version: Version, summary: Summary | null) {
+  const { domain, assetRef } = version
+  const key = canonical([domain, assetRef, version.version])
+  port.execute('INSERT INTO al_versions (version_key, record) VALUES (?, ?)', [
+    key,
+    canonical(version),
+  ])
+  if (summary === null) return
+  port.execute('INSERT INTO al_summaries (version_key, record) VALUES (?, ?)', [
+    key,
+    canonical({ domain, assetRef, version: version.version, summary }),
+  ])
 }
 function publish(
   port: ParticipantPort,
@@ -59,10 +75,7 @@ function publish(
   if (!withinBudget({ ...value, ownerRevision: Number.MAX_SAFE_INTEGER }))
     return rejected('limit_exceeded')
   const ownerRevision = nextRevision(port, domain)
-  port.execute('INSERT INTO al_versions (version_key, record) VALUES (?, ?)', [
-    canonical([domain, command.assetRef, command.version]),
-    canonical({ ...value, ownerRevision }),
-  ])
+  writeVersion(port, { ...value, ownerRevision }, command.summary)
   const asset = {
     domain,
     assetRef: command.assetRef,
@@ -173,18 +186,66 @@ function changeHolding(
   writeHolding(port, holding)
   return { revision: holding.revision, changed: true }
 }
+function holdPublished(
+  port: ParticipantPort,
+  domain: DomainRef,
+  command: Extract<Mutation, { kind: 'publishAndHold' }>,
+) {
+  const { operationId, assetRef, version, holding } = command
+  const current = readHolding(port, domain, holding.holdingRef)
+  if (!current)
+    return hold(port, domain, {
+      kind: 'hold',
+      operationId,
+      assetRef,
+      selection: { kind: 'follow' },
+      ...holding,
+    })
+  if (current.state === 'removed') return rejected('holding_removed')
+  if (current.assetRef !== assetRef) return rejected('holding_exists')
+  if (selectedVersion(port, current)?.version.version === version)
+    return { revision: current.revision, changed: false }
+  return changeHolding(port, domain, {
+    kind: 'changeHolding',
+    operationId,
+    holdingRef: holding.holdingRef,
+    scopeRef: holding.scopeRef,
+    expectedRevision: current.revision,
+    change: { kind: 'selectVersion', selection: { kind: 'pinned', version } },
+  })
+}
+/** One transaction: a rejection of the holding rolls back the version written before it. */
+function publishAndHold(
+  port: ParticipantPort,
+  domain: DomainRef,
+  command: Extract<Mutation, { kind: 'publishAndHold' }>,
+) {
+  if (command.holding.scopeRef !== scopeRef(domain)) return rejected('forbidden')
+  const published = publish(port, domain, { ...command, kind: 'publish' })
+  if ('kind' in published) return published
+  const held = holdPublished(port, domain, command)
+  if ('kind' in held) return held
+  return { revision: published.revision, changed: published.changed || held.changed }
+}
+function apply(port: ParticipantPort, domain: DomainRef, command: Mutation) {
+  switch (command.kind) {
+    case 'publish':
+      return publish(port, domain, command)
+    case 'publishAndHold':
+      return publishAndHold(port, domain, command)
+    case 'hold':
+      return hold(port, domain, command)
+    case 'changeHolding':
+      return changeHolding(port, domain, command)
+  }
+}
 export function mutate(port: ParticipantPort, binding: MutationBinding) {
   const { domain, command } = binding
   const current = readDomain(port)
   if (scopeRef(domain) === null || (current && !equal(current.domain, domain)))
     return rejected('forbidden')
   if (current?.revision === Number.MAX_SAFE_INTEGER - 1) return rejected('limit_exceeded')
-  const result =
-    command.kind === 'publish'
-      ? publish(port, domain, command)
-      : command.kind === 'hold'
-        ? hold(port, domain, command)
-        : changeHolding(port, domain, command)
+  const result = apply(port, domain, command)
   return 'kind' in result
     ? result
     : { kind: 'committed' as const, operationId: command.operationId, ...result }

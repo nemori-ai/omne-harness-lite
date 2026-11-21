@@ -10,11 +10,17 @@ export {
   SESSION_PERMISSION_MODE_HANDLER,
   SESSION_PERMISSION_CURRENT_FACT,
   SESSION_PERMISSION_GUARD,
+  SESSION_AUTHORIZATION_GUARD,
+  sessionAuthorizationGuardFacts,
   sessionPermissionGuardFacts,
   decodeSessionPermissionCurrent,
   decodeSessionPermissionMode,
+  decodeSessionPermissionRead,
+  type SessionAuthorizationGuard,
   type SessionPermissionRead,
   type SessionPermissionCurrent,
+  type SessionPermissionCurrentRead,
+  type SessionAuthorizations,
   type SessionPermissionReadResult,
   type SessionPermissionMode,
   type SessionPermissionModeResult,
@@ -53,12 +59,17 @@ export const SESSION_HISTORY_ROOT_HANDLER = 'session.history-root'
 export const SESSION_WORK_HANDLER = 'session.work'
 export const SESSION_INPUT_HANDLER = 'session.input'
 export const SESSION_EXECUTION_HANDLER = 'session.execution'
+export const SESSION_ENTRY_MESSAGE_HANDLER = 'session.entry-message'
+export const SESSION_COMPACTION_INPUT_CHECK_HANDLER = 'session.compaction-input-check'
 export const EXECUTION_RECORD_HANDLERS = {
   facts: 'execution-record.facts',
   openExecutions: 'execution-record.open-executions',
   events: 'execution-record.events',
   operation: 'execution-record.operation',
   blob: 'execution-record.blob',
+  blobs: 'execution-record.blobs',
+  openItems: 'execution-record.open-items',
+  items: 'execution-record.items',
   preadmission: 'execution-record.preadmission',
 } as const
 
@@ -151,6 +162,16 @@ export type ExecutionFactRecord = Readonly<{
 
 export type ExecutionBlobRecord = Readonly<{ digest: string; media: string; payload: string }>
 
+// One item of an execution view a publication opens or changes; `open` is its state after it.
+export type ExecutionItemRecord = Readonly<{
+  execution?: string
+  family: string
+  item: string
+  change: 'opened' | 'changed'
+  open: boolean
+  body: JsonValue
+}>
+
 export type ExecutionAdmissionRecord = Readonly<{
   input: string
   execution: string
@@ -172,12 +193,13 @@ export type ExecutionRecordWrite = Readonly<{
   digest: string
   facts: readonly ExecutionFactRecord[]
   blobs: readonly ExecutionBlobRecord[]
+  items: readonly ExecutionItemRecord[]
   boundaries: readonly ExecutionBoundaryRecord[]
   admissions: readonly ExecutionAdmissionRecord[]
 }>
 
 export function executionRecordFacts(write: ExecutionRecordWrite): FactCommandV2 {
-  const { facts, blobs, ...rest } = write
+  const { facts, blobs, items, ...rest } = write
   const encoded = encodeValue(rest) as Readonly<Record<string, JsonValue>>
   return {
     participant: EXECUTION_RECORD_PARTICIPANT,
@@ -205,6 +227,14 @@ export function executionRecordFacts(write: ExecutionRecordWrite): FactCommandV2
               }),
         })),
         blobs: blobs.map(({ digest, media, payload }) => ({ digest, media, payload })),
+        items: items.map(({ execution, family, item, change, open, body }) => ({
+          ...(execution === undefined ? {} : { execution }),
+          family,
+          item,
+          change,
+          open,
+          body,
+        })),
       },
     },
   }
@@ -232,6 +262,13 @@ export type ExecutionRecordParticipation =
   | Readonly<{ kind: 'published'; published: string; digest: string }>
   | Readonly<{ kind: 'revision-conflict'; revision: string | null; published: string }>
   | Readonly<{ kind: 'operation-conflict'; digest: string; published: string }>
+  | Readonly<{
+      kind: 'item-conflict'
+      execution: string
+      family: string
+      item: string
+      held: 'none' | 'open' | 'closed'
+    }>
   | Readonly<{ kind: 'failed'; diagnostic: string }>
   | Readonly<{ kind: 'unsupported'; reason: string }>
 
@@ -258,6 +295,15 @@ export function decodeExecutionRecordReply(reply: RecordedReply): ExecutionRecor
     }
     case 'conflict': {
       const basis = recordOf(reply.basis)
+      if (basis?.['kind'] === 'item') {
+        const { execution, family, item, held } = basis
+        return typeof execution === 'string' &&
+          typeof family === 'string' &&
+          typeof item === 'string' &&
+          (held === 'none' || held === 'open' || held === 'closed')
+          ? { kind: 'item-conflict', execution, family, item, held }
+          : { kind: 'failed', diagnostic: 'an execution-record item conflict without a basis' }
+      }
       const published = basis?.['published']
       const revision = basis?.['revision']
       if (typeof published !== 'string')
@@ -529,6 +575,131 @@ export function decodeExecutionRecordEvents(output: JsonValue): ExecutionRecordE
         events,
         next: (next ?? null) as string | null,
       }
+    : null
+}
+
+export type ExecutionItemKey = Readonly<{ family: string; item: string }>
+export type ExecutionItem = Readonly<{
+  family: string
+  item: string
+  open: boolean
+  pub: string
+  body: JsonValue
+}>
+
+function itemKeyOf(value: JsonValue): ExecutionItemKey | null {
+  const key = recordOf(value)
+  return key !== null && typeof key['family'] === 'string' && typeof key['item'] === 'string'
+    ? { family: key['family'], item: key['item'] }
+    : null
+}
+
+function itemOf(value: JsonValue): ExecutionItem | null {
+  const item = recordOf(value)
+  const key = itemKeyOf(value)
+  return item !== null &&
+    key !== null &&
+    typeof item['open'] === 'boolean' &&
+    typeof item['pub'] === 'string' &&
+    'body' in item
+    ? { ...key, open: item['open'], pub: item['pub'], body: item['body'] ?? null }
+    : null
+}
+
+export type ExecutionRecordOpenItemsRead = Readonly<{
+  tenant: string
+  session: string
+  execution: string
+  after: ExecutionItemKey | null
+  /** Only the open items of these families; every family when absent. */
+  families?: readonly string[]
+  /** Closed items too: what an execution holds once it finishes. */
+  all?: boolean
+  /** Only the items whose key starts with this. */
+  under?: string
+}>
+export type ExecutionRecordOpenItemsPage =
+  | Readonly<{
+      kind: 'open'
+      published: string
+      items: readonly ExecutionItem[]
+      next: ExecutionItemKey | null
+    }>
+  | ExecutionRecordMissing
+  | ExecutionRecordDenied
+
+export function decodeExecutionRecordOpenItems(
+  output: JsonValue,
+): ExecutionRecordOpenItemsPage | null {
+  const value = recordOf(output)
+  if (value === null) return null
+  if (value['kind'] !== 'open') return refusalOf(value)
+  const items = listDecoded(value['items'], itemOf)
+  const next = value['next'] === null ? null : itemKeyOf(value['next'] ?? null)
+  const { published } = value
+  return typeof published === 'string' &&
+    items !== null &&
+    (value['next'] === null || next !== null)
+    ? { kind: 'open', published, items, next }
+    : null
+}
+
+export type ExecutionRecordItemsRead = Readonly<{
+  tenant: string
+  session: string
+  execution: string
+  keys: readonly ExecutionItemKey[]
+}>
+export type ExecutionRecordItems =
+  | Readonly<{
+      kind: 'items'
+      published: string
+      items: readonly ExecutionItem[]
+      /** The keys one page had no room for: read them next. */
+      rest: readonly ExecutionItemKey[]
+    }>
+  | ExecutionRecordMissing
+  | ExecutionRecordDenied
+
+export function decodeExecutionRecordItems(output: JsonValue): ExecutionRecordItems | null {
+  const value = recordOf(output)
+  if (value === null) return null
+  if (value['kind'] !== 'items') return refusalOf(value)
+  const items = listDecoded(value['items'], itemOf)
+  const rest = listDecoded(value['rest'], itemKeyOf)
+  const { published } = value
+  return typeof published === 'string' && items !== null && rest !== null
+    ? { kind: 'items', published, items, rest }
+    : null
+}
+
+export type ExecutionRecordBlobsRead = Readonly<{ tenant: string; digests: readonly string[] }>
+export type ExecutionRecordBlobs = Readonly<{
+  kind: 'blobs'
+  blobs: readonly Readonly<{ digest: string; media: string; size: string; payload: string }>[]
+  missing: readonly string[]
+  rest: readonly string[]
+}>
+
+const textList = (value: JsonValue | undefined): string[] | null =>
+  Array.isArray(value) && value.every(item => typeof item === 'string') ? (value as string[]) : null
+
+export function decodeExecutionRecordBlobs(output: JsonValue): ExecutionRecordBlobs | null {
+  const value = recordOf(output)
+  if (value?.['kind'] !== 'blobs') return null
+  const blobs = listDecoded(value['blobs'], raw => {
+    const { digest, media, size, payload } = recordOf(raw) ?? {}
+    return typeof digest === 'string' &&
+      typeof media === 'string' &&
+      typeof size === 'string' &&
+      typeof payload === 'string'
+      ? { digest, media, size, payload }
+      : null
+  })
+  const missing = textList(value['missing'])
+  const rest = textList(value['rest'])
+  return blobs !== null && missing !== null && rest !== null
+    ? { kind: 'blobs', blobs, missing, rest }
     : null
 }
 

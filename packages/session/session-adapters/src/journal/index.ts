@@ -14,7 +14,10 @@ export {
   digestOf,
   encodeBatch,
   factKey,
+  holdText,
   refOf,
+  resultKey,
+  resultsUnder,
 } from './facts.ts'
 export type {
   Attempt,
@@ -30,49 +33,63 @@ export type {
   FactKind,
   FactOf,
   FactRow,
+  HoldKind,
+  HoldRef,
   NoContent,
   ParticipationKind,
   ProducerCall,
   PublishedBatch,
   Ref,
+  ResultKey,
   ResultStage,
 } from './facts.ts'
-export { advances, fold, foldAll } from './fold.ts'
+export { advances, fold, foldAll, foldItems } from './fold.ts'
+export {
+  callHeld,
+  finishing,
+  sourceOpen,
+  itemChanges,
+  viewItems,
+  viewOfItems,
+  ITEM_FAMILIES,
+  EXEC_FAMILY,
+  type ItemChange,
+  type ItemFamily,
+  type ViewItem,
+} from './items.ts'
 export {
   emptyExecutionView,
+  custodiesUnder,
+  custodyKey,
   emptySessionView,
   handoffKey,
-  openCalls,
+  receivedBy,
+  receivedViews,
   viewDigest,
   viewText,
 } from './view.ts'
 export type {
   AdmissionView,
   AttachmentView,
-  BatchView,
   CandidateView,
   ControlView,
   EventView,
   ExclusionEntry,
   ExecutionView,
   FinishView,
+  CustodyView,
   HandoffView,
   InputView,
   IntentView,
   OperationEntry,
-  PassageView,
+  MaterialView,
   RequestView,
   ResultView,
+  ReceivedView,
   SessionJournalView,
+  Stamp,
 } from './view.ts'
-export {
-  answer,
-  answeredRevision,
-  batchEvidence,
-  batchOf as batchOfOperation,
-  operationState,
-  receiptOf,
-} from './answer.ts'
+export { answer, answeredRevision, batchEvidence, receiptOf, stampOfReceipt } from './answer.ts'
 export type { Answer, Mint } from './answer.ts'
 export {
   batchOf,
@@ -81,6 +98,9 @@ export {
   checkpointOf,
   cursorMoved,
   cursorOf,
+  cursorPlaced,
+  heldBy,
+  holdsMoved,
   keyKnown,
   movedMembers,
 } from './decide.ts'

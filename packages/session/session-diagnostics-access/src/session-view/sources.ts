@@ -33,14 +33,28 @@ export type CallAccount = Extract<
   { ok: unknown }
 >['ok']
 
+export type SourceGapReason = SessionDiagnosticUnknown['reason']
+
+/** One block of a fixed request: the form Request Context chose, and the media type of the block. */
+export type RequestBlockChoice = Readonly<{
+  message: string
+  block: string
+  choice: 'original' | 'derived' | 'transcript'
+  mediaType: string | null
+}>
+export interface ModelRequestReader<P> {
+  readChoices(
+    input: Access<P> & Readonly<{ session: string; reference: string }>,
+  ): Promise<Outcome<readonly RequestBlockChoice[], Readonly<{ reason: SourceGapReason }>>>
+}
+
 export type DiagnosticPorts<P> = Readonly<{
   agentJournal?: AgentFinishReader<P>
   modelCalls?: ModelCallInspector<P>
   modelDiagnostics?: ModelAttemptReader<P>
+  modelRequests?: ModelRequestReader<P>
   toolQueries?: ToolCallReader<P>
 }>
-
-export type SourceGapReason = SessionDiagnosticUnknown['reason']
 export type SourceAnswer<T> =
   | Readonly<{ kind: 'value'; value: T }>
   | Readonly<{ kind: 'gap'; reason: SourceGapReason }>
@@ -103,13 +117,32 @@ export interface DiagnosticSources {
   inspectModelCall(reference: string): Promise<SourceAnswer<Lookup>>
   listModelAttempts(call: string): Promise<SourceAnswer<ModelDiagnosticsPage>>
   listModelDispatches(call: string): Promise<SourceAnswer<readonly DispatchRecord[]>>
+  readRequestChoices(reference: string): Promise<SourceAnswer<readonly RequestBlockChoice[]>>
   lookupToolCall(reference: string): Promise<SourceAnswer<ToolLookup>>
   readToolAccount(reference: string): Promise<SourceAnswer<CallAccount>>
   readToolDiagnostics(reference: string): Promise<SourceAnswer<DiagnosticPage>>
 }
 
-export function sourcesOf<P>(access: Access<P>, ports: DiagnosticPorts<P>): DiagnosticSources {
-  const { agentJournal, modelCalls, modelDiagnostics, toolQueries } = ports
+async function choicesOf<P>(
+  reader: ModelRequestReader<P>,
+  input: Parameters<ModelRequestReader<P>['readChoices']>[0],
+): Promise<SourceAnswer<readonly RequestBlockChoice[]>> {
+  try {
+    const outcome = await reader.readChoices(input)
+    return 'failure' in outcome
+      ? { kind: 'gap', reason: outcome.failure.reason }
+      : { kind: 'value', value: outcome.ok }
+  } catch {
+    return UNAVAILABLE
+  }
+}
+
+export function sourcesOf<P>(
+  access: Access<P>,
+  ports: DiagnosticPorts<P>,
+  session: string,
+): DiagnosticSources {
+  const { agentJournal, modelCalls, modelDiagnostics, modelRequests, toolQueries } = ports
   const readFinish = agentJournal?.readFinish?.bind(agentJournal)
   return {
     readFinish: execution =>
@@ -140,6 +173,10 @@ export function sourcesOf<P>(access: Access<P>, ports: DiagnosticPorts<P>): Diag
       modelCalls === undefined
         ? Promise.resolve(UNSUPPORTED)
         : answerOf(() => modelCalls.dispatches({ ...access, call: call as never }), 'call'),
+    readRequestChoices: reference =>
+      modelRequests === undefined
+        ? Promise.resolve(UNSUPPORTED)
+        : choicesOf(modelRequests, { ...access, session, reference }),
     lookupToolCall: reference =>
       toolQueries === undefined
         ? Promise.resolve(UNSUPPORTED)

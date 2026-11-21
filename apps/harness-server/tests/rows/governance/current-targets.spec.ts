@@ -6,6 +6,7 @@ import {
 } from '../../../src/rows/governance/current-targets.ts'
 import { toolAssetPublication } from '../../../src/rows/governance/tool-assets.ts'
 import { loadProductionRelease } from '../../../src/entry/tool-release.ts'
+import { sessionIntakeSettings } from '@omne-harness/session-adapters/cordis'
 
 type Input = Parameters<typeof currentGovernanceTargets>[0]
 let baseline: Input
@@ -15,7 +16,7 @@ beforeAll(async () => {
   const entry = release.manifest.entries.find(value => value.asset.name === 'Shell')
   const definition = entry?.governance.declaration.settings[0]
   if (entry === undefined || definition === undefined) throw new Error('Shell declaration absent')
-  const target = { policyId: 'asset', scopeRef: 'tenant-a', targetRef: 'shell' }
+  const target = { kind: 'asset' as const, holdingRef: 'shell', scopeRef: 'tenant-a' }
   const capture: Input['capture'] = {
     domain: { scope: { kind: 'tenant', tenant: 'tenant-a' }, transactionDomain: 'governance' },
     principalRef: 'alice',
@@ -161,13 +162,6 @@ const mutations: [string, (input: Input) => void][] = [
       input.released = [...input.released, ...input.released]
     },
   ],
-  [
-    'unsupported target owner',
-    input => {
-      const target = input.capture.request.targets[0]
-      if (target) target.policyId = 'unknown'
-    },
-  ],
 ]
 it.each(mutations)(
   'refuses %s instead of presenting complete current evidence',
@@ -219,14 +213,120 @@ it('names the known owner when the current publication no longer matches its rel
   })
 })
 
-it.each(['capture', 'duplicate', 'missing-publication'] as const)(
-  'refuses inconsistent catalog facts: %s',
-  mutation => {
+it.each([
+  'capture',
+  'duplicate',
+  'missing-publication',
+  'publication-without-definition',
+  'governed-independent-without-publication',
+] as const)('refuses inconsistent catalog facts: %s', mutation => {
+  const input = managementInput()
+  if (mutation === 'capture')
+    input.assets.binding = { ...input.capture, captureId: 'another-request' }
+  if (mutation === 'duplicate') input.assets.views.push(input.assets.views[0]!)
+  if (mutation === 'missing-publication') input.assetPublications.views = []
+  if (mutation === 'publication-without-definition')
+    input.assetPublications.views[0]!.definitionRef = null
+  if (mutation === 'governed-independent-without-publication')
+    input.standalone.views.push(governedIndependent(input).view)
+  expect(currentGovernanceCatalog(input)).toBeUndefined()
+})
+
+function governedIndependent(input: Input) {
+  const view = structuredClone(input.assets.views[0]!)
+  const target = {
+    kind: 'independent' as const,
+    providerId: view.definitionRef.providerId,
+    definitionId: view.definitionRef.definitionId,
+    scopeRef: 'tenant-a',
+  }
+  return {
+    view: { ...view, target },
+    publication: {
+      target,
+      definitionRef: view.definitionRef,
+      ownerRevision: 1,
+      publicationRef: null,
+    },
+  }
+}
+
+it('takes a governed independent target with its publication into the catalog beside the assets', () => {
+  const input = managementInput()
+  const independent = governedIndependent(input)
+  input.standalone.views.push(independent.view)
+  input.standalonePublications.views.push(independent.publication)
+  expect(currentGovernanceCatalog(input)).toMatchObject({
+    targets: [{ target: input.assets.views[0]!.target }],
+    unavailableOwners: [input.released[0]!.declaration.reference.ownerId],
+  })
+})
+
+it('leaves a target without governance items out of the governance catalog', () => {
+  const input = managementInput()
+  const definition = sessionIntakeSettings
+  const target = {
+    kind: 'independent' as const,
+    providerId: definition.providerId,
+    definitionId: definition.definitionId,
+    scopeRef: 'tenant-a',
+  }
+  const definitionRef = {
+    providerId: definition.providerId,
+    definitionId: definition.definitionId,
+    version: definition.version,
+    digest: canonicalDigest(definition).slice(7),
+  }
+  input.standalone.views.push({
+    ...structuredClone(input.assets.views[0]!),
+    target,
+    definition,
+    definitionRef,
+  })
+  input.standalonePublications.views.push({
+    target,
+    definitionRef,
+    ownerRevision: 1,
+    publicationRef: null,
+  })
+  expect(currentGovernanceCatalog(input)).toEqual(currentGovernanceCatalog(managementInput()))
+  expect(currentGovernanceCatalog(input)).toMatchObject({ unavailableOwners: [] })
+})
+
+it.each([
+  ['only preferences', () => sessionIntakeSettings],
+  ['a permission item', () => managementInput().assets.views[0]!.definition],
+] as const)(
+  'leaves an asset a tenant published out of the governance catalog, its settings %s: no release has to publish it',
+  (_, definitionOf) => {
     const input = managementInput()
-    if (mutation === 'capture')
-      input.assets.binding = { ...input.capture, captureId: 'another-request' }
-    if (mutation === 'duplicate') input.assets.views.push(input.assets.views[0]!)
-    if (mutation === 'missing-publication') input.assetPublications.views = []
-    expect(currentGovernanceCatalog(input)).toBeUndefined()
+    const definition = definitionOf()
+    const target = { kind: 'asset' as const, holdingRef: 'fixture.alpha', scopeRef: 'tenant-a' }
+    const definitionRef = {
+      providerId: definition.providerId,
+      definitionId: definition.definitionId,
+      version: definition.version,
+      digest: canonicalDigest(definition).slice(7),
+    }
+    input.assets.views.push({
+      ...structuredClone(input.assets.views[0]!),
+      target,
+      definition,
+      definitionRef,
+    })
+    const publication = structuredClone(input.assetPublications.views[0]!)
+    input.assetPublications.views.push({
+      ...publication,
+      target,
+      definitionRef,
+      publicationRef: {
+        ...publication.publicationRef,
+        category: 'fixture',
+        name: 'alpha',
+        source: 'tenant-publishing',
+      },
+    })
+    expect(currentGovernanceCatalog(input)).toEqual(currentGovernanceCatalog(managementInput()))
+    expect(currentGovernanceCatalog(input)).toMatchObject({ unavailableOwners: [] })
   },
 )

@@ -20,7 +20,7 @@ if [ $# -gt 1 ]; then
   shift
   cfgs=("$@")
 else
-  cfgs=(ought live bad-wait-after-restart bad-wait-on-lost-callee bad-failure-completes bad-input-dropped bad-budget-in-memory bad-rerun-started wide)
+  cfgs=(ought live bad-wait-after-restart bad-wait-on-lost-callee bad-failure-completes bad-input-dropped bad-cap-in-memory bad-rerun-started bad-lost-before-scan wide)
 fi
 
 : > "$out/summary.txt"

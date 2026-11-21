@@ -7,7 +7,7 @@ import { openW2World, replyText, toolCallBlock } from './w2-world.ts'
 it('routes a saved Tool result to its original execution after the next Run starts', async () => {
   const release = Promise.withResolvers<void>()
   const w = await openW2World({
-    receptionTargets: 'journal',
+    reception: 'routed',
     model: a =>
       a.index === 0
         ? { parts: [toolCallBlock('first-tool')], reason: 'tool-suggestions' }
@@ -33,7 +33,7 @@ it('routes a saved Tool result to its original execution after the next Run star
     if (original === undefined || original.kind !== 'received')
       throw new Error('the original Tool result was not saved')
     const material = ok(
-      await w.sessionLog.materials.read({ ...w.agentAccess, source: original.material }),
+      await w.receivedProvider.materials.read({ ...w.agentAccess, source: original.material }),
     )
     const delivery = readToolDeliveryMaterial(w.agentAccess, material, original)
     if (delivery === null) throw new Error('the original Tool material is not readable')

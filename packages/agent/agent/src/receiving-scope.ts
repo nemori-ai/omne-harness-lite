@@ -48,10 +48,11 @@ export function entryTarget(
   entry: ReceivedEntry,
   targets: readonly ModelReceptionTarget[],
 ): ModelReceptionTarget | undefined {
-  if (entry.delivery.producer !== 'model') return undefined
+  const delivery = entry.delivery
+  if (delivery.producer !== 'model') return undefined
   return targets.find(
     target =>
-      target.pending.reference === entry.delivery.key.reference &&
+      target.pending.reference === delivery.key.reference &&
       target.pending.consumption === entry.consumption &&
       canonical(target.pending.position) === canonical(entry.consumer),
   )

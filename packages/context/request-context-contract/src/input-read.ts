@@ -4,7 +4,6 @@ import { digest } from './internal.js'
 import { readHistory, type HistoryReadMode } from './history-read.js'
 import { materialBelongs, type CachedAssemblyMaterial } from './reuse.js'
 import type { HistoryRow } from './ports.js'
-import type { CompactionContext } from '@omne-harness/message'
 import type {
   AssemblyCall,
   AssemblyFailure,
@@ -92,7 +91,6 @@ export type StableInputs<P> = Readonly<{
   input: AssemblyInput<P>
   tokens: Tokens
   rows: readonly HistoryRow[]
-  window: CompactionContext | null
   historyRead: Readonly<{
     mode: HistoryReadMode | 'carried'
     added: readonly HistoryRow[]
@@ -100,7 +98,6 @@ export type StableInputs<P> = Readonly<{
   }>
 }>
 export type InputReadOptions = Readonly<{
-  window?: boolean
   principal?: PrincipalKey
   generation?: PreparedInputKey['generation']
   cached?: CachedAssemblyMaterial | null
@@ -112,7 +109,7 @@ function usableMaterial<P>(
   options: InputReadOptions,
 ): CachedAssemblyMaterial | null {
   const { cached } = options
-  if (cached === undefined || cached === null || options.window) return null
+  if (cached === undefined || cached === null) return null
   const belongs = materialBelongs(cached, {
     principal: options.principal,
     generation: options.generation,
@@ -127,7 +124,7 @@ function carriedRows<P>(
   carried: RequestCandidate | undefined,
   token: GroupToken | undefined,
 ): readonly HistoryRow[] | null {
-  if (carried === undefined || options.window || token === undefined) return null
+  if (carried === undefined || token === undefined) return null
   const key = carried.preparation.key
   const same =
     carried.candidate === call.candidate &&
@@ -139,7 +136,6 @@ function carriedRows<P>(
 }
 type HistoryAttempt = {
   rows: readonly HistoryRow[]
-  window: CompactionContext | null
   historyRead: StableInputs<unknown>['historyRead']
 }
 async function readHistoryValue<P>(
@@ -170,13 +166,6 @@ async function readHistoryValue<P>(
   if (read.kind !== 'history') return read
   attempt.rows = read.rows
   attempt.historyRead = { mode: read.mode, added: read.added, cached }
-  if (!options.window) return got(value)
-  const last = read.rows.at(-1)
-  if (last === undefined)
-    return { kind: 'invalid', field: 'history.evidence.upper', reason: 'missing-input' }
-  const context = await readWindow(call, value.evidence, last.entry, sources)
-  if (context.kind !== 'got') return context
-  attempt.window = context.value
   return got(value)
 }
 
@@ -187,9 +176,7 @@ export async function readInputs<P>(
   options: InputReadOptions = {},
 ): Promise<StableInputs<P> | Failure> {
   const g = sources.groups
-  const simple = async <K extends Exclude<GroupName, 'identity' | 'history' | 'context'>>(
-    name: K,
-  ) =>
+  const simple = async <K extends Exclude<GroupName, 'identity' | 'history'>>(name: K) =>
     stableGroup(name, [() => g[name].readCount(call)], () =>
       sourceValue(g[name].readSource(call) as Promise<SourceRead<InputGroups<P>[K]>>, name),
     )
@@ -198,34 +185,27 @@ export async function readInputs<P>(
   const cached = usableMaterial(call, target, options)
   const attempt: HistoryAttempt = {
     rows: [],
-    window: null,
     historyRead: { mode: 'full', added: [], cached },
   }
-  const history = await stableGroup('history', [() => g.history.readCount(call)], async before => {
-    const read0 = await sourceValue(g.history.readSource(call), 'history')
-    if (read0.kind !== 'got') return read0
-    return readHistoryValue(call, sources, options, {
-      value: read0.value,
-      token: before[0],
-      carried: control.value.previous?.carried,
-      attempt,
-    })
-  })
-  const { rows, window, historyRead } = attempt
-  if (history.kind !== 'stable') return history
   const adoptedRead = { access: call.access, target }
-  const context = await stableGroup(
-    'context',
-    [() => g.context.readCount(call), () => sources.adopted.readCount(adoptedRead)],
-    async (): Promise<Got<InputGroups<P>['context']> | Failure> => {
-      const value = await sourceValue(g.context.readSource(call), 'context')
-      if (value.kind !== 'got') return value
+  const history = await stableGroup(
+    'history',
+    [() => g.history.readCount(call), () => sources.adopted.readCount(adoptedRead)],
+    async before => {
+      const read0 = await sourceValue(g.history.readSource(call), 'history')
+      if (read0.kind !== 'got') return read0
       const adopted = await sourceValue(sources.adopted.readSource(adoptedRead), 'adopted')
       if (adopted.kind !== 'got') return adopted
-      return got({ ...value.value, adopted: adopted.value })
+      return readHistoryValue(call, sources, options, {
+        value: { ...read0.value, adopted: adopted.value },
+        token: combinedToken(before),
+        carried: control.value.previous?.carried,
+        attempt,
+      })
     },
   )
-  if (context.kind !== 'stable') return context
+  const { rows, historyRead } = attempt
+  if (history.kind !== 'stable') return history
   const prompt = await simple('prompt')
   if (prompt.kind !== 'stable') return prompt
   const model = await simple('model')
@@ -235,11 +215,9 @@ export async function readInputs<P>(
   return {
     kind: 'inputs',
     rows,
-    window,
     historyRead,
     tokens: {
       history: history.token,
-      context: context.token,
       prompt: prompt.token,
       model: model.token,
       tools: tools.token,
@@ -255,9 +233,8 @@ export async function readInputs<P>(
       },
       history: history.value.evidence,
       inputs: history.value.inputs,
-      contextRead: context.value.contextRead,
-      adopted: context.value.adopted,
-      transition: context.value.transition,
+      adopted: history.value.adopted,
+      transition: history.value.transition,
       promptContributions: prompt.value.promptContributions,
       assembleContext: prompt.value.assembleContext,
       selection: model.value,
@@ -268,43 +245,4 @@ export async function readInputs<P>(
       beforeModelCall: control.value.beforeModelCall,
     },
   }
-}
-
-async function readWindow<P>(
-  call: AssemblyCall<P>,
-  evidence: InputGroups<P>['history']['evidence'],
-  coverTo: import('@omne-harness/message').RecordEntryRef,
-  sources: ContextSources<P>,
-): Promise<Got<CompactionContext> | Failure | Retry> {
-  const result = await sources.history.compactionContext({ access: call.access, evidence, coverTo })
-  switch (result.kind) {
-    case 'context':
-      return digest(result.evidence) === digest(evidence)
-        ? got(result.value)
-        : {
-            kind: 'invalid',
-            field: 'history.compactionContext.evidence',
-            reason: 'source-evidence-conflict',
-          }
-    case 'epoch-changed':
-      return { kind: 'retry' }
-    case 'denied':
-      return { kind: 'denied', action: 'read-history', diagnostic: 'Compaction window refused' }
-    case 'invalid':
-      return {
-        kind: 'invalid',
-        field: `history.compactionContext.${result.field}`,
-        reason: result.reason,
-      }
-    case 'unknown':
-      return { kind: 'unknown', source: 'read', diagnostic: 'Compaction window unknown' }
-    case 'unavailable':
-      return { kind: 'unavailable', owner: 'history-source', diagnostic: result.diagnostic }
-  }
-}
-
-export async function readModelGroup<P>(call: AssemblyCall<P>, sources: ContextSources<P>) {
-  return stableGroup('model', [() => sources.groups.model.readCount(call)], () =>
-    sourceValue(sources.groups.model.readSource(call), 'model'),
-  )
 }

@@ -21,13 +21,11 @@ import {
   type MaintenanceInput,
 } from './receiving-scope.ts'
 import { readModelDeliveryMaterial } from './receiving-material.ts'
-import type { createReceptionOutlet } from './receiving-outlet.ts'
 
 export function createReceptionMaintenance<P>(
   dependencies: ModelReceiverDependencies<P>,
   state: ModelReceiverState<P>,
   push: AgentModelReceiver<P>['push'],
-  outlet: ReturnType<typeof createReceptionOutlet<P>>,
 ) {
   async function run(original: MaintenanceInput<P>, recover: boolean): Reply<ModelReceiverReport> {
     const input = { ...original, access: { ...original.access } }
@@ -44,10 +42,12 @@ export function createReceptionMaintenance<P>(
       } catch {
         return fail(maintenanceUnavailable('targets'))
       }
-      if (targets.length === 0 || targets.some(target => target.execution !== input.execution))
+      if (targets.some(target => target.execution !== input.execution))
         return fail(maintenanceDenied())
       if (input.signal.aborted) return cancelledMaintenance()
       const scope = scopeOf(input.access, targets)
+      // An execution whose calls all have their results owes nothing to maintain.
+      if (targets.length === 0) return succeed(receptionReport(state, scope))
       const check = async () => {
         try {
           return await qualify(dependencies, input.access, targets, input.signal)
@@ -78,9 +78,6 @@ export function createReceptionMaintenance<P>(
           }
         }
       }
-      if (input.signal.aborted) return cancelledMaintenance()
-      const driven = await outlet.drain(input.access, scope, input.signal)
-      if ('failure' in driven) return driven
       if (input.signal.aborted) return cancelledMaintenance()
       const final = await check()
       if ('failure' in final) return final

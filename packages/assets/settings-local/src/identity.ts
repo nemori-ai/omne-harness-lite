@@ -3,10 +3,10 @@ import {
   type StandingDestinationResolver,
   type StandingReservation,
 } from '@omne-harness/identity'
-import { SettingsReferenceSchema, SettingsTargetSchema } from '@omne-harness/settings'
+import { SettingsReferenceSchema } from '@omne-harness/settings'
 import { createCatalogTerminals } from './catalog-terminals.ts'
 import { canonical } from './encoding.ts'
-import { domainSchema } from './schema.ts'
+import { catalogCaptureSchema, domainSchema } from './schema.ts'
 import type { SettingsSqlTerminalOptions } from './terminal-schema.ts'
 
 export function createSettingsCatalogDestination(
@@ -30,18 +30,18 @@ export function createSettingsCatalogDestination(
         domain.scope.tenant !== binding.scopeRef
       )
         return unavailable
-      let target
+      let subject
       try {
-        target = SettingsTargetSchema.parse(JSON.parse(binding.targetRef))
+        subject = catalogCaptureSchema.parse(JSON.parse(binding.targetRef))
       } catch {
         return unavailable
       }
-      if (target.scopeRef !== binding.scopeRef || canonical(target) !== binding.targetRef)
+      if (subject.tenantRef !== binding.scopeRef || canonical(subject) !== binding.targetRef)
         return unavailable
       const result = await terminals.seal({
         domain,
         principalRef: binding.principalRef,
-        target,
+        subject,
         operationId: binding.operationId,
         commandDigest: binding.inputDigest,
       })

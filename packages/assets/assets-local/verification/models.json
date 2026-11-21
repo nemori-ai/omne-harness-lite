@@ -1,0 +1,10 @@
+{
+  "model": "models/DirectoryPublish.tla",
+  "scope": "finite safety model of one asset: two publish operations, two contents, one crash with startup recovery, lost commit replies with retry by operation id; staging and the rename into the final directory are atomic, the commit of version record and holding is atomic, the final directory is addressed by name and manifest digest; no liveness, no file contents, no proof of the implementation",
+  "cases": [
+    { "name": "positive", "config": "models/positive.cfg", "expected": "complete" },
+    { "name": "positive-sweep-on-recover", "config": "models/positive-sweep-on-recover.cfg", "expected": "complete" },
+    { "name": "negative-record-first", "config": "models/negative-record-first.cfg", "expected": "HeldInPlace" },
+    { "name": "negative-sweep", "config": "models/negative-sweep.cfg", "expected": "HeldInPlace" }
+  ]
+}

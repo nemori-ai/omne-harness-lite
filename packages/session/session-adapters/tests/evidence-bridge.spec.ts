@@ -205,6 +205,48 @@ describe('the material table, split by command', () => {
     },
   )
 
+  it.each([
+    [
+      'a permission mode change to the access check of its commit',
+      {
+        kind: 'permission-mode',
+        value: 'auto_permission',
+        expectedRevision: '0',
+        authorization: evidence('login-entry'),
+      },
+    ],
+    [
+      'a model selection to the caller that judged the target with Model',
+      {
+        kind: 'model',
+        name: 'anthropic/claude-sonnet-5',
+        basis: evidence('the-profile-the-route-resolved-to'),
+      },
+    ],
+    [
+      'a workspace selection to the caller that verified the attachment with Workspace',
+      {
+        kind: 'workspace',
+        value: null,
+        workspaceAttachment: null,
+        basis: evidence('the-verification-of-the-attachment'),
+      },
+    ],
+  ] as const)('leaves %s without adoption material', async (_, declaration) => {
+    const { asked, prepare } = await assembled({ adoption: async () => succeed([]) })
+    const change: SessionCommand = {
+      kind: 'change',
+      input: {
+        tenant: A.tenant,
+        session: A.session,
+        operation: operationId('declaration-change'),
+        declaration,
+      },
+    }
+    expect(await prepare(change, A)).toEqual(succeed([]))
+    expect(asked).toEqual([])
+  })
+
   it('asks no source and hands no material for a command outside the table', async () => {
     const { asked, prepare } = await assembled()
     expect(await prepare(command('claim'))).toEqual(succeed([]))

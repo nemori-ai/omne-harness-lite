@@ -3,7 +3,12 @@ import { DatabaseSync } from 'node:sqlite'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { TenantId } from '@omne-harness/legal-identity'
-import { createPolicySessionAccessCheck, evidence } from '@omne-harness/session-contract/testing'
+import {
+  createPolicySessionAccessCheck,
+  evidence,
+  testingDerivedInputs,
+  testingInputSources,
+} from '@omne-harness/session-contract/testing'
 import { createFixedSessionCursorSigning } from '@omne-harness/session-cordis-contract/testing'
 import type { SqlStorage, TenantDomain, TenantDomainAccess } from '@omne-harness/sql-contract'
 import { createSessionStorage } from '../../src/index.ts'
@@ -124,9 +129,15 @@ export async function openSystemReads(rows: SystemRows) {
     accessCheck: createPolicySessionAccessCheck<string>(request =>
       denied.has(request.operation)
         ? { kind: 'denied' }
-        : { kind: 'allowed', evidence: evidence(`access/${request.operation}`) },
+        : {
+            kind: 'allowed',
+            evidence: evidence(`access/${request.operation}`),
+            subject: { kind: 'member' },
+          },
     ),
     cursorSigning: createFixedSessionCursorSigning(),
+    sources: testingInputSources(),
+    derived: testingDerivedInputs(),
     combination: real.combination,
   })
 

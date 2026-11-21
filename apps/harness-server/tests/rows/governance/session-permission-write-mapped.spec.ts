@@ -25,6 +25,9 @@ import {
   initializationFixtureGuard,
   initializationFixtureFacts,
   adoptedInitializationFixture,
+  testingDerivedInputs,
+  testingInputSources,
+  withMemberSubject,
 } from '@omne-harness/session-contract/testing'
 import { openSourceServiceWorld } from '../../../../../packages/assets/settings-local/tests/source-service-world.ts'
 import { settingsPreparationWorld } from './settings-preparation-world.ts'
@@ -92,7 +95,7 @@ it.each(['set', 'organization-deny', 'tenant-deny', 'selected-source'] as const)
       required: [],
       registry,
       project: binding => [
-        assetsSettingsProjectionCommand(binding),
+        assetsSettingsProjectionCommand(binding, { excluded: [] }),
         standaloneSettingsProjectionCommand(binding),
       ],
       clock: { now: () => 1000 },
@@ -108,9 +111,10 @@ it.each(['set', 'organization-deny', 'tenant-deny', 'selected-source'] as const)
     route = {
       domain: { scope: { kind: 'system' }, transactionDomain: 'system.settings' },
       target: {
-        policyId: 'independent',
+        kind: 'independent' as const,
+        providerId: 'governance',
+        definitionId: 'shell-permission',
         scopeRef: organization.value,
-        targetRef: 'shell-permission',
       },
     }
     const definition = w.declaration.settings[0]
@@ -200,7 +204,7 @@ it.each(['set', 'organization-deny', 'tenant-deny', 'selected-source'] as const)
         organizationSource: async () =>
           route === undefined || scenario !== 'selected-source'
             ? route
-            : { ...route, target: { ...route.target, targetRef: 'replaced-source' } },
+            : { ...route, target: { ...route.target, definitionId: 'replaced-source' } },
       }),
       readCatalog: request => w.service.readCatalog(w.access, request),
       combinations: { clear: unused, unmapped: unused, mapped },
@@ -219,8 +223,10 @@ it.each(['set', 'organization-deny', 'tenant-deny', 'selected-source'] as const)
         resolve: async () => ({ kind: 'ready', entry }),
         snapshot: async () => ({ kind: 'ready', value: { revision: '1', entries: [entry] } }),
       },
-      accessCheck,
+      accessCheck: withMemberSubject(accessCheck),
       cursorSigning: createFixedSessionCursorSigning(),
+      sources: testingInputSources(),
+      derived: testingDerivedInputs(),
       protectedBasis: basisSource,
     })
     const sessionAccess = {

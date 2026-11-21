@@ -1,4 +1,5 @@
-import { expect, it } from 'vitest'
+import { releasedDeclaration } from '../../../src/entry/permission-declarations.ts'
+import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import {
   principalVerifierKey,
@@ -12,7 +13,9 @@ import { CurrentPermissionService } from '../../../src/rows/governance/current-p
 import { ReleaseToolContributionAuthority } from '../../../src/entry/tool-release.ts'
 import type { SessionInquiryView } from '@omne-harness/session-adapters'
 import { judgeBlockIdentity } from '@omne-harness/content-block'
-import { decisionEvidence, effectiveArgumentsOf } from '@omne-harness/authorization'
+import { toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
+import { releaseCatalog } from './release-catalog.ts'
+import { decisionEvidence, digestOf, effectiveArgumentsOf } from '@omne-harness/authorization'
 import {
   decodeAgentExecutionId,
   decodeAgentInstanceId,
@@ -26,16 +29,21 @@ import type { PermissionBasisReading, PermissionBasisRequest } from '@omne-harne
 import { loadProductionRelease, TOOL_RELEASE_TENANT } from '../../../src/entry/tool-release.ts'
 import {
   createCurrentToolPermission,
+  declaredPermission,
   type ToolPermissionAction,
   type ToolPermissionPorts,
 } from '../../../src/rows/authorization/current-tool-permission.ts'
-import { okOf } from '../../entry/support.ts'
+import { fixtureTenant, okOf } from '../../entry/support.ts'
+import type { SessionAuthorizations } from '@omne-harness/session-storage-sql/participants'
+import { onceTarget } from '../../../src/rows/authorization/authorization-facts.ts'
 
 const release = await loadProductionRelease()
 if (release.kind !== 'trusted') throw new Error('Production release unavailable')
 const entry = release.manifest.entries.find(item => item.asset.name === 'Shell')
 if (entry === undefined) throw new Error('Shell release missing')
-const interpretation = entry.governance.interpretations[0]!
+const interpretation = entry.governance.interpretations.find(
+  value => value.binding.enforcementKey === 'tool.run',
+)!
 const definition = interpretation.definition
 const binding = interpretation.binding
 const blockIdentity = judgeBlockIdentity({
@@ -63,7 +71,9 @@ function world() {
     tenant: TOOL_RELEASE_TENANT,
     operation: { owner: 'agent', operationId: 'fixture-action' },
     definition: entry!.asset.adoption,
-    effectiveArguments: '{"command":"echo hello"}',
+    effectiveArguments:
+      '{"command":"execute","intent":"test call","params":{"script":"echo hello"}}',
+    gate: { id: 'run', title: '执行', default: 'ask' },
     origin: {
       kind: 'agent-action',
       original: {
@@ -129,6 +139,7 @@ function world() {
     },
   } satisfies PermissionBasisReading
   let reading: PermissionBasisReading = current
+  let authorizations: SessionAuthorizations | null = null
   const condition = { combinationVersion: 'fixture/1', commands: [] }
   let reads = 0
   const inquiry: SessionInquiryView = {
@@ -151,12 +162,13 @@ function world() {
     },
   }
   const ports: ToolPermissionPorts = {
-    release: () => release,
+    declarations: () =>
+      release.kind === 'trusted' ? release.manifest.entries.map(releasedDeclaration) : [],
     inquiry: async () => inquiry,
     source: () => ({
       readCurrent: async () => {
         reads++
-        return { request, reading, condition }
+        return { request, reading, condition, authorizations, consumer }
       },
     }),
   }
@@ -172,8 +184,263 @@ function world() {
     set: (next: PermissionBasisReading) => {
       reading = next
     },
+    authorize: (next: SessionAuthorizations | null) => {
+      authorizations = next
+    },
   }
 }
+
+type World = ReturnType<typeof world>
+const consumer = { owner: '@omne-harness/agent', work: 'execution', position: 'action' }
+function onceFor(w: World, overrides: Partial<NonNullable<SessionAuthorizations['once']>> = {}) {
+  return {
+    revision: '1',
+    once: {
+      consumer,
+      target: onceTarget(w.input.definition),
+      argumentsDigest: effectiveArgumentsOf(w.input.effectiveArguments).digest,
+      source: decisionEvidence('card-answer', '1', {}),
+      ...overrides,
+    },
+    session: null,
+  } satisfies SessionAuthorizations
+}
+
+it('releases the action a once authorization names and gives it for the start to consume', async () => {
+  const w = world()
+  w.current.evaluation.sources.tenant.rule.pick = 'ask'
+  const check = createCurrentToolPermission(w.ports)
+  expect(await check.check(w.input)).toMatchObject({ kind: 'ask' })
+  w.authorize(onceFor(w))
+  expect(await check.check(w.input)).toMatchObject({
+    kind: 'allow',
+    condition: { combinationVersion: w.condition.combinationVersion },
+    authorization: { consumer, source: decisionEvidence('card-answer', '1', {}) },
+  })
+})
+
+it.each([
+  ['target', { target: 'another tool' }],
+  ['arguments', { argumentsDigest: '0'.repeat(64) }],
+  ['place', { consumer: { ...consumer, position: 'another action' } }],
+] as const)(
+  'does not release an action whose %s differs from the once authorization',
+  async (_, overrides) => {
+    const w = world()
+    w.current.evaluation.sources.tenant.rule.pick = 'ask'
+    w.authorize(onceFor(w, overrides))
+    expect(await createCurrentToolPermission(w.ports).check(w.input)).toMatchObject({ kind: 'ask' })
+  },
+)
+
+it('releases an action of a gate released for the session while the basis of that release is current', async () => {
+  const w = world()
+  w.current.evaluation.sources.tenant.rule.pick = 'ask'
+  const check = createCurrentToolPermission(w.ports)
+  const asked = await check.check(w.input)
+  if (asked.kind !== 'ask' || asked.gate === undefined) throw new Error(JSON.stringify(asked))
+  const { capabilityId, enforcementKey, basis } = asked.gate
+  const source = decisionEvidence('card-answer', '1', {})
+  const forSession = (given: Partial<typeof asked.gate>) => ({
+    revision: '1',
+    once: null,
+    session: { capabilityId, enforcementKey, basis, source, ...given },
+  })
+  w.authorize(forSession({}))
+  const released = await check.check(w.input)
+  expect(released).toMatchObject({
+    kind: 'allow',
+    condition: { combinationVersion: w.condition.combinationVersion },
+  })
+  expect(released).not.toHaveProperty('authorization')
+  w.authorize(forSession({ basis: 'the basis before the setting changed' }))
+  expect(await check.check(w.input)).toMatchObject({ kind: 'ask' })
+  w.authorize(forSession({ capabilityId: 'another capability' }))
+  expect(await check.check(w.input)).toMatchObject({ kind: 'ask' })
+})
+
+describe('the grant a release names', () => {
+  const gateOf = (w: World) => ({
+    capability: w.request.capabilityId,
+    key: w.request.enforcementKey,
+  })
+  const withSession = (w: World, rule: { pick: string | null; allowedSet: string[] | null }) => {
+    const evaluation = {
+      ...w.current.evaluation,
+      sources: {
+        ...w.current.evaluation.sources,
+        session: {
+          kind: 'available',
+          sourceRef: 'session',
+          revision: '2',
+          scope: w.request.scope,
+          definition: w.request.definition,
+          rule,
+        },
+      },
+    } as const
+    w.set({ ...w.current, evaluation })
+    return evaluation
+  }
+
+  it('names the tenant layer when the session layer takes no part in an allowed verdict', async () => {
+    const w = world()
+    const released = await createCurrentToolPermission(w.ports).check(w.input)
+    expect(released).toMatchObject({
+      kind: 'allow',
+      release: {
+        by: 'verdict',
+        grant: {
+          via: 'verdict',
+          layer: 'tenant',
+          holder: w.request.scope.tenantId,
+          gate: gateOf(w),
+          revision: digestOf(w.current.evaluation),
+        },
+      },
+    })
+  })
+
+  it('names the tenant layer when the session layer is there but sets nothing', async () => {
+    const w = world()
+    const evaluation = withSession(w, { pick: null, allowedSet: null })
+    expect(await createCurrentToolPermission(w.ports).check(w.input)).toMatchObject({
+      kind: 'allow',
+      release: { by: 'verdict', grant: { layer: 'tenant', revision: digestOf(evaluation) } },
+    })
+  })
+
+  it.each([
+    ['picks the value', { pick: 'auto', allowedSet: null }],
+    ['only bounds the values', { pick: null, allowedSet: ['auto', 'ask'] }],
+  ])('names the session layer when the session layer %s', async (_label, rule) => {
+    const w = world()
+    const evaluation = withSession(w, rule)
+    expect(await createCurrentToolPermission(w.ports).check(w.input)).toMatchObject({
+      kind: 'allow',
+      release: {
+        by: 'verdict',
+        grant: { layer: 'session', holder: 'session-1', revision: digestOf(evaluation) },
+      },
+    })
+  })
+
+  it('names the once authorization, the session grant and the run mode by their own sources', async () => {
+    const w = world()
+    w.current.evaluation.sources.tenant.rule.pick = 'ask'
+    const check = createCurrentToolPermission(w.ports)
+    w.authorize(onceFor(w))
+    expect(await check.check(w.input)).toMatchObject({
+      release: {
+        by: 'once',
+        grant: {
+          via: 'once',
+          holder: 'session-1',
+          source: decisionEvidence('card-answer', '1', {}),
+        },
+      },
+    })
+    const given = decisionEvidence('card-answer', '2', {})
+    const basis = digestOf(w.current.evaluation)
+    const { capabilityId, enforcementKey } = w.request
+    w.authorize({
+      revision: '2',
+      once: null,
+      session: { capabilityId, enforcementKey, basis, source: given },
+    })
+    expect(await check.check(w.input)).toMatchObject({
+      release: {
+        by: 'session',
+        grant: { via: 'session-grant', holder: 'session-1', gate: gateOf(w), source: given },
+      },
+    })
+    w.authorize(null)
+    const skipping = {
+      ...w.inquiry,
+      inquiry: { ...w.inquiry.inquiry, policy: { onAsk: 'skip-ask' } },
+    } as const
+    const ports = { ...w.ports, inquiry: async () => skipping }
+    const skipped = await createCurrentToolPermission(ports).check(w.input)
+    expect(skipped).toMatchObject({
+      release: {
+        by: 'skip-ask',
+        grant: { via: 'skip-ask', holder: 'session-1', source: w.inquiry.inquiry.source },
+      },
+    })
+    expect(skipped.kind === 'allow' && skipped.condition).toEqual(w.condition)
+  })
+
+  it('guards the acceptance on the once or session authorization it rests on, and on nothing else', async () => {
+    const w = world()
+    const check = createCurrentToolPermission(w.ports)
+    const guards = (decision: Awaited<ReturnType<typeof check.check>>) =>
+      decision.kind === 'allow'
+        ? ((decision.condition?.['commands'] as unknown[]) ?? []).filter(
+            command =>
+              (command as { participant: string }).participant === 'session-authorization-guard',
+          )
+        : []
+    expect(guards(await check.check(w.input))).toEqual([])
+    w.current.evaluation.sources.tenant.rule.pick = 'ask'
+    w.authorize(onceFor(w))
+    const tenant = w.request.scope.tenantId
+    expect(guards(await check.check(w.input))).toEqual([
+      {
+        participant: 'session-authorization-guard',
+        facts: {
+          request: {
+            tenant,
+            session: 'session-1',
+            grant: { kind: 'once', consumer, source: decisionEvidence('card-answer', '1', {}) },
+          },
+        },
+      },
+    ])
+    const given = decisionEvidence('card-answer', '2', {})
+    const { capabilityId, enforcementKey } = w.request
+    w.authorize({
+      revision: '2',
+      once: null,
+      session: {
+        capabilityId,
+        enforcementKey,
+        basis: digestOf(w.current.evaluation),
+        source: given,
+      },
+    })
+    expect(guards(await check.check(w.input))).toEqual([
+      {
+        participant: 'session-authorization-guard',
+        facts: {
+          request: {
+            tenant,
+            session: 'session-1',
+            grant: { kind: 'session', capabilityId, enforcementKey, source: given },
+          },
+        },
+      },
+    ])
+    expect(w.condition.commands).toEqual([])
+  })
+
+  it('names no grant for a carrier', async () => {
+    const w = world()
+    w.current.evaluation.sources.tenant.rule.pick = 'ask'
+    const carried = await createCurrentToolPermission(w.ports).check({ ...w.input, carrier: true })
+    expect(carried).toMatchObject({ kind: 'allow', release: { by: 'carrier', grant: null } })
+  })
+})
+
+it('consumes no once authorization when the gate became automatic, and refuses when it became prohibited', async () => {
+  const w = world()
+  w.authorize(onceFor(w))
+  const check = createCurrentToolPermission(w.ports)
+  const automatic = await check.check(w.input)
+  expect(automatic).toMatchObject({ kind: 'allow' })
+  expect(automatic).not.toHaveProperty('authorization')
+  w.current.evaluation.sources.tenant.rule.pick = 'deny'
+  expect(await check.check(w.input)).toMatchObject({ kind: 'deny', category: 'rule' })
+})
 
 it('gives the condition of the reading with an allow, and with nothing else', async () => {
   const w = world(),
@@ -235,7 +502,7 @@ it('requires a current source and never turns ask or missing constraints into al
   const w = world(),
     check = createCurrentToolPermission(w.ports)
   w.current.evaluation.sources.tenant.rule.pick = 'ask'
-  expect(await check.check(w.input)).toMatchObject({ kind: 'undecidable' })
+  expect(await check.check(w.input)).toMatchObject({ kind: 'ask' })
   w.current.evaluation.sources.tenant.rule.pick = 'auto'
   w.set({
     ...w.current,
@@ -294,21 +561,39 @@ it('rejects a substituted declaration even when its identity is unchanged', asyn
   })
 })
 
-it('does not reuse an interpretation for a different adoption or an unavailable release', async () => {
+it('answers unavailable, and reads nothing, when no declaration names the capability', async () => {
   const w = world()
   expect(
     await createCurrentToolPermission(w.ports).check({
       ...w.input,
       definition: { ...w.input.definition, digest: 'other' },
     }),
-  ).toMatchObject({ kind: 'undecidable' })
+  ).toMatchObject({ kind: 'unavailable' })
   expect(
-    await createCurrentToolPermission({
-      ...w.ports,
-      release: () => ({ kind: 'unavailable', diagnostic: 'gone' }),
-    }).check(w.input),
-  ).toMatchObject({ kind: 'undecidable' })
+    await createCurrentToolPermission({ ...w.ports, declarations: () => [] }).check(w.input),
+  ).toMatchObject({ kind: 'unavailable' })
   expect(w.reads()).toBe(0)
+})
+
+it('judges a capability outside the release once its category owner registers its declaration', async () => {
+  const w = world()
+  const released = w.ports.declarations()
+  const own = released.find(entry => entry.asset.adoption.name === w.input.definition.name)
+  if (own === undefined) throw new Error('fixture declaration missing')
+  const capability = { ...w.input.definition, name: 'TestCapability', digest: 'test-capability' }
+  const registered = { ...own, asset: { name: 'TestCapability', adoption: capability } }
+  const outside = { ...w.input, definition: capability }
+  expect(await createCurrentToolPermission(w.ports).check(outside)).toMatchObject({
+    kind: 'unavailable',
+  })
+  const check = createCurrentToolPermission({
+    ...w.ports,
+    declarations: () => [...released, registered],
+  })
+  expect(declaredPermission([...released, registered], outside)?.entry.asset.name).toBe(
+    'TestCapability',
+  )
+  expect(await check.check(outside)).not.toMatchObject({ kind: 'unavailable' })
 })
 
 it('does not expose dependency exception details', async () => {
@@ -341,7 +626,7 @@ it('carries the original owner context and the unchanged issued principal to the
 
 it.each([
   ['deny', 'deny'],
-  ['ask-human', 'undecidable'],
+  ['ask-human', 'ask'],
   ['skip-ask', 'allow'],
 ] as const)(
   'consumes published %s only for a structurally permitted inquiry',
@@ -359,7 +644,7 @@ it.each([
 )
 
 it.each(['missing', 'exception'] as const)(
-  'retains prohibition when inquiry publication is %s',
+  'retains prohibition, and does not refuse for good, when inquiry publication is %s',
   async failure => {
     const w = world()
     const check = createCurrentToolPermission({
@@ -370,7 +655,7 @@ it.each(['missing', 'exception'] as const)(
       },
     })
     w.current.evaluation.sources.tenant.rule.pick = 'ask'
-    expect(await check.check(w.input)).toMatchObject({ kind: 'undecidable' })
+    expect(await check.check(w.input)).toMatchObject({ kind: 'unavailable' })
     w.current.evaluation.sources.tenant.rule.pick = 'deny'
     expect(await check.check(w.input)).toMatchObject({ kind: 'deny' })
   },
@@ -420,6 +705,8 @@ it('the default authorization row adopts the current source on each call without
       },
     })
     scope.provide(identityGovernanceKey, { queryCurrentTenant: async () => ({ kind: 'denied' }) })
+    // The action resolution reads the judged definition from the catalog.
+    scope.provide(toolCatalogKey, releaseCatalog(release))
     new ReleaseToolContributionAuthority(scope, release, () => null)
   })
   const row = await ctx.plugin(authorization, {
@@ -460,4 +747,87 @@ it('the default authorization row adopts the current source on each call without
     await identity.dispose()
     await ctx.fiber.dispose()
   }
+})
+
+it('does not let a carrier ask: the call it carries is judged for its own gate, and only a prohibition of its own refuses', async () => {
+  const w = world()
+  const check = createCurrentToolPermission(w.ports)
+  const carrier = { ...w.input, carrier: true as const }
+  w.current.evaluation.sources.tenant.rule.pick = 'ask'
+  expect(await check.check(w.input)).toMatchObject({ kind: 'ask' })
+  const released = await check.check(carrier)
+  expect(released).toMatchObject({ kind: 'allow', condition: w.condition })
+  expect(released).not.toHaveProperty('authorization')
+  w.authorize(onceFor(w))
+  expect(await check.check(carrier)).not.toHaveProperty('authorization')
+  w.authorize(null)
+  w.current.evaluation.sources.tenant.rule.pick = 'deny'
+  expect(await check.check(carrier)).toMatchObject({
+    kind: 'deny',
+    category: 'rule',
+    reason: 'permission-policy',
+  })
+})
+
+it('needs the session inquiry of an action that asks, and of that one only', async () => {
+  const w = world()
+  const unread = createCurrentToolPermission({ ...w.ports, inquiry: async () => null })
+  w.current.evaluation.sources.tenant.rule.pick = 'ask'
+  expect(await unread.check(w.input)).toEqual({
+    kind: 'unavailable',
+    diagnostic: 'The session inquiry policy could not be read now.',
+  })
+  expect(await unread.check({ ...w.input, carrier: true })).toMatchObject({ kind: 'allow' })
+  w.current.evaluation.sources.tenant.rule.pick = 'auto'
+  expect(await unread.check(w.input)).toMatchObject({ kind: 'allow' })
+})
+
+it.each([
+  ['a tenant that is not a minted one', (w: World) => ({ ...w.input, tenant: {} as never })],
+  [
+    'the work of a session that does not act for the tenant of the action',
+    (w: World) => ({
+      ...w.input,
+      principal: okOf(
+        w.authority.issuer.issueActingForTenant({
+          actor: okOf(
+            w.authority.issuer.issueSystem({ component: 'sessionWorkPrincipals' }),
+            'actor',
+          ),
+          tenant: fixtureTenant('b'),
+          work: { owner: 'session', work: 'session-1' },
+        }),
+        'principal',
+      ),
+    }),
+  ],
+])('answers undecidable, with its reason, to an action of %s', async (_what, given) => {
+  const w = world()
+  const check = createCurrentToolPermission(w.ports)
+  expect(await check.check(given(w))).toEqual({
+    kind: 'undecidable',
+    diagnostic: 'The permission source answered for another request.',
+  })
+  expect(w.reads()).toBe(1)
+})
+
+it('denies an asking gate and says why when the session has nobody to ask', async () => {
+  const w = world()
+  w.current.evaluation.sources.tenant.rule.pick = 'ask'
+  const policy = { onAsk: 'deny', denial: 'nobody-to-ask' } as const
+  const check = createCurrentToolPermission({
+    ...w.ports,
+    inquiry: async () => ({ ...w.inquiry, inquiry: { ...w.inquiry.inquiry, policy } }),
+  })
+  expect(await check.check(w.input)).toMatchObject({
+    kind: 'deny',
+    category: 'rule',
+    reason: 'nobody-to-ask',
+    notice:
+      'This action needs the approval of a person, and no person can be asked here. Continue without it, or stop and report what you need.',
+  })
+  const refuse = { onAsk: 'deny' } as const
+  const never = { ...w.inquiry, inquiry: { ...w.inquiry.inquiry, policy: refuse } }
+  const plain = createCurrentToolPermission({ ...w.ports, inquiry: async () => never })
+  expect(await plain.check(w.input)).not.toHaveProperty('notice')
 })

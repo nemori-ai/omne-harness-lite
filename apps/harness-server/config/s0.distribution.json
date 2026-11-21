@@ -26,7 +26,127 @@
       "config": {}
     },
     {
+      "id": "session-input-sources",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "session-before-intake",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "session-history-index",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "session-search",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "asset-categories",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "tenant-assets",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "governance",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "calendar",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "schedule",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "notification",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "calendar-notification",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "media-storage-sql",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "media-image",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "media",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "media-storage-local",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "media-sweep",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "media-intake",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "media-model-source",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "media-tool-store",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "media-converters",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "media-engine-transcribe",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "media-engine-pdf",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "workspace",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "usage",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "usage-adapters",
       "plugin": "stubPlugin",
       "config": {}
     },
@@ -82,6 +202,11 @@
     },
     {
       "id": "session-ad14",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "session-call-control",
       "plugin": "stubPlugin",
       "config": {}
     },
@@ -146,11 +271,6 @@
       "config": {}
     },
     {
-      "id": "model-converters",
-      "plugin": "stubPlugin",
-      "config": {}
-    },
-    {
       "id": "model-tokenizers",
       "plugin": "stubPlugin",
       "config": {}
@@ -197,6 +317,11 @@
     },
     {
       "id": "tool-bindings",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "skills",
       "plugin": "stubPlugin",
       "config": {}
     },
@@ -261,7 +386,7 @@
       "config": {}
     },
     {
-      "id": "agent-account-outlet",
+      "id": "context-compaction",
       "plugin": "stubPlugin",
       "config": {}
     },
@@ -271,7 +396,32 @@
       "config": {}
     },
     {
+      "id": "runtime-context-tenant-scope",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "session-intake-budget",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "session-observation",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "dispatch",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "dispatch-session",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "dispatch-tool",
       "plugin": "stubPlugin",
       "config": {}
     },
@@ -302,6 +452,46 @@
     },
     {
       "id": "session-diagnostics-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "calendar-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "schedule-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "notification-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "media-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "workspace-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "tool-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "model-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "usage-access",
       "plugin": "stubPlugin",
       "config": {}
     }

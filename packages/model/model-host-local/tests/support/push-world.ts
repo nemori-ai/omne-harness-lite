@@ -70,6 +70,8 @@ export const LIMITS: ResultPushLimits = {
   maxCleanupSteps: 8,
   maxPendingAccountsPerTenant: 4,
   maxPendingAccounts: 8,
+  maxCostMisses: 3,
+  delaysMs: [1000, 5000, 30000],
 }
 const CONFIGURATION: ModelConfiguration = {
   outputBatchBytes: 1,
@@ -78,8 +80,6 @@ const CONFIGURATION: ModelConfiguration = {
   observerCheckIntervalMs: 25,
   resultPageTargetBytes: 4096,
   readIdleMs: 1000,
-  retryBackoffMs: 0,
-  cleanupRetryMs: 0,
 }
 
 const request: FixedModelRequest = {
@@ -270,12 +270,16 @@ export function world(
                   diagnostic: 'received-records-absent',
                 },
               }
-            : given.evidence.kind === 'retained' &&
-                given.evidence.custody.owner === CONSUMER &&
-                given.evidence.custody.record.startsWith('saved/') &&
-                given.evidence.custody.record.includes(given.call)
-              ? { ok: given.evidence.custody }
-              : { failure: { kind: 'handoff-invalid', reason: 'evidence' } },
+            : given.evidence.kind === 'processed' &&
+                given.evidence.completion.owner === CONSUMER &&
+                given.evidence.completion.record === `processed/${given.call}`
+              ? { ok: given.evidence.completion }
+              : given.evidence.kind === 'retained' &&
+                  given.evidence.custody.owner === CONSUMER &&
+                  given.evidence.custody.record.startsWith('saved/') &&
+                  given.evidence.custody.record.includes(given.call)
+                ? { ok: given.evidence.custody }
+                : { failure: { kind: 'handoff-invalid', reason: 'evidence' } },
       },
     ],
     limits: {
@@ -411,6 +415,8 @@ export function world(
     declare readonly nextRead: ModelCommands<unknown>['nextRead']
     declare readonly endRead: ModelCommands<unknown>['endRead']
     declare readonly handoff: ModelCommands<unknown>['handoff']
+    declare readonly abandon: ModelCommands<unknown>['abandon']
+    declare readonly confirmAccount: ModelCommands<unknown>['confirmAccount']
     declare readonly advanceCleanup: ModelCommands<unknown>['advanceCleanup']
     declare readonly query: ModelCommands<unknown>['query']
     declare readonly dispatches: ModelCommands<unknown>['dispatches']
@@ -464,6 +470,9 @@ export function world(
     controls: memory.controls,
     Plugin,
     provided,
+    wakeNotBefore(name: string, notBefore: string) {
+      return ctx.modelInstanceHost.schedule({ tenant: TENANT, call: callOf(name), notBefore })
+    },
     contact(name: string) {
       return ctx.modelRuntime.calls.contact({
         principal: PRINCIPAL,
@@ -528,6 +537,34 @@ export function world(
       )
       if (lookup.kind !== 'found') throw new Error('the call is not found')
       return lookup.state.custody
+    },
+    async acknowledgeDirectly(name: string) {
+      const lookup = unbox(
+        await raw.recall({
+          principal: PRINCIPAL,
+          tenant: TENANT,
+          call: callOf(name),
+          admission: op(`admit-${name}`),
+        }),
+      )
+      if (lookup.kind !== 'found' || lookup.state.phase !== 'settled')
+        throw new Error('the call has not settled')
+      return ctx.modelRuntime.consumption.acknowledge({
+        principal: PRINCIPAL,
+        tenant: TENANT,
+        call: callOf(name),
+        operation: op(`direct-ack-${name}`),
+        result: lookup.state.settlement.version,
+        evidence: {
+          kind: 'processed',
+          completion: {
+            owner: CONSUMER,
+            record: `processed/${callOf(name)}`,
+            revision: '1',
+            digest: '1'.repeat(64),
+          },
+        },
+      })
     },
     record(name: string) {
       return ledger.read({ tenant: TENANT, call: callOf(name) })

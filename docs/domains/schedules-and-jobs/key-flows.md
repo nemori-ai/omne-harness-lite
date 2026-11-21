@@ -8,7 +8,7 @@
 
 已生效安排的 label 和同 purpose 的 agent instruction/提醒文本可原地修订，保留 CAS 与修订史。purpose、时间结构、绑定、programRef/input、会话模式/目标/配置、catch-up、重叠或结果政策变更走 replace。前任 superseded、后继创建、双向 lineage、配额转移和回执同提交，后继继承 active/paused 控制，旧 Job 不改。失败不得留下两个活跃安排或孤立后继。
 
-Agent granular authoring 可先形成零未来接受的 draft，owner promote 才确认生效；已生效命令的同意绑定动作、规范 payload 与目标。blanket 授权及其撤销由原拥有者治理，重新授予后须逐条 reconfirmConsent，不能自动消除 paused 或复活终态。工具可见不是写资格。
+agent 让安排生效或改动生效中的安排，要有同意作依据。同意不由日程自己设开关、自己问人：它是这次工具调用的放行，由身份与授权按「让安排生效」这道关口的权限设置、会话里的授权与询问策略判断，要人决定时由 Agent 的准入出放行卡片，卡上的放行详情由日程的工具给。关口缺省自动，是一份持续全权同意；owner 设成询问就是逐条。日程的权威端口读到这次调用凭什么放行，把依据随安排一起提交；单次放行绑定这次调用的参数；owner promote 草稿就是逐条确认。同意在管理决定时成立，之后改权限设置不回头改写已生效的安排，也不消除 paused 或复活终态。工具可见不是写资格。
 
 ## F-SJ02 对账环境、日期与依赖
 

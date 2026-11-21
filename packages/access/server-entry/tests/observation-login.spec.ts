@@ -6,6 +6,7 @@ import {
   type RecordsEvent,
 } from '../src/observation-hub/records.ts'
 import type { SseStream } from '../src/observation-hub/sse.ts'
+import { systemClock } from '../src/settle/settle.ts'
 
 const INTERVAL = 50
 
@@ -61,6 +62,7 @@ function setup(limits: { perLogin?: number; perInstance?: number } = {}) {
   const records = createObservationRecords({
     limits: { perLogin: 2, perInstance: 4, cancelRetentionMs: 0, ...limits },
     loginCheckIntervalMs: INTERVAL,
+    clock: systemClock,
     report: event => reports.push(event),
   })
   return { records, reports }

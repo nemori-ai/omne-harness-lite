@@ -11,7 +11,15 @@ import {
   skillCatalogConformance,
   type CatalogFixture,
 } from '@omne-harness/skill-contract/testing'
-import { alice, granted, reviewLocator, scope, type Principal, type Scope } from './access-world.ts'
+import {
+  alice,
+  granted,
+  reviewLocator,
+  scope,
+  type Principal,
+  type Scope,
+  ranking,
+} from './access-world.ts'
 import {
   catalogFixture,
   createCatalogWorld,
@@ -45,15 +53,18 @@ async function failing(fixture: () => CatalogFixture<Principal, Scope>): Promise
 }
 
 function listingRefused(world: CatalogWorld): SkillCatalog<Principal, Scope> {
-  return createSkillCatalog({
-    ...world.ports,
-    readCheck: {
-      async check(who, at, item) {
-        const verdict = await world.ports.readCheck.check(who, at, item)
-        return verdict.kind === 'refused' ? { kind: 'granted' } : verdict
+  return createSkillCatalog(
+    {
+      ...world.ports,
+      readCheck: {
+        async check(who, at, item) {
+          const verdict = await world.ports.readCheck.check(who, at, item)
+          return verdict.kind === 'refused' ? { kind: 'granted' } : verdict
+        },
       },
     },
-  })
+    { ranking },
+  )
 }
 
 function pressingUnknown(world: CatalogWorld): SkillCatalog<Principal, Scope> {
@@ -101,7 +112,7 @@ describe('the order and the shape of the entries', () => {
     return {
       kind: 'adopted',
       ref: { capability, layer: 'tenant', locator: reviewLocator },
-      declared: { name: granted(isSkillName, name), tools: [], scripts: [], settings: [] },
+      declared: { name: granted(isSkillName, name), tools: [] },
     }
   }
 
@@ -113,13 +124,16 @@ describe('the order and the shape of the entries', () => {
   }
 
   function catalogOf(answers: readonly CatalogResolution[]): SkillCatalog<Principal, Scope> {
-    return createSkillCatalog<Principal, Scope>({
-      readCheck: { check: async () => ({ kind: 'granted' }) },
-      resolution: {
-        resolve: async () => ({ kind: 'none' }),
-        adopted: async () => succeed(answers),
+    return createSkillCatalog<Principal, Scope>(
+      {
+        readCheck: { check: async () => ({ kind: 'granted' }) },
+        resolution: {
+          resolve: async () => ({ kind: 'none' }),
+          adopted: async () => succeed(answers),
+        },
       },
-    })
+      { ranking },
+    )
   }
 
   const answers = [adopted('skill', 'c'), standIn, adopted('skill', 'a'), adopted('a-skill', 'z')]
@@ -145,20 +159,23 @@ describe('the order and the shape of the entries', () => {
 describe('an identity listed twice in the lawful set', () => {
   it('keeps the first answer of the port and leaves the later one out', async () => {
     const world = createCatalogWorld()
-    const catalog = createSkillCatalog<Principal, Scope>({
-      ...world.ports,
-      resolution: {
-        ...world.ports.resolution,
-        async adopted(who, at) {
-          const listed = await world.ports.resolution.adopted(who, at)
-          if (!('ok' in listed)) return listed
-          const review = listed.ok.find(answer => answer.kind === 'adopted')
-          if (review?.kind !== 'adopted') throw new Error('the world adopts no Skill')
-          const later = { ...review, declared: { ...review.declared, description: 'Later.' } }
-          return succeed([...listed.ok, later])
+    const catalog = createSkillCatalog<Principal, Scope>(
+      {
+        ...world.ports,
+        resolution: {
+          ...world.ports.resolution,
+          async adopted(who, at) {
+            const listed = await world.ports.resolution.adopted(who, at)
+            if (!('ok' in listed)) return listed
+            const review = listed.ok.find(answer => answer.kind === 'adopted')
+            if (review?.kind !== 'adopted') throw new Error('the world adopts no Skill')
+            const later = { ...review, declared: { ...review.declared, description: 'Later.' } }
+            return succeed([...listed.ok, later])
+          },
         },
       },
-    })
+      { ranking },
+    )
     expect(await catalog.summaries(alice, scope, [reviewEntry.capability])).toStrictEqual({
       ok: [reviewEntry],
     })
@@ -169,21 +186,24 @@ describe('an empty request', () => {
   it('calls neither the lawful set nor the read check', async () => {
     const world = createCatalogWorld()
     const calls = { adopted: 0, check: 0 }
-    const counted = createSkillCatalog<Principal, Scope>({
-      readCheck: {
-        check(...args) {
-          calls.check += 1
-          return world.ports.readCheck.check(...args)
+    const counted = createSkillCatalog<Principal, Scope>(
+      {
+        readCheck: {
+          check(...args) {
+            calls.check += 1
+            return world.ports.readCheck.check(...args)
+          },
+        },
+        resolution: {
+          ...world.ports.resolution,
+          adopted(...args) {
+            calls.adopted += 1
+            return world.ports.resolution.adopted(...args)
+          },
         },
       },
-      resolution: {
-        ...world.ports.resolution,
-        adopted(...args) {
-          calls.adopted += 1
-          return world.ports.resolution.adopted(...args)
-        },
-      },
-    })
+      { ranking },
+    )
     expect(await counted.summaries(alice, scope, [])).toStrictEqual({ ok: [] })
     expect(calls).toStrictEqual({ adopted: 0, check: 0 })
   })

@@ -1,10 +1,11 @@
 import { spawnSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, rmSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { WorkspaceMember } from '@omne-harness/repo-toolchain/core/workspace'
-import { VITEST_MAX_WORKERS_ENV, type Parallelism, type RunTier } from './config.ts'
+import { VITEST_MAX_WORKERS_ENV, type RunTier } from './config.ts'
+import { READ_SETS_ENV } from './read-sets.ts'
 import {
   MEMBER_TURBO_ROOT,
   rawProblems,
@@ -40,6 +41,12 @@ export function turboEnv(extra: Readonly<Record<string, string>>): NodeJS.Proces
     TURBO_NO_UPDATE_NOTIFIER: '1',
     ...extra,
   }
+}
+
+export const ONE_CORE_PER_TASK = { GOMAXPROCS: '1' } as const
+
+export function compileEnv(): NodeJS.ProcessEnv {
+  return turboEnv(ONE_CORE_PER_TASK)
 }
 
 function rootTasks(): Record<string, RootTask> {
@@ -257,6 +264,27 @@ export function buildArgs(
   ]
 }
 
+const EXACT_OUTPUTS = join(RUNNER, 'scripts', 'turbo-exact.mjs')
+const SUMMARY_LINE = /^\s*Summary:\s+(\S.*\.json)\s*$/mu
+
+/** The run summary turbo names in its output when it ran with `--summarize`. */
+export function summaryFileIn(root: string, output: string): string | undefined {
+  const named = SUMMARY_LINE.exec(output)?.[1]
+  if (named === undefined) return undefined
+  return isAbsolute(named) ? named : join(root, named)
+}
+
+// A task restored from the cache keeps the files an older layout left in its output directory.
+// Every turbo run of the runner ends here, so `dist/` holds what the cache holds. See SPEC.md.
+export function exactOutputs(root: string, summaryFile: string): void {
+  const run = spawnSync(process.execPath, [EXACT_OUTPUTS, 'prune', summaryFile, '--root', root], {
+    stdio: ['ignore', 'inherit', 'inherit'],
+  })
+  if (run.error !== undefined) throw run.error
+  if (run.status !== 0)
+    throw new Error(`turbo-exact 没能核对 ${summaryFile} 里的输出目录（退出码 ${run.status}）`)
+}
+
 export function turboBuild(
   root: string,
   names: readonly string[],
@@ -264,11 +292,10 @@ export function turboBuild(
   concurrency: number,
 ): number {
   if (names.length === 0) return 0
-  const args = buildArgs(names, admission, concurrency)
-  console.log(`$ turbo ${args.join(' ')}`)
-  const run = spawnSync(TURBO_BIN, args, { cwd: root, stdio: 'inherit', env: turboEnv({}) })
-  if (run.error !== undefined) throw run.error
-  return run.status ?? 1
+  console.log(`$ turbo ${buildArgs(names, admission, concurrency).join(' ')}`)
+  const run = turboBuildCaptured(root, names, admission, concurrency)
+  process.stdout.write(run.output)
+  return run.status
 }
 
 export function turboBuildCaptured(
@@ -278,14 +305,20 @@ export function turboBuildCaptured(
   concurrency: number,
 ): { readonly status: number; readonly output: string } {
   if (names.length === 0) return { status: 0, output: '' }
-  const run = spawnSync(TURBO_BIN, buildArgs(names, admission, concurrency), {
+  const run = spawnSync(TURBO_BIN, [...buildArgs(names, admission, concurrency), '--summarize'], {
     cwd: root,
     encoding: 'utf8',
     maxBuffer: 256 * 1024 * 1024,
-    env: turboEnv({}),
+    env: compileEnv(),
   })
   if (run.error !== undefined) throw run.error
-  return { status: run.status ?? 1, output: `${run.stdout}${run.stderr}` }
+  const output = `${run.stdout}${run.stderr}`
+  const summary = summaryFileIn(root, output)
+  if (summary !== undefined && existsSync(summary)) {
+    exactOutputs(root, summary)
+    rmSync(summary, { force: true })
+  }
+  return { status: run.status ?? 1, output }
 }
 
 export function typecheckArgs(
@@ -312,7 +345,7 @@ export function turboTypecheck(
   if (names.length === 0) return 0
   const args = typecheckArgs(names, admission, concurrency)
   console.log(`$ turbo ${args.join(' ')}`)
-  const run = spawnSync(TURBO_BIN, args, { cwd: root, stdio: 'inherit', env: turboEnv({}) })
+  const run = spawnSync(TURBO_BIN, args, { cwd: root, stdio: 'inherit', env: compileEnv() })
   if (run.error !== undefined) throw run.error
   return run.status ?? 1
 }
@@ -328,32 +361,38 @@ export const TEST_REPORT_DIR_ENV = 'OMNE_TEST_REPORT_DIR'
 export interface TestBuild {
   readonly build: boolean
   readonly admission: boolean
+  readonly readSets?: boolean
 }
 
+export const TEST_BATCH_ENV = 'OMNE_TEST_BATCH'
+
 export function turboTestCommand(
-  names: readonly string[],
+  name: string,
   tier: RunTier,
-  parallel: Parallelism,
+  workers: number,
   reportDirectory: string,
-  build: TestBuild,
+  readSets = false,
+  batch: readonly string[] | undefined = undefined,
 ): { readonly args: string[]; readonly env: NodeJS.ProcessEnv } {
   return {
     args: [
       'run',
       TIER_TASKS[tier],
-      ...names.map(name => `--filter=${name}`),
-      ...(build.build ? [`--cache=${build.admission ? 'local:w' : 'local:rw'}`] : ['--only']),
-      '--continue=dependencies-successful',
-      `--concurrency=${parallel.memberConcurrency}`,
+      `--filter=${name}`,
+      '--only',
+      '--concurrency=1',
       '--summarize',
-      '--log-order=grouped',
       '--log-prefix=task',
       '--output-logs=full',
       '--no-color',
+      ...(batch === undefined ? [] : ['--', '--passWithNoTests', ...batch]),
     ],
     env: turboEnv({
+      ...ONE_CORE_PER_TASK,
       [TEST_REPORT_DIR_ENV]: reportDirectory,
-      [VITEST_MAX_WORKERS_ENV]: String(parallel.vitestMaxWorkers),
+      [VITEST_MAX_WORKERS_ENV]: String(workers),
+      [READ_SETS_ENV]: readSets ? '1' : '',
+      [TEST_BATCH_ENV]: batch === undefined ? '' : '1',
     }),
   }
 }

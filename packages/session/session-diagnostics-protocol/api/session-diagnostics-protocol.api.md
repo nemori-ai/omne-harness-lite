@@ -74,6 +74,14 @@ export declare const sessionDiagnosticsProtocol: {
                                 readonly call: string;
                                 readonly kind: "found";
                                 readonly phase: "accepted" | "retry-decision" | "running" | "settled";
+                                readonly progress?: {
+                                    readonly allowed: string;
+                                    readonly last: {
+                                        readonly cause: string;
+                                        readonly upstreamStatus: string | null;
+                                    } | null;
+                                    readonly made: string;
+                                };
                             };
                             readonly coverage: "complete-through-snapshot" | "expired-prefix" | "unknown";
                             readonly dispatches: readonly {
@@ -108,8 +116,41 @@ export declare const sessionDiagnosticsProtocol: {
                                     readonly owner: string;
                                     readonly revision: string;
                                 };
+                                readonly connectRetries?: readonly ("connect-failed" | "connect-timeout")[];
                                 readonly dispatch: string;
                                 readonly firstContent: "none-proven" | "observed" | "uncertain";
+                                readonly instants?: {
+                                    readonly ended: {
+                                        readonly kind: "unknown";
+                                    } | {
+                                        readonly instant: string;
+                                        readonly kind: "known";
+                                    };
+                                    readonly firstContent: {
+                                        readonly kind: "unknown";
+                                    } | {
+                                        readonly instant: string;
+                                        readonly kind: "known";
+                                    };
+                                    readonly prepared: {
+                                        readonly kind: "unknown";
+                                    } | {
+                                        readonly instant: string;
+                                        readonly kind: "known";
+                                    };
+                                    readonly responseStarted: {
+                                        readonly kind: "unknown";
+                                    } | {
+                                        readonly instant: string;
+                                        readonly kind: "known";
+                                    };
+                                    readonly sent: {
+                                        readonly kind: "unknown";
+                                    } | {
+                                        readonly instant: string;
+                                        readonly kind: "known";
+                                    };
+                                };
                                 readonly outcome: {
                                     readonly kind: "pending";
                                 } | {
@@ -122,6 +163,7 @@ export declare const sessionDiagnosticsProtocol: {
                                     readonly kind: "failed";
                                     readonly upstreamStatus: string | null;
                                 };
+                                readonly reasoning?: "carried" | "not-carried" | "unknown";
                                 readonly revision: string;
                                 readonly send: "not-sent" | "sent" | "unknown";
                                 readonly timing: {
@@ -143,6 +185,12 @@ export declare const sessionDiagnosticsProtocol: {
                                         readonly kind: "known";
                                         readonly milliseconds: string;
                                     };
+                                    readonly sendToResponse?: {
+                                        readonly kind: "unknown";
+                                    } | {
+                                        readonly kind: "known";
+                                        readonly milliseconds: string;
+                                    };
                                 };
                             }[];
                             readonly facts: readonly {
@@ -150,6 +198,11 @@ export declare const sessionDiagnosticsProtocol: {
                                 readonly kind: string;
                             }[];
                             readonly purpose: string;
+                            readonly reads: readonly {
+                                readonly block: string;
+                                readonly message: string;
+                                readonly read: "derived" | "fitted" | "original" | "transcript";
+                            }[];
                             readonly reference: string;
                         }[];
                         readonly run: string;
@@ -192,12 +245,14 @@ export declare const sessionDiagnosticsProtocol: {
                                     readonly kind: "request-rejected";
                                 } | {
                                     readonly kind: "cannot-fit";
-                                    readonly reason: "after-compaction" | "fixed" | {
+                                    readonly reason: "after-compaction" | "fixed" | "protected-floor" | {
                                         readonly kind: "unknown";
                                         readonly reason: "denied" | "not-accepted" | "not-found" | "not-recorded" | "retention-expired" | "unavailable" | "unsupported";
                                     };
                                 } | {
                                     readonly kind: "compaction-invalid";
+                                } | {
+                                    readonly kind: "compaction-failed";
                                 } | {
                                     readonly kind: "message-rejected";
                                 } | {

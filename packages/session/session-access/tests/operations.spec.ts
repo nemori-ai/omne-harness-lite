@@ -471,6 +471,34 @@ describe('read-history', () => {
     expect(next).toMatchObject({ body: { upper: '1' } })
   })
 
+  it('asks for the prefix of a forked session when the request does, and says whose entries a page holds', async () => {
+    const world = createWorld()
+    const session = await created(world)
+    world.session.controls.addEntry(session as SessionId, {
+      id: 'e1',
+      kind: 'message.user',
+      payload: 'e1',
+    })
+    const asked = { ...first(session), inherited: true }
+    const page = await ops(world)['read-history'](as(login()), asked)
+    expect(page).toMatchObject({
+      outcome: 'succeeded',
+      body: { entries: [{ entryId: 'e1' }], from: 'source-session' },
+    })
+    expect(world.session.controls.calls()[1]?.input).toEqual({
+      kinds: ['message.user', 'message.assistant'],
+      pageBytes: 1024,
+      inherited: true,
+    })
+    const plain = await ops(world)['read-history'](as(login()), {
+      ...first(session),
+      inherited: false,
+    })
+    expect(plain).toMatchObject({ outcome: 'succeeded' })
+    expect((plain as { body: object }).body).not.toHaveProperty('from')
+    expect(world.session.controls.calls()[2]?.input).not.toHaveProperty('inherited')
+  })
+
   it('answers invalid to pageBytes over the deployment bound without calling Session', async () => {
     const world = createWorld({ maxPageBytes: 1000 })
     const session = await created(world)
@@ -632,32 +660,14 @@ describe('stop-call', () => {
     )
   })
 
-  it('answers unsupported to a Tool target', async () => {
+  it('answers not-found to an unbound Tool target, the same as a Model target', async () => {
     const world = createWorld()
     const session = await created(world)
     expect(await ops(world)['stop-call'](as(login()), bodyOf(session, 'tool'))).toEqual({
-      outcome: 'unsupported',
+      outcome: 'not-found',
       body: {},
     })
   })
-
-  it.each([
-    [{ kind: 'denied', action: 'stopCall' }, { outcome: 'denied' }],
-    [{ kind: 'unavailable', owner: 'x', diagnostic: 'y' }, { outcome: 'basis-unavailable' }],
-    [
-      { kind: 'conflict', operation: 'op' },
-      { outcome: 'unsupported', body: {} },
-    ],
-  ] as const)(
-    'keeps only access and availability of Session for a Tool target: %j',
-    async (failure, expected) => {
-      const world = createWorld()
-      const session = await created(world)
-      world.session.controls.refuseToolTargets(false)
-      world.session.controls.failWith(failure as SessionFailure)
-      expect(await ops(world)['stop-call'](as(login()), bodyOf(session, 'tool'))).toEqual(expected)
-    },
-  )
 
   it.each([
     [
@@ -720,6 +730,15 @@ describe('list-sessions', () => {
     lastActivityAt: '2026-11-13T02:00:00Z' as unknown as SessionListEntry['lastActivityAt'],
     lifecycle: 'dormant',
     title: 'hello',
+    relation: 'main',
+    parent: null,
+    origin: null,
+    root: session,
+    depth: 0,
+    attendance: 'attended',
+    definition: 'coding',
+    archivedAt: null,
+    archivedBy: null,
     ...over,
   })
 
@@ -744,11 +763,11 @@ describe('list-sessions', () => {
       ...body,
       cursor: 'page-1',
       limit: 2,
-      includeArchived: true,
     })
+    const plain = rows.map(({ archivedAt: _at, archivedBy: _by, ...row }) => row)
     expect(answer).toEqual({
       outcome: 'succeeded',
-      body: { sessions: rows, next: 'page-2', completeness: 'partial' },
+      body: { sessions: plain, next: 'page-2', completeness: 'partial' },
     })
     const [call, ...others] = world.listing.calls()
     expect(others).toEqual([])
@@ -756,7 +775,6 @@ describe('list-sessions', () => {
       tenant: ALICE.tenant,
       after: 'page-1',
       limit: 2,
-      includeArchived: true,
     })
     expect(call?.principal).toMatchObject({ kind: 'acting-for-tenant', tenant: ALICE.tenant })
   })
@@ -769,13 +787,15 @@ describe('list-sessions', () => {
     })
   })
 
-  it('uses the deployment default limit and leaves archived sessions out when the message says nothing', async () => {
+  it('uses the deployment default limit when the message says nothing', async () => {
     const world = createWorld({ defaultListLimit: 20, maxListLimit: 30 })
     await ops(world)['list-sessions'](as(login()), body)
-    expect(world.listing.calls()[0]).toMatchObject({
+    expect(world.listing.calls()[0]).toEqual({
+      principal: expect.anything(),
+      tenant: ALICE.tenant,
       after: null,
       limit: 20,
-      includeArchived: false,
+      filter: { relation: null, parent: null, attendance: null, definition: null },
     })
   })
 
@@ -847,5 +867,53 @@ describe('list-sessions', () => {
     expect(await ops(world)['list-sessions'](as(login()), body)).toEqual({
       outcome: 'basis-unavailable',
     })
+  })
+})
+
+describe('interrupt-input (C27)', () => {
+  const bodyOf = (session: string, acceptId = 'urgent-1') => ({
+    tenant: ALICE.tenant,
+    session,
+    acceptId,
+    inputId: 'input-urgent',
+    message: userMessage('stop waiting, read this'),
+  })
+
+  it('interrupts the Run there with the urgent input, under the same identities as send-input', async () => {
+    const world = createWorld()
+    const session = await created(world)
+    world.session.controls.addRun(session as SessionId, 'run-1')
+    const answer = await ops(world)['interrupt-input'](as(login()), bodyOf(session))
+    expect(answer).toEqual({ outcome: 'succeeded', body: { recovered: false, as: 'interrupt' } })
+    const call = world.session.controls.calls()[1]
+    expect(call?.method).toBe('interrupt')
+    expect(call?.operation).toBe(acceptOperation(ALICE.tenantText, session, 'urgent-1'))
+    expect(call?.input).toMatchObject({
+      kind: 'ordinary',
+      input: inputIdentity(ALICE.tenantText, session, 'input-urgent'),
+      origin: loginEntryOrigin(ALICE.account.text, ALICE.loginText),
+    })
+  })
+
+  it('with no Run there, Session takes it as an ordinary input and the answer says so', async () => {
+    const world = createWorld()
+    const session = await created(world)
+    expect(await ops(world)['interrupt-input'](as(login()), bodyOf(session))).toEqual({
+      outcome: 'succeeded',
+      body: { recovered: false, as: 'ordinary' },
+    })
+  })
+
+  it('shares the query of send-input: the same accept id reads committed', async () => {
+    const world = createWorld()
+    const session = await created(world)
+    await ops(world)['interrupt-input'](as(login()), bodyOf(session))
+    expect(
+      await ops(world)['query-send-input'](as(login()), {
+        tenant: ALICE.tenant,
+        session,
+        acceptId: 'urgent-1',
+      }),
+    ).toEqual({ outcome: 'succeeded', body: {} })
   })
 })

@@ -23,8 +23,6 @@ export type ModelConfiguration = Readonly<{
   observerCheckIntervalMs: number
   readIdleMs: number
   resultPageTargetBytes: number
-  retryBackoffMs: number
-  cleanupRetryMs: number
 }>
 export type ModelDependencies<P> = Readonly<{
   commands: ModelCommands<P>
@@ -61,6 +59,8 @@ const METHODS = {
     'nextRead',
     'endRead',
     'handoff',
+    'abandon',
+    'confirmAccount',
     'advanceCleanup',
     'query',
     'dispatches',
@@ -96,8 +96,6 @@ function validateConfiguration(configuration: unknown): void {
     resultPageTargetBytes: 1,
     readIdleMs: 1,
     outputBatchDelayMs: 0,
-    retryBackoffMs: 0,
-    cleanupRetryMs: 0,
   }
   for (const [field, lower] of Object.entries(fields)) {
     const value = configuration[field]
@@ -135,6 +133,7 @@ export function createModelRuntime<P>(
     dependencies.clock,
     configuration,
     interruption.send,
+    dependencies.retry,
   )
   let quiesced = false
   const admitting = new Set<Promise<unknown>>()

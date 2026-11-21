@@ -21,6 +21,7 @@ import {
   parseDirectoryCursor,
 } from './catalog.ts'
 import { resolveCalculation } from './calculate.ts'
+export { createCalendarCalculator } from './calculator.ts'
 
 export type * from './ports.ts'
 export function createCalendarQueries(dependencies: CalendarQueriesDependencies): CalendarQueries {
@@ -109,6 +110,20 @@ export function createCalendarQueries(dependencies: CalendarQueriesDependencies)
         await access.require(calendarId)
         await findCalendar(repository, catalog, calendarId)
         return resolveCalculation(repository, calendarId, query)
+      })
+    },
+    health(context) {
+      return execute(context, 'health', z.null(), null, async access => {
+        await access.require(null)
+        const project = dependencies.healthProjection
+        if (!project) throw new QueryFailure('provider_failure')
+        const health = []
+        for (const { calendarId } of catalog) {
+          const read = await project(calendarId)
+          if (read.kind !== 'ok') throw new QueryFailure('provider_failure')
+          health.push(read.value)
+        }
+        return health
       })
     },
   }

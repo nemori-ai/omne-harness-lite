@@ -2,16 +2,13 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import {
-  ContextAccountingInboxService,
   RequestContextService,
   RequestContextTrustService,
-  contextAccountingInboxKey,
   requestContextKey,
   requestContextTrustKey,
 } from '@omne-harness/request-context-cordis-contract/cordis'
 import { createScriptedRequestContextTrust } from '@omne-harness/request-context-cordis-contract/testing'
 import type { RequestContextTrust } from '@omne-harness/request-context-cordis-contract'
-import { ProbeProvider } from './provider.js'
 
 const src = (name: string) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 function sourceFiles(dir = ''): string[] {
@@ -35,14 +32,6 @@ class ProbeTrust extends RequestContextTrustService<string> {
   }
   get registrationAuthority() {
     return this.scripted.registrationAuthority
-  }
-}
-class ProbeInbox extends ContextAccountingInboxService<string> {
-  async receive() {
-    return { kind: 'unknown' as const }
-  }
-  async usage() {
-    return { kind: 'unknown' as const }
   }
 }
 
@@ -89,43 +78,5 @@ describe('request context trust service', () => {
       [...src(file).matchAll(/['"]requestContextTrust['"]/g)].map(() => file),
     )
     expect(hits).toEqual(['cordis.ts'])
-  })
-})
-
-describe('accounting inbox service key', () => {
-  it('derives its key from the one static field, written once', () => {
-    expect(ContextAccountingInboxService.provide).toBe('contextAccountingInbox')
-    expect(contextAccountingInboxKey).toBe(ContextAccountingInboxService.provide)
-    const hits = sourceFiles().flatMap(file =>
-      [...src(file).matchAll(/['"]contextAccountingInbox['"]/g)].map(() => file),
-    )
-    expect(hits).toEqual(['cordis.ts'])
-  })
-  it('one plugin fiber provides requestContext and the inbox, and disposing it removes both', async () => {
-    const ctx = new Context()
-    const fiber = await ctx.plugin({
-      apply(c: Context) {
-        new ProbeProvider(c)
-        new ProbeInbox(c)
-      },
-    })
-    expect(ctx.get(requestContextKey)).toBeInstanceOf(ProbeProvider)
-    expect(ctx.get(contextAccountingInboxKey)).toBeInstanceOf(ProbeInbox)
-    await fiber.dispose()
-    expect(ctx.get(requestContextKey)).toBeUndefined()
-    expect(ctx.get(contextAccountingInboxKey)).toBeUndefined()
-  })
-  it('the inbox is absent for a consumer until its provider loads', async () => {
-    const ctx = new Context()
-    let applied = 0
-    await ctx.plugin({
-      inject: [contextAccountingInboxKey],
-      apply() {
-        applied++
-      },
-    })
-    expect(applied).toBe(0)
-    await ctx.plugin(ProbeInbox)
-    expect(applied).toBe(1)
   })
 })

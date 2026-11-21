@@ -104,7 +104,7 @@ function worldOf(
   }
 }
 
-const ABORTABLE = new Set(['read', 'list', 'export'])
+const ABORTABLE = new Set(['read', 'list'])
 
 export async function exploreDisclosure(): Promise<Report> {
   const ledger = new Ledger('S1 no disclosure')
@@ -146,8 +146,7 @@ export async function exploreDisclosure(): Promise<Report> {
                     abortAfter === undefined &&
                     'basis' in request &&
                     request.basis?.name === 'beta' &&
-                    request.name === HIDDEN &&
-                    request.op !== 'export'
+                    request.name === HIDDEN
                   ) {
                     const { basis: _named, ...plain } = request
                     const without = await perform(runOf(world, schedule), who, plain)

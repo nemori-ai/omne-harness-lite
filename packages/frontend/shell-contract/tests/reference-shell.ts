@@ -2,11 +2,15 @@ import { Context, type Fiber } from '@deepseek-ai/cordis'
 import type { ReactNode } from 'react'
 import {
   createSlotStore,
+  createToastStore,
+  type AttachedLayout,
   type ItemOf,
   type ScopeSource,
   type ShellLogin,
   type ShellSlots,
   type SlotName,
+  type ToastBoard,
+  type ToastStore,
 } from '@omne-harness/shell-contract'
 import { ShellService } from '@omne-harness/shell-contract/cordis'
 
@@ -24,6 +28,12 @@ export class ReferenceShell extends ShellService implements ShellSlots {
     subscribe: () => () => undefined,
   }
   private readonly store = createSlotStore()
+  /** Two at a time; a toast stays until the test takes it down. */
+  readonly toastStore: ToastStore = createToastStore({
+    visible: 2,
+    durationMs: 1000,
+    schedule: () => () => undefined,
+  })
 
   items<K extends SlotName>(slot: K): readonly ItemOf<K>[] {
     return this.store.items(slot)
@@ -43,8 +53,24 @@ export class ReferenceShell extends ShellService implements ShellSlots {
       .map(item => item.render({ scope: this.scope.get(), subject }))
   }
 
+  arranged(anchor: string, subject: string, layout: AttachedLayout): ReactNode {
+    return layout(
+      this.items('attached')
+        .filter(item => item.anchor === anchor)
+        .map(item => ({
+          id: item.id,
+          label: item.label,
+          node: item.render({ scope: this.scope.get(), subject }),
+        })),
+    )
+  }
+
   protected place<K extends SlotName>(slot: K, item: ItemOf<K>): () => void {
     return this.store.place(slot, item)
+  }
+
+  protected override toasts(): ToastBoard {
+    return this.toastStore
   }
 }
 

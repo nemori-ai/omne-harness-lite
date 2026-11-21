@@ -11,6 +11,7 @@ export function createModelCommandsCore<P>(
 export { modelCommands } from './commands.ts'
 export { drivable } from './execution-write.ts'
 export { createModelInitialRun } from './initial.ts'
+export type { ModelInitialRunAdopt, ModelInitialRunOptions } from './initial.ts'
 export { createModelInitialExecution } from './initial-execution.ts'
 export type {
   InitialTarget,
@@ -40,6 +41,8 @@ export type {
   ConfirmationStage,
 } from './types.ts'
 export { hasRecoveryWork } from './judge.ts'
+export { dispatchFactOf, dispatchOutcome } from './dispatch-fact.ts'
+export type { DispatchFactDraft } from './dispatch-fact.ts'
 export type { ModelCommandCore } from './state.ts'
 export type { CommandWrite, ModelCommandStorage, PendingPage, RunScope } from './storage.ts'
 export { MODEL_WRITE_METHODS } from './types.ts'

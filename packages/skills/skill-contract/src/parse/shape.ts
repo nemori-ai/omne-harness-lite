@@ -1,12 +1,6 @@
 import { capabilityId, type CapabilityId, type JsonValue } from '@omne-harness/assets'
 import { INSPECT_REJECTIONS, type InspectRejectionCode } from '../failures.ts'
-import { isBoundedText, isControlFile, toPackagePath } from '../names.ts'
-import type {
-  PackagePath,
-  ScriptDeclaration,
-  SettingCategory,
-  SettingDeclaration,
-} from '../values.ts'
+import { isBoundedText } from '../names.ts'
 
 export type Finding = Readonly<{ code: InspectRejectionCode; detail: string }>
 
@@ -61,18 +55,6 @@ function textOf(value: JsonValue | undefined): string | undefined {
   return value !== undefined && value.kind === 'string' ? value.value : undefined
 }
 
-const WORD = /^[a-z][a-z0-9-]{0,31}$/
-const SETTING_CATEGORIES: readonly SettingCategory[] = [
-  'preference',
-  'binding',
-  'placement-identity',
-  'governance',
-]
-
-function isSettingCategory(text: string): text is SettingCategory {
-  return SETTING_CATEGORIES.some(category => category === text)
-}
-
 function listOf<T>(
   value: JsonValue | undefined,
   part: string,
@@ -116,82 +98,4 @@ export function readDependencies(value: JsonValue | undefined): Read<CapabilityI
     return { value: id.id, findings }
   })
   return noRepeats(list, id => id.name, 'dependencies')
-}
-
-function entryOf(raw: string, at: string, normalized: boolean): Read<PackagePath | undefined> {
-  if (raw.startsWith('/')) {
-    const outside: Finding = { code: 'outside-package', detail: `${at}.entry is absolute` }
-    return { value: undefined, findings: [outside] }
-  }
-  const path = toPackagePath(raw)
-  if (!('ok' in path) || (normalized && path.ok !== raw))
-    return { value: undefined, findings: [malformed(`${at}.entry is not a package path`)] }
-  if (normalized && isControlFile(path.ok))
-    return { value: undefined, findings: [malformed(`${at}.entry is a control file`)] }
-  return { value: path.ok, findings: [] }
-}
-
-function wordsOf(value: JsonValue | undefined): string[] | undefined {
-  const items = itemsOf(value)
-  if (items === undefined) return undefined
-  const words: string[] = []
-  for (const item of items) {
-    const word = textOf(item)
-    if (word === undefined || !WORD.test(word)) return undefined
-    words.push(word)
-  }
-  return new Set(words).size === words.length ? words : undefined
-}
-
-export function readScripts(
-  value: JsonValue | undefined,
-  options: Readonly<{ normalized: boolean }>,
-): Read<ScriptDeclaration[]> {
-  const list = listOf<ScriptDeclaration>(value, 'scripts', (item, at) => {
-    const fields = fieldsOf(item)
-    const findings = unknownKeys(fields, ['entry', 'runKind', 'facilities', 'parameters'], at)
-    const rawEntry = textOf(fields?.get('entry'))
-    const runKind = textOf(fields?.get('runKind'))
-    const facilities = wordsOf(fields?.get('facilities'))
-    const entry =
-      rawEntry === undefined
-        ? { value: undefined, findings: [] }
-        : entryOf(rawEntry, at, options.normalized)
-    findings.push(...entry.findings)
-    if (
-      fields === undefined ||
-      rawEntry === undefined ||
-      runKind === undefined ||
-      !WORD.test(runKind) ||
-      !facilities
-    )
-      return { value: undefined, findings: [...findings, malformed(`${at} is not a script`)] }
-    if (entry.value === undefined) return { value: undefined, findings }
-    const parameters = fields.get('parameters')
-    const script: ScriptDeclaration = Object.freeze({
-      entry: entry.value,
-      runKind,
-      facilities: Object.freeze(facilities),
-      ...(parameters === undefined ? {} : { parameters }),
-    })
-    return { value: script, findings }
-  })
-  return noRepeats(list, script => script.entry, 'scripts')
-}
-
-export function readSettings(value: JsonValue | undefined): Read<SettingDeclaration[]> {
-  const list = listOf<SettingDeclaration>(value, 'settings', (item, at) => {
-    const fields = fieldsOf(item)
-    const findings = unknownKeys(fields, ['name', 'category'], at)
-    const name = textOf(fields?.get('name'))
-    const category = textOf(fields?.get('category'))
-    if (name === undefined || name === '' || category === undefined)
-      return { value: undefined, findings: [...findings, malformed(`${at} is not a setting`)] }
-    if (!isSettingCategory(category)) {
-      const unknown: Finding = { code: 'setting-category-unknown', detail: `${at}.category` }
-      return { value: undefined, findings: [...findings, unknown] }
-    }
-    return { value: Object.freeze({ name, category }), findings }
-  })
-  return noRepeats(list, setting => setting.name, 'settings')
 }

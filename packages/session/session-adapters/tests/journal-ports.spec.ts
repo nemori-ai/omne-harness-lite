@@ -6,6 +6,7 @@ import { judgeMessage } from '@omne-harness/message'
 import { assistantMessage } from '@omne-harness/session-contract/testing'
 import { scene, ok, operation, evidence, instance } from './fixtures/common-journal.ts'
 import { take, handed, end } from './fixtures/progression.ts'
+import { retainedCompaction, compactionFixtureGeneration } from './fixtures/compaction.ts'
 
 it('detach and attach fence the former Authority while preserving the original operation answers', async () => {
   const s = await scene('attachments'),
@@ -210,18 +211,24 @@ it('a context transition and the original Agent answer publish together and reco
       },
     ],
     covers: { from: rows[0]!.id, to: rows[last]!.id },
-    retained: rows.filter(row => row.kind.startsWith('message.')).map(row => row.id),
-    derivation: evidence('summary'),
+    // The accepted input is not in the model view before a step takes it.
+    retained: [],
+    derivation: compactionFixtureGeneration,
   })
-  if (!('ok' in judged)) throw new Error('valid compaction message required')
+  if (!('ok' in judged) || judged.ok.role !== 'compaction')
+    throw new Error('valid compaction message required')
   const message = judged.ok
+  const retained = await retainedCompaction(
+    { ...s, history: s.backend.transactions.history },
+    message,
+  )
   const request = {
     ...s.access,
     execution: s.execution,
     operation: operation('compact'),
     authority: s.opened.authority,
-    expected: s.opened.receipt.revision,
-    checkpoint: s.checkpoint,
+    expected: retained.receipt.revision,
+    checkpoint: retained.checkpoint,
     state: { kind: 'advancing' as const },
     events: [],
     effects: [],
@@ -230,23 +237,48 @@ it('a context transition and the original Agent answer publish together and reco
     finish: null,
     caller: {
       kind: 'context-transition' as const,
-      value: {
-        preparation: ok(decodeActionId('compact')),
-        message,
-        source: evidence('model-summary'),
-        derivation: evidence('derivation'),
-        commitment: evidence('commitment'),
-        candidate: evidence('transition-candidate'),
-        plan: evidence('transition-plan'),
-        basis: {
-          schema: { owner: 'test', name: 'basis', revision: '1', digest: 'test:basis' },
-          value: { kind: 'null' as const },
-        },
-        epoch: '1',
-      },
+      value: retained.value,
       admission: evidence('admitted-summary'),
     },
   }
+  const replacement = judgeMessage({
+    ...message,
+    blocks: [
+      {
+        kind: 'text',
+        id: 'tampered',
+        text: 'not the retained result',
+        visibility: { toHuman: true, toModel: true },
+      },
+    ],
+  })
+  if (!('ok' in replacement) || replacement.ok.role !== 'compaction')
+    throw new Error('valid substituted compaction required')
+  const substituted = replacement.ok
+  expect(
+    await s.view.journal.commit({
+      ...request,
+      operation: operation('substitute-compaction'),
+      caller: { ...request.caller, value: { ...retained.value, message: substituted } },
+    }),
+  ).toMatchObject({ failure: { kind: 'invalid', field: 'caller' } })
+  expect(
+    await s.view.journal.commit({
+      ...request,
+      operation: operation('substitute-source'),
+      caller: {
+        ...request.caller,
+        value: { ...retained.value, history: evidence('another-input') },
+      },
+    }),
+  ).toMatchObject({ failure: { kind: 'invalid', field: 'caller' } })
+  expect(
+    await s.view.journal.commit({
+      ...request,
+      operation: operation('obsolete-compaction'),
+      caller: { ...request.caller, value: { ...retained.value, epoch: 'obsolete-epoch' } },
+    }),
+  ).toMatchObject({ failure: { kind: 'changed' } })
   s.view.controls.faultWrite(request, 'commit', 'after-publish')
   expect(await s.view.journal.commit(request)).toMatchObject({
     failure: { kind: 'commit-unknown' },
@@ -259,6 +291,18 @@ it('a context transition and the original Agent answer publish together and reco
   const root = s.view.controls.root()
   ok(await s.view.journal.commit(request))
   expect(s.view.controls.root()).toBe(root)
+  const read = ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
+  expect(
+    read.results.filter(item => item.result.producer.kind === 'compaction'),
+    'the adopted result is processed and released, so it left the snapshot',
+  ).toEqual([])
+  expect(
+    await s.view.journal.commit({
+      ...request,
+      operation: operation('compact-again'),
+      expected: read.revision,
+    }),
+  ).toHaveProperty('failure.kind', 'invalid')
 })
 it('terminal observers use the original passage after finish and cannot add execution events', async () => {
   const s = await scene('terminal-observer')

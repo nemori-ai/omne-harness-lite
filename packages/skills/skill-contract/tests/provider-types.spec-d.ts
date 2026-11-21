@@ -2,7 +2,6 @@ import { expectTypeOf, test } from 'vitest'
 import type * as provider from '@omne-harness/skill-contract/provider'
 import type {
   CatalogResolution,
-  PackageInspection,
   PackageLocator,
   ReadVerdict,
   Reply,
@@ -21,7 +20,6 @@ test('the provider entry exports each port and answer type', () => {
   expectTypeOf<SkillResolution<unknown, unknown>>().toHaveProperty('resolve')
   expectTypeOf<SkillResolution<unknown, unknown>>().toHaveProperty('adopted')
   expectTypeOf<SkillReadCheck<unknown, unknown>>().toHaveProperty('check')
-  expectTypeOf<PackageInspection>().toHaveProperty('inspect')
   expectTypeOf<Resolution['kind']>().toEqualTypeOf<
     'known-unavailable' | 'adopted' | 'basis-not-lawful' | 'none' | 'unknown'
   >()
@@ -43,6 +41,8 @@ test('the provider entry exports each port and answer type', () => {
   expectTypeOf<SkillRef>().toHaveProperty('locator').toEqualTypeOf<PackageLocator>()
 })
 
-test('the only runtime exports of the provider entry are sealSnapshot and isSealedSnapshot', () => {
-  expectTypeOf<keyof typeof provider>().toEqualTypeOf<'isSealedSnapshot' | 'sealSnapshot'>()
+test('the only runtime exports of the provider entry are the snapshot constructors and the guard', () => {
+  expectTypeOf<keyof typeof provider>().toEqualTypeOf<
+    'isSealedSnapshot' | 'packageEntryOf' | 'sealEntries' | 'sealSnapshot'
+  >()
 })

@@ -1,18 +1,25 @@
 import { applyPermissionEvent } from './permission-state.ts'
+import { reduceAuthorizations } from './authorizations.ts'
 import type { SessionEntry } from './entries.ts'
-import type { WorkSnapshot } from './values.ts'
+import type { RecoveryTask, WorkSnapshot } from './values.ts'
 import type { DurableEvidence } from './identity.ts'
 import type { SessionEntriesProgress } from './interpretation-values.ts'
 import { applyResult, applyProducerFact } from './reduce-results.ts'
 import { requestControl, validateControlProgress } from './control-state.ts'
 import {
   decimal,
+  annotationTargets,
   evidenceFields,
   equalValue,
   invalidAt,
   unavailableAt,
 } from './session-validation.ts'
 import { associated, registerCall, registeredWaiting } from './call-state.ts'
+import {
+  applyBackgroundSettled,
+  applyBackgroundStop,
+  applyBackgrounded,
+} from './background-outcome.ts'
 
 type Draft = { -readonly [K in keyof WorkSnapshot]: WorkSnapshot[K] }
 
@@ -108,11 +115,12 @@ function applyWorkspaceChanged(
   return null
 }
 
-function applyRelation(
+function applyChildRecorded(
   draft: Draft,
-  entry: Extract<SessionEntry, { kind: 'session.relation' | 'session.resident' }>,
+  entry: Extract<SessionEntry, { kind: 'session.child-recorded' }>,
 ): string | null {
-  draft.relation = entry.relation
+  const children = draft.children ?? []
+  if (!children.includes(entry.child)) draft.children = [...children, entry.child]
   return null
 }
 
@@ -151,6 +159,11 @@ function applyHistoryAnnotated(
   draft: Draft,
   entry: Extract<SessionEntry, { kind: 'history.annotated' }>,
 ): string | null {
+  if ('targets' in entry) {
+    annotationTargets(entry.targets)
+    evidenceFields(entry.source, 'history.source')
+    return null
+  }
   if (!('execution' in entry)) return null
   const old = draft.executions?.find(item => item.run === entry.run)
   if (old === undefined || old.execution.execution !== entry.execution.execution)
@@ -244,6 +257,7 @@ function applyControlRequested(
   entry: Extract<SessionEntry, { kind: 'control.requested' }>,
 ): string | null {
   requestControl(draft, entry.progress)
+  applyBackgroundStop(draft, entry.progress)
   return null
 }
 
@@ -260,13 +274,16 @@ function applyControlProgress(
   }
   const fact = entry.fact
   if (fact === null) return null
-  if (fact.kind === 'cascade')
-    draft.tasks = draft.tasks.filter(
-      task =>
-        task.kind !== 'cascade' ||
-        task.child !== fact.child ||
-        task.childOperation !== fact.childOperation,
-    )
+  if (fact.kind === 'cascade') {
+    const answered = (task: RecoveryTask): task is Extract<RecoveryTask, { kind: 'cascade' }> =>
+      task.kind === 'cascade' &&
+      task.child === fact.child &&
+      task.childOperation === fact.childOperation
+    draft.tasks =
+      fact.refusal === undefined
+        ? draft.tasks.filter(task => !answered(task))
+        : draft.tasks.map(task => (answered(task) ? { ...task, state: 'denied' } : task))
+  }
   if (fact.kind === 'routed-input')
     draft.tasks = draft.tasks.filter(
       task => task.kind !== 'routed-input' || task.originalOperation !== fact.originalOperation,
@@ -329,6 +346,9 @@ export function applyExtended(
   switch (entry.kind) {
     case 'session.permission-assigned':
       return null
+    case 'session.authorization-expressed':
+      draft.authorizations = reduceAuthorizations(draft.authorizations, entry.expression)
+      return null
     case 'session.tool-resident-admitted':
       return applyResidentAdmitted(draft, entry)
     case 'session.mode-changed':
@@ -339,9 +359,11 @@ export function applyExtended(
       return applyDeclaration(draft, entry, source)
     case 'session.workspace-changed':
       return applyWorkspaceChanged(draft, entry)
-    case 'session.relation':
     case 'session.resident':
-      return applyRelation(draft, entry)
+      draft.resident = entry.resident
+      return null
+    case 'session.child-recorded':
+      return applyChildRecorded(draft, entry)
     case 'session.idle-evidence':
       return applyIdleEvidence(draft, entry, source)
     case 'session.frozen':
@@ -365,6 +387,10 @@ export function applyExtended(
     case 'call.execution-fact':
     case 'account.linked':
       return applyProducerFact(draft, entry)
+    case 'call.backgrounded':
+      return applyBackgrounded(draft, entry)
+    case 'call.background-settled':
+      return applyBackgroundSettled(draft, entry)
     case 'extension.passage':
       return applyExtensionPassage(draft, entry)
     case 'control.requested':
@@ -399,6 +425,7 @@ export function advanceEntriesProgress(
       execution: row.execution,
       channel: row.channel,
       through: row.through,
+      position: row.position,
       interpreted: evidence,
     }
     progress = progress.some(sameChannel)

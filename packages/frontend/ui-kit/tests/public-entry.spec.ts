@@ -64,6 +64,17 @@ const ICONS = [
 ]
 
 const REST = [
+  'AreaChart',
+  'formatAmount',
+  'formatNumber',
+  'formatPercent',
+  'LineChart',
+  'ReadingMeter',
+  'ShareBar',
+  'Sparkline',
+  'StackedBarChart',
+  'StatBlock',
+  'UNKNOWN_TEXT',
   'blockingOverlay',
   'currentRegion',
   'focusSurface',
@@ -163,6 +174,8 @@ const REST = [
   'TableCell',
   'TableRow',
   'Textarea',
+  'ToastItem',
+  'ToastStack',
   'Tooltip',
   'TooltipContent',
   'TooltipProvider',
@@ -192,7 +205,7 @@ const REST = [
   'useSettleCue',
 ]
 
-it('the root entry exports the controls, patterns, Prose, icons, motion and theme controller', async () => {
+it('the root entry exports the controls, patterns, charts, Prose, icons, motion and theme controller', async () => {
   const root = (await import('../src/index.ts')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual([...ICONS, ...REST].sort())
 })

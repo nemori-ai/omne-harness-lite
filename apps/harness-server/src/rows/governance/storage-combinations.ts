@@ -1,10 +1,14 @@
 import { UNMAPPED_PERMISSION_SNAPSHOT } from './unmapped-permission-snapshot.ts'
-import { SESSION_LOG_PARTICIPANTS } from '@omne-harness/session-storage-sql/participants'
+import {
+  SESSION_AUTHORIZATION_GUARD,
+  SESSION_LOG_PARTICIPANTS,
+} from '@omne-harness/session-storage-sql/participants'
 import {
   SETTINGS_CHECKPOINT_PARTICIPANTS,
   SETTINGS_COMMIT_PARTICIPANTS,
   SETTINGS_READY_PARTICIPANTS,
   SETTINGS_RECOVERY_PARTICIPANTS,
+  standaloneCurrentParticipant,
 } from '@omne-harness/settings-local/preparation'
 import {
   combinationManifest,
@@ -18,6 +22,7 @@ import { TARGET_SNAPSHOT } from './target-snapshot.ts'
 import { PERMISSION_BASIS, PERMISSION_BASIS_GUARD } from './permission-basis.ts'
 import { sessionPermissionBasisProducer } from './session-permission-basis.ts'
 import { tenantSettingsCurrentParticipant } from './tenant-settings-current.ts'
+import { heldSettingsCurrentParticipant } from './held-settings-current.ts'
 
 const publications = [
   'assets.settings',
@@ -59,6 +64,7 @@ const startCondition = (read: readonly string[]) => [
   'governance.metadata-plan',
   PERMISSION_BASIS.participant,
   PERMISSION_BASIS_GUARD.participant,
+  SESSION_AUTHORIZATION_GUARD,
   'tool',
 ]
 const permissionWrite = (mode: 'clear' | 'unmapped' | 'mapped') => [
@@ -69,6 +75,12 @@ const permissionWrite = (mode: 'clear' | 'unmapped' | 'mapped') => [
 const settingsWriteRead = [...snapshot, 'governance.metadata-plan', 'governance.activation'].filter(
   value => !SETTINGS_RECOVERY_PARTICIPANTS.includes(value),
 )
+const heldRead = [
+  'assets.settings',
+  'settings.targets',
+  'settings.target-projection',
+  'settings.value-projection',
+]
 const definitionProjection = [
   'governance.definition-projection',
   'governance.activation',
@@ -113,6 +125,37 @@ export function governanceStorageCombinations(catalog: SqlMaterialCatalog) {
       tenantSettingsCurrentParticipant('commit'),
     ],
     tenantSettingsRecovery: [...SETTINGS_RECOVERY_PARTICIPANTS],
+    heldSettingsSnapshot: [...heldRead, ...SETTINGS_RECOVERY_PARTICIPANTS],
+    heldSettingsReady: [
+      ...heldRead,
+      ...SETTINGS_READY_PARTICIPANTS,
+      heldSettingsCurrentParticipant('ready'),
+    ],
+    heldSettingsCommit: [
+      ...heldRead,
+      ...SETTINGS_COMMIT_PARTICIPANTS,
+      heldSettingsCurrentParticipant('commit'),
+    ],
+    independentTargets: [
+      ...SETTINGS_RECOVERY_PARTICIPANTS.filter(name => name !== 'settings.source-finalization'),
+      'settings.source-snapshot',
+      'settings.targets',
+    ],
+    independentCapture: [
+      ...SETTINGS_RECOVERY_PARTICIPANTS,
+      'settings.targets',
+      standaloneCurrentParticipant('tenant', 'capture'),
+    ],
+    independentReady: [
+      ...SETTINGS_READY_PARTICIPANTS,
+      'settings.targets',
+      standaloneCurrentParticipant('tenant', 'ready'),
+    ],
+    independentCommit: [
+      ...SETTINGS_COMMIT_PARTICIPANTS,
+      'settings.targets',
+      standaloneCurrentParticipant('tenant', 'commit'),
+    ],
   }
   function build(name: keyof typeof definitions) {
     const participants = [...new Set(definitions[name])]
@@ -144,5 +187,12 @@ export function governanceStorageCombinations(catalog: SqlMaterialCatalog) {
     tenantSettingsReady: build('tenantSettingsReady'),
     tenantSettingsCommit: build('tenantSettingsCommit'),
     tenantSettingsRecovery: build('tenantSettingsRecovery'),
+    heldSettingsSnapshot: build('heldSettingsSnapshot'),
+    heldSettingsReady: build('heldSettingsReady'),
+    heldSettingsCommit: build('heldSettingsCommit'),
+    independentTargets: build('independentTargets'),
+    independentCapture: build('independentCapture'),
+    independentReady: build('independentReady'),
+    independentCommit: build('independentCommit'),
   }
 }

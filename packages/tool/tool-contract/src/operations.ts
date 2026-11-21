@@ -2,6 +2,7 @@ import type { CallAccount } from '@omne-harness/call-account'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { StreamId, StreamObserver, StreamRef } from '@omne-harness/stream-arrival'
 import type { ToolCatalog, ToolInspection } from './authoring.ts'
+import type { CallOutput, ToolOutputReadRequest } from './body-reads.ts'
 import type { ContentPage, DiagnosticPage, ProcessSnapshot } from './custody.ts'
 import type { FixedToolRequest, ToolAvailability } from './definitions.ts'
 import type {
@@ -21,6 +22,7 @@ import type { ControlProgress, WaitRecord } from './records.ts'
 import type { ToolInvocationRef, ToolOperationRef } from './reference.ts'
 import type {
   Attachment,
+  DeliveryState,
   ReleasedDelivery,
   OperationResolution,
   Reply,
@@ -34,7 +36,7 @@ import type {
 export type ToolControl =
   | Readonly<{ kind: 'stop' }>
   | Readonly<{ kind: 'withdraw'; reach: 'all' | 'foreground-and-unadmitted' }>
-  | Readonly<{ kind: 'background' }>
+  | Readonly<{ kind: 'background'; otherwise: 'reject' | 'withdraw' | 'stop' }>
 export type ControlReceipt = Readonly<{
   operation: ToolOperationId
   state: ToolState
@@ -47,7 +49,12 @@ export type BackgroundSource =
   | Readonly<{ kind: 'threshold' }>
 export type ForegroundReturn =
   | Readonly<{ kind: 'final'; result: ToolResultVersion }>
-  | Readonly<{ kind: 'background'; call: ToolCallId; source: BackgroundSource }>
+  | Readonly<{
+      kind: 'background'
+      call: ToolCallId
+      source: BackgroundSource
+      delivery: DeliveryState
+    }>
 export type ProcessBlock = Readonly<{
   index: string
   mode: 'append' | 'replace'
@@ -142,6 +149,7 @@ export interface ToolInvocationQueries<P, B extends ContentBlock> {
     input: InvocationAccess<P> & Readonly<{ result: ToolResultVersion; after: string | null }>,
   ): Reply<ResultPage<B>>
   account(input: InvocationAccess<P>): Reply<CallAccount>
+  readOutput(input: InvocationAccess<P> & ToolOutputReadRequest): Reply<CallOutput>
 }
 
 export interface ToolInvocationCommands<P> {

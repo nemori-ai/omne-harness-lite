@@ -200,13 +200,34 @@
 > environment**, so when it goes, **all of them go with it**.
 
 - **形态**：对象
-- **出处**：[元能力：`Shell()`](../../product/meta-capabilities/design.md#meta-shell)（rev 7） · [PF-005 §6.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 9）
+- **出处**：[元能力：`Shell()`](../../product/meta-capabilities/design.md#meta-shell)（rev 16） · [PF-005 §6.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 9）
 - **⚠️ 别混**：**不是[会话](agent-runtime-loop.md#ul-session--会话--session)。**
   两者**毫无关系**——一个是协作的归属边界，一个是执行环境里的一条命令行。
   **`Shell()` 的命令名 `create_session` / `close_session` 不改**（那是接口），
   **但叙述一律写「终端会话」**。改名依据见 [现行词义](../index.md)
 - **注意**：**状态的寿命是显式的**——只有显式开终端会话才保留可复用的终端会话状态；一次性执行的文件、外部效果、结果和账目不因此消失；
   给一个不存在的标识**必须明确失败**，不得悄悄降级成一次性执行
+
+### UL-screen · 屏幕 · Screen
+
+> **中**：**一个图形环境里的一块显示区域，可以被截图，可以被按像素操作。**一个图形环境可以有多块屏幕，其中恰有一块是主屏。
+> 每块屏幕有在这个环境里稳定的标识，以及名字、像素尺寸、缩放与它在桌面里的位置。
+> 截图指明截哪块屏幕，不指明时取主屏；**指明的屏幕不存在时明确拒绝，不退到主屏**。
+> 每张截图带着它所属屏幕的几何与截取的时刻，图上的一点可以换算成屏幕坐标。
+>
+> **EN**: **One display area in a graphical environment that can be captured in a screenshot and
+> operated by pixels.** A graphical environment can have several screens, and exactly one of them
+> is the primary screen. Each screen has an identifier that is stable within the environment, plus
+> a name, a pixel size, a scale and its position on the desktop. A screenshot names the screen to
+> capture. Without a name it captures the primary screen. **When the named screen does not exist,
+> the screenshot is refused and does not fall back to the primary screen.** Each screenshot carries
+> the geometry of its screen and the time of capture, so a point on the image converts to screen
+> coordinates.
+
+- **形态**：对象
+- **出处**：[元能力：Computer() 图形界面操作](../../product/meta-capabilities/design.md#meta-computer)（rev 16）
+- **别混**：**不是交付面上的一个页面**——屏幕在执行环境里，是 agent 观察与操作的对象，不是人看会话的那一面
+- **注意**：列出屏幕与截屏也以一个只读的截屏工具提供，与 Computer 用同一个图形界面设施、同样的规则；那是一个工具，不另立词条
 
 ### UL-execution-environment-permission · 执行环境权限 · Execution Environment Permission
 
@@ -430,6 +451,26 @@
 - **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 4）
 - **注意**：不承诺多路径原子提交或外部读写隔离；当前字节与暂存一致不等于有收据
 
+### UL-session-working-directory · 会话工作目录 · Session Working Directory
+
+> **中**：一个[会话](agent-runtime-loop.md#ul-session--会话--session)在当前这一步里，文件与命令类工具默认使用的目录。它在每一步开始之前由会话当时的选择与对所选实例的核验得出，一步之内不变：会话附着了[工作区](scope-and-resolution.md#ul-workspace--工作区--workspace)且所选[实例](scope-and-resolution.md#ul-workspace-instance--工作区实例--workspace-instance)可用时，是实例的根目录；没有附着工作区时，是部署给出的默认目录；附着了但实例不可用或租户失去参与资格时，没有目录，依赖它的动作明确失败。会话更换工作区之后，它从下一步起变化，已经发出的动作留在原目录。
+
+> **EN**: The directory that file and command tools of one session use by default during the current step. Before each step, the system derives it from the session's selection at that time and from the verification of the selected instance. It does not change during the step. When the session has attached a workspace and the selected instance is available, it is the root directory of the instance. When the session has not attached a workspace, it is the default directory of the deployment. When the session has attached a workspace but the instance is unavailable or the tenant no longer has the participation right, there is no directory, and an action that depends on it fails explicitly. After the session changes its workspace, the directory changes from the next step, and actions already issued stay in the earlier directory.
+
+- **形态**：视图
+- **出处**：[工作区：J-WS06](../../product/workspaces/design.md#j-ws06-更换选择或显式采用新的来源)（rev 7）
+- **别混**：不是[落点](#ul-placement--落点--placement)。落点回答一次执行落在哪个环境，本词回答这个会话的工具默认在哪个目录。知道目录不构成许可。也不是留着的终端当前所在的目录：那个目录随终端里的命令变。
+
+### UL-files-scope · 文件范围 · Files Scope
+
+> **中**：一次工具调用的文件请求读可以到哪、写可以到哪：一个读的根，一个写的根，缺哪一侧，哪一侧不限。它在调用受理时定下并随调用钉住，之后不变。附着了[工作区](scope-and-resolution.md#ul-workspace--工作区--workspace)的会话里，它由所选[实例](scope-and-resolution.md#ul-workspace-instance--工作区实例--workspace-instance)的范围与用户为「工作区之外的文件」配的那一档算出；没有附着工作区的会话里，读与写都限在默认目录。
+
+> **EN**: Where the file requests of one tool call may read and where they may write: one root for reading and one root for writing. A side with no root is not limited. The system sets it when the call is accepted and pins it to the call. It does not change afterwards. In a session with an attached workspace, the system computes it from the range of the selected instance and from the level that the user set for files outside the workspace. In a session without a workspace, it limits reading and writing to the default directory.
+
+- **形态**：属性
+- **出处**：[工作区：J-WS06](../../product/workspaces/design.md#j-ws06-更换选择或显式采用新的来源)（rev 7）
+- **别混**：不是[会话工作目录](#ul-session-working-directory--会话工作目录--session-working-directory)。会话工作目录回答工具默认在哪个目录干活，本词回答文件请求能碰到哪里；一个会话可以在工作区里干活而被许可读别处。也不是隔离：文件工具的请求由围栏照它执行，命令只在启动之前照它核明着写出的路径，程序运行时自己去读写的地方它管不到。
+
 ### UL-session-base · 会话据点 · Session Base
 
 > **中**：一个[账号](subjects-and-ownership.md#ul-account--账号--account)的[会话](agent-runtime-loop.md#ul-session--会话--session)、
@@ -622,7 +663,7 @@
 > decide which package from which layer to use, or who may read it.
 
 - **形态**：属性
-- **出处**：缺产品原文。[Skill 产品页 J-SK01](../../product/skills/design.md#j-sk01-将合法方法来源交给消费者)（rev 4）只要求来源不可读时报告具体失败，不当作空方法。按内容摘要交字节的这一方来自 Skill 与 MCP 领域的候选技术设计，那不是本词表的合法出处。出处缺口由产品负责人闭合：在 Skill 产品页写出它，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决
+- **出处**：缺产品原文。[Skill 产品页 J-SK01](../../product/skills/design.md#j-sk01-将合法方法来源交给消费者)（rev 5）只要求来源不可读时报告具体失败，不当作空方法。按内容摘要交字节的这一方来自 Skill 与 MCP 领域的候选技术设计，那不是本词表的合法出处。出处缺口由产品负责人闭合：在 Skill 产品页写出它，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决
 - **⚠️ 别混 ①**：**不是[资产来源](circulation-and-entitlement.md#ul-asset-origin--资产来源--asset-origin)**（official 还是 customized），
   **也不是[来源层](scope-and-resolution.md#ul-source-layer--来源层--source-layer)**。用哪一层的哪一份，由资产求值与装配决定；Skill 包来源只按给定的内容摘要交出字节
 - **别混 ②**：产品正文说方法「来源」时，指的是方法从哪个工作区、哪种格式、哪一层来，是给人看的出处，不是这一方。**正文裸写「来源」不指它**

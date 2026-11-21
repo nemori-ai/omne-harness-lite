@@ -346,14 +346,14 @@ describe('restart (acceptance 2, in-process)', () => {
 })
 
 describe('the composite declaration (acceptance 6)', () => {
-  test('the shipped Journal and handoff configurations match the current storage catalog', () => {
+  test('the shipped Journal and handoff configurations name the version only: the digest comes from the catalog', () => {
     const release = JSON.parse(
       readFileSync(new URL('../../../config/serve.distribution.json', import.meta.url), 'utf8'),
     )
-    const expected = agentJournalCombination()
+    const { combinationVersion } = agentJournalCombination()
     for (const id of ['agent-journal', 'session-handoff']) {
       const row = release.rows.find((row: { id: string }) => row.id === id)
-      expect(row?.config, id).toMatchObject(expected)
+      expect(row?.config, id).toEqual({ combinationVersion })
     }
   })
   test('the registered participants are the named constant, and every one of them has material in the catalog', () => {
@@ -368,7 +368,7 @@ describe('the composite declaration (acceptance 6)', () => {
     expect(SESSION_COMPOSITE_PARTICIPANTS).toContain(MODEL_PARTICIPANT)
     const catalog = storageCatalog()
     expect(catalog.migrations.map(item => item.owner)).toContain(MODEL_PARTICIPANT)
-    expect(COMBINATION_VERSION).toBe('session-composite/13')
+    expect(COMBINATION_VERSION).toBe('session-composite/19')
   })
 
   test('segment B: the tool participant and its migration are in the same combination', () => {

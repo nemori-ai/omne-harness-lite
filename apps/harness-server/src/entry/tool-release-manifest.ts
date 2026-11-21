@@ -13,48 +13,168 @@ import {
   type ToolMessageContentBlock,
 } from '@omne-harness/tool-contract/provider'
 import { z } from 'zod'
-import { toolPermissionRelease, toolPermissionReleaseSchema } from './tool-permission-release.ts'
+import {
+  releasedGateSchema,
+  releasedGatesOf,
+  toolPermissionRelease,
+  toolPermissionReleaseSchema,
+  type ReleasedGate,
+} from './tool-permission-release.ts'
 
-export const TOOL_RELEASE_FORMAT = 'omne-harness/tool-release/2'
+export const TOOL_RELEASE_FORMAT = 'omne-harness/tool-release/4'
 export const TOOL_RELEASE_FILE = 'tool-release.json'
 export const TOOL_RELEASE_OWNER = '@omne-harness/harness-server'
 export const TOOL_DEFINITIONS_PACKAGE = '@omne-harness/tool-definitions' as const
+export const CALENDAR_TOOLS_PACKAGE = '@omne-harness/calendar-tools' as const
+export const SCHEDULE_TOOLS_PACKAGE = '@omne-harness/schedule-tools' as const
+export const NOTIFICATION_TOOLS_PACKAGE = '@omne-harness/notification-tools' as const
+export const SESSION_TOOLS_PACKAGE = '@omne-harness/session-tools' as const
+export const DISPATCH_TOOLS_PACKAGE = '@omne-harness/dispatch-tools' as const
+export const WORKSPACE_TOOLS_PACKAGE = '@omne-harness/workspace-tools' as const
+/** The packages a release tool may come from; each is checked by the digest of its own artifacts. */
+export const RELEASE_PACKAGES = Object.freeze([
+  TOOL_DEFINITIONS_PACKAGE,
+  CALENDAR_TOOLS_PACKAGE,
+  SCHEDULE_TOOLS_PACKAGE,
+  NOTIFICATION_TOOLS_PACKAGE,
+  SESSION_TOOLS_PACKAGE,
+  DISPATCH_TOOLS_PACKAGE,
+  WORKSPACE_TOOLS_PACKAGE,
+] as const)
+export type ReleasePackage = (typeof RELEASE_PACKAGES)[number]
 
 export const RELEASE_TOOLS = Object.freeze([
   Object.freeze({
     name: 'Shell',
+    package: TOOL_DEFINITIONS_PACKAGE,
+    capabilities: Object.freeze([] as string[]),
     export: 'shellToolModule',
     construction: Object.freeze(['resultMaxBytes', 'executable', 'argsPrefix', 'cwd', 'env']),
   }),
   Object.freeze({
     name: 'Files',
+    package: TOOL_DEFINITIONS_PACKAGE,
+    capabilities: Object.freeze([] as string[]),
     export: 'filesToolModule',
-    construction: Object.freeze(['resultMaxBytes', 'cwd']),
+    construction: Object.freeze([
+      'resultMaxBytes',
+      'cwd',
+      'openMaxBytes',
+      'imageMaxWidth',
+      'imageMaxHeight',
+      'imageMaxDecodedBytes',
+      'imageConcurrency',
+    ]),
   }),
   Object.freeze({
     name: 'Tools',
+    package: TOOL_DEFINITIONS_PACKAGE,
+    capabilities: Object.freeze([] as string[]),
     export: 'toolsToolModule',
     construction: Object.freeze(['resultMaxBytes', 'outputModalities']),
   }),
   Object.freeze({
     name: 'TodoItems',
+    package: TOOL_DEFINITIONS_PACKAGE,
+    capabilities: Object.freeze([] as string[]),
     export: 'todoItemsToolModule',
     construction: Object.freeze(['resultMaxBytes']),
   }),
   Object.freeze({
+    name: 'BkgToolCalls',
+    package: TOOL_DEFINITIONS_PACKAGE,
+    capabilities: Object.freeze([] as string[]),
+    export: 'backgroundCallsToolModule',
+    construction: Object.freeze(['resultMaxBytes']),
+  }),
+  Object.freeze({
     name: 'Ask',
+    package: TOOL_DEFINITIONS_PACKAGE,
+    capabilities: Object.freeze([] as string[]),
     export: 'askToolModule',
     construction: Object.freeze(['resultMaxBytes']),
   }),
   Object.freeze({
     name: 'Web',
+    package: TOOL_DEFINITIONS_PACKAGE,
+    capabilities: Object.freeze([] as string[]),
     export: 'webToolModule',
     construction: Object.freeze(['resultMaxBytes', 'maxSearchResults']),
+  }),
+  Object.freeze({
+    name: 'Skills',
+    package: TOOL_DEFINITIONS_PACKAGE,
+    capabilities: Object.freeze([] as string[]),
+    export: 'skillsToolModule',
+    construction: Object.freeze(['resultMaxBytes']),
+  }),
+  Object.freeze({
+    name: 'Calendar',
+    package: CALENDAR_TOOLS_PACKAGE,
+    capabilities: Object.freeze(['calendar.read']),
+    export: 'calendarToolModule',
+    construction: Object.freeze(['resultMaxBytes']),
+  }),
+  Object.freeze({
+    name: 'Schedules',
+    package: SCHEDULE_TOOLS_PACKAGE,
+    capabilities: Object.freeze(['schedule.read', 'schedule.write']),
+    export: 'schedulesToolModule',
+    construction: Object.freeze(['resultMaxBytes']),
+  }),
+  Object.freeze({
+    name: 'Sessions',
+    package: SESSION_TOOLS_PACKAGE,
+    capabilities: Object.freeze(['session.read', 'session.search']),
+    export: 'sessionsToolModule',
+    construction: Object.freeze(['resultMaxBytes']),
+  }),
+  Object.freeze({
+    name: 'Agents',
+    package: DISPATCH_TOOLS_PACKAGE,
+    capabilities: Object.freeze([] as string[]),
+    export: 'agentsToolModule',
+    construction: Object.freeze(['resultMaxBytes']),
+  }),
+  Object.freeze({
+    name: 'Notifications',
+    package: NOTIFICATION_TOOLS_PACKAGE,
+    capabilities: Object.freeze(['notification.read', 'notification.write']),
+    export: 'notificationsToolModule',
+    construction: Object.freeze(['resultMaxBytes']),
+  }),
+  Object.freeze({
+    name: 'SwitchWorkspace',
+    package: WORKSPACE_TOOLS_PACKAGE,
+    capabilities: Object.freeze(['workspace.switch']),
+    export: 'switchWorkspaceToolModule',
+    construction: Object.freeze(['resultMaxBytes']),
+  }),
+  Object.freeze({
+    name: 'Screen',
+    package: TOOL_DEFINITIONS_PACKAGE,
+    capabilities: Object.freeze(['screen.read']),
+    export: 'screenToolModule',
+    construction: Object.freeze([
+      'resultMaxBytes',
+      'captureMaxLongSide',
+      'imageMaxWidth',
+      'imageMaxHeight',
+      'imageMaxDecodedBytes',
+      'imageConcurrency',
+    ]),
   }),
 ] as const)
 
 export type ReleaseToolName = (typeof RELEASE_TOOLS)[number]['name']
 export type ReleaseToolExport = (typeof RELEASE_TOOLS)[number]['export']
+
+export const RELEASE_UNGATED: Readonly<Partial<Record<string, readonly string[]>>> = Object.freeze({
+  Ask: ['ask'],
+})
+export function namedUngated(tool: string): readonly string[] {
+  return RELEASE_UNGATED[tool] ?? []
+}
 export type ReleaseModule = ToolImplementationModule<unknown, ToolMessageContentBlock>
 export type ReleaseModules = Readonly<Record<ReleaseToolExport, ReleaseModule>>
 
@@ -71,16 +191,18 @@ const evidenceSchema = z.strictObject({
   revision: z.string().min(1),
   digest: digestText,
 })
+const packageSchema = z.enum(RELEASE_PACKAGES)
+const artifactsSchema = z.strictObject({
+  package: packageSchema,
+  files: z.array(
+    z.strictObject({ path: z.string().min(1), sha256: z.string().regex(/^[0-9a-f]{64}$/) }),
+  ),
+  digest: digestText,
+})
 const manifestSchema = z.strictObject({
   format: z.literal(TOOL_RELEASE_FORMAT),
   generation: digestText,
-  artifacts: z.strictObject({
-    package: z.literal(TOOL_DEFINITIONS_PACKAGE),
-    files: z.array(
-      z.strictObject({ path: z.string().min(1), sha256: z.string().regex(/^[0-9a-f]{64}$/) }),
-    ),
-    digest: digestText,
-  }),
+  artifacts: z.array(artifactsSchema),
   consumer: z.strictObject({
     input: z.array(z.literal('text')),
     output: z.array(z.literal('text')),
@@ -94,7 +216,7 @@ const manifestSchema = z.strictObject({
       asset: z.strictObject({ name: z.string().min(1), adoption: adoptionSchema }),
       requiredCapabilities: z.array(z.string()),
       module: z.strictObject({
-        package: z.literal(TOOL_DEFINITIONS_PACKAGE),
+        package: packageSchema,
         export: z.string().min(1),
         executor: adoptionSchema,
         artifacts: digestText,
@@ -103,6 +225,7 @@ const manifestSchema = z.strictObject({
       governance: toolPermissionReleaseSchema,
       settings: adoptionSchema,
       definition: digestText,
+      gates: z.array(releasedGateSchema),
       holding: evidenceSchema,
       publication: evidenceSchema,
     }),
@@ -111,7 +234,9 @@ const manifestSchema = z.strictObject({
 
 export type ToolReleaseManifest = z.infer<typeof manifestSchema>
 export type ToolReleaseEntry = ToolReleaseManifest['entries'][number]
-export type ToolReleaseArtifacts = ToolReleaseManifest['artifacts']
+export type PackageArtifacts = z.infer<typeof artifactsSchema>
+export type ToolReleaseArtifacts = PackageArtifacts[]
+export type ReleaseRoots = Readonly<Record<ReleasePackage, string>>
 
 const sha256 = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex')
 
@@ -161,18 +286,24 @@ function releaseModuleOf(namespace: object, name: ReleaseToolExport): ReleaseMod
   return module as ReleaseModule
 }
 
-export async function importReleaseModules(packageRoot: string): Promise<ReleaseModules> {
-  const namespace: unknown = await import(pathToFileURL(join(packageRoot, RELEASE_ENTRY_FILE)).href)
-  if (typeof namespace !== 'object' || namespace === null)
-    throw new Error('tool-release: the release entry has no exports')
-  return Object.freeze({
-    shellToolModule: releaseModuleOf(namespace, 'shellToolModule'),
-    filesToolModule: releaseModuleOf(namespace, 'filesToolModule'),
-    toolsToolModule: releaseModuleOf(namespace, 'toolsToolModule'),
-    todoItemsToolModule: releaseModuleOf(namespace, 'todoItemsToolModule'),
-    askToolModule: releaseModuleOf(namespace, 'askToolModule'),
-    webToolModule: releaseModuleOf(namespace, 'webToolModule'),
-  })
+export async function importReleaseModules(roots: ReleaseRoots): Promise<ReleaseModules> {
+  const namespaces = new Map<ReleasePackage, object>()
+  for (const name of RELEASE_PACKAGES) {
+    const namespace: unknown = await import(
+      pathToFileURL(join(roots[name], RELEASE_ENTRY_FILE)).href
+    )
+    if (typeof namespace !== 'object' || namespace === null)
+      throw new Error(`tool-release: the release entry of ${name} has no exports`)
+    namespaces.set(name, namespace)
+  }
+  return Object.freeze(
+    Object.fromEntries(
+      RELEASE_TOOLS.map(tool => [
+        tool.export,
+        releaseModuleOf(namespaces.get(tool.package)!, tool.export),
+      ]),
+    ) as Record<ReleaseToolExport, ReleaseModule>,
+  )
 }
 
 async function artifactPaths(packageRoot: string): Promise<string[]> {
@@ -189,36 +320,44 @@ async function artifactPaths(packageRoot: string): Promise<string[]> {
   return found.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
 }
 
-export async function scanArtifacts(packageRoot: string): Promise<ToolReleaseArtifacts> {
+async function scanPackage(name: ReleasePackage, packageRoot: string): Promise<PackageArtifacts> {
   const files: { path: string; sha256: string }[] = []
   for (const path of await artifactPaths(packageRoot))
     files.push({ path, sha256: sha256(await readFile(join(packageRoot, path))) })
-  return {
-    package: TOOL_DEFINITIONS_PACKAGE,
-    files,
-    digest: canonicalDigest({ package: TOOL_DEFINITIONS_PACKAGE, files }),
-  }
+  return { package: name, files, digest: canonicalDigest({ package: name, files }) }
 }
 
-export async function locateToolDefinitions(from: string): Promise<string> {
+export async function scanArtifacts(roots: ReleaseRoots): Promise<ToolReleaseArtifacts> {
+  const all: PackageArtifacts[] = []
+  for (const name of RELEASE_PACKAGES) all.push(await scanPackage(name, roots[name]))
+  return all
+}
+
+async function locatePackage(from: string, name: ReleasePackage): Promise<string> {
   let dir = from
   for (;;) {
-    const candidate = join(dir, 'node_modules', ...TOOL_DEFINITIONS_PACKAGE.split('/'))
+    const candidate = join(dir, 'node_modules', ...name.split('/'))
     try {
       const root = await realpath(candidate)
       const manifest: unknown = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'))
       if (
         typeof manifest === 'object' &&
         manifest !== null &&
-        Reflect.get(manifest, 'name') === TOOL_DEFINITIONS_PACKAGE
+        Reflect.get(manifest, 'name') === name
       )
         return root
     } catch {}
     const parent = dirname(dir)
-    if (parent === dir)
-      throw new Error(`tool-release: ${TOOL_DEFINITIONS_PACKAGE} is not installed`)
+    if (parent === dir) throw new Error(`tool-release: ${name} is not installed`)
     dir = parent
   }
+}
+
+/** The installed root of every release package, resolved from the member that ships the release. */
+export async function locateReleasePackages(from: string): Promise<ReleaseRoots> {
+  const roots: Partial<Record<ReleasePackage, string>> = {}
+  for (const name of RELEASE_PACKAGES) roots[name] = await locatePackage(from, name)
+  return roots as ReleaseRoots
 }
 
 export function governanceOf(entry: Pick<ToolReleaseEntry, 'asset' | 'requiredCapabilities'>) {
@@ -228,18 +367,23 @@ export function governanceOf(entry: Pick<ToolReleaseEntry, 'asset' | 'requiredCa
   }) satisfies ToolGovernance
 }
 
-export function definitionDigest(
+export type ReleasedDefinition = Readonly<{ digest: string; gates: readonly ReleasedGate[] }>
+
+export function releasedDefinition(
   module: ReleaseModule,
   governance: ToolGovernance,
   construction: JsonValue,
-): string {
+): ReleasedDefinition {
   const created = module.createAuthor(construction)
   if ('failure' in created)
     throw new Error(`tool-release: construction refused (${created.failure.field})`)
   const definition = judgeToolDefinition(deriveDefinition(governance, created.ok.facts))
   if ('failure' in definition)
     throw new Error(`tool-release: definition refused (${definition.failure.field})`)
-  return canonicalDigest(definition.ok)
+  return {
+    digest: canonicalDigest(definition.ok),
+    gates: releasedGatesOf(definition.ok, namedUngated(governance.asset.name)),
+  }
 }
 
 const evidence = (record: string, generation: string, content: unknown): DurableEvidence => ({
@@ -253,20 +397,23 @@ export function composeManifest(input: {
   version: string
   artifacts: ToolReleaseArtifacts
   modules: ReleaseModules
-  definitions: Readonly<Record<string, string>>
+  definitions: Readonly<Record<string, ReleasedDefinition>>
 }): ToolReleaseManifest {
   const { version, artifacts, modules, definitions } = input
   const cores = RELEASE_TOOLS.map(tool => {
+    const own = artifacts.find(item => item.package === tool.package)
+    if (own === undefined) throw new Error(`tool-release: no artifacts for ${tool.package}`)
     const module = {
-      package: TOOL_DEFINITIONS_PACKAGE as typeof TOOL_DEFINITIONS_PACKAGE,
+      package: tool.package as ReleasePackage,
       export: tool.export,
       executor: { ...modules[tool.export].executor } satisfies Adoption,
-      artifacts: artifacts.digest,
+      artifacts: own.digest,
     }
     const construction = [...tool.construction]
-    const definition = definitions[tool.name]
-    if (definition === undefined)
+    const released = definitions[tool.name]
+    if (released === undefined)
       throw new Error(`tool-release: no definition digest for ${tool.name}`)
+    const { digest: definition, gates } = released
     const core = {
       asset: {
         name: tool.name,
@@ -277,7 +424,7 @@ export function composeManifest(input: {
           digest: canonicalDigest({ name: tool.name, module }),
         },
       },
-      requiredCapabilities: [] as string[],
+      requiredCapabilities: [...tool.capabilities],
       module,
       construction,
       settings: {
@@ -287,6 +434,7 @@ export function composeManifest(input: {
         digest: canonicalDigest({ name: tool.name, construction }),
       },
       definition,
+      gates: gates.map(gate => ({ ...gate, commands: [...gate.commands] })),
     }
     return {
       ...core,
@@ -295,6 +443,7 @@ export function composeManifest(input: {
         adoption: core.asset.adoption,
         module,
         definition,
+        gates,
       }),
     }
   })
@@ -341,9 +490,9 @@ export type ToolReleaseSnapshot =
 
 export async function loadToolRelease(input: {
   manifestPath: string
-  packageRoot: () => Promise<string>
+  packageRoots: () => Promise<ReleaseRoots>
   version: () => Promise<string>
-  importModules: (packageRoot: string) => Promise<ReleaseModules>
+  importModules: (roots: ReleaseRoots) => Promise<ReleaseModules>
 }): Promise<ToolReleaseSnapshot> {
   const unavailable = (diagnostic: string): ToolReleaseSnapshot =>
     Object.freeze({ kind: 'unavailable', diagnostic })
@@ -356,22 +505,25 @@ export async function loadToolRelease(input: {
     return unavailable('manifest unreadable')
   }
   let artifacts: ToolReleaseArtifacts
-  let packageRoot: string
+  let roots: ReleaseRoots
   try {
-    packageRoot = await input.packageRoot()
-    artifacts = await scanArtifacts(packageRoot)
+    roots = await input.packageRoots()
+    artifacts = await scanArtifacts(roots)
   } catch {
     return unavailable('artifacts unreadable')
   }
   if (canonicalDigest(artifacts) !== canonicalDigest(manifest.artifacts))
     return unavailable('artifacts differ from the manifest')
-  if (!artifacts.files.some(file => file.path === RELEASE_ENTRY_FILE))
+  if (!artifacts.every(own => own.files.some(file => file.path === RELEASE_ENTRY_FILE)))
     return unavailable('the release entry file is not in the artifacts')
   try {
-    // The very root whose artifacts were just checked; never a second resolution.
-    const modules = await input.importModules(packageRoot)
+    // The very roots whose artifacts were just checked; never a second resolution.
+    const modules = await input.importModules(roots)
     const definitions = Object.fromEntries(
-      manifest.entries.map(entry => [entry.asset.name, entry.definition]),
+      manifest.entries.map(entry => [
+        entry.asset.name,
+        { digest: entry.definition, gates: entry.gates },
+      ]),
     )
     const expected = composeManifest({
       version: await input.version(),

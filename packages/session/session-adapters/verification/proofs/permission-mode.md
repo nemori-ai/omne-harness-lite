@@ -1,14 +1,14 @@
 # 权限模式投影与询问裁定
 
-范围是纯函数 `projectSessionPermissionMode` 与 Authorization 的 `decideInquiry`。输入必须已通过原 Session 或模式来源边界校验；本证明不建立调用者身份、动作归属、SQL 当前性或 Runtime Context 发布资格。
+范围是纯函数 `projectSessionPermissionMode` 与 Authorization 的 `decideRelease`。输入必须已通过原 Session 或模式来源边界校验；本证明不建立调用者身份、动作归属、SQL 当前性或 Runtime Context 发布资格。
 
 令 M = {never, auto_permission, bypass-permissions}，P = {deny, ask-human, skip-ask}。翻译 T 为三行全函数，分别映射到 P 的同序元素。每个投影保存实际模式来源和翻译版本。实际源码用完整 Record<M, InquiryPolicy> 表示 T，新增模式而未给翻译时类型检查失败。
 
 默认模式解析 R 在覆盖、显式创建、精确默认三个分支得到值。覆盖存在时取覆盖；否则显式创建取创建值；否则只接受与创建采用的 owner/name/revision/digest 全等的具名默认观察。缺观察或不等返回 unavailable。全化没有引入一个隐含默认值。R 的来源保证以默认观察来自可信解析器为前提，单凭客户端声称相同 Adoption 不构成事实。
 
-询问需要 Q = {none, required, prohibited, unavailable}。策略观察为 P 加缺失，共四种。裁定 D 的 16 个有效输入由 `authorization/tests/inquiry.spec.ts` 穷举。D(prohibited, p) = deny，D(unavailable, p) = unavailable，对所有 p 成立。D(none, p) = continue；D(required, missing) = unavailable。D(required, skip-ask) 才是 continue，其余分别 deny 和 ask-human。
+放行判断 D 的输入是门的裁定 V = {prohibited, allowed, decision-required, unavailable}、这次调用是不是载体，以及会话事实：策略取 P、有没有一次授权、会话授权的依据，或者会话事实不可用。D 按四步固定次序给答复：V 是 prohibited 就拒绝；载体或 V 是 allowed 就放行；V 是 decision-required 时，有一次授权或依据等于 V 修订的会话授权就放行；其余按策略，deny 拒绝，ask-human 问人，skip-ask 放行。`authorization/tests/release.spec.ts` 穷举全部组合。对所有会话事实，D(prohibited, ·) = refuse，D(unavailable, ·) = unavailable；V 是 decision-required 而会话事实不可用时 D = unavailable。
 
-因此，对任一有效模式 m，D(prohibited, T(m)) = deny。跳过询问不会覆盖结构化禁止；缺少结构化依据也不会变成继续。`tests/permission-mode.spec.ts` 组合实际两个拥有者的函数，枚举三种模式验证这两个性质，并验证默认采用四个字段的错配、不可用来源、覆盖优先和证据不可变。
+因此，对任一有效模式 m，D(prohibited, T(m)) = refuse。跳过询问不会覆盖结构化禁止；缺少结构化依据也不会变成放行。`tests/permission-mode.spec.ts` 组合实际两个拥有者的函数，枚举三种模式验证这两个性质，并验证默认采用四个字段的错配、不可用来源、覆盖优先和证据不可变。
 
 这些是有限输入分解及实际纯函数的执行检查，没有使用 TLA+ 或定理证明器。生产路径还须证明变更时发布、恢复后发布、消费时同捕获修订核验，以及原动作资格；这不由纯函数测试推出。
 

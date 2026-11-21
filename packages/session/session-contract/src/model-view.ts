@@ -12,42 +12,35 @@ import { writesCall } from './run-closure.ts'
 import { digestOf } from './operations.ts'
 import type { WorkSnapshot } from './values.ts'
 
-export type MaterializedModelView = Readonly<{ epoch: string; rows: readonly ModelViewRow[] }>
+export type MaterializedModelView = Readonly<{
+  epoch: string
+  rows: readonly ModelViewRow[]
+  /** The rows of the epochs the view left: a compaction writes a new epoch, the old rows stay. */
+  past?: ReadonlyMap<string, readonly ModelViewRow[]>
+}>
 function messageOf(row: HistoryEntry): Message | null {
   const decoded = decodeEntry(row)
   return 'ok' in decoded && 'message' in decoded.ok ? decoded.ok.message : null
 }
-export function materializeModelView(
-  previous: MaterializedModelView,
-  committed: readonly HistoryEntry[],
-  history: readonly HistoryEntry[],
-): MaterializedModelView {
-  let epoch = previous.epoch
-  let rows = [...previous.rows]
-  for (const entry of committed) {
-    const message = messageOf(entry)
-    if (
-      message === null ||
-      message.role === 'tool_internal' ||
-      !message.blocks.some(block => block.visibility.toModel)
-    )
-      continue
-    if (message.role === 'compaction') {
-      const boundary = history.findIndex(row => row.id === String(message.covers.to))
-      const retained = rows.filter(row => message.retained.some(ref => String(ref) === row.entry))
-      const after = rows.filter(
-        row => history.findIndex(entry => entry.id === row.entry) > boundary,
-      )
-      rows = [
-        ...retained,
-        { seq: '', entry: entry.id, bytes: 0, prefixDigest: '', message },
-        ...after,
-      ]
-      epoch = `epoch:${entry.id}`
-    } else rows.push({ seq: '', entry: entry.id, bytes: 0, prefixDigest: '', message })
-  }
+
+/** An input's message as accepted, the entry before its `intake.routed`: a record for people. */
+export function isAcceptedInputRecord(
+  entries: readonly Pick<HistoryEntry, 'kind'>[],
+  index: number,
+): boolean {
+  return entries[index + 1]?.kind === 'intake.routed'
+}
+
+/** The message an entry gives the model view; an input is there from its delivery. */
+export function viewMessageOf(entries: readonly HistoryEntry[], index: number): Message | null {
+  const entry = entries[index]
+  if (entry === undefined || isAcceptedInputRecord(entries, index)) return null
+  return messageOf(entry)
+}
+
+function numbered(rows: readonly ModelViewRow[]): ModelViewRow[] {
   let prefix = ''
-  rows = rows.map((row, index) => {
+  return rows.map((row, index) => {
     prefix = digestOf({ prefix, entry: row.entry, message: row.message })
     return {
       ...row,
@@ -56,13 +49,49 @@ export function materializeModelView(
       prefixDigest: prefix,
     }
   })
-  return { epoch, rows }
 }
 
+export function materializeModelView(
+  previous: MaterializedModelView,
+  committed: readonly HistoryEntry[],
+): MaterializedModelView {
+  let epoch = previous.epoch
+  let rows = [...previous.rows]
+  let past = previous.past
+  for (const [index, entry] of committed.entries()) {
+    const message = viewMessageOf(committed, index)
+    if (
+      message === null ||
+      message.role === 'tool_internal' ||
+      !message.blocks.some(block => block.visibility.toModel)
+    )
+      continue
+    if (message.role === 'compaction') {
+      const covers = BigInt(String(message.covers.to))
+      const byEntry = new Map(rows.map(row => [row.entry, row]))
+      const retained = message.retained.flatMap(ref => {
+        const row = byEntry.get(String(ref) as HistoryEntry['id'])
+        return row === undefined ? [] : [row]
+      })
+      const after = rows.filter(row => BigInt(row.entry) > covers)
+      past = new Map(past).set(epoch, numbered(rows))
+      rows = [
+        ...retained,
+        { seq: '', entry: entry.id, bytes: 0, prefixDigest: '', message },
+        ...after,
+      ]
+      epoch = `epoch:${entry.id}`
+    } else rows.push({ seq: '', entry: entry.id, bytes: 0, prefixDigest: '', message })
+  }
+  return { epoch, rows: numbered(rows), ...(past === undefined ? {} : { past }) }
+}
+
+/** `inherited` leading entries stand behind a forked prefix: they are referred to, never reduced. */
 export function compactionReads(
   entries: readonly HistoryEntry[],
   snapshot: WorkSnapshot,
   through: string,
+  inherited = 0,
 ): CompactionContext | null {
   const end = entries.findIndex(entry => entry.id === through)
   const first = entries[0]
@@ -74,7 +103,7 @@ export function compactionReads(
   for (const [index, entry] of entries.entries()) {
     const ref = parseRecordEntryRef(entry.id)
     if (ref === null) return null
-    const row = { ref, message: messageOf(entry) }
+    const row = { ref, message: viewMessageOf(entries, index) }
     ;(index <= end ? covered : after).push(row)
   }
   const previous = covered.filter(row => row.message?.role === 'compaction').at(-1)
@@ -110,14 +139,14 @@ export function compactionReads(
     throw error
   }
   if (required.some(ref => !entries.some(entry => entry.id === ref))) return null
-  const open = entries.flatMap((entry, index) => {
+  const open = entries.slice(inherited).flatMap(entry => {
     const decoded = decodeEntry(entry)
     if (!('ok' in decoded)) return []
     const value = decoded.ok
+    // An input that is still alive keeps its delivery in the context.
     const relevant =
       required.includes(entry.id) ||
-      (value.kind === 'intake.routed' &&
-        'input' in value &&
+      (value.kind === 'message.delivered' &&
         (snapshot.pending.includes(value.input) || (snapshot.taken ?? []).includes(value.input))) ||
       (value.kind === 'call.bound' &&
         snapshot.consumptions.some(
@@ -125,24 +154,50 @@ export function compactionReads(
             item.id === value.consumption &&
             item.results.every(result => result.completion === null),
         ))
-    const source =
-      value.kind === 'intake.routed'
-        ? entries
-            .slice(0, index)
-            .reverse()
-            .find(row => row.kind === 'message.user')
-        : entry
-    const ref = source === undefined ? null : parseRecordEntryRef(source.id)
+    const ref = parseRecordEntryRef(entry.id)
     return relevant && ref !== null ? [ref] : []
   })
   return {
     origin,
     base:
       previous === undefined
-        ? { kind: 'initial' }
+        ? { kind: 'initial', pairings }
         : { kind: 'previous', record: previous.ref, pairings },
     covered: window,
     after,
     open: [...new Set(open)],
+  }
+}
+
+export function compactionContextForView(
+  entries: readonly HistoryEntry[],
+  snapshot: WorkSnapshot,
+  rows: readonly ModelViewRow[],
+  upper: number,
+  through: string | null,
+  inherited = 0,
+): CompactionContext | null {
+  const selected = new Set(rows.slice(0, upper).map(row => String(row.entry)))
+  through ??= entries.findLast(row => selected.has(row.id))?.id ?? null
+  if (through === null) return null
+  const value = compactionReads(entries, snapshot, through, inherited)
+  if (value === null) return null
+  const keep = (row: CoveredEntry) =>
+    selected.has(row.ref) ||
+    value.open.includes(row.ref) ||
+    (value.base.kind === 'initial' && row.ref === value.origin)
+  const visible = (row: CoveredEntry): CoveredEntry =>
+    selected.has(row.ref) ? row : { ref: row.ref, message: null }
+  const covered = value.covered.filter(keep).map(visible)
+  const after = value.after.filter(keep).map(visible)
+  if (covered.at(-1)?.ref !== through) return null
+  return {
+    ...value,
+    covered,
+    after,
+    base: {
+      ...value.base,
+      pairings: value.base.pairings.filter(item => selected.has(item.result)),
+    },
   }
 }

@@ -1,0 +1,48 @@
+{
+  "name": "@omne-harness/workspace-local",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Workspace local provider: the SQL repository, identity minting and the Cordis binding of the workspace services",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "source": "./src/cordis.ts",
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/settings": "workspace:*",
+    "@omne-harness/sql-contract": "workspace:*",
+    "@omne-harness/workspace": "workspace:*",
+    "@omne-harness/workspace-contract": "workspace:*",
+    "@omne-harness/workspace-cordis-contract": "workspace:*"
+  },
+  "devDependencies": {
+    "@omne-harness/sqlite-provider": "workspace:*",
+    "@omne-harness/workspace-filesystem": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

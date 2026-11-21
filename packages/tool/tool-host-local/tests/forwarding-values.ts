@@ -78,6 +78,7 @@ export async function forwardingFixture(
   const store: ToolLedgerStore = {
     durability: options.durableDeclaration ? 'durable' : 'none',
     scanPending: input => memory.scanPending(input),
+    usage: query => memory.usage(query),
     read: memory.read,
     readRecord: memory.readRecord,
     due: memory.due,
@@ -165,6 +166,7 @@ export async function forwardingFixture(
   const permit = ok(await authority.prepare(parent))
   const state: CallRecord['state'] = {
     call: parent.call,
+    label: { intent: null, tool: 'read_file', command: null, preview: '' },
     revision: ok(decodeToolRevision('1')),
     source: evidence('parent-state'),
     foreground: null,

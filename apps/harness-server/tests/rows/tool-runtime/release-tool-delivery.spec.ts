@@ -1,8 +1,7 @@
-import { observeToolResults, resultsReleased } from './release-material-observation.ts'
+import { resultsReleased, watchReleasedResults } from './release-material-observation.ts'
 // @module-tag slow
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { setTimeout as sleep } from 'node:timers/promises'
 import { describe, expect, it } from 'vitest'
 import * as cordis from '../../../src/cordis.ts'
 import { runServe, type S0Record } from '../../../src/run.ts'
@@ -22,7 +21,7 @@ import {
   savedClients,
   type ProtocolClients,
 } from '../../support/protocol-clients.ts'
-import { connectable, until } from '../../support/listening.ts'
+import { pollUntil } from '../../support/release-tree.ts'
 import { bodyReadingModel } from './body-reading-model.ts'
 import { toolRuntimeConfigSchema } from '../../../src/rows/tool-runtime/config.ts'
 
@@ -154,6 +153,19 @@ const blocksOf = (entry: Entry | undefined): readonly Record<string, unknown>[] 
   ((entry?.payload['message'] as { blocks?: Record<string, unknown>[] } | undefined)?.blocks ??
     []) as readonly Record<string, unknown>[]
 
+// The waits below wait for an event. These bounds only stop a server that never starts or never stops.
+const BOUND_MS = 100_000
+
+async function accepting(records: readonly S0Record[], from: number, what: string): Promise<void> {
+  const started = await pollUntil(
+    `${what} to report its startup`,
+    () => records.slice(from).find(record => record.kind === 'startup-result'),
+    record => record !== undefined,
+  )
+  if (started?.['accepting'] !== true)
+    throw new Error(`${what} did not start accepting: ${JSON.stringify(started)}`)
+}
+
 async function turnOnRelease(
   script: GatewayScript,
   shellResultMaxBytes?: number,
@@ -185,15 +197,16 @@ async function turnOnRelease(
       plugins: cordis,
       stateRoot: dir.stateRoot,
       stop: controller.signal,
-      readinessTimeoutMs: 15_000,
-      shutdownDeadlineMs: 5000,
+      readinessTimeoutMs: BOUND_MS,
+      shutdownDeadlineMs: BOUND_MS,
       write: record => records.push(record),
       stderr: line => stderr.push(line),
     })
   let finished = start()
   let stopped = false
+  const released = watchReleasedResults(dir.storageRoot)
   try {
-    await until(() => connectable('127.0.0.1', port), 'the server to listen', 20_000)
+    await accepting(records, 0, 'the server')
     const cli = (args: readonly string[], credential?: string) =>
       runOmne({
         args: [...args],
@@ -212,14 +225,11 @@ async function turnOnRelease(
     expect(sent.status, sent.stderr).toBe(0)
     const clients = savedClients(port, home)
     const readAll = () => allHistory(clients, savedTenant(home), session)
-    let history = await readAll()
-    for (
-      const end = Date.now() + 120_000;
-      Date.now() < end &&
-      !(history.outcome === 'succeeded' && history.entries.some(e => e.kind === 'run.terminal'));
-      await sleep(500)
+    const history = await pollUntil(
+      'the Run to reach a terminal',
+      readAll,
+      read => read.outcome === 'succeeded' && read.entries.some(e => e.kind === 'run.terminal'),
     )
-      history = await readAll()
     expect(history.outcome, JSON.stringify(history)).toBe('succeeded')
     if (!history.entries.some(entry => entry.kind === 'run.terminal')) {
       const diagnostics = await cli(['read-session-diagnostics', '--session', session])
@@ -230,21 +240,18 @@ async function turnOnRelease(
     const modelRequests = gateway.requests()
     if (checkRelease !== null) {
       const offloaded = checkRelease === 'offloaded' ? 1 : 0
-      let physical = observeToolResults(dir.storageRoot)
-      for (
-        const end = Date.now() + 15_000;
-        !resultsReleased(physical, offloaded) && Date.now() < end;
-        await sleep(100)
+      const messages = history.entries.filter(entry => entry.kind === 'message.tool').length
+      const physical = await pollUntil(
+        'every Tool result of the turn to have been seen released',
+        () => released.seen(),
+        observed => observed.length === messages && resultsReleased(observed, offloaded),
       )
-        physical = observeToolResults(dir.storageRoot)
       expect(resultsReleased(physical, offloaded), JSON.stringify(physical)).toBe(true)
+      expect(physical).toHaveLength(messages)
       console.info('W3-RELEASE', JSON.stringify(physical))
       const reread = await readAll()
       expect(reread.outcome).toBe('succeeded')
       expect(reread.entries).toEqual(history.entries)
-      expect(reread.entries.filter(entry => entry.kind === 'message.tool')).toHaveLength(
-        physical.length,
-      )
     }
     controller.abort('test: stop')
     stopped = true
@@ -255,8 +262,9 @@ async function turnOnRelease(
     if (reopenLimit !== undefined) {
       controller = new AbortController()
       stopped = false
+      const before = records.length
       finished = start(reopenLimit)
-      await until(() => connectable('127.0.0.1', port), 'the reopened server to listen', 20_000)
+      await accepting(records, before, 'the reopened server')
       const next = await cli([
         'send-input',
         '--session',
@@ -265,14 +273,11 @@ async function turnOnRelease(
         'continue from the saved result',
       ])
       expect(next.status, next.stderr).toBe(0)
-      let reread = await readAll()
-      for (
-        const end = Date.now() + 120_000;
-        Date.now() < end &&
-        reread.entries.filter(entry => entry.kind === 'run.terminal').length < 2;
-        await sleep(500)
+      const reread = await pollUntil(
+        'the second Run to reach a terminal',
+        readAll,
+        read => read.entries.filter(entry => entry.kind === 'run.terminal').length >= 2,
       )
-        reread = await readAll()
       expect(reread.outcome, JSON.stringify(reread)).toBe('succeeded')
       reopenedEntries = [...reread.entries]
       expect(reopenedEntries.filter(entry => entry.kind === 'run.terminal')).toHaveLength(2)
@@ -300,6 +305,7 @@ async function turnOnRelease(
       { cause },
     )
   } finally {
+    released.stop()
     if (!stopped) controller.abort('test: stop')
     await finished.catch(() => undefined)
     await gateway.close()
@@ -312,6 +318,11 @@ const resultText = (entry: Entry | undefined): string =>
     .slice(1)
     .map(block => String(block['text'] ?? ''))
     .join('')
+
+const shown = (blocks: readonly unknown[]) =>
+  blocks.filter(
+    block => (block as { visibility?: { toHuman?: boolean } }).visibility?.toHuman !== false,
+  )
 
 describe('a Tool result on the release tree reaches the Agent', () => {
   it(
@@ -368,6 +379,7 @@ describe('a Tool result on the release tree reaches the Agent', () => {
             id: 'call_old_inline',
             arguments: JSON.stringify({
               command: 'execute',
+              intent: 'test call',
               params: { script: 'awk \'BEGIN { for(i=0;i<24576;i++) printf "x" }\'' },
             }),
           },
@@ -442,6 +454,7 @@ describe('a Tool result on the release tree reaches the Agent', () => {
             id: 'call_small_result',
             arguments: JSON.stringify({
               command: 'execute',
+              intent: 'test call',
               params: { script: "printf 'W3-SMALL-OK\\n'" },
             }),
           },
@@ -468,7 +481,11 @@ describe('a Tool result on the release tree reaches the Agent', () => {
           [
             {
               id: 'call_large_result',
-              arguments: JSON.stringify({ command: 'execute', params: { script } }),
+              arguments: JSON.stringify({
+                command: 'execute',
+                intent: 'test call',
+                params: { script },
+              }),
             },
           ],
           seen,
@@ -513,7 +530,8 @@ describe('a Tool result on the release tree reaches the Agent', () => {
         callId: 'call_deliver',
       })
       expect(resultText(entries[3])).toContain('shell=')
-      expect(blocksOf(entries[4])).toMatchObject([{ kind: 'text', text: FINAL }])
+      // What the person sees is the final text; a reply on Responses also keeps a hidden reasoning state.
+      expect(shown(blocksOf(entries[4]))).toMatchObject([{ kind: 'text', text: FINAL }])
       expect(entries[5]?.payload['terminal']).toMatchObject({ outcome: 'completed' })
     },
   )
@@ -527,7 +545,10 @@ describe('a Tool result on the release tree reaches the Agent', () => {
         toolsThenText(
           [
             { id: 'call_unknown', arguments: '{"command":"nope"}' },
-            { id: 'call_missing', arguments: '{"command":"execute","params":{}}' },
+            {
+              id: 'call_missing',
+              arguments: '{"command":"execute","intent":"test call","params":{}}',
+            },
             { id: 'call_info', arguments: '{"command":"info","params":{}}' },
           ],
           seen,
@@ -548,7 +569,9 @@ describe('a Tool result on the release tree reaches the Agent', () => {
       expect(unknown).toContain('info {} - ')
       const missing = resultText(entries[4])
       expect(missing).toContain('Shell execute: ')
-      expect(missing).toContain('Usage: Shell {"command": "execute", "params": {script')
+      expect(missing).toContain(
+        'Usage: Shell {"command": "execute", "intent": "<one line: why you make this call>", "params": {script',
+      )
       expect(resultText(entries[5])).toContain('shell=')
       expect(entries[7]?.payload['terminal']).toMatchObject({ outcome: 'completed' })
       expect(seen[1]).toContain('there is no command \\"nope\\"')

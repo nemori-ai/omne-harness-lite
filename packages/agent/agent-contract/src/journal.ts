@@ -1,3 +1,4 @@
+import type { PreparedCompactionCommit } from './compaction.ts'
 import type { ToolOperationRef } from '@omne-harness/tool-contract'
 import type { Message } from '@omne-harness/message'
 import type {
@@ -5,7 +6,6 @@ import type {
   InputBatch,
   ModelReplyAdmission,
   PendingCall,
-  PreparedContextTransition,
   ProducedResult,
   Reply,
   ReplyAdmissionFrom,
@@ -38,6 +38,7 @@ import type {
 import type {
   Access,
   ActionId,
+  InputId,
   Adoption,
   AgentExecutionId,
   AgentOperationId,
@@ -60,7 +61,7 @@ export type CallerCommit =
     }>
   | Readonly<{
       kind: 'context-transition'
-      value: PreparedContextTransition
+      value: PreparedCompactionCommit
       admission: DurableEvidence
     }>
   | Readonly<{
@@ -270,6 +271,10 @@ export interface AgentJournalReading<P> {
       }>,
   ): Reply<ReplyAdmissionPage>
   query(input: ExecutionMutation<P>): ReturnType<AgentExecutionRecovery<P>['query']>
+  /** The acceptance of one input by its identity, open or closed; null when it was never accepted. */
+  inputAcceptance(
+    input: Access<P> & Readonly<{ execution: AgentExecutionId; input: InputId }>,
+  ): Reply<OriginalInputAcceptance | null>
   readFinish?(
     input: Access<P> & Readonly<{ execution: AgentExecutionId }>,
   ): Reply<FinishIntent | null>

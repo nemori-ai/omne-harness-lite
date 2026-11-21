@@ -1,5 +1,6 @@
 import type { Adoption, CallAccess, DispatchId, Identity, ModelCallId, Revision } from './root.ts'
 import type { DurableEvidence, ModelFault, Reply } from './result.ts'
+import type { ConnectRetryReason, DispatchInstants } from './call-surface.ts'
 
 export type ModelDiagnosticId = Identity<'ModelDiagnosticId'>
 export type ModelDiagnosticCursor = Identity<'ModelDiagnosticCursor'>
@@ -19,11 +20,15 @@ export type ModelAttemptDiagnostic = Readonly<{
     | Readonly<{ kind: 'completed'; reason: 'stop' | 'limit' | 'tool-suggestions' }>
     | Readonly<{ kind: 'interrupted' }>
     | Readonly<{ kind: 'failed'; cause: ModelFault['cause']; upstreamStatus: string | null }>
+  instants: DispatchInstants
+  /** Each span is known only when both of its moments were kept and the later is not before the earlier. */
   timing: Readonly<{
     materialize: ModelDuration
+    sendToResponse: ModelDuration
     sendToFirstContent: ModelDuration
     execution: ModelDuration
   }>
+  connectRetries: readonly ConnectRetryReason[]
 }>
 export type ModelDiagnosticsPage = Readonly<{
   entries: readonly ModelAttemptDiagnostic[]

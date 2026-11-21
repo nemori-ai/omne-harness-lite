@@ -14,6 +14,7 @@ import {
   operationId,
   ordinaryInput,
   sessionId,
+  testingIntakeGuards,
 } from '@omne-harness/session-contract/testing'
 import {
   deriveDriveOperation,
@@ -67,6 +68,7 @@ function write(over: Partial<ExecutionRecordWrite> = {}): ExecutionRecordWrite {
     operation: 'aop_open',
     digest: 'sha256:open',
     blobs: [],
+    items: [],
     boundaries: [
       {
         execution,
@@ -149,6 +151,7 @@ const acceptCommand = (name: string): SessionCommand => ({
   },
 })
 const login = [guard('login', 'login-entry', 'present')]
+const withTerms = (command: SessionCommand) => [...login, ...testingIntakeGuards(command)]
 
 async function running(
   a: App,
@@ -190,7 +193,7 @@ const acceptedAs = (name: string, source: DurableEvidence) => ({
   message: ordinaryInput(name).message,
 })
 
-async function cancel(a: App, work: WorkSnapshot) {
+async function cancel(a: App, work: WorkSnapshot, by: 'cancel-run' | 'archive' = 'cancel-run') {
   if (work.run.kind !== 'active') throw new Error('no active Run')
   ok(
     await a.port.commit({
@@ -201,7 +204,10 @@ async function cancel(a: App, work: WorkSnapshot) {
           tenant: TENANT_A,
           session: SESSION,
           operation: operationId('cancel'),
-          intent: { kind: 'cancel-run', run: work.run.run, urgency: 'force' },
+          intent:
+            by === 'archive'
+              ? { kind: 'archive' }
+              : { kind: 'cancel-run', run: work.run.run, urgency: 'force' },
         },
       },
       guards: [],
@@ -244,7 +250,7 @@ describe('the first publication: one commit with an execution-record and a sessi
     const before = await root(a)
     const result = await joint(a, 'aop_joint', [
       executionRecordFacts(write()),
-      sessionCommandFacts(acceptCommand('joint'), login),
+      sessionCommandFacts(acceptCommand('joint'), withTerms(acceptCommand('joint'))),
     ])
     expect(result.kind).toBe('committed')
     if (result.kind !== 'committed') return
@@ -275,7 +281,7 @@ describe('the first publication: one commit with an execution-record and a sessi
       a.provider.failWrite(pattern, 1, 19)
       const result = await joint(a, 'aop_fail', [
         executionRecordFacts(write()),
-        sessionCommandFacts(acceptCommand('fail'), login),
+        sessionCommandFacts(acceptCommand('fail'), withTerms(acceptCommand('fail'))),
       ])
       expect(result.kind).toBe('rolled_back')
       expect(count(a, 'er_operation')).toBe(0)
@@ -551,42 +557,47 @@ describe('the read-only checks of the session participant', () => {
     })
   })
 
-  it('a cancelled finish participates only under the control the run.terminal entry of the Run refers to', async () => {
-    const a = await app()
-    const { execution, work } = await running(a)
-    await cancel(a, work)
-    const cancelled = ok<WorkSnapshot>(await a.port.readWork(a.access(TENANT_A)))
-    const control = cancelled.controls.find(item => item.intent.kind === 'control')
-    if (control === undefined) throw new Error('no cancel control')
-    const finish = (name: string, by: string | null) =>
-      joint(a, name, [
-        executionRecordFacts(write({ execution, operation: name })),
-        sessionCheckFacts({
-          kind: 'finish',
-          tenant: TENANT_A,
-          session: SESSION,
-          execution,
-          conclusion: 'cancelled',
-          control: by,
-        }),
-      ])
-    const own = deriveDriveOperation({ kind: 'control', execution, control: control.operation })
-    for (const [name, by] of [
-      [
-        'aop_fin_other',
-        deriveDriveOperation({ kind: 'control', execution, control: 'sop_other' as never }),
-      ],
-      ['aop_fin_none', null],
-    ] as const) {
-      const refused = await finish(name, by)
-      expect(
-        refused.kind === 'rolled_back' &&
-          decodeSessionReply(refused.responses.find(item => item.participant === 'session')!.reply),
-      ).toMatchObject({ kind: 'stopped', failure: { kind: 'changed' } })
-    }
-    expect(count(a, 'er_operation')).toBe(0)
-    expect((await finish('aop_fin_own', own)).kind).toBe('committed')
-  })
+  it.each(['cancel-run', 'archive'] as const)(
+    'a finish of a Run that %s cancelled participates only under that control',
+    async by => {
+      const a = await app()
+      const { execution, work } = await running(a)
+      await cancel(a, work, by)
+      const cancelled = ok<WorkSnapshot>(await a.port.readWork(a.access(TENANT_A)))
+      const control = cancelled.controls.find(item => item.intent.kind === 'control')
+      if (control === undefined) throw new Error('no cancel control')
+      const finish = (name: string, by: string | null) =>
+        joint(a, name, [
+          executionRecordFacts(write({ execution, operation: name })),
+          sessionCheckFacts({
+            kind: 'finish',
+            tenant: TENANT_A,
+            session: SESSION,
+            execution,
+            conclusion: 'cancelled',
+            control: by,
+          }),
+        ])
+      const own = deriveDriveOperation({ kind: 'control', execution, control: control.operation })
+      for (const [name, by] of [
+        [
+          'aop_fin_other',
+          deriveDriveOperation({ kind: 'control', execution, control: 'sop_other' as never }),
+        ],
+        ['aop_fin_none', null],
+      ] as const) {
+        const refused = await finish(name, by)
+        expect(
+          refused.kind === 'rolled_back' &&
+            decodeSessionReply(
+              refused.responses.find(item => item.participant === 'session')!.reply,
+            ),
+        ).toMatchObject({ kind: 'stopped', failure: { kind: 'changed' } })
+      }
+      expect(count(a, 'er_operation')).toBe(0)
+      expect((await finish('aop_fin_own', own)).kind).toBe('committed')
+    },
+  )
 
   it('a finish while an input Session accepted for this Run is not handed over is changed', async () => {
     const a = await app()

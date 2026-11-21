@@ -37,12 +37,10 @@ import {
   type ResumeEntry,
 } from './loop/coordinator.ts'
 import { agentEvidence } from './loop/identities.ts'
-import { modelRetryEntry } from './loop/model-retry.ts'
 import { reconciliationPacer } from './loop/reconciliation.ts'
-import { createControlWriter } from './control.ts'
+import { createControlWriter, releaseForeground } from './control.ts'
 import type { AgentMeasurer } from './measure.ts'
 import type {
-  AgentModelRetryingReceiver,
   AgentRunEndedFailedReceiver,
   AgentRunFailedReceiver,
   AgentRunWaitingReceiver,
@@ -161,7 +159,11 @@ export type ProviderEntry<P, B extends ContentBlock> = Readonly<{
   binding: AgentRuntimeBinding
   configuration: Pick<
     AgentConfiguration,
-    'reconciliationDelaysMs' | 'toolConcurrency' | 'jointCommits' | 'maxRunSteps' | 'modelRetry'
+    | 'reconciliationDelaysMs'
+    | 'toolConcurrency'
+    | 'jointCommits'
+    | 'maxRunSteps'
+    | 'compactionProvider'
   >
   guard: AccessGuard<P>
   dependencies: AgentDependencies<P, B>
@@ -169,8 +171,17 @@ export type ProviderEntry<P, B extends ContentBlock> = Readonly<{
   failed: AgentRunFailedReceiver | undefined
   endedFailed: AgentRunEndedFailedReceiver | undefined
   waiting: AgentRunWaitingReceiver | undefined
-  modelRetrying: AgentModelRetryingReceiver | undefined
 }>
+
+/** The parts of a coordinator that every execution of this provider shares. */
+function coordinatorBase<P, B extends ContentBlock>(entry: ProviderEntry<P, B>) {
+  return {
+    ports: entry.dependencies,
+    binding: entry.binding,
+    jointCommits: entry.configuration.jointCommits,
+    compactionProvider: entry.configuration.compactionProvider,
+  }
+}
 
 export function createProvider<P, B extends ContentBlock>(
   entry: ProviderEntry<P, B>,
@@ -275,7 +286,7 @@ export function createProvider<P, B extends ContentBlock>(
           if (input.execution !== execution) return fail(foreign)
           const answer = await submitInput(dependencies, input)
           if ('ok' in answer) hint(execution)
-          return answer
+          return releaseForeground(dependencies, input, answer)
         },
       },
       control: {
@@ -397,9 +408,7 @@ export function createProvider<P, B extends ContentBlock>(
     if (resolved.ok.extensions.length > 0)
       return fail(notImplemented('an adopted loop extension', 'stage 3'))
     return succeed({
-      ports: dependencies,
-      binding,
-      jointCommits: entry.configuration.jointCommits,
+      ...coordinatorBase(entry),
       evaluator: resolved.ok.evaluator,
       access,
       execution,
@@ -419,7 +428,6 @@ export function createProvider<P, B extends ContentBlock>(
           })
         } catch {}
       },
-      ...modelRetryEntry(entry, dependencies.random, execution),
       toolConcurrency: entry.configuration.toolConcurrency,
       maxRunSteps: maxRunStepsOf(entry.configuration),
     })
@@ -593,9 +601,7 @@ export function createProvider<P, B extends ContentBlock>(
     })
     if ('failure' in resolved) return resolved
     const coordinator = createExecutionCoordinator({
-      ports: dependencies,
-      binding,
-      jointCommits: entry.configuration.jointCommits,
+      ...coordinatorBase(entry),
       evaluator: resolved.ok.evaluator,
       access: { principal: input.principal, tenant: input.tenant },
       execution: input.execution,

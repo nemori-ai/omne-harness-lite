@@ -1,3 +1,4 @@
+import { notificationConfig } from '../../src/rows/notification/index.ts'
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -9,6 +10,7 @@ import {
   WAIT_REQUEST_MAX_BYTES,
   WAIT_RESPONSE_MAX_BYTES,
 } from '@omne-harness/tool-contract/provider'
+import { SEARCH_RANKING } from '../../src/entry/search-ranking.ts'
 import { resolveLocations } from '../../src/local/locations.ts'
 import { captureShellEnvironment, isSecretName } from '../../src/local/settings.ts'
 import {
@@ -143,13 +145,12 @@ describe('localOperatorLayer over the bundled distribution', () => {
     })
   })
 
-  it('gives the Agent the retry budget of a failed main model call', () => {
-    expect(configOf(layer, 'agent-host')).toMatchObject({
-      modelRetry: {
-        maxAttempts: 4,
-        maxElapsedMs: 120_000,
-        delaysMs: [1_000, 5_000, 30_000],
-        jitter: 0.2,
+  it('gives the retry values to the Model host, and none to the Agent', () => {
+    expect(configOf(layer, 'agent-host')).not.toHaveProperty('modelRetry')
+    expect(configOf(layer, 'model-host')).toMatchObject({
+      retry: {
+        policy: { maxAttempts: 2, maxElapsedMs: 30_000, delaysMs: [1_000], jitter: 0.2 },
+        replayResend: { max: 1 },
       },
     })
   })
@@ -216,8 +217,54 @@ describe('localOperatorLayer over the bundled distribution', () => {
         maxConcurrentCalls: calls,
         maxPendingAccountsPerTenant: calls,
         maxPendingAccounts: calls,
+        delaysMs: [1000, 5000, 30_000],
       },
     })
+  })
+
+  it('gives the tenant-assets row the assets root of the state and the skills row the shared search parameters, only when the release has the rows', () => {
+    expect(configOf(layer, 'tenant-assets')).toEqual({
+      packageRoot: input('linux').locations.assetsRoot,
+    })
+    expect(configOf(layer, 'skills')).toEqual({ ranking: SEARCH_RANKING })
+    expect(configOf(layer, 'session-history-index')).toEqual({
+      root: input('linux').locations.historyIndexRoot,
+    })
+    expect(configOf(layer, 'media-storage-local')).toEqual({
+      root: input('linux').locations.mediaRoot,
+    })
+    const without = localOperatorLayer({
+      ...input('linux'),
+      distribution: { rows: [{ id: 'session-handoff', config: { combinationVersion: 'v' } }] },
+    })
+    expect(without.ops.map(op => op.id)).toEqual(
+      layer.ops
+        .map(op => op.id)
+        .filter(
+          id =>
+            ![
+              'tenant-assets',
+              'skills',
+              'secret-custody',
+              'notification',
+              'dispatch',
+              'workspace',
+              'session-history-index',
+              'media-storage-local',
+            ].includes(id),
+        ),
+    )
+  })
+
+  it('gives the notification row one whole policy that its schema takes, with every surface of the person reached in the application', () => {
+    const config = configOf(layer, 'notification')
+    expect(Object.keys(config ?? {})).toEqual(['policy'])
+    const parsed = notificationConfig.parse(config)
+    expect(parsed.policy.recipients).toEqual({
+      person: { channel: 'in-app', minLevel: 'weak' },
+      agent: null,
+    })
+    expect(parsed.policy.retry.backoffMs.length).toBeLessThan(parsed.policy.retry.maxAttempts)
   })
 
   it('does not overwrite any key that the release gives a replaced row', () => {
@@ -286,16 +333,43 @@ describe('localOperatorLayer over the bundled distribution', () => {
       .parse(configOf(layer, 'tool-records')).configuration.offloading.maxInlineUtf8Bytes
     const bounds = localBounds()
     expect(Object.keys(bounds).sort()).toEqual([
+      'Agents',
       'Ask',
+      'BkgToolCalls',
+      'Calendar',
       'Files',
+      'Notifications',
+      'Schedules',
+      'Screen',
+      'Sessions',
       'Shell',
+      'Skills',
+      'SwitchWorkspace',
       'TodoItems',
       'Tools',
       'Web',
     ])
-    for (const tool of ['Shell', 'Files', 'Web', 'TodoItems', 'Ask'])
+    for (const tool of [
+      'Shell',
+      'Files',
+      'Web',
+      'TodoItems',
+      'Ask',
+      'Skills',
+      'Sessions',
+      'Agents',
+    ])
       expect(bounds[tool]?.resultMaxBytes, tool).toBeGreaterThan(inline)
-    expect(bounds['Tools']?.resultMaxBytes).toBeLessThanOrEqual(inline)
+    for (const tool of [
+      'Tools',
+      'BkgToolCalls',
+      'Calendar',
+      'Schedules',
+      'Notifications',
+      'SwitchWorkspace',
+      'Screen',
+    ])
+      expect(bounds[tool]?.resultMaxBytes, tool).toBeLessThanOrEqual(inline)
   })
 
   it('gives the test operator layer the tool result bounds of the local profile', () => {
@@ -310,18 +384,24 @@ describe('localOperatorLayer over the bundled distribution', () => {
     }
   })
 
-  it('puts the workspace under both tools and the execution host', () => {
+  it('gives the workspace as the default directory of sessions, and to no tool or provider', () => {
+    expect(configOf(layer, 'session-ad03')).toMatchObject({ defaultDirectory: '/work' })
     expect(configOf(layer, 'tool-host')).toMatchObject({
-      construction: {
-        Shell: { executable: '/bin/bash', argsPrefix: ['-c'], cwd: '/work' },
-        Files: { cwd: '/work' },
-      },
+      construction: { Shell: { executable: '/bin/bash', argsPrefix: ['-c'] } },
     })
-    expect(configOf(layer, 'tool-records')).toMatchObject({ filesRoot: '/work' })
-    expect(configOf(layer, 'execution-host')).toEqual({
-      filesRoot: '/work',
-      stateDirectory: '/h/state/host-files',
+    const construction = (configOf(layer, 'tool-host') as { construction: Record<string, object> })
+      .construction
+    expect(Object.keys(construction['Shell']!)).not.toContain('cwd')
+    expect(construction['Files']).toEqual({
+      resultMaxBytes: 1_048_576,
+      openMaxBytes: 20_971_520,
+      imageMaxWidth: 16384,
+      imageMaxHeight: 16384,
+      imageMaxDecodedBytes: 134_217_728,
+      imageConcurrency: 2,
     })
+    expect(configOf(layer, 'tool-records')).not.toHaveProperty('filesRoot')
+    expect(configOf(layer, 'execution-host')).toEqual({ stateDirectory: '/h/state/host-files' })
   })
 
   it('gives the telemetry row its seven budgets and leaves the implementation and the outlet to the release', () => {

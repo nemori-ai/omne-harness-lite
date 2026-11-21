@@ -3,43 +3,48 @@ import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/iden
 import { principalVerifierKey, tenantStandingKey } from '@omne-harness/identity/cordis'
 import type { CredentialPort, ModelClock } from '@omne-harness/model-contract/provider'
 import {
-  ModelDiagnosticsService,
   modelClockKey,
   modelCommandsKey,
   modelDiagnosticsKey,
+  modelDispatchFactsKey,
   modelSendBoundaryKey,
 } from '@omne-harness/model-cordis-contract/cordis'
 import {
   createModelSendStagePlugin,
   type ModelSendStageSettings,
 } from '@omne-harness/model-host-local/cordis'
-import type { ModelMaterializationEvidenceReader } from '@omne-harness/model-host-local'
+import type {
+  ModelMaterializationEvidenceReader,
+  ModelReceiveEvidenceReader,
+} from '@omne-harness/model-host-local'
 import { createSqlModelRecordsPlugin } from '@omne-harness/model-storage-sql/cordis'
-import { createSqlModelDiagnostics } from '@omne-harness/model-storage-sql'
 import {
   createModelInitialRun,
+  type ModelInitialRunAdopt,
   type ModelCommandsEvidence,
   type ModelInitialExecution,
 } from '@omne-harness/model/commands'
-import { createOpenAiFamily, openAiTokenizerResources } from '@omne-harness/pi-ai-openai'
-import { composeFamilies } from '@omne-harness/pi-ai-transport'
+import type { TiktokenExecutor } from '@omne-harness/tokenizer-tiktoken'
 import { modelTokenizersKey, type ModelTokenizers } from '@omne-harness/tokenizer-tiktoken/cordis'
 import type { SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
 import { currentForReader } from '../../entry/runtime-context-trust.ts'
-import { qualifyingDiagnostics } from './diagnostics.ts'
+import { mountReads } from './diagnostics.ts'
 import { toolResultDisclosureOf } from '../../model/tool-result-disclosure.ts'
 import { agentCustodyOf, createModelEvidence } from '../../model/evidence.ts'
+import { compactionEvidenceOf } from '../../model/compaction-evidence.ts'
 import { modelRecordsPortOf } from '../../model/ports.ts'
 import { observationTiming } from '../../model/observation.ts'
 import { createModelQualification } from '../../model/qualification.ts'
 import { officialSendSources } from '../../model/sources.ts'
+import { releaseFamilies } from '../../model/families.ts'
 import { defineRow } from '../../row.ts'
 import { providerRoutes } from '../../assets/model-providers.ts'
 import { credentialLayerSupplier } from '../../model/credential-layer.ts'
 import { compositeManifestDigest } from '../session-storage/composite.ts'
 import { storageCatalog } from '../storage/catalog.ts'
 import { modelRecordsConfig, type ModelRecordsConfig } from './config.ts'
+import { slot } from './slot.ts'
 
 const INJECT = [
   storageKey,
@@ -82,28 +87,36 @@ function evidenceOf(
   return adapters
 }
 
-function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
+function recordsManifestDigest(): string {
+  const manifest = compositeManifestDigest(storageCatalog())
+  if (manifest.kind === 'invalid')
+    throw new Error(`model records combination is not registrable: ${manifest.diagnostic}`)
+  return manifest.digest
+}
+
+/** `adopt` is the assembly's evidence that no other process holds a call this run has no record of. */
+export type ModelRecordsRowInput = Readonly<{ adopt?: ModelInitialRunAdopt }>
+
+function mountRecords(ctx: Context, config: ModelRecordsConfig, input: ModelRecordsRowInput): void {
   const requestDisclosure = toolResultDisclosureOf(ctx)
   const port = modelRecordsPortOf(ctx)
   if (port === undefined)
     throw new Error(
       'model-records: the modelHostAuthority entry object of this release is not installed',
     )
-  const manifest = compositeManifestDigest(storageCatalog())
-  if (manifest.kind === 'invalid')
-    throw new Error(`model records combination is not registrable: ${manifest.diagnostic}`)
+  const manifestDigest = recordsManifestDigest()
   const given = injected(ctx)
   const qualification = createModelQualification({
     verifier: given.principalVerifier,
     standing: given.tenantStanding,
   })
-  const live: {
-    initial: ModelInitialExecution<unknown> | undefined
-    reader: ModelMaterializationEvidenceReader | undefined
-  } = { initial: undefined, reader: undefined }
+  const live: { initial: ModelInitialExecution<unknown> | undefined } = { initial: undefined }
+  const materialization = slot<ModelMaterializationEvidenceReader>()
+  const receive = slot<ModelReceiveEvidenceReader>()
   const initialRun = createModelInitialRun<unknown>({
     limits: config.app.initial,
     checkOriginRead: target => port.checkOriginRead(target),
+    ...(input.adopt === undefined ? {} : { adopt: input.adopt }),
   })
   const { sendStage } = config.app
   const sendCredential: { port: CredentialPort | undefined } = { port: undefined }
@@ -116,11 +129,13 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
       authority: qualification.authority,
       evidence: evidenceOf(config.member, {
         initial: () => live.initial,
-        reader: () => live.reader,
+        reader: materialization.read,
+        receive: receive.read,
         custody: () => agentCustodyOf(ctx),
+        compaction: () => compactionEvidenceOf(ctx),
       }),
       clock: given.modelClock,
-      manifestDigest: manifest.digest,
+      manifestDigest,
       sources: officialSendSources({
         profiles: sendStage.profiles,
         current: qualification.sourceCurrent,
@@ -149,21 +164,15 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
         live.initial = undefined
         handle.detach()
       })
+      const executor: Pick<TiktokenExecutor, 'acquire'> = {
+        acquire: (definition, signal) =>
+          sendTokenizers.port?.acquire(definition, signal) ?? {
+            failure: { kind: 'unavailable', diagnostic: 'tokenizer-provider-unavailable' },
+          },
+      }
       const Stage = createModelSendStagePlugin<unknown>({
         requestDisclosure,
-        families: composeFamilies([
-          createOpenAiFamily({
-            tokenizer: openAiTokenizerResources(),
-            executor: {
-              acquire: (definition, signal) =>
-                sendTokenizers.port?.acquire(definition, signal) ?? {
-                  failure: { kind: 'unavailable', diagnostic: 'tokenizer-provider-unavailable' },
-                },
-            },
-            limits: sendStage.preparation.openai.limits,
-            margin: sendStage.preparation.openai.margin,
-          }),
-        ]),
+        families: releaseFamilies(sendStage.preparation, executor),
         coordinator,
         materialization: {
           maxRecords: sendStage.materialization.maxRecords,
@@ -186,12 +195,8 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
           supplierOf: credentialLayerSupplier(() => sendCredential.port),
         },
         executionChannel: () => handle.executionChannel(),
-        installMaterialization: reader => {
-          live.reader = reader
-          return () => {
-            if (live.reader === reader) live.reader = undefined
-          }
-        },
+        installMaterialization: materialization.install,
+        installReceive: receive.install,
       })
       // The child's fiber is captured here, before the stage constructs, so the host can release it.
       const plugin: Plugin.Object = {
@@ -216,41 +221,40 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
   })
   new Records(ctx, config.member)
   const current = currentForReader(new WeakMap(), ctx)
-  class Diagnostics extends ModelDiagnosticsService<unknown> {
-    readonly list
-    constructor() {
-      super(ctx)
-      this.list = qualifyingDiagnostics(
-        createSqlModelDiagnostics({
-          storage: given.storage,
-          domains: given.tenantDomainLookup,
-          authority: qualification.authority,
-          ...config.diagnostics,
-        }),
-        access => qualification.qualifyRead(access, current),
-      ).list
-    }
-  }
-  new Diagnostics()
+  mountReads(ctx, {
+    storage: given.storage,
+    domains: given.tenantDomainLookup,
+    authority: qualification.authority,
+    qualify: access => qualification.qualifyRead(access, current),
+    diagnostics: config.diagnostics,
+  })
 }
 
-const recordsPlugin: Plugin.Object = {
+const recordsPlugin = (input: ModelRecordsRowInput): Plugin.Object => ({
   name: 'model-records',
   inject: [...INJECT],
   Config: modelRecordsConfig,
   apply(ctx: Context, config: ModelRecordsConfig) {
-    mountRecords(ctx, config)
+    mountRecords(ctx, config, input)
   },
-}
-
-export const modelRecordsRow = defineRow({
-  row: 'model-records',
-  implementation: 'real',
-  manifest: {
-    provides: [modelCommandsKey, modelSendBoundaryKey, modelDiagnosticsKey],
-    injects: [...INJECT],
-    sameProviderGroup: 'model-records',
-  },
-  lifecycle: { kind: 'none' },
-  plugin: recordsPlugin,
 })
+
+export const createModelRecordsRow = (input: ModelRecordsRowInput = {}) =>
+  defineRow({
+    row: 'model-records',
+    implementation: 'real',
+    manifest: {
+      provides: [
+        modelCommandsKey,
+        modelSendBoundaryKey,
+        modelDiagnosticsKey,
+        modelDispatchFactsKey,
+      ],
+      injects: [...INJECT],
+      sameProviderGroup: 'model-records',
+    },
+    lifecycle: { kind: 'none' },
+    plugin: recordsPlugin(input),
+  })
+
+export const modelRecordsRow = createModelRecordsRow()

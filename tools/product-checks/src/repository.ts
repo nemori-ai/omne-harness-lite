@@ -13,6 +13,7 @@ import { registryHistoryBoundary } from './rules/registry-history-boundary.ts'
 import { syntaxImports, syntaxOf } from '@omne-harness/repo-toolchain/core/syntax'
 import { modelCredentialBoundary } from './rules/model-credential-boundary.ts'
 import { testTempPhysicalPath } from './rules/test-temp-physical-path.ts'
+import { assetCategoryNames } from './rules/asset-category-names.ts'
 
 export const REPOSITORY_RULES = [
   sessionSeedBoundary,
@@ -24,6 +25,7 @@ export const REPOSITORY_RULES = [
   registryHistoryBoundary,
   modelCredentialBoundary,
   testTempPhysicalPath,
+  assetCategoryNames,
 ] as const
 export function collectRepositorySources(root: string): SourceFile[] {
   root = resolve(root)
@@ -87,7 +89,7 @@ export function collectRepositorySources(root: string): SourceFile[] {
       const full = join(dir, name)
       if (statSync(full).isDirectory()) {
         if (!isLegacyDirectory(relative(root, full))) walk(full)
-      } else if (/\.[cm]?[jt]s$/u.test(name) || name === 'package.json') {
+      } else if (/\.(?:[cm]?[jt]s|[jt]sx)$/u.test(name) || name === 'package.json') {
         const source: SourceFile = {
           path: relative(root, full).replaceAll('\\', '/'),
           text: readFileSync(full, 'utf8'),

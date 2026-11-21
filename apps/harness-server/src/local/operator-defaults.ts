@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import { pathsOf, type ServerLocations } from './locations.ts'
 import { isSecretName, type ServerSettings, type StorageLimits } from './settings.ts'
+import { DEFAULT_COMPACTION_BINDING } from '../assembly/compaction-provider.ts'
+import { SEARCH_RANKING } from '../entry/search-ranking.ts'
 
 export const DEFAULT_READINESS_TIMEOUT_MS = 30_000
 export const DEFAULT_SHUTDOWN_DEADLINE_MS = 10_000
@@ -14,6 +16,33 @@ export const LOCAL_HISTORY_KINDS = [
   'run.started',
   'run.terminal',
 ] as const
+
+export const LOCAL_HISTORY_SEARCH = {
+  policy: {
+    query: {
+      maxGramsPerLiteral: 16,
+      maxAlternatives: 32,
+      maxLiterals: 8,
+      maxLiteralLength: 256,
+      maxPatternLength: 512,
+      maxProgramSize: 8192,
+      maxScopeSessions: 64,
+    },
+    search: {
+      candidateBatch: 256,
+      verifyBatch: 64,
+      timeBudgetMs: 1500,
+      maxCandidates: 20_000,
+      scanBytes: 64 * 1024 * 1024,
+      tailPageBytes: 1024 * 1024,
+      maxFrozen: 64,
+    },
+    maxPageSize: 100,
+    maxConcurrent: 2,
+    maxQueued: 8,
+  },
+  follow: { pageBytes: 512 * 1024, maxSteps: 32, intervalMs: 5000, compactPages: 16, restRatio: 1 },
+} as const
 
 export const LOCAL_DIAGNOSTICS_KINDS = [
   'run.started',
@@ -66,22 +95,29 @@ export const LOCAL_TOKENIZERS = {
   cancellationGraceMs: 1_000,
 } as const
 
-const PREPARATION = {
-  maxCitedCalls: 8,
-  openai: {
-    limits: {
-      toolArguments: {
-        maxBytes: 65_536,
-        maxDepth: 32,
-        maxItems: 1_024,
-        maxMembers: 256,
-        maxStringLength: 65_536,
-        maxNumberLength: 64,
-      },
-      maxReasoningText: 65_536,
+// The limits of decoding tool arguments and reasoning text, and the input margin, of one family.
+const FAMILY = {
+  limits: {
+    toolArguments: {
+      maxBytes: 65_536,
+      maxDepth: 32,
+      maxItems: 1_024,
+      maxMembers: 256,
+      maxStringLength: 65_536,
+      maxNumberLength: 64,
     },
-    margin: { percent: '10', source: ADOPTION },
+    maxReasoningText: 65_536,
   },
+  margin: { percent: '10', source: ADOPTION },
+} as const
+
+const PREPARATION = {
+  // A reply that carries reasoning state cites the call that produced it, and a request cites
+  // every such reply it carries; the bound guards one preparation against an unbounded read.
+  maxCitedCalls: 1_024,
+  openai: FAMILY,
+  anthropic: FAMILY,
+  qwen: FAMILY,
 } as const
 
 export const LOCAL_CONCURRENT_MODEL_CALLS = 20
@@ -105,8 +141,11 @@ const MODEL_HOST = {
     observerCheckIntervalMs: 25,
     readIdleMs: 1000,
     resultPageTargetBytes: 4096,
-    retryBackoffMs: 0,
-    cleanupRetryMs: 1000,
+  },
+  retry: {
+    adoption: PROFILES.retryPolicy,
+    policy: { maxAttempts: 2, maxElapsedMs: 30_000, delaysMs: [1_000], jitter: 0.2 },
+    replayResend: { max: 1 },
   },
   results: {
     maxConcurrentCalls: LOCAL_CONCURRENT_MODEL_CALLS,
@@ -114,6 +153,8 @@ const MODEL_HOST = {
     maxCleanupSteps: 8,
     maxPendingAccountsPerTenant: LOCAL_CONCURRENT_MODEL_CALLS,
     maxPendingAccounts: LOCAL_CONCURRENT_MODEL_CALLS,
+    maxCostMisses: 5,
+    delaysMs: [1000, 5000, 30_000],
   },
 } as const
 
@@ -125,6 +166,11 @@ function modelRecords(combinationVersion: string) {
       {
         consumerOwner: '@omne-harness/agent',
         evidence: { ...ADOPTION, name: 'local-single-user/agent-consumer-evidence' },
+        work: { kind: 'exempt' },
+      },
+      {
+        consumerOwner: '@omne-harness/context-compaction',
+        evidence: { ...ADOPTION, name: 'local-single-user/compaction-consumer-evidence' },
         work: { kind: 'exempt' },
       },
     ],
@@ -199,7 +245,7 @@ function storage(storageRoot: string, shutdownDeadlineMs: number, limits: Storag
     maxRequestBytes: 4_194_304,
     globalInFlightWriteBytes: 67_108_864,
     maxJsonMembers: 65_536,
-    maxResponseBytes: 262_144,
+    maxResponseBytes: 1_048_576,
     maxOperationResponseBytes: 1_048_576,
     globalWriteResponseBytes: 33_554_432,
     maxDiagnosticBytes: 4096,
@@ -288,10 +334,23 @@ export function shellEnvironment(
 }
 
 export const LOCAL_TOOL_RESULT_BYTES = 1_048_576
+const LOCAL_IMAGE_BUDGET = Object.freeze({
+  imageMaxWidth: 16384,
+  imageMaxHeight: 16384,
+  imageMaxDecodedBytes: 128 * 1024 * 1024,
+  imageConcurrency: 2,
+})
+export const LOCAL_OPEN_LIMITS = Object.freeze({
+  openMaxBytes: 20 * 1024 * 1024,
+  ...LOCAL_IMAGE_BUDGET,
+})
+export const LOCAL_SCREEN_LIMITS = Object.freeze({
+  captureMaxLongSide: 2048,
+  ...LOCAL_IMAGE_BUDGET,
+})
 
-function toolRecords(workspace: string, combinationVersion: string) {
+function toolRecords(combinationVersion: string) {
   return {
-    filesRoot: workspace,
     combinationVersion,
     configuration: {
       authorBufferBytes: 65_536,
@@ -343,20 +402,32 @@ function toolRecords(workspace: string, combinationVersion: string) {
 }
 
 const AGENT_HOST = {
+  compactionProvider: DEFAULT_COMPACTION_BINDING,
   observerBufferBytes: 65_536,
   reconciliationDelaysMs: [1000, 1000, 1000, 2000, 2000, 5000, 5000, 10_000, 30_000],
   reconciliationBatchLimit: 8,
   denialBackoffMs: 1000,
   toolConcurrency: 1,
   loopGuardPolicy: { ...ADOPTION, name: 'local-single-user/loop-guard' },
-  modelRetry: {
-    maxAttempts: 4,
-    maxElapsedMs: 120_000,
-    delaysMs: [1_000, 5_000, 30_000],
-    jitter: 0.2,
-  },
   instanceIdleMs: 60_000,
 } as const
+
+const LOCAL_NODE = 'local'
+
+const DISPATCH_POLICY = { maxOpen: 8, reconcileIntervalMs: 2_000 }
+
+/** A person gets every notification on the application's own surfaces. An agent has no destination until sessions take input from notifications. */
+const NOTIFICATION_POLICY = {
+  bodyLength: 16_384,
+  causalDepth: 3,
+  pageLimit: 100,
+  listLimit: 10,
+  retry: { maxAttempts: 5, backoffMs: [1_000, 5_000, 30_000, 120_000] },
+  deliverTimeoutMs: 10_000,
+  beat: { defaultMinutes: 60, minMinutes: 5, maxMinutes: 1_440 },
+  scanIntervalMs: 60_000,
+  recipients: { person: { channel: 'in-app', minLevel: 'weak' }, agent: null },
+}
 
 const TELEMETRY_BUDGETS = {
   maxRecordBytes: 16_384,
@@ -394,7 +465,10 @@ function combinationVersionOf(rows: ReleaseRows): string {
 
 export type LocalOperatorInput = Readonly<{
   distribution: unknown
-  locations: Pick<ServerLocations, 'vaultFile' | 'storageRoot' | 'hostFilesDir'>
+  locations: Pick<
+    ServerLocations,
+    'vaultFile' | 'storageRoot' | 'hostFilesDir' | 'assetsRoot' | 'historyIndexRoot' | 'mediaRoot'
+  >
   settings: ServerSettings
   shutdownDeadlineMs: number
   platform: NodeJS.Platform
@@ -422,8 +496,12 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
         combinationVersion,
         directoryFile: path.join(locations.storageRoot, 'tenant-domains.json'),
         domainRule: 'organization-account/1',
+        tenantBudget: rows.has('session-intake-budget'),
       },
     ],
+    ...(rows.has('session-history-index')
+      ? ([['session-history-index', { root: locations.historyIndexRoot }]] as const)
+      : []),
     ...(rows.has('secret-custody')
       ? ([['secret-custody', { path: locations.vaultFile }]] as const)
       : []),
@@ -440,18 +518,26 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
             resultMaxBytes: LOCAL_TOOL_RESULT_BYTES,
             executable: settings.shell,
             argsPrefix: shellArguments(platform, settings.shell),
-            cwd: settings.workspace,
             env: shellEnvironment(platform, settings.shellEnvironment, locations.hostFilesDir),
           },
-          Files: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, cwd: settings.workspace },
+          Files: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, ...LOCAL_OPEN_LIMITS },
           Tools: { resultMaxBytes: 65_536, outputModalities: ['text'] },
           TodoItems: { resultMaxBytes: 1_048_576 },
+          BkgToolCalls: { resultMaxBytes: 65_536 },
           Ask: { resultMaxBytes: 1_048_576 },
           Web: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, maxSearchResults: 10 },
+          Skills: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES },
+          Calendar: { resultMaxBytes: 65_536 },
+          Schedules: { resultMaxBytes: 65_536 },
+          Notifications: { resultMaxBytes: 65_536 },
+          Sessions: { resultMaxBytes: 131_072 },
+          Agents: { resultMaxBytes: 1_048_576 },
+          SwitchWorkspace: { resultMaxBytes: 65_536 },
+          Screen: { resultMaxBytes: 65_536, ...LOCAL_SCREEN_LIMITS },
         },
       },
     ],
-    ['tool-records', toolRecords(settings.workspace, combinationVersion)],
+    ['tool-records', toolRecords(combinationVersion)],
     [
       'tool-body-sweep',
       {
@@ -482,14 +568,26 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
         },
       },
     ],
-    ['execution-host', { filesRoot: settings.workspace, stateDirectory: locations.hostFilesDir }],
-    [
-      'request-context',
-      { limits: { maxTargets: 64, maxFactsPerTarget: 64, maxRevisionsPerDispatch: 16 } },
-    ],
+    ...(rows.has('tenant-assets')
+      ? ([['tenant-assets', { packageRoot: locations.assetsRoot }]] as const)
+      : []),
+    ...(rows.has('media-storage-local')
+      ? ([['media-storage-local', { root: locations.mediaRoot }]] as const)
+      : []),
+    ...(rows.has('skills') ? ([['skills', { ranking: SEARCH_RANKING }]] as const) : []),
+    ...(rows.has('notification')
+      ? ([['notification', { policy: NOTIFICATION_POLICY }]] as const)
+      : []),
+    ...(rows.has('dispatch') ? ([['dispatch', { policy: DISPATCH_POLICY }]] as const) : []),
+    ...(rows.has('workspace') ? ([['workspace', { node: LOCAL_NODE }]] as const) : []),
+    ['execution-host', { stateDirectory: locations.hostFilesDir }],
+    ['request-context', {}],
     ['agent-context', {}],
     ['agent-host', AGENT_HOST],
-    ['session-ad03', { scopeIndexEntries: 4096, pageBytes: 65_536 }],
+    [
+      'session-ad03',
+      { scopeIndexEntries: 4096, pageBytes: 65_536, defaultDirectory: settings.workspace },
+    ],
     ['session-ad04', { scopeIndexEntries: 4096, pageBytes: 65_536 }],
     [
       'session-access',

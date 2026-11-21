@@ -4,12 +4,13 @@ import type { OperationContext } from './operation-context.js'
 import { validateInput } from './input-validation.js'
 import { prepareStable, type ReuseBasis } from './preparation.js'
 import { contentControlOf, type AssemblyReuse } from './reuse.js'
-import { placeLayers, assembledInput } from './assembly-layers.js'
+import { layersOf, assembledInput } from './assembly-layers.js'
 import { representLayers } from './assembly-representation.js'
 import { measureLayers } from './assembly-budget.js'
 import { assemblyCoverage } from './assembly-coverage.js'
 import { assemblyOutcome } from './assembly-outcome.js'
 import { continuationFacts } from './model-input.js'
+import { triggerOf } from './budget.js'
 export async function assembleInputs<P>(
   input: AssemblyInput<P>,
   key: PreparedInputKey,
@@ -21,8 +22,7 @@ export async function assembleInputs<P>(
   if (invalid !== null) return invalid
   const stable = prepareStable(input, key, rows, basis)
   if (stable.kind !== 'prepared') return stable
-  const dynamic = placeLayers(input, stable)
-  if (dynamic.kind !== 'layers') return dynamic
+  const layers = layersOf(stable)
   basis?.reuse?.stage({
     target: input.target,
     key: stable.key,
@@ -34,36 +34,26 @@ export async function assembleInputs<P>(
     },
     prompt: { token: key.tokens.prompt, context: input.assembleContext, rendered: stable.prompt },
     tools: { token: key.tokens.tools, declarations: stable.declarations },
-    snapshot: { identity: dynamic.stable.identity, reminder: dynamic.layers.snapshotReminder },
-    split: dynamic.stable.split,
     contentControl: contentControlOf(input),
   })
-  const represented = await representLayers(input, context, dynamic.messages)
+  const represented = await representLayers(input, context, layers.history)
   if (represented.kind !== 'chosen') return represented
-  const assembled = assembledInput(input, dynamic.layers, represented.messages)
+  const assembled = assembledInput(input, layers, represented.messages)
   const facts = continuationFacts(
     input.history,
     input.selection,
     assembled,
     context.policies.representation.identity,
   )
-  const measured = await measureLayers(
-    input,
-    context,
-    stable,
-    dynamic.layers,
-    represented,
-    assembled,
-    facts,
-  )
+  const measured = await measureLayers(input, context, stable, represented, assembled, facts)
   if (measured.kind !== 'measured') return measured
-  const coverage = assemblyCoverage(input, stable, dynamic, represented, measured.whole)
+  const coverage = assemblyCoverage(input, stable, represented, measured.whole)
   return assemblyOutcome(
     input,
     {
       preparation: { key: stable.key, rows: stable.rows, view: stable.view },
       candidate: input.identity.candidate,
-      layers: dynamic.layers,
+      layers,
       coverage,
       assembled,
       representations: represented.choices,
@@ -71,5 +61,14 @@ export async function assembleInputs<P>(
       continuation: facts,
     },
     measured.verdict,
+    [
+      {
+        metric: 'input-tokens',
+        relation: 'at-most',
+        limit: String(
+          triggerOf(input.selection.profile.definition.context, context.policies.compaction.config),
+        ),
+      },
+    ],
   )
 }

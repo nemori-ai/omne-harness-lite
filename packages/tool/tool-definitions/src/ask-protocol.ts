@@ -1,11 +1,15 @@
 import { writeJsonText } from '@omne-harness/json-text'
+import {
+  DECISION_REQUEST_MAX_BYTES,
+  type DecisionQuestion,
+  type DecisionRequest,
+} from '@omne-harness/human-intervention-tool'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { defineSchema, jsonSchemaDefinition } from '@omne-harness/schema-provider'
 import { canonicalDigest } from '@omne-harness/tool'
 import type { ParameterContract } from '@omne-harness/tool-contract'
 import {
   createDefaultParameterCodec,
-  defineToolWaitContract,
   describedAdoption,
   type ParameterCodec,
   type ToolValueSchema,
@@ -15,12 +19,12 @@ import { tree } from './protocol.ts'
 export const askAdoption = describedAdoption({
   owner: '@omne-harness/tool-definitions',
   name: 'ask-protocol',
-  revision: '1',
+  revision: '2',
   changes:
-    'ask and request_approval. One batch of cards per call, a fixed decline consequence per card, answers in card order.',
+    'ask only. One batch of cards per call, a fixed decline consequence per card, answers in card order.',
 })
 
-export const askCommandNames = ['ask', 'request_approval'] as const
+export const askCommandNames = ['ask'] as const
 export type AskCommand = (typeof askCommandNames)[number]
 
 export type AskOptionInput = Readonly<{ label: string; description: string; diagram?: string }>
@@ -29,36 +33,9 @@ export type AskQuestionInput = Readonly<{
   description: string
   options: readonly AskOptionInput[]
 }>
-export type AskApprovalInput = Readonly<{
-  action: string
-  reason: string
-  impact: string
-  reversibility: string
-  fallback: string
-}>
-export type AskArguments =
-  | Readonly<{ command: 'ask'; questions: readonly AskQuestionInput[] }>
-  | (Readonly<{ command: 'request_approval' }> & AskApprovalInput)
+export type AskArguments = Readonly<{ command: 'ask'; questions: readonly AskQuestionInput[] }>
 
-export type AskCard = Readonly<{
-  cardId: string
-  kind: 'question' | 'approval'
-  title: string
-  description: string
-  options: readonly Readonly<{ id: string; label: string; description: string }>[]
-  declineConsequence: string
-}>
-export type AskWaitRequest = Readonly<{ questions: readonly AskCard[] }>
-export type AskResponse = Readonly<{
-  answers: readonly (Readonly<{ cardId: string }> &
-    (
-      | Readonly<{ kind: 'selection'; optionId: string }>
-      | Readonly<{ kind: 'text'; text: string }>
-      | Readonly<{ kind: 'no-answer' }>
-    ))[]
-}>
 export type AskState = Readonly<{
-  command: AskCommand
   questions: readonly Readonly<{
     cardId: string
     title: string
@@ -71,18 +48,9 @@ const OPTION_MIN = 2
 const OPTION_LIMIT = 4
 const TITLE_MAX = 256
 const TEXT_MAX = 4096
-const REPLY_MAX = 8192
-const APPROVAL_FIELD_MAX = 1000
-export const ASK_REQUEST_MAX_BYTES = 196_608
-export const ASK_STATE_MAX_BYTES = ASK_REQUEST_MAX_BYTES
-export const ASK_RESPONSE_MAX_BYTES = 393_216
+export const ASK_STATE_MAX_BYTES = DECISION_REQUEST_MAX_BYTES
 
 const QUESTION_DECLINE = '跳过此题，不作答'
-const APPROVAL_DECLINE = '不作准驳，这个动作不会执行'
-const APPROVAL_OPTIONS = [
-  { id: 'approve', label: '同意', description: '同意执行这个动作。' },
-  { id: 'reject', label: '不同意', description: '不同意，这个动作不会执行。' },
-] as const
 
 const encoder = new TextEncoder()
 
@@ -98,13 +66,13 @@ function questionCard(
   question: AskQuestionInput,
   at: string,
   index: number,
-): Outcome<AskCard, string> {
+): Outcome<DecisionQuestion, string> {
   if (!validText(question.title, TITLE_MAX)) return fail(invalidField(`${at}.title`))
   if (!validText(question.description, TEXT_MAX)) return fail(invalidField(`${at}.description`))
   if (question.options.length < OPTION_MIN || question.options.length > OPTION_LIMIT)
     return fail(invalidField(`${at}.options`))
   const labels = new Set<string>()
-  const options: AskCard['options'][number][] = []
+  const options: DecisionQuestion['options'][number][] = []
   for (const [position, option] of question.options.entries()) {
     const where = `${at}.options[${position}]`
     if (!validText(option.label, TITLE_MAX) || labels.has(option.label))
@@ -132,50 +100,23 @@ function questionCard(
   })
 }
 
-function approvalCard(input: AskApprovalInput): Outcome<AskCard, string> {
-  if (!validText(input.action, TITLE_MAX)) return fail(invalidField('action'))
-  for (const field of ['reason', 'impact', 'reversibility', 'fallback'] as const)
-    if (!validText(input[field], APPROVAL_FIELD_MAX)) return fail(invalidField(field))
-  return succeed({
-    cardId: 'approval',
-    kind: 'approval',
-    title: input.action,
-    description: [
-      `原因：${input.reason}`,
-      `影响：${input.impact}`,
-      `可逆性：${input.reversibility}`,
-      `不同意时的退路：${input.fallback}`,
-    ].join('\n'),
-    options: APPROVAL_OPTIONS,
-    declineConsequence: APPROVAL_DECLINE,
-  })
-}
-
-export function askCards(args: AskArguments): Outcome<readonly AskCard[], string> {
-  let cards: AskCard[]
-  if (args.command === 'request_approval') {
-    const card = approvalCard(args)
+export function askCards(args: AskArguments): Outcome<readonly DecisionQuestion[], string> {
+  if (args.questions.length === 0 || args.questions.length > CARD_LIMIT)
+    return fail(invalidField('questions'))
+  const cards: DecisionQuestion[] = []
+  for (const [index, question] of args.questions.entries()) {
+    const card = questionCard(question, `questions[${index}]`, index)
     if ('failure' in card) return card
-    cards = [card.ok]
-  } else {
-    if (args.questions.length === 0 || args.questions.length > CARD_LIMIT)
-      return fail(invalidField('questions'))
-    cards = []
-    for (const [index, question] of args.questions.entries()) {
-      const card = questionCard(question, `questions[${index}]`, index)
-      if ('failure' in card) return card
-      cards.push(card.ok)
-    }
+    cards.push(card.ok)
   }
-  const request: AskWaitRequest = { questions: cards }
-  return encoder.encode(JSON.stringify(request)).byteLength > ASK_REQUEST_MAX_BYTES
+  const request: DecisionRequest = { questions: cards }
+  return encoder.encode(JSON.stringify(request)).byteLength > DECISION_REQUEST_MAX_BYTES
     ? fail('request-too-large')
     : succeed(cards)
 }
 
-export function askState(command: AskCommand, cards: readonly AskCard[]): AskState {
+export function askState(cards: readonly DecisionQuestion[]): AskState {
   return {
-    command,
     questions: cards.map(card => ({
       cardId: card.cardId,
       title: card.title,
@@ -242,17 +183,6 @@ function shapeOfQuestion(value: unknown, at: string): Shape<AskQuestionInput> {
   })
 }
 function shapeOf(command: AskCommand, value: unknown): Shape<AskArguments> {
-  if (command === 'request_approval') {
-    const fields = closedObject(value, '', {
-      action: 'required',
-      reason: 'required',
-      impact: 'required',
-      reversibility: 'required',
-      fallback: 'required',
-    })
-    if ('failure' in fields) return fields
-    return succeed({ command, ...(fields.ok as AskApprovalInput) })
-  }
   const fields = closedObject(value, '', { questions: 'required' })
   if ('failure' in fields) return fields
   const questions: AskQuestionInput[] = []
@@ -265,7 +195,7 @@ function shapeOf(command: AskCommand, value: unknown): Shape<AskArguments> {
 }
 
 const json = createDefaultParameterCodec({
-  maxBytes: ASK_REQUEST_MAX_BYTES,
+  maxBytes: DECISION_REQUEST_MAX_BYTES,
   maxDepth: 8,
   maxItems: 32_768,
   maxMembers: 16,
@@ -327,18 +257,6 @@ const parameterSchemas: Record<AskCommand, object> = {
       },
     },
   },
-  request_approval: {
-    type: 'object',
-    additionalProperties: false,
-    required: ['action', 'reason', 'impact', 'reversibility', 'fallback'],
-    properties: {
-      action: textSchema(TITLE_MAX),
-      reason: textSchema(APPROVAL_FIELD_MAX),
-      impact: textSchema(APPROVAL_FIELD_MAX),
-      reversibility: textSchema(APPROVAL_FIELD_MAX),
-      fallback: textSchema(APPROVAL_FIELD_MAX),
-    },
-  },
 }
 const parameterDescriptions: Record<AskCommand, ParameterContract['descriptions']> = {
   ask: [
@@ -367,17 +285,9 @@ const parameterDescriptions: Record<AskCommand, ParameterContract['descriptions'
       text: 'Optional text diagram that helps to compare options. It cannot replace the option text. The description and the diagram together are at most 4096 characters.',
     },
   ],
-  request_approval: [
-    { path: 'action', text: 'The action and its object, at most 256 characters.' },
-    { path: 'reason', text: 'Why the action is necessary.' },
-    { path: 'impact', text: 'What the action changes.' },
-    { path: 'reversibility', text: 'Whether and how the change can be reversed.' },
-    { path: 'fallback', text: 'What you do if the person does not approve.' },
-  ],
 }
 const commandSummaries: Record<AskCommand, string> = {
   ask: 'Ask the person 1 to 7 questions and wait for the answers.',
-  request_approval: 'Ask the person to approve one action before you do it.',
 }
 
 export type AskCommandEntry = Readonly<{
@@ -401,73 +311,12 @@ export function askCommand(name: AskCommand): AskCommandEntry {
 }
 
 const idSchema = textSchema(TITLE_MAX)
-const cardSchema = {
-  type: 'object',
-  additionalProperties: false,
-  required: ['cardId', 'kind', 'title', 'description', 'options', 'declineConsequence'],
-  properties: {
-    cardId: idSchema,
-    kind: { enum: ['question', 'approval'] },
-    title: textSchema(TITLE_MAX),
-    description: textSchema(TEXT_MAX),
-    options: {
-      type: 'array',
-      minItems: OPTION_MIN,
-      maxItems: OPTION_LIMIT,
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        required: ['id', 'label', 'description'],
-        properties: {
-          id: idSchema,
-          label: textSchema(TITLE_MAX),
-          description: textSchema(TEXT_MAX),
-        },
-      },
-    },
-    declineConsequence: textSchema(TEXT_MAX),
-  },
-}
-const answer = (kind: string, extra: Readonly<Record<string, object>>) => ({
-  type: 'object',
-  additionalProperties: false,
-  required: ['cardId', 'kind', ...Object.keys(extra)],
-  properties: { cardId: idSchema, kind: { const: kind }, ...extra },
-})
 const documents = {
-  request: {
+  state: {
     type: 'object',
     additionalProperties: false,
     required: ['questions'],
     properties: {
-      questions: { type: 'array', minItems: 1, maxItems: CARD_LIMIT, items: cardSchema },
-    },
-  },
-  response: {
-    type: 'object',
-    additionalProperties: false,
-    required: ['answers'],
-    properties: {
-      answers: {
-        type: 'array',
-        minItems: 1,
-        maxItems: CARD_LIMIT,
-        items: {
-          oneOf: [
-            answer('selection', { optionId: idSchema }),
-            answer('text', { text: textSchema(REPLY_MAX) }),
-            answer('no-answer', {}),
-          ],
-        },
-      },
-    },
-  },
-  state: {
-    type: 'object',
-    additionalProperties: false,
-    required: ['command', 'questions'],
-    properties: {
-      command: { enum: [...askCommandNames] },
       questions: {
         type: 'array',
         minItems: 1,
@@ -501,7 +350,7 @@ function valueSchema<T>(name: keyof typeof documents, maxBytes: number): ToolVal
   const id = `@omne-harness/tool-definitions/ask/${name}`
   const document = documents[name]
   return {
-    identity: { id, revision: '1', digest: canonicalDigest({ id, revision: '1', document }) },
+    identity: { id, revision: '2', digest: canonicalDigest({ id, revision: '2', document }) },
     maxBytes,
     ref: defineSchema<T>({
       id,
@@ -509,16 +358,6 @@ function valueSchema<T>(name: keyof typeof documents, maxBytes: number): ToolVal
     }),
   }
 }
-
-const wait = defineToolWaitContract<AskResponse, 'ask'>({
-  kind: 'ask',
-  adoption: askAdoption,
-  expiry: 'forbidden',
-  request: valueSchema<AskWaitRequest>('request', ASK_REQUEST_MAX_BYTES),
-  response: valueSchema<AskResponse>('response', ASK_RESPONSE_MAX_BYTES),
-})
-if ('failure' in wait) throw new TypeError(wait.failure.reason)
-export const askWaitContract = wait.ok
 
 export const askStateSchema = valueSchema<AskState>('state', ASK_STATE_MAX_BYTES)
 export const askStateAdoption = describedAdoption({

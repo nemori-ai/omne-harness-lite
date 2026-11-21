@@ -475,33 +475,50 @@ function readRequest(path: string, named: ObjectToken, requestId: string) {
   }
 }
 
-async function filesOf(provider: ReturnType<typeof createHostFilesProvider>, key = 'acq-1') {
-  const files = (await leaseOf(provider, inputFor(provider, undefined, host, key))).facility(
-    'files',
-  )
+/** The acquisition a placement with this files root asks for; without one the placement names none. */
+function rootedInput(
+  provider: ReturnType<typeof createHostFilesProvider>,
+  filesRoot: string | undefined,
+  key = 'acq-1',
+): ProviderAcquireInput {
+  const input = inputFor(provider, undefined, host, key)
+  return filesRoot === undefined
+    ? input
+    : {
+        ...input,
+        placement: { ...input.placement, filesScope: { read: filesRoot, write: filesRoot } },
+      }
+}
+
+async function filesOf(
+  provider: ReturnType<typeof createHostFilesProvider>,
+  key = 'acq-1',
+  filesRoot?: string,
+) {
+  const files = (await leaseOf(provider, rootedInput(provider, filesRoot, key))).facility('files')
   if (files === undefined) throw new Error('expected files')
   return files
 }
 
-onLinux('refuses a path outside the configured files root and serves one inside', async () => {
-  const tree = await rootedTree()
-  const provider = createHostFilesProvider({
-    domain: createHostFilesDomain(),
-    filesRoot: tree.root,
-  })
-  const files = await filesOf(provider)
-  expect(await files.read(readRequest(tree.inside, tree.insideToken, 'in'))).toMatchObject({
-    kind: 'done',
-    requestId: 'in',
-  })
-  expect(await files.read(readRequest(tree.secret, tree.secretToken, 'out'))).toEqual({
-    kind: 'rejected',
-    requestId: 'out',
-    reason: 'notAuthorized',
-  })
-})
+onLinux(
+  'refuses a path outside the files root of its placement and serves one inside',
+  async () => {
+    const tree = await rootedTree()
+    const provider = createHostFilesProvider({ domain: createHostFilesDomain() })
+    const files = await filesOf(provider, 'acq-1', tree.root)
+    expect(await files.read(readRequest(tree.inside, tree.insideToken, 'in'))).toMatchObject({
+      kind: 'done',
+      requestId: 'in',
+    })
+    expect(await files.read(readRequest(tree.secret, tree.secretToken, 'out'))).toEqual({
+      kind: 'rejected',
+      requestId: 'out',
+      reason: 'notAuthorized',
+    })
+  },
+)
 
-it('serves a path anywhere when no files root is configured', async () => {
+it('serves a path anywhere when the placement names no files root', async () => {
   const tree = await rootedTree()
   const files = await filesOf(createHostFilesProvider({ domain: createHostFilesDomain() }))
   expect(await files.read(readRequest(tree.secret, tree.secretToken, 'any'))).toMatchObject({
@@ -510,22 +527,75 @@ it('serves a path anywhere when no files root is configured', async () => {
   })
 })
 
-it('writes whether a files root is configured into the evidence of its acquisitions', async () => {
+const onUnix = it.skipIf(process.platform === 'win32')
+
+// Each root is bound to the identity it had when it was first used; the two bindings stay apart.
+onUnix('keeps each acquisition in the files root of its own placement', async () => {
+  const blog = await rootedTree()
+  const shop = await rootedTree()
+  const provider = createHostFilesProvider({
+    domain: createHostFilesDomain(),
+    stateDirectory: blog.state,
+  })
+  const inBlog = await filesOf(provider, 'blog', blog.root)
+  const inShop = await filesOf(provider, 'shop', shop.root)
+  const read = (files: typeof inBlog, tree: RootedTree, id: string) =>
+    files.read(readRequest(tree.inside, tree.insideToken, id))
+  expect(await read(inBlog, blog, 'blog-own')).toMatchObject({ kind: 'done' })
+  expect(await read(inShop, shop, 'shop-own')).toMatchObject({ kind: 'done' })
+  const refused = { kind: 'rejected', reason: 'notAuthorized' }
+  expect(await read(inBlog, shop, 'blog-other')).toMatchObject(refused)
+  expect(await read(inShop, blog, 'shop-other')).toMatchObject(refused)
+  // A later acquisition in the first root shares its engine and its bound.
+  const again = await filesOf(provider, 'blog-again', blog.root)
+  expect(await read(again, blog, 'again-own')).toMatchObject({ kind: 'done' })
+  expect(await read(again, shop, 'again-other')).toMatchObject(refused)
+})
+
+it('names the provider, not the files root, in the evidence of an acquisition', async () => {
   const tree = await rootedTree()
-  const entries = async (options: { filesRoot?: string }) => {
-    const provider = createHostFilesProvider({ domain: createHostFilesDomain(), ...options })
-    const acquired = await provider.acquire(inputFor(provider))
+  const provider = createHostFilesProvider({ domain: createHostFilesDomain() })
+  for (const [key, filesRoot] of [
+    ['bare', undefined],
+    ['rooted', tree.root],
+  ] as const) {
+    const acquired = await provider.acquire(rootedInput(provider, filesRoot, key))
     if (acquired.kind !== 'acquired' || acquired.evidence.kind !== 'object')
       throw new Error('expected object evidence')
-    return acquired.evidence.entries.map(entry => entry.key)
+    expect(acquired.evidence.entries.map(entry => entry.key)).toEqual([
+      'provider',
+      'generation',
+      'version',
+    ])
   }
-  expect(await entries({})).toEqual(['provider', 'generation', 'version'])
-  expect(await entries({ filesRoot: tree.root })).toEqual([
-    'provider',
-    'generation',
-    'version',
-    'filesRoot',
-  ])
+})
+
+it('refuses an acquisition whose files root is not an absolute path, and takes the next one', async () => {
+  const tree = await rootedTree()
+  const provider = createHostFilesProvider({ domain: createHostFilesDomain() })
+  expect(await provider.acquire(rootedInput(provider, 'relative/root', 'bad'))).toEqual({
+    kind: 'rejected',
+    reason: 'invalidInput',
+  })
+  expect(await provider.acquire(rootedInput(provider, tree.root, 'good'))).toMatchObject({
+    kind: 'acquired',
+  })
+})
+
+it('treats the same key under another files root as another acquisition', async () => {
+  const blog = await rootedTree()
+  const shop = await rootedTree()
+  const provider = createHostFilesProvider({ domain: createHostFilesDomain() })
+  const first = await provider.acquire(rootedInput(provider, blog.root, 'same'))
+  expect(first).toMatchObject({ kind: 'acquired' })
+  expect(await provider.acquire(rootedInput(provider, blog.root, 'same'))).toMatchObject({
+    kind: 'acquired',
+    lease: first.kind === 'acquired' ? first.lease : undefined,
+  })
+  expect(await provider.acquire(rootedInput(provider, shop.root, 'same'))).toEqual({
+    kind: 'rejected',
+    reason: 'acquisitionConflict',
+  })
 })
 
 onLinux('takes the listing bounds from the provider options', async () => {
@@ -543,7 +613,6 @@ onLinux('takes the listing bounds from the provider options', async () => {
 
 it('refuses a files option that is not an absolute path or a positive bound', () => {
   const domain = createHostFilesDomain()
-  expect(() => createHostFilesProvider({ domain, filesRoot: 'relative/root' })).toThrow(TypeError)
   expect(() => createHostFilesProvider({ domain, stateDirectory: 'relative/state' })).toThrow(
     TypeError,
   )

@@ -3,14 +3,9 @@ import type { CompactionMessage } from '@omne-harness/message'
 import {
   coverageSchema,
   decodeEpochId,
-  project,
   type Coverage,
 } from '@omne-harness/request-context-contract'
-import {
-  createMemoryHistorySource,
-  createScriptedCompactionPolicy,
-  FIXTURE_COMPACTION_POLICY,
-} from '@omne-harness/request-context-contract/testing'
+import { createMemoryHistorySource } from '@omne-harness/request-context-contract/testing'
 import {
   fixture,
   row,
@@ -60,7 +55,7 @@ function compaction(): CompactionMessage {
   }
 }
 const origin = entry('entry:0')
-const initial = { kind: 'initial' as const }
+const initial = { kind: 'initial' as const, pairings: [] }
 function at(epochId: HistoryEvidence['epoch'], last: number): HistoryEvidence {
   return { target, epoch: epochId, upper: upper(last) }
 }
@@ -302,55 +297,7 @@ it('a supplied next epoch controls the post-commit projection and access still a
     },
   })
 })
-it('scripted compaction preserves the mandatory floor and spends remaining budget on newer message entries', async () => {
-  const { data } = historyFixture(),
-    context = {
-      origin,
-      base: initial,
-      covered: data.epochs[0]!.entries.slice(0, 4),
-      after: [{ ref: entry('entry:3'), message: row(3).message }],
-      open: [entry('entry:0'), entry('entry:3')],
-    }
-  const policy = createScriptedCompactionPolicy({
-    ...FIXTURE_COMPACTION_POLICY,
-    retainBudget: { kind: 'tokens', retainTokens: '20' },
-    trimFirst: true,
-  })
-  const input = {
-    context,
-    view: project(data.epochs[0]!.rows, epoch),
-    measure: async (refs: readonly unknown[]) => ({
-      kind: 'measured' as const,
-      tokens: String(new Set(refs).size * 10),
-    }),
-    windowTokens: '100',
-  }
-  const draft = await policy.plan(input)
-  expect(draft).toEqual({
-    kind: 'draft',
-    coverTo: entry('entry:2'),
-    retained: [entry('entry:0'), entry('entry:2')],
-    bound: '2',
-    shape: { kind: 'summarize', trimFirst: true },
-  })
-  const ratio = createScriptedCompactionPolicy({
-    ...policy.config,
-    retainBudget: { kind: 'ratio', retainRatio: '0.2' },
-  })
-  expect(await ratio.plan(input)).toEqual(draft)
-  const insufficient = createScriptedCompactionPolicy({
-    ...policy.config,
-    retainBudget: { kind: 'tokens', retainTokens: '5' },
-  })
-  expect(await insufficient.plan(input)).toEqual({
-    kind: 'floor-exceeds-budget',
-    floor: [entry('entry:0')],
-    budget: '5',
-  })
-  await expect(
-    policy.plan({ ...input, context: { ...context, covered: [], after: [], open: [] } }),
-  ).rejects.toThrow()
-})
+
 async function coveragePacket(): Promise<Coverage> {
   const f = fixture(),
     result = await assemble(
@@ -409,7 +356,7 @@ it.each([
   ],
   [
     'alteration claims an unknown affected layer',
-    (value: Coverage) => ({ ...value, alterations: [{ evidence, touches: 'history-head' }] }),
+    (value: Coverage) => ({ ...value, alterations: [{ evidence, touches: 'history-start' }] }),
   ],
   [
     'alteration loses its durable digest',

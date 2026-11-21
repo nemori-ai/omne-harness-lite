@@ -62,12 +62,50 @@ const option = z.strictObject({
   label: text(256),
   description: text(4096),
 })
-const effectOption = option.extend({ effectRef: HitlIdentifierSchema.optional() })
+// A release card shows every option of the issuer; one it does not offer now cannot be answered.
+// The issuer marks which options last beyond this call, so the card body groups them apart.
+const releaseOption = option.extend({ offered: z.boolean(), lasting: z.boolean() })
+// What the lasting options of a release card are about: the gate, as it stood when the card was made.
+const releaseGate = z.strictObject({
+  capabilityId: HitlIdentifierSchema,
+  enforcementKey: HitlIdentifierSchema,
+  basis: HitlIdentifierSchema,
+})
+const bounded = (maxCodePoints: number) =>
+  z.string().refine(value => value.isWellFormed() && [...value].length <= maxCodePoints)
+export const HITL_RELEASE_DETAIL_MAX_BYTES = 32_768
+const utf8 = (value: string) => new TextEncoder().encode(value).byteLength
+const bytesOf = (value: unknown) => utf8(JSON.stringify(value))
+const releaseRow = z.strictObject({
+  label: text(40),
+  value: z.union([text(500), z.array(text(200)).min(1).max(12).readonly()]),
+})
+// What the tool said this one call would do; the card keeps it as given and knows no kind.
+export const ReleaseDetailSchema = z
+  .discriminatedUnion('state', [
+    z.strictObject({
+      state: z.literal('given'),
+      rows: z.array(releaseRow.readonly()).min(1).max(24).readonly(),
+      typed: z
+        .strictObject({
+          kind: text(128),
+          value: z.string().refine(value => value.isWellFormed() && utf8(value) <= 16_384),
+        })
+        .readonly()
+        .optional(),
+    }),
+    z.strictObject({ state: z.literal('unavailable') }),
+  ])
+  .refine(detail => bytesOf(detail) <= HITL_RELEASE_DETAIL_MAX_BYTES)
+  .readonly()
 const questionFields = {
   cardId: CardIdSchema,
   title: text(256),
   description: text(4096),
   declineConsequence: text(4096),
+}
+function uniqueOptions(question: Readonly<{ options: readonly Readonly<{ id: string }>[] }>) {
+  return new Set(question.options.map(item => item.id)).size === question.options.length
 }
 export const QuestionSchema = z
   .discriminatedUnion('kind', [
@@ -83,19 +121,38 @@ export const QuestionSchema = z
     }),
     z.strictObject({
       ...questionFields,
-      kind: z.literal('approval'),
-      options: z.array(effectOption.readonly()).max(64).readonly(),
-    }),
-    z.strictObject({
-      ...questionFields,
-      kind: z.literal('admission'),
-      options: z.array(effectOption.readonly()).max(64).readonly(),
+      kind: z.literal('release'),
+      target: z
+        .strictObject({
+          tool: HitlIdentifierSchema,
+          command: HitlIdentifierSchema.nullable(),
+          preview: bounded(256),
+        })
+        .readonly(),
+      arguments: z
+        .strictObject({ text: bounded(4096), truncated: z.boolean(), digest: HitlIdentifierSchema })
+        .readonly(),
+      origin: z
+        .strictObject({ session: HitlIdentifierSchema, agent: HitlIdentifierSchema })
+        .readonly(),
+      gateTitle: text(256),
+      gate: releaseGate.readonly().optional(),
+      detail: ReleaseDetailSchema.optional(),
+      options: z.array(releaseOption.readonly()).min(1).max(64).readonly(),
     }),
   ])
-  .refine(
-    question => new Set(question.options.map(item => item.id)).size === question.options.length,
-    { message: 'Option identities must be unique within a card' },
-  )
+  .refine(uniqueOptions, { message: 'Option identities must be unique within a card' })
+  .readonly()
+const decisionFields = { ...questionFields, cardId: HitlIdentifierSchema }
+export const DecisionQuestionSchema = z
+  .discriminatedUnion('kind', [
+    z.strictObject({
+      ...decisionFields,
+      kind: z.literal('question'),
+      options: z.array(option.readonly()).min(1).max(64).readonly(),
+    }),
+  ])
+  .refine(uniqueOptions, { message: 'Option identities must be unique within a card' })
   .readonly()
 const originFields = {
   originRef: HitlIdentifierSchema,
@@ -114,7 +171,6 @@ export const OriginSchema = z
       kind: z.literal('admission'),
       toolCallRef: HitlIdentifierSchema.optional(),
     }),
-    z.strictObject({ ...originFields, kind: z.literal('independent') }),
   ])
   .refine(origin => origin.runRef === undefined || origin.sessionRef !== undefined, {
     message: 'A run reference requires its session reference',
@@ -154,6 +210,7 @@ export type WaitRef = z.infer<typeof WaitRefSchema>
 export type DecisionRef = z.infer<typeof DecisionRefSchema>
 export type Reply = z.infer<typeof ReplySchema>
 export type Question = z.infer<typeof QuestionSchema>
+export type DecisionQuestion = z.infer<typeof DecisionQuestionSchema>
 export type Origin = z.infer<typeof OriginSchema>
 export type ActionBasis = z.infer<typeof ActionBasisSchema>
 export type ConsumerReceipt = z.infer<typeof ConsumerReceiptSchema>

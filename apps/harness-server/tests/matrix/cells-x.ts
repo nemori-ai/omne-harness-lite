@@ -1,10 +1,10 @@
-import { UNSCRIPTED_REPLY, gate } from '../support/matrix/provider-stub.ts'
+import { gate } from '../support/matrix/provider-stub.ts'
 import {
   TURN_MS,
   idleHealth,
   bystander,
   bystanderUnchanged,
-  interruptedCallNotResent,
+  interruptedCallNotSentAgain,
   signedIn,
   waitArrivals,
   type Cell,
@@ -40,11 +40,11 @@ export const xCells: readonly Cell[] = [
       await tools.env.restart('kill')
       const log = await tools.waitLog(session, 'run terminal after the kill', settled, RECOVERY_MS)
       tools.check(
-        'o3 the run ends truthfully within the limit: a new call completes it',
-        log?.terminals[0] === 'completed' && log.assistants.at(-1) === UNSCRIPTED_REPLY,
+        'o3 the run ends truthfully within the limit: the interrupted call failed as lost, no reply made up',
+        log?.terminals[0] === 'failed' && log.assistants.length === 0,
         JSON.stringify([log?.terminals, log?.assistants]),
       )
-      interruptedCallNotResent(tools, before)
+      interruptedCallNotSentAgain(tools, before)
       if (log !== null && settled(log)) {
         const back = tools.driver(client.account)
         tools.check('logged in again', (await back.login()) === 'succeeded')

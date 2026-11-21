@@ -149,14 +149,16 @@ async function defaultOf<T>(url: string): Promise<T> {
 const MODULES = await (async () => {
   const materials = modelStorageMaterials()
   const [participant] = materials.participants
-  const [migration] = materials.migrations
-  if (participant === undefined || migration === undefined) throw new Error('fixture: no materials')
+  if (participant === undefined || materials.migrations.length === 0)
+    throw new Error('fixture: no materials')
   const handlers = await Promise.all(
     materials.readHandlers.map(item => defaultOf<ReadHandlerModule>(item.moduleUrl)),
   )
   return {
     participant: await defaultOf<ParticipantModule>(participant.moduleUrl),
-    migration: await defaultOf<MigrationModule>(migration.moduleUrl),
+    migrations: await Promise.all(
+      materials.migrations.map(item => defaultOf<MigrationModule>(item.moduleUrl)),
+    ),
     handlers: new Map(handlers.map(item => [item.handler, item])),
   }
 })()
@@ -228,7 +230,8 @@ export function sqliteStorage() {
     const found = domains.get(name)
     if (found !== undefined) return found
     const db = new DatabaseSync(':memory:')
-    MODULES.migration.up({ execute: (sql, params) => rowsOf(db, sql, params) })
+    for (const migration of MODULES.migrations)
+      migration.up({ execute: (sql, params) => rowsOf(db, sql, params) })
     const domain = { db, receipts: new Map<string, ReceiptV2>() }
     domains.set(name, domain)
     return domain

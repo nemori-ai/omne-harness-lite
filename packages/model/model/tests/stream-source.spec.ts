@@ -406,3 +406,44 @@ it('evicts an unwatched least recently read call without retaining its old targe
   )
   f.source.close()
 })
+
+it('keeps the stream of a dispatch through its retry decision and gives the next dispatch a new stream', async () => {
+  const f = streamFixture()
+  f.host.attach(f.publication)
+  const one = f.facts('1', '0')
+  if (one.material.kind !== 'retained') throw new Error('fixture material')
+  f.confirm(one)
+  const first = unbox(await f.current()).current?.ref
+  const state = one.state as Extract<CallState, { phase: 'running' }>
+  const { firstContent: _dropped, ...running } = state
+  const deciding: CallState = {
+    ...running,
+    revision: unbox(decodeRevision('2')),
+    phase: 'retry-decision',
+  }
+  f.confirm({
+    ...one,
+    state: deciding,
+    material: { ...one.material, snapshot: { ...one.material.snapshot, state: deciding } },
+  })
+  expect(unbox(await f.current()).current?.ref).toBe(first)
+  const next = unbox(decodeDispatchId('mdisp_two'))
+  const again: CallState = {
+    ...state,
+    revision: unbox(decodeRevision('3')),
+    dispatch: next,
+  }
+  f.confirm({
+    ...one,
+    state: again,
+    material: {
+      kind: 'retained',
+      dispatch: next,
+      snapshot: { ...one.material.snapshot, state: again },
+    },
+  })
+  const second = unbox(await f.current()).current
+  expect(second?.ref).toBeDefined()
+  expect(second?.ref).not.toBe(first)
+  f.source.close()
+})

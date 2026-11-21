@@ -1,0 +1,845 @@
+[
+  {
+    "kind": "block-open",
+    "index": "0",
+    "mode": "append",
+    "content": "thinking"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "Let"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " me work"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " out how many positive"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " integers below 1"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "00 are"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " divisible by 3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " or by 7"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " but not by both"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ".\n\nFirst"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ", let"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " me find:"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "\n- Numbers below"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 10"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "0 divisible"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " by 3:"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " floor(9"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "9/"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "3) = "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "33\n-"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Numbers below 1"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "00 divisible"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " by 7:"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " floor(99"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "/7"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ") = 1"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "4\n- Numbers"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " below 10"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "0 divisible"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " by both 3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " and 7"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " (i.e.,"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " by 21"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "): floor(9"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "9/21"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ") = 4"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "\n\nNumbers"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " divisible by 3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " or 7"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " ("
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "inclusive"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " or):"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 33 +"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 14 -"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 4 = "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "43\n"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "Numbers divisible by both"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 3 and"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 7: "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "4\n\nNumbers"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " divisible by 3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " or 7"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " but NOT by both"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ":"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 43 -"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 4 = "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "39\n\n"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "Wait, let"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " me reconsider. \""
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "Divisible by "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "3 or by "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "7 but not by"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " both\" means XOR"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "\n\nNumbers"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " divisible by 3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " but not 7"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ": 33"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " - 4"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " = 2"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "9\nNumbers divisible"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " by 7 but"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " not 3:"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 14 -"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 4 = "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "10\nTotal"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ": 29"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " + 10"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " = 3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "9\n\n39"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " is odd"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " so I need"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to get the weather"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " of Lima."
+  },
+  {
+    "kind": "block-open",
+    "index": "1",
+    "mode": "append",
+    "content": "text"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "Let"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " me work this"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " out step"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " by step."
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\n\n**Positive integers"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " below 10"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "0:**"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\n\n- Divisible"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " by 3:"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " ⌊9"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "9/"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "3⌋"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " = **33"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "**\n- Div"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "isible by 7"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": ": ⌊"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "99/7"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "⌋ ="
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " **14**"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\n- Divisible"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " by both"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " (i"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": ".e., by "
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "21): ⌊99"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "/21⌋ = **"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "4**\n\n"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "**Div"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "isible by 3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " or 7"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " but NOT both ("
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "XOR):**"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\n\n- Div"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "isible by 3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " only: 3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "3 −"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " 4 = "
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "29\n-"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " Divisible by "
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "7 only: "
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "14 − "
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "4 = 1"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "0\n- Total"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": ": "
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "29 + "
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "10 = **"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "39**"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\n\n3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "9 is **odd"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "**, so I'll"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " get the weather of"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " **Lima**."
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\n\n"
+  },
+  {
+    "kind": "block-open",
+    "index": "2",
+    "mode": "append",
+    "content": "tool-arguments"
+  },
+  {
+    "kind": "block-delta",
+    "index": "2",
+    "delta": "{\"city\": \"L"
+  },
+  {
+    "kind": "block-delta",
+    "index": "2",
+    "delta": "ima"
+  },
+  {
+    "kind": "block-delta",
+    "index": "2",
+    "delta": "\"}"
+  },
+  {
+    "kind": "block-seal",
+    "index": "0",
+    "block": {
+      "kind": "thinking",
+      "id": "b0",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "Let me work out how many positive integers below 100 are divisible by 3 or by 7 but not by both.\n\nFirst, let me find:\n- Numbers below 100 divisible by 3: floor(99/3) = 33\n- Numbers below 100 divisible by 7: floor(99/7) = 14\n- Numbers below 100 divisible by both 3 and 7 (i.e., by 21): floor(99/21) = 4\n\nNumbers divisible by 3 or 7 (inclusive or): 33 + 14 - 4 = 43\nNumbers divisible by both 3 and 7: 4\n\nNumbers divisible by 3 or 7 but NOT by both: 43 - 4 = 39\n\nWait, let me reconsider. \"Divisible by 3 or by 7 but not by both\" means XOR.\n\nNumbers divisible by 3 but not 7: 33 - 4 = 29\nNumbers divisible by 7 but not 3: 14 - 4 = 10\nTotal: 29 + 10 = 39\n\n39 is odd, so I need to get the weather of Lima."
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "1",
+    "block": {
+      "kind": "text",
+      "id": "b1",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "Let me work this out step by step.\n\n**Positive integers below 100:**\n\n- Divisible by 3: ⌊99/3⌋ = **33**\n- Divisible by 7: ⌊99/7⌋ = **14**\n- Divisible by both (i.e., by 21): ⌊99/21⌋ = **4**\n\n**Divisible by 3 or 7 but NOT both (XOR):**\n\n- Divisible by 3 only: 33 − 4 = 29\n- Divisible by 7 only: 14 − 4 = 10\n- Total: 29 + 10 = **39**\n\n39 is **odd**, so I'll get the weather of **Lima**.\n\n"
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "2",
+    "block": {
+      "kind": "tool_call",
+      "id": "b2",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "callId": "call_8457aefac3de477cbfe56d16",
+      "name": "get_weather",
+      "arguments": {
+        "kind": "object",
+        "entries": [
+          {
+            "key": "city",
+            "value": {
+              "kind": "string",
+              "value": "Lima"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "3",
+    "block": {
+      "kind": "reasoning_state",
+      "id": "b3",
+      "visibility": {
+        "toHuman": false,
+        "toModel": true
+      },
+      "payload": "{\"format\":\"unknown\",\"index\":0,\"text\":\"Let me work out how many positive integers below 100 are divisible by 3 or by 7 but not by both.\\n\\nFirst, let me find:\\n- Numbers below 100 divisible by 3: floor(99/3) = 33\\n- Numbers below 100 divisible by 7: floor(99/7) = 14\\n- Numbers below 100 divisible by both 3 and 7 (i.e., by 21): floor(99/21) = 4\\n\\nNumbers divisible by 3 or 7 (inclusive or): 33 + 14 - 4 = 43\\nNumbers divisible by both 3 and 7: 4\\n\\nNumbers divisible by 3 or 7 but NOT by both: 43 - 4 = 39\\n\\nWait, let me reconsider. \\\"Divisible by 3 or by 7 but not by both\\\" means XOR.\\n\\nNumbers divisible by 3 but not 7: 33 - 4 = 29\\nNumbers divisible by 7 but not 3: 14 - 4 = 10\\nTotal: 29 + 10 = 39\\n\\n39 is odd, so I need to get the weather of Lima.\",\"type\":\"reasoning.text\"}",
+      "pairs": [
+        "b0"
+      ]
+    }
+  },
+  {
+    "kind": "account",
+    "event": "usage",
+    "value": {
+      "usage": [
+        {
+          "name": "input",
+          "state": "known",
+          "lexeme": "351",
+          "unit": "token"
+        },
+        {
+          "name": "output",
+          "state": "known",
+          "lexeme": "486",
+          "unit": "token"
+        },
+        {
+          "name": "cache-read",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "cache-write",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "reasoning",
+          "state": "known",
+          "lexeme": "279",
+          "unit": "token"
+        }
+      ],
+      "cost": [
+        {
+          "state": "known",
+          "lexeme": "0.00028107",
+          "unit": "openrouter-credit",
+          "source": "billable"
+        }
+      ],
+      "trimmed": {
+        "state": "unknown",
+        "unit": "token"
+      },
+      "place": "openrouter/Alibaba",
+      "duration": {
+        "state": "unknown"
+      },
+      "revision": "1"
+    }
+  },
+  {
+    "kind": "ended",
+    "termination": {
+      "kind": "completed",
+      "reason": "tool-suggestions"
+    }
+  }
+]

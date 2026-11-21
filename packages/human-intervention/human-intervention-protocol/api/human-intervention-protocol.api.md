@@ -150,10 +150,191 @@ declare const item: {
                                                     rule: {
                                                         readonly kind: 'literal';
                                                         readonly values: readonly [
-                                                            "approval",
-                                                            "admission"
+                                                            "release"
                                                         ];
                                                     };
+                                                };
+                                                readonly target: {
+                                                    rule: {
+                                                        readonly kind: 'object';
+                                                        readonly fields: {
+                                                            readonly tool: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                            readonly command: {
+                                                                rule: {
+                                                                    readonly kind: 'one-of';
+                                                                    readonly rules: readonly [
+                                                                        {
+                                                                            readonly kind: 'text';
+                                                                        },
+                                                                        {
+                                                                            readonly kind: 'null';
+                                                                        }
+                                                                    ];
+                                                                };
+                                                            };
+                                                            readonly preview: {
+                                                                readonly rule: {
+                                                                    readonly kind: "string";
+                                                                };
+                                                            };
+                                                        };
+                                                    };
+                                                };
+                                                readonly arguments: {
+                                                    rule: {
+                                                        readonly kind: 'object';
+                                                        readonly fields: {
+                                                            readonly text: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                            readonly truncated: {
+                                                                readonly rule: {
+                                                                    readonly kind: "boolean";
+                                                                };
+                                                            };
+                                                            readonly digest: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                        };
+                                                    };
+                                                };
+                                                readonly origin: {
+                                                    rule: {
+                                                        readonly kind: 'object';
+                                                        readonly fields: {
+                                                            readonly session: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                            readonly agent: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                        };
+                                                    };
+                                                };
+                                                readonly gateTitle: {
+                                                    rule: {
+                                                        readonly kind: 'text';
+                                                    };
+                                                };
+                                                readonly gate: {
+                                                    readonly rule: {
+                                                        readonly kind: 'object';
+                                                        readonly fields: {
+                                                            readonly capabilityId: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                            readonly enforcementKey: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                            readonly basis: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                        };
+                                                    };
+                                                    readonly optional: true;
+                                                };
+                                                readonly detail: {
+                                                    readonly rule: {
+                                                        readonly kind: 'one-of';
+                                                        readonly rules: readonly [
+                                                            {
+                                                                readonly kind: 'object';
+                                                                readonly fields: {
+                                                                    readonly state: {
+                                                                        rule: {
+                                                                            readonly kind: 'literal';
+                                                                            readonly values: readonly [
+                                                                                "given"
+                                                                            ];
+                                                                        };
+                                                                    };
+                                                                    readonly rows: {
+                                                                        readonly rule: {
+                                                                            readonly kind: "array";
+                                                                            readonly item: {
+                                                                                readonly kind: 'object';
+                                                                                readonly fields: {
+                                                                                    readonly label: {
+                                                                                        rule: {
+                                                                                            readonly kind: 'text';
+                                                                                        };
+                                                                                    };
+                                                                                    readonly value: {
+                                                                                        readonly rule: {
+                                                                                            readonly kind: "one-of";
+                                                                                            readonly rules: readonly [
+                                                                                                {
+                                                                                                    readonly kind: 'text';
+                                                                                                },
+                                                                                                {
+                                                                                                    readonly kind: "array";
+                                                                                                    readonly item: {
+                                                                                                        readonly kind: 'text';
+                                                                                                    };
+                                                                                                    readonly nonempty: true;
+                                                                                                }
+                                                                                            ];
+                                                                                        };
+                                                                                    };
+                                                                                };
+                                                                            };
+                                                                            readonly nonempty: true;
+                                                                        };
+                                                                    };
+                                                                    readonly typed: {
+                                                                        readonly rule: {
+                                                                            readonly kind: 'object';
+                                                                            readonly fields: {
+                                                                                readonly kind: {
+                                                                                    rule: {
+                                                                                        readonly kind: 'text';
+                                                                                    };
+                                                                                };
+                                                                                readonly value: {
+                                                                                    rule: {
+                                                                                        readonly kind: 'text';
+                                                                                    };
+                                                                                };
+                                                                            };
+                                                                        };
+                                                                        readonly optional: true;
+                                                                    };
+                                                                };
+                                                            },
+                                                            {
+                                                                readonly kind: 'object';
+                                                                readonly fields: {
+                                                                    readonly state: {
+                                                                        rule: {
+                                                                            readonly kind: 'literal';
+                                                                            readonly values: readonly [
+                                                                                "unavailable"
+                                                                            ];
+                                                                        };
+                                                                    };
+                                                                };
+                                                            }
+                                                        ];
+                                                    };
+                                                    readonly optional: true;
                                                 };
                                                 readonly options: {
                                                     readonly rule: {
@@ -176,11 +357,15 @@ declare const item: {
                                                                         readonly kind: 'text';
                                                                     };
                                                                 };
-                                                                readonly effectRef: {
+                                                                readonly offered: {
                                                                     readonly rule: {
-                                                                        readonly kind: 'text';
+                                                                        readonly kind: "boolean";
                                                                     };
-                                                                    readonly optional: true;
+                                                                };
+                                                                readonly lasting: {
+                                                                    readonly rule: {
+                                                                        readonly kind: "boolean";
+                                                                    };
                                                                 };
                                                             };
                                                         };
@@ -328,10 +513,191 @@ declare const item: {
                                                     rule: {
                                                         readonly kind: 'literal';
                                                         readonly values: readonly [
-                                                            "approval",
-                                                            "admission"
+                                                            "release"
                                                         ];
                                                     };
+                                                };
+                                                readonly target: {
+                                                    rule: {
+                                                        readonly kind: 'object';
+                                                        readonly fields: {
+                                                            readonly tool: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                            readonly command: {
+                                                                rule: {
+                                                                    readonly kind: 'one-of';
+                                                                    readonly rules: readonly [
+                                                                        {
+                                                                            readonly kind: 'text';
+                                                                        },
+                                                                        {
+                                                                            readonly kind: 'null';
+                                                                        }
+                                                                    ];
+                                                                };
+                                                            };
+                                                            readonly preview: {
+                                                                readonly rule: {
+                                                                    readonly kind: "string";
+                                                                };
+                                                            };
+                                                        };
+                                                    };
+                                                };
+                                                readonly arguments: {
+                                                    rule: {
+                                                        readonly kind: 'object';
+                                                        readonly fields: {
+                                                            readonly text: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                            readonly truncated: {
+                                                                readonly rule: {
+                                                                    readonly kind: "boolean";
+                                                                };
+                                                            };
+                                                            readonly digest: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                        };
+                                                    };
+                                                };
+                                                readonly origin: {
+                                                    rule: {
+                                                        readonly kind: 'object';
+                                                        readonly fields: {
+                                                            readonly session: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                            readonly agent: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                        };
+                                                    };
+                                                };
+                                                readonly gateTitle: {
+                                                    rule: {
+                                                        readonly kind: 'text';
+                                                    };
+                                                };
+                                                readonly gate: {
+                                                    readonly rule: {
+                                                        readonly kind: 'object';
+                                                        readonly fields: {
+                                                            readonly capabilityId: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                            readonly enforcementKey: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                            readonly basis: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                        };
+                                                    };
+                                                    readonly optional: true;
+                                                };
+                                                readonly detail: {
+                                                    readonly rule: {
+                                                        readonly kind: 'one-of';
+                                                        readonly rules: readonly [
+                                                            {
+                                                                readonly kind: 'object';
+                                                                readonly fields: {
+                                                                    readonly state: {
+                                                                        rule: {
+                                                                            readonly kind: 'literal';
+                                                                            readonly values: readonly [
+                                                                                "given"
+                                                                            ];
+                                                                        };
+                                                                    };
+                                                                    readonly rows: {
+                                                                        readonly rule: {
+                                                                            readonly kind: "array";
+                                                                            readonly item: {
+                                                                                readonly kind: 'object';
+                                                                                readonly fields: {
+                                                                                    readonly label: {
+                                                                                        rule: {
+                                                                                            readonly kind: 'text';
+                                                                                        };
+                                                                                    };
+                                                                                    readonly value: {
+                                                                                        readonly rule: {
+                                                                                            readonly kind: "one-of";
+                                                                                            readonly rules: readonly [
+                                                                                                {
+                                                                                                    readonly kind: 'text';
+                                                                                                },
+                                                                                                {
+                                                                                                    readonly kind: "array";
+                                                                                                    readonly item: {
+                                                                                                        readonly kind: 'text';
+                                                                                                    };
+                                                                                                    readonly nonempty: true;
+                                                                                                }
+                                                                                            ];
+                                                                                        };
+                                                                                    };
+                                                                                };
+                                                                            };
+                                                                            readonly nonempty: true;
+                                                                        };
+                                                                    };
+                                                                    readonly typed: {
+                                                                        readonly rule: {
+                                                                            readonly kind: 'object';
+                                                                            readonly fields: {
+                                                                                readonly kind: {
+                                                                                    rule: {
+                                                                                        readonly kind: 'text';
+                                                                                    };
+                                                                                };
+                                                                                readonly value: {
+                                                                                    rule: {
+                                                                                        readonly kind: 'text';
+                                                                                    };
+                                                                                };
+                                                                            };
+                                                                        };
+                                                                        readonly optional: true;
+                                                                    };
+                                                                };
+                                                            },
+                                                            {
+                                                                readonly kind: 'object';
+                                                                readonly fields: {
+                                                                    readonly state: {
+                                                                        rule: {
+                                                                            readonly kind: 'literal';
+                                                                            readonly values: readonly [
+                                                                                "unavailable"
+                                                                            ];
+                                                                        };
+                                                                    };
+                                                                };
+                                                            }
+                                                        ];
+                                                    };
+                                                    readonly optional: true;
                                                 };
                                                 readonly options: {
                                                     readonly rule: {
@@ -354,11 +720,15 @@ declare const item: {
                                                                         readonly kind: 'text';
                                                                     };
                                                                 };
-                                                                readonly effectRef: {
+                                                                readonly offered: {
                                                                     readonly rule: {
-                                                                        readonly kind: 'text';
+                                                                        readonly kind: "boolean";
                                                                     };
-                                                                    readonly optional: true;
+                                                                };
+                                                                readonly lasting: {
+                                                                    readonly rule: {
+                                                                        readonly kind: "boolean";
+                                                                    };
                                                                 };
                                                             };
                                                         };
@@ -681,10 +1051,191 @@ declare const item: {
                                                     rule: {
                                                         readonly kind: 'literal';
                                                         readonly values: readonly [
-                                                            "approval",
-                                                            "admission"
+                                                            "release"
                                                         ];
                                                     };
+                                                };
+                                                readonly target: {
+                                                    rule: {
+                                                        readonly kind: 'object';
+                                                        readonly fields: {
+                                                            readonly tool: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                            readonly command: {
+                                                                rule: {
+                                                                    readonly kind: 'one-of';
+                                                                    readonly rules: readonly [
+                                                                        {
+                                                                            readonly kind: 'text';
+                                                                        },
+                                                                        {
+                                                                            readonly kind: 'null';
+                                                                        }
+                                                                    ];
+                                                                };
+                                                            };
+                                                            readonly preview: {
+                                                                readonly rule: {
+                                                                    readonly kind: "string";
+                                                                };
+                                                            };
+                                                        };
+                                                    };
+                                                };
+                                                readonly arguments: {
+                                                    rule: {
+                                                        readonly kind: 'object';
+                                                        readonly fields: {
+                                                            readonly text: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                            readonly truncated: {
+                                                                readonly rule: {
+                                                                    readonly kind: "boolean";
+                                                                };
+                                                            };
+                                                            readonly digest: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                        };
+                                                    };
+                                                };
+                                                readonly origin: {
+                                                    rule: {
+                                                        readonly kind: 'object';
+                                                        readonly fields: {
+                                                            readonly session: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                            readonly agent: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                        };
+                                                    };
+                                                };
+                                                readonly gateTitle: {
+                                                    rule: {
+                                                        readonly kind: 'text';
+                                                    };
+                                                };
+                                                readonly gate: {
+                                                    readonly rule: {
+                                                        readonly kind: 'object';
+                                                        readonly fields: {
+                                                            readonly capabilityId: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                            readonly enforcementKey: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                            readonly basis: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                        };
+                                                    };
+                                                    readonly optional: true;
+                                                };
+                                                readonly detail: {
+                                                    readonly rule: {
+                                                        readonly kind: 'one-of';
+                                                        readonly rules: readonly [
+                                                            {
+                                                                readonly kind: 'object';
+                                                                readonly fields: {
+                                                                    readonly state: {
+                                                                        rule: {
+                                                                            readonly kind: 'literal';
+                                                                            readonly values: readonly [
+                                                                                "given"
+                                                                            ];
+                                                                        };
+                                                                    };
+                                                                    readonly rows: {
+                                                                        readonly rule: {
+                                                                            readonly kind: "array";
+                                                                            readonly item: {
+                                                                                readonly kind: 'object';
+                                                                                readonly fields: {
+                                                                                    readonly label: {
+                                                                                        rule: {
+                                                                                            readonly kind: 'text';
+                                                                                        };
+                                                                                    };
+                                                                                    readonly value: {
+                                                                                        readonly rule: {
+                                                                                            readonly kind: "one-of";
+                                                                                            readonly rules: readonly [
+                                                                                                {
+                                                                                                    readonly kind: 'text';
+                                                                                                },
+                                                                                                {
+                                                                                                    readonly kind: "array";
+                                                                                                    readonly item: {
+                                                                                                        readonly kind: 'text';
+                                                                                                    };
+                                                                                                    readonly nonempty: true;
+                                                                                                }
+                                                                                            ];
+                                                                                        };
+                                                                                    };
+                                                                                };
+                                                                            };
+                                                                            readonly nonempty: true;
+                                                                        };
+                                                                    };
+                                                                    readonly typed: {
+                                                                        readonly rule: {
+                                                                            readonly kind: 'object';
+                                                                            readonly fields: {
+                                                                                readonly kind: {
+                                                                                    rule: {
+                                                                                        readonly kind: 'text';
+                                                                                    };
+                                                                                };
+                                                                                readonly value: {
+                                                                                    rule: {
+                                                                                        readonly kind: 'text';
+                                                                                    };
+                                                                                };
+                                                                            };
+                                                                        };
+                                                                        readonly optional: true;
+                                                                    };
+                                                                };
+                                                            },
+                                                            {
+                                                                readonly kind: 'object';
+                                                                readonly fields: {
+                                                                    readonly state: {
+                                                                        rule: {
+                                                                            readonly kind: 'literal';
+                                                                            readonly values: readonly [
+                                                                                "unavailable"
+                                                                            ];
+                                                                        };
+                                                                    };
+                                                                };
+                                                            }
+                                                        ];
+                                                    };
+                                                    readonly optional: true;
                                                 };
                                                 readonly options: {
                                                     readonly rule: {
@@ -707,11 +1258,15 @@ declare const item: {
                                                                         readonly kind: 'text';
                                                                     };
                                                                 };
-                                                                readonly effectRef: {
+                                                                readonly offered: {
                                                                     readonly rule: {
-                                                                        readonly kind: 'text';
+                                                                        readonly kind: "boolean";
                                                                     };
-                                                                    readonly optional: true;
+                                                                };
+                                                                readonly lasting: {
+                                                                    readonly rule: {
+                                                                        readonly kind: "boolean";
+                                                                    };
                                                                 };
                                                             };
                                                         };
@@ -761,8 +1316,7 @@ declare const item: {
                             readonly values: readonly [
                                 "tool",
                                 "agent-extension",
-                                "admission",
-                                "independent"
+                                "admission"
                             ];
                         };
                     };
@@ -934,10 +1488,191 @@ declare const cardPage: {
                                                                     rule: {
                                                                         readonly kind: 'literal';
                                                                         readonly values: readonly [
-                                                                            "approval",
-                                                                            "admission"
+                                                                            "release"
                                                                         ];
                                                                     };
+                                                                };
+                                                                readonly target: {
+                                                                    rule: {
+                                                                        readonly kind: 'object';
+                                                                        readonly fields: {
+                                                                            readonly tool: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                            readonly command: {
+                                                                                rule: {
+                                                                                    readonly kind: 'one-of';
+                                                                                    readonly rules: readonly [
+                                                                                        {
+                                                                                            readonly kind: 'text';
+                                                                                        },
+                                                                                        {
+                                                                                            readonly kind: 'null';
+                                                                                        }
+                                                                                    ];
+                                                                                };
+                                                                            };
+                                                                            readonly preview: {
+                                                                                readonly rule: {
+                                                                                    readonly kind: "string";
+                                                                                };
+                                                                            };
+                                                                        };
+                                                                    };
+                                                                };
+                                                                readonly arguments: {
+                                                                    rule: {
+                                                                        readonly kind: 'object';
+                                                                        readonly fields: {
+                                                                            readonly text: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                            readonly truncated: {
+                                                                                readonly rule: {
+                                                                                    readonly kind: "boolean";
+                                                                                };
+                                                                            };
+                                                                            readonly digest: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                        };
+                                                                    };
+                                                                };
+                                                                readonly origin: {
+                                                                    rule: {
+                                                                        readonly kind: 'object';
+                                                                        readonly fields: {
+                                                                            readonly session: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                            readonly agent: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                        };
+                                                                    };
+                                                                };
+                                                                readonly gateTitle: {
+                                                                    rule: {
+                                                                        readonly kind: 'text';
+                                                                    };
+                                                                };
+                                                                readonly gate: {
+                                                                    readonly rule: {
+                                                                        readonly kind: 'object';
+                                                                        readonly fields: {
+                                                                            readonly capabilityId: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                            readonly enforcementKey: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                            readonly basis: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                        };
+                                                                    };
+                                                                    readonly optional: true;
+                                                                };
+                                                                readonly detail: {
+                                                                    readonly rule: {
+                                                                        readonly kind: 'one-of';
+                                                                        readonly rules: readonly [
+                                                                            {
+                                                                                readonly kind: 'object';
+                                                                                readonly fields: {
+                                                                                    readonly state: {
+                                                                                        rule: {
+                                                                                            readonly kind: 'literal';
+                                                                                            readonly values: readonly [
+                                                                                                "given"
+                                                                                            ];
+                                                                                        };
+                                                                                    };
+                                                                                    readonly rows: {
+                                                                                        readonly rule: {
+                                                                                            readonly kind: "array";
+                                                                                            readonly item: {
+                                                                                                readonly kind: 'object';
+                                                                                                readonly fields: {
+                                                                                                    readonly label: {
+                                                                                                        rule: {
+                                                                                                            readonly kind: 'text';
+                                                                                                        };
+                                                                                                    };
+                                                                                                    readonly value: {
+                                                                                                        readonly rule: {
+                                                                                                            readonly kind: "one-of";
+                                                                                                            readonly rules: readonly [
+                                                                                                                {
+                                                                                                                    readonly kind: 'text';
+                                                                                                                },
+                                                                                                                {
+                                                                                                                    readonly kind: "array";
+                                                                                                                    readonly item: {
+                                                                                                                        readonly kind: 'text';
+                                                                                                                    };
+                                                                                                                    readonly nonempty: true;
+                                                                                                                }
+                                                                                                            ];
+                                                                                                        };
+                                                                                                    };
+                                                                                                };
+                                                                                            };
+                                                                                            readonly nonempty: true;
+                                                                                        };
+                                                                                    };
+                                                                                    readonly typed: {
+                                                                                        readonly rule: {
+                                                                                            readonly kind: 'object';
+                                                                                            readonly fields: {
+                                                                                                readonly kind: {
+                                                                                                    rule: {
+                                                                                                        readonly kind: 'text';
+                                                                                                    };
+                                                                                                };
+                                                                                                readonly value: {
+                                                                                                    rule: {
+                                                                                                        readonly kind: 'text';
+                                                                                                    };
+                                                                                                };
+                                                                                            };
+                                                                                        };
+                                                                                        readonly optional: true;
+                                                                                    };
+                                                                                };
+                                                                            },
+                                                                            {
+                                                                                readonly kind: 'object';
+                                                                                readonly fields: {
+                                                                                    readonly state: {
+                                                                                        rule: {
+                                                                                            readonly kind: 'literal';
+                                                                                            readonly values: readonly [
+                                                                                                "unavailable"
+                                                                                            ];
+                                                                                        };
+                                                                                    };
+                                                                                };
+                                                                            }
+                                                                        ];
+                                                                    };
+                                                                    readonly optional: true;
                                                                 };
                                                                 readonly options: {
                                                                     readonly rule: {
@@ -960,11 +1695,15 @@ declare const cardPage: {
                                                                                         readonly kind: 'text';
                                                                                     };
                                                                                 };
-                                                                                readonly effectRef: {
+                                                                                readonly offered: {
                                                                                     readonly rule: {
-                                                                                        readonly kind: 'text';
+                                                                                        readonly kind: "boolean";
                                                                                     };
-                                                                                    readonly optional: true;
+                                                                                };
+                                                                                readonly lasting: {
+                                                                                    readonly rule: {
+                                                                                        readonly kind: "boolean";
+                                                                                    };
                                                                                 };
                                                                             };
                                                                         };
@@ -1112,10 +1851,191 @@ declare const cardPage: {
                                                                     rule: {
                                                                         readonly kind: 'literal';
                                                                         readonly values: readonly [
-                                                                            "approval",
-                                                                            "admission"
+                                                                            "release"
                                                                         ];
                                                                     };
+                                                                };
+                                                                readonly target: {
+                                                                    rule: {
+                                                                        readonly kind: 'object';
+                                                                        readonly fields: {
+                                                                            readonly tool: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                            readonly command: {
+                                                                                rule: {
+                                                                                    readonly kind: 'one-of';
+                                                                                    readonly rules: readonly [
+                                                                                        {
+                                                                                            readonly kind: 'text';
+                                                                                        },
+                                                                                        {
+                                                                                            readonly kind: 'null';
+                                                                                        }
+                                                                                    ];
+                                                                                };
+                                                                            };
+                                                                            readonly preview: {
+                                                                                readonly rule: {
+                                                                                    readonly kind: "string";
+                                                                                };
+                                                                            };
+                                                                        };
+                                                                    };
+                                                                };
+                                                                readonly arguments: {
+                                                                    rule: {
+                                                                        readonly kind: 'object';
+                                                                        readonly fields: {
+                                                                            readonly text: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                            readonly truncated: {
+                                                                                readonly rule: {
+                                                                                    readonly kind: "boolean";
+                                                                                };
+                                                                            };
+                                                                            readonly digest: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                        };
+                                                                    };
+                                                                };
+                                                                readonly origin: {
+                                                                    rule: {
+                                                                        readonly kind: 'object';
+                                                                        readonly fields: {
+                                                                            readonly session: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                            readonly agent: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                        };
+                                                                    };
+                                                                };
+                                                                readonly gateTitle: {
+                                                                    rule: {
+                                                                        readonly kind: 'text';
+                                                                    };
+                                                                };
+                                                                readonly gate: {
+                                                                    readonly rule: {
+                                                                        readonly kind: 'object';
+                                                                        readonly fields: {
+                                                                            readonly capabilityId: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                            readonly enforcementKey: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                            readonly basis: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                        };
+                                                                    };
+                                                                    readonly optional: true;
+                                                                };
+                                                                readonly detail: {
+                                                                    readonly rule: {
+                                                                        readonly kind: 'one-of';
+                                                                        readonly rules: readonly [
+                                                                            {
+                                                                                readonly kind: 'object';
+                                                                                readonly fields: {
+                                                                                    readonly state: {
+                                                                                        rule: {
+                                                                                            readonly kind: 'literal';
+                                                                                            readonly values: readonly [
+                                                                                                "given"
+                                                                                            ];
+                                                                                        };
+                                                                                    };
+                                                                                    readonly rows: {
+                                                                                        readonly rule: {
+                                                                                            readonly kind: "array";
+                                                                                            readonly item: {
+                                                                                                readonly kind: 'object';
+                                                                                                readonly fields: {
+                                                                                                    readonly label: {
+                                                                                                        rule: {
+                                                                                                            readonly kind: 'text';
+                                                                                                        };
+                                                                                                    };
+                                                                                                    readonly value: {
+                                                                                                        readonly rule: {
+                                                                                                            readonly kind: "one-of";
+                                                                                                            readonly rules: readonly [
+                                                                                                                {
+                                                                                                                    readonly kind: 'text';
+                                                                                                                },
+                                                                                                                {
+                                                                                                                    readonly kind: "array";
+                                                                                                                    readonly item: {
+                                                                                                                        readonly kind: 'text';
+                                                                                                                    };
+                                                                                                                    readonly nonempty: true;
+                                                                                                                }
+                                                                                                            ];
+                                                                                                        };
+                                                                                                    };
+                                                                                                };
+                                                                                            };
+                                                                                            readonly nonempty: true;
+                                                                                        };
+                                                                                    };
+                                                                                    readonly typed: {
+                                                                                        readonly rule: {
+                                                                                            readonly kind: 'object';
+                                                                                            readonly fields: {
+                                                                                                readonly kind: {
+                                                                                                    rule: {
+                                                                                                        readonly kind: 'text';
+                                                                                                    };
+                                                                                                };
+                                                                                                readonly value: {
+                                                                                                    rule: {
+                                                                                                        readonly kind: 'text';
+                                                                                                    };
+                                                                                                };
+                                                                                            };
+                                                                                        };
+                                                                                        readonly optional: true;
+                                                                                    };
+                                                                                };
+                                                                            },
+                                                                            {
+                                                                                readonly kind: 'object';
+                                                                                readonly fields: {
+                                                                                    readonly state: {
+                                                                                        rule: {
+                                                                                            readonly kind: 'literal';
+                                                                                            readonly values: readonly [
+                                                                                                "unavailable"
+                                                                                            ];
+                                                                                        };
+                                                                                    };
+                                                                                };
+                                                                            }
+                                                                        ];
+                                                                    };
+                                                                    readonly optional: true;
                                                                 };
                                                                 readonly options: {
                                                                     readonly rule: {
@@ -1138,11 +2058,15 @@ declare const cardPage: {
                                                                                         readonly kind: 'text';
                                                                                     };
                                                                                 };
-                                                                                readonly effectRef: {
+                                                                                readonly offered: {
                                                                                     readonly rule: {
-                                                                                        readonly kind: 'text';
+                                                                                        readonly kind: "boolean";
                                                                                     };
-                                                                                    readonly optional: true;
+                                                                                };
+                                                                                readonly lasting: {
+                                                                                    readonly rule: {
+                                                                                        readonly kind: "boolean";
+                                                                                    };
                                                                                 };
                                                                             };
                                                                         };
@@ -1465,10 +2389,191 @@ declare const cardPage: {
                                                                     rule: {
                                                                         readonly kind: 'literal';
                                                                         readonly values: readonly [
-                                                                            "approval",
-                                                                            "admission"
+                                                                            "release"
                                                                         ];
                                                                     };
+                                                                };
+                                                                readonly target: {
+                                                                    rule: {
+                                                                        readonly kind: 'object';
+                                                                        readonly fields: {
+                                                                            readonly tool: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                            readonly command: {
+                                                                                rule: {
+                                                                                    readonly kind: 'one-of';
+                                                                                    readonly rules: readonly [
+                                                                                        {
+                                                                                            readonly kind: 'text';
+                                                                                        },
+                                                                                        {
+                                                                                            readonly kind: 'null';
+                                                                                        }
+                                                                                    ];
+                                                                                };
+                                                                            };
+                                                                            readonly preview: {
+                                                                                readonly rule: {
+                                                                                    readonly kind: "string";
+                                                                                };
+                                                                            };
+                                                                        };
+                                                                    };
+                                                                };
+                                                                readonly arguments: {
+                                                                    rule: {
+                                                                        readonly kind: 'object';
+                                                                        readonly fields: {
+                                                                            readonly text: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                            readonly truncated: {
+                                                                                readonly rule: {
+                                                                                    readonly kind: "boolean";
+                                                                                };
+                                                                            };
+                                                                            readonly digest: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                        };
+                                                                    };
+                                                                };
+                                                                readonly origin: {
+                                                                    rule: {
+                                                                        readonly kind: 'object';
+                                                                        readonly fields: {
+                                                                            readonly session: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                            readonly agent: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                        };
+                                                                    };
+                                                                };
+                                                                readonly gateTitle: {
+                                                                    rule: {
+                                                                        readonly kind: 'text';
+                                                                    };
+                                                                };
+                                                                readonly gate: {
+                                                                    readonly rule: {
+                                                                        readonly kind: 'object';
+                                                                        readonly fields: {
+                                                                            readonly capabilityId: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                            readonly enforcementKey: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                            readonly basis: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                        };
+                                                                    };
+                                                                    readonly optional: true;
+                                                                };
+                                                                readonly detail: {
+                                                                    readonly rule: {
+                                                                        readonly kind: 'one-of';
+                                                                        readonly rules: readonly [
+                                                                            {
+                                                                                readonly kind: 'object';
+                                                                                readonly fields: {
+                                                                                    readonly state: {
+                                                                                        rule: {
+                                                                                            readonly kind: 'literal';
+                                                                                            readonly values: readonly [
+                                                                                                "given"
+                                                                                            ];
+                                                                                        };
+                                                                                    };
+                                                                                    readonly rows: {
+                                                                                        readonly rule: {
+                                                                                            readonly kind: "array";
+                                                                                            readonly item: {
+                                                                                                readonly kind: 'object';
+                                                                                                readonly fields: {
+                                                                                                    readonly label: {
+                                                                                                        rule: {
+                                                                                                            readonly kind: 'text';
+                                                                                                        };
+                                                                                                    };
+                                                                                                    readonly value: {
+                                                                                                        readonly rule: {
+                                                                                                            readonly kind: "one-of";
+                                                                                                            readonly rules: readonly [
+                                                                                                                {
+                                                                                                                    readonly kind: 'text';
+                                                                                                                },
+                                                                                                                {
+                                                                                                                    readonly kind: "array";
+                                                                                                                    readonly item: {
+                                                                                                                        readonly kind: 'text';
+                                                                                                                    };
+                                                                                                                    readonly nonempty: true;
+                                                                                                                }
+                                                                                                            ];
+                                                                                                        };
+                                                                                                    };
+                                                                                                };
+                                                                                            };
+                                                                                            readonly nonempty: true;
+                                                                                        };
+                                                                                    };
+                                                                                    readonly typed: {
+                                                                                        readonly rule: {
+                                                                                            readonly kind: 'object';
+                                                                                            readonly fields: {
+                                                                                                readonly kind: {
+                                                                                                    rule: {
+                                                                                                        readonly kind: 'text';
+                                                                                                    };
+                                                                                                };
+                                                                                                readonly value: {
+                                                                                                    rule: {
+                                                                                                        readonly kind: 'text';
+                                                                                                    };
+                                                                                                };
+                                                                                            };
+                                                                                        };
+                                                                                        readonly optional: true;
+                                                                                    };
+                                                                                };
+                                                                            },
+                                                                            {
+                                                                                readonly kind: 'object';
+                                                                                readonly fields: {
+                                                                                    readonly state: {
+                                                                                        rule: {
+                                                                                            readonly kind: 'literal';
+                                                                                            readonly values: readonly [
+                                                                                                "unavailable"
+                                                                                            ];
+                                                                                        };
+                                                                                    };
+                                                                                };
+                                                                            }
+                                                                        ];
+                                                                    };
+                                                                    readonly optional: true;
                                                                 };
                                                                 readonly options: {
                                                                     readonly rule: {
@@ -1491,11 +2596,15 @@ declare const cardPage: {
                                                                                         readonly kind: 'text';
                                                                                     };
                                                                                 };
-                                                                                readonly effectRef: {
+                                                                                readonly offered: {
                                                                                     readonly rule: {
-                                                                                        readonly kind: 'text';
+                                                                                        readonly kind: "boolean";
                                                                                     };
-                                                                                    readonly optional: true;
+                                                                                };
+                                                                                readonly lasting: {
+                                                                                    readonly rule: {
+                                                                                        readonly kind: "boolean";
+                                                                                    };
                                                                                 };
                                                                             };
                                                                         };
@@ -1545,8 +2654,7 @@ declare const cardPage: {
                                             readonly values: readonly [
                                                 "tool",
                                                 "agent-extension",
-                                                "admission",
-                                                "independent"
+                                                "admission"
                                             ];
                                         };
                                     };
@@ -1892,16 +3000,50 @@ export declare const humanInterventionProtocol: {
                                 }[];
                                 readonly title: string;
                             } | {
+                                readonly arguments: {
+                                    readonly digest: string;
+                                    readonly text: string;
+                                    readonly truncated: boolean;
+                                };
                                 readonly cardId: string;
                                 readonly declineConsequence: string;
                                 readonly description: string;
-                                readonly kind: "admission" | "approval";
+                                readonly detail?: {
+                                    readonly rows: readonly {
+                                        readonly label: string;
+                                        readonly value: string | readonly string[];
+                                    }[];
+                                    readonly state: "given";
+                                    readonly typed?: {
+                                        readonly kind: string;
+                                        readonly value: string;
+                                    };
+                                } | {
+                                    readonly state: "unavailable";
+                                };
+                                readonly gate?: {
+                                    readonly basis: string;
+                                    readonly capabilityId: string;
+                                    readonly enforcementKey: string;
+                                };
+                                readonly gateTitle: string;
+                                readonly kind: "release";
                                 readonly options: readonly {
                                     readonly description: string;
-                                    readonly effectRef?: string;
                                     readonly id: string;
                                     readonly label: string;
+                                    readonly lasting: boolean;
+                                    readonly offered: boolean;
                                 }[];
+                                readonly origin: {
+                                    readonly agent: string;
+                                    readonly session: string;
+                                };
+                                readonly target: {
+                                    readonly command: string | null;
+                                    readonly preview: string;
+                                    readonly tool: string;
+                                };
                                 readonly title: string;
                             };
                             readonly ref: {
@@ -1960,16 +3102,50 @@ export declare const humanInterventionProtocol: {
                                 }[];
                                 readonly title: string;
                             } | {
+                                readonly arguments: {
+                                    readonly digest: string;
+                                    readonly text: string;
+                                    readonly truncated: boolean;
+                                };
                                 readonly cardId: string;
                                 readonly declineConsequence: string;
                                 readonly description: string;
-                                readonly kind: "admission" | "approval";
+                                readonly detail?: {
+                                    readonly rows: readonly {
+                                        readonly label: string;
+                                        readonly value: string | readonly string[];
+                                    }[];
+                                    readonly state: "given";
+                                    readonly typed?: {
+                                        readonly kind: string;
+                                        readonly value: string;
+                                    };
+                                } | {
+                                    readonly state: "unavailable";
+                                };
+                                readonly gate?: {
+                                    readonly basis: string;
+                                    readonly capabilityId: string;
+                                    readonly enforcementKey: string;
+                                };
+                                readonly gateTitle: string;
+                                readonly kind: "release";
                                 readonly options: readonly {
                                     readonly description: string;
-                                    readonly effectRef?: string;
                                     readonly id: string;
                                     readonly label: string;
+                                    readonly lasting: boolean;
+                                    readonly offered: boolean;
                                 }[];
+                                readonly origin: {
+                                    readonly agent: string;
+                                    readonly session: string;
+                                };
+                                readonly target: {
+                                    readonly command: string | null;
+                                    readonly preview: string;
+                                    readonly tool: string;
+                                };
                                 readonly title: string;
                             };
                             readonly ref: {
@@ -1994,16 +3170,50 @@ export declare const humanInterventionProtocol: {
                                 }[];
                                 readonly title: string;
                             } | {
+                                readonly arguments: {
+                                    readonly digest: string;
+                                    readonly text: string;
+                                    readonly truncated: boolean;
+                                };
                                 readonly cardId: string;
                                 readonly declineConsequence: string;
                                 readonly description: string;
-                                readonly kind: "admission" | "approval";
+                                readonly detail?: {
+                                    readonly rows: readonly {
+                                        readonly label: string;
+                                        readonly value: string | readonly string[];
+                                    }[];
+                                    readonly state: "given";
+                                    readonly typed?: {
+                                        readonly kind: string;
+                                        readonly value: string;
+                                    };
+                                } | {
+                                    readonly state: "unavailable";
+                                };
+                                readonly gate?: {
+                                    readonly basis: string;
+                                    readonly capabilityId: string;
+                                    readonly enforcementKey: string;
+                                };
+                                readonly gateTitle: string;
+                                readonly kind: "release";
                                 readonly options: readonly {
                                     readonly description: string;
-                                    readonly effectRef?: string;
                                     readonly id: string;
                                     readonly label: string;
+                                    readonly lasting: boolean;
+                                    readonly offered: boolean;
                                 }[];
+                                readonly origin: {
+                                    readonly agent: string;
+                                    readonly session: string;
+                                };
+                                readonly target: {
+                                    readonly command: string | null;
+                                    readonly preview: string;
+                                    readonly tool: string;
+                                };
                                 readonly title: string;
                             };
                             readonly reason: "archived" | "cancelled" | "continuity-lost" | "origin-terminal";
@@ -2019,7 +3229,7 @@ export declare const humanInterventionProtocol: {
                         };
                         readonly displayContext: string;
                         readonly origin: {
-                            readonly kind: "admission" | "agent-extension" | "independent" | "tool";
+                            readonly kind: "admission" | "agent-extension" | "tool";
                             readonly runRef?: string;
                             readonly sessionRef?: string;
                             readonly toolCallRef?: string;
@@ -2045,7 +3255,7 @@ export declare const humanInterventionProtocol: {
                 readonly cursor: string | null;
                 readonly filter: {
                     readonly delivery?: "accepted" | "pending" | "superseded";
-                    readonly originKind?: "admission" | "agent-extension" | "independent" | "tool";
+                    readonly originKind?: "admission" | "agent-extension" | "tool";
                     readonly sessionRef?: string;
                     readonly states: readonly ("decided" | "invalidated" | "pending")[];
                 };
@@ -2071,16 +3281,50 @@ export declare const humanInterventionProtocol: {
                                 }[];
                                 readonly title: string;
                             } | {
+                                readonly arguments: {
+                                    readonly digest: string;
+                                    readonly text: string;
+                                    readonly truncated: boolean;
+                                };
                                 readonly cardId: string;
                                 readonly declineConsequence: string;
                                 readonly description: string;
-                                readonly kind: "admission" | "approval";
+                                readonly detail?: {
+                                    readonly rows: readonly {
+                                        readonly label: string;
+                                        readonly value: string | readonly string[];
+                                    }[];
+                                    readonly state: "given";
+                                    readonly typed?: {
+                                        readonly kind: string;
+                                        readonly value: string;
+                                    };
+                                } | {
+                                    readonly state: "unavailable";
+                                };
+                                readonly gate?: {
+                                    readonly basis: string;
+                                    readonly capabilityId: string;
+                                    readonly enforcementKey: string;
+                                };
+                                readonly gateTitle: string;
+                                readonly kind: "release";
                                 readonly options: readonly {
                                     readonly description: string;
-                                    readonly effectRef?: string;
                                     readonly id: string;
                                     readonly label: string;
+                                    readonly lasting: boolean;
+                                    readonly offered: boolean;
                                 }[];
+                                readonly origin: {
+                                    readonly agent: string;
+                                    readonly session: string;
+                                };
+                                readonly target: {
+                                    readonly command: string | null;
+                                    readonly preview: string;
+                                    readonly tool: string;
+                                };
                                 readonly title: string;
                             };
                             readonly ref: {
@@ -2139,16 +3383,50 @@ export declare const humanInterventionProtocol: {
                                 }[];
                                 readonly title: string;
                             } | {
+                                readonly arguments: {
+                                    readonly digest: string;
+                                    readonly text: string;
+                                    readonly truncated: boolean;
+                                };
                                 readonly cardId: string;
                                 readonly declineConsequence: string;
                                 readonly description: string;
-                                readonly kind: "admission" | "approval";
+                                readonly detail?: {
+                                    readonly rows: readonly {
+                                        readonly label: string;
+                                        readonly value: string | readonly string[];
+                                    }[];
+                                    readonly state: "given";
+                                    readonly typed?: {
+                                        readonly kind: string;
+                                        readonly value: string;
+                                    };
+                                } | {
+                                    readonly state: "unavailable";
+                                };
+                                readonly gate?: {
+                                    readonly basis: string;
+                                    readonly capabilityId: string;
+                                    readonly enforcementKey: string;
+                                };
+                                readonly gateTitle: string;
+                                readonly kind: "release";
                                 readonly options: readonly {
                                     readonly description: string;
-                                    readonly effectRef?: string;
                                     readonly id: string;
                                     readonly label: string;
+                                    readonly lasting: boolean;
+                                    readonly offered: boolean;
                                 }[];
+                                readonly origin: {
+                                    readonly agent: string;
+                                    readonly session: string;
+                                };
+                                readonly target: {
+                                    readonly command: string | null;
+                                    readonly preview: string;
+                                    readonly tool: string;
+                                };
                                 readonly title: string;
                             };
                             readonly ref: {
@@ -2173,16 +3451,50 @@ export declare const humanInterventionProtocol: {
                                 }[];
                                 readonly title: string;
                             } | {
+                                readonly arguments: {
+                                    readonly digest: string;
+                                    readonly text: string;
+                                    readonly truncated: boolean;
+                                };
                                 readonly cardId: string;
                                 readonly declineConsequence: string;
                                 readonly description: string;
-                                readonly kind: "admission" | "approval";
+                                readonly detail?: {
+                                    readonly rows: readonly {
+                                        readonly label: string;
+                                        readonly value: string | readonly string[];
+                                    }[];
+                                    readonly state: "given";
+                                    readonly typed?: {
+                                        readonly kind: string;
+                                        readonly value: string;
+                                    };
+                                } | {
+                                    readonly state: "unavailable";
+                                };
+                                readonly gate?: {
+                                    readonly basis: string;
+                                    readonly capabilityId: string;
+                                    readonly enforcementKey: string;
+                                };
+                                readonly gateTitle: string;
+                                readonly kind: "release";
                                 readonly options: readonly {
                                     readonly description: string;
-                                    readonly effectRef?: string;
                                     readonly id: string;
                                     readonly label: string;
+                                    readonly lasting: boolean;
+                                    readonly offered: boolean;
                                 }[];
+                                readonly origin: {
+                                    readonly agent: string;
+                                    readonly session: string;
+                                };
+                                readonly target: {
+                                    readonly command: string | null;
+                                    readonly preview: string;
+                                    readonly tool: string;
+                                };
                                 readonly title: string;
                             };
                             readonly reason: "archived" | "cancelled" | "continuity-lost" | "origin-terminal";
@@ -2198,7 +3510,7 @@ export declare const humanInterventionProtocol: {
                         };
                         readonly displayContext: string;
                         readonly origin: {
-                            readonly kind: "admission" | "agent-extension" | "independent" | "tool";
+                            readonly kind: "admission" | "agent-extension" | "tool";
                             readonly runRef?: string;
                             readonly sessionRef?: string;
                             readonly toolCallRef?: string;

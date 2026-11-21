@@ -37,6 +37,31 @@ export function sessionName(item: ListedSession): string {
   return item.title ?? `未命名的会话 ${item.session.slice(0, 8)}`
 }
 
+export type Relation = NonNullable<ListedSession['relation']>
+export type RelationFilter = 'all' | Relation
+/** A row of a server that does not say what the session is to others reads as a main session. */
+export const relationOf = (item: ListedSession): Relation => item.relation ?? 'main'
+export type ArrangedSession = Readonly<{ item: ListedSession; level: number }>
+
+/** The sessions of one relation, each child set under its parent when the parent is among them. */
+export function arrange(
+  sessions: readonly ListedSession[],
+  relation: RelationFilter,
+): readonly ArrangedSession[] {
+  const kept =
+    relation === 'all' ? sessions : sessions.filter(item => relationOf(item) === relation)
+  const shown = new Set(kept.map(item => item.session))
+  const under = (item: ListedSession) =>
+    item.parent != null && shown.has(item.parent) ? item.parent : null
+  const arranged: ArrangedSession[] = []
+  const place = (item: ListedSession, level: number): void => {
+    arranged.push({ item, level })
+    for (const next of kept) if (under(next) === item.session) place(next, level + 1)
+  }
+  for (const item of kept) if (under(item) === null) place(item, 0)
+  return arranged
+}
+
 export const UNREAD: SessionList = { kind: 'unread', issued: 0 }
 
 export function shownBy(list: SessionList): ListPage | null {

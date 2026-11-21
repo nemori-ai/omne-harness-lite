@@ -41,12 +41,16 @@ export const STATE_CODEC = adoption('ask-state-codec')
 
 export const CLOSED_RESULT = 'No file was chosen: the question was closed.'
 
-export function asking(state: string, text = 'which file?'): Segment {
+export function asking(
+  state: string,
+  text = 'which file?',
+  contract: ReturnType<typeof askContract> = askContract(),
+): Segment {
   return succeed({
     kind: 'suspended',
     state: new TextEncoder().encode(state),
     closedResult: CLOSED_RESULT,
-    wait: { kind: 'ask', key: 'which-file', contract: askContract(), request: question(text) },
+    wait: { kind: 'ask', key: 'which-file', contract, request: question(text) },
   })
 }
 

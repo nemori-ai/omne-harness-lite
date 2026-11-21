@@ -12,11 +12,14 @@ import type { ModelCommands } from '@omne-harness/model-contract/provider'
 import {
   ModelCommandsService,
   ModelDiagnosticsService,
+  ModelDispatchFactsService,
   modelCommandsKey,
   modelDiagnosticsKey,
+  modelDispatchFactsKey,
 } from '@omne-harness/model-cordis-contract/cordis'
 import { createSqlModelCommands, type SqlModelCommandsOptions } from './commands.ts'
 import { sqlModelRecordsConfigSchema, type SqlModelRecordsConfig } from './cordis-config.ts'
+import { createSqlModelDispatchFacts, type SqlModelDispatchFactsOptions } from './dispatch-facts.ts'
 import {
   createSqlModelDiagnostics,
   type DiagnosticsReadMapping,
@@ -84,6 +87,8 @@ export function createSqlModelRecordsPlugin<P, C>(
     readonly nextRead
     readonly endRead
     readonly handoff
+    readonly abandon
+    readonly confirmAccount
     readonly advanceCleanup
     readonly query
     readonly dispatches
@@ -128,6 +133,8 @@ export function createSqlModelRecordsPlugin<P, C>(
       this.nextRead = commands.nextRead
       this.endRead = commands.endRead
       this.handoff = commands.handoff
+      this.abandon = commands.abandon
+      this.confirmAccount = commands.confirmAccount
       this.advanceCleanup = commands.advanceCleanup
       this.query = commands.query
       this.dispatches = commands.dispatches
@@ -227,6 +234,36 @@ export function createSqlModelDiagnosticsPlugin<P>(
       super(ctx)
       const dependencies = options.resolve(ctx, config)
       this.list = createSqlModelDiagnostics<P>({ ...dependencies, ...config }).list
+    }
+  }
+}
+
+export type SqlModelDispatchFactsPluginOptions<P> = Readonly<{
+  /** Complete static dependency list of resolve; must exclude modelDispatchFacts. */
+  inject: readonly string[]
+  resolve(ctx: Context): Pick<SqlModelDispatchFactsOptions<P>, 'storage' | 'domains' | 'authority'>
+}>
+
+export type SqlModelDispatchFactsPluginClass<P> = {
+  new (ctx: Context): ModelDispatchFactsService<P>
+  readonly inject: string[]
+}
+
+/** Provides `modelDispatchFacts` over the storage the Model records live in. */
+export function createSqlModelDispatchFactsPlugin<P>(
+  options: SqlModelDispatchFactsPluginOptions<P>,
+): SqlModelDispatchFactsPluginClass<P> {
+  if (options.inject.includes(modelDispatchFactsKey))
+    throw new TypeError('modelDispatchFacts cannot be a dependency of its own provider')
+
+  return class SqlModelDispatchFactsPlugin extends ModelDispatchFactsService<P> {
+    static readonly inject = [...options.inject]
+
+    readonly list
+
+    constructor(ctx: Context) {
+      super(ctx)
+      this.list = createSqlModelDispatchFacts<P>(options.resolve(ctx)).list
     }
   }
 }

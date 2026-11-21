@@ -5,7 +5,7 @@ import { declaration } from './definition-fixture.ts'
 
 function input() {
   const definition = declaration().reference
-  const target = { policyId: 'asset', scopeRef: scope.tenantRef, targetRef: 'target-a' }
+  const target = { kind: 'asset' as const, holdingRef: 'target-a', scopeRef: scope.tenantRef }
   return {
     scope: structuredClone(scope),
     declarationRevision: 7,

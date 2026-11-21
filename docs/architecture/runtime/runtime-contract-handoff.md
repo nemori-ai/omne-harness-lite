@@ -27,7 +27,12 @@ SessionService 是内部工作治理面，不是网络 SDK。外部调用者经�
 | `send-input` | `SessionWork.accept`，普通输入 | `intake` | 派生的受理操作身份与 `InputId` |
 | `query-send-input` | `SessionWork.queryOperation` | `intake` | 同一派生的受理操作身份 |
 | `cancel-run` | `SessionWork.cancelRun` | `intake` | 派生的控制操作身份 |
-| `stop-call` | `SessionWork.stopCall` | `intake` | 派生的控制操作身份，与 `cancel-run` 共用同一冲突域 |
+| `stop-call` | `SessionWork.stopCall`，发起者由调用方类定为用户 | `intake` | 派生的控制操作身份，与 `cancel-run` 共用同一冲突域 |
+| `interrupt-input` | `SessionManagement.interrupt`，没有 Run 时按普通输入受理 | `intake` | 与 `send-input` 相同的派生受理身份与 `InputId` |
+| `background-call` | `SessionWork.control`，转后台 | `intake` | 派生的控制操作身份 |
+| `list-background-calls` | `SessionWork.readBackgroundCalls` | `intake` | 只读 |
+| `archive-session`、`unarchive-session` | `SessionWork.control`，归档与撤销归档 | `intake` | 派生的控制操作身份 |
+| `list-sessions`、`list-archived-sessions` | `SessionDirectory.list`、`listArchived` | `reader` | 只读 |
 | `read-history` | `SessionHistory.begin`（`from` 为 null）、`next` | `reader` | 只读 |
 
 服务端接入是这些调用的唯一调用方。SDK 只编码请求、读取回复，不直接调用 Session。

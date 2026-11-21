@@ -33,7 +33,7 @@ const reply = {
   ],
 } as const
 
-const originKinds = literal('tool', 'agent-extension', 'admission', 'independent')
+const originKinds = literal('tool', 'agent-extension', 'admission')
 
 const filter = object({
   states: {
@@ -71,6 +71,21 @@ const option = {
   label: { rule: text },
   description: { rule: text },
 } as const
+const releaseRow = object({
+  label: { rule: text },
+  value: { rule: { kind: 'one-of', rules: [text, { kind: 'array', item: text, nonempty: true }] } },
+})
+const releaseDetail = {
+  kind: 'one-of',
+  rules: [
+    object({
+      state: { rule: literal('given') },
+      rows: { rule: { kind: 'array', item: releaseRow, nonempty: true } },
+      typed: { rule: object({ kind: { rule: text }, value: { rule: text } }), optional: true },
+    }),
+    object({ state: { rule: literal('unavailable') } }),
+  ],
+} as const
 const questionFields = {
   cardId: { rule: text },
   title: { rule: text },
@@ -87,11 +102,40 @@ const question = {
     }),
     object({
       ...questionFields,
-      kind: { rule: literal('approval', 'admission') },
+      kind: { rule: literal('release') },
+      target: {
+        rule: object({
+          tool: { rule: text },
+          command: { rule: nullable(text) },
+          preview: { rule: { kind: 'string' } },
+        }),
+      },
+      arguments: {
+        rule: object({
+          text: { rule: text },
+          truncated: { rule: { kind: 'boolean' } },
+          digest: { rule: text },
+        }),
+      },
+      origin: { rule: object({ session: { rule: text }, agent: { rule: text } }) },
+      gateTitle: { rule: text },
+      gate: {
+        rule: object({
+          capabilityId: { rule: text },
+          enforcementKey: { rule: text },
+          basis: { rule: text },
+        }),
+        optional: true,
+      },
+      detail: { rule: releaseDetail, optional: true },
       options: {
         rule: {
           kind: 'array',
-          item: object({ ...option, effectRef: { rule: text, optional: true } }),
+          item: object({
+            ...option,
+            offered: { rule: { kind: 'boolean' } },
+            lasting: { rule: { kind: 'boolean' } },
+          }),
         },
       },
     }),

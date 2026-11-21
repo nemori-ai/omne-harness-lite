@@ -13,7 +13,6 @@ import {
 } from '@omne-harness/agent-contract'
 import {
   absentToolLookup,
-  createAgentModelContext,
   createAgentRequests,
   createContextMaterials,
   toolsSourceOf,
@@ -24,7 +23,6 @@ import {
   createScriptedTransport,
 } from '@omne-harness/model-contract/testing'
 import {
-  createAbsentConversionResults,
   createContextSourceRegistry,
   createDefaultCompactionPolicy,
   createDefaultRepresentationPolicy,
@@ -35,9 +33,6 @@ import {
   createTestingPrincipalBinding,
 } from '@omne-harness/request-context-contract/testing'
 import type { ContextHolderParts } from '@omne-harness/request-context-cordis-contract'
-import { createRuntimeContext } from '@omne-harness/runtime-context'
-import { createTestAuthorityPorts } from '@omne-harness/runtime-context-contract/testing'
-import { createScriptedReaderEligibility } from '@omne-harness/runtime-context-cordis-contract/testing'
 
 function must<T>(value: { ok: T } | { failure: unknown }): T {
   if ('failure' in value) throw new Error(`fixture value refused: ${JSON.stringify(value.failure)}`)
@@ -51,7 +46,7 @@ const evidence = (record: string): DurableEvidence => ({
   revision: '1',
   digest: `digest-${record}`,
 })
-const HEAD = evidence('history-head')
+const HEAD = evidence('history-tip')
 const position: ConsumerRef = {
   owner: 'agent',
   work: 'execution-1',
@@ -75,9 +70,7 @@ export async function agentContextReady(tenant: TenantId): Promise<AgentContextR
   const f = createAssemblyFixture({
     tenant,
     policies: {
-      compaction: createDefaultCompactionPolicy({
-        config: { retainBudget: { kind: 'tokens', retainTokens: '600' } },
-      }),
+      compaction: createDefaultCompactionPolicy(),
       representation: createDefaultRepresentationPolicy(),
     },
   })
@@ -92,42 +85,6 @@ export async function agentContextReady(tenant: TenantId): Promise<AgentContextR
         ? { kind: 'value', value: historyEvidence }
         : { kind: 'invalid', field: 'evidence', reason: 'unknown-epoch' },
   }
-
-  const ports = createTestAuthorityPorts<string>()
-  const rc = createRuntimeContext<string>({ trust: ports })
-  ports.bind(f.target.scope, tenant)
-  const begun = await rc.beginReplay('holder', {
-    scope: f.target.scope,
-    tenant,
-    through: null,
-    supersedes: null,
-  })
-  if (begun.kind !== 'replaying') throw new Error(`fixture replay: ${begun.kind}`)
-  const replayed = await rc.finishReplay('holder', {
-    replay: begun.replay,
-    material: { registrations: [], checkpoints: [], end: null },
-  })
-  if (replayed.kind !== 'ready') throw new Error(`fixture replay end: ${replayed.kind}`)
-  const issued = await rc.issueEligibility('holder', {
-    supersedes: null,
-    scope: f.target.scope,
-    consumer: 'model',
-    principal: access.principal,
-    tenant,
-    keys: [],
-    bindings: [],
-    registrationRevision: 0,
-  })
-  if (issued.kind !== 'issued') throw new Error(`fixture eligibility: ${issued.kind}`)
-  const handoff = createScriptedReaderEligibility<string>({
-    scopes: [{ scope: f.target.scope, tenant }],
-    answers: [
-      {
-        request: { principal: access.principal, tenant, scope: f.target.scope, consumer: 'model' },
-        result: { kind: 'current', eligibility: issued.eligibility.id },
-      },
-    ],
-  })
 
   const registry = createContextSourceRegistry<string>({
     principalBinding: createTestingPrincipalBinding<string>(),
@@ -174,7 +131,7 @@ export async function agentContextReady(tenant: TenantId): Promise<AgentContextR
     },
   }
 
-  const materials = createContextMaterials<string>({ owner, capacity: 8 })
+  const materials = createContextMaterials({ owner })
   const requests = createAgentRequests<string>({
     materials,
     parts,
@@ -183,16 +140,24 @@ export async function agentContextReady(tenant: TenantId): Promise<AgentContextR
       assembly: target => registry.assembly(target),
     },
     preparation: f.preparation,
-    conversions: createAbsentConversionResults<string>(),
     model,
     tools: toolsSourceOf(absentToolLookup),
-    stepResults: async () => ({ kind: 'unavailable', diagnostic: 'none' }),
-  })
-  const reader = createAgentModelContext<string>({
-    materials,
-    parts,
-    eligibility: { current: request => handoff.current(request) },
-    runtimeContext: { bind: async id => rc.bind(id, { consumer: 'model' }) },
+    compactionInputs: {
+      freeze: async () => ({
+        failure: {
+          kind: 'unavailable',
+          owner: 'fixture',
+          diagnostic: 'compaction is not available in this ready-request fixture',
+        },
+      }),
+      read: async () => ({
+        failure: {
+          kind: 'unavailable',
+          owner: 'fixture',
+          diagnostic: 'no frozen compaction inputs',
+        },
+      }),
+    },
   })
 
   const selection: SelectedModel = {
@@ -218,16 +183,6 @@ export async function agentContextReady(tenant: TenantId): Promise<AgentContextR
     context: evidence('conditions-context'),
     bindings: [],
   }
-  const read = await reader.read({
-    ...access,
-    advance: authority(),
-    position,
-    recipient: selection.recipient,
-    history: HEAD,
-    adopted: null,
-    transition: null,
-  })
-  if (!('ok' in read)) throw new Error(`fixture read refused: ${JSON.stringify(read.failure)}`)
   const prepared = await requests.prepare({
     ...access,
     advance: authority(),
@@ -242,7 +197,6 @@ export async function agentContextReady(tenant: TenantId): Promise<AgentContextR
     },
     conditions,
     selection,
-    context: read.ok,
     previous: null,
     alterations: [],
     beforeModelCall: [must(decodePassageId('passage-1'))],

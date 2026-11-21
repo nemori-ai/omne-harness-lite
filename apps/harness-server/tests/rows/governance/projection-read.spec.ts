@@ -179,7 +179,7 @@ it('gives no result on a missing fact or a command of a non-member, and the prov
   })
   expect(
     await w.read([{ participant: w.owner.participant, facts: { kind: 'set', value: 'c' } }]),
-  ).toEqual({ kind: 'unavailable' })
+  ).toEqual({ kind: 'unavailable', reason: 'read_failed' })
   expect(await w.read([project, joined()])).toEqual({
     kind: 'completed',
     response: { joined: 'a' },
@@ -199,5 +199,27 @@ it('declares the tables and migrations of the owners, and binds its protocol to 
   )
   expect(other.handler.protocol).not.toBe(w.handler.protocol)
   await other.set('a')
-  expect(await other.read([project, joined()])).toEqual({ kind: 'unavailable' })
+  expect(await other.read([project, joined()])).toEqual({
+    kind: 'unavailable',
+    reason: 'read_failed',
+  })
+})
+
+it('answers no storage reason when the read was cancelled or its output is not a projection result', async () => {
+  const w = await world()
+  const answering = (result: unknown) =>
+    readProjection(
+      { read: async () => result as never },
+      { transactionDomain: 'd' } as never,
+      w.handler,
+      [],
+    )
+  expect(await answering({ kind: 'cancelled', requestKey: null })).toEqual({
+    kind: 'unavailable',
+    reason: null,
+  })
+  expect(await answering({ kind: 'read', requestKey: 'k', output: { kind: 'other' } })).toEqual({
+    kind: 'unavailable',
+    reason: null,
+  })
 })

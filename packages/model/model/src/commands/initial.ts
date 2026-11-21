@@ -78,8 +78,9 @@ type BoundRecord = LocalAdmission &
     continuity: DurableEvidence
     evidenceAdoption: Adoption
     execution: ExecutionRef | null
+    /** The execution of an earlier process this record took over; null for a first execution. */
+    adopted: ExecutionRef | null
   }>
-type AdmittedRecord = LocalAdmission & Readonly<{ kind: 'admitted' }>
 type InitialRecord = LocalAdmission &
   (Readonly<{ kind: 'admission-pending' }> | Readonly<{ kind: 'admitted' }> | BoundRecord)
 const failure = (diagnostic: string) => unavailable('model-initial-execution', diagnostic)
@@ -96,6 +97,7 @@ function recordMissing<T>(result: Outcome<T, ModelFailure>): Outcome<T, ModelFai
     : result
 }
 type ContinuityInput = Parameters<ModelCommandsEvidence['continuity']>[0]
+type Host = { readonly instance: ModelInstanceId; readonly binding: object; calls: number }
 function matchesCall(call: CallDocument, record: BoundRecord, input: ContinuityInput): boolean {
   return (
     call.admission === record.admission &&
@@ -174,21 +176,17 @@ class InitialRun<P> implements ModelInitialRun<P> {
   readonly #gates = new WeakSet<BoundCommandAccess<P>>()
   readonly #limits: ModelInitialRunLimits
   readonly #origin: (target: InitialTarget) => Outcome<void, ModelFailure>
+  readonly #adopt: ModelInitialRunAdopt | undefined
   readonly #port: InitialRunPort<P>
   #closed = false
 
-  constructor(
-    access: object,
-    options: Readonly<{
-      limits: ModelInitialRunLimits
-      checkOriginRead(target: InitialTarget): Outcome<void, ModelFailure>
-    }>,
-  ) {
+  constructor(access: object, options: ModelInitialRunOptions) {
     if (access !== initialRunAccess) throw new TypeError('initialRun must come from its factory')
     for (const name of ['maxRecords', 'maxBindings', 'maxCallsPerBinding'] as const)
       positiveLimit(options.limits[name], name)
     this.#limits = Object.freeze({ ...options.limits })
     this.#origin = options.checkOriginRead
+    this.#adopt = options.adopt
     this.#port = Object.freeze({
       beginAdmission: input => this.#beginAdmission(input),
       finishConfirmation: (pass, completion) => this.#finishConfirmation(pass, completion),
@@ -284,12 +282,67 @@ class InitialRun<P> implements ModelInitialRun<P> {
       return { failure: failure('identity-unavailable') }
     }
   }
+  // A first execution has no earlier one; a take-over names the execution it replaces.
+  #bind(
+    host: Host,
+    key: string,
+    record: LocalAdmission,
+    access: CallAccess<P>,
+    call: CallDocument,
+    adopted: ExecutionRef | null,
+  ): Outcome<ModelDriveInput<P>, ModelFailure> {
+    if (digest(call.execution) !== digest(adopted) || call.request === null)
+      return { failure: failure('successor-unavailable') }
+    if (host.calls >= this.#limits.maxCallsPerBinding) return { failure: failure('call-capacity') }
+    const minted = this.#mintIdentity(record, host.instance, call.owner.evidence)
+    if ('failure' in minted) return minted
+    const { operation, continuity } = minted.ok
+    this.#records.set(key, {
+      ...record,
+      kind: 'bound',
+      binding: host.binding,
+      instance: host.instance,
+      operation,
+      continuity,
+      evidenceAdoption: structuredClone(call.owner.evidence),
+      execution: null,
+      adopted: adopted === null ? null : { ...adopted },
+    })
+    host.calls += 1
+    const { instance } = host
+    return { ok: { ...access, instance, operation, continuity: structuredClone(continuity) } }
+  }
+  // A call no record of this run names was admitted by an earlier process: taken over only with
+  // the assembly's evidence that nobody holds it.
+  #adopted(
+    host: Host,
+    tenant: string | ModelFailure,
+    key: string,
+    access: CallAccess<P>,
+    call: CallDocument,
+  ): Outcome<ModelDriveInput<P>, ModelFailure> {
+    const held = this.#adopt?.({ tenant: access.tenant, call: access.call }) ?? null
+    if (held === null || typeof tenant !== 'string')
+      return { failure: failure('initial-record-missing') }
+    if (this.#records.size >= this.#limits.maxRecords)
+      return { failure: failure('record-capacity') }
+    const admission = call.admission
+    const record = {
+      tenant,
+      call: access.call,
+      admission,
+      admissionFingerprint: `adopted:${admission}`,
+    }
+    return this.#bind(host, key, record, access, call, call.execution)
+  }
   #continues(record: BoundRecord, input: ContinuityInput): boolean {
     return (
       this.#bindings.get(record.instance) === record.binding &&
       input.successor === record.instance &&
       digest(input.source) === digest(record.continuity) &&
-      input.execution === null
+      (record.adopted === null
+        ? input.execution === null
+        : input.execution !== null && digest(input.execution) === digest(record.adopted))
     )
   }
   #createExecution(
@@ -344,7 +397,7 @@ class InitialRun<P> implements ModelInitialRun<P> {
         const binding = Object.freeze({})
         this.#bindings.set(instance, binding)
         let live = true
-        let calls = 0
+        const host: Host = { instance, binding, calls: 0 }
         const belongs = (target: InitialTarget): Outcome<BoundRecord, ModelFailure> => {
           if (!live) return { failure: denied() }
           const found = locate(target)
@@ -401,33 +454,6 @@ class InitialRun<P> implements ModelInitialRun<P> {
             },
           }
         }
-        const bindFirst = (
-          key: string,
-          record: AdmittedRecord,
-          access: CallAccess<P>,
-          call: CallDocument,
-        ): Outcome<ModelDriveInput<P>, ModelFailure> => {
-          if (call.execution !== null || call.request === null)
-            return { failure: failure('successor-unavailable') }
-          if (calls >= this.#limits.maxCallsPerBinding) return { failure: failure('call-capacity') }
-          const minted = this.#mintIdentity(record, instance, call.owner.evidence)
-          if ('failure' in minted) return minted
-          const { operation, continuity } = minted.ok
-          this.#records.set(key, {
-            ...record,
-            kind: 'bound',
-            binding,
-            instance,
-            operation,
-            continuity,
-            evidenceAdoption: structuredClone(call.owner.evidence),
-            execution: null,
-          })
-          calls += 1
-          return {
-            ok: { ...access, instance, operation, continuity: structuredClone(continuity) },
-          }
-        }
         const recover = (
           access: CallAccess<P>,
           call: CallDocument,
@@ -436,13 +462,14 @@ class InitialRun<P> implements ModelInitialRun<P> {
           const found = locate(access)
           if ('failure' in found) return found
           const { key, record } = found.ok
-          if (!record || record.kind === 'admission-pending')
+          if (!record) return this.#adopted(host, core.identity(access), key, access, call)
+          if (record.kind === 'admission-pending')
             return { failure: failure('initial-record-missing') }
           if (record.admission !== call.admission)
             return { failure: failure('successor-unavailable') }
           return record.kind === 'bound'
             ? rebound(record, access, call)
-            : bindFirst(key, record, access, call)
+            : this.#bind(host, key, record, access, call, null)
         }
         this.#gates.add(gate)
         const channel: ModelInitialHostChannel<P> = {
@@ -487,11 +514,14 @@ Object.freeze(InitialRun)
 export function initialRunPort<P>(run: ModelInitialRun<P>): InitialRunPort<P> {
   return InitialRun.access(initialRunAccess, run)
 }
-export function createModelInitialRun<P>(
-  options: Readonly<{
-    limits: ModelInitialRunLimits
-    checkOriginRead(target: InitialTarget): Outcome<void, ModelFailure>
-  }>,
-): ModelInitialRun<P> {
+// The assembly's evidence that no other process holds a call this run has no record of, so the
+// run may take it over with a new execution; null when it cannot say so.
+export type ModelInitialRunAdopt = (target: InitialTarget) => DurableEvidence | null
+export type ModelInitialRunOptions = Readonly<{
+  limits: ModelInitialRunLimits
+  checkOriginRead(target: InitialTarget): Outcome<void, ModelFailure>
+  adopt?: ModelInitialRunAdopt
+}>
+export function createModelInitialRun<P>(options: ModelInitialRunOptions): ModelInitialRun<P> {
   return Object.freeze(new InitialRun<P>(initialRunAccess, options))
 }

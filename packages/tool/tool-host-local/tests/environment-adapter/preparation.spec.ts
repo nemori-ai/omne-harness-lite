@@ -9,11 +9,12 @@ import {
   type Placement,
   type ResourceLedger,
 } from '@omne-harness/execution-environment-contract'
-import { succeed } from '@omne-harness/operation-result'
+import { fail, succeed } from '@omne-harness/operation-result'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import type { ToolLedgerStore } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
 
+import type { ToolCallDirectory } from '@omne-harness/tool-contract'
 import type { PreparationRecord, ReleaseRecord } from '@omne-harness/tool-contract/provider'
 import { toolEnvironmentConformance } from '@omne-harness/tool-contract/testing'
 import {
@@ -24,6 +25,7 @@ import type { FileObjectNaming, ToolEnvironmentValue } from '../../src/author-en
 import {
   createLocalEnvironmentPlanResolver,
   createLocalExecutionEnvironment,
+  type LocalExecutionEnvironmentInput,
 } from '../../src/execution-environment.ts'
 import { createEnvironmentStateStore } from '../../src/environment-state.ts'
 import { createEnvironmentResourceLedger } from '../../src/environment-resource-ledger.ts'
@@ -38,7 +40,10 @@ import {
   type Principal,
 } from '../coordinator-values.ts'
 
-function fixture(wrap: (memory: ToolLedgerStore) => ToolLedgerStore = memory => memory) {
+function fixture(
+  wrap: (memory: ToolLedgerStore) => ToolLedgerStore = memory => memory,
+  directory?: ToolCallDirectory,
+) {
   const store = createMemoryToolLedgerStore()
   const ledgerStore = wrap(store)
   const state = createEnvironmentStateStore({ store: ledgerStore, mode: 'test' })
@@ -50,7 +55,7 @@ function fixture(wrap: (memory: ToolLedgerStore) => ToolLedgerStore = memory => 
     inputDigest: 'input-1',
     purpose: 'initial',
   }
-  const fixed = request()
+  const fixed = directory === undefined ? request() : { ...request(), directory }
   const access = { tenant: tenantA, principal: principalA, call: preparation.call }
   const prepare = { ...access, preparation, request: fixed }
   const placement: Placement = {
@@ -136,8 +141,9 @@ function fixture(wrap: (memory: ToolLedgerStore) => ToolLedgerStore = memory => 
     })),
     recoverResources: async () => ({ kind: 'unknown', cause: 'provider' }),
   }
-  const build = () =>
+  const build = (media?: LocalExecutionEnvironmentInput<Principal>['media']) =>
     createLocalExecutionEnvironment({
+      ...(media === undefined ? {} : { media }),
       adoption: preparation.adoption,
       execution,
       store: ledgerStore,
@@ -236,6 +242,30 @@ it('confirms the original acquisition before acquire and exposes a bound command
   )
   expect(await env.release(await f.release())).toMatchObject({ ok: { kind: 'released' } })
   expect(f.releaseLease).toHaveBeenCalledTimes(1)
+})
+
+it('binds the store of products the host was given to the call being prepared, and none when it was given none', async () => {
+  const png = { mediaType: 'image/png', bytes: new Uint8Array([1]) }
+  const put = vi.fn(async () => fail({ kind: 'too-large' as const, reason: 'fixture' }))
+  const f = fixture()
+  const given = await f.build(() => ({ put })).prepare(f.prepare)
+  if ('failure' in given || given.ok.kind !== 'prepared') throw new Error('not prepared')
+  expect(await given.ok.environment.value.media.put(png)).toEqual({
+    failure: { kind: 'too-large', reason: 'fixture' },
+  })
+  expect(put).toHaveBeenCalledWith(
+    expect.objectContaining({
+      principal: principalA,
+      tenant: tenantA,
+      holder: expect.objectContaining({ work: f.preparation.call }),
+    }),
+  )
+  const bare = fixture()
+  const none = await bare.build().prepare(bare.prepare)
+  if ('failure' in none || none.ok.kind !== 'prepared') throw new Error('not prepared')
+  expect(await none.ok.environment.value.media.put(png)).toMatchObject({
+    failure: { kind: 'unavailable', operation: 'media.put' },
+  })
 })
 
 it('writes and reads exact bytes through the adapter and the published file facility double', async () => {
@@ -496,4 +526,18 @@ it('the plan resolver refuses a binding whose scope is not the scope of the requ
     failure: { kind: 'denied', action: 'environment-scope' },
   })
   expect(requirement).not.toHaveBeenCalled()
+})
+
+it('gives the author the directory pinned in the request and the files pinned with it, or neither', async () => {
+  const pinned = { path: '/srv/blog', workspace: null, files: { write: '/srv/blog' } }
+  const f = fixture(undefined, pinned)
+  const result = await f.build().prepare(f.prepare)
+  if ('failure' in result || result.ok.kind !== 'prepared') throw new Error(JSON.stringify(result))
+  expect(result.ok.environment.value.directory).toBe('/srv/blog')
+  expect(result.ok.environment.value.scope).toEqual({ write: '/srv/blog' })
+  const plain = fixture()
+  const bare = await plain.build().prepare(plain.prepare)
+  if ('failure' in bare || bare.ok.kind !== 'prepared') throw new Error(JSON.stringify(bare))
+  expect('directory' in bare.ok.environment.value).toBe(false)
+  expect('scope' in bare.ok.environment.value).toBe(false)
 })

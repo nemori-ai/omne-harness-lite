@@ -83,9 +83,10 @@ const runCause = {
     object({ kind: { rule: literal('request-rejected') } }),
     object({
       kind: { rule: literal('cannot-fit') },
-      reason: { rule: withUnknown(literal('fixed', 'after-compaction')) },
+      reason: { rule: withUnknown(literal('fixed', 'protected-floor', 'after-compaction')) },
     }),
     object({ kind: { rule: literal('compaction-invalid') } }),
+    object({ kind: { rule: literal('compaction-failed') } }),
     object({ kind: { rule: literal('message-rejected') } }),
     object({ kind: { rule: literal('extension-stop') } }),
     object({ kind: { rule: literal('guard') } }),
@@ -152,14 +153,30 @@ const attempt = object({
       ],
     },
   },
+  /** The moments of the dispatch as Model kept them; absent from a server that does not keep them. */
+  instants: {
+    rule: object({
+      prepared: { rule: known('instant') },
+      sent: { rule: known('instant') },
+      responseStarted: { rule: known('instant') },
+      firstContent: { rule: known('instant') },
+      ended: { rule: known('instant') },
+    }),
+    optional: true,
+  },
   timing: {
     rule: object({
       materialize: { rule: known('milliseconds') },
+      sendToResponse: { rule: known('milliseconds'), optional: true },
       sendToFirstContent: { rule: known('milliseconds') },
       execution: { rule: known('milliseconds') },
     }),
   },
+  /** Each time the transport connected again before the request went out, with why. */
+  connectRetries: { rule: array(literal('connect-failed', 'connect-timeout')), optional: true },
   account: { rule: withUnknown(accountView) },
+  /** Whether the request of this attempt carried reasoning state back; unknown before it was materialized. */
+  reasoning: { rule: literal('carried', 'not-carried', 'unknown'), optional: true },
 })
 
 const modelCall = object({
@@ -171,11 +188,34 @@ const modelCall = object({
         kind: { rule: literal('found') },
         call: { rule: text },
         phase: { rule: literal('accepted', 'running', 'retry-decision', 'settled') },
+        /** How many real dispatches the call allows, how many it made, and why the last one failed. */
+        progress: {
+          rule: object({
+            allowed: { rule: text },
+            made: { rule: text },
+            last: {
+              rule: nullable(
+                object({ cause: { rule: text }, upstreamStatus: { rule: nullable(text) } }),
+              ),
+            },
+          }),
+          optional: true,
+        },
       }),
     ),
   },
   dispatches: { rule: array(attempt) },
   coverage: { rule: literal('complete-through-snapshot', 'expired-prefix', 'unknown') },
+  /** For each block of the fixed request with a content reference, which form of it the model read. */
+  reads: {
+    rule: array(
+      object({
+        message: { rule: text },
+        block: { rule: text },
+        read: { rule: literal('original', 'fitted', 'derived', 'transcript') },
+      }),
+    ),
+  },
   facts: { rule: counted },
 })
 

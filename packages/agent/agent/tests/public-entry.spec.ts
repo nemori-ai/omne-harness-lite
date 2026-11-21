@@ -25,6 +25,7 @@ it('root entry exports the factory, evaluator, checkpoint, control advance, step
     'agentPassSegments',
     'agentToolDeliverySchema',
     'createAgentActionQualification',
+    'createAgentCompactionCustodyEvidence',
     'createAgentCustodyEvidence',
     'createAgentModelReceiver',
     'createAgentRuntime',
@@ -52,7 +53,6 @@ it('testing entry exports the memory Journal, the scripted doubles, the clock an
     'createScriptedExtensions',
     'createScriptedMaterials',
     'createScriptedMessageHandoff',
-    'createScriptedModelContext',
     'createScriptedModelSelection',
     'createScriptedReads',
     'createScriptedRequestPreparation',
@@ -102,7 +102,6 @@ describe('implementation has no Cordis', () => {
       '@omne-harness/legal-identity': 'workspace:*',
       '@omne-harness/model-contract': 'workspace:*',
       '@omne-harness/operation-result': 'workspace:*',
-      '@omne-harness/retry': 'workspace:*',
       '@omne-harness/telemetry-contract': 'workspace:*',
       '@omne-harness/tool-contract': 'workspace:*',
     })

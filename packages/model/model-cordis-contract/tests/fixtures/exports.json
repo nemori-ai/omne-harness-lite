@@ -14,14 +14,6 @@
             { "name": "ModelRegistration", "kind": "type", "pending": false },
             { "name": "ModelPublicationAuthority", "kind": "type", "pending": false }
           ]
-        },
-        {
-          "title": "完整服务定义与类型增补",
-          "names": [
-            { "name": "ModelConverterRegistrationInput", "kind": "type", "pending": false },
-            { "name": "ModelConverterAuthority", "kind": "type", "pending": false },
-            { "name": "ModelConverterRegistration", "kind": "type", "pending": false }
-          ]
         }
       ]
     },
@@ -67,31 +59,14 @@
             { "name": "modelRequestPreparationKey", "kind": "value", "pending": false },
             { "name": "ModelPreparationResourcesService", "kind": "class", "pending": false },
             { "name": "modelPreparationResourcesKey", "kind": "value", "pending": false },
-            { "name": "ModelMessageConversionService", "kind": "class", "pending": false },
-            { "name": "modelMessageConversionKey", "kind": "value", "pending": false },
             { "name": "ModelHostAuthorityService", "kind": "class", "pending": false },
             { "name": "modelHostAuthorityKey", "kind": "value", "pending": false },
             { "name": "ModelPublicationAuthorityService", "kind": "class", "pending": false },
             { "name": "modelPublicationAuthorityKey", "kind": "value", "pending": false },
-            {
-              "name": "ModelConverterRegistrationInput",
-              "kind": "type",
-              "sameAs": ".",
-              "pending": false
-            },
-            { "name": "ModelConverterAuthority", "kind": "type", "sameAs": ".", "pending": false },
-            {
-              "name": "ModelConverterRegistration",
-              "kind": "type",
-              "sameAs": ".",
-              "pending": false
-            },
-            { "name": "ModelConverterAuthorityService", "kind": "class", "pending": false },
-            { "name": "modelConverterAuthorityKey", "kind": "value", "pending": false },
-            { "name": "ModelConvertersService", "kind": "class", "pending": false },
-            { "name": "modelConvertersKey", "kind": "value", "pending": false },
             { "name": "ModelDiagnosticsService", "kind": "class", "pending": false },
-            { "name": "modelDiagnosticsKey", "kind": "value", "pending": false }
+            { "name": "modelDiagnosticsKey", "kind": "value", "pending": false },
+            { "name": "ModelDispatchFactsService", "kind": "class", "pending": false },
+            { "name": "modelDispatchFactsKey", "kind": "value", "pending": false }
           ]
         },
         {
@@ -108,6 +83,13 @@
           "names": [
             { "name": "ModelCredentialService", "kind": "class", "pending": false },
             { "name": "modelCredentialKey", "kind": "value", "pending": false }
+          ]
+        },
+        {
+          "title": "读媒体的服务定义",
+          "names": [
+            { "name": "ModelMediaSourceService", "kind": "class", "pending": false },
+            { "name": "modelMediaSourceKey", "kind": "value", "pending": false }
           ]
         },
         {
@@ -159,6 +141,7 @@
       "interface": "Context",
       "members": [
         "modelDiagnostics",
+        "modelDispatchFacts",
         "modelRuntime",
         "modelCommands",
         "modelSendBoundary",
@@ -168,13 +151,11 @@
         "modelProfiles",
         "modelProfileMaintenance",
         "modelRequestPreparation",
-        "modelMessageConversion",
         "modelHostAuthority",
         "modelPublicationAuthority",
-        "modelConverters",
         "modelInstances",
-        "modelConverterAuthority",
         "modelCredential",
+        "modelMediaSource",
         "modelStreamReferences",
         "modelStreamObservation",
         "modelPreparationResources"

@@ -141,6 +141,16 @@ export function resolve(
   return succeed({ ...passage, progress: { kind: 'resolved', rounds, conclusion } })
 }
 
+// A round that ends with no answer settles the chain as concluded; its rounds stay as they were.
+export function close(passage: Passage, conclusion: Conclusion): Stepped {
+  const need = needOf(passage)
+  if (need !== 'present' && need !== 'read' && need !== 'closed') return outside('close', passage)
+  return succeed({
+    ...passage,
+    progress: { kind: 'resolved', rounds: roundsOf(passage), conclusion },
+  })
+}
+
 export function failPresent(
   passage: Passage,
   failure: DurableEvidence,

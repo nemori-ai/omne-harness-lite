@@ -23,14 +23,19 @@ describe('a waiting run whose execution does not change', () => {
       [execution()],
       d => ({
         ...d,
-        modelContext: {
-          read: input => {
+        requests: {
+          ...d.requests,
+          prepare: input => {
             dependency.reads += 1
             if (dependency.reads > READ_BUDGET) return new Promise(() => {})
             return dependency.available
-              ? d.modelContext.read(input)
+              ? d.requests.prepare(input)
               : Promise.resolve(
-                  fail({ kind: 'unavailable' as const, owner: 'runtimeContext', diagnostic: 'no' }),
+                  fail({
+                    kind: 'unavailable' as const,
+                    owner: 'requestPreparation',
+                    diagnostic: 'no',
+                  }),
                 )
           },
         },
@@ -107,6 +112,7 @@ describe('a waiting run woken by an event', () => {
     const c = createExecutionCoordinator({
       ports: assembly.dependencies,
       binding: options().binding,
+      compactionProvider: options().configuration.compactionProvider,
       evaluator: agentEvaluator,
       access: alice,
       execution: execution(),

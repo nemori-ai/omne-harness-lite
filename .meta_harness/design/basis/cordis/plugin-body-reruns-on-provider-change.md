@@ -1,27 +1,29 @@
 ---
 id: plugin-body-reruns-on-provider-change
 upstream: cordis
-version: 4.0.4
+version: 4.1.0
 kind: positive
 symbols:
-  - "fiber.ts: Fiber.store 是必需服务实现的快照"
-  - "fiber.ts: store 代际由各提供者 fiber 的 uid 拼成，任一必需服务换提供者即先卸载再重跑插件体"
+  - "fiber.ts: Fiber.committed 是必需服务实现的快照（装载时从 _store 复制，卸载完才清空）；provisions 是本 fiber 自己提供的实现"
+  - "fiber.ts: 代际由本 fiber 的 _revision 与各必需服务那一份实现的 Impl.uid（每次 provide 递增）拼成，任一必需服务换了一份实现即先卸载再重跑插件体"
+  - "fiber.ts: 记有错误的 fiber 不因代际变化重跑，只经 update() 恢复"
   - "reflect.ts: check 谓词返回假或提供者非 ACTIVE 亦触发"
 lines:
-  - "fiber.ts:198, 647"
-  - "fiber.ts:597-696"
-  - "reflect.ts:241"
-  - "reflect.ts:277"
+  - "fiber.ts:195-198, 682"
+  - "fiber.ts:603-746"
+  - "fiber.ts:633-634"
+  - "reflect.ts:255"
+  - "reflect.ts:291"
 probe: packages/assembly/kernel-basis/tests/plugin-body-reruns-on-provider-change.spec.ts
-checked: 2026-11-15
+checked: 2026-11-20
 ---
 
 # 必需服务换提供者会使插件体重跑
 
 ## 读数
 
-`inject` 声明的是**必需**服务。`Fiber.store` 保存这些服务实现的快照，
-其代际由各提供者 fiber 的 uid 拼成。任一必需服务换了提供者，代际变化，
+`inject` 声明的是**必需**服务。`Fiber.committed` 保存这些服务实现的快照，
+其代际由各必需服务那一份实现的标识拼成。任一必需服务换了提供者，代际变化，
 框架**先卸载再重新执行插件体**。提供者 fiber 离开 ACTIVE、或 `check` 谓词返回假，同样触发。
 
 所以 `inject` 的真实含义是：**「提供者换代或不可用，我就卸载重跑」**。
@@ -30,20 +32,22 @@ checked: 2026-11-15
 **关键推论**：插件体必须可重复执行。跨重载要保留的事实**不能只活在插件体的闭包里**——
 重跑会丢掉它们。
 
-注意代际由**提供者 fiber 的 uid** 决定，不由服务实例的内部状态决定：
+注意代际由**每一份实现的标识**（`Impl.uid`，每次 provide 递增）决定，不由服务实例的内部状态决定：
 同一提供者实例内部状态变化**不**触发重载。
+
+例外：插件体抛出、记有错误的 fiber 不随代际变化重跑。它只经 `update()` 恢复（见 `plugin-throw-fails-fiber`）。4.0.4 在提供者换代时会重跑它。
 
 ## 证据
 
 | symbol / 语义位置 | 读到了什么 | 怎样复核 |
 |---|---|---|
-| `fiber.ts` store（198、647 行） | 必需服务实现的快照，非实时解析 | 观察插件体内取到的实现在整次执行中不变 |
-| `fiber.ts` 代际（597–696 行） | 由各提供者 fiber uid 拼成；变化即卸载重跑；`check` 谓词返回假同样触发（601 行） | 卸载并重新装载提供者插件，观察消费者插件体重新执行 |
-| `reflect.ts`（241 行） | 提供者非 ACTIVE 时该服务读不到 | 令提供者进入非 ACTIVE 状态，观察消费者被卸载 |
+| `fiber.ts` `committed`（195–198、682 行） | 必需服务实现的快照，非实时解析 | 观察插件体内取到的实现在整次执行中不变 |
+| `fiber.ts` 代际（603–746 行） | 由 `_revision` 与各份实现的 `Impl.uid` 拼成；变化即卸载重跑；`check` 谓词返回假同样触发（607 行）；记有错误的 fiber 不重跑（633–634 行） | 卸载并重新装载提供者插件，观察消费者插件体重新执行 |
+| `reflect.ts`（255 行） | 提供者非 ACTIVE 时该服务读不到 | 令提供者进入非 ACTIVE 状态，观察消费者被卸载 |
 
 ## 探针断言什么
 
-探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.0.4 核对：
+探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.1.0 核对：
 
 消费者插件体内递增一个外部计数器。提供者缺席时计数为 0（PENDING，插件体未跑）；
 提供者 A 就位后计数为 1；改变 A 实例内部状态并让出事件循环后仍为 1（同实例状态变化不触发）；

@@ -9,16 +9,13 @@ import type {
 } from './brands.ts'
 import type { ActionCatalogRecord, ExpectedRevision } from './catalog.ts'
 import type { BlockedReason } from './outcomes.ts'
-import type { CatalogKey, EndpointRef, EndpointSettings, StdioLaunch } from './values.ts'
-
-export type ProcessSetting = Readonly<{ name: string; value: string }>
+import type { CatalogKey, EndpointRef, EndpointSettings } from './values.ts'
 
 export type AdoptedEndpoint = Readonly<{
   ref: EndpointRef
   revision: AdoptionRevision
   body: JsonValue
   settings: EndpointSettings
-  processEnv: readonly ProcessSetting[]
 }>
 
 export interface AdoptionView<P, S> {
@@ -38,9 +35,7 @@ export interface UseEligibility<P> {
   check(access: Access<P>, endpoint: EndpointRef): Promise<EligibilityVerdict>
 }
 
-export type ProcessPurpose = Readonly<{ kind: 'process-env' }>
 export type HttpPurpose = Readonly<{ kind: 'http-authorization'; target: ConnectionTarget }>
-export type CredentialPurpose = ProcessPurpose | HttpPurpose
 
 export interface HttpCredentialHandle {
   readonly purpose: 'http-authorization'
@@ -49,20 +44,9 @@ export interface HttpCredentialHandle {
   release(): Promise<void>
 }
 
-export interface ProcessCredentialHandle {
-  readonly purpose: 'process-env'
-  release(): Promise<void>
-}
-
 export type CredentialFailure = 'missing' | 'rejected' | 'unknown'
 
 export interface CredentialUse<P> {
-  acquire(
-    access: Access<P>,
-    holding: EndpointHolding,
-    purpose: ProcessPurpose,
-    binding: CredentialBinding,
-  ): Promise<Outcome<ProcessCredentialHandle, CredentialFailure>>
   acquire(
     access: Access<P>,
     holding: EndpointHolding,
@@ -73,29 +57,6 @@ export interface CredentialUse<P> {
 
 export interface McpClock {
   now(): Date
-}
-
-export type StopScope = 'tree-confirmed' | 'root-only' | 'unconfirmed'
-
-export interface ProcessHandle {
-  readonly stdin: WritableStream<Uint8Array>
-  readonly stdout: ReadableStream<Uint8Array>
-  readonly stderr: ReadableStream<string>
-  readonly exited: Promise<void>
-  stop(): Promise<StopScope>
-}
-
-export type ProcessEnvironment = Readonly<{
-  values: readonly ProcessSetting[]
-  credentials: readonly Readonly<{ name: string; handle: ProcessCredentialHandle }>[]
-}>
-
-export interface ProcessLanding<P> {
-  start(
-    access: Access<P>,
-    launch: StdioLaunch,
-    env: ProcessEnvironment,
-  ): Promise<Outcome<ProcessHandle, 'landing-invalid' | 'facility-missing' | 'unknown'>>
 }
 
 export interface CatalogStore {

@@ -142,14 +142,20 @@ describe('adoptedContextDefinitions: the definitions the release adopted', () =>
     for (const entry of mappings) {
       expect(Object.keys(entry.definition).sort()).toEqual(
         entry.name === 'coding'
-          ? ['attributes', 'category', 'instructions', 'name', 'references']
-          : ['attributes', 'category', 'name', 'references'],
+          ? ['attributes', 'category', 'instructions', 'name', 'references', 'summary', 'type']
+          : ['attributes', 'category', 'name', 'references', 'summary', 'type'],
       )
-      expect(entry.definition).toMatchObject({ category: 'AgentDefinition', name: entry.name })
+      expect(entry.definition).toMatchObject({
+        category: 'AgentDefinition',
+        type: entry.name === 'coding' ? 'master' : 'non-master',
+        name: entry.name,
+      })
     }
     const assistant = mappings.find(entry => entry.name === 'assistant')
     expect(assistant?.definition).toEqual({
       category: 'AgentDefinition',
+      type: 'non-master',
+      summary: expect.stringMatching(/^A general assistant without tools\./u),
       name: 'assistant',
       references: [],
       attributes: [],
@@ -162,12 +168,21 @@ describe('adoptedContextDefinitions: the definitions the release adopted', () =>
         { capability: { category: 'Tool', name: 'Shell' }, resident: true },
         { capability: { category: 'Tool', name: 'Tools' }, resident: true },
         { capability: { category: 'Tool', name: 'TodoItems' }, resident: true },
+        { capability: { category: 'Tool', name: 'BkgToolCalls' }, resident: true },
         { capability: { category: 'Tool', name: 'Ask' }, resident: true },
         { capability: { category: 'Tool', name: 'Web' }, resident: true },
+        { capability: { category: 'Tool', name: 'Calendar' }, resident: true },
+        { capability: { category: 'Tool', name: 'Schedules' }, resident: true },
+        { capability: { category: 'Tool', name: 'Notifications' }, resident: true },
+        { capability: { category: 'Tool', name: 'Sessions' }, resident: true },
+        { capability: { category: 'Tool', name: 'Agents' }, resident: true },
+        { capability: { category: 'Tool', name: 'SwitchWorkspace' }, resident: true },
+        { capability: { category: 'Tool', name: 'Screen' }, resident: true },
+        { capability: { category: 'Tool', name: 'Skills' }, resident: true },
       ],
       attributes: [{ item: 'model' }],
     })
-    expect((coding.definition as { instructions?: unknown[] }).instructions).toHaveLength(10)
+    expect((coding.definition as { instructions?: unknown[] }).instructions).toHaveLength(11)
   })
 
   it('does not mistake an Agent definition for the independently adopted modes carrier', () => {

@@ -9,6 +9,7 @@ import type {
 } from '@omne-harness/model-contract'
 import type {
   MaterializedTransport,
+  ModelMediaSource,
   ModelTransport,
   PreparedTransport,
   SendDemand,
@@ -29,10 +30,17 @@ import {
   type PiMaterializationOptions,
   type ModelMaterializationEvidenceReader,
 } from './materialization-proof.ts'
+import {
+  receiveRecords,
+  recordingFacts,
+  type ModelReceiveEvidenceReader,
+} from './receive-evidence.ts'
 
 export type RequestDisclosure = (request: FixedModelRequest) => TransportFailure | null
 
-export type PiSendResourcesConfig = Readonly<{
+export type CurrentMediaSource<P> = () => ModelMediaSource<P> | null
+
+export type PiSendResourcesConfig<P = unknown> = Readonly<{
   network: NetworkResources
   families: PiFamilyContributions
   routes: Readonly<Record<string, PiRoute>>
@@ -40,6 +48,7 @@ export type PiSendResourcesConfig = Readonly<{
   materialization: PiMaterializationOptions
   requestDisclosure?: RequestDisclosure
   onConnectRetry?: (retry: ConnectRetryReport) => void
+  media?: CurrentMediaSource<P>
 }>
 
 export type ConnectRetryReport = Readonly<{
@@ -53,6 +62,7 @@ export type ConnectRetryReport = Readonly<{
 export type PiSendResources<P> = SendResources<P> &
   Readonly<{
     materialization: ModelMaterializationEvidenceReader
+    receive: ModelReceiveEvidenceReader
     close(): Promise<void>
   }>
 
@@ -77,19 +87,32 @@ const CLOSED: ModelFailure = Object.freeze({
 
 const EMPTY_SLOT: PiCredentialSlot = Object.freeze({ read: () => undefined })
 
-export function createPiSendResources<P>(config: PiSendResourcesConfig): PiSendResources<P> {
+type MediaRead = NonNullable<PiTransportConfig['media']>
+/** Reads for one send: its access is bound here, and the source is the one there at each read. */
+function mediaReadOf<P>(current: CurrentMediaSource<P>, demand: SendDemand<P>): MediaRead {
+  const { principal, tenant } = demand
+  return async (reference, limits, signal) => {
+    const source = current()
+    if (source === null)
+      return { failure: { kind: 'unavailable', diagnostic: 'media-source-absent' } }
+    return source.open({ principal, tenant, reference, limits }, signal)
+  }
+}
+
+export function createPiSendResources<P>(config: PiSendResourcesConfig<P>): PiSendResources<P> {
   return sendResourcesOver<P>({ config, createTransport: createPiTransport })
 }
 
 export function sendResourcesOver<P>(
   input: Readonly<{
-    config: PiSendResourcesConfig
+    config: PiSendResourcesConfig<P>
     createTransport: (config: PiTransportConfig) => PiTransport
   }>,
 ): PiSendResources<P> {
   const { config, createTransport } = input
-  const { onConnectRetry, requestDisclosure, ...transportBase } = config
+  const { onConnectRetry, requestDisclosure, media, ...transportBase } = config
   const proofs = materializationRecords(config.materialization)
+  const receipts = receiveRecords({ execution: config.materialization.execution })
   // The probe checks the configuration once, so a bad route or limit fails the assembly, not the
   // first send. It is never used; its close is awaited by close.
   const probe = createTransport({ ...transportBase, credential: EMPTY_SLOT })
@@ -106,9 +129,12 @@ export function sendResourcesOver<P>(
     let released: Promise<void> | undefined
     let inactive = false
     let preparation: ReturnType<ModelTransport['prepare']> | undefined
+    const received = receipts.open(owner, demand)
     const pi = createTransport({
       ...transportBase,
       credential: { read: () => secrets },
+      onResponseBody: () => received?.bodyClaimed(),
+      ...(media === undefined ? {} : { media: mediaReadOf(media, demand) }),
       ...(onConnectRetry === undefined
         ? {}
         : {
@@ -125,10 +151,11 @@ export function sendResourcesOver<P>(
     const transport: ModelTransport = {
       prepare(request, supplier, dispatch) {
         if (inactive) return Promise.resolve({ failure: SOURCE_UNAVAILABLE })
+        // The resource prepares the demand it was acquired for; what the dispatch leaves out is
+        // the send boundary's, from the durable record of the dispatch.
         if (
           !isDeepStrictEqual(request, demand.request) ||
-          !isDeepStrictEqual(supplier, demand.supplier) ||
-          dispatch.resent.length !== 0
+          !isDeepStrictEqual(supplier, demand.supplier)
         )
           return Promise.resolve({
             failure: { kind: 'invalid', field: 'demand', reason: 'binding' },
@@ -159,7 +186,8 @@ export function sendResourcesOver<P>(
         if (!produced.has(materialized)) throw new SendResourceDefect('foreign-materialization')
         secrets = value
         try {
-          return materialized.start(signal)
+          const facts = materialized.start(signal)
+          return received === null ? facts : recordingFacts(facts, received)
         } finally {
           secrets = undefined
         }
@@ -167,6 +195,7 @@ export function sendResourcesOver<P>(
       release() {
         inactive = true
         proofs.release(owner, demand)
+        receipts.release(owner, demand)
         released ??= (async () => {
           open.delete(resource)
           await pi.close()
@@ -188,6 +217,7 @@ export function sendResourcesOver<P>(
 
   return {
     materialization: proofs.reader,
+    receive: receipts.reader,
     async acquire(input): Promise<AcquireResult> {
       if (closing !== undefined) return { failure: CLOSED }
       const qualification = config.materialization.execution(input.execution)
@@ -202,6 +232,15 @@ export function sendResourcesOver<P>(
       } catch (error) {
         proofs.release(owner, demand)
         throw error
+      }
+    },
+    async lookupCost({ supplier, request, secrets }, signal) {
+      if (closing !== undefined) return { kind: 'unavailable', diagnostic: 'send-resources-closed' }
+      const pi = createTransport({ ...transportBase, credential: { read: () => secrets } })
+      try {
+        return await pi.lookupCost(supplier, request, signal)
+      } finally {
+        await pi.close()
       }
     },
     close() {

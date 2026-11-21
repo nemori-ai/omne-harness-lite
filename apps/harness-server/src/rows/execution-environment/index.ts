@@ -4,6 +4,7 @@ import {
   ExecutionEnvironmentRegistry,
   commandFacilityPlugin,
   filesFacilityPlugin,
+  screenFacilityPlugin,
   terminalFacilityPlugin,
 } from '@omne-harness/execution-environment-host-local/cordis'
 import { defineRow } from '../../row.ts'
@@ -38,6 +39,7 @@ export const executionCommandRow = defineRow({
     apply(ctx: Context) {
       commandFacilityPlugin.apply(ctx)
       terminalFacilityPlugin.apply(ctx)
+      screenFacilityPlugin.apply(ctx)
     },
   },
 })

@@ -23,10 +23,14 @@ import {
   guard,
   initializationFixtureFacts,
   initializationFixtureGuard,
+  inputId,
   operationId,
   ordinaryInput,
   sessionId,
   testingTenant,
+  testingDerivedInputs,
+  testingInputSources,
+  withMemberSubject,
 } from '@omne-harness/session-contract/testing'
 import { createFixedSessionCursorSigning } from '@omne-harness/session-cordis-contract/testing'
 import {
@@ -204,6 +208,7 @@ export type RealAppOptions = Readonly<{
   extraParticipants?: SqlMaterialCatalog['participants']
   policy?: Parameters<typeof createPolicySessionAccessCheck<string>>[0]
   protectedBasis?: SessionStorageOptions<string>['protectedBasis']
+  budget?: SessionStorageOptions<string>['budget']
 }>
 
 export async function openRealApp(options: RealAppOptions = {}) {
@@ -303,10 +308,13 @@ export async function openRealApp(options: RealAppOptions = {}) {
   const storageOptions = {
     ...(options.intakeLimits === undefined ? {} : { intakeLimits: options.intakeLimits }),
     ...(options.protectedBasis === undefined ? {} : { protectedBasis: options.protectedBasis }),
+    ...(options.budget === undefined ? {} : { budget: options.budget }),
     storage,
     domains,
-    accessCheck,
+    accessCheck: withMemberSubject(accessCheck),
     cursorSigning: createFixedSessionCursorSigning(),
+    sources: testingInputSources(),
+    derived: testingDerivedInputs(),
     combination: { combinationVersion: COMBINATION, manifestDigest: digest },
   }
   const port = createSessionStorage<string>(storageOptions)
@@ -365,6 +373,7 @@ export async function openRealApp(options: RealAppOptions = {}) {
     port,
     pair,
     storage,
+    domains,
     control,
     events,
     accessCheck,
@@ -399,6 +408,7 @@ export function jointWrite(over: Partial<ExecutionRecordWrite> = {}): ExecutionR
     digest: 'sha256:joint',
     facts: [{ kind: 'exec.opened', body: { receipt: 'joint' } }],
     blobs: [],
+    items: [],
     boundaries: [
       {
         execution: 'exe_1',
@@ -424,6 +434,7 @@ export type AgentEvent = Readonly<{
   kinds: readonly string[]
   ended?: boolean
   batch?: JsonValue
+  consequences?: JsonValue
 }>
 
 export type AgentAdmission = Readonly<{
@@ -480,6 +491,7 @@ export function agentPublisher(input: {
     operation: `aop_fixture_${String(writes)}`,
     digest: `sha256:fixture-${String(writes)}`,
     blobs: [],
+    items: [],
   })
   return {
     async publish(event: AgentEvent): Promise<void> {
@@ -520,6 +532,7 @@ export function agentPublisher(input: {
               source: event.source,
               kinds: event.kinds,
               ...(event.batch === undefined ? {} : { batch: event.batch }),
+              ...(event.consequences === undefined ? {} : { consequences: event.consequences }),
             },
             body: { fixture: writes },
           },
@@ -587,6 +600,39 @@ export function startRun(a: SceneApp, name: string) {
       },
     },
     guards: [guard('evidence-bridge', 'login-entry', { session: 'session-1', operation: name })],
+  })
+}
+
+/** Puts accepted inputs into the model view the way a step of the active Run does. */
+export async function deliver(a: SceneApp, name: string, inputs: readonly string[]) {
+  const work = await workOf(a)
+  if (work.run.kind !== 'active') throw new Error('no active Run')
+  return a.port.commit({
+    access: a.access(TENANT_A),
+    command: {
+      kind: 'recordMessage',
+      input: {
+        tenant: TENANT_A,
+        session: sessionId('session-1'),
+        operation: operationId(`deliver-${name}`),
+        participation: {
+          execution: work.run.execution.execution,
+          operation: `agent-deliver-${name}`,
+          joint: 'delivered',
+          written: work.run.execution.revision ?? '0',
+          handover: evidence(`deliver-${name}`),
+        },
+        value: {
+          deliveries: inputs.map(input => ({
+            input: inputId(input),
+            message: ordinaryInput(input).message,
+          })),
+          source: evidence(`agent/step/${name}`),
+          admission: evidence(`agent/step/${name}`),
+        },
+      },
+    },
+    guards: [],
   })
 }
 

@@ -30,7 +30,12 @@ import { definition, definitionRef } from './world.ts'
 
 export const source: SourceReference = {
   domain: { scope: { kind: 'system' }, transactionDomain: 'system.settings' },
-  target: { policyId: 'independent', scopeRef: 'organization-a', targetRef: 'permission-bounds' },
+  target: {
+    kind: 'independent' as const,
+    providerId: 'example',
+    definitionId: 'permission-bounds',
+    scopeRef: 'organization-a',
+  },
 }
 export function sourceRequest(attemptId = 'destination-attempt'): SourceRequest {
   return {

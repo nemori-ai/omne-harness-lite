@@ -75,6 +75,15 @@ export function writesOf(input: LedgerCommitInput, mode: FixedMode): readonly Le
         return { op: 'schedule', key: write.key, dueAt: write.dueAt }
       case 'unschedule':
         return { op: 'unschedule', key: write.key }
+      case 'usage':
+        return {
+          op: 'usage',
+          call: write.fact.call,
+          start: write.fact.start,
+          owner: write.fact.consumer.owner,
+          work: write.fact.consumer.work,
+          fact: toJson(write.fact, `writes[${index}].fact`),
+        }
       default: {
         const exhaustive: never = write
         return exhaustive

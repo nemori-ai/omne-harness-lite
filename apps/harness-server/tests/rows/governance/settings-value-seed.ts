@@ -70,7 +70,7 @@ function settingsCurrentMaterial(
       selection: { kind: binding.mode === 'runtime' ? 'current' : 'not-required', authority },
       policies: [
         {
-          policyRef: `settings.target-grants/${view.target.policyId}`,
+          policyRef: `settings.target-grants/${view.target.kind}`,
           interpretationRef: 'settings.decide-change/1',
           revision: canonicalDigest({ definition: view.definitionRef, grants: view.grants }),
           inputs: view.sources.map(source => ({

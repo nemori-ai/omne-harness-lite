@@ -6,10 +6,10 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { changedFiles, coordinates } from '@omne-harness/repo-toolchain/core/git'
+import { patternToRegExp } from '../src/testing/path-pattern.ts'
 import {
   classify,
   describeCheckPlan,
-  patternToRegExp,
   planCheck,
   RESIDENT_STEPS,
   type CheckPlan,

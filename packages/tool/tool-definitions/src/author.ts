@@ -1,11 +1,20 @@
-import { textReturns } from './returns.ts'
+import { textBody, textReturns } from './returns.ts'
+import type { Modality } from '@omne-harness/modality'
 import { fail, succeed } from '@omne-harness/operation-result'
+import { createToolMessageResultCodec } from '@omne-harness/tool'
 import {
   bindingKinds,
   environmentNeedAdoption,
   type FacilityKey,
 } from '@omne-harness/execution-environment-contract'
-import { type CommandCallEncoding, type CommandTable } from '@omne-harness/tool-contract'
+import {
+  type CommandCallEncoding,
+  type CommandTable,
+  type ToolCommandRelease,
+  type ToolGate,
+  type ToolResult,
+  type ToolSettingsDeclaration,
+} from '@omne-harness/tool-contract'
 import {
   commandGuide,
   defineCommandTool,
@@ -29,6 +38,150 @@ import { bounded } from './text.ts'
 export const ENCODING: CommandCallEncoding = 'wrapped'
 const returns = textReturns(adoption)
 
+export type CommandGates = Readonly<{
+  gates: readonly ToolGate[]
+  of: Readonly<Record<string, string | null>>
+}>
+
+function releaseOf(gates: CommandGates, command: string): ToolCommandRelease {
+  const gate = gates.of[command]
+  if (gate === undefined) throw new TypeError(`The command ${command} names no gate`)
+  return { gate }
+}
+
+/** A command whose result is blocks, not text: what it adds to the tool's modalities, and its body. */
+export type StructuredCommand<E> = Readonly<{
+  modalities: readonly Modality[]
+  execute: (
+    args: Arguments,
+    environment: E,
+    execution: ToolExecutionContext,
+  ) => Promise<ToolResult<ToolMessageContentBlock>>
+}>
+
+export type AuthorOptions<E> = Readonly<{
+  settings?: ToolSettingsDeclaration | null
+  gates?: CommandGates
+  /** The commands whose result is blocks, by name; every other command returns text. */
+  structured?: Readonly<Record<string, StructuredCommand<E>>>
+}>
+
+type ResultCodec = ReturnType<typeof createToolMessageResultCodec>
+
+const blocksReturns = (codec: ResultCodec) =>
+  ({
+    kind: 'structured',
+    value: { kind: 'tool-result', contract: codec.adoption },
+    program: { kind: 'none' },
+    body: textBody,
+    offloading: { inline: { kind: 'system' }, retention: { kind: 'system' } },
+  }) as const
+
+function structuredOperation<E>(command: Command, body: StructuredCommand<E>, codec: ResultCodec) {
+  return defineToolOperation({
+    parameters: { kind: 'declared', value: contract(command) },
+    returns: blocksReturns(codec),
+    author: {
+      kind: 'structured',
+      parameters: parameterCodec(command),
+      waits: [],
+      codec,
+      output: {
+        adoption,
+        check: ({ value }: { value: unknown }) => {
+          const encoded = codec.encode(value)
+          return 'failure' in encoded ? encoded : codec.decode(encoded.ok)
+        },
+      },
+      program: { kind: 'none' },
+      executor: { execute: body.execute },
+    },
+  })
+}
+
+/** A command that returns text: bounded to the byte budget, encoded and checked as UTF-8. */
+function textOperation<E>(
+  command: Command,
+  maximum: number,
+  run: (args: Arguments, environment: E, execution: ToolExecutionContext) => Promise<string>,
+) {
+  return defineToolOperation<
+    Arguments,
+    string,
+    E,
+    ToolMessageContentBlock,
+    Extract<ToolOperationParameters, { kind: 'declared' }>
+  >({
+    parameters: { kind: 'declared', value: contract(command) },
+    returns,
+    author: {
+      kind: 'ordinary',
+      parameters: parameterCodec(command),
+      waits: [],
+      executor: {
+        execute: async (args: Arguments, environment: E, execution: ToolExecutionContext) =>
+          bounded(await run(args, environment, execution), maximum),
+      },
+      codec: {
+        adoption,
+        encode: (value: unknown) =>
+          typeof value === 'string'
+            ? succeed(new TextEncoder().encode(value))
+            : fail({ reason: 'text-required' }),
+        decode: bytes => {
+          try {
+            return succeed(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
+          } catch {
+            return fail({ reason: 'invalid-utf8' })
+          }
+        },
+      },
+      output: {
+        adoption,
+        check: ({ value }: { value: unknown }) =>
+          typeof value === 'string' && new TextEncoder().encode(value).byteLength <= maximum
+            ? succeed(value)
+            : fail({ reason: 'bounded-text-required' }),
+      },
+      renderer: { render: (value: string) => succeed(value) },
+      program: { kind: 'none' },
+    },
+  })
+}
+
+type TableEntry<E> = {
+  summary: string
+  operation: ToolOperation<E, ToolMessageContentBlock>
+  release?: ToolCommandRelease
+  modalities?: readonly Modality[]
+}
+
+const menuEntry = (
+  command: Command,
+  declared: CommandTable['commands'][number]['returns'],
+): CommandTable['commands'][number] => ({
+  name: command.name,
+  summary: command.summary,
+  parameters: { kind: 'declared', value: contract(command) },
+  returns: declared,
+  ...(command.background === undefined ? {} : { background: command.background }),
+})
+
+function tableEntry<E>(
+  command: Command,
+  operation: ToolOperation<E, ToolMessageContentBlock>,
+  gates: CommandGates | undefined,
+  modalities: readonly Modality[] | undefined,
+): TableEntry<E> {
+  return {
+    summary: command.summary,
+    operation,
+    ...(command.background === undefined ? {} : { background: command.background }),
+    ...(gates === undefined ? {} : { release: releaseOf(gates, command.name) }),
+    ...(modalities === undefined ? {} : { modalities }),
+  }
+}
+
 export function createAuthor<E>(
   name: string,
   purpose: string,
@@ -42,77 +195,35 @@ export function createAuthor<E>(
     environment: E,
     execution: ToolExecutionContext,
   ) => Promise<string>,
+  { settings = null, gates, structured = {} }: AuthorOptions<E> = {},
 ): ToolImplementation<E, ToolMessageContentBlock> {
+  const codec = createToolMessageResultCodec(maximum)
   const menu: CommandTable = {
     name,
     encoding: ENCODING,
     guide: rules,
-    commands: commands.map(command => ({
-      name: command.name,
-      summary: command.summary,
-      parameters: { kind: 'declared', value: contract(command) },
-      returns,
-    })),
+    commands: commands.map(command =>
+      menuEntry(command, structured[command.name] === undefined ? returns : blocksReturns(codec)),
+    ),
   }
-  const table: Record<
-    string,
-    { summary: string; operation: ToolOperation<E, ToolMessageContentBlock> }
-  > = {}
+  const table: Record<string, TableEntry<E>> = {}
   for (const command of commands) {
-    const operation = defineToolOperation<
-      Arguments,
-      string,
-      E,
-      ToolMessageContentBlock,
-      Extract<ToolOperationParameters, { kind: 'declared' }>
-    >({
-      parameters: { kind: 'declared', value: contract(command) },
-      returns,
-      author: {
-        kind: 'ordinary',
-        parameters: parameterCodec(command),
-        waits: [],
-        executor: {
-          execute: async (args: Arguments, environment: E, execution: ToolExecutionContext) =>
-            bounded(
-              command.name === 'help'
-                ? help(menu, args)
-                : await execute(command.name, args, environment, execution),
-              maximum,
-            ),
-        },
-        codec: {
-          adoption,
-          encode: (value: unknown) =>
-            typeof value === 'string'
-              ? succeed(new TextEncoder().encode(value))
-              : fail({ reason: 'text-required' }),
-          decode: bytes => {
-            try {
-              return succeed(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
-            } catch {
-              return fail({ reason: 'invalid-utf8' })
-            }
-          },
-        },
-        output: {
-          adoption,
-          check: ({ value }: { value: unknown }) =>
-            typeof value === 'string' && new TextEncoder().encode(value).byteLength <= maximum
-              ? succeed(value)
-              : fail({ reason: 'bounded-text-required' }),
-        },
-        renderer: { render: (value: string) => succeed(value) },
-        program: { kind: 'none' },
-      },
-    })
+    const special = structured[command.name]
+    const operation =
+      special !== undefined
+        ? structuredOperation(command, special, codec)
+        : textOperation<E>(command, maximum, async (args, environment, execution) =>
+            command.name === 'help'
+              ? help(menu, args)
+              : execute(command.name, args, environment, execution),
+          )
     if ('failure' in operation) throw new TypeError(JSON.stringify(operation.failure))
-    table[command.name] = { summary: command.summary, operation: operation.ok }
+    table[command.name] = tableEntry(command, operation.ok, gates, special?.modalities)
   }
   const result = defineCommandTool({
     implementation: {
       description: purpose,
-      backgroundAllowed: false,
+      backgroundAllowed: commands.some(command => command.background !== undefined),
       declarations: {
         adoption,
         environment: {
@@ -122,11 +233,12 @@ export function createAuthor<E>(
         attachments: [],
         inputModalities: ['text'],
         outputModalities: ['text'],
-        settings: null,
+        settings,
       },
     },
     encoding: ENCODING,
     guide: rules,
+    ...(gates === undefined ? {} : { gates: gates.gates }),
     commands: table,
   })
   if ('failure' in result) throw new TypeError(JSON.stringify(result.failure))

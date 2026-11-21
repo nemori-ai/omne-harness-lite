@@ -38,6 +38,18 @@ describe('acquire', () => {
       const binding = acquired.ok
       expect(binding.supplier).toEqual(supplier)
       expect(binding.adoption).toEqual(recordAdoption(ANTHROPIC_OWNER, record))
+      const picture = { storage: 's', key: 'k', mediaType: 'image/tiff', bytes: '9', digest: 'd' }
+      expect(binding.mediaLimits(picture)).toEqual({
+        mediaTypes: record.wire.image?.mediaTypes,
+        maxBytes: 4_194_304,
+        image: null,
+      })
+      expect(binding.mediaLimits({ ...picture, mediaType: 'application/pdf' })).toEqual(
+        record.name === 'anthropic/claude-haiku-5.5'
+          ? { mediaTypes: ['application/pdf'], maxBytes: 33_554_432, image: null }
+          : null,
+      )
+      expect(binding.mediaLimits({ ...picture, mediaType: 'audio/wav' })).toBeNull()
       expect(binding.counting).toBe(binding.meter.basis)
       expect(binding.counting.supplier.adoption).toEqual(supplier.adoption)
       expect(binding.counting.tokenization).toEqual({
@@ -54,7 +66,7 @@ describe('acquire', () => {
     const supplier = supplierOf(SONNET)
     for (const adoption of [
       { ...supplier.adoption, name: 'anthropic/claude-sonnet-5-mini' },
-      { ...supplier.adoption, revision: '3' },
+      { ...supplier.adoption, revision: String(Number(SONNET.revision) + 1) },
       { ...supplier.adoption, digest: '0'.repeat(64) },
     ])
       expect(await contributions.acquire({ ...supplier, adoption }, live())).toEqual({

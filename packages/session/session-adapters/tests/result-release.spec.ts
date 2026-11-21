@@ -81,7 +81,9 @@ for (const retainedBy of ['custody', 'processed'] as const)
       agent = ok(await s.view.journal.load(request)),
       before = ok(await s.backend.transactions.readWork(s.access)),
       reconcile = { ...s.access, execution: s.execution, operation: operationId('reconcile') }
-    expect(agent.results[0]?.release).toEqual(request.release)
+    if (retainedBy === 'processed')
+      expect(agent.results, 'a processed and released result left the snapshot').toEqual([])
+    else expect(agent.results[0]?.release).toEqual(request.release)
     expect(before.consumptions[0]?.results[0]?.release).toBe('pending')
     const receipt = ok(await s.backend.controls.reconcile(reconcile)),
       after = ok(await s.backend.transactions.readWork(s.access))

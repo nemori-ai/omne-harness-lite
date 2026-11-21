@@ -28,6 +28,7 @@ async function setup() {
   const coordinator = createExecutionCoordinator({
     ports: assembly.dependencies,
     binding: options().binding,
+    compactionProvider: options().configuration.compactionProvider,
     evaluator: agentEvaluator,
     access: alice,
     execution: execution(),
@@ -58,7 +59,6 @@ async function setup() {
     targets: assembly.controls.journal.targets,
     models: assembly.dependencies.models.calls,
     capacity: () => ({ records: 10, bytes: 1000000, attachments: 10, inFlight: 2 }),
-    outlet: { deliver: async () => ({ kind: 'received' }) },
   }
   const receiver = ok(createAgentModelReceiver(dependencies, createModelReceiverState<string>()))
   const push = async (): Promise<DurableEvidence> =>

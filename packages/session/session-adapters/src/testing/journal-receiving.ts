@@ -1,3 +1,5 @@
+import { SharedMap } from '../journal/shared-map.ts'
+import { MaterialTable } from './material-table.ts'
 import { pendingCalls } from './pending.ts'
 import { createHash } from 'node:crypto'
 import type {
@@ -5,7 +7,6 @@ import type {
   Adoption,
   Access,
   AgentExecutionId,
-  AgentOperationId,
   AgentInstanceId,
   AgentJournalEntries,
   AgentJournalEntry,
@@ -23,9 +24,11 @@ import type {
   ReceivedEntry,
 } from '@omne-harness/agent-contract'
 import {
+  type AgentOperationId,
   decodeAgentExecutionId,
   decodeAgentOperationId,
   decodeConsumptionId,
+  decodeCompactionOutcome,
 } from '@omne-harness/agent-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
@@ -39,18 +42,41 @@ import type {
   ToolReceptionTargets,
 } from './reception-targets.ts'
 import { canonical } from './canonical.ts'
+import { entriesFrom } from './closed-rows.ts'
 import { jsonTree } from './material-value.ts'
 import type { Attempt, JournalWrite, MemoryExecution, OperationRecord } from './journal.ts'
-import { journalEvidence, semanticKey } from './journal-values.ts'
-import { type Blob, blobOf, refOf, type FactBody, type ProducerCall } from '../journal/index.ts'
+import { JOURNAL_OWNER, semanticKey } from './journal-values.ts'
+import {
+  type Blob,
+  type ExecutionView,
+  blobOf,
+  refOf,
+  stampOfReceipt,
+  type FactBody,
+  type ProducerCall,
+} from '../journal/index.ts'
 
 type Input<P> = ReceivedCommitInput<P, ContentBlock>
-export type Kept = { entry: ReceivedEntry; receipt: CommandReceipt; saved: DurableEvidence | null }
-export type Stored = {
-  tenant: string
-  execution: AgentExecutionId | null
-  value: Material<ContentBlock>
-}
+import {
+  closedMaterial,
+  closedReceived,
+  receivedEntries,
+  deliveryOf,
+  keyVersion,
+  preservedSource,
+  receivedMaterialSource,
+  type Kept,
+} from './received-records.ts'
+import {
+  bindTarget,
+  closedPendings,
+  modelTarget,
+  targetKey,
+  toolTarget,
+  type ClosedBinding,
+} from './binding-targets.ts'
+export type { Kept } from './received-records.ts'
+export type { Stored } from './material-table.ts'
 type Qualification = 'allowed' | 'denied' | 'unavailable'
 export type JournalReceivingControls<P> = ReturnType<typeof createJournalReceiving<P>>['controls']
 export type RecordFault =
@@ -65,11 +91,20 @@ type Hooks<P> = {
     action: string,
   ): Outcome<MemoryExecution, Failure>
   operations(): Map<string, OperationRecord>
+  // What an operation answered when this core no longer holds its record.
+  answered(input: ExecutionMutation<P>, need?: boolean): OperationRecord | undefined
+  // The binding of a call reference this core no longer holds open.
+  closedBinding(
+    input: Access<P> & { execution: AgentExecutionId },
+    reference: string,
+  ): ClosedBinding | undefined
+  // The closed items this core read back, and the open view of an execution.
+  closed(): Parameters<typeof closedReceived>[0]
+  viewOf(execution: AgentExecutionId): ExecutionView
   state(): ReceivingState
   mutate<T>(action: () => T): T
   touch(): void
   namespace: string
-  indexed(operation: AgentOperationId): boolean
   operationKey(
     tenant: TenantId,
     execution: AgentExecutionId,
@@ -111,28 +146,31 @@ const tenantText = (tenant: TenantId) => {
   const encoded = tenantCodec.encode(tenant)
   return encoded.ok ? encoded.value : ''
 }
+
 const executionText = <P>(input: Access<P> & { execution: AgentExecutionId }) =>
   canonical([tenantText(input.tenant), input.execution])
 const deliveryText = <P>(
   input: Access<P> & { execution: AgentExecutionId },
   entry: Omit<ReceivedEntry, 'material'>,
-) =>
-  canonical([
-    tenantText(input.tenant),
-    input.execution,
-    entry.delivery.producer,
-    entry.delivery.key,
-  ])
+) => deliveryOf(tenantText(input.tenant), input.execution, entry)
 const textOf = <P>(input: Input<P>) =>
   `received:sha256:${createHash('sha256')
     .update(canonical({ entry: input.entry, material: input.material }))
     .digest('hex')}`
 function receivedCall(entry: ReceivedEntry): ProducerCall {
+  if (entry.delivery.producer === 'compaction')
+    return {
+      producer: 'compaction',
+      task: entry.delivery.key.task,
+      version: entry.delivery.key.result.version,
+      delivery: null,
+      source: structuredClone(entry.delivery.key.result.evidence),
+    }
   const key = entry.delivery.key
   return {
     producer: entry.delivery.producer,
     call: String(key.reference),
-    version: key.kind === 'result' ? String(key.result) : refOf(key).digest,
+    version: keyVersion(key),
     delivery: key.kind,
     source: structuredClone(entry.material),
   }
@@ -171,11 +209,8 @@ function shape<P>(input: Input<P>): Failure | undefined {
   if (!object(input.entry.delivery) || !object(input.entry.delivery.key))
     return invalid('entry.delivery')
   const { delivery } = input.entry
-  const resolved =
-    delivery.producer === 'model'
-      ? resolveModelInvocationRef(delivery.key.reference, input.tenant)
-      : resolveToolInvocationRef(delivery.key.reference, input.tenant)
-  if ('failure' in resolved) return invalid('entry.delivery.key.reference')
+  if ('failure' in deliveryRef(input.entry.delivery, input.tenant))
+    return invalid('entry.delivery.key.reference')
   if (!object(input.material)) return invalid('material')
   if (input.material.kind === 'facts') {
     if (!object(input.material.schema)) return invalid('material.schema')
@@ -183,45 +218,157 @@ function shape<P>(input: Input<P>): Failure | undefined {
       if (typeof input.material.schema[field] !== 'string' || !input.material.schema[field])
         return invalid(`material.schema.${field}`)
     if (!jsonTree(input.material.value)) return invalid('material.value')
+  } else if (input.material.kind === 'compaction') {
+    if (
+      delivery.producer !== 'compaction' ||
+      input.material.result.producer.kind !== 'compaction' ||
+      canonical(input.material.result.producer.task) !== canonical(delivery.key.task) ||
+      input.material.result.version !== delivery.key.result.version ||
+      canonical(input.material.result.source) !== canonical(delivery.key.result.evidence) ||
+      'failure' in decodeCompactionOutcome(JSON.stringify(input.material.outcome))
+    )
+      return invalid('material.compaction')
   } else if (input.material.kind !== 'model' && input.material.kind !== 'tool')
     return invalid('material.kind')
   return undefined
 }
 
 export type ReceivingState = {
-  materials: Map<string, Stored>
-  deliveries: Map<string, Kept>
-  aliases: Map<string, Kept>
-  bindings: Map<string, { execution: AgentExecutionId; text: string }>
-  consumerExecutions: Map<string, AgentExecutionId>
-  pendingBindings: Map<
+  materials: MaterialTable
+  deliveries: SharedMap<string, Kept>
+  aliases: SharedMap<string, Kept>
+  bindings: SharedMap<string, { execution: AgentExecutionId; text: string }>
+  pendingBindings: SharedMap<
     string,
     readonly {
       execution: AgentExecutionId
       pending: import('@omne-harness/agent-contract').PendingCall
     }[]
   >
-  targets: Map<string, ModelReceptionTarget>
-  callTargets: Map<string, ModelReceptionTarget>
-  executionTargets: Map<string, ModelReceptionTarget[]>
-  toolTargets: Map<string, ToolReceptionTarget>
+  targets: SharedMap<string, ModelReceptionTarget>
+  callTargets: SharedMap<string, ModelReceptionTarget>
+  executionTargets: SharedMap<string, ModelReceptionTarget[]>
+  toolTargets: SharedMap<string, ToolReceptionTarget>
 }
 const materialSourceOf = (key: string): DurableEvidence => JSON.parse(key) as DurableEvidence
 
 export function emptyReceivingState(): ReceivingState {
   return {
-    materials: new Map(),
-    deliveries: new Map(),
-    aliases: new Map(),
-    bindings: new Map(),
-    consumerExecutions: new Map(),
-    pendingBindings: new Map(),
-    targets: new Map(),
-    callTargets: new Map(),
-    executionTargets: new Map(),
-    toolTargets: new Map(),
+    materials: new MaterialTable(),
+    deliveries: new SharedMap(),
+    aliases: new SharedMap(),
+    bindings: new SharedMap(),
+    pendingBindings: new SharedMap(),
+    targets: new SharedMap(),
+    callTargets: new SharedMap(),
+    executionTargets: new SharedMap(),
+    toolTargets: new SharedMap(),
   }
 }
+
+function boundCompaction<P>(execution: MemoryExecution, input: Input<P>): Failure | undefined {
+  const task = execution.checkpoint.compaction
+  const delivery = input.entry.delivery
+  return task !== null &&
+    delivery.producer === 'compaction' &&
+    canonical(task.task) === canonical(delivery.key.task) &&
+    task.consumption === input.entry.consumption &&
+    canonical(task.consumer) === canonical(input.entry.consumer)
+    ? undefined
+    : denied()
+}
+
+function boundPending<P>(
+  originals: ReceivingState['pendingBindings'] extends Map<string, infer V> ? V : never,
+  input: Input<P>,
+): Failure | undefined {
+  if (originals.length === 0) return denied()
+  if (originals.length !== 1) return conflict(input)
+  const target = originals[0]!
+  return target.execution === input.execution &&
+    target.pending.consumption === input.entry.consumption &&
+    canonical(target.pending.position) === canonical(input.entry.consumer)
+    ? undefined
+    : conflict(input)
+}
+
+function deliveryRef(delivery: ReceivedEntry['delivery'], tenant: TenantId) {
+  return delivery.producer === 'compaction'
+    ? succeed(undefined)
+    : delivery.producer === 'model'
+      ? resolveModelInvocationRef(delivery.key.reference, tenant)
+      : resolveToolInvocationRef(delivery.key.reference, tenant)
+}
+
+// A repeat of a saved delivery under a new operation recognizes the operation that saved it.
+const recognizing = <R>(
+  kept: Kept,
+  asking: Readonly<{ operation: AgentOperationId }>,
+  value: () => R,
+): Attempt<R> => {
+  const at = stampOfReceipt(kept.receipt)
+  if (at === undefined)
+    return { kind: 'answer', value: fail(unavailable('the saved delivery names no batch')) }
+  // The operation that saved the delivery has its batch: it is answered without a second one.
+  if (at.op === asking.operation) return { kind: 'answer', value: succeed(value()) }
+  return {
+    kind: 'batch',
+    facts: [
+      {
+        kind: 'op.recognized',
+        target: at.op,
+        at: { pub: at.pub, digest: at.digest, revision: at.revision },
+        recalls: true,
+      },
+    ],
+    blobs: [],
+    kinds: [],
+    derive: value,
+    project: () => {},
+  }
+}
+
+// What a committed delivery kept: the record of its open result, else the answer it gave; a
+// recognition answers with the receipt of the delivery it recognized, which keeps it.
+function keptOf<P>(
+  hooks: Hooks<P>,
+  input: ExecutionMutation<P>,
+  previous: Extract<OperationRecord, { kind: 'committed' }>,
+  need = false,
+): Kept | undefined {
+  const keyOf = (of: ExecutionMutation<P>) =>
+    hooks.operationKey(of.tenant, of.execution, of.operation) ?? ''
+  const own =
+    hooks.state().aliases.get(keyOf(input)) ?? (previous.value as { value?: Kept } | null)?.value
+  if (own !== undefined || previous.receipt.operation === input.operation) return own
+  const target = { ...input, operation: previous.receipt.operation }
+  const recognized = hooks.operations().get(keyOf(target)) ?? hooks.answered(target, need)
+  if (recognized?.kind !== 'committed') return undefined
+  return (
+    hooks.state().aliases.get(keyOf(target)) ?? (recognized.value as { value?: Kept } | null)?.value
+  )
+}
+
+// A delivery of a result this core no longer holds open is read back with the result.
+function delivered<P>(
+  hooks: Hooks<P>,
+  input: Access<P> & { execution: AgentExecutionId },
+  entry: Omit<ReceivedEntry, 'material'>,
+): Kept | undefined {
+  const text = deliveryText(input, entry)
+  const held = hooks.state().deliveries.get(text)
+  if (held !== undefined) return held
+  const result = { consumption: entry.consumption, version: keyVersion(entry.delivery.key) }
+  const closed = closedReceived(hooks.closed(), mintOf(hooks), input, result, false)
+  return closed?.delivery === text ? closed.kept : undefined
+}
+
+const mintOf = <P>(hooks: Hooks<P>) => ({ owner: JOURNAL_OWNER, session: hooks.namespace })
+
+// A material by its source: the one this core holds, else the closed one read back (or peeked).
+const materialOf = <P>(hooks: Hooks<P>, access: Access<P>, source: DurableEvidence, need = true) =>
+  hooks.state().materials.get(canonical(source)) ??
+  closedMaterial(hooks.closed(), mintOf(hooks), access.tenant, source, need)
 
 export function createJournalReceiving<P>(hooks: Hooks<P>) {
   const qualifications = new Map<string, Map<P, Qualification>>()
@@ -233,8 +380,6 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
   const recordFaults = new Map<string, RecordFault>()
   const operationKey = (input: ExecutionMutation<P>) =>
     hooks.operationKey(input.tenant, input.execution, input.operation) ?? ''
-  const targetKey = (access: Pick<Access<P>, 'tenant'>, reference: string) =>
-    canonical([tenantText(access.tenant), reference])
   const qualified = (
     input: Access<P> & { execution: AgentExecutionId },
     custody = true,
@@ -252,13 +397,11 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
   ): Outcome<Material<ContentBlock>, Failure> => {
     const refusal = hooks.authorize(access, 'materials.read')
     if (refusal) return fail(refusal)
-    const stored = hooks.state().materials.get(canonical(source))
+    const stored = materialOf(hooks, access, source)
     if (!stored || stored.tenant !== tenantText(access.tenant))
       return fail(unavailable('material-unreadable'))
-    if (stored.execution !== null) {
-      const check = qualified({ ...access, execution: stored.execution }, false)
-      if ('failure' in check) return check
-    }
+    const check = qualified({ ...access, execution: stored.execution }, false)
+    if ('failure' in check) return check
     return succeed(structuredClone(stored.value))
   }
   const rich = (access: Access<P>, kept: Kept): Outcome<ReceivedCommitValue, Failure> => {
@@ -273,7 +416,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
     text: string,
   ): Outcome<{ kind: 'committed'; value: ReceivedCommitValue }, Failure> | undefined => {
     if (previous?.kind !== 'committed' || previous.key !== text) return undefined
-    const original = hooks.state().aliases.get(operationKey(input))
+    const original = keptOf(hooks, input, previous)
     if (!original) return undefined
     const value = rich(input, original)
     return 'failure' in value ? value : succeed({ kind: 'committed' as const, value: value.ok })
@@ -284,46 +427,16 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
       return binding.execution === input.execution && binding.text === textOf(input)
         ? undefined
         : conflict(input)
-    const originals =
-      hooks.state().pendingBindings.get(targetKey(input, input.entry.delivery.key.reference)) ?? []
-    if (originals.length === 0) return denied()
-    if (originals.length !== 1) return conflict(input)
-    const target = originals[0]!
-    return target.execution === input.execution &&
-      target.pending.consumption === input.entry.consumption &&
-      canonical(target.pending.position) === canonical(input.entry.consumer)
-      ? undefined
-      : conflict(input)
-  }
-  const recognizing = <R>(input: ExecutionMutation<P>, kept: Kept, value: () => R): Attempt<R> => {
-    if (!hooks.indexed(kept.receipt.operation))
-      return {
-        kind: 'answer',
-        value: fail(unavailable('the saved delivery is not in the folded view')),
-      }
-    return {
-      kind: 'batch',
-      facts: [{ kind: 'op.recognized', target: kept.receipt.operation, recalls: true }],
-      blobs: [],
-      kinds: [],
-      derive: value,
-      project: () => {
-        hooks.state().aliases.set(operationKey(input), kept)
-      },
+    if (input.entry.delivery.producer === 'compaction') {
+      const execution = qualified(input)
+      return 'failure' in execution ? execution.failure : boundCompaction(execution.ok, input)
     }
+    const { reference } = input.entry.delivery.key
+    const held = hooks.state().pendingBindings.get(targetKey(input, reference))
+    return boundPending(held ?? closedPendings(hooks, input, reference), input)
   }
   const sourceOf = (input: Input<P>) =>
-    journalEvidence(
-      canonical([
-        hooks.namespace,
-        'received-material',
-        executionText(input),
-        input.entry.delivery.key,
-        input.entry.consumer,
-        input.entry.consumption,
-      ]),
-      1,
-    )
+    receivedMaterialSource(hooks.namespace, tenantText(input.tenant), input.execution, input.entry)
   const received: AgentReceivedCommits<P, ContentBlock> = {
     async commit(original) {
       const malformed = shape(original)
@@ -357,7 +470,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
           const permission = qualified(input)
           if ('failure' in permission) return { kind: 'answer', value: permission }
           const execution = permission.ok
-          const previous = hooks.operations().get(operationKey(input))
+          const previous = hooks.operations().get(operationKey(input)) ?? hooks.answered(input)
           if (previous?.kind === 'excluded')
             return {
               kind: 'answer',
@@ -369,14 +482,14 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
           const original = recommitted(input, previous, text)
           if (original) return { kind: 'answer', value: original }
           if (previous?.kind === 'committed' && previous.key !== text) {
-            const old = hooks.state().aliases.get(operationKey(input))
+            const old = keptOf(hooks, input, previous)
             if (
               !old ||
               canonical(old.entry) !== canonical({ ...input.entry, material: old.entry.material })
             )
               return { kind: 'answer', value: fail(conflict(input)) }
           }
-          const kept = hooks.state().deliveries.get(deliveryText(input, input.entry))
+          const kept = delivered(hooks, input, input.entry)
           if (kept) {
             if (
               kept.receipt.execution !== input.execution ||
@@ -389,7 +502,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
               return { kind: 'answer', value: fail(conflict(input)) }
             const value = rich(input, kept)
             if ('failure' in value) return { kind: 'answer', value }
-            return recognizing(input, kept, () => ({ kind: 'committed' as const, value: value.ok }))
+            return recognizing(kept, input, () => ({ kind: 'committed' as const, value: value.ok }))
           }
           if (previous) return { kind: 'answer', value: fail(conflict(input)) }
           const revision = execution.revision + 1
@@ -446,11 +559,12 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
       if ('failure' in decodeAgentOperationId(input.operation)) return fail(invalid('operation'))
       const found = qualified(input)
       if ('failure' in found) return found
-      const operation = hooks.operations().get(operationKey(input))
+      const operation = hooks.operations().get(operationKey(input)) ?? hooks.answered(input, true)
       if (!operation || operation.kind === 'pending') return succeed({ kind: 'unknown' })
       if (operation.kind === 'excluded')
         return succeed({ kind: 'excluded', evidence: structuredClone(operation.evidence) })
-      const kept = hooks.state().aliases.get(operationKey(input))
+      const kept =
+        operation.kind === 'committed' ? keptOf(hooks, input, operation, true) : undefined
       if (!kept || kept.saved === null) return fail({ kind: 'unsupported' })
       const value = rich(input, kept)
       return 'failure' in value ? value : succeed({ kind: 'committed', value: value.ok })
@@ -473,31 +587,29 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
           if (!input.authority || !hooks.holds(execution, input.authority))
             return { kind: 'answer', value: fail({ kind: 'stale-advance' }) }
         } else {
-          const ref =
-            input.entry.delivery.producer === 'model'
-              ? resolveModelInvocationRef(input.entry.delivery.key.reference, input.tenant)
-              : resolveToolInvocationRef(input.entry.delivery.key.reference, input.tenant)
-          if ('failure' in ref) return { kind: 'answer', value: fail(denied()) }
+          if ('failure' in deliveryRef(input.entry.delivery, input.tenant))
+            return { kind: 'answer', value: fail(denied()) }
         }
-        const previous = hooks.operations().get(operationKey(input))
+        const previous = hooks.operations().get(operationKey(input)) ?? hooks.answered(input)
         if (previous) {
-          const old = hooks.state().aliases.get(operationKey(input))
-          if (
-            previous.kind !== 'committed' ||
-            (previous.key !== text && (!old || canonical(old.entry) !== canonical(input.entry)))
-          )
+          const old = previous.kind === 'committed' ? keptOf(hooks, input, previous) : undefined
+          const same =
+            previous.kind === 'committed' &&
+            (previous.match === canonical(input.entry) ||
+              (old !== undefined && canonical(old.entry) === canonical(input.entry)))
+          if (previous.kind !== 'committed' || (previous.key !== text && !same))
             return { kind: 'answer', value: fail(conflict(input)) }
           return { kind: 'answer', value: succeed(structuredClone(previous.receipt)) }
         }
         if (input.entry.kind === 'received') {
-          const kept = hooks.state().deliveries.get(deliveryText(input, input.entry))
+          const kept = delivered(hooks, input, input.entry)
           if (kept) {
             if (
               kept.receipt.execution !== input.execution ||
               canonical(kept.entry) !== canonical(input.entry)
             )
               return { kind: 'answer', value: fail(conflict(input)) }
-            return recognizing(input, kept, () => structuredClone(kept.receipt))
+            return recognizing(kept, input, () => structuredClone(kept.receipt))
           }
         }
         scripted = recordFaults.get(executionText(input))
@@ -528,6 +640,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
             written = derived.receipt
             return structuredClone(derived.receipt)
           },
+          match: canonical(input.entry),
           project: (_batch, view) => {
             if (written === undefined)
               throw new TypeError('append derives the receipt before it projects the batch')
@@ -559,7 +672,9 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
         (input.after !== null && (!/^(0|[1-9][0-9]*)$/.test(input.after) || from > list.length))
       )
         return fail({ kind: 'invalid', field: 'after', reason: 'not a position of the entries' })
-      const items = list.slice(from, from + input.limit).map((entry, index) => ({
+      const read = entriesFrom(hooks.closed(), found.ok, from, input.limit)
+      if (read === null) return fail(unavailable('an entry of the execution is not readable'))
+      const items = read.map((entry, index) => ({
         sequence: String(from + index + 1),
         entry: structuredClone(entry),
       }))
@@ -572,28 +687,19 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
     receivedOf: async input => {
       const found = qualified(input, false)
       if ('failure' in found) return found
-      return succeed(
-        found.ok.entries
-          .filter(
-            (entry): entry is ReceivedEntry =>
-              entry.kind === 'received' && entry.consumption === input.consumption,
-          )
-          .map(entry => structuredClone(entry)),
-      )
+      const view = hooks.viewOf(found.ok.id)
+      return succeed(structuredClone(receivedEntries(hooks.closed(), view, input.consumption)))
     },
   }
   const materialPort: AgentMaterials<P, ContentBlock> = {
     async preserve(input) {
       if (!tenantCodec.encode(input.tenant).ok) return fail(denied())
-      const source = journalEvidence(
-        canonical([
-          hooks.namespace,
-          'material',
-          tenantText(input.tenant),
-          input.identity,
-          input.consumer,
-        ]),
-        1,
+      const source = preservedSource(
+        hooks.namespace,
+        tenantText(input.tenant),
+        input.execution,
+        input.identity,
+        input.consumer,
       )
       const operation = `preserve:${createHash('sha256')
         .update(source.record)
@@ -615,26 +721,17 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
           kind: 'answer',
           value,
         })
-        const old = hooks.state().materials.get(canonical(source))
+        const old = materialOf(hooks, input, source, false)
         if (old && canonical(old.value) !== canonical(input.value))
           return answer(fail(invalid('identity')))
-        const execution =
-          hooks
-            .state()
-            .consumerExecutions.get(canonical([tenantText(input.tenant), input.consumer])) ?? null
-        if (execution !== null) {
-          const permission = qualified({ ...input, execution })
-          if ('failure' in permission) return answer(permission)
-        }
+        const permission = qualified(input)
+        if ('failure' in permission) return answer(permission)
         if (old) return answer(succeed(source))
-        const content = canonical(input.value)
-        for (const [kept, record] of hooks.state().materials)
-          if (
-            record.tenant === tenantText(input.tenant) &&
-            record.execution === execution &&
-            canonical(record.value) === content
-          )
-            return answer(succeed(materialSourceOf(kept)))
+        const kept = hooks
+          .state()
+          .materials.sameContent(tenantText(input.tenant), input.execution, canonical(input.value))
+        if (kept !== undefined && hooks.viewOf(input.execution).materials.has(kept))
+          return answer(succeed(materialSourceOf(kept)))
         return {
           kind: 'batch',
           facts: [
@@ -651,7 +748,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
           project: () => {
             hooks.state().materials.set(canonical(source), {
               tenant: tenantText(input.tenant),
-              execution,
+              execution: input.execution,
               value: structuredClone(input.value),
             })
           },
@@ -681,12 +778,6 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
         if (old && (old.text !== text || old.execution !== input.execution))
           throw new TypeError('frozen binding cannot change')
         hooks.state().bindings.set(key, { execution: input.execution, text })
-        hooks
-          .state()
-          .consumerExecutions.set(
-            canonical([tenantText(input.tenant), input.entry.consumer]),
-            input.execution,
-          )
         hooks.touch()
       })
     },
@@ -769,7 +860,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
     async resolve(input) {
       const requested = resolveModelInvocationRef(input.reference, input.access.tenant)
       if ('failure' in requested) return fail(denied())
-      const found = hooks.state().callTargets.get(targetKey(input.access, requested.ok.call))
+      const found = modelTarget(hooks, input, requested.ok.call)
       if (!found || (input.execution !== undefined && input.execution !== found.execution))
         return fail(denied())
       const permission = qualified({ ...input.access, execution: found.execution })
@@ -794,7 +885,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
     async resolve(input) {
       if ('failure' in resolveToolInvocationRef(input.reference, input.access.tenant))
         return fail(denied())
-      const found = hooks.state().toolTargets.get(targetKey(input.access, input.reference))
+      const found = toolTarget(hooks, input)
       const route = input.execution ?? found?.execution
       if (route === undefined) return fail(denied())
       const permission = qualified({ ...input.access, execution: route })
@@ -845,6 +936,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
           kind: 'target.bound',
           reference: pending.reference,
           pending: refOf(value),
+          consumption: pending.consumption,
           instance,
         })
       }
@@ -870,53 +962,3 @@ export type NewBindings = Readonly<{
   blobs: readonly Blob[]
   pendings: readonly PendingCall[]
 }>
-
-export function bindTarget(
-  state: ReceivingState,
-  execution: Pick<MemoryExecution, 'id' | 'tenant'>,
-  instance: AgentInstanceId,
-  definition: Adoption,
-  pending: import('@omne-harness/agent-contract').PendingCall,
-): void {
-  if (pending.kind === 'tool' && pending.association !== 'associated') return
-  const tenant = tenantText(execution.tenant)
-  const keyOf = (reference: string) => canonical([tenant, reference])
-  const bindingKey = keyOf(pending.reference)
-  const prior = state.pendingBindings.get(bindingKey) ?? []
-  if (
-    !prior.some(
-      item => item.execution === execution.id && canonical(item.pending) === canonical(pending),
-    )
-  )
-    state.pendingBindings.set(bindingKey, [
-      ...prior,
-      { execution: execution.id, pending: structuredClone(pending) },
-    ])
-  state.consumerExecutions.set(canonical([tenant, pending.position]), execution.id)
-  if (pending.kind === 'tool') {
-    const key = keyOf(pending.reference)
-    if (!state.toolTargets.has(key))
-      state.toolTargets.set(key, {
-        execution: execution.id,
-        instance,
-        definition: structuredClone(definition),
-        pending: structuredClone(pending),
-      })
-    return
-  }
-  if (pending.kind !== 'model') return
-  const key = keyOf(pending.reference)
-  if (state.targets.has(key)) return
-  const target = { execution: execution.id, instance, pending: structuredClone(pending) }
-  state.targets.set(key, target)
-  const reference = resolveModelInvocationRef(pending.reference, execution.tenant)
-  if ('ok' in reference) {
-    const callKey = keyOf(reference.ok.call)
-    if (!state.callTargets.has(callKey)) {
-      state.callTargets.set(callKey, target)
-      const at = canonical([tenant, execution.id])
-      const originals = state.executionTargets.get(at) ?? []
-      state.executionTargets.set(at, [...originals, target])
-    }
-  }
-}

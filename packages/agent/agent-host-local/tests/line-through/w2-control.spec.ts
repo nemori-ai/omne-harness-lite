@@ -1,7 +1,8 @@
 // @module-tag slow
 import { afterEach, describe, expect, it } from 'vitest'
 import { operationId } from '@omne-harness/session-contract/testing'
-import { TENANT, intakeAccess, ok } from './world.ts'
+import { intakeAccess, ok } from './world.ts'
+import { entriesOf } from '../host-support.ts'
 import { replyText, toolCallBlock, openW2World, type W2World } from './w2-world.ts'
 
 const worlds: W2World[] = []
@@ -21,6 +22,7 @@ describe('J3: cancelling the Run stops new Model requests and Tool actions', () 
   it('J3 cancels from Session: the Run ends cancelled, the intent is established, nothing new is sent', async () => {
     const release = gate()
     const w = await openW2World({
+      reception: 'routed',
       model: a =>
         a.index === 0
           ? {
@@ -53,10 +55,7 @@ describe('J3: cancelling the Run stops new Model requests and Tool actions', () 
         record => record.command.kind === 'cancel',
       )
     await w
-      .until(
-        async () => (await cancelControl())?.stages['intent-established']?.state === 'reached',
-        5000,
-      )
+      .until(async () => (await cancelControl())?.stages['intent-established']?.state === 'reached')
       .catch(() => undefined)
     expect((await cancelControl())?.stages['intent-established']).toMatchObject({
       state: 'reached',
@@ -68,15 +67,14 @@ describe('J3: cancelling the Run stops new Model requests and Tool actions', () 
     for (let check = 0; check < 3; check += 1) await w.until(async () => true)
     expect(w.modelCalls).toHaveLength(requests)
     expect(w.tools.invoke.calls).toHaveLength(0)
-    const reported = () =>
-      w.outlet
-        .received(TENANT)
-        .some(kept => kept.account.cost.some(cost => 'lexeme' in cost && cost.lexeme === '0.25'))
-    await w.until(reported, 5000).catch(() => undefined)
-    const accounts = w.outlet.received(TENANT)
-    expect(accounts.map(kept => kept.account.cost)).toContainEqual([
-      expect.objectContaining({ lexeme: '0.25' }),
-    ])
+    const reported = async () =>
+      (await entriesOf(w.freshEntries(), { ...w.agentAccess, execution })).flatMap(entry =>
+        entry.kind === 'received' && 'accounts' in entry.delivery
+          ? entry.delivery.accounts.map(kept => kept.account?.cost ?? [])
+          : [],
+      )
+    await w.until(async () => (await reported()).length > 0).catch(() => undefined)
+    expect(await reported()).toContainEqual([expect.objectContaining({ lexeme: '0.25' })])
     expect(await cancel()).toEqual({ ok: receipt })
   })
 })
@@ -86,6 +84,7 @@ describe('J4: stopCall interrupts one call and leaves the rest alone', () => {
     const stopped = gate()
     const never = new Promise<void>(() => undefined)
     const w = await openW2World({
+      reception: 'routed',
       progression: 'continue',
       model: a =>
         a.index === 0
@@ -142,9 +141,10 @@ describe('J4: stopCall interrupts one call and leaves the rest alone', () => {
     expect(await stop(`j4a-stop-${attempt}`)).toEqual({ ok: receipt })
   })
 
-  it('J4 answers unsupported for a Tool target and leaves the Run alone', async () => {
+  it('J4 answers not-found for a Tool target the session does not hold, the same as a Model target, and leaves the Run alone', async () => {
     const hold = gate()
     const w = await openW2World({
+      reception: 'routed',
       model: a =>
         a.index === 0
           ? { parts: [toolCallBlock('tc-j4')], reason: 'tool-suggestions' }
@@ -155,13 +155,14 @@ describe('J4: stopCall interrupts one call and leaves the rest alone', () => {
     await w.createSession('j4b')
     await w.accept('j4b-in', 'hello')
     await w.until(() => w.toolRequests.length === 1)
-    const refused = await w.intake.work.stopCall({
+    // The bare Tool call id is not the invocation reference the session bound, so nothing is held.
+    const answered = await w.intake.work.stopCall({
       ...intakeAccess,
       operation: operationId('j4b-stop'),
       producer: { kind: 'tool', call: 'tcall_w2_0' },
     })
     hold.resolve()
-    expect(refused).toMatchObject({ failure: { kind: 'unsupported' } })
+    expect(answered).toMatchObject({ ok: { answer: { kind: 'not-found' } } })
     expect((await activeRun(w)).run).toBeDefined()
   })
 })

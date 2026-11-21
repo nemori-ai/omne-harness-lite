@@ -192,7 +192,7 @@ describe('the rows the conformance suites commit', () => {
       ...plain,
       message: {
         id: plain.message.id,
-        role: 'tool',
+        role: 'user',
         blocks: [
           { kind: 'tool_result', id: 'result', visibility, callId: 'call-1' },
           { kind: 'text', id: 'out', visibility, text: 'line 1\n\t"quoted" \u{1F600} 1.50' },
@@ -225,7 +225,7 @@ describe('the rows the conformance suites commit', () => {
           rows += 1
         }
     expect(rows).toBeGreaterThan(100)
-    for (const kind of ['session.created', 'message.tool', 'call.execution-fact'])
+    for (const kind of ['session.created', 'message.user', 'call.execution-fact'])
       expect(kinds, [...kinds].join(',')).toContain(kind)
   }, 120_000)
 })

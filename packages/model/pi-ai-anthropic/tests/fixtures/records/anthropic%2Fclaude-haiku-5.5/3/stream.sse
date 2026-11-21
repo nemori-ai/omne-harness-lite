@@ -1,0 +1,93 @@
+event: message_start
+data: {"type":"message_start","message":{"id":"msg_011ChFh4WPwQiSwJbPTuko31","type":"message","role":"assistant","container":null,"content":[],"model":"anthropic/claude-haiku-5.5","stop_reason":null,"stop_details":null,"stop_sequence":null,"usage":{"input_tokens":445,"output_tokens":8,"output_tokens_details":null,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":0},"inference_geo":"global","server_tool_use":null,"service_tier":"standard","speed":"standard"},"provider":"Anthropic"}}
+
+event: content_block_start
+data: {"type":"content_block_start","index":0,"content_block":{"type":"thinking","thinking":"","signature":""}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"I'm counting the"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" integers from"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" 1 to 99 that"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" are divisible by 3 "}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"or 7 but"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" not by"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" both. That gives 33 "}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"multiples of 3,"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" 14 multiples of "}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"7, and 4 multi"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"ples of 21, so 39"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" q"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"ualify. Since "}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"39 is odd,"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" Lima wins."}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" Only one tool call is needed"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":", so I'll ke"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"ep the"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" answer br"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"ief."}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"\n\n"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"signature_delta","signature":"CAQSgwcKEAgUGAI4AUIIdGhpbmtpbmcSDET/dxxf1/d9TIINgRoMuSTrZynTbfBDOkinIjDfK8JdKE2PkAiSaZC9tjW/7/Oe+GiG6FPOoSoHbaKRzJEF66uAoHvTtRE5CSvExHkqoAb8uNCbqtHih113dNV+CMMunn9EaD7D3oOdKfftQRW6vZXKSA48V+M5hJdhUrgDZSUci+CoE6s0/3agglY71U8BKe9lOFC+VoOINzXonEgSOOjsvp45XrTa22c1RgNW6/oWNSXX9hz+fCmrWjUDZS8vbrTiM9+Kl0NuRa7IkwJDczByWd6AR6zYLj0sd9PRhghsV7f+qrH8XoQo7DvsWOgKy6iLwmK72N6HdxaJUTDMMBv2N9kTI5H0YmbyUzXgiyd6f6WkT3Ae2XwgWblmaiakllXmljE3J2JENC0v+H8bj2WibJWK00XXXQJU2QC6JdFfw5QOoHGy2T6/ZdOz/cMl3kZ7JOextHp/pL4OzvpuIOsr8zp3ZzJRNfGLwCBlBEut1UEKwXCyAfSJqEFgdM9D3IcRQYzXm/7mVVs/gXPq5hMs1f0jT6XbWV+Gx9aay48vJzEXU/+Yym7t1uL/zv1RVotpuA+b6WA/GYzPUt9ie0833PW5PBLYyzKrWvP9Jvy+hYy93X9NPofxEegEmX9RwraKZspsjh5ZaPqx/ATJ7xtEK69pDU0DAm6FbgbpyWvEuU0NNV9PGvm1/6niDZ0ZUNtwkiT1sPsh7GHLsaZ2WHTe1ZmCWy9tjAR5FRcyVJWOJuTpQJeyE0246ROD+LiBtLiH3VfRcBpwwa2+MCbMRn44krLJO+KFaiq8uRg6PDR85bsPI2Lka9FbHx8AX1cnhfbcqk2ka01qJHlgjQUJrAIAMAd8EHbPijBqgNEbs1qJfiYbbLfNGDukOelkqDlgGa/cxxtVMDqKt3YjgboePC/zhXtN1p/WYZHq85QOBMCykvTuEskc5KZW60AkcmXHMkRCo6Zga9e/RjCE9+8Y4YX3BEa8yQMrgopLZmmlwx3tY0JrjujSGzLCESDfGX4B3rQvbPy67Lns0JtOI7R9M1AWlhfrvhDG2yyyP/+sEkVTEc8JFOdN7TUs1cHC4FLA8FdyBsGDv2y2ZARwvQFvecx00It5p3Y6LcHdJr1vdqLBQvzTuyztZ2ehlFTt9xrLstqFUkIsySO1Vyllj1qVNBgB.eyJlbmRwb2ludF9zbHVnIjoiYW50aHJvcGljL2NsYXVkZS1oYWlrdS01LjUtMjAyNjEwMDd8YW50aHJvcGljIn0"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":0}
+
+event: content_block_start
+data: {"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"toolu_011tsE8oGQqy67zqTbN9VNkk","caller":{"type":"direct"},"name":"get_weather","input":{}}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\"city\": \"Lima"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"\"}"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":1}
+
+event: message_delta
+data: {"type":"message_delta","delta":{"container":null,"stop_details":null,"stop_reason":"tool_use","stop_sequence":null},"usage":{"input_tokens":445,"output_tokens":176,"output_tokens_details":{"thinking_tokens":125},"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":0},"server_tool_use":null,"service_tier":"standard","speed":"standard","cost":0.0001325,"is_byok":false,"cost_details":{"upstream_inference_cost":0.0001325,"upstream_inference_prompt_cost":0.0000445,"upstream_inference_completions_cost":0.000088}},"context_management":null}
+
+event: message_stop
+data: {"type":"message_stop"}
+

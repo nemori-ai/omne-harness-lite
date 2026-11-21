@@ -1,6 +1,7 @@
 // Derived from pi 1.0.0, commit a13d35a742c6ef8462812a28fbe1d8c8b7431c32 (convertMessages,
 // convertTools, addCacheControlToTextContent; the source file is named in provenance.json).
 // Copyright (c) 2025 Mario Zechner. MIT: ../../LICENSE.pi. See provenance.json.
+import { sentFile, sentImage, sentVoice, sentWords, type MediaView } from '../media.ts'
 import { createHash } from 'node:crypto'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
@@ -38,6 +39,16 @@ type WireRole = ProjectedTurn['role']
 type WirePart =
   | Readonly<{ type: 'text'; text: string }>
   | Readonly<{ type: 'image'; url: string; detail: string }>
+  | Readonly<{ type: 'audio'; data: string; format: string }>
+  | Readonly<{ type: 'file'; filename: string; url: string }>
+
+/** What a place in a request may carry besides words: a message of the person takes both media. */
+type Senses = Readonly<{
+  image: WireProfile['image']
+  voice?: WireProfile['voice']
+  file?: WireProfile['file']
+}>
+const WORDS_ONLY: Senses = { image: null }
 
 export type WireMessage = Readonly<{
   role: WireRole
@@ -58,6 +69,7 @@ export type Projection = Readonly<{
   choice: FixedModelRequest['toolChoice']
   treatments: readonly ReplayTreatment[]
   diagnostics: readonly ReplayDiagnostic[]
+  replayPrefix: string
 }>
 
 export type ProjectionInput = Readonly<{
@@ -71,6 +83,7 @@ export type ProjectionInput = Readonly<{
   toolChoice: FixedModelRequest['toolChoice']
   replayOff: boolean
   resent: ReadonlySet<ChatMessageId>
+  media: MediaView
 }>
 
 const TOOL_CALL_ID = /^[A-Za-z0-9_-]{1,64}$/
@@ -81,7 +94,9 @@ export function normalizeToolCallId(id: string): string {
     : `call_${createHash('sha256').update(id).digest('base64url').slice(0, 32)}`
 }
 
-export function recordDeclaration(record: ChatCompletionsRecord): ReplayDeclaration {
+export function recordDeclaration(
+  record: Pick<ChatCompletionsRecord, 'name' | 'route' | 'replay'>,
+): ReplayDeclaration {
   const judged = judgeReplayDeclaration(
     {
       provider: record.route.provider,
@@ -105,35 +120,41 @@ function invalid(field: string, reason: string): Outcome<never, TransportFailure
   return { failure: { kind: 'invalid', field, reason } }
 }
 
+function filePart(
+  block: ContentBlock,
+  path: string,
+  senses: Senses,
+  adapter: Adoption,
+  media: MediaView,
+): Outcome<WirePart, TransportFailure> {
+  const words = sentWords(block, media)
+  if (words !== null) return { ok: { type: 'text', text: words } }
+  const sent = sentFile(block, senses.file, media)
+  if (sent === null) return unsupported(path, adapter)
+  return {
+    ok: { type: 'file', filename: sent.filename, url: `data:${sent.mime};base64,${sent.data}` },
+  }
+}
+
 function contentPart(
   block: ContentBlock,
   path: string,
-  image: WireProfile['image'],
+  senses: Senses,
   adapter: Adoption,
+  media: MediaView,
 ): Outcome<WirePart | null, TransportFailure> {
   if (!block.visibility.toModel) return { ok: null }
-  if ('ref' in block) return unsupported(path, adapter)
-  switch (block.kind) {
-    case 'text':
-      return { ok: { type: 'text', text: block.text } }
-    case 'image':
-      if (image === null || !image.mediaTypes.includes(block.mediaType))
-        return unsupported(path, adapter)
-      return {
-        ok: {
-          type: 'image',
-          url: `data:${block.mediaType};base64,${block.inline}`,
-          detail: image.detail,
-        },
-      }
-    case 'voice':
-    case 'file':
-    case 'thinking':
-      return unsupported(path, adapter)
-    default: {
-      const _exhaustive: never = block
-      return _exhaustive
-    }
+  if (block.kind === 'text') return { ok: { type: 'text', text: block.text } }
+  if (block.kind === 'voice') {
+    const heard = sentVoice(block, senses.voice?.formats, media)
+    return heard === null ? unsupported(path, adapter) : { ok: { type: 'audio', ...heard } }
+  }
+  if (block.kind === 'file') return filePart(block, path, senses, adapter, media)
+  const { image } = senses
+  const sent = sentImage(block, image?.mediaTypes, media)
+  if (sent === null || image === null) return unsupported(path, adapter)
+  return {
+    ok: { type: 'image', url: `data:${sent.mime};base64,${sent.data}`, detail: image.detail },
   }
 }
 
@@ -155,6 +176,9 @@ export function project(input: ProjectionInput): Outcome<Projection, TransportFa
     formats: new Set(record.replay.formats.accepts),
     off: input.replayOff,
     resent: input.resent,
+    system: input.system,
+    tools: input.tools,
+    binding: 'none',
   })
   const treatments = new Map(replay.treatments.map(treatment => [treatment.index, treatment]))
   const messages: WireMessage[] = []
@@ -228,7 +252,7 @@ export function project(input: ProjectionInput): Outcome<Projection, TransportFa
     tools.push(wired.ok)
     declared.push(gateway)
   }
-  const toolChoice = toolChoiceOf(input.toolChoice, input.tools, names)
+  const toolChoice = toolChoiceOf(input.toolChoice, input.tools, names, input)
   if (!('ok' in toolChoice)) return toolChoice
 
   return {
@@ -241,6 +265,7 @@ export function project(input: ProjectionInput): Outcome<Projection, TransportFa
       choice: toolChoice.ok.choice,
       treatments: replay.treatments,
       diagnostics: replay.diagnostics,
+      replayPrefix: replay.prefix,
     },
   }
 }
@@ -260,7 +285,7 @@ function instructionMessage(input: ProjectionInput): Outcome<WireMessage | null,
   for (const [index, block] of input.system.entries()) {
     const path = `/system/${index}`
     if (block.visibility.toModel && block.kind !== 'text') return unsupported(path, input.adapter)
-    const part = contentPart(block, path, null, input.adapter)
+    const part = contentPart(block, path, WORDS_ONLY, input.adapter, input.media)
     if (!('ok' in part)) return part
     if (part.ok === null) continue
     parts.push(part.ok)
@@ -282,8 +307,9 @@ function contentMessage(
     const part = contentPart(
       block,
       `${path}/blocks/${index}`,
-      input.record.wire.image,
+      input.record.wire,
       input.adapter,
+      input.media,
     )
     if (!('ok' in part)) return part
     if (part.ok === null) continue
@@ -358,7 +384,7 @@ function assistantMessage(
       case 'tool_call_incomplete':
         return invalid(at, 'incomplete-tool-call')
       case 'text': {
-        const part = contentPart(block, at, null, input.adapter)
+        const part = contentPart(block, at, WORDS_ONLY, input.adapter, input.media)
         if (!('ok' in part)) return part
         if (part.ok !== null) {
           parts.push(part.ok)
@@ -367,7 +393,7 @@ function assistantMessage(
         continue
       }
       default: {
-        const part = contentPart(block, at, null, input.adapter)
+        const part = contentPart(block, at, WORDS_ONLY, input.adapter, input.media)
         if (!('ok' in part)) return part
         continue
       }
@@ -434,8 +460,9 @@ function toolMessage(
     const part = contentPart(
       block,
       `${path}/blocks/${offset + 1}`,
-      input.record.wire.image,
+      { image: input.record.wire.image },
       input.adapter,
+      input.media,
     )
     if (!('ok' in part)) return part
     if (part.ok === null) continue
@@ -489,6 +516,7 @@ function toolChoiceOf(
   choice: FixedModelRequest['toolChoice'],
   tools: readonly ToolDeclaration[],
   names: ToolNames,
+  input: Pick<ProjectionInput, 'record' | 'adapter'>,
 ): Outcome<
   Readonly<{ json: JsonValue | undefined; choice: FixedModelRequest['toolChoice'] }>,
   TransportFailure
@@ -497,7 +525,10 @@ function toolChoiceOf(
     return choice === 'none' || choice === 'auto'
       ? { ok: { json: undefined, choice } }
       : invalid('toolChoice', 'no-tools')
-  if (typeof choice === 'string') return { ok: { json: text(choice), choice } }
+  if (choice === 'auto' || choice === 'none') return { ok: { json: text(choice), choice } }
+  if (input.record.accepts?.forcedToolChoice === false)
+    return unsupported('toolChoice', input.adapter)
+  if (choice === 'required') return { ok: { json: text(choice), choice } }
   if (!tools.some(tool => tool.name === choice.name)) return invalid('toolChoice', 'unknown-tool')
   const name = names.wire(choice.name)
   return {
@@ -529,6 +560,18 @@ function partJson(part: WirePart, cache: JsonValue | undefined): JsonValue {
       return object({
         type: text('image_url'),
         image_url: object({ url: text(part.url), detail: text(part.detail) }),
+        cache_control: cache,
+      })
+    case 'audio':
+      return object({
+        type: text('input_audio'),
+        input_audio: object({ data: text(part.data), format: text(part.format) }),
+        cache_control: cache,
+      })
+    case 'file':
+      return object({
+        type: text('file'),
+        file: object({ filename: text(part.filename), file_data: text(part.url) }),
         cache_control: cache,
       })
     default: {

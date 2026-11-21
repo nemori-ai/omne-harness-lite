@@ -1,6 +1,7 @@
 import { CopyButton, StatusPill, Textarea, ValuePill } from '@omne-harness/ui-kit'
 import {
   Fragment,
+  useEffect,
   useMemo,
   useState,
   useSyncExternalStore,
@@ -9,12 +10,14 @@ import {
 } from 'react'
 import { stopFace } from '../model/composer.ts'
 import { EMPTY_CONTENT } from '../model/content.ts'
-import { conversationItems } from '../model/conversation.ts'
+import type { ComposerDraftStore } from '../model/composer-drafts.ts'
+import { conversationItems, type BlockSource } from '../model/conversation.ts'
 import type { SessionDriver } from '../model/session-driver.ts'
 import { sessionName, shownBy, type SessionList } from '../model/session-list.ts'
 import type { Open, PendingInput, State } from '../model/session-machine.ts'
 import type { SessionWorkspaces } from '../model/session-workspaces.ts'
 import type { Waiting } from '../model/waiting.ts'
+import { BlockSlotContext } from './block-slot.ts'
 import { ComposerActionSlot } from './composer-action-slot.tsx'
 import { NoticeLine } from './notice.tsx'
 import { ItemView } from './parts.tsx'
@@ -22,14 +25,42 @@ import { useFollowBottom } from './scroll.ts'
 import { TranscriptRow, usePublication } from './transcript-arrivals.tsx'
 import { useSession } from './use-session.ts'
 import { WaitingNotice, waitingAnchor } from './waiting-notice.tsx'
+import { useShownEntry } from './shown-entry.ts'
 
 export type ConversationPageProps = Readonly<{
   workspaces: SessionWorkspaces
   scope: string | undefined
   dock: (session: string) => ReactNode
+  side: (session: string) => ReactNode
+  status?: (session: string) => ReactNode
+  /** The message being written: what it will carry, and what contributions put in the composer. */
+  drafts: ComposerDraftStore
+  attachments?: (session: string, draft: string) => ReactNode
+  /** What draws a block of a message that is not words; `fallback` when nothing does. */
+  block?: (
+    session: string,
+    source: BlockSource,
+    fallback: ReactNode,
+    revision: string | null,
+  ) => ReactNode
+  /** Actions on the open session in its heading, such as archiving it. */
+  heading?: (session: string) => ReactNode
+  /** What the open session still holds, read again at each log position. */
+  work?: (session: string, revision: string | null) => ReactNode
 }>
 
-export function ConversationPage({ workspaces, scope, dock }: ConversationPageProps) {
+export function ConversationPage({
+  workspaces,
+  scope,
+  dock,
+  side,
+  status = () => null,
+  drafts,
+  attachments = () => null,
+  block = (_session, _source, fallback) => fallback,
+  heading = () => null,
+  work = () => null,
+}: ConversationPageProps) {
   const handle = useSession(workspaces, scope)
   switch (handle.kind) {
     case 'waiting':
@@ -43,16 +74,45 @@ export function ConversationPage({ workspaces, scope, dock }: ConversationPagePr
         </div>
       )
     case 'ready':
-      return <Page driver={handle.driver} dock={dock} />
+      return (
+        <Page
+          driver={handle.driver}
+          dock={dock}
+          side={side}
+          status={status}
+          drafts={drafts}
+          attachments={attachments}
+          block={block}
+          heading={heading}
+          work={work}
+        />
+      )
   }
 }
 
+type Parts = Readonly<{
+  dock: (session: string) => ReactNode
+  status: (session: string) => ReactNode
+  drafts: ComposerDraftStore
+  attachments: (session: string, draft: string) => ReactNode
+  block: (
+    session: string,
+    source: BlockSource,
+    fallback: ReactNode,
+    revision: string | null,
+  ) => ReactNode
+  work: (session: string, revision: string | null) => ReactNode
+}>
+
 function Page({
   driver,
-  dock,
-}: {
+  side,
+  heading,
+  ...parts
+}: Parts & {
   readonly driver: SessionDriver
-  readonly dock: (session: string) => ReactNode
+  readonly side: (session: string) => ReactNode
+  readonly heading: (session: string) => ReactNode
 }) {
   const { session: state, list } = useSyncExternalStore(driver.subscribe, driver.getState)
   return (
@@ -63,11 +123,17 @@ function Page({
           {state.kind === 'open' || state.kind === 'unavailable' ? (
             <SessionId session={state.session} />
           ) : null}
+          {state.kind === 'open' ? (
+            <div className="omne-session-actions">{heading(state.session)}</div>
+          ) : null}
         </div>
         <ConnectionBadge state={state} />
       </header>
-      <div className="omne-session-main">
-        <Body state={state} driver={driver} dock={dock} />
+      <div className="omne-session-body">
+        <div className="omne-session-main">
+          <Body state={state} driver={driver} {...parts} />
+        </div>
+        {state.kind === 'open' ? side(state.session) : null}
       </div>
     </div>
   )
@@ -125,12 +191,8 @@ function ConnectionBadge({ state }: { readonly state: State }) {
 function Body({
   state,
   driver,
-  dock,
-}: {
-  readonly state: State
-  readonly driver: SessionDriver
-  readonly dock: (session: string) => ReactNode
-}) {
+  ...parts
+}: Parts & { readonly state: State; readonly driver: SessionDriver }) {
   switch (state.kind) {
     case 'none':
       return (
@@ -171,7 +233,7 @@ function Body({
         </>
       )
     case 'open':
-      return <OpenSession key={state.session} state={state} driver={driver} dock={dock} />
+      return <OpenSession key={state.session} state={state} driver={driver} {...parts} />
   }
 }
 
@@ -179,13 +241,20 @@ function OpenSession({
   state,
   driver,
   dock,
-}: {
-  readonly state: Open
-  readonly driver: SessionDriver
-  readonly dock: (session: string) => ReactNode
-}) {
+  status,
+  drafts,
+  attachments,
+  block,
+  work,
+}: Parts & { readonly state: Open; readonly driver: SessionDriver }) {
+  const { session } = state
+  const { revision } = state
+  const drawn = useMemo(
+    () => (source: BlockSource, fallback: ReactNode) => block(session, source, fallback, revision),
+    [block, session, revision],
+  )
   return (
-    <>
+    <BlockSlotContext.Provider value={drawn}>
       {state.notice === null ? null : <NoticeLine notice={state.notice} />}
       {state.history.failure === null ? null : <NoticeLine notice={state.history.failure} />}
       <Conversation
@@ -196,9 +265,11 @@ function OpenSession({
         waiting={state.waiting}
         driver={driver}
       />
+      {work(state.session, state.revision)}
       <div className="omne-session-dock">{dock(state.session)}</div>
-      <Composer state={state} driver={driver} />
-    </>
+      <Composer state={state} driver={driver} drafts={drafts} attachments={attachments} />
+      <div className="omne-session-status">{status(state.session)}</div>
+    </BlockSlotContext.Provider>
   )
 }
 
@@ -237,12 +308,14 @@ function Conversation({
   const publication = usePublication(epoch, keys, content.readThrough !== null)
   const arriving = (key: string) => publication.arrivals.has(key)
   const anchor = waitingAnchor(committed, waiting)
+  const rows = useMemo(() => committed.map(item => item.key), [committed])
+  const found = useShownEntry(epoch, scroller, rows, content.readThrough !== null)
   const notice = <WaitingNotice waiting={waiting} driver={driver} />
   return (
     <div className="omne-conversation" ref={scroller} onScroll={onScroll}>
       {committed.map(item => (
         <Fragment key={item.key}>
-          <TranscriptRow arriving={arriving(item.key)}>
+          <TranscriptRow arriving={arriving(item.key)} entry={item.key} found={item.key === found}>
             <ItemView item={item} />
           </TranscriptRow>
           {item.key === anchor ? notice : null}
@@ -302,6 +375,9 @@ function PendingInputView({
         <StatusPill tone={INPUT_TONE[input.status]}>{INPUT_STATUS[input.status]}</StatusPill>
       </header>
       <div className="omne-message-body">{input.text}</div>
+      {input.attachments.length === 0 ? null : (
+        <p className="omne-placeholder">附件 {input.attachments.length} 份</p>
+      )}
       {input.notice === null ? null : (
         <NoticeLine
           notice={input.notice}
@@ -316,11 +392,23 @@ function PendingInputView({
   )
 }
 
-function Composer({ state, driver }: { readonly state: Open; readonly driver: SessionDriver }) {
+function Composer({
+  state,
+  driver,
+  drafts,
+  attachments,
+}: Pick<Parts, 'drafts' | 'attachments'> & {
+  readonly state: Open
+  readonly driver: SessionDriver
+}) {
+  const { session } = state
   const [text, setText] = useState('')
+  const draft = useSyncExternalStore(drafts.subscribe, () => drafts.read(session))
+  useEffect(() => () => drafts.drop(session), [drafts, session])
+  const canSend = draft.ready && (text.trim().length > 0 || draft.attachments.length > 0)
   const submit = () => {
-    if (text.trim().length === 0) return
-    void driver.send(text)
+    if (!canSend) return
+    void driver.send(text, drafts.take(session))
     setText('')
   }
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -344,10 +432,11 @@ function Composer({ state, driver }: { readonly state: Open; readonly driver: Se
         onChange={event => setText(event.target.value)}
         onKeyDown={onKeyDown}
       />
+      <div className="omne-composer-attachments">{attachments(session, draft.draft)}</div>
       <div className="omne-composer-actions">
         <ComposerActionSlot
           face={stopFace(state.run)}
-          canSend={text.trim().length > 0}
+          canSend={canSend}
           onStop={() => driver.cancel()}
         />
       </div>

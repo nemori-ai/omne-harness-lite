@@ -3,7 +3,7 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { resolveToolInvocationRef } from '@omne-harness/tool-contract'
-import type { Outcome } from '@omne-harness/operation-result'
+import { succeed, type Outcome } from '@omne-harness/operation-result'
 import { z } from 'zod'
 import { materialShape } from './testing-received-material.ts'
 import type { Failure } from './evaluation.ts'
@@ -127,6 +127,18 @@ const toolAccountKey = z.object({
 })
 const deliveryShape = z.union([
   z.object({
+    producer: z.literal('compaction'),
+    key: z.object({
+      kind: z.literal('result'),
+      task: z.object({ authority: text, task: text, requestDigest: text }),
+      result: z.object({
+        version: text,
+        digest: text,
+        evidence: z.object({ owner: text, record: text, revision: text, digest: text }),
+      }),
+    }),
+  }),
+  z.object({
     producer: z.literal('model'),
     key: resultKey,
     accounts: z.array(z.object({ dispatch: text, account: accountShape.nullable() })),
@@ -165,9 +177,11 @@ export function receivedFailure<P, B extends ContentBlock>(
   }
   const delivery = input.entry.delivery
   const resolved =
-    delivery.producer === 'model'
-      ? resolveModelInvocationRef(delivery.key.reference, input.tenant)
-      : resolveToolInvocationRef(delivery.key.reference, input.tenant)
+    delivery.producer === 'compaction'
+      ? succeed(undefined)
+      : delivery.producer === 'model'
+        ? resolveModelInvocationRef(delivery.key.reference, input.tenant)
+        : resolveToolInvocationRef(delivery.key.reference, input.tenant)
   if ('failure' in resolved)
     return { kind: 'invalid', field: 'entry.delivery.key.reference', reason: 'invalid reference' }
   return null

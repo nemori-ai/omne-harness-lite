@@ -71,7 +71,7 @@ function refused(requestId: string, reason: FacilityReason): FacilityResult<neve
 function requiresRetention(key: FacilityKey, operation: string, request: unknown): boolean {
   if (key !== 'terminal') return false
   if (operation === 'attach' || operation === 'detach') return true
-  return operation === 'create' && isRecord(request) && request['retain'] === 'session'
+  return operation === 'create' && isRecord(request) && request['retain'] === 'scope'
 }
 
 type Presence = 'required' | 'optional'

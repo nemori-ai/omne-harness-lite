@@ -26,7 +26,7 @@ export type ProducerRegistration<
 }> &
   (
     | Readonly<{
-        declaration: SuppliedBlockDescriptor<K, BlockValue<K>> & { volatility: 'per-request' }
+        declaration: SuppliedBlockDescriptor<K, BlockValue<K>> & { volatility: 'per-read' }
         scoped: boolean
         supply: SupplyCallback<BlockValue<K>, P>
       }>

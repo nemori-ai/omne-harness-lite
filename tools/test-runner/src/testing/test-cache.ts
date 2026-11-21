@@ -21,7 +21,8 @@ import { isRunTier, type CacheRules, type RunTier, type TestRunsConfig } from '.
 import type { MemberRun } from './ledger.ts'
 import { testCount } from './ledger.ts'
 import { slugOf } from './run.ts'
-import { classify, patternToRegExp, type ClassifiedFile } from './scope.ts'
+import { patternToRegExp } from './path-pattern.ts'
+import { classify, type ClassifiedFile } from './scope.ts'
 import { admissionRequested, packageGraph, TIER_TASKS, type PackageGraph } from './turbo.ts'
 
 export const TEST_CACHE_ENV = 'OMNE_TEST_CACHE'

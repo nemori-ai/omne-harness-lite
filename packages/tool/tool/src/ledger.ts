@@ -1,4 +1,6 @@
 import { createBodyWriting, instantAfter } from './ledger-body-writer.ts'
+import { createLedgerTimers, type ToolLedgerTimers } from './ledger-timer-fire.ts'
+import { instantOf, segmentCloser } from './ledger-timers.ts'
 import { createLedgerSweep, type ToolLedgerSweep } from './ledger-sweep.ts'
 import type { ToolBodyWrites } from '@omne-harness/tool-contract/provider'
 import { firstResultReference } from './result-address.ts'
@@ -20,6 +22,7 @@ import { matchEnvironmentAdoption } from './environment-adoption.ts'
 import { controlIntent } from './control-intent.ts'
 import { controlProgress } from './control-progress.ts'
 import { decideControl, decideRecordControl } from './ledger-control.ts'
+import { createReleaseCommands } from './ledger-release.ts'
 import { settleLostWith } from './ledger-lost.ts'
 import { controlSubject, createLedgerControls } from './ledger-control-subjects.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
@@ -29,15 +32,12 @@ import {
   decodeToolOperationId,
   type Adoption,
   type ClockSegment,
-  type ConsumerRef,
   type DurableEvidence,
   type FixedToolRequest,
-  type Handoff,
   type OperationResolution,
   type ControlReceipt,
   type Reply,
   type ToolCallId,
-  type ToolDeliveryId,
   type ToolExecutionRef,
   type ToolFailure,
   type ToolLookup,
@@ -46,19 +46,14 @@ import {
   type ToolResult,
   type ToolStartRecord,
   type ToolState,
-  type ToolTiming,
   type ToolWaitId,
   type DecisionValue,
 } from '@omne-harness/tool-contract'
 import {
   type CallAccess,
-  decodeToolDeliveryId,
-  decodeToolResultVersion,
   decodeToolWaitId,
   describedAdoption,
-  judgeConsumerRef,
   judgeFixedToolRequest,
-  judgeHandoff,
   judgeToolArguments,
   type PreparationRecord,
   type ReleaseRecord,
@@ -104,7 +99,6 @@ import { checkFactBatch, decideReceiveFacts, readSavedFact } from './ledger-fact
 import { digestOf, nextRevision, sameFactValue } from './evidence.ts'
 import {
   decideAdmit,
-  decideRelease,
   stateRevision,
   ledgerText,
   terminalText,
@@ -144,13 +138,14 @@ import { checkSettlement, decidePreserveResult } from './ledger-settlement.ts'
 import { excluded, excludedSince } from './ledger-exclusion.ts'
 import type { ToolLedgerAction, ToolLedgerGuards } from './ledger-guards.ts'
 import { createLedgerContent, fixResultInput } from './ledger-content.ts'
-import { createLedgerBodyReads } from './ledger-body-reads.ts'
+import { createLedgerBodyFaces } from './ledger-body-reads.ts'
 import { createQueueReconciler } from './ledger-queue.ts'
 import {
   lookupCall,
   readAccount,
   readRecovery,
   readResultPage,
+  readState,
   resultRecord,
   resolveOperation,
 } from './ledger-reads.ts'
@@ -195,6 +190,7 @@ export type ToolLedger<P, B extends ContentBlock> = Readonly<{
   }>
   bodyWrites: ToolBodyWrites<P>
   sweep: ToolLedgerSweep['sweep']
+  timers: ToolLedgerTimers<P>
   finalPlanner: ToolFinalPlanner<P, B>
   controls: ToolLedgerControls<P>
   commands: ToolCommands<P, B>
@@ -236,6 +232,8 @@ type Fence<T> = Readonly<{
   negative(answer: T): boolean
   unknown: Outcome<T, ToolFailure>
 }>
+
+const PROCESS_READS = 'process observation and diagnostics'
 
 const lookupFence: Fence<ToolLookup> = {
   negative: answer => answer.kind === 'not-accepted',
@@ -1095,7 +1093,12 @@ export function createToolLedger<P, B extends ContentBlock>(
       (snapshot, mint, prepared) =>
         decideRecordStart(
           snapshot,
-          { ...command, segment: timing, execution: executionOf(context.ok) },
+          {
+            ...command,
+            segment: timing,
+            execution: executionOf(context.ok),
+            startedAt: instantOf(clock),
+          },
           prepared,
           digestOf,
           mint,
@@ -1154,9 +1157,7 @@ export function createToolLedger<P, B extends ContentBlock>(
                   command,
                   final,
                   committed,
-                  settledAt === null
-                    ? null
-                    : instantAfter(settledAt, configuration.offloading.orphanGraceMs),
+                  { settledAt, graceMs: configuration.offloading.orphanGraceMs },
                   mint,
                 )
           },
@@ -1169,24 +1170,7 @@ export function createToolLedger<P, B extends ContentBlock>(
     return releaseQueue(context.ok, record.ok, settled.ok)
   }
 
-  const closeSegment = async (timing: ToolTiming): Promise<ToolTiming> => {
-    if (timing.kind !== 'running') return timing
-    const unknown = {
-      kind: 'unknown',
-      accumulatedMs: timing.accumulatedMs,
-      segment: timing.segment,
-      diagnostic: 'suspension-elapsed-unavailable',
-    } as const
-    try {
-      const elapsed = await clock.elapsed(timing.segment.marker)
-      if ('failure' in elapsed || !/^(0|[1-9][0-9]*)$/u.test(elapsed.ok.milliseconds))
-        return unknown
-      const total = BigInt(timing.accumulatedMs) + BigInt(elapsed.ok.milliseconds)
-      return { kind: 'paused', accumulatedMs: total.toString() }
-    } catch {
-      return unknown
-    }
-  }
+  const closeSegment = segmentCloser(clock)
 
   const planSuspension: ToolCommands<P, B>['planSuspension'] = async input => {
     const context = await writeEntry(input)
@@ -1439,25 +1423,12 @@ export function createToolLedger<P, B extends ContentBlock>(
       const admitted = await admissions.admit(input)
       return 'failure' in admitted ? admitted : succeed(admitted.ok.state)
     },
-    releaseDelivery: input =>
-      mutate(input, 'release-delivery', checked => {
-        const judged = judgeRelease(input)
-        if ('failure' in judged) return Promise.resolve(judged)
-        const command = { ...checked, ...judged.ok, inputDigest: digestOf(judged.ok) }
-        const clock = settlement.bodies?.clock
-        return Promise.resolve(
-          succeed((snapshot, mint) =>
-            decideRelease(
-              snapshot,
-              command,
-              mint,
-              clock === undefined
-                ? null
-                : instantAfter(clock.now(), configuration.offloading.orphanGraceMs),
-            ),
-          ),
-        )
-      }),
+    ...createReleaseCommands<P, B>(mutate, () => {
+      const clock = settlement.bodies?.clock
+      return clock === undefined
+        ? null
+        : instantAfter(clock.now(), configuration.offloading.orphanGraceMs)
+    }),
     control: async input => {
       const intent = controlIntent(input)
       if ('failure' in intent) return intent
@@ -1473,11 +1444,15 @@ export function createToolLedger<P, B extends ContentBlock>(
         if ('failure' in before) return { answer: before, overtaken: false }
         const subject = await controlSubject(before.ok, context, settlement.controlSubjects)
         if ('failure' in subject) return { answer: subject, overtaken: false }
+        const timing = before.ok.call?.state.timing
         const command = {
           ...context,
           intent: intent.ok,
           subject: subject.ok,
           inputDigest: digestOf(intent.ok),
+          ...(intent.ok.kind !== 'stop' && timing?.kind === 'running'
+            ? { timing: { from: timing, closed: await closeSegment(timing) } }
+            : {}),
         }
         const judged = before.ok.operations.get(context.operation)?.revision
         let overtaken = false
@@ -1721,15 +1696,16 @@ export function createToolLedger<P, B extends ContentBlock>(
     },
   }
 
-  const bodyReads = createLedgerBodyReads<P>({
+  const bodyReads = createLedgerBodyFaces<P>({
     bodies: settlement.bodies,
     configuration: configuration.offloading,
-    authorize: input => access(input, 'read-content'),
+    authorize: access,
     load: input => read(callDomain(input)),
   })
   const reads: ToolReads<P, B> = {
-    body: { read: bodyReads.read },
+    ...bodyReads.reads,
     lookup: input => fenced(input, 'lookup', 'admission', lookupCall, lookupFence),
+    state: input => query(input, 'lookup', snapshot => readState(snapshot, input)),
     operation: input =>
       fenced(input, 'query-operation', 'operation', resolveOperation, operationFence),
     result: async input => {
@@ -1761,16 +1737,11 @@ export function createToolLedger<P, B extends ContentBlock>(
       const current = await access(fixed.ok, 'read-result')
       return 'failure' in current ? current : page
     },
-    process: input =>
-      query(input, 'read-process', () =>
-        unsupported('process', 'process observation and diagnostics'),
-      ),
+    process: input => query(input, 'read-process', () => unsupported('process', PROCESS_READS)),
     wait: input =>
       query(input, 'read-wait', () => unsupported('wait', 'waits, decisions and resources')),
     diagnostics: input =>
-      query(input, 'read-diagnostics', () =>
-        unsupported('diagnostics', 'process observation and diagnostics'),
-      ),
+      query(input, 'read-diagnostics', () => unsupported('diagnostics', PROCESS_READS)),
     account: input => query(input, 'account', snapshot => readAccount(snapshot)),
     content: createLedgerContent({
       bodyBytes: bodyReads.bytes,
@@ -1860,6 +1831,13 @@ export function createToolLedger<P, B extends ContentBlock>(
       },
     }),
     bodyWrites: bodyWriting.writes,
+    timers: createLedgerTimers<P>({
+      now: () => instantOf(clock),
+      due: store.due,
+      read,
+      closeSegment,
+      settle: settleSynthetic,
+    }),
     sweep: createLedgerSweep<P>({
       bodies: settlement.bodies,
       due: (tenant, now, limit) => store.due(tenant, now, limit),
@@ -2018,44 +1996,6 @@ function judgeStartProgressField(value: unknown): Outcome<StartProgress, ToolFai
   if (typeof kind !== 'string' || !Object.hasOwn(START_PROGRESS, kind))
     return invalid('outcome.kind', 'value')
   return START_PROGRESS[kind as StartProgress['kind']](value)
-}
-
-type ReleaseFields = Readonly<{
-  result: ToolResultVersion
-  delivery: ToolDeliveryId
-  consumer: ConsumerRef
-  evidence: Handoff
-}>
-
-function field<T>(
-  judged: Outcome<T, Readonly<{ field: string; reason: string }>>,
-  name: string,
-  root: string,
-): Outcome<T, ToolFailure> {
-  if ('ok' in judged) return judged
-  const { field: at, reason } = judged.failure
-  return invalid(at === root ? name : `${name}.${at}`, reason)
-}
-
-function judgeRelease(input: object): Outcome<ReleaseFields, ToolFailure> {
-  const result = decodeToolResultVersion(Reflect.get(input, 'result'))
-  if ('failure' in result) return invalid('result', result.failure.reason)
-  const delivery = decodeToolDeliveryId(Reflect.get(input, 'delivery'))
-  if ('failure' in delivery) return invalid('delivery', delivery.failure.reason)
-  const consumer = field(
-    judgeConsumerRef(Reflect.get(input, 'consumer')),
-    'consumer',
-    'ConsumerRef',
-  )
-  if ('failure' in consumer) return consumer
-  const evidence = field(judgeHandoff(Reflect.get(input, 'evidence')), 'evidence', 'Handoff')
-  if ('failure' in evidence) return evidence
-  return succeed({
-    result: result.ok,
-    delivery: delivery.ok,
-    consumer: consumer.ok,
-    evidence: evidence.ok,
-  })
 }
 
 function judgeDecisionValue(value: unknown, maxBytes: number): Outcome<DecisionValue, ToolFailure> {

@@ -27,23 +27,21 @@ const ADOPTION = {
   digest: '0'.repeat(64),
 }
 const count = 65_536
-const config = {
-  maxCitedCalls: 8,
-  openai: {
-    limits: {
-      toolArguments: {
-        maxBytes: count,
-        maxDepth: 32,
-        maxItems: 1_024,
-        maxMembers: 256,
-        maxStringLength: count,
-        maxNumberLength: 64,
-      },
-      maxReasoningText: count,
+const family = {
+  limits: {
+    toolArguments: {
+      maxBytes: count,
+      maxDepth: 32,
+      maxItems: 1_024,
+      maxMembers: 256,
+      maxStringLength: count,
+      maxNumberLength: 64,
     },
-    margin: { percent: '10', source: ADOPTION },
+    maxReasoningText: count,
   },
+  margin: { percent: '10', source: ADOPTION },
 }
+const config = { maxCitedCalls: 8, openai: family, anthropic: family, qwen: family }
 const profilesConfig = {
   retryPolicy: ADOPTION,
   compactionTriggerPercent: '80',

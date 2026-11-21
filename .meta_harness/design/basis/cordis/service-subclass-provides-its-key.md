@@ -1,18 +1,18 @@
 ---
 id: service-subclass-provides-its-key
 upstream: cordis
-version: 4.0.4
+version: 4.1.0
 kind: positive
 symbols:
   - "service.ts: Service 构造函数取 super(ctx, name) 给的服务名，以 ctx.reflect.provide(name, self, check) 登记自己"
-  - "reflect.ts: provide 把实现记在当前 fiber 名下，撤除由该 fiber 的 effect 负责"
+  - "reflect.ts: provide 把实现记进服务表与当前 fiber 的 provisions，撤除由该 fiber 的 effect 负责：先删服务表里的键并通知，等依赖方卸完才从 provisions 里删"
   - "service.ts: Service[Symbol.hasInstance] 沿构造函数链判定，子类实例也是抽象父类的实例"
 lines:
   - "service.ts:42-58"
-  - "service.ts:104-113"
-  - "reflect.ts:277-305"
+  - "service.ts:104-114"
+  - "reflect.ts:291-327"
 probe: packages/assembly/kernel-basis/tests/service-subclass-provides-its-key.spec.ts
-checked: 2026-11-15
+checked: 2026-11-20
 ---
 
 # 抽象 `Service` 子类作为插件加载，就在抽象类给的键上提供服务
@@ -34,7 +34,7 @@ checked: 2026-11-15
 
 **想当然的理解**：抽象类只是 TypeScript 的类型，实现类还得自己 `ctx.provide(键, this)` 一次。
 
-**实际（4.0.4 取证）**：`Service` 的构造函数本身就调 `ctx.reflect.provide(name, self, check)`，
+**实际（4.1.0 取证）**：`Service` 的构造函数本身就调 `ctx.reflect.provide(name, self, check)`，
 抽象父类给出 `name`，子类什么都不用做；登记归装载它的那条 fiber，随它撤除。
 
 ## 证据
@@ -47,7 +47,7 @@ checked: 2026-11-15
 
 ## 探针断言什么
 
-探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.0.4 核对：
+探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.1.0 核对：
 
 1. 抽象类 `super(ctx, 'probeGreeter')`、子类只实现 `greet`；`ctx.plugin(子类)` 之后 `ctx.get('probeGreeter')` 是抽象类的实例、方法可调；
    撤除那条 fiber 后 `ctx.get('probeGreeter')` 为 `undefined`。

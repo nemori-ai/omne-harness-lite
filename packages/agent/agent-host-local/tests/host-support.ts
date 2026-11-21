@@ -9,7 +9,6 @@ import {
   decodeAgentExecutionId,
   decodeExecutionAttachmentId,
   type Access,
-  type AgentAccountOutlet,
   type AgentClock,
   type AgentExecutionId,
   type AgentInstanceId,
@@ -24,7 +23,6 @@ import {
   ActionAdmissionService,
   AgentAccessCheckService,
   AgentAdoptionsService,
-  AgentAccountOutletService,
   AgentClockService,
   AgentJournalEntriesService,
   AgentJournalService,
@@ -35,10 +33,11 @@ import {
   DecisionCardsService,
   ExtensionImplementationsService,
   MessageHandoffService,
-  ModelContextReaderService,
   ModelSelectionService,
   RegisteredReadsService,
   RequestPreparationService,
+  ContextCompactionService,
+  CompactionInputStoreService,
   agentInstancesPlugin,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import type { AgentInstanceSlotInput } from '@omne-harness/agent-cordis-contract'
@@ -48,7 +47,6 @@ import {
   tenant,
   type TenantId,
 } from '@omne-harness/legal-identity'
-import { createMemoryAgentAccountOutlet } from '@omne-harness/agent-contract/testing'
 import type { Admission, ModelResultReceiver, ModelRuntime } from '@omne-harness/model-contract'
 import {
   ModelRuntimeService,
@@ -96,8 +94,11 @@ export const hostConfig: AgentHostConfig = {
   toolConcurrency: 1,
   jointCommits: [],
   coordination: 'standalone',
+  compactionProvider: {
+    authority: 'test-compaction',
+    adoption: { owner: 'test', name: 'compaction', revision: '1', digest: 'd' },
+  },
   loopGuardPolicy: { owner: 'agents', name: 'loop-guard', revision: '1', digest: 'sha256:guard' },
-  modelRetry: { maxAttempts: 1, maxElapsedMs: 0, delaysMs: [0], jitter: 0 },
   instanceIdleMs: IDLE_MS,
 }
 
@@ -147,8 +148,9 @@ export const INJECTED = [
   'agentAdoptions',
   'agentConditions',
   'agentRequests',
+  'agentCompaction',
+  'agentCompactionInputs',
   'agentModelSelection',
-  'agentModelContext',
   'agentMessageHandoff',
   'agentClock',
   'modelRuntime',
@@ -156,7 +158,6 @@ export const INJECTED = [
   'agentMaterials',
   'agentReceivedCommits',
   'agentModelReceptionTargets',
-  'agentAccountOutlet',
   'agentHostPrincipal',
 ] as const
 export type Injected = (typeof INJECTED)[number]
@@ -177,8 +178,9 @@ const services: Readonly<Record<Exclude<Injected, 'agentHostPrincipal'>, unknown
   agentAdoptions: AgentAdoptionsService,
   agentConditions: CurrentConditionsService,
   agentRequests: RequestPreparationService,
+  agentCompaction: ContextCompactionService,
+  agentCompactionInputs: CompactionInputStoreService,
   agentModelSelection: ModelSelectionService,
-  agentModelContext: ModelContextReaderService,
   agentMessageHandoff: MessageHandoffService,
   agentClock: AgentClockService,
   modelRuntime: ModelRuntimeService,
@@ -186,7 +188,6 @@ const services: Readonly<Record<Exclude<Injected, 'agentHostPrincipal'>, unknown
   agentMaterials: AgentMaterialsService,
   agentReceivedCommits: AgentReceivedCommitsService,
   agentModelReceptionTargets: ModelReceptionTargetsService,
-  agentAccountOutlet: AgentAccountOutletService,
 }
 
 export function serve(
@@ -251,7 +252,6 @@ export type World = Readonly<{
   quiesceAnswers: QuiesceScript[]
   plugin: AgentHostPlugin
   receivers: ModelResultReceiverTable<unknown>
-  outlet: ReturnType<typeof createMemoryAgentAccountOutlet<Principal>>
   refuseNext(operation: string, principal?: Principal): void
   advance(ms: number): void
   dispose(): Promise<void>
@@ -269,7 +269,6 @@ export type WorldOptions = Readonly<{
   dependencies?: TestAgentDependenciesOptions<Principal>
   stages?: boolean
   pushTo?: 'host'
-  outlet?: AgentAccountOutlet<Principal>
   clock?: (port: AgentClock) => AgentClock
   journal?: (port: AgentJournal<Principal>) => AgentJournal<Principal>
 }>
@@ -354,7 +353,6 @@ export async function openWorld(options: WorldOptions = {}): Promise<World> {
       : {}),
   })
   controls.tools.queries.contact.always(() => ({ ok: { kind: 'holding' } }))
-  const outlet = createMemoryAgentAccountOutlet<Principal>()
   const admits: Outcome<Admission, unknown>[] = []
   const models: ModelRuntime<Principal> = {
     ...dependencies.models,
@@ -412,8 +410,14 @@ export async function openWorld(options: WorldOptions = {}): Promise<World> {
     agentAdoptions: controls.adoptions.port,
     agentConditions: controls.conditions.port,
     agentRequests: controls.requests.port,
+    agentCompaction: dependencies.compaction,
+    agentCompactionInputs: {
+      ...dependencies.compactionInputs,
+      freeze: async () => ({
+        failure: { kind: 'unavailable', owner: 'fixture', diagnostic: 'not scripted' },
+      }),
+    },
     agentModelSelection: controls.selection.port,
-    agentModelContext: controls.modelContext.port,
     agentMessageHandoff: controls.handoff.port,
     agentClock: options.clock?.(controls.clock.port) ?? controls.clock.port,
     modelRuntime: models,
@@ -421,7 +425,6 @@ export async function openWorld(options: WorldOptions = {}): Promise<World> {
     agentMaterials: controls.materials.port,
     agentReceivedCommits: present(controls.journal.provider.received ?? undefined, 'received'),
     agentModelReceptionTargets: controls.journal.targets,
-    agentAccountOutlet: options.outlet ?? outlet,
   }
   const fibers: Record<string, Fiber> = {}
   for (const key of Object.keys(services) as (keyof typeof services)[]) {
@@ -479,7 +482,6 @@ export async function openWorld(options: WorldOptions = {}): Promise<World> {
     quiesceAnswers,
     plugin,
     receivers,
-    outlet,
     refuseNext(operation, principal) {
       refusals.push({ operation, principal })
     },

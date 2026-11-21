@@ -7,11 +7,14 @@ import {
   IconButton,
   InlineNotice,
   LoadingState,
+  ToastItem,
+  ToastStack,
   type ResolvedTheme,
   type ThemeChoice,
 } from '@omne-harness/ui-kit'
 import type { Connectivity } from '../connectivity.ts'
 import { useSlot, useWatched } from './hooks.ts'
+import { Item } from './item.tsx'
 import { useSidebarFoldMotion, type SidebarWidth } from './sidebar-motion.ts'
 import type { ShellState } from './state.ts'
 
@@ -30,6 +33,7 @@ export type ShellProps = Readonly<{
   state: ShellState
   connectivity: ConnectivitySource
   theme: ThemeSwitch
+  missingAtForwarding?: readonly string[]
 }>
 
 const CONNECTIVITY_TEXT: Readonly<Record<Connectivity, string>> = {
@@ -63,6 +67,15 @@ function Disconnected(props: { connectivity: Connectivity }) {
   )
 }
 
+function StaleApp(props: { missing: readonly string[] }) {
+  if (props.missing.length === 0) return null
+  return (
+    <InlineNotice tone="caution" role="alert" className="shell-banner" still>
+      {`应用的版本旧了，需要重启。它不认得这个页面要用的：${props.missing.join('、')}。`}
+    </InlineNotice>
+  )
+}
+
 function ConnectivityMark(props: { connectivity: Connectivity }) {
   return (
     <span className="shell-connectivity" data-connectivity={props.connectivity} role="status">
@@ -83,7 +96,7 @@ function Gate(props: { state: ShellState; connectivity: Connectivity }) {
         </InlineNotice>
       ) : null}
       {gate !== undefined ? (
-        gate.render({})
+        <Item key={gate.id} render={() => gate.render({})} />
       ) : props.connectivity === 'connecting' ? (
         <LoadingState label="正在连接服务……" />
       ) : (
@@ -98,10 +111,12 @@ function Outside(props: {
   state: ShellState
   login: ShellLoginState
   connectivity: Connectivity
+  missing: readonly string[]
 }) {
   return (
     <main className="shell-outside">
       <Disconnected connectivity={props.connectivity} />
+      <StaleApp missing={props.missing} />
       <span className="shell-brand shell-brand-outside">{props.appName}</span>
       {props.login === 'signing-out' ? (
         <LoadingState label="正在退出……" />
@@ -119,6 +134,8 @@ function PageLink(props: {
   choose: (id: string) => void
 }) {
   const Icon = props.page.icon === undefined ? undefined : ICONS[props.page.icon]
+  const { badge } = props.page
+  const { scope } = props
   return (
     <button
       type="button"
@@ -129,8 +146,10 @@ function PageLink(props: {
     >
       {Icon === undefined ? null : <Icon aria-hidden="true" />}
       <span className="shell-link-label">{props.page.title}</span>
-      {props.page.badge === undefined ? null : (
-        <span className="shell-nav-badge">{props.page.badge({ scope: props.scope })}</span>
+      {badge === undefined ? null : (
+        <span className="shell-nav-badge">
+          <Item quiet scope={scope} render={() => badge({ scope })} />
+        </span>
       )}
     </button>
   )
@@ -203,7 +222,7 @@ function Sidebar(props: {
         <div className="shell-navigation-main">
           {items.map(item => (
             <div key={item.id} className="shell-sidebar-item" data-item={item.id}>
-              {item.render({ scope })}
+              <Item scope={scope} render={() => item.render({ scope })} />
             </div>
           ))}
         </div>
@@ -220,15 +239,18 @@ function Workspace(props: {
   state: ShellState
   connectivity: Connectivity
   theme: ThemeSwitch
+  missing: readonly string[]
 }) {
   const pages = useSlot(props.state.slots, 'pages')
   const shown = useWatched(props.state.page)
+  const focus = useWatched(props.state.page.focus)
   const scope = useWatched(props.state.scope)
   return (
     <div className="app-shell">
       <Sidebar {...props} shown={shown} pages={pages} />
       <main className="shell-workspace">
         <Disconnected connectivity={props.connectivity} />
+        <StaleApp missing={props.missing} />
         {pages.map(page => (
           <section
             key={page.id}
@@ -237,7 +259,12 @@ function Workspace(props: {
             data-page={page.id}
             hidden={page.id !== shown}
           >
-            {page.render({ scope })}
+            <Item
+              scope={scope}
+              render={() =>
+                page.render(focus?.page === page.id ? { scope, subject: focus.subject } : { scope })
+              }
+            />
           </section>
         ))}
       </main>
@@ -245,9 +272,41 @@ function Workspace(props: {
   )
 }
 
+/** The toasts modules handed over; an action goes to its page and closes the toast. */
+function Toasts(props: { state: ShellState }) {
+  const { toasts, page } = props.state
+  const shown = useSyncExternalStore(toasts.subscribe, toasts.shown)
+  return (
+    <ToastStack label="提示">
+      {shown.map(({ key, toast }) => {
+        const { action } = toast
+        return (
+          <ToastItem
+            key={key}
+            tone={toast.tone}
+            title={toast.title}
+            {...(toast.body !== undefined && { body: toast.body })}
+            {...(action !== undefined && {
+              action: {
+                label: action.label,
+                onClick: () => {
+                  page.choose(action.page, action.subject)
+                  toasts.dismiss(key)
+                },
+              },
+            })}
+            onDismiss={() => toasts.dismiss(key)}
+          />
+        )
+      })}
+    </ToastStack>
+  )
+}
+
 export function Shell(props: ShellProps) {
   const login = useLoginState(props.state)
   const connectivity = useConnectivity(props.connectivity)
+  const missing = props.missingAtForwarding ?? []
   return (
     <AppTooltipProvider>
       {login === 'signed-in' ? (
@@ -256,6 +315,7 @@ export function Shell(props: ShellProps) {
           state={props.state}
           connectivity={connectivity}
           theme={props.theme}
+          missing={missing}
         />
       ) : (
         <Outside
@@ -263,8 +323,10 @@ export function Shell(props: ShellProps) {
           state={props.state}
           login={login}
           connectivity={connectivity}
+          missing={missing}
         />
       )}
+      <Toasts state={props.state} />
     </AppTooltipProvider>
   )
 }

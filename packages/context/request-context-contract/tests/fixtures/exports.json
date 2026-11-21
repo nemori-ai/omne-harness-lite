@@ -51,16 +51,6 @@
               "pending": false
             },
             {
-              "name": "planProgressSchema",
-              "kind": "value",
-              "pending": false
-            },
-            {
-              "name": "compactionPlanSchema",
-              "kind": "value",
-              "pending": false
-            },
-            {
               "name": "coverageSchema",
               "kind": "value",
               "pending": false
@@ -86,7 +76,17 @@
               "pending": false
             },
             {
-              "name": "ConversionIndex",
+              "name": "BlockPosition",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "NativeCapability",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "NativeRequirement",
               "kind": "type",
               "pending": false
             },
@@ -97,6 +97,21 @@
             },
             {
               "name": "chooseRepresentations",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "modalityOfBlock",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "nativeRequirement",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "unmetBy",
               "kind": "value",
               "pending": false
             },
@@ -131,32 +146,12 @@
               "pending": false
             },
             {
-              "name": "WindowUsageValue",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "windowRatio",
-              "kind": "value",
-              "pending": false
-            },
-            {
               "name": "compactionSettingsSchema",
               "kind": "value",
               "pending": false
             },
             {
-              "name": "windowUsageSchema",
-              "kind": "value",
-              "pending": false
-            },
-            {
               "name": "compactionSettingsBlock",
-              "kind": "value",
-              "pending": false
-            },
-            {
-              "name": "windowUsageBlock",
               "kind": "value",
               "pending": false
             },
@@ -167,26 +162,6 @@
             },
             {
               "name": "assembleSystemPrompt",
-              "kind": "value",
-              "pending": false
-            },
-            {
-              "name": "Placement",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "PlacementInput",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "SNAPSHOT_ANCHOR_RULE",
-              "kind": "value",
-              "pending": false
-            },
-            {
-              "name": "placeContext",
               "kind": "value",
               "pending": false
             },
@@ -224,11 +199,6 @@
               "pending": false
             },
             {
-              "name": "PlanId",
-              "kind": "type",
-              "pending": false
-            },
-            {
               "name": "EpochId",
               "kind": "type",
               "pending": false
@@ -260,16 +230,6 @@
             },
             {
               "name": "CommitOrder",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "AccountingGeneration",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "RecoveryGrantRef",
               "kind": "type",
               "pending": false
             },
@@ -314,11 +274,6 @@
               "pending": false
             },
             {
-              "name": "decodePlanId",
-              "kind": "value",
-              "pending": false
-            },
-            {
               "name": "decodeEpochId",
               "kind": "value",
               "pending": false
@@ -350,16 +305,6 @@
             },
             {
               "name": "decodeCommitOrder",
-              "kind": "value",
-              "pending": false
-            },
-            {
-              "name": "decodeAccountingGeneration",
-              "kind": "value",
-              "pending": false
-            },
-            {
-              "name": "decodeRecoveryGrantRef",
               "kind": "value",
               "pending": false
             },
@@ -410,11 +355,6 @@
             },
             {
               "name": "ContentControl",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "SnapshotIdentity",
               "kind": "type",
               "pending": false
             },
@@ -504,71 +444,6 @@
               "pending": false
             },
             {
-              "name": "AccountingOrigin",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "ReceivedAccountFact",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "ContextAccountingInput",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "AccountReceipt",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "ContextAccountingInbox",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "SystemRecoveryAccess",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "AccountReplay",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "RecoveryResult",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "ContextRecovery",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "AccountingSourceAuthority",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "RecoveryAuthority",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "AccountingLimits",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "AccountingOptions",
-              "kind": "type",
-              "pending": false
-            },
-            {
               "name": "HistoryRow",
               "kind": "type",
               "pending": false
@@ -594,27 +469,7 @@
               "pending": false
             },
             {
-              "name": "ConversionIndexResult",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "ConversionResultSource",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "RetainBudget",
-              "kind": "type",
-              "pending": false
-            },
-            {
               "name": "CompactionPolicy",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "CompactionPlanDraft",
               "kind": "type",
               "pending": false
             },
@@ -630,11 +485,6 @@
             },
             {
               "name": "RepresentationPolicyPort",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "RetentionMeasurement",
               "kind": "type",
               "pending": false
             },
@@ -719,12 +569,12 @@
               "pending": false
             },
             {
-              "name": "AdoptedRequestFact",
+              "name": "ContinuationPrefix",
               "kind": "type",
               "pending": false
             },
             {
-              "name": "CompactionBasis",
+              "name": "AdoptedRequestFact",
               "kind": "type",
               "pending": false
             },
@@ -735,21 +585,6 @@
             },
             {
               "name": "NewInputBatch",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "BlockMaterial",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "SnapshotMaterial",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "ContextReadGroup",
               "kind": "type",
               "pending": false
             },
@@ -824,16 +659,6 @@
               "pending": false
             },
             {
-              "name": "LayerAnchor",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "SnapshotAnchor",
-              "kind": "type",
-              "pending": false
-            },
-            {
               "name": "Coverage",
               "kind": "type",
               "pending": false
@@ -854,12 +679,12 @@
               "pending": false
             },
             {
-              "name": "SnapshotReminder",
+              "name": "RepresentationOption",
               "kind": "type",
               "pending": false
             },
             {
-              "name": "TailFacts",
+              "name": "RepresentationSource",
               "kind": "type",
               "pending": false
             },
@@ -870,36 +695,6 @@
             },
             {
               "name": "RequestCandidate",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "CompactionPlan",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "PlanProgress",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "SummaryMaterial",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "StepRequest",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "StepInput",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "ContextTransition",
               "kind": "type",
               "pending": false
             },
@@ -934,16 +729,6 @@
               "pending": false
             },
             {
-              "name": "PlanResult",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "StepResult",
-              "kind": "type",
-              "pending": false
-            },
-            {
               "name": "LAYER_ORDER",
               "kind": "value",
               "pending": false
@@ -956,11 +741,6 @@
             {
               "name": "callIdentity",
               "kind": "value",
-              "pending": false
-            },
-            {
-              "name": "DeriveInput",
-              "kind": "type",
               "pending": false
             },
             {
@@ -994,7 +774,12 @@
               "pending": false
             },
             {
-              "name": "forecastOf",
+              "name": "measureCandidate",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "projectMessageForModel",
               "kind": "value",
               "pending": false
             }
@@ -1038,11 +823,6 @@
               "pending": false
             },
             {
-              "name": "createMemoryConversionResults",
-              "kind": "value",
-              "pending": false
-            },
-            {
               "name": "createScriptedCompactionPolicy",
               "kind": "value",
               "pending": false
@@ -1069,11 +849,6 @@
             },
             {
               "name": "ScriptedInputMeter",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "MemoryConversionResults",
               "kind": "type",
               "pending": false
             },
@@ -1281,7 +1056,7 @@
     {
       "module": "@omne-harness/runtime-context-contract",
       "interface": "ContextBlocks",
-      "members": ["context.compaction-settings", "context.window-usage"],
+      "members": ["context.compaction-settings"],
       "pending": false
     }
   ]

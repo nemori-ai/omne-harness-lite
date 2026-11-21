@@ -4,9 +4,12 @@ import {
   type Access,
   type AgentExecutionId,
   type AgentJournal,
+  type AcceptedInput,
   type AgentOperationId,
+  type CommandReceipt,
   type ControlRecord,
   type ControlStage,
+  type ExecutionControl,
   type ExecutionSnapshot,
   type Failure,
   type PendingCall,
@@ -18,10 +21,12 @@ import {
   type ModelInvocationRef,
   type ModelOperationId,
 } from '@omne-harness/model-contract'
-import type {
-  ControlProgress,
-  ToolInvocationRef,
-  ToolOperationRef,
+import {
+  resolveToolInvocationRef,
+  type ControlProgress,
+  type ToolControl,
+  type ToolInvocationRef,
+  type ToolOperationRef,
 } from '@omne-harness/tool-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { AgentDependencies } from './construction.ts'
@@ -29,10 +34,7 @@ import { json } from './receiving-values.ts'
 import { canonical } from './canonical.ts'
 import { attemptWrite, originalJournal, type OriginalWrite } from './loop/original-write.ts'
 
-type ModelControl = Pick<ControlRecord, 'operation' | 'stages'> &
-  Readonly<{
-    command: Extract<ControlRecord['command'], { kind: 'interrupt-model' }>
-  }>
+type ModelControl = Extract<ControlRecord, { command: { kind: 'interrupt-model' } }>
 type Ports<P> = Pick<AgentDependencies<P, ContentBlock>, 'journal' | 'models' | 'materials'>
 
 const observationSchema = {
@@ -156,7 +158,6 @@ async function saveControlStage<P>(
 
 const UNKNOWN_MODEL_ANSWERS: ReadonlySet<string> = new Set(['unavailable', 'commit-unknown'])
 
-type ModelPending = Extract<PendingCall, { kind: 'model' }>
 type ModelControlScope<P> = Readonly<{
   ports: Ports<P>
   access: Access<P>
@@ -166,31 +167,6 @@ type ModelControlScope<P> = Readonly<{
   operation: ModelOperationId
   reference: ModelInvocationRef
 }>
-
-async function modelControlTarget<P>(
-  ports: Ports<P>,
-  access: Access<P>,
-  execution: AgentExecutionId,
-  record: ModelControl,
-): Promise<Outcome<ModelPending, Failure>> {
-  const loaded = await ports.journal.load({ ...access, execution })
-  if ('failure' in loaded) return loaded
-  const pending = [
-    ...loaded.ok.checkpoint.calls,
-    ...loaded.ok.effects.map(effect => effect.pending),
-  ].find(call => {
-    if (call.kind !== 'model') return false
-    const resolved = resolveModelInvocationRef(call.reference, access.tenant)
-    return 'ok' in resolved && resolved.ok.call === record.command.call
-  })
-  if (pending?.kind !== 'model')
-    return fail({
-      kind: 'unavailable',
-      owner: '@omne-harness/agent',
-      diagnostic: 'original model control reference is unavailable',
-    })
-  return succeed(pending)
-}
 
 async function saveModelStage<P>(
   scope: ModelControlScope<P>,
@@ -239,8 +215,6 @@ export async function advanceModelControl<P>(
   execution: AgentExecutionId,
   record: ModelControl,
 ): Promise<Outcome<void, Failure>> {
-  const pending = await modelControlTarget(ports, access, execution, record)
-  if ('failure' in pending) return pending
   const prefix = createHash('sha256')
     .update(JSON.stringify([execution, record.operation]))
     .digest('hex')
@@ -253,7 +227,7 @@ export async function advanceModelControl<P>(
     record,
     prefix,
     operation: operation.ok,
-    reference: pending.ok.reference,
+    reference: record.modelInvocation,
   }
   if (record.stages['intent-established'] === undefined) {
     const saved = await saveModelStage(
@@ -290,16 +264,25 @@ export async function advanceModelControl<P>(
   )
 }
 
+type ToolCommand = Extract<ExecutionControl, { kind: `${string}-tool` }>
 type ToolControlRecord = Pick<ControlRecord, 'operation' | 'stages'> &
   Readonly<{
-    command: Extract<ControlRecord['command'], { kind: 'interrupt-tool' | 'background-tool' }>
+    command: ToolCommand
     toolInvocation: ToolInvocationRef
     toolOperation: ToolOperationRef | null
   }>
 type ToolPorts<P> = Pick<AgentDependencies<P, ContentBlock>, 'journal' | 'tools' | 'materials'>
 
+// The one Tool intent each Agent Tool control asks for.
+const TOOL_INTENTS: Readonly<Record<ToolCommand['kind'], ToolControl>> = {
+  'interrupt-tool': { kind: 'stop' },
+  'background-tool': { kind: 'background', otherwise: 'reject' },
+  'release-tool': { kind: 'background', otherwise: 'withdraw' },
+  'withdraw-tool': { kind: 'withdraw', reach: 'foreground-and-unadmitted' },
+}
+
 export function toolControlOf(record: ControlRecord): ToolControlRecord | undefined {
-  return record.command.kind === 'interrupt-tool' || record.command.kind === 'background-tool'
+  return Object.hasOwn(TOOL_INTENTS, record.command.kind)
     ? (record as ToolControlRecord)
     : undefined
 }
@@ -380,7 +363,7 @@ export async function advanceToolControl<P>(
   const sent = await ports.tools.commands.control({
     ...access,
     reference: record.toolInvocation,
-    intent: record.command.kind === 'background-tool' ? { kind: 'background' } : { kind: 'stop' },
+    intent: TOOL_INTENTS[record.command.kind],
   })
   if (sent.kind === 'rejected')
     return save(
@@ -402,16 +385,19 @@ type ControlPorts<P> = Pick<
 
 export async function advanceAcceptedControl<P>(
   ports: ControlPorts<P>,
-  access: Access<P>,
+  given: Access<P>,
   execution: AgentExecutionId,
   operation: AgentOperationId,
 ): Promise<Outcome<void, Failure>> {
+  // A writer hands its whole control request in; each port gets the access alone, so the control's
+  // operation never names a material, a Tool command or a read of its own.
+  const access: Access<P> = { principal: given.principal, tenant: given.tenant }
   const loaded = await ports.journal.load({ ...access, execution })
   if ('failure' in loaded) return loaded
   const control = loaded.ok.controls.find(record => record.operation === operation)
   if (control === undefined) return succeed(undefined)
-  if (control.command.kind === 'interrupt-model')
-    return advanceModelControl(ports, access, execution, { ...control, command: control.command })
+  if (control.modelInvocation !== undefined)
+    return advanceModelControl(ports, access, execution, control)
   const tool = toolControlOf(control)
   if (tool !== undefined) return advanceToolControl(ports, access, execution, tool)
   return establishCancellation(ports.journal, access, execution, control)
@@ -528,4 +514,56 @@ export function createControlWriter<P>(ports: ControlPorts<P>): AgentJournal<P>[
         return 'failure' in advanced ? advanced : accepted
       },
     )
+}
+
+function releaseCommand<P>(
+  access: Access<P>,
+  pending: PendingCall,
+  reason: CommandReceipt['evidence'],
+): Outcome<ExecutionControl | null, Failure> {
+  const unresolved = fail({
+    kind: 'invalid' as const,
+    field: 'checkpoint.calls',
+    reason: 'a pending call reference does not resolve',
+  })
+  if (pending.kind === 'model') {
+    const parts = resolveModelInvocationRef(pending.reference, access.tenant)
+    return 'ok' in parts
+      ? succeed({ kind: 'interrupt-model', call: parts.ok.call, reason })
+      : unresolved
+  }
+  if (pending.association !== 'associated') return succeed(null)
+  const parts = resolveToolInvocationRef(pending.reference, access.tenant)
+  return 'ok' in parts ? succeed({ kind: 'release-tool', call: parts.ok.call, reason }) : unresolved
+}
+
+// An urgent input releases each call the current step waits on and does not wait for a physical
+// stop. The operations derive from the submit, so a resent submit recognizes what it wrote.
+export async function releaseForeground<P>(
+  ports: ControlPorts<P>,
+  input: Access<P> & Readonly<{ execution: AgentExecutionId; value: AcceptedInput }>,
+  answer: Outcome<CommandReceipt, Failure>,
+): Promise<Outcome<CommandReceipt, Failure>> {
+  if ('failure' in answer || input.value.priority !== 'urgent') return answer
+  const { execution } = input
+  const access = { principal: input.principal, tenant: input.tenant }
+  const loaded = await ports.journal.load({ ...access, execution })
+  if ('failure' in loaded) return loaded
+  if (loaded.ok.state.kind === 'ended' || cancellationOf(loaded.ok) !== undefined) return answer
+  const write = createControlWriter(ports)
+  for (const pending of loaded.ok.checkpoint.calls) {
+    const command = releaseCommand(access, pending, answer.ok.evidence)
+    if ('failure' in command) return command
+    if (command.ok === null) continue
+    const operation = controlOperation(
+      execution,
+      answer.ok.operation,
+      `release/${pending.reference}`,
+    )
+    const written = await write({ ...access, execution, operation, command: command.ok })
+    // A call that settled or an execution that ended since the read has nothing to release.
+    if ('failure' in written && !['invalid', 'terminal'].includes(written.failure.kind))
+      return written
+  }
+  return answer
 }

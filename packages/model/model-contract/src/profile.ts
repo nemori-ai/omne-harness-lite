@@ -1,6 +1,6 @@
 import type { Outcome } from '@omne-harness/operation-result'
 import type { OrganizationId, TenantId } from '@omne-harness/legal-identity'
-import type { Modality } from '@omne-harness/modality'
+import { judgeMediaType, type Modality } from '@omne-harness/modality'
 import type { ContentBlock, ContentReference } from '@omne-harness/content-block'
 import type { Message, MessageId } from '@omne-harness/message'
 import type { JsonValue } from '@omne-harness/json-text'
@@ -62,6 +62,7 @@ export type ModelProfileDefinition = Readonly<{
   suppliers: readonly [ProfileSupplier, ...ProfileSupplier[]]
   fallback: boolean
   input: readonly [ModelModality, ...ModelModality[]]
+  fileTypes?: readonly string[]
   output: readonly [ModelModality, ...ModelModality[]]
   context: ContextLimits
   limits: readonly ModelLimit[]
@@ -80,8 +81,27 @@ export type ModelProfile = Readonly<{
 }>
 export type ModalityRequirement = Readonly<{
   modalities: readonly [Modality, ...Modality[]]
+  fileTypes?: readonly string[]
   source: DurableEvidence
 }>
+
+export function isNativeFileType(value: string): boolean {
+  const judged = judgeMediaType(value)
+  return 'ok' in judged && judged.ok.mediaType === value && judged.ok.modality === null
+}
+
+/** File types are canonical media types of no modality; a profile covers what it takes natively. */
+export function profileCovers(
+  definition: Pick<ModelProfileDefinition, 'input' | 'fileTypes'>,
+  required: Pick<ModalityRequirement, 'modalities' | 'fileTypes'>,
+): boolean {
+  const input: readonly string[] = definition.input
+  const natively = (type: string): boolean => definition.fileTypes?.includes(type) ?? false
+  return (
+    required.modalities.every(modality => input.includes(modality)) &&
+    (required.fileTypes?.every(natively) ?? true)
+  )
+}
 export type ProfileResolution =
   | Readonly<{
       kind: 'resolved'
@@ -285,20 +305,38 @@ export type ReplayTreatment = Readonly<{
         thinking: ForeignThinking
       }>
   )
+/** Why a reasoning state was left out; never its payload. */
+export type ReplayOmission =
+  | 'scope'
+  | 'format'
+  | 'resent'
+  | 'no-prefix'
+  | 'prefix-history'
+  | 'prefix-system'
+  | 'prefix-tools'
+  | 'prefix-projection'
 export type ReplayDiagnostic = Readonly<{
   message: MessageId
   scope: string
   format: string
   omittedParts: number
+  reason: ReplayOmission
 }>
+/** Whether the reasoning state of the receiver holds only on the prefix it was produced on. */
+export type ReplayBinding = 'prefix' | 'none'
 export type ReplayProjectionInput = Readonly<{
   messages: readonly Message[]
   declaration: ReplayDeclaration
   formats: ReadonlySet<string>
   off: boolean
   resent: ReadonlySet<MessageId>
+  system: unknown
+  tools: unknown
+  binding: ReplayBinding
 }>
 export type ReplayProjection = Readonly<{
   treatments: readonly ReplayTreatment[]
   diagnostics: readonly ReplayDiagnostic[]
+  /** The prefix of the whole request: a reply produced by it records this in its replay mark. */
+  prefix: string
 }>

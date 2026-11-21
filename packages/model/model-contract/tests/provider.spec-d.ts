@@ -1,10 +1,15 @@
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { requestHead } from '@omne-harness/model-contract/provider'
+import type { ContentReference } from '@omne-harness/content-block'
+import type { Outcome } from '@omne-harness/operation-result'
 import { expectTypeOf, it } from 'vitest'
 import type {
   CallAccess,
   CallState,
+  DispatchProgress,
   MaterializationReceipt,
+  MaterializedMedium,
+  ModelFault,
   ModelHandle,
   ModelRuntime,
   Mutation,
@@ -30,8 +35,11 @@ import type {
   ModelClock,
   ModelCommands,
   ModelInstanceHost,
-  ModelMediaLease,
-  ModelMediaReader,
+  MaterializeFailure,
+  ModelMedia,
+  ModelMediaFailure,
+  ModelMediaLimits,
+  ModelMediaSource,
   ModelProvider,
   ModelRetryPolicy,
   ModelSendBoundary,
@@ -81,6 +89,12 @@ const state: CallState = {
   phase: 'accepted',
 }
 
+it('DispatchProgress is the optional progress of a call state, with the last fault or none', () => {
+  expectTypeOf<NonNullable<CallState['attempts']>>().toEqualTypeOf<DispatchProgress>()
+  expectTypeOf<DispatchProgress['last']>().toEqualTypeOf<ModelFault | null>()
+  expectTypeOf<DispatchProgress['notBefore']>().toEqualTypeOf<string | null>()
+})
+
 it('TransportFailure is the four failures that a transport can name', () => {
   expectTypeOf<TransportFailure['kind']>().toEqualTypeOf<
     'denied' | 'invalid' | 'unsupported' | 'unavailable'
@@ -90,35 +104,45 @@ it('TransportFailure is the four failures that a transport can name', () => {
   void unknown
 })
 
-it('an adapter can implement the payload converter and the media reader from the contract alone', () => {
+it('an adapter can implement the payload converter and the media source from the contract alone', () => {
   const payloads: ModelToolPayloadAdapter<{ name: string }> = {
     convertToModelPayload: declaration => ({ ok: { name: declaration.name } }),
   }
-  const lease: ModelMediaLease = { bytes: (async function* () {})(), close: async () => {} }
-  const reader: ModelMediaReader<string> = {
-    open: async () => ({ ok: lease }),
-  }
-  void [payloads, reader, tool]
+  const measurement = { reference, bytes: '3', mediaType: 'image/png', kind: 'file' } as const
+  const media: ModelMedia = { mediaType: 'image/png', bytes: new Uint8Array(3), measurement }
+  const source: ModelMediaSource<string> = { open: async () => ({ ok: media }) }
+  void [payloads, source, tool]
 })
 
-it('a media read names its invocation and cannot forge a managed identity for an independent call', () => {
-  const independent = {
-    principal: 'p',
-    tenant,
-    invocation: { kind: 'independent' },
-    request,
-    source: evidence,
-    reference,
-    recipient: 'r',
-  } as const
-  void independent
-  expectTypeOf<ModelMediaReader<string>['open']>().parameter(0).toHaveProperty('invocation')
-  const forged: Parameters<ModelMediaReader<string>['open']>[0]['invocation'] = {
-    kind: 'independent',
-    // @ts-expect-error an independent invocation has no managed call identity
-    call,
+it('a media read is asked with the access, the reference and the limits of the model, and answers one of three failures', () => {
+  const limits: ModelMediaLimits = {
+    mediaTypes: ['image/png'],
+    maxBytes: 4_194_304,
+    image: { maxWidth: 2000, maxHeight: 2000 },
   }
-  void forged
+  const noDimensions: ModelMediaLimits = { ...limits, image: null }
+  void noDimensions
+  expectTypeOf<Parameters<ModelMediaSource<string>['open']>[0]>().toEqualTypeOf<
+    Readonly<{ principal: string; tenant: typeof tenant }> &
+      Readonly<{ reference: typeof reference; limits: ModelMediaLimits }>
+  >()
+  expectTypeOf<ModelMediaFailure['kind']>().toEqualTypeOf<
+    'unavailable' | 'material-unavailable' | 'too-large'
+  >()
+  // @ts-expect-error a media read does not answer that the modality is unsupported
+  const unsupported: ModelMediaFailure = { kind: 'unsupported' }
+  void unsupported
+})
+
+it('a materialization fails as a transport does, or names the medium it could not send and why', () => {
+  expectTypeOf<ReturnType<PreparedTransport['materialize']>>().resolves.toEqualTypeOf<
+    Outcome<MaterializedTransport, MaterializeFailure>
+  >()
+  const gone: MaterializeFailure = { kind: 'media', reference, reason: 'material-unavailable' }
+  const over: MaterializeFailure = { kind: 'media', reference, reason: 'over-limit', limit: '9' }
+  // @ts-expect-error an over-limit refusal says the limit
+  const bare: MaterializeFailure = { kind: 'media', reference, reason: 'over-limit' }
+  void [gone, over, bare]
 })
 
 it('TransportTermination replaces the control with a confirmed stop', () => {
@@ -144,7 +168,19 @@ it('a materialization receipt names the supplier, the representation and the pay
     budget,
   }
   expectTypeOf<keyof MaterializationReceipt>().toEqualTypeOf<
-    'supplier' | 'representation' | 'payloadDigest' | 'replayFormat'
+    | 'supplier'
+    | 'representation'
+    | 'payloadDigest'
+    | 'media'
+    | 'replayFormat'
+    | 'replayPrefix'
+    | 'replayCarried'
+  >()
+  expectTypeOf<MaterializationReceipt['media']>().toEqualTypeOf<
+    readonly MaterializedMedium[] | undefined
+  >()
+  expectTypeOf<MaterializedMedium>().toEqualTypeOf<
+    Readonly<{ reference: ContentReference; mediaType: string; bytes: string }>
   >()
   void [noDigest, withBudget]
 })
@@ -203,7 +239,7 @@ it('dispatch plans and retry facts keep the policy position and the decision apa
   void [plan, retry, pending, decided, noSource]
 })
 
-it('RecoveryRecord holds the original request, the actor and the open work', () => {
+it('RecoveryRecord holds the original request, the actor, the held ending and the open work', () => {
   const record: RecoveryRecord = {
     state,
     request: requestHead(request),
@@ -212,9 +248,11 @@ it('RecoveryRecord holds the original request, the actor and the open work', () 
     execution: null,
     retry: null,
     retryPosition: null,
+    logicalTerminal: null,
     unresolved: [],
     tasks: ['execute', 'cleanup'],
   }
+  expectTypeOf<RecoveryRecord['logicalTerminal']>().toEqualTypeOf<Termination | null>()
   // @ts-expect-error an unlisted task
   const task: RecoveryRecord['tasks'] = ['restart']
   void [record, task]
@@ -286,14 +324,40 @@ it('a provider reports an account without the call and without the receipt', () 
 
 it('ProviderDiagnostic is the closed set of four diagnostics without a payload', () => {
   const diagnostics: ProviderDiagnostic[] = [
-    { kind: 'replay-omitted', message: message.id, scope: 's', format: 'f', omittedParts: 1 },
+    {
+      kind: 'replay-omitted',
+      message: message.id,
+      scope: 's',
+      format: 'f',
+      omittedParts: 1,
+      reason: 'scope',
+    },
     { kind: 'reasoning-disabled', reason: 'foreign-prefix' },
     { kind: 'reasoning-state-dropped', reason: 'payload-too-long', length: 9 },
     { kind: 'usage-inconsistent', field: 'completion_tokens' },
+    {
+      kind: 'upstream-transformed',
+      type: 'thinking_dropped',
+      path: 'messages.1.content.0',
+      reason: 'prefix_binding_mismatch',
+    },
   ]
   expectTypeOf<ProviderDiagnostic['kind']>().toEqualTypeOf<
-    'replay-omitted' | 'reasoning-disabled' | 'reasoning-state-dropped' | 'usage-inconsistent'
+    | 'replay-omitted'
+    | 'reasoning-disabled'
+    | 'reasoning-state-dropped'
+    | 'usage-inconsistent'
+    | 'upstream-transformed'
   >()
+  const transformed: ProviderDiagnostic = {
+    kind: 'upstream-transformed',
+    type: 'thinking_dropped',
+    path: 'messages.1.content.0',
+    reason: 'prefix_binding_mismatch',
+    // @ts-expect-error an upstream transformation says what, where and why, never the content
+    content: 'x',
+  }
+  void transformed
   const payload: ProviderDiagnostic = {
     kind: 'reasoning-state-dropped',
     reason: 'payload-too-long',

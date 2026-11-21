@@ -1,6 +1,12 @@
-export { agentBodyContract } from './body-contract.ts'
+export { agentBodyContract, agentDefinitionCategoryDisplay } from './body-contract.ts'
 export { obligationCategoryOf } from './finishing.ts'
-export { ATTRIBUTE_ITEMS, INSTRUCTION_LIMITS } from './definition.ts'
+export {
+  AGENT_TYPES,
+  ATTRIBUTE_ITEMS,
+  INSTRUCTION_LIMITS,
+  SUMMARY_LIMITS,
+  definitionListing,
+} from './definition.ts'
 export {
   ACTION_ADMISSION_DECLARATION,
   ACTION_ADMISSION_IMPLEMENTATION,
@@ -24,6 +30,8 @@ export type {
 } from './judge-output.ts'
 export type {
   AgentDefinition,
+  AgentDefinitionListing,
+  AgentType,
   AssetReference,
   AttributeDeclaration,
   AttributeItem,
@@ -41,6 +49,8 @@ export {
   decodeAgentOperationId,
   decodeAgentRegistrationId,
   decodeCardRoundId,
+  decodeCompactionOperationId,
+  decodeCompactionTaskId,
   decodeConsumptionId,
   decodeExecutionAttachmentId,
   decodeExecutionRevision,
@@ -56,6 +66,21 @@ export {
   judgeEvidence,
 } from './identity.ts'
 export type * from './evaluation.ts'
+export type * from './compaction.ts'
+export { compactionGeneration, compactionRequestText, compactionInputText } from './compaction.ts'
+export { acceptanceIn, openItems, type OpenScope } from './snapshot.ts'
+export {
+  encodeCompactionRequest,
+  decodeCompactionRequest,
+  encodeCompactionInput,
+  decodeCompactionInput,
+  encodeCompactionTaskState,
+  decodeCompactionTaskState,
+  encodeCompactionTaskRef,
+  decodeCompactionTaskRef,
+  decodeCompactionHandoff,
+  decodeCompactionOutcome,
+} from './compaction-codec.ts'
 export type * from './execution.ts'
 export type * from './extensions.ts'
 export type * from './finishing.ts'

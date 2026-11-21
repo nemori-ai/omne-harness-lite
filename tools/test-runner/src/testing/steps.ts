@@ -1,9 +1,21 @@
+import { isLegacyDirectory } from '@omne-harness/repo-toolchain/core/check-scope'
 import { baselines } from '@omne-harness/repo-toolchain/core/task-context'
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { availableParallelism } from 'node:os'
 import { dirname, join, relative, resolve } from 'node:path'
-import { budgetFor, describeBudget, type Budget } from './parallelism.ts'
+import { batchQueue } from './batches.ts'
+import {
+  describeBudget,
+  batchTarget,
+  memberDemand,
+  READING_VERSION,
+  WORKER_BUDGET_ENV,
+  type Budget,
+  type ParallelPolicy,
+} from './parallelism.ts'
+import { longestFirst, memberHistory, type MemberReading } from './member-history.ts'
+import { runJob, tierGate, tokenSource, type Gate, type TokenSource } from './token-pool.ts'
 import {
   changedFiles,
   coordinates,
@@ -28,12 +40,12 @@ import {
 import { checkTypecheckScopes } from './typecheck-scope.ts'
 import {
   CONFIG_PATH,
-  effectiveParallelism,
   ledgerHome,
   readTestRunsConfig,
   TIER_NAMES,
   type RunScript,
   type RunTier,
+  type TestRunsConfig,
 } from './config.ts'
 import {
   buildLedger,
@@ -51,6 +63,7 @@ import {
   cachePolicy,
   clearBuiltFrom,
   currentDigests,
+  keyEnvironment,
   outputDigests,
   readBuiltFrom,
   lookupCache,
@@ -69,16 +82,47 @@ import {
   type TestMember,
   type WorkspaceMember,
 } from '@omne-harness/repo-toolchain/core/workspace'
-import { runMembers, runTurboTests, slugOf } from './run.ts'
+import {
+  observedParallelism,
+  runMembers,
+  runTurboTests,
+  slugOf,
+  startupUse,
+  tokenUse,
+  type MemberSchedule,
+  type MemberSpan,
+} from './run.ts'
 import { buildTargets, pnpmCommand, timestamp } from './support.ts'
+import {
+  cachedResults,
+  describeReadSets,
+  digestMemo,
+  readSetHome,
+  readSetsRequested,
+  recordReadSets,
+  type DigestMemo,
+} from './read-sets.ts'
+import {
+  archiveLatest,
+  cachedRun,
+  carriedOf,
+  describeReuse,
+  floorOf,
+  floorReads,
+  planReuse,
+  reuseMeta,
+  skippedOf,
+  type Reuse,
+} from './read-set-skip.ts'
 import {
   tierWithRetry,
   writeTestStepReport,
   type FailedFile,
+  type Rerun,
   type RetriedFile,
   type RetryTier,
 } from './test-retry.ts'
-import { rerunInFile, type RerunOutcome } from './triage.ts'
+import { rerunInFile } from './triage.ts'
 import { TIER_TASKS } from './turbo.ts'
 
 export function runCachePolicy(
@@ -224,7 +268,12 @@ export function pythonStep(root: string, file: PlanFile): number {
   }
   console.log(`pytest：跑——${file.plan.python.reason}`)
   const runner = process.env['OMNE_RUNNER_ROOT']
-  const env: NodeJS.ProcessEnv = { PYTEST_XDIST_AUTO_NUM_WORKERS: '0', ...process.env }
+  const tokens = process.env[WORKER_BUDGET_ENV]
+  const env: NodeJS.ProcessEnv = {
+    PYTEST_XDIST_AUTO_NUM_WORKERS: '0',
+    ...(tokens === undefined || tokens === '' ? {} : { OMNE_PYTEST_WORKERS: tokens }),
+    ...process.env,
+  }
   return runner === undefined
     ? spawnInherited(
         root,
@@ -258,49 +307,80 @@ export function pythonStep(root: string, file: PlanFile): number {
       )
 }
 
+export function unbuiltMembers(
+  members: readonly WorkspaceMember[],
+  planned: ReadonlySet<string>,
+  built: (memberPath: string) => boolean,
+): WorkspaceMember[] {
+  return members.filter(
+    member =>
+      member.scripts['build'] !== undefined &&
+      !isLegacyDirectory(member.path) &&
+      !planned.has(member.path) &&
+      !built(member.path),
+  )
+}
+
 export function buildStep(root: string, file: PlanFile, budget: Budget, planPath?: string): number {
   const paths = file.plan.build.map(entry => entry.path)
-  if (paths.length === 0) {
-    console.log('构建：跳过——没有被选中的成员')
+  const unbuilt = unbuiltMembers(
+    listWorkspaceMembers(fileTree(root), readTestRunsConfig().affected.excludeRoots),
+    new Set(paths),
+    path => existsSync(join(root, path, 'dist')),
+  )
+  if (paths.length === 0 && unbuilt.length === 0) {
+    console.log('构建：跳过——没有被选中的成员，也没有缺构建产物的成员')
     return 0
   }
   console.log(
     `构建：${paths.length} 个成员及其上游——${paths.join('、')}（同时 ${budget.workers} 个；${describeBudget(budget)}）`,
   )
-  const names = membersAt(root, paths).map(member => member.name)
-  const recordPath = planPath === undefined ? undefined : builtFromPath(planPath)
-  if (recordPath !== undefined) clearBuiltFrom(recordPath)
-  let digests: ReadonlyMap<string, string> | undefined
-  if (recordPath !== undefined) {
-    try {
-      digests = currentDigests({
-        root,
-        targets: paths,
-        config: readTestRunsConfig(),
-        env: process.env,
-      })
-    } catch (error) {
-      console.log(
-        `构建记录：取不到输入摘要，不留记录，后面的测试不写缓存——${error instanceof Error ? error.message : String(error)}`,
-      )
-    }
-  }
+  if (unbuilt.length > 0)
+    console.log(
+      `构建：另有 ${unbuilt.length} 个成员没有构建产物（dist），一并构建——${unbuilt.map(member => member.path).join('、')}`,
+    )
+  const names = [...membersAt(root, paths), ...unbuilt].map(member => member.name)
+  const finish = startBuiltRecord(root, file.head, paths, planPath)
   const code = turboBuild(root, names, admissionRequested(process.env), budget.workers)
-  if (code === 0 && recordPath !== undefined && digests !== undefined)
+  finish(code)
+  return code
+}
+
+function startBuiltRecord(
+  root: string,
+  head: string,
+  paths: readonly string[],
+  planPath: string | undefined,
+): (buildExit: number) => void {
+  if (planPath === undefined) return () => undefined
+  const recordPath = builtFromPath(planPath)
+  clearBuiltFrom(recordPath)
+  const config = readTestRunsConfig()
+  const skip = (what: string, error: unknown) =>
+    console.log(
+      `构建记录：取不到${what}，不留记录，后面的测试不写缓存——${error instanceof Error ? error.message : String(error)}`,
+    )
+  let inputs: ReadonlyMap<string, string>
+  try {
+    inputs = currentDigests({ root, targets: paths, config, env: process.env })
+  } catch (error) {
+    skip('输入摘要', error)
+    return () => undefined
+  }
+  return buildExit => {
+    if (buildExit !== 0) return
     try {
-      const outputs = outputDigests({ root, targets: paths, config: readTestRunsConfig() })
+      const outputs = outputDigests({ root, targets: paths, config })
       const members = new Map<string, Required<BuiltMember>>()
-      for (const [member, input] of digests) {
+      for (const [member, input] of inputs) {
         const output = outputs.get(member)
         if (output !== undefined) members.set(member, { input, output })
       }
-      writeBuiltFrom(recordPath, file.head, members)
+      writeBuiltFrom(recordPath, head, members)
     } catch (error) {
-      console.log(
-        `构建记录：取不到产物摘要，不留记录，后面的测试不写缓存——${error instanceof Error ? error.message : String(error)}`,
-      )
+      skip('产物摘要', error)
     }
-  return code
+  }
 }
 
 function unbuiltReason(read: Exclude<BuiltFromRead, { status: 'ok' }>, head: string): string {
@@ -373,9 +453,11 @@ export interface RecordedRun {
   readonly base: RunMeta['base']
   readonly plan: RunMeta['plan']
   readonly scope?: RunMeta['scope']
-  readonly budget: Budget
+  readonly tokens: TokenSource
   readonly builtFrom?: ReadonlyMap<string, BuiltMember>
   readonly cache?: CachePolicy
+  readonly gate?: Gate
+  readonly onMember?: (member: string, exitCode: number) => void
 }
 
 function runDirOf(run: RecordedRun): string {
@@ -395,40 +477,122 @@ export interface RecordedOutcome {
   readonly runDir: string
 }
 
-export async function recordedRun(root: string, run: RecordedRun): Promise<RecordedOutcome> {
-  const { script, tier, targets, budget } = run
+function recordedReadSets(
+  root: string,
+  run: RecordedRun,
+  runDir: string,
+  runs: readonly MemberRun[],
+  reuse: {
+    readonly plan: ReadonlyMap<string, ReadonlyMap<string, Reuse>>
+    readonly memo: DigestMemo
+  },
+): string[] {
   const config = readTestRunsConfig()
-  const parallel = effectiveParallelism(config, process.env, budget)
+  const home = readSetHome(run.at.mainRoot, process.env)
+  const floor = floorOf(config.affected.globalPaths)
+  const workspace = listWorkspaceMembers(fileTree(root), config.affected.excludeRoots).map(
+    member => member.path,
+  )
+  const env = keyEnvironment(process.env, config.cache)
+  const members = recordReadSets({
+    root,
+    home,
+    runDir,
+    tier: run.tier,
+    head: run.at.head,
+    recordedAt: new Date().toISOString(),
+    members: runs.map(member => ({ path: member.member, slug: slugOf(member.member) })),
+    extras: (_member, slug) => ({
+      floor: reads => floorReads(reads, workspace, floor),
+      cached: cachedResults(root, runDir, slug),
+      env,
+      before: reuse.memo.peek,
+    }),
+    carry: member => carriedOf(reuse.plan, member),
+    archive: slug => archiveLatest(home, slug, run.tier),
+  })
+  writeFileSync(join(runDir, 'read-sets.json'), `${JSON.stringify({ members }, null, 1)}\n`)
+  return describeReadSets(members)
+}
+
+function reuseFor(
+  root: string,
+  run: RecordedRun,
+  config: TestRunsConfig,
+  toRun: readonly TestMember[],
+  memo: DigestMemo,
+): Map<string, Map<string, Reuse>> {
+  if (run.script !== 'test' || run.cache?.read !== true) return new Map()
+  const reuse = planReuse({
+    home: readSetHome(run.at.mainRoot, process.env),
+    tier: run.tier,
+    members: toRun.map(member => member.path),
+    slug: slugOf,
+    env: keyEnvironment(process.env, config.cache),
+    digest: memo.digest,
+  })
+  for (const line of describeReuse(reuse)) console.log(line)
+  return reuse
+}
+
+function scheduleOf(
+  policy: ParallelPolicy,
+  tier: RunTier,
+  history: ReadonlyMap<string, MemberReading>,
+  source: TokenSource,
+  root: string,
+  reuse: ReadonlyMap<string, ReadonlyMap<string, Reuse>>,
+): MemberSchedule {
+  return {
+    source,
+    demand: (member, files) => {
+      const reading = history.get(member.path)
+      return memberDemand(policy, member.path, tier, files ?? reading?.files, reading?.weights)
+    },
+    batches: members =>
+      batchQueue(
+        members.map(member => member.path),
+        member => history.get(member)?.fileTimes ?? [],
+        member => batchTarget(policy, history.get(member)?.startupSeconds),
+        member => skippedOf(reuse, member),
+      ),
+    cached: member => cachedRun(member, root, reuse.get(member) ?? new Map()),
+  }
+}
+
+export async function recordedRun(root: string, run: RecordedRun): Promise<RecordedOutcome> {
+  const { script, tier, targets, tokens } = run
+  const admission = admissionRequested(process.env)
+  const readSets = script === 'test' && readSetsRequested(process.env, admission)
+  const config = readTestRunsConfig()
   const runDir = runDirOf(run)
   mkdirSync(runDir, { recursive: true })
-  if (script === 'acceptance' && run.build && !buildTargets(root, targets, runDir, budget.workers))
+  if (
+    script === 'acceptance' &&
+    run.build &&
+    !(await runJob(
+      {
+        want: tokens.capacity,
+        min: 1,
+        label: 'build',
+        run: async (granted: number) => buildTargets(root, targets, runDir, granted),
+      },
+      tokens,
+    ))
+  )
     return { exitCode: 1, failures: [], runDir }
-
-  const found =
-    script === 'test' && run.cache !== undefined
-      ? lookupCache({
-          root,
-          mainRoot: run.at.mainRoot,
-          targets: targets.map(member => member.path),
-          tier,
-          policy: run.cache,
-          config,
-          env: process.env,
-        })
-      : undefined
-  const builtFrom =
-    found === undefined
-      ? undefined
-      : (run.builtFrom ??
-        (run.build
-          ? new Map([...found.keys].map(([member, { digest }]) => [member, { input: digest }]))
-          : undefined))
-  const lookup =
-    found === undefined || builtFrom === undefined ? found : { ...found, built: builtFrom }
+  const history = memberHistory(ledgerHome(script, run.at.mainRoot, process.env), tier)
+  const lookup = lookupFor(root, run, config)
   const hits = lookup?.hits ?? new Map<string, never>()
   const toRun = targets.filter(member => !hits.has(member.path))
   if (lookup !== undefined)
     for (const line of describeLookup(lookup, targets.length)) console.log(line)
+  const memo = digestMemo(root)
+  const reuse = reuseFor(root, run, config, toRun, memo)
+  const schedule = {
+    ...scheduleOf(config.parallel, tier, history, tokens, root, reuse),
+    ...(run.gate === undefined ? {} : { gate: run.gate }),
+  }
 
   const meta = {
     script,
@@ -438,54 +602,54 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<Recor
     dirty: run.at.dirty,
     base: run.base,
     startedAt: new Date().toISOString(),
-    parallel,
-    cores: budget.machine.cores,
+    cores: availableParallelism(),
     plan: run.plan,
     ...(run.scope === undefined ? {} : { scope: run.scope }),
     members: targets.map(member => member.path),
-    budget: {
-      workers: budget.workers,
-      idleFraction: Math.round(budget.machine.idleFraction * 100) / 100,
-      freeMemoryMiB: budget.machine.freeMemoryMiB,
-    },
   }
   if (script === 'test' && toRun.length === 0)
     console.log(`${targets.length} 个成员全部命中缓存，没有执行（${TIER_NAMES[tier]}）`)
   else
     console.log(
       `跑 ${toRun.length} 个成员的 \`${script}\`${script === 'test' ? `（${TIER_NAMES[tier]}）` : ''}：` +
-        `同时 ${parallel.memberConcurrency} 个成员、每个至多 ${parallel.vitestMaxWorkers} 个工作进程（${describeBudget(budget)}）`,
+        (script === 'test'
+          ? `每一批当一件活去要令牌（共 ${tokens.capacity} 个）：上一次合计超过目标时长的成员按文件耗时切成几批（目标时长至少 ${config.parallel.batchSeconds} 秒，启动开销长的成员放大到启动只占一批的 ${Math.round(config.parallel.startupShare * 100)}%），没有读数的批先要，其余预计长的先要；`
+          : `每个成员当一件活去要令牌（共 ${tokens.capacity} 个），上一次用时长的先要；`) +
+        '拿到的令牌按这个成员一个进程实测用几个核折成进程数（没有读数时取 test-runs.config.json 的 parallel.tokensPerWorker，再没有按 1）',
     )
   const started = Date.now()
   let finishedBefore = 0
+  const layer = script === 'test' ? `${TIER_NAMES[tier]} ` : ''
   for (const [member, entry] of hits) {
     finishedBefore += 1
+    run.onMember?.(member, 0)
     console.log(
-      `[${finishedBefore}/${targets.length}] ✓ ${member} 缓存命中，${entry.tests} 条用例，取自 ${entry.head.slice(0, 9)} 在 ${entry.recordedAt} 的运行，来源 ${entry.ledger}`,
+      `[${layer}${finishedBefore}/${targets.length}] ✓ ${member} 缓存命中，${entry.tests} 条用例，取自 ${entry.head.slice(0, 9)} 在 ${entry.recordedAt} 的运行，来源 ${entry.ledger}`,
     )
   }
   const report = (done: MemberRun, finished: number) => {
+    run.onMember?.(done.member, done.exitCode)
     const tests = done.report === undefined ? undefined : testCount(done.report)
     console.log(
-      `[${finishedBefore + finished}/${targets.length}] ${done.exitCode === 0 ? '✓' : '✗'} ${done.member} ${Math.round(done.wallSeconds)} 秒` +
+      `[${layer}${finishedBefore + finished}/${targets.length}] ${done.exitCode === 0 ? '✓' : '✗'} ${done.member} ${Math.round(done.wallSeconds)} 秒` +
         (tests === undefined ? '' : `，${tests} 条用例`) +
         (done.exitCode === 0
           ? ''
           : `，退出码 ${done.exitCode}，日志 ${join(runDir, `${slugOf(done.member)}.log`)}`),
     )
   }
-  const runs =
+  const { runs, spans } =
     script !== 'test'
-      ? await runMembers(root, targets, runDir, parallel, script, report)
+      ? await runMembers(root, longestFirst(targets, history), runDir, schedule, script, report)
       : toRun.length === 0
-        ? []
+        ? { runs: [], spans: [] }
         : await runTurboTests(
             root,
-            toRun,
+            longestFirst(toRun, history),
             runDir,
-            parallel,
+            schedule,
             tier,
-            { build: run.build, admission: admissionRequested(process.env) },
+            { build: run.build, admission, readSets },
             report,
           )
   const wallSeconds = (Date.now() - started) / 1000
@@ -496,7 +660,7 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<Recor
           ledger: runDir,
           head: run.at.head,
           dirty: run.at.dirty,
-          admission: admissionRequested(process.env),
+          admission,
         })
   for (const line of recorded?.skipped ?? []) console.log(`测试缓存：${line}`)
   const cache =
@@ -511,14 +675,27 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<Recor
     runDir,
     ...(hits.size === 0 ? {} : { cachedMembers: hits.size }),
   })
+  for (const line of [tokenUse(spans), startupUse(spans)])
+    if (line !== undefined) summary.push(line)
   if (ledger.failures.length > 0)
     summary.push(`对这些失败做隔离重跑：pnpm run test:triage --run ${runDir}`)
   if (lookup !== undefined && recorded !== undefined)
     summary.push(...describeCacheResult(lookup, recorded))
-  writeFileSync(
-    join(runDir, 'ledger.json'),
-    `${JSON.stringify({ meta: { ...meta, wallSeconds: Math.round(wallSeconds), ...cache }, ...ledger } satisfies LedgerFile & { meta: { budget: unknown; cache?: unknown } }, null, 1)}\n`,
-  )
+  summary.push(...describeReuse(reuse))
+  if (readSets && runs.length > 0)
+    summary.push(...recordedReadSets(root, run, runDir, runs, { plan: reuse, memo }))
+  const file = {
+    meta: {
+      ...meta,
+      parallel: observedParallelism(spans),
+      wallSeconds: Math.round(wallSeconds),
+      ...cache,
+      ...(reuse.size === 0 ? {} : { readSetReuse: reuseMeta(reuse) }),
+      tokens: { capacity: tokens.capacity, jobs: tokenJobs(spans, started) },
+    },
+    ...ledger,
+  } satisfies LedgerFile & { meta: { tokens: unknown; cache?: unknown } }
+  writeFileSync(join(runDir, 'ledger.json'), `${JSON.stringify(file, null, 1)}\n`)
   writeFileSync(join(runDir, 'summary.md'), `${summary.join('\n')}\n`)
   console.log(summary.join('\n'))
   return {
@@ -526,6 +703,45 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<Recor
     failures: ledger.failures,
     runDir,
   }
+}
+
+function lookupFor(
+  root: string,
+  run: RecordedRun,
+  config: TestRunsConfig,
+): CacheLookup | undefined {
+  if (run.script !== 'test' || run.cache === undefined) return undefined
+  const found = lookupCache({
+    root,
+    mainRoot: run.at.mainRoot,
+    targets: run.targets.map(member => member.path),
+    tier: run.tier,
+    policy: run.cache,
+    config,
+    env: process.env,
+  })
+  const builtFrom =
+    run.builtFrom ??
+    (run.build
+      ? new Map([...found.keys].map(([member, { digest }]) => [member, { input: digest }]))
+      : undefined)
+  return builtFrom === undefined ? found : { ...found, built: builtFrom }
+}
+
+function tokenJobs(spans: readonly MemberSpan[], started: number) {
+  return spans.map(span => ({
+    member: span.member,
+    ...(span.batch === undefined ? {} : { batch: span.batch }),
+    tokens: span.tokens,
+    workers: span.workers,
+    perWorker: span.perWorker,
+    weightSource: span.weightSource,
+    readingVersion: READING_VERSION,
+    ...(span.cpuSeconds === undefined ? {} : { cpuSeconds: span.cpuSeconds }),
+    ...(span.startupSeconds === undefined ? {} : { startupSeconds: span.startupSeconds }),
+    start: Math.round((span.start - started) / 100) / 10,
+    end: Math.round((span.end - started) / 100) / 10,
+  }))
 }
 
 function describeLookup(lookup: CacheLookup, total: number): string[] {
@@ -603,20 +819,21 @@ export async function testStep(
     ...(builtFrom === undefined ? {} : { builtFrom }),
   } as const
   const report = { failures: [] as FailedFile[], retried: [] as RetriedFile[] }
+  const tokens = tokenSource(root, process.env, config.parallel.reserveCores)
+  const rerun = (failed: FailedFile) => rerunFailedFile(root, failed, tokens)
   let code = 0
   if (targets.length > 0) {
     console.log(
-      `成员测试：${file.plan.mode === 'full' ? '全部' : resumed === undefined ? '按影响面' : '按 H1..HEAD 影响面'} ${targets.length} 个成员的快层，快层通过再跑慢层`,
+      `成员测试：${file.plan.mode === 'full' ? '全部' : resumed === undefined ? '按影响面' : '按 H1..HEAD 影响面'} ${targets.length} 个成员，快慢两层同时起：一个成员的快层过了，它的慢层就排队；快层最终没过时不再起新的慢层批`,
     )
-    code = await fastThenSlow(async tier => {
+    code = await fastWithSlow(async (tier, hooks) => {
       const outcome = await tierWithRetry(
         tier,
-        async () =>
-          recordedRun(root, { ...common, tier, cache, budget: await budgetFor(config.parallel) }),
-        failed => rerunFailedFile(root, failed),
+        async () => recordedRun(root, { ...common, tier, cache, tokens, ...hooks }),
+        rerun,
         console.log,
       )
-      report.failures = [...outcome.failures]
+      report.failures = [...report.failures, ...outcome.failures]
       report.retried = [...report.retried, ...outcome.retried]
       return outcome.exitCode
     }, console.log)
@@ -628,8 +845,8 @@ export async function testStep(
       `成员测试（接续）：H1 上失败的 ${resumed.files.length} 个文件里 ${alone.length} 个单独各跑一次（其余所在成员已整个跑过），成员串行、每成员 1 个工作进程`,
     )
     for (const failed of alone) {
-      const outcome = await rerunFailedFile(root, failed)
-      console.log(`  ${failed.file}（${failed.tier}）→ ${outcome}`)
+      const { outcome, log } = await rerun(failed)
+      console.log(`  ${failed.file}（${failed.tier}）→ ${outcome}，日志 ${log}`)
       if (outcome !== 'passed') {
         code = 1
         report.failures.push(failed)
@@ -649,25 +866,59 @@ export function resumeFilesToRun(
   return files.filter(file => !coveredMembers.has(file.member))
 }
 
-async function rerunFailedFile(root: string, failed: FailedFile): Promise<RerunOutcome> {
+async function rerunFailedFile(
+  root: string,
+  failed: FailedFile,
+  tokens: TokenSource,
+): Promise<Required<Rerun>> {
   const base = join(
     ledgerHome('test', coordinates(root, undefined).mainRoot, process.env),
     'retry',
     `${timestamp(new Date())}-${slugOf(failed.member)}-${failed.file.split('/').at(-1) ?? 'file'}`,
   )
   mkdirSync(dirname(base), { recursive: true })
-  return rerunInFile(root, TIER_TASKS[failed.tier], failed.member, failed.file, undefined, base)
+  const { min } = memberDemand(readTestRunsConfig().parallel, failed.member, failed.tier, 1)
+  const outcome = await runJob(
+    {
+      want: min,
+      min,
+      label: `${failed.member}:${failed.file}:retry`,
+      run: () =>
+        rerunInFile(root, TIER_TASKS[failed.tier], failed.member, failed.file, undefined, base),
+    },
+    tokens,
+  )
+  return { outcome, log: `${base}.log` }
 }
 
-export async function fastThenSlow(
-  run: (tier: RetryTier) => Promise<number>,
+export interface TierHooks {
+  readonly gate?: Gate
+  readonly onMember?: (member: string, exitCode: number) => void
+}
+
+export async function fastWithSlow(
+  run: (tier: RetryTier, hooks: TierHooks) => Promise<number>,
   note: (text: string) => void,
 ): Promise<number> {
-  if ((await run('fast')) !== 0) {
-    note('快层未通过：慢层没有跑，这一步失败')
+  const gate = tierGate()
+  const fast = run('fast', { onMember: gate.done })
+  const slow = run('slow', { gate: gate.gate })
+  slow.catch(() => undefined)
+  let fastCode: number
+  try {
+    fastCode = await fast
+  } catch (error) {
+    gate.settle(1)
+    await slow.catch(() => undefined)
+    throw error
+  }
+  gate.settle(fastCode)
+  const slowCode = await slow
+  if (fastCode !== 0) {
+    note('快层未通过：没有再起新的慢层批，这一步失败')
     return 1
   }
-  return (await run('slow')) === 0 ? 0 : 1
+  return slowCode === 0 ? 0 : 1
 }
 
 export function recordSkippedAcceptance(
@@ -706,11 +957,7 @@ export function recordSkippedAcceptance(
   return path
 }
 
-export async function acceptanceStep(
-  root: string,
-  file: PlanFile,
-  budget: Budget,
-): Promise<number> {
+export async function acceptanceStep(root: string, file: PlanFile): Promise<number> {
   const config = readTestRunsConfig()
   const accepting = listTestMembers(root, config.affected.excludeRoots, 'acceptance')
   const selected = new Set(file.plan.acceptance)
@@ -738,7 +985,7 @@ export async function acceptanceStep(
     base: file.plan.mode === 'full' ? null : file.base,
     plan: planSummary(file.plan),
     scope: { reason: file.plan.reason, skipped },
-    budget,
+    tokens: tokenSource(root, process.env, config.parallel.reserveCores),
   })
   return outcome.exitCode
 }

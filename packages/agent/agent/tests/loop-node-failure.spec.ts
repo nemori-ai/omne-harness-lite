@@ -41,6 +41,7 @@ function coordinator(
   return createExecutionCoordinator({
     ports: assembly.dependencies,
     binding: options().binding,
+    compactionProvider: options().configuration.compactionProvider,
     evaluator: agentEvaluator,
     access: alice,
     execution: execution(),
@@ -445,6 +446,7 @@ describe('an accepted node failure', () => {
               recovered: false,
               state: {
                 call,
+                label: { intent: null, tool: 'read_file', command: null, preview: '' },
                 revision: ok(decodeToolRevision('1')),
                 source: evidence('accepted-tool'),
                 phase: 'accepted',

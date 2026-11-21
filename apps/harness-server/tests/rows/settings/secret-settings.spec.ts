@@ -12,6 +12,7 @@ import { fixtureTenant } from '../../entry/support.ts'
 
 const A = fixtureTenant('a')
 const WEB = { category: 'tool', name: 'Web' }
+const WEB_OWNER = { kind: 'asset', ...WEB }
 const ITEM = 'exa.apiKey'
 const SENTINEL = 'exa-sentinel-face-41c7d9'
 const principal = {} as never
@@ -22,6 +23,7 @@ const TEXT = {
   purpose: 'The key search sends to Exa.',
   appliesAt: 'Applies from the next read of the item.',
   clearEffect: 'Search is unconfigured until a key is set again.',
+  group: { id: 'web', title: 'Web', description: 'Web search' },
 }
 
 function secretView(itemId: string, presence: SecretPresence): SecretItemView {
@@ -227,7 +229,7 @@ describe('the secret face: the view', () => {
       kind: 'listed',
       items: [
         {
-          asset: WEB,
+          owner: WEB_OWNER,
           item: ITEM,
           revision: '0',
           declaration,
@@ -237,7 +239,7 @@ describe('the secret face: the view', () => {
           editable: { kind: 'yes' },
         },
         {
-          asset: WEB,
+          owner: WEB_OWNER,
           item: second,
           revision: '0',
           declaration,

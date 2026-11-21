@@ -67,7 +67,6 @@ export function access(): ManagementAccess {
       since: now,
       observedAt: now,
     },
-    consentLock: { kind: 'clear' },
   }
 }
 export function observation(
@@ -135,7 +134,6 @@ export function record(control: ScheduleControl = 'active'): ScheduleRecord {
   return {
     view,
     activationExclusive: control === 'draft' ? null : now,
-    consentLock: { kind: 'clear' },
     quota: { kind: 'held', reservationRef: 'reservation:old' },
     adoptedBasis: observation(definition, 2).basis,
     definitionRef: createScheduleDefinitionRef(view),
@@ -145,7 +143,7 @@ export function command(action: ScheduleCommand['action']): ScheduleCommand {
   const common = {
     action,
     scheduleId,
-    meta: { operationKey: `operation:${action}`, expectedRevision: 4, consentRef: null },
+    meta: { operationKey: `operation:${action}`, expectedRevision: 4 },
   }
   switch (action) {
     case 'update':
@@ -161,12 +159,6 @@ export function command(action: ScheduleCommand['action']): ScheduleCommand {
       })
     case 'replace':
       return ScheduleCommandSchema.parse({ ...common, successor: definition, reason: 'New intent' })
-    case 'reconfirmConsent':
-      return ScheduleCommandSchema.parse({
-        ...common,
-        newConsentRef: 'grant:new',
-        reason: 'Confirm',
-      })
     default:
       return ScheduleCommandSchema.parse({ ...common, reason: null })
   }
@@ -177,22 +169,7 @@ export function decisionInput(
 ): ManagementDecisionInput {
   const input = command(action)
   const request: ManagementRequest = { kind: 'execute', input }
-  let authorized = access()
-  if (action === 'reconfirmConsent')
-    authorized = {
-      ...authorized,
-      consent: {
-        kind: 'adopt',
-        guardRef: 'guard:consent',
-        adoption: {
-          grantRef: 'grant:new',
-          generation: 2,
-          adoptionKind: 'blanket',
-          scope: 'standing',
-          adoptedAt: now,
-        },
-      },
-    }
+  const authorized = access()
   return {
     requestId: context.requestId,
     request,
@@ -226,7 +203,7 @@ export function createInput(initial: 'active' | 'draft' = 'active'): ManagementD
     input: {
       definition,
       initial: initial === 'active' ? { kind: 'active' } : { kind: 'draft', reason: 'Prepare' },
-      meta: { operationKey: 'create:one', expectedRevision: null, consentRef: null },
+      meta: { operationKey: 'create:one', expectedRevision: null },
     },
   }
   return {

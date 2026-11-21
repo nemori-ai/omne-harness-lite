@@ -16,8 +16,10 @@ import {
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
+import type { WorkSnapshot } from '@omne-harness/session-contract'
 import type { SessionFaces, SessionTransactionPort } from '@omne-harness/session-contract'
 import { memoryOtherAccess } from '@omne-harness/session-contract/testing'
+import { backgroundInputId } from '@omne-harness/session-contract'
 import {
   SessionService,
   sessionTransactionsKey,
@@ -77,7 +79,8 @@ function textOf(tenant: TenantId): string {
 
 function deliveryOf(draft: Draft): Record<string, unknown> {
   const { delivery } = draft
-  if (delivery.producer !== 'tool') throw new Error('fixture: a Tool entry')
+  if (delivery.producer !== 'tool' || !('account' in delivery))
+    throw new Error('fixture: a Tool entry with an account')
   return delivery.key.kind === 'result'
     ? {
         kind: 'result',
@@ -115,7 +118,11 @@ const reader: ToolDeliveryReader = material => {
 }
 
 function resultEntry(account: ReceivedEntry, reported = true): ReceivedEntry {
-  if (account.delivery.producer !== 'tool' || account.delivery.key.kind !== 'account')
+  if (
+    account.delivery.producer !== 'tool' ||
+    account.delivery.key.kind !== 'account' ||
+    !('account' in account.delivery)
+  )
     throw new Error('fixture: a Tool account entry')
   return {
     ...account,
@@ -165,7 +172,14 @@ async function toolScene(name: string, bind = true) {
       }),
     )
   if (bind) await bindCall()
-  return { ...s, name, account: tool.entry, result: resultEntry(tool.entry), bindCall }
+  return {
+    ...s,
+    name,
+    account: tool.entry,
+    result: resultEntry(tool.entry),
+    call: tool.call,
+    bindCall,
+  }
 }
 type ToolScene = Awaited<ReturnType<typeof toolScene>>
 
@@ -201,6 +215,9 @@ type Wraps = Partial<{
   entries: AgentJournalEntries<string>['read']
   read: AgentMaterials<string, ContentBlock>['read']
   commitEntries: SessionTransactionPort<string>['commitEntries']
+  /** What the work read answers, given what the store holds. */
+  work: (snapshot: WorkSnapshot) => WorkSnapshot
+  call: SessionTransactionPort<string>['readCall']
 }>
 const ALL = ['Session', 'Journal', 'Materials', 'Transactions'] as const
 
@@ -226,8 +243,14 @@ async function assembled(s: ToolScene, options: Options = {}) {
   const work = {
     readWork: (access: Parameters<SessionTransactionPort<string>['readWork']>[0]) => {
       reads.work += 1
-      return s.backend.transactions.readWork(access)
+      return s.backend.transactions
+        .readWork(access)
+        .then(answer =>
+          'ok' in answer && wraps.work !== undefined ? succeed(wraps.work(answer.ok)) : answer,
+        )
     },
+    readCall: (input: Parameters<SessionTransactionPort<string>['readCall']>[0]) =>
+      (wraps.call ?? s.backend.transactions.readCall)(input),
   }
   class Session extends SessionService<unknown> {
     get work(): SessionFaces<unknown>['work'] {
@@ -253,6 +276,8 @@ async function assembled(s: ToolScene, options: Options = {}) {
     }
     readonly read: AgentJournalEntries<string>['read'] = input =>
       (wraps.entries ?? s.view.entries.read)(input)
+    readonly receivedOf: AgentJournalEntries<string>['receivedOf'] = input =>
+      s.view.entries.receivedOf(input)
   }
   class Materials extends Service {
     constructor(scope: Context) {
@@ -379,6 +404,35 @@ describe('a Tool received entry becomes one entries-channel Session batch', () =
     expect(f.commits[1]?.observation).toMatchObject({ after: '1', through: '2' })
     expect(f.commits[1]?.start).toMatchObject({ kind: 'saved', progress: { through: '1' } })
     expect(entriesKinds(s).slice(3)).toEqual(['account.linked', 'entries.interpreted'])
+  })
+
+  it('a result of a call that left the work snapshot is still interpreted: the binding is asked from Session', async () => {
+    const s = await toolScene('left')
+    await receive(s, s.result, 'result')
+    const f = await assembled(s, {
+      wraps: { work: snapshot => ({ ...snapshot, consumptions: [], callRegistrations: [] }) },
+    })
+    expect(ok(await f.consume())).toMatchObject({ committed: true, progress: { through: '1' } })
+    expect(entriesKinds(s)).toEqual([
+      'call.execution-fact',
+      'account.linked',
+      'entries.interpreted',
+    ])
+  })
+
+  it('a binding that Session cannot read answers its failure: the result is not taken for one of an unbound call', async () => {
+    const s = await toolScene('unread')
+    await receive(s, s.result, 'result')
+    const f = await assembled(s, {
+      wraps: {
+        call: async () =>
+          fail({ kind: 'unavailable', owner: 'session', diagnostic: 'the store is down' }),
+      },
+    })
+    expect(await f.consume()).toMatchObject({
+      failure: { kind: 'unavailable', diagnostic: 'the store is down' },
+    })
+    expect(f.commits).toHaveLength(0)
   })
 
   it('Model entries of the same execution are not this channel', async () => {
@@ -740,7 +794,7 @@ describe('the material check: what the entry does not name is never an execution
       (s: ToolScene) => s.result,
       (entry: ReceivedEntry): ReceivedEntry => {
         const { delivery } = entry
-        if (delivery.producer !== 'tool' || delivery.account === null)
+        if (delivery.producer !== 'tool' || !('account' in delivery) || delivery.account === null)
           throw new Error('fixture: a Tool delivery with an account')
         const subject = { ...delivery.account.subject, id: 'tcall_other' }
         return { ...entry, delivery: { ...delivery, account: { ...delivery.account, subject } } }
@@ -752,7 +806,12 @@ describe('the material check: what the entry does not name is never an execution
       (s: ToolScene) => s.account,
       (entry: ReceivedEntry): ReceivedEntry => {
         const { delivery } = entry
-        if (delivery.producer !== 'tool' || delivery.key.kind !== 'account' || !delivery.account)
+        if (
+          delivery.producer !== 'tool' ||
+          delivery.key.kind !== 'account' ||
+          !('account' in delivery) ||
+          !delivery.account
+        )
           throw new Error('fixture: a Tool account delivery')
         const key = { ...delivery.key, revision: '1' }
         return { ...entry, delivery: { producer: 'tool', key, account: delivery.account } }
@@ -1007,7 +1066,7 @@ describe('AD-06 trigger: the event of the Journal plugin wakes the consumption',
   })
 })
 
-describe('loading and stopping on real Cordis 4.0.4', () => {
+describe('loading and stopping on real Cordis 4.1.0', () => {
   it.each(ALL)('stays pending while %s is absent, and works once it arrives', async missing => {
     const s = await toolScene(`absent-${missing}`)
     await receive(s, s.result, 'result')
@@ -1083,5 +1142,182 @@ describe('loading and stopping on real Cordis 4.0.4', () => {
     })
     expect(f.commits).toHaveLength(1)
     expect(await progressOf(s)).toMatchObject({ through: '1' })
+  })
+})
+
+describe('a round reads only the entries after the saved position', () => {
+  type ToolAccount = Extract<
+    ReceivedEntry['delivery'],
+    { producer: 'tool'; key: { kind: 'account' } }
+  >
+  const isToolAccount = (delivery: ReceivedEntry['delivery']): delivery is ToolAccount =>
+    delivery.producer === 'tool' && delivery.key.kind === 'account'
+
+  function accountAt(s: ToolScene, at: number): ReceivedEntry {
+    const { delivery } = s.account
+    if (!isToolAccount(delivery)) throw new Error('fixture: a Tool account entry')
+    const revision = String(at)
+    const key = { ...delivery.key, event: `event-${at}`, revision }
+    return {
+      ...s.account,
+      delivery: { ...delivery, key, account: { ...delivery.account, revision } },
+    }
+  }
+
+  async function lastRoundReads(prefix: number) {
+    const s = await toolScene(`position-${prefix}`)
+    await receive(s, s.result, 'result')
+    const read: number[] = []
+    const f = await assembled(s, {
+      wraps: {
+        entries: async input => {
+          const page = await s.view.entries.read(input)
+          if ('ok' in page) read.push(page.ok.items.length)
+          return page
+        },
+      },
+    })
+    ok(await f.consume())
+    for (let at = 1; at <= prefix; at += 1) {
+      await receive(s, accountAt(s, at), `a${at}`)
+      ok(await f.consume())
+    }
+    await receive(s, accountAt(s, prefix + 1), 'last')
+    read.length = 0
+    const answer = ok(await f.consume())
+    expect(answer).toMatchObject({ committed: true, progress: { through: String(prefix + 2) } })
+    return read.reduce((sum, items) => sum + items, 0)
+  }
+
+  it('the entries read by one round stay the same at three history lengths', async () => {
+    const tiers = [await lastRoundReads(4), await lastRoundReads(16), await lastRoundReads(48)]
+
+    expect(tiers).toEqual([1, 1, 1])
+  })
+})
+
+describe('a backgrounded call: the placeholder and the outcome', () => {
+  const VISIBLE = { toHuman: true, toModel: true }
+  const CONTENT = { kind: 'text', id: 'blk_bg_out', visibility: VISIBLE, text: 'done' }
+
+  function placeholderEntry(s: ToolScene): ReceivedEntry {
+    if (s.account.delivery.producer !== 'tool') throw new Error('fixture: a Tool entry')
+    const { reference } = s.account.delivery.key
+    return {
+      ...s.account,
+      delivery: { producer: 'tool', key: { kind: 'placeholder', producer: 'tool', reference } },
+    }
+  }
+
+  function placeholderMaterial(s: ToolScene, entry: ReceivedEntry): Material<ContentBlock> {
+    return {
+      kind: 'facts',
+      schema: SCHEMA,
+      value: json({
+        tenant: textOf(s.access.tenant),
+        delivery: {
+          kind: 'placeholder',
+          key: entry.delivery.key,
+          consumer: entry.consumer,
+          delivery: 'tdel_0',
+          source: { kind: 'control', operation: 'top_background' },
+          label: { intent: 'build', tool: 'Shell', command: 'execute', preview: 'pnpm build' },
+          evidence: evidence('tool-placeholder'),
+        },
+      }),
+    }
+  }
+
+  const resultMaterial = (s: ToolScene) =>
+    materialOf(s.access.tenant, s.result, value => ({
+      ...value,
+      delivery: {
+        ...(value.delivery as Record<string, unknown>),
+        value: {
+          content: [CONTENT],
+          data: { kind: 'none' },
+          original: { kind: 'none' },
+          attachments: [],
+        },
+      },
+    }))
+
+  const producerOf = (s: ToolScene) => ({
+    kind: 'tool' as const,
+    call: s.account.delivery.key.reference,
+  })
+
+  async function placed(name: string) {
+    const s = await toolScene(name)
+    const entry = placeholderEntry(s)
+    await receive(s, entry, 'placeholder', placeholderMaterial(s, entry))
+    return s
+  }
+
+  it('a placeholder commits call.backgrounded and lists the consumption among the placeholders', async () => {
+    const s = await placed('bg-placeholder')
+    const f = await assembled(s)
+    expect(ok(await f.consume())).toMatchObject({ committed: true, progress: { through: '1' } })
+    expect(entriesKinds(s)).toEqual(['call.backgrounded', 'entries.interpreted'])
+    expect(f.commits[0]!.observation.items[0]!.interpretation).toEqual([
+      {
+        kind: 'backgrounded',
+        producer: producerOf(s),
+        source: f.commits[0]!.observation.items[0]!.fact,
+        label: { intent: 'build', tool: 'Shell', command: 'execute', preview: 'pnpm build' },
+        how: 'control',
+      },
+    ])
+    const work = ok(await s.backend.transactions.readWork(s.access))
+    expect(work.backgroundPlaceholders).toEqual([s.account.consumption])
+  })
+
+  it('the outcome settles and accepts one system reminder in one commit; a replay adds nothing', async () => {
+    const s = await placed('bg-outcome')
+    const f = await assembled(s)
+    ok(await f.consume())
+    await receive(s, s.result, 'result', resultMaterial(s))
+    const before = s.backend.controls.entriesOf(s.access.tenant, s.access.session).length
+    expect(ok(await f.consume())).toMatchObject({ committed: true, progress: { through: '2' } })
+    const added = s.backend.controls.entriesOf(s.access.tenant, s.access.session).slice(before)
+    expect(added.map(entry => entry.kind)).toEqual([
+      'call.execution-fact',
+      'account.linked',
+      'call.background-settled',
+      'message.system_reminder',
+      'intake.routed',
+      'entries.interpreted',
+    ])
+    expect(new Set(added.map(entry => entry.revision)).size).toBe(1)
+    const input = backgroundInputId(producerOf(s), 'tres_1')
+    const work = ok(await s.backend.transactions.readWork(s.access))
+    expect(work.backgroundPlaceholders).toEqual([])
+    expect(work.pending.filter(item => item === input)).toHaveLength(1)
+    const stored = ok(await s.backend.transactions.readInput({ ...s.access, input }))
+    expect(stored.message.role).toBe('system_reminder')
+    const [head, ...rest] = stored.message.blocks
+    expect(head).toMatchObject({ kind: 'text' })
+    expect((head as { text: string }).text).toContain(`The background call ${s.call} completed`)
+    expect(rest).toEqual([CONTENT])
+
+    expect(ok(await f.consume())).toMatchObject({ committed: false })
+    const again = ok(await s.backend.transactions.readWork(s.access))
+    expect(again.pending.filter(item => item === input)).toHaveLength(1)
+    expect(s.backend.controls.entriesOf(s.access.tenant, s.access.session)).toHaveLength(
+      before + added.length,
+    )
+  })
+
+  it('a placeholder and the outcome read in one range commit together', async () => {
+    const s = await placed('bg-range')
+    await receive(s, s.result, 'result', resultMaterial(s))
+    const f = await assembled(s)
+    ok(await f.consume())
+    expect(f.commits).toHaveLength(1)
+    expect(
+      f.commits[0]!.observation.items.map(item => item.interpretation.map(part => part.kind)),
+    ).toEqual([['backgrounded'], ['execution', 'account', 'background-outcome']])
+    const work = ok(await s.backend.transactions.readWork(s.access))
+    expect(work.pending).toContain(backgroundInputId(producerOf(s), 'tres_1'))
   })
 })

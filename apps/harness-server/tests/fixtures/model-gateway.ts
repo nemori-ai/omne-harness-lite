@@ -5,6 +5,7 @@ import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { getCACertificates, setDefaultCACertificates } from 'node:tls'
+import { chatRequestOf, interfacePath, renderReply } from './gateway-wire.ts'
 
 export const GATEWAY_PATH = '/api/v1/chat/completions'
 export const GATEWAY_REFUSAL = JSON.stringify({
@@ -18,7 +19,14 @@ export type GatewayAnswer = Readonly<{
   rest?: Readonly<{ after: Promise<void>; body: string }>
 }>
 
-export type GatewayScript = (request: Readonly<{ index: number; body: string }>) => GatewayAnswer
+/**
+ * A script reads the request and answers in chat-completions terms, whatever interface the request
+ * was sent on: `body` is the chat request equal to the one sent, `rawBody` the bytes as sent, and
+ * `path` the path of the request line.
+ */
+export type GatewayScript = (
+  request: Readonly<{ index: number; body: string; rawBody: string; path: string }>,
+) => GatewayAnswer | Promise<GatewayAnswer>
 
 const refusal: GatewayScript = () => ({
   status: 400,
@@ -75,21 +83,34 @@ export async function startModelGateway(answer: GatewayScript = refusal): Promis
     const index = count
     count += 1
     authorizations.push(request.headers.authorization ?? null)
+    const path = new URL(request.url ?? '/', 'https://127.0.0.1').pathname
     const chunks: Buffer[] = []
     request.on('data', (chunk: Buffer) => chunks.push(chunk))
     request.on('end', () => {
-      const reply = answer({ index, body: Buffer.concat(chunks).toString('utf8') })
-      response.writeHead(reply.status, { 'content-type': reply.contentType })
-      if (reply.rest === undefined) {
-        response.end(reply.body)
-        return
-      }
-      const rest = reply.rest
-      response.write(reply.body)
-      void rest.after.then(
-        () => response.end(rest.body),
-        () => response.end(rest.body),
-      )
+      void Promise.resolve()
+        .then(async () => {
+          const rawBody = Buffer.concat(chunks).toString('utf8')
+          const spoken = interfacePath(path, rawBody)
+          const body = chatRequestOf(spoken, rawBody)
+          return renderReply(spoken, await answer({ index, body, rawBody, path }))
+        })
+        .then(reply => {
+          response.writeHead(reply.status, { 'content-type': reply.contentType })
+          if (reply.rest === undefined) {
+            response.end(reply.body)
+            return
+          }
+          const rest = reply.rest
+          response.write(reply.body)
+          void rest.after.then(
+            () => response.end(rest.body),
+            () => response.end(rest.body),
+          )
+        })
+        .catch(() => {
+          if (!response.headersSent) response.writeHead(502, { 'content-type': 'application/json' })
+          response.end(JSON.stringify({ error: { message: 'test gateway script failed' } }))
+        })
     })
   })
   await new Promise<void>((resolve, reject) => {

@@ -17,9 +17,13 @@ it('root entry exports the independent execution functions, the ledger, the runt
   expect(Object.keys(tool).sort()).toEqual([
     'CALL_RECORD_KEY',
     'INITIAL_REVISION',
+    'USAGE_PAGE_MAX',
+    'USAGE_WORKS_MAX',
+    'backgroundAllowed',
     'canonicalDigest',
     'checkToolResultBody',
     'createIndependentToolScope',
+    'createToolAccounts',
     'createToolBodyScope',
     'createToolDriver',
     'createToolFactAcknowledgementGuard',
@@ -33,14 +37,17 @@ it('root entry exports the independent execution functions, the ledger, the runt
     'encodeToolCanonical',
     'executeTool',
     'hostKey',
+    'inConsumerScope',
     'isTenantShape',
     'laterRunDelayMs',
     'observeToolLedgerCommit',
     'pageToolResult',
     'recordKey',
+    'routeToolDecisions',
     'settleLostExecution',
     'toolLedgerAdoption',
     'toolRuntimeAdoption',
+    'usageFactOf',
   ])
 })
 

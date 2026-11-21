@@ -3,6 +3,8 @@ import { judgeAgentDefinition, judgeLoopExtensions } from '@omne-harness/agent-c
 
 const definitionInput = {
   category: 'AgentDefinition',
+  type: 'master',
+  summary: 'Works on what the person asks for.',
   name: 'coding',
   references: [{ capability: { category: 'Tool', name: 'read_file' } }],
   attributes: [],
@@ -22,6 +24,8 @@ it('assembly reads a definition and an extension list from the public entry', as
     kind: 'accepted',
     value: {
       category: 'AgentDefinition',
+      type: 'master',
+      summary: 'Works on what the person asks for.',
       name: 'coding',
       references: [{ capability: { category: 'Tool', name: 'read_file' } }],
       attributes: [],

@@ -17,13 +17,12 @@ export type OpView = Readonly<{
 
 export type Phase = 'authorizing' | 'sent' | 'discovery' | 'none'
 
-export type LineEndCause = 'stream-broken' | 'process-exited'
+export type LineEndCause = 'stream-broken'
 
 export interface RunView {
   readonly ledger: Ledger
   readonly ops: readonly OpView[]
   readonly pending: readonly PortCall[]
-  readonly timers: number
   readonly closeCalled: boolean
   readonly closeReturned: boolean
   readonly lineCloseAnswered: boolean

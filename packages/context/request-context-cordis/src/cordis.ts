@@ -1,9 +1,8 @@
 import { Service, type Context } from '@deepseek-ai/cordis'
-import { createContextAccounting, createContextSourceRegistry } from '@omne-harness/request-context'
+import { createContextSourceRegistry } from '@omne-harness/request-context'
 import {
   decodeGroupToken,
   type AssemblyOperations,
-  type ContextAccountingInbox,
   type ContextSourceRegistry,
   type ContextSources,
   type ContextTarget,
@@ -17,7 +16,6 @@ import {
   type ScopeRef,
 } from '@omne-harness/request-context-contract'
 import {
-  ContextAccountingInboxService,
   RequestContextService,
   requestContextTrustKey,
   type RequestContextIntercept,
@@ -29,20 +27,6 @@ import {
 } from './config.ts'
 
 export type { RequestContextProviderOptions } from './config.ts'
-
-class AccountingInboxProvider extends ContextAccountingInboxService<unknown> {
-  private readonly inbox: ContextAccountingInbox<unknown>
-  constructor(ctx: Context, inbox: ContextAccountingInbox<unknown>) {
-    super(ctx)
-    this.inbox = inbox
-  }
-  receive(...args: Parameters<ContextAccountingInbox<unknown>['receive']>) {
-    return this.inbox.receive(...args)
-  }
-  usage(...args: Parameters<ContextAccountingInbox<unknown>['usage']>) {
-    return this.inbox.usage(...args)
-  }
-}
 
 export class RequestContextProvider extends RequestContextService<unknown> {
   static readonly inject = [requestContextTrustKey]
@@ -66,7 +50,6 @@ export class RequestContextProvider extends RequestContextService<unknown> {
       registrationAuthority: trust.registrationAuthority,
       policies: selectPolicies(options),
     })
-    new AccountingInboxProvider(ctx, createContextAccounting(options.accounting).inbox)
     ctx.effect(() => () => {
       this.closed = true
       this.settled = this.registry.close()
@@ -133,16 +116,12 @@ export class RequestContextProvider extends RequestContextService<unknown> {
       const variable = current.set.contributions.find(item => item.name === name)
       if (variable?.kind !== 'variable')
         return { kind: 'rejected', reason: 'unknown-variable', name: input.name }
-      if (variable.volatility === 'per-request')
-        return { kind: 'rejected', reason: 'per-request-variable', name: input.name }
     }
     return this.add(input)
   }
   contributeVariable(
     ...[input]: Parameters<PromptContributionRegistry['contributeVariable']>
   ): ContributionResult {
-    if (input.volatility === 'per-request')
-      return { kind: 'rejected', reason: 'per-request-variable', name: input.name }
     return this.add(input)
   }
   contributions(scope: ScopeRef | null): ContributionsResult {

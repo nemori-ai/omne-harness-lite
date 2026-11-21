@@ -17,7 +17,23 @@ import {
   type ReleaseFixture,
 } from './support.ts'
 
-const CODING = ['Ask', 'Files', 'Shell', 'TodoItems', 'Tools', 'Web'] as const
+const CODING = [
+  'Agents',
+  'Ask',
+  'BkgToolCalls',
+  'Calendar',
+  'Files',
+  'Notifications',
+  'Schedules',
+  'Screen',
+  'Sessions',
+  'Shell',
+  'Skills',
+  'SwitchWorkspace',
+  'TodoItems',
+  'Tools',
+  'Web',
+] as const
 const SYSTEM = { scope: 'system' } as const
 const roots: ReleaseFixture[] = []
 afterEach(async () => {
@@ -66,7 +82,7 @@ async function treeWith(preload: boolean, construction: unknown) {
 
 describe('the resident tools of a coding create follow the start load', () => {
   it(
-    'after the start load, the planner gives the five release tools as residents',
+    'after the start load, the planner gives the release tools as residents',
     { timeout: 20_000 },
     async () => {
       const { live, plan } = await treeWith(true, TEST_CONSTRUCTION)

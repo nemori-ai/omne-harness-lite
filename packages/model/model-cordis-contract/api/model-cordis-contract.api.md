@@ -6,9 +6,6 @@
 
 ## 入口 `.` · `index.d.ts`
 
-- `ModelConverterAuthority` · `registration.d.ts`
-- `ModelConverterRegistration` · `registration.d.ts`
-- `ModelConverterRegistrationInput` · `registration.d.ts`
 - `ModelPublication` · `registration.d.ts`
 - `ModelPublicationAuthority` · `registration.d.ts`
 - `ModelRegistration` · `registration.d.ts`
@@ -19,17 +16,13 @@
 
 - `ModelClockService` · `cordis.d.ts`
 - `ModelCommandsService` · `cordis.d.ts`
-- `ModelConverterAuthority` · `registration.d.ts`
-- `ModelConverterAuthorityService` · `cordis.d.ts`
-- `ModelConverterRegistration` · `registration.d.ts`
-- `ModelConverterRegistrationInput` · `registration.d.ts`
-- `ModelConvertersService` · `converters.d.ts`
 - `ModelCredentialService` · `cordis.d.ts`
 - `ModelDiagnosticsService` · `cordis.d.ts`
+- `ModelDispatchFactsService` · `cordis.d.ts`
 - `ModelHostAuthorityService` · `cordis.d.ts`
 - `ModelInstanceHostService` · `cordis.d.ts`
 - `ModelInstancesService` · `instances.d.ts`
-- `ModelMessageConversionService` · `cordis.d.ts`
+- `ModelMediaSourceService` · `cordis.d.ts`
 - `ModelPreparationResourcesService` · `cordis.d.ts`
 - `ModelProfileMaintenanceService` · `cordis.d.ts`
 - `ModelProfilesService` · `cordis.d.ts`
@@ -50,14 +43,13 @@
 - `createModelResultReceiverTable` · `receivers.d.ts`
 - `modelClockKey` · `cordis.d.ts`
 - `modelCommandsKey` · `cordis.d.ts`
-- `modelConverterAuthorityKey` · `cordis.d.ts`
-- `modelConvertersKey` · `converters.d.ts`
 - `modelCredentialKey` · `cordis.d.ts`
 - `modelDiagnosticsKey` · `cordis.d.ts`
+- `modelDispatchFactsKey` · `cordis.d.ts`
 - `modelHostAuthorityKey` · `cordis.d.ts`
 - `modelInstanceHostKey` · `cordis.d.ts`
 - `modelInstancesKey` · `instances.d.ts`
-- `modelMessageConversionKey` · `cordis.d.ts`
+- `modelMediaSourceKey` · `cordis.d.ts`
 - `modelPreparationResourcesKey` · `cordis.d.ts`
 - `modelProfileMaintenanceKey` · `cordis.d.ts`
 - `modelProfilesKey` · `cordis.d.ts`
@@ -86,38 +78,20 @@
 - `modelPreparationResourcesConformance` · `testing/preparation-resources.d.ts`
 - `modelResultReceiverConformance` · `testing/index.d.ts`
 
-## 声明文件 `converters.d.ts`
-
-```ts
-import { Service, type Context as CordisContext } from '@deepseek-ai/cordis';
-import type { ModelConverterCatalog } from '@omne-harness/model-contract/provider';
-import { type Outcome } from '@omne-harness/operation-result';
-import type { ModelConverterAuthority, ModelConverterRegistration, ModelConverterRegistrationInput, ModelRegistrationFailure } from './registration.ts';
-export declare class ModelConvertersService<P> extends Service implements ModelConverterCatalog<P> {
-    static readonly provide = "modelConverters";
-    readonly acquire: ModelConverterCatalog<P>['acquire'];
-    readonly register: (input: ModelConverterRegistrationInput<P>) => Promise<Outcome<ModelConverterRegistration, ModelRegistrationFailure>>;
-    constructor(ctx: CordisContext, authority: ModelConverterAuthority<P>);
-}
-export declare const modelConvertersKey = "modelConverters";
-```
-
 ## 声明文件 `cordis.d.ts`
 
 ```ts
 import { Service, type Context as CordisContext } from '@deepseek-ai/cordis';
 import type { TenantId } from '@omne-harness/legal-identity';
-import type { ConsumerRef, ModelCallId, ModelDiagnostics, ModelPreparationResources, ModelResultReceiver, ModelRuntime, ModelStreamReferences, ModelStreamObservation, Revision } from '@omne-harness/model-contract';
-import type { CredentialPort, ModelClock, ModelCommands, ModelHostAuthority, ModelInstanceHost, ModelMessageConversion, ModelProfileMaintenance, ModelProfiles, ModelRequestPreparation, ModelRetryPolicy, ModelSendBoundary } from '@omne-harness/model-contract/provider';
-import type { ModelConvertersService } from './converters.ts';
+import type { ConsumerRef, ModelCallId, ModelDiagnostics, ModelDispatchFacts, ModelPreparationResources, ModelResultReceiver, ModelRuntime, ModelStreamReferences, ModelStreamObservation, Revision } from '@omne-harness/model-contract';
+import type { CredentialPort, ModelClock, ModelCommands, ModelHostAuthority, ModelInstanceHost, ModelMediaSource, ModelProfileMaintenance, ModelProfiles, ModelRequestPreparation, ModelRetryPolicy, ModelSendBoundary } from '@omne-harness/model-contract/provider';
 import type { ModelInstancesService } from './instances.ts';
 import { type ModelResultReceiverTable } from './receivers.ts';
-import type { ModelConverterAuthority, ModelPublicationAuthority } from './registration.ts';
-export { ModelConvertersService, modelConvertersKey } from './converters.ts';
+import type { ModelPublicationAuthority } from './registration.ts';
 export { ModelInstancesService, modelInstancesKey } from './instances.ts';
 export { ModelResultReceiverConflictError, createModelResultReceiverTable } from './receivers.ts';
 export type { ModelResultReceiverTable } from './receivers.ts';
-export type { ModelConverterAuthority, ModelConverterRegistration, ModelConverterRegistrationInput, ModelPublication, ModelPublicationAuthority, ModelRegistration, ModelRegistrationFailure, ModelRegistrationInput, } from './registration.ts';
+export type { ModelPublication, ModelPublicationAuthority, ModelRegistration, ModelRegistrationFailure, ModelRegistrationInput, } from './registration.ts';
 export declare abstract class ModelCredentialService<P = unknown> extends Service implements CredentialPort<P> {
     static readonly provide = "modelCredential";
     constructor(ctx: CordisContext);
@@ -125,6 +99,12 @@ export declare abstract class ModelCredentialService<P = unknown> extends Servic
     abstract readonly resolve: CredentialPort<P>['resolve'];
 }
 export declare const modelCredentialKey = "modelCredential";
+export declare abstract class ModelMediaSourceService<P = unknown> extends Service implements ModelMediaSource<P> {
+    static readonly provide = "modelMediaSource";
+    constructor(ctx: CordisContext);
+    abstract readonly open: ModelMediaSource<P>['open'];
+}
+export declare const modelMediaSourceKey = "modelMediaSource";
 export declare abstract class ModelStreamReferencesService<P> extends Service implements ModelStreamReferences<P> {
     static readonly provide = "modelStreamReferences";
     constructor(ctx: CordisContext);
@@ -169,6 +149,8 @@ export declare abstract class ModelCommandsService<P> extends Service implements
     abstract readonly nextRead: ModelCommands<P>['nextRead'];
     abstract readonly endRead: ModelCommands<P>['endRead'];
     abstract readonly handoff: ModelCommands<P>['handoff'];
+    abstract readonly abandon: ModelCommands<P>['abandon'];
+    abstract readonly confirmAccount: ModelCommands<P>['confirmAccount'];
     abstract readonly advanceCleanup: ModelCommands<P>['advanceCleanup'];
     abstract readonly query: ModelCommands<P>['query'];
     abstract readonly dispatches: ModelCommands<P>['dispatches'];
@@ -235,33 +217,28 @@ export declare abstract class ModelPreparationResourcesService<P> extends Servic
     abstract acquire(...args: Parameters<ModelPreparationResources<P>['acquire']>): ReturnType<ModelPreparationResources<P>['acquire']>;
 }
 export declare const modelPreparationResourcesKey = "modelPreparationResources";
-export declare abstract class ModelMessageConversionService<P> extends Service implements ModelMessageConversion<P> {
-    static readonly provide = "modelMessageConversion";
-    constructor(ctx: CordisContext);
-    abstract readonly prepare: ModelMessageConversion<P>['prepare'];
-}
-export declare const modelMessageConversionKey = "modelMessageConversion";
 export declare abstract class ModelHostAuthorityService<P> extends Service implements ModelHostAuthority<P> {
     static readonly provide = "modelHostAuthority";
     constructor(ctx: CordisContext);
     abstract readonly resolve: ModelHostAuthority<P>['resolve'];
 }
 export declare const modelHostAuthorityKey = "modelHostAuthority";
-export declare abstract class ModelConverterAuthorityService<P> extends Service implements ModelConverterAuthority<P> {
-    static readonly provide = "modelConverterAuthority";
-    constructor(ctx: CordisContext);
-    abstract readonly check: ModelConverterAuthority<P>['check'];
-}
-export declare const modelConverterAuthorityKey = "modelConverterAuthority";
 export declare abstract class ModelDiagnosticsService<P> extends Service implements ModelDiagnostics<P> {
     static readonly provide = "modelDiagnostics";
     constructor(ctx: CordisContext);
     abstract readonly list: ModelDiagnostics<P>['list'];
 }
 export declare const modelDiagnosticsKey = "modelDiagnostics";
+export declare abstract class ModelDispatchFactsService<P> extends Service implements ModelDispatchFacts<P> {
+    static readonly provide = "modelDispatchFacts";
+    constructor(ctx: CordisContext);
+    abstract readonly list: ModelDispatchFacts<P>['list'];
+}
+export declare const modelDispatchFactsKey = "modelDispatchFacts";
 declare module '@deepseek-ai/cordis' {
     interface Context {
         modelDiagnostics: ModelDiagnosticsService<unknown>;
+        modelDispatchFacts: ModelDispatchFactsService<unknown>;
         modelRuntime: ModelRuntimeService<unknown>;
         modelCommands: ModelCommandsService<unknown>;
         modelSendBoundary: ModelSendBoundaryService<unknown>;
@@ -273,14 +250,12 @@ declare module '@deepseek-ai/cordis' {
         modelProfileMaintenance: ModelProfileMaintenanceService<unknown>;
         modelRequestPreparation: ModelRequestPreparationService<unknown>;
         modelPreparationResources: ModelPreparationResourcesService<unknown>;
-        modelMessageConversion: ModelMessageConversionService<unknown>;
         modelHostAuthority: ModelHostAuthorityService<unknown>;
-        modelConverterAuthority: ModelConverterAuthorityService<unknown>;
-        modelConverters: ModelConvertersService<unknown>;
         modelInstances: ModelInstancesService<unknown>;
         modelStreamReferences?: ModelStreamReferencesService<unknown>;
         modelStreamObservation?: ModelStreamObservationService<unknown>;
         modelCredential?: ModelCredentialService;
+        modelMediaSource?: ModelMediaSourceService;
     }
     interface Events {
         'model-cordis-contract/call-changed'(tenant: TenantId, call: ModelCallId, revision: Revision): void;
@@ -291,7 +266,7 @@ declare module '@deepseek-ai/cordis' {
 ## 声明文件 `index.d.ts`
 
 ```ts
-export type { ModelConverterAuthority, ModelConverterRegistration, ModelConverterRegistrationInput, ModelPublication, ModelPublicationAuthority, ModelRegistration, ModelRegistrationFailure, ModelRegistrationInput, } from './registration.ts';
+export type { ModelPublication, ModelPublicationAuthority, ModelRegistration, ModelRegistrationFailure, ModelRegistrationInput, } from './registration.ts';
 ```
 
 ## 声明文件 `instances.d.ts`
@@ -331,8 +306,8 @@ export {};
 ## 声明文件 `registration.d.ts`
 
 ```ts
-import type { Adoption, DurableEvidence } from '@omne-harness/model-contract';
-import type { ConverterKey, ModelConverter, ModelInstanceHost } from '@omne-harness/model-contract/provider';
+import type { DurableEvidence } from '@omne-harness/model-contract';
+import type { ModelInstanceHost } from '@omne-harness/model-contract/provider';
 import type { Outcome } from '@omne-harness/operation-result';
 export type ModelRegistrationFailure = Readonly<{
     kind: 'denied' | 'stale-publication' | 'conflict';
@@ -359,25 +334,6 @@ export type ModelRegistration = Readonly<{
 export interface ModelPublicationAuthority<P> {
     check(input: ModelRegistrationInput<P>): Outcome<void, ModelRegistrationFailure>;
 }
-export type ModelConverterRegistrationInput<P> = Readonly<{
-    key: ConverterKey;
-    converter: ModelConverter<P>;
-    adoption: Adoption;
-    authority: DurableEvidence;
-    release?(): Promise<void>;
-}>;
-export interface ModelConverterAuthority<P> {
-    check(input: ModelConverterRegistrationInput<P>): Outcome<void, ModelRegistrationFailure>;
-}
-export type ModelConverterRegistration = Readonly<{
-    token: string;
-    release(): Promise<Readonly<{
-        removed: boolean;
-        failure?: Extract<ModelRegistrationFailure, {
-            kind: 'unavailable';
-        }>;
-    }>>;
-}>;
 ```
 
 ## 声明文件 `testing/index.d.ts`

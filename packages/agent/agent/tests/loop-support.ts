@@ -256,10 +256,16 @@ export async function loopAssembly(
 ): Promise<LoopAssembly> {
   const { dependencies, controls } = createTestAgentDependencies<Principal>({
     receivingPrincipal: 'alice',
+    journal: { participants: configuration.jointCommits ?? [] },
   })
   const release = gate()
   controls.adoptions.define(adoption('definition'), {
-    definition: stub({ category: 'AgentDefinition', name: 'test' }),
+    definition: stub({
+      category: 'AgentDefinition',
+      type: 'master',
+      summary: 'Works on what the person asks for.',
+      name: 'test',
+    }),
     evaluator: agentEvaluator,
     extensions: [],
   })

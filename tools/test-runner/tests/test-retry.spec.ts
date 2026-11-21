@@ -25,13 +25,17 @@ function harness(
   failures: readonly Failure[],
   outcomes: Record<string, RerunOutcome>,
   exitCode = failures.length === 0 ? 0 : 1,
+  logs: Record<string, string> = {},
 ) {
   const reruns: string[] = []
   const notes: string[] = []
   const run = async () => ({ exitCode, failures })
   const rerun = async (file: FailedFile) => {
     reruns.push(file.file)
-    return outcomes[file.file] ?? 'failed'
+    return {
+      outcome: outcomes[file.file] ?? 'failed',
+      ...(logs[file.file] === undefined ? {} : { log: logs[file.file] as string }),
+    }
   }
   return { reruns, notes, go: () => tierWithRetry('fast', run, rerun, line => notes.push(line)) }
 }
@@ -173,6 +177,29 @@ describe('一层失败后的定向重跑', () => {
 })
 
 describe('步骤报告与运行记录', () => {
+  it('重跑留了日志时：路径记进 retried，也写在那一行里；没留日志的不带这一项', async () => {
+    const h = harness(
+      [
+        failure('packages/a/tests/x.spec.ts', 'Error: Test timed out in 5000ms.'),
+        failure('tools/b/tests/y.spec.ts', 'AssertionError: expected 1 to be 2'),
+      ],
+      { 'packages/a/tests/x.spec.ts': 'passed', 'tools/b/tests/y.spec.ts': 'failed' },
+      1,
+      { 'tools/b/tests/y.spec.ts': '/ledger/retry/y.log' },
+    )
+    const result = await h.go()
+    expect(result.retried.map(entry => [entry.file, entry.retryLog])).toEqual([
+      ['packages/a/tests/x.spec.ts', undefined],
+      ['tools/b/tests/y.spec.ts', '/ledger/retry/y.log'],
+    ])
+    expect(result.retried[0]).not.toHaveProperty('retryLog')
+    expect(result.failures[0]).not.toHaveProperty('retryLog')
+    expect(h.notes).toContain('  packages/a/tests/x.spec.ts（timeout）→ passed')
+    expect(h.notes).toContain(
+      '  tools/b/tests/y.spec.ts（assertion）→ failed，日志 /ledger/retry/y.log',
+    )
+  })
+
   let dir: string
   beforeEach(() => {
     dir = realpathSync(mkdtempSync(join(tmpdir(), 'omne-test-retry-')))
@@ -196,6 +223,19 @@ describe('步骤报告与运行记录', () => {
     writeTestStepReport(path, report)
     expect(readTestStepReport(path)).toEqual(report)
     expect(readTestStepReport(join(dir, 'missing.json'))).toBeUndefined()
+  })
+
+  it('重跑日志的路径随报告写回读回；不是字符串时这份报告读作没有', () => {
+    const path = join(dir, 'test-step.json')
+    const logged = { ...retried, retryLog: '/ledger/retry/x.log' }
+    const report = { head: 'a'.repeat(40), failures: [], retried: [logged] }
+    writeTestStepReport(path, report)
+    expect(readTestStepReport(path)).toEqual(report)
+    writeTestStepReport(path, {
+      ...report,
+      retried: [{ ...retried, retryLog: 7 as unknown as string }],
+    })
+    expect(readTestStepReport(path)).toBeUndefined()
   })
 
   it('运行记录的 retried 与 testFailures 两栏：写进去能读回，形状不对的记录不是记录', () => {

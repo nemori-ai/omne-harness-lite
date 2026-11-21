@@ -7,6 +7,7 @@ import type {
   DurableEvidence,
 } from '@omne-harness/session-contract'
 import { createAdvance, type Advance } from './advance.ts'
+import { createCascadeDrive, type CascadeDrive } from './cascade.ts'
 import { ADVANCE_KINDS, createCommandHandler } from './command.ts'
 import { createControlPropagation, type ControlPropagation } from './control.ts'
 import { checkStartConditions, type SessionDependencies } from './dependencies.ts'
@@ -62,6 +63,9 @@ const WAKES_ADVANCE: ReadonlySet<MutationName> = new Set([
   'completeInitialization',
 ])
 
+/** The commands whose commit can archive a session and so save cascade tasks. */
+const ARCHIVES: ReadonlySet<MutationName> = new Set(['control', 'considerAutoArchive'])
+
 const CALLERS: readonly SessionCallerClass[] = ['intake', 'coordinator', 'maintainer', 'reader']
 
 export function createSessionInstance<P>(
@@ -77,6 +81,7 @@ export function createSessionInstance<P>(
   // Bound below; the handler calls it only after a commit, never during construction.
   let advance: Advance | null = null
   let controls: ControlPropagation | null = null
+  let cascade: CascadeDrive | null = null
   const handle = createCommandHandler({
     dependencies,
     policy,
@@ -87,6 +92,8 @@ export function createSessionInstance<P>(
         advance?.interrupt({ tenant: command.input.tenant, session: command.input.session })
       if (['cancelRun', 'stopCall', 'control', 'interrupt'].includes(command.kind))
         controls?.trigger({ tenant: command.input.tenant, session: command.input.session })
+      if (ARCHIVES.has(command.kind))
+        cascade?.trigger({ tenant: command.input.tenant, session: command.input.session })
       if (WAKES_ADVANCE.has(command.kind))
         advance?.trigger({ tenant: command.input.tenant, session: command.input.session })
     },
@@ -131,6 +138,13 @@ export function createSessionInstance<P>(
     coordinator: faces.coordinator,
   })
   const controlPropagation = controls
+  const cascading = createCascadeDrive({
+    lifecycle,
+    policy,
+    scheduling,
+    maintainer: faces.maintainer,
+  })
+  cascade = cascading
   const scan = createScan({
     lifecycle,
     policy,
@@ -141,6 +155,7 @@ export function createSessionInstance<P>(
     resolution,
     controls: controlPropagation,
     recovery,
+    cascade: cascading,
   })
 
   return Object.freeze({
@@ -154,6 +169,8 @@ export function createSessionInstance<P>(
         (control || notice.kinds.includes('run.terminal')) &&
         wired.interrupt({ tenant: notice.tenant, session: notice.session })
       if (control) controlPropagation.trigger({ tenant: notice.tenant, session: notice.session })
+      if (notice.kinds.includes('session.archived'))
+        cascading.trigger({ tenant: notice.tenant, session: notice.session })
       if (interrupted || notice.kinds.some(kind => ADVANCE_KINDS.has(kind)))
         wired.trigger({ tenant: notice.tenant, session: notice.session })
     },

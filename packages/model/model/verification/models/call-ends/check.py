@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
 """Runs every CallEnds configuration with the pinned TLC and judges each result.
 
-The positive configuration must exit 0 with a completed search; each negative control
-must exit 13 with the temporal properties violated and no invariant violated. Logs, state directories and a
+The positive configuration must exit 0 with a completed search. A liveness control must exit 13
+with the temporal properties violated and no invariant violated. A safety control must exit 12
+with exactly its named invariant violated; the reachability witness is one of those. Logs, state directories and a
 summary with the model/config digests go to --out, never into this directory.
 """
 import argparse, hashlib, json, os, pathlib, re, subprocess, time
 ROOT = pathlib.Path(__file__).resolve().parent
 MODULE = 'CallEnds'
 JAR_SHA256 = '936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88'
-CASES = [('positive', None), ('drive-ends-on-refusal', 'liveness'), ('terminal-refusable', 'liveness'), ('no-rewake', 'liveness')]
+CASES = [('positive', None), ('drive-ends-on-refusal', 'liveness'), ('terminal-refusable', 'liveness'), ('no-rewake', 'liveness'),
+         ('policy-fail-stuck', 'liveness'), ('control-blocks-settle', 'liveness'), ('resend-no-wake', 'liveness'),
+         ('resend-keeps-state', 'safety:ResendCarriesNone'), ('resend-reachable', 'safety:NeverResends'),
+         ('scan-skips-unsettled', 'liveness'), ('resend-after-lost', 'safety:NoDispatchAfterLost'),
+         ('lost-reachable', 'safety:NeverLost')]
 parser = argparse.ArgumentParser()
 parser.add_argument('--case')
 parser.add_argument('--jar', default=os.environ.get('TLA2TOOLS_JAR'))
@@ -45,7 +50,12 @@ for case, expected in CASES:
     violations = re.findall(r'Invariant (\w+) is violated', output)
     complete = code == 0 and 'Model checking completed. No error has been found.' in output
     temporal = 'Temporal properties were violated.' in output
-    passed = complete if expected is None else (code == 13 and temporal and violations == [])
+    if expected is None:
+        passed = complete
+    elif expected == 'liveness':
+        passed = code == 13 and temporal and violations == []
+    else:
+        passed = code == 12 and not temporal and violations == [expected.split(':', 1)[1]]
     stats = re.findall(r'([\d,]+) states generated, ([\d,]+) distinct states found, ([\d,]+) states left on queue.', output)
     result = {'case': name, 'expected': expected, 'temporalViolated': temporal, 'exitCode': code, 'passed': passed,
               'violations': violations, 'seconds': round(time.monotonic() - started, 3),

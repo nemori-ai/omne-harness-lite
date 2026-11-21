@@ -28,7 +28,10 @@ function captureValues(
     const defined = defineSettings(definition)
     if (defined.kind !== 'defined' || digest(defined.definition) !== definitionRef.digest)
       return rejected('definition_changed')
-    if (!input.availability.some(ref => equal(ref, definitionRef))) {
+    if (
+      input.registryTargets.some(target => equal(target, projection.target)) &&
+      !input.availability.some(ref => equal(ref, definitionRef))
+    ) {
       unavailableProviders.push(definitionRef.providerId)
       continue
     }

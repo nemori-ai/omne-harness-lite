@@ -46,13 +46,8 @@ it('operation suite accepts real operations and rejects each targeted broken imp
           ...o,
           assemble: invalid,
           resume: async () => good,
-          planCompaction: invalid,
         }
-        if (
-          item.name === 'new-inputs-must-be-saved' ||
-          item.name === 'incremental-material-required'
-        )
-          bad.assemble = async () => good
+        if (item.name === 'new-inputs-must-be-saved') bad.assemble = async () => good
         if (item.name === 'same-input-is-deterministic')
           bad.assemble = async () => ({
             kind: 'invalid',
@@ -256,10 +251,6 @@ it('policy suites pass scripted doubles and reject individual policy defects', a
     const bad = {
       ...policy,
       configDigest: () => String(count++),
-      trim(material: operations.SummaryMaterial) {
-        Object.assign(material, { trimmed: [{ bad: true }] })
-        return material
-      },
     }
     await expect(runConformanceCase(item, { policy: bad, fixture: data })).rejects.toThrow()
   }

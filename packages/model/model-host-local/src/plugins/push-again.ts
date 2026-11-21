@@ -1,10 +1,11 @@
 import type { ModelFailure } from '@omne-harness/model-contract'
-import { definite, pauseAfter, workLeft, type PushProgress } from './push-values.ts'
+import { definite, delayAfter, workLeft, type PushProgress } from './push-values.ts'
 
 type Input<T> = Readonly<{
   keyOf(target: T): string | undefined
   paused(ms: number): Promise<boolean>
   wake(target: T): void
+  delaysMs: readonly number[]
 }>
 
 export function createPushAgain<T>(input: Input<T>) {
@@ -17,7 +18,7 @@ export function createPushAgain<T>(input: Input<T>) {
     waiting.add(key)
     const failures = pauses.get(key) ?? 0
     pauses.set(key, failures + 1)
-    const elapsed = await input.paused(pauseAfter(failures))
+    const elapsed = await input.paused(delayAfter(input.delaysMs, failures))
     waiting.delete(key)
     if (elapsed) input.wake(target)
   }

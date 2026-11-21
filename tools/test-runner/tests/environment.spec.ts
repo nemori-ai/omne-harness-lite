@@ -8,8 +8,9 @@ import { parseAdmissionRun } from '../src/testing/admission-run.ts'
 import {
   describeHealing,
   healEnvironment,
+  parseBootstrap,
   parseEnvironmentHealing,
-  type EnvironmentIo,
+  type BootstrapResult,
 } from '../src/testing/environment.ts'
 
 let root: string
@@ -37,60 +38,43 @@ const put = (path: string, text: string) => {
 }
 const read = (path: string) => readFileSync(join(root, path), 'utf8')
 
-function installer(succeed: boolean) {
-  const calls: string[] = []
-  const io: EnvironmentIo = {
-    install: at => {
-      calls.push(at)
-      if (succeed) put('node_modules/.pnpm/lock.yaml', read('pnpm-lock.yaml'))
-      return {
-        status: succeed ? 0 : 1,
-        output: succeed ? 'Done\n' : 'ERR_PNPM_NO_OFFLINE_TARBALL\n',
-      }
-    },
-  }
-  return { io, calls }
+const BOOTSTRAP: BootstrapResult = {
+  toolchain: { pnpm: '12.18.0', node: 'v26.13.1', runtime: 'v26.13.1' },
+  dependencies: {
+    status: 'in-sync',
+    detail: 'node_modules/.pnpm/lock.yaml 与 pnpm-lock.yaml 的本体相同',
+  },
+  native: { status: 'ok', detail: 'node-pty 的 spawn-helper 可用' },
 }
 
-describe('依赖目录与锁文件', () => {
-  it('已一致：不安装，记 in-sync', () => {
-    put('node_modules/.pnpm/lock.yaml', read('pnpm-lock.yaml'))
-    const { io, calls } = installer(true)
-    const healed = healEnvironment(root, io)
-    expect(healed.dependencies.status).toBe('in-sync')
-    expect(calls).toEqual([])
+describe('依赖一栏取启动段的结果', () => {
+  it('有启动段的结果：照抄它的依赖一栏，不碰依赖目录', () => {
+    expect(healEnvironment(root, BOOTSTRAP).dependencies).toEqual(BOOTSTRAP.dependencies)
+    expect(describeHealing(healEnvironment(root, BOOTSTRAP)).join('\n')).toContain('，不动')
   })
 
-  it('依赖目录的锁文件副本与锁文件不同（合并后没重装）：离线安装一次，成功后记 reinstalled', () => {
-    put('node_modules/.pnpm/lock.yaml', 'lockfileVersion: 9\nold: true\n')
-    const { io, calls } = installer(true)
-    const healed = healEnvironment(root, io)
-    expect(calls).toEqual([root])
-    expect(healed.dependencies.status).toBe('reinstalled')
-    expect(read('node_modules/.pnpm/lock.yaml')).toBe(read('pnpm-lock.yaml'))
+  it('进程内直接调用、没有启动段的结果：记 not-bootstrapped', () => {
+    expect(healEnvironment(root, undefined).dependencies.status).toBe('not-bootstrapped')
   })
 
-  it('没有依赖目录（从未安装）同样安装；离线安装失败记 install-failed 并带输出', () => {
-    const { io, calls } = installer(false)
-    const healed = healEnvironment(root, io)
-    expect(calls).toEqual([root])
-    expect(healed.dependencies.status).toBe('install-failed')
-    expect(healed.dependencies.detail).toContain('ERR_PNPM_NO_OFFLINE_TARBALL')
-  })
-
-  it('没有锁文件：不安装，记 no-lockfile', () => {
-    rmSync(join(root, 'pnpm-lock.yaml'))
-    const { io, calls } = installer(true)
-    expect(healEnvironment(root, io).dependencies.status).toBe('no-lockfile')
-    expect(calls).toEqual([])
+  it('parseBootstrap 只认启动段写出的形状；空、坏 JSON、install-failed 都不认', () => {
+    expect(parseBootstrap(JSON.stringify(BOOTSTRAP))).toEqual(BOOTSTRAP)
+    expect(parseBootstrap(undefined)).toBeUndefined()
+    expect(parseBootstrap('')).toBeUndefined()
+    expect(parseBootstrap('{')).toBeUndefined()
+    expect(
+      parseBootstrap(
+        JSON.stringify({ ...BOOTSTRAP, dependencies: { status: 'install-failed', detail: 'x' } }),
+      ),
+    ).toBeUndefined()
+    expect(
+      parseBootstrap(JSON.stringify({ ...BOOTSTRAP, native: { status: 'broken' } })),
+    ).toBeUndefined()
   })
 })
 
 describe('工作副本的换行', () => {
-  const synced = () => {
-    put('node_modules/.pnpm/lock.yaml', read('pnpm-lock.yaml'))
-    return installer(true).io
-  }
+  const synced = () => BOOTSTRAP
 
   it('索引 LF、工作副本 CRLF 且只有换行不同：从索引重新检出；有内容改动的 CRLF 文件不覆盖，记在 kept', () => {
     put('a.txt', 'one\r\ntwo\r\n')
@@ -126,12 +110,11 @@ describe('工作副本的换行', () => {
 
 describe('记录与说明', () => {
   it('说明逐项写做了什么；一致时也写明「不动」', () => {
-    put('node_modules/.pnpm/lock.yaml', read('pnpm-lock.yaml'))
-    const lines = describeHealing(healEnvironment(root, installer(true).io)).join('\n')
+    const lines = describeHealing(healEnvironment(root, BOOTSTRAP)).join('\n')
     expect(lines).toContain('依赖')
     expect(lines).toContain('换行')
     put('a.txt', 'one\r\ntwo\r\n')
-    expect(describeHealing(healEnvironment(root, installer(true).io)).join('\n')).toContain('a.txt')
+    expect(describeHealing(healEnvironment(root, BOOTSTRAP)).join('\n')).toContain('a.txt')
   })
 
   it('自愈结果是运行记录的一栏：写进去能读回；形状不对的记录不是记录', () => {

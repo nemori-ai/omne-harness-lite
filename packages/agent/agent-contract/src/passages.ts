@@ -1,3 +1,4 @@
+import type { PreparedCompactionCommit, CompactionOutcome } from './compaction.ts'
 import type { Message } from '@omne-harness/message'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { JsonValue } from '@omne-harness/json-text'
@@ -11,7 +12,6 @@ import type {
   PendingCall,
   ProducedResult,
   Reply,
-  PreparedContextTransition,
 } from './evaluation.ts'
 import type { AcceptedInput } from './execution.ts'
 import type {
@@ -41,7 +41,7 @@ import type {
   PassageId,
   StepId,
 } from './identity.ts'
-import type { CompactionProgress, Preparation } from './request.ts'
+import type { Preparation } from './request.ts'
 
 export type CapturedRead = Readonly<{ schema: Adoption; value: JsonValue; source: DurableEvidence }>
 export type NamedCapturedRead = CapturedRead & Readonly<{ need: string }>
@@ -113,7 +113,7 @@ export type Passage = Readonly<{
   id: PassageId
   position: Position
   dimension: Dimension | null
-  purpose: 'main' | 'compaction' | null
+  purpose: 'main' | null
   action: ActionId | null
   ordinal: number
   declaration: LoopExtensionDeclaration
@@ -126,15 +126,10 @@ export type Passage = Readonly<{
 export type Subject =
   | Readonly<{ execution: AgentExecutionId; conditions: DurableEvidence }>
   | Readonly<{ preparation: Extract<Preparation, { kind: 'needs-compaction' }> }>
-  | Readonly<{ transition: PreparedContextTransition }>
+  | Readonly<{ transition: PreparedCompactionCommit }>
   | Readonly<{ purpose: 'main'; preparation: Extract<Preparation, { kind: 'assembled' }> }>
   | Readonly<{
-      purpose: 'compaction'
-      step: Extract<Preparation, { kind: 'ready' }>
-      progress: CompactionProgress
-    }>
-  | Readonly<{
-      purpose: 'main' | 'compaction'
+      purpose: 'main'
       call: M.ModelCallId
       result: ProducedResult
       reply: Message
@@ -142,7 +137,7 @@ export type Subject =
       account: CallAccount | null
     }>
   | Readonly<{
-      purpose: 'main' | 'compaction'
+      purpose: 'main'
       call: M.ModelCallId
       request: M.FixedModelRequest
       fault: M.ModelFault
@@ -206,6 +201,7 @@ export interface DecisionCards<P> {
     input: Access<P> &
       Readonly<{
         operation: AgentOperationId
+        execution: AgentExecutionId
         passage: PassageId
         round: CardRoundId
         cards: readonly DurableEvidence[]
@@ -215,9 +211,16 @@ export interface DecisionCards<P> {
     readonly Readonly<{ card: DurableEvidence; reply: Exclude<CardReply, { kind: 'pending' }> }>[]
   >
 }
+export type DenialCategory = 'rule' | 'not-released' | 'prohibited' | 'card-closed' | 'guidance'
 export type AdmissionDecision =
-  | Readonly<{ kind: 'allow'; evidence: DurableEvidence }>
-  | Readonly<{ kind: 'deny'; reason: string; evidence: DurableEvidence }>
+  | Readonly<{ kind: 'allow'; evidence: DurableEvidence; notice?: string }>
+  | Readonly<{
+      kind: 'deny'
+      category: DenialCategory
+      reason: string
+      evidence: DurableEvidence
+      notice?: string
+    }>
   | Readonly<{ kind: 'need-decision'; card: DecisionCardDraft; evidence: DurableEvidence }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
   | Readonly<{ kind: 'undecidable'; diagnostic: string }>
@@ -234,6 +237,8 @@ export interface ActionAdmission<P> {
         definition: Adoption
         permissions: readonly NamedCapturedRead[]
         decision: Readonly<{ card: DurableEvidence; answer: CardAnswer | CardRemark }> | null
+        /** The batch this action is judged with, and this pass over it; one pass reads each fact once. */
+        batch?: Readonly<{ id: ActionBatchId; pass: string }>
       }>,
   ): Reply<AdmissionDecision>
 }
@@ -249,7 +254,7 @@ export type MessageSource =
   | Readonly<{ kind: 'tool-result'; action: ActionId; call: T.ToolCallId; result: ProducedResult }>
   | Readonly<{ kind: 'action-denied'; action: ActionId; evidence: DurableEvidence }>
   | Readonly<{ kind: 'reminder'; passage: PassageId }>
-  | Readonly<{ kind: 'context-transition'; transition: PreparedContextTransition }>
+  | Readonly<{ kind: 'context-transition'; transition: PreparedCompactionCommit }>
 export type InputEntry =
   | Readonly<{
       kind: 'invoke'
@@ -360,6 +365,7 @@ export type Material<B extends ContentBlock> =
   | Readonly<{ kind: 'model'; result: ProducedResult; pages: readonly M.ResultPage[] }>
   | Readonly<{ kind: 'tool'; result: ProducedResult; pages: readonly T.ResultPage<B>[] }>
   | Readonly<{ kind: 'facts'; schema: Adoption; value: JsonValue }>
+  | Readonly<{ kind: 'compaction'; result: ProducedResult; outcome: CompactionOutcome }>
 export type MaterialDescription = Readonly<{
   digest: string
   size: number

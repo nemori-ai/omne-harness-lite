@@ -13,6 +13,10 @@ export default {
       [],
     )
     port.execute(
+      'CREATE TABLE al_summaries (version_key TEXT PRIMARY KEY, record TEXT NOT NULL)',
+      [],
+    )
+    port.execute(
       'CREATE TABLE al_holdings (scope_key TEXT NOT NULL, holding_ref TEXT NOT NULL, asset_ref TEXT NOT NULL, capability_key TEXT NOT NULL, state TEXT NOT NULL, record TEXT NOT NULL, PRIMARY KEY (scope_key, holding_ref))',
       [],
     )

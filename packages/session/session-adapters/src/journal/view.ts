@@ -1,5 +1,5 @@
+import { SharedMap, isTable } from './shared-map.ts'
 import type {
-  ActionBatchId,
   ActionId,
   AgentInstanceId,
   Adoption,
@@ -30,13 +30,26 @@ import {
   type AttachmentBasis,
   type Attempt,
   type CursorMembers,
+  type HoldKind,
   type FactBody,
   type FactOf,
   type ParticipationKind,
   type ProducerCall,
   type Ref,
+  type ResultKey,
   type ResultStage,
 } from './facts.ts'
+
+// The batch that wrote an entry, as its receipt names it: an entry a receipt is read from carries it.
+export type Stamp = Readonly<{
+  op: AgentOperationId
+  digest: string
+  pub: number
+  revision: number
+}>
+
+// A voided intent as the view holds it: in the order the batches voided them.
+export type VoidedView = FactOf<'intent.voided'> & Readonly<{ pub: number; ord: number }>
 
 export type AttachmentView = Readonly<{
   authority: Authority
@@ -50,6 +63,7 @@ export type AttachmentView = Readonly<{
 
 export type InputView = Readonly<{
   input: InputId
+  place: number
   entry: AgentOperationId
   message: Ref
   source: DurableEvidence | null
@@ -57,6 +71,13 @@ export type InputView = Readonly<{
   watermark: DurableEvidence
   pub: number
   revision: number
+}>
+
+export type MaterialView = Readonly<{
+  source: DurableEvidence
+  value: Ref
+  consumer: ConsumerRef
+  pub: number
 }>
 
 export type RequestView = Readonly<{
@@ -77,30 +98,35 @@ export type IntentView = Readonly<{
   pending: PendingCall
   authority: Authority
   request: Ref | null
-  association: Readonly<{ reference: ToolInvocationRef; receipt: DurableEvidence }> | null
-  judgment: Readonly<{
-    judgment: 'pending' | 'waiting' | 'denied' | 'allowed'
-    evidence: DurableEvidence | null
-    passage: PassageId | null
-    request: Ref | null
-  }> | null
-  settlement: DurableEvidence | null
   pub: number
+  op: AgentOperationId
 }>
 
 export type ResultView = Readonly<{
   consumption: ConsumptionId
   result: ProducerCall
-  received: Readonly<{
-    delivery: string
-    consumer: ConsumerRef
-    custody: Ref
-    saved: DurableEvidence
-    material: Ref | null
-    pub: number
-  }> | null
+  received:
+    | (Readonly<{
+        delivery: string
+        consumer: ConsumerRef
+        custody: Ref
+        saved: DurableEvidence
+        material: Ref | null
+      }> &
+        Stamp)
+    | null
   stages: Readonly<Partial<Record<ResultStage, DurableEvidence>>>
   pub: number
+}>
+
+export type ReceivedView = NonNullable<ResultView['received']>
+
+export type AdmittedView = Readonly<{
+  consecutive: number
+  total: number
+  last: DurableEvidence | null
+  sequence: number
+  basis: DurableEvidence | null
 }>
 
 export type AdmissionView = Readonly<{
@@ -117,55 +143,54 @@ export type AdmissionView = Readonly<{
 
 export type HandoffView = Readonly<{
   handoff: HandoffReference
-  prepared: Readonly<{ request: Ref; prepared: DurableEvidence; pub: number }> | null
-  resolved: Readonly<{
-    resolution: 'recorded' | 'excluded'
-    outcome: Ref
-    history: DurableEvidence | null
-    pub: number
-    revision: number
-  }> | null
-  retired: Readonly<{
-    reason: DurableEvidence
-    excluded: Ref
-    pub: number
-    revision: number
-  }> | null
-  recorded: readonly Readonly<{
-    resolution: 'recorded' | 'excluded'
-    outcome: Ref
-    predecessor: AgentOperationId | null
-    custody: Ref | null
-    op: AgentOperationId
-    pub: number
-  }>[]
+  prepared: Readonly<{ request: Ref; prepared: DurableEvidence; pub: number; step: StepId }> | null
+  resolved:
+    | (Readonly<{
+        resolution: 'recorded' | 'excluded'
+        outcome: Ref
+        history: DurableEvidence | null
+      }> &
+        Stamp)
+    | null
+  retired:
+    | (Readonly<{
+        reason: DurableEvidence
+        excluded: Ref
+      }> &
+        Stamp)
+    | null
 }>
 
-export type BatchView = Readonly<{
-  batch: ActionBatchId
-  step: StepId
-  source: ProducerCall
-  actions: readonly Readonly<{ action: ActionId; callId: string; arguments: Ref }>[]
+export type CustodyView = Readonly<{
+  handoff: HandoffReference
+  resolution: 'recorded' | 'excluded'
+  outcome: Ref
+  predecessor: AgentOperationId | null
+  custody: Ref | null
+  op: AgentOperationId
   pub: number
 }>
 
-export type PassageView = Readonly<{
-  passage: PassageId
-  subject: Ref
-  declared: DurableEvidence
-  progress: readonly Readonly<{ progress: Ref; round: string | null; pub: number }>[]
-  conclusion: Readonly<{ conclusion: Ref; evidence: DurableEvidence; pub: number }> | null
+export type HoldView = Readonly<{
+  kind: HoldKind
+  id: string
   pub: number
+  ord: number
+  released: boolean
 }>
 
 export type ControlView = Readonly<{
   control: AgentOperationId
   command: ExecutionControl
+  modelInvocation: ModelInvocationRef | null
   toolInvocation: ToolInvocationRef | null
   toolOperation: ToolOperationRef | null
   stages: Readonly<
     Partial<
-      Record<ControlStage, Readonly<{ state: 'reached' | 'unresolved'; source: DurableEvidence }>>
+      Record<
+        ControlStage,
+        Readonly<{ state: 'reached' | 'unresolved'; source: DurableEvidence }> & Stamp
+      >
     >
   >
   rejected: readonly DurableEvidence[]
@@ -198,7 +223,12 @@ export type ObligationListView = Readonly<{
   }>
 }>
 
-export type ObligationView = Readonly<{ category: string; item: Ref | null; pub: number }>
+export type ObligationView = Readonly<{
+  category: string
+  item: Ref | null
+  settled: boolean
+  pub: number
+}>
 
 export const listKey = (candidate: AgentOperationId, list: number): string => `${candidate}/${list}`
 
@@ -218,20 +248,22 @@ export type FinishView = Readonly<{
 
 export type EventView = Readonly<{
   eseq: number
+  entry: number | null
   kind: string
-  pub: number
   ord: number
-  revision: number
   attachment: Authority | null
   fact: FactBody
-}>
+}> &
+  Stamp
 
 export type BindingView = Readonly<{
   definition: Adoption
   reference: string
   pending: Ref<PendingCall>
+  consumption: ConsumptionId
   instance: AgentInstanceId
   pub: number
+  ord: number
 }>
 
 export type ExclusionEntry = Readonly<{
@@ -240,6 +272,8 @@ export type ExclusionEntry = Readonly<{
   evidence: DurableEvidence
   predecessor: AgentOperationId | null
   pub: number
+  // A later batch of the operation revived it: the exclusion no longer holds.
+  revived?: true
 }>
 
 export type OperationEntry = Readonly<{
@@ -272,40 +306,46 @@ export type ExecutionView = Readonly<{
     original: Readonly<{ input: InputId; entry: AgentOperationId; handoff: HandoffReference }>
     coordination: 'standalone' | 'coordinated'
     pub: number
+    revision: number
   }> | null
   attachments: readonly AttachmentView[]
   cursor: Readonly<Partial<CursorMembers>>
   cursorMoved: Readonly<Partial<Record<keyof CursorMembers, number>>>
+  holds: readonly HoldView[]
+  holdsJudged: number
   inputs: readonly InputView[]
   steps: readonly Readonly<{ step: StepId; batch: InputBatch; pub: number }>[]
   requests: readonly RequestView[]
   adopted: RequestView | null
-  voided: readonly FactOf<'intent.voided'>[]
+  voided: readonly VoidedView[]
   intents: ReadonlyMap<ActionId, IntentView>
-  results: ReadonlyMap<ConsumptionId, ResultView>
+  results: ReadonlyMap<ResultKey, ResultView>
   admissions: readonly AdmissionView[]
   handoffs: ReadonlyMap<string, HandoffView>
-  batches: ReadonlyMap<ActionBatchId, BatchView>
-  passages: ReadonlyMap<PassageId, PassageView>
+  custodies: ReadonlyMap<string, CustodyView>
   controls: ReadonlyMap<AgentOperationId, ControlView>
   waits: Readonly<{ step: StepId; waits: Ref<readonly Waiting[]>; pub: number }> | null
   finish: FinishView
-  settlements: readonly Readonly<{
+  settlements: readonly (Readonly<{
     variant: string
     record: Ref
     evidence: DurableEvidence
-    op: AgentOperationId
-    pub: number
-  }>[]
-  observations: readonly Readonly<{
+  }> &
+    Stamp)[]
+  observations: readonly (Readonly<{
     terminal: DurableEvidence
     passage: PassageId
     implementation: Adoption
     observed: DurableEvidence
-    pub: number
-  }>[]
+  }> &
+    Stamp)[]
   acknowledged: number
   acknowledgedAt: number
+  emitted: number
+  entries: number
+  accepted: number
+  /** The reply admission ledger the admissions fold into: the open ones are only its tail. */
+  admitted: AdmittedView
   fences: readonly Readonly<{
     operation: string
     guard: Readonly<{
@@ -316,31 +356,25 @@ export type ExecutionView = Readonly<{
     }>
     fence: DurableEvidence
     pub: number
+    ord: number
   }>[]
   events: readonly EventView[]
   bindings: readonly BindingView[]
-  materials: ReadonlyMap<
-    string,
-    Readonly<{ source: DurableEvidence; value: Ref; consumer: ConsumerRef; pub: number }>
-  >
+  materials: ReadonlyMap<string, MaterialView>
   ops: ReadonlyMap<AgentOperationId, OperationEntry>
   excluded: ReadonlyMap<AgentOperationId, ExclusionEntry>
   rejections: ReadonlyMap<AgentOperationId, RejectionEntry>
-  reached: ReadonlyMap<number, AgentOperationId>
+  reached: ReadonlyMap<number, Stamp>
 }>
 
 export type SessionJournalView = Readonly<{
   head: number
   executions: ReadonlyMap<AgentExecutionId, ExecutionView>
-  ops: ReadonlyMap<AgentOperationId, OperationEntry>
-  excluded: ReadonlyMap<AgentOperationId, ExclusionEntry>
 }>
 
 export const emptySessionView = (): SessionJournalView => ({
   head: 0,
-  executions: new Map(),
-  ops: new Map(),
-  excluded: new Map(),
+  executions: new SharedMap(),
 })
 
 export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
@@ -353,23 +387,24 @@ export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
     attachments: [],
     cursor: {},
     cursorMoved: {},
+    holds: [],
+    holdsJudged: 0,
     inputs: [],
     steps: [],
     requests: [],
     adopted: null,
     voided: [],
-    intents: new Map(),
-    results: new Map(),
+    intents: new SharedMap(),
+    results: new SharedMap(),
     admissions: [],
-    handoffs: new Map(),
-    batches: new Map(),
-    passages: new Map(),
-    controls: new Map(),
+    handoffs: new SharedMap(),
+    custodies: new SharedMap(),
+    controls: new SharedMap(),
     waits: null,
     finish: {
       candidates: [],
-      lists: new Map(),
-      obligations: new Map(),
+      lists: new SharedMap(),
+      obligations: new SharedMap(),
       current: null,
       ended: null,
     },
@@ -377,27 +412,45 @@ export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
     observations: [],
     acknowledged: 0,
     acknowledgedAt: 0,
+    emitted: 0,
+    accepted: 0,
+    entries: 0,
+    admitted: { consecutive: 0, total: 0, last: null, sequence: 0, basis: null },
     fences: [],
     events: [],
     bindings: [],
-    materials: new Map(),
-    ops: new Map(),
-    excluded: new Map(),
-    rejections: new Map(),
-    reached: new Map(),
+    materials: new SharedMap(),
+    ops: new SharedMap(),
+    excluded: new SharedMap(),
+    rejections: new SharedMap(),
+    reached: new SharedMap(),
   }
 }
 
 export const handoffKey = (reference: HandoffReference): string => canonical(reference)
 
-export function openCalls(view: ExecutionView): readonly IntentView[] {
-  return [...view.intents.values()].filter(
-    intent => view.results.get(intent.pending.consumption)?.received == null,
-  )
+export const custodiesUnder = (reference: HandoffReference): string => `${handoffKey(reference)}/`
+export const custodyKey = (reference: HandoffReference, attempt: AgentOperationId): string =>
+  `${custodiesUnder(reference)}${attempt}`
+
+/** The deliveries each consumption received, in the order they came. */
+export function receivedBy(view: ExecutionView): Map<ConsumptionId, ReceivedView[]> {
+  const by = new Map<ConsumptionId, ReceivedView[]>()
+  const add = (consumption: ConsumptionId, received: ReceivedView | null) => {
+    if (received !== null) by.set(consumption, [...(by.get(consumption) ?? []), received])
+  }
+  for (const item of view.results.values()) add(item.consumption, item.received)
+  for (const list of by.values()) list.sort((left, right) => left.pub - right.pub)
+  return by
+}
+
+/** Every received delivery that holds custody of an entry. */
+export function receivedViews(view: ExecutionView): readonly ReceivedView[] {
+  return [...view.results.values()].flatMap(item => (item.received === null ? [] : [item.received]))
 }
 
 function plain(value: unknown): unknown {
-  if (value instanceof Map)
+  if (isTable(value))
     return Object.fromEntries([...value].map(([key, item]) => [String(key), plain(item)]))
   if (Array.isArray(value)) return value.map(plain)
   if (value !== null && typeof value === 'object')

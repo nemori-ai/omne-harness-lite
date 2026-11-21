@@ -1,4 +1,4 @@
-import type { RouteAccounting } from './config.ts'
+import type { EngineEndpoint, RouteAccounting } from './config.ts'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { ContentReference } from '@omne-harness/content-block'
@@ -15,6 +15,7 @@ import type {
   ReplayDeclaration,
 } from '@omne-harness/model-contract'
 import type {
+  ModelMediaLimits,
   CalibratedInputMeter,
   ModelToolPayloadAdapter,
   TransportFact,
@@ -28,6 +29,8 @@ export type PiProtocolFrame =
 export interface PiResponseDecoder {
   accept(frame: PiProtocolFrame): Outcome<readonly TransportFact[], ModelFault>
   end(): Outcome<readonly TransportFact[], ModelFault>
+  /** The fault of a refused request when the engine recognizes the refusal; null leaves it to the status. */
+  refused?(status: number, body: string): ModelFault | null
 }
 export type PiMaterializedMedia = Readonly<{
   reference: ContentReference
@@ -38,9 +41,13 @@ export type PiMaterializedMedia = Readonly<{
 export type PiFamilyBinding = Readonly<{
   supplier: Supplier
   adoption: Adoption
+  /** What this model takes of a referenced medium; null: it takes none of this kind. */
+  mediaLimits(reference: ContentReference): ModelMediaLimits | null
   counting: ModelCountingBasis
   rules: ModelRequestRules
   meter: CalibratedInputMeter
+  /** The gateway interface this binding encodes for; the route gives its address. */
+  endpoint: EngineEndpoint
   replayFormat: string | null
   tools: ModelToolPayloadAdapter<JsonValue>
   encode(
@@ -55,6 +62,10 @@ export type PiFamilyBinding = Readonly<{
       body: JsonValue
       representation: Extract<MeterRepresentation, { kind: 'materialized' }>
       diagnostics: readonly ProviderDiagnostic[]
+      /** The prefix of this request; a reply it produces records it in its replay mark. */
+      replayPrefix: string
+      /** Whether the request carries reasoning state back. */
+      replayCarried: boolean
     }>,
     TransportFailure
   >

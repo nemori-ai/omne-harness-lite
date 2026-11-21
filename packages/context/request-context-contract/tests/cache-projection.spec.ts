@@ -14,18 +14,7 @@ import {
   createTestingPrincipalBinding,
   type AssemblyFixture,
 } from '@omne-harness/request-context-contract/testing'
-import {
-  callId,
-  entry,
-  epoch,
-  evidence,
-  row,
-  rowWith,
-  seq,
-  tenant,
-  text,
-  upper,
-} from './fixtures.js'
+import { callId, epoch, evidence, row, rowWith, seq, tenant, text, upper } from './fixtures.js'
 
 function candidateOf(result: AssemblyResult) {
   if (result.kind !== 'candidate-before-extension' && result.kind !== 'candidate-fixable')
@@ -150,9 +139,7 @@ describe('an appended projection equals the full projection', () => {
       const cold = candidateOf(await operationsOf(f).assemble(f.call))
       expect(warm.preparation.view).toEqual(project(cold.preparation.rows, epoch))
       expect(warm.preparation.view).toEqual(cold.preparation.view)
-      expect(warm.layers.historyHead).toEqual(cold.layers.historyHead)
-      expect(warm.layers.historyBody).toEqual(cold.layers.historyBody)
-      expect(warm.layers.snapshotReminder).toEqual(cold.layers.snapshotReminder)
+      expect(warm.layers.history).toEqual(cold.layers.history)
       expect(warm.assembled).toEqual(cold.assembled)
       expect(warm.coverage).toEqual(cold.coverage)
     }
@@ -175,56 +162,7 @@ describe('an appended projection equals the full projection', () => {
     const cold = candidateOf(await operationsOf(f).assemble(f.call))
     expect(warm.preparation.view).toEqual(project(cold.preparation.rows, epoch))
     expect(warm.preparation.view.compaction).not.toBeNull()
-    expect(warm.layers.historyHead).toEqual(cold.layers.historyHead)
-    expect(warm.layers.historyBody).toEqual(cold.layers.historyBody)
-  })
-})
-
-describe('the layered history is extended, not derived again', () => {
-  it('keeps the head of an unchanged anchor and classifies only the appended messages', async () => {
-    const f = createAssemblyFixture({ rows: mixed() })
-    const slot = oneSlot()
-    const hot = operationsOf(f, slot.reuse)
-    growTo(f, 2)
-    candidateOf(await hot.assemble(f.call))
-    slot.commit()
-    const history = f.sources.values().history
-    f.sources.update('history', {
-      ...history,
-      evidence: { ...history.evidence, upper: upper(4) },
-      inputs: { ...history.inputs, entries: [entry('entry:3'), entry('entry:4')] },
-    })
-    const warm = candidateOf(await hot.assemble(f.call))
-    const [first, second] = slot.staged
-    expect(second?.split.head).toBe(first?.split.head)
-    expect(second?.split.body.map(m => m.seq)).toEqual([seq(3), seq(4)])
-    const cold = candidateOf(await operationsOf(f).assemble(f.call))
-    expect(warm.layers.historyHead).toEqual(cold.layers.historyHead)
-    expect(warm.layers.historyBody).toEqual(cold.layers.historyBody)
-  })
-
-  it('moves the anchor forward over the appended messages and splits again after a backward move', async () => {
-    const f = createAssemblyFixture({ rows: mixed() })
-    const slot = oneSlot()
-    const hot = operationsOf(f, slot.reuse)
-    growTo(f, 4)
-    candidateOf(await hot.assemble(f.call))
-    slot.commit()
-    growTo(f, 6)
-    const forward = candidateOf(await hot.assemble(f.call))
-    slot.commit()
-    expect(forward.layers.historyBody).toEqual([])
-    expect(forward.layers.historyHead).toHaveLength(7)
-    const history = f.sources.values().history
-    f.sources.update('history', {
-      ...history,
-      inputs: { ...history.inputs, entries: [entry('entry:5'), entry('entry:6')] },
-    })
-    const back = candidateOf(await hot.assemble(f.call))
-    const cold = candidateOf(await operationsOf(f).assemble(f.call))
-    expect(back.layers.historyHead).toEqual(cold.layers.historyHead)
-    expect(back.layers.historyBody).toEqual(cold.layers.historyBody)
-    expect(back.layers.historyHead).toHaveLength(5)
+    expect(warm.layers.history).toEqual(cold.layers.history)
   })
 })
 

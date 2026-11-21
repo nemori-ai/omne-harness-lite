@@ -106,7 +106,7 @@ export function sameHistory(
 }
 
 export function shellCommand(script: string) {
-  return { command: 'execute', params: { script } }
+  return { command: 'execute', intent: 'test call', params: { script } }
 }
 
 export async function signedIn(tools: CellTools): Promise<ProtocolDriver> {
@@ -154,11 +154,11 @@ export function eachInputTakenOnce(tools: CellTools, log: SessionLog | null): vo
   )
 }
 
-export function interruptedCallNotResent(tools: CellTools, before: number): void {
+export function interruptedCallNotSentAgain(tools: CellTools, before: number): void {
   const later = tools.stub.arrivals().slice(before)
   tools.check(
-    'o6 the interrupted call was not sent twice: one new call after the restart',
-    later.length === 1 && later[0]?.step === 'unscripted',
+    'o6 the interrupted call was not sent again: no request after the restart',
+    later.length === 0,
     `${String(before)} before, [${later.map(arrival => arrival.step).join(',')}] after`,
   )
 }

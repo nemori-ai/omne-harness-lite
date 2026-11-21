@@ -8,6 +8,7 @@ import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import type {
   EnvironmentLease,
   FacilityResult,
+  FilesScope,
   FileSystemFacility,
   LeaseInvalidation,
   ManagedResource,
@@ -86,7 +87,7 @@ export type DrainResult =
   | Readonly<{ kind: 'pending'; resources: readonly ManagedResource[] }>
 
 export type HostFilesSettings = Readonly<{
-  root?: string | undefined
+  scope?: FilesScope | undefined
   stateDirectory?: string | undefined
   limits?: Partial<HostFilesLimits> | undefined
 }>
@@ -241,6 +242,7 @@ export function fingerprintOf(original: OriginalAcquisition): string {
     [...new Set(p.requirement.facilities)].sort(),
     [...new Set(p.requirement.isolation)].sort(),
     p.requirement.allowedBindings.map(binding),
+    p.filesScope === undefined ? null : [p.filesScope.read ?? null, p.filesScope.write ?? null],
   ])
 }
 
@@ -253,7 +255,7 @@ function engineOptions(
   diagnose: DiagnosticSink,
 ): HostFilesEngineOptions {
   return {
-    ...(settings.root === undefined ? {} : { root: settings.root }),
+    ...(settings.scope === undefined ? {} : { scope: settings.scope }),
     ...(settings.stateDirectory === undefined ? {} : { stateDirectory: settings.stateDirectory }),
     diagnose,
   }
@@ -270,7 +272,12 @@ function createEngineRegistry(): DomainInternals['joinEngine'] {
   const engines = new Map<string, SharedEngine>()
   return (settings, diagnose) => {
     const limits = hostFilesLimits(settings.limits)
-    const key = JSON.stringify([settings.root ?? null, settings.stateDirectory ?? null, limits])
+    const key = JSON.stringify([
+      settings.scope?.read ?? null,
+      settings.scope?.write ?? null,
+      settings.stateDirectory ?? null,
+      limits,
+    ])
     let shared = engines.get(key)
     if (shared === undefined) {
       const sinks = new Set<DiagnosticSink>()

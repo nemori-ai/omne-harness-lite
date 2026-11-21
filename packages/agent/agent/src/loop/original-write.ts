@@ -50,6 +50,7 @@ export function originalJournal<P>(journal: AgentJournal<P>, attempt: Attempt<P>
     inputs: input => journal.inputs(input),
     readReplyAdmissions: input => journal.readReplyAdmissions(input),
     query: input => journal.query(input),
+    inputAcceptance: input => journal.inputAcceptance(input),
     ...(readCancellationInstallation === undefined ? {} : { readCancellationInstallation }),
     open: input => attempt({ method: 'open', input }, () => journal.open(input)),
     commit: input => attempt({ method: 'commit', input }, () => journal.commit(input)),

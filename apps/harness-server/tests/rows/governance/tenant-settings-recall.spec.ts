@@ -9,7 +9,7 @@ it('recalls a tenant-layer write by its operation, also after another login, and
     const face = faceOf(tree)
     await settledSession(tree, 'hello')
     const first = await loginAccess(tree)
-    const item = { tenant: first.tenant, asset: SHELL, item: 'invoke' }
+    const item = { tenant: first.tenant, owner: SHELL, item: 'run' }
     const read = await face.describe({ ...item, principal: first.principal })
     if (read.kind !== 'described') throw new Error(JSON.stringify(read))
     const send = (principal: unknown, pick: string) =>

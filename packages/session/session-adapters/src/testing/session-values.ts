@@ -6,10 +6,17 @@ import {
   type CompactionContext,
   type CoveredEntry,
 } from '@omne-harness/message'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
+  forkPointAfterRows,
+  isAcceptedInputRecord,
   openWork,
+  type ForkPointRead,
   type HistoryEntry,
+  type ModelViewBasis,
+  type ModelViewRead,
   type ModelViewRow,
+  type SessionFailure,
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import type { JsonValue } from '@omne-harness/json-text'
@@ -65,8 +72,8 @@ export function materializeModelView(
 ): MaterializedModelView {
   let epoch = previous.epoch
   let rows = [...previous.rows]
-  for (const entry of committed) {
-    const message = messageOf(entry)
+  for (const [index, entry] of committed.entries()) {
+    const message = isAcceptedInputRecord(committed, index) ? null : messageOf(entry)
     if (
       message === null ||
       message.role === 'tool_internal' ||
@@ -110,7 +117,8 @@ export function compactionReads(
   for (const [index, entry] of entries.entries()) {
     const ref = parseRecordEntryRef(entry.id)
     if (ref === null) return null
-    ;(index <= end ? covered : after).push({ ref, message: messageOf(entry) })
+    const message = isAcceptedInputRecord(entries, index) ? null : messageOf(entry)
+    ;(index <= end ? covered : after).push({ ref, message })
   }
   const previous = covered.filter(row => row.message?.role === 'compaction').at(-1)
   let window = covered
@@ -168,11 +176,12 @@ export function compactionReads(
     }
   }
   if ([...required].some(ref => !entries.some(entry => entry.id === ref))) return null
-  const open = entries.flatMap((entry, index) => {
+  const open = entries.flatMap(entry => {
     const value = rowData(entry)
+    // An input that is still alive keeps its delivery in the context.
     const relevant =
       required.has(entry.id) ||
-      (entry.kind === 'intake.routed' &&
+      (entry.kind === 'message.delivered' &&
         typeof value['input'] === 'string' &&
         [...snapshot.pending, ...(snapshot.taken ?? [])].some(input => input === value['input'])) ||
       (entry.kind === 'call.bound' &&
@@ -181,24 +190,69 @@ export function compactionReads(
             item.id === value['consumption'] &&
             item.results.every(result => result.completion === null),
         ))
-    const source =
-      entry.kind === 'intake.routed'
-        ? entries
-            .slice(0, index)
-            .reverse()
-            .find(row => row.kind === 'message.user')
-        : entry
-    const ref = source ? parseRecordEntryRef(source.id) : null
+    const ref = parseRecordEntryRef(entry.id)
     return relevant && ref !== null ? [ref] : []
   })
   return {
     origin,
     base:
       previous === undefined
-        ? { kind: 'initial' }
+        ? { kind: 'initial', pairings }
         : { kind: 'previous', record: previous.ref, pairings },
     covered: window,
     after,
     open: [...new Set(open)],
   }
+}
+
+type Held = Readonly<{ modelView: MaterializedModelView; entries: readonly HistoryEntry[] }>
+type Keyed = Outcome<string, SessionFailure>
+
+/** The point before the latest assistant message of the view of a memory session. */
+export function forkPointRead(
+  store: Outcome<Held, SessionFailure>,
+  key: Keyed,
+): Outcome<ForkPointRead, SessionFailure> {
+  if ('failure' in store) return fail(store.failure)
+  if ('failure' in key) return fail(key.failure)
+  const view = store.ok.modelView
+  const newest = view.rows.map(row => ({ seq: row.seq, role: row.message.role }))
+  const tail = store.ok.entries.at(-1)?.id ?? '0'
+  const point = forkPointAfterRows(`${key.ok}/${view.epoch}`, newest, tail)
+  return succeed(point === null ? { kind: 'none' } : { kind: 'point', point })
+}
+
+export function modelViewPage(
+  view: MaterializedModelView,
+  key: Keyed,
+  input: Readonly<{ basis: ModelViewBasis | null; after: string | null; pageBytes: number }>,
+): Outcome<ModelViewRead, SessionFailure> {
+  if (!Number.isInteger(input.pageBytes) || input.pageBytes < 1)
+    return fail({ kind: 'invalid', field: 'pageBytes', reason: 'not a positive integer' })
+  if ('failure' in key) return fail(key.failure)
+  const current = { epoch: `${key.ok}/${view.epoch}`, upper: String(view.rows.length) }
+  if (input.basis !== null && !input.basis.epoch.startsWith(`${key.ok}/`))
+    return fail({ kind: 'invalid', field: 'basis', reason: 'another session' })
+  if (input.basis !== null && input.basis.epoch !== current.epoch)
+    return succeed({ kind: 'epoch-changed', current })
+  const basis = input.basis ?? current
+  const after = input.after === null ? 0 : Number(input.after)
+  const upper = Number(basis.upper)
+  if (
+    !Number.isInteger(after) ||
+    !Number.isInteger(upper) ||
+    after < 0 ||
+    upper > view.rows.length ||
+    after > upper
+  )
+    return fail({ kind: 'invalid', field: 'basis', reason: 'invalid model view bounds' })
+  const rows = []
+  let bytes = 0
+  for (const row of view.rows.slice(after, upper)) {
+    if (rows.length > 0 && bytes + row.bytes > input.pageBytes) break
+    rows.push(row)
+    bytes += row.bytes
+  }
+  const next = after + rows.length < upper ? String(after + rows.length) : null
+  return succeed({ kind: 'page', basis, rows, next })
 }

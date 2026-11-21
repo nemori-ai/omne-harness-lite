@@ -3,13 +3,14 @@ import {
   closeSync,
   copyFileSync,
   existsSync,
+  mkdirSync,
   openSync,
   readFileSync,
   rmSync,
   writeFileSync,
   writeSync,
 } from 'node:fs'
-import { isAbsolute, join, relative } from 'node:path'
+import { join, relative } from 'node:path'
 import { stripVTControlCharacters } from 'node:util'
 import {
   VITEST_ARCHIVE_ENTRY,
@@ -19,9 +20,18 @@ import type { TestMember } from '@omne-harness/repo-toolchain/core/workspace'
 import { VITEST_MAX_WORKERS_ENV, type Parallelism, type RunScript, type RunTier } from './config.ts'
 import type { MemberRun, VitestJsonReport } from './ledger.ts'
 import type { TimingReport } from './timing-reporter.ts'
+import { batchArgs, batchFiles, batchLabel, type Batch } from './batches.ts'
+import { cpuMeterAvailable, meteredArgs, readMeteredCpu } from './cpu-meter.ts'
+import { readRaw } from './read-sets.ts'
+import { workersFor, type MemberDemand, type WeightSource } from './parallelism.ts'
 import { pnpmCommand } from './support.ts'
+import { runGatedJobs, runJob, runJobs, type Gate, type TokenSource } from './token-pool.ts'
 import {
+  buildArgs,
   checkMemberTurboConfigs,
+  compileEnv,
+  exactOutputs,
+  summaryFileIn,
   TIER_TASKS,
   TURBO_BIN,
   turboTestCommand,
@@ -39,7 +49,7 @@ function forwardTermination(): void {
   for (const signal of ['SIGINT', 'SIGTERM'] as const)
     process.on(signal, () => {
       for (const child of children) child.kill(signal)
-      process.exitCode = 130
+      process.exit(130)
     })
 }
 
@@ -189,31 +199,131 @@ async function runMember(
   return { member: member.path, ...result, ...reportsOf(runDir, slug) }
 }
 
+export interface MemberSchedule {
+  readonly source: TokenSource
+  readonly demand: (member: TestMember, files?: number) => MemberDemand
+  readonly batches?: (members: readonly TestMember[]) => Batch[]
+  readonly cached?: (member: string) => MemberRun | undefined
+  readonly gate?: Gate
+}
+
+export const GATE_SKIPPED = '没有运行：快层没过，这个成员的慢层没有起'
+
+export function observedParallelism(spans: readonly MemberSpan[]): Parallelism {
+  let memberConcurrency = 0
+  for (const span of spans)
+    memberConcurrency = Math.max(
+      memberConcurrency,
+      spans.filter(other => other.start <= span.start && span.start < other.end).length,
+    )
+  return {
+    memberConcurrency,
+    vitestMaxWorkers: Math.max(0, ...spans.map(span => span.workers)),
+  }
+}
+
+export function tokenUse(spans: readonly MemberSpan[]): string | undefined {
+  const measured = spans.filter(span => span.cpuSeconds !== undefined)
+  if (measured.length === 0) return undefined
+  const held = measured.reduce(
+    (sum, span) => sum + (span.tokens * (span.end - span.start)) / 1000,
+    0,
+  )
+  const cpu = measured.reduce((sum, span) => sum + (span.cpuSeconds ?? 0), 0)
+  const perToken = held === 0 ? 0 : cpu / held
+  return (
+    `令牌的用法：量到 CPU 的 ${measured.length} 件活（共 ${spans.length} 件）持有 ${Math.round(held)} 令牌秒，` +
+    `用了 ${Math.round(cpu)} CPU 秒，平均每个令牌 ${perToken.toFixed(2)} 个核`
+  )
+}
+
+export interface MemberSpan {
+  readonly member: string
+  readonly batch?: string
+  readonly start: number
+  readonly end: number
+  readonly tokens: number
+  readonly workers: number
+  readonly perWorker: number
+  readonly weightSource: WeightSource
+  readonly cpuSeconds?: number
+  readonly startupSeconds?: number
+}
+
+export function startupUse(spans: readonly MemberSpan[]): string | undefined {
+  const measured = spans.filter(span => span.startupSeconds !== undefined)
+  if (measured.length === 0) return undefined
+  const startup = measured.reduce((sum, span) => sum + (span.startupSeconds ?? 0), 0)
+  const wall = measured.reduce((sum, span) => sum + (span.end - span.start) / 1000, 0)
+  return (
+    `启动开销：${measured.length} 批从起批到第一份文件开跑平均 ${(startup / measured.length).toFixed(1)} 秒，` +
+    `合计 ${Math.round(startup)} 秒，占这些批墙钟的 ${wall === 0 ? '0.0' : ((100 * startup) / wall).toFixed(1)}%`
+  )
+}
+
+export function startupOfRun(run: MemberRun, start: number): number | undefined {
+  const first = Math.min(
+    ...(run.report?.testResults ?? []).map(result => result.startTime).filter(time => time > 0),
+  )
+  return Number.isFinite(first) ? Math.round(Math.max(0, first - start) / 100) / 10 : undefined
+}
+
+async function scheduleMembers(
+  members: readonly TestMember[],
+  schedule: MemberSchedule,
+  label: string,
+  run: (member: TestMember, workers: number) => Promise<MemberRun>,
+  onDone: (run: MemberRun, finished: number) => void,
+): Promise<{ readonly runs: MemberRun[]; readonly spans: MemberSpan[] }> {
+  let finished = 0
+  const spans: MemberSpan[] = []
+  const runs = await runJobs(
+    members.map(member => {
+      const { want, min, perWorker, weightSource } = schedule.demand(member)
+      return {
+        want,
+        min,
+        label: `${member.path}:${label}`,
+        run: async (tokens: number) => {
+          const start = Date.now()
+          const workers = workersFor(tokens, perWorker)
+          const done = await run(member, workers)
+          spans.push({
+            member: member.path,
+            start,
+            end: Date.now(),
+            tokens,
+            workers,
+            perWorker,
+            weightSource,
+            ...(done.cpuSeconds === undefined ? {} : { cpuSeconds: done.cpuSeconds }),
+          })
+          finished += 1
+          onDone(done, finished)
+          return done
+        },
+      }
+    }),
+    schedule.source,
+  )
+  return { runs, spans }
+}
+
 export async function runMembers(
   root: string,
   members: readonly TestMember[],
   runDir: string,
-  parallel: Parallelism,
+  schedule: MemberSchedule,
   script: RunScript,
   onDone: (run: MemberRun, finished: number) => void,
-): Promise<MemberRun[]> {
-  const runs = Array.from<MemberRun>({ length: members.length })
-  let next = 0
-  let finished = 0
-  const worker = async () => {
-    for (let index = next++; index < members.length; index = next++) {
-      const member = members[index]
-      if (member === undefined) continue
-      const run = await runMember(root, member, runDir, parallel.vitestMaxWorkers, script)
-      runs[index] = run
-      finished += 1
-      onDone(run, finished)
-    }
-  }
-  await Promise.all(
-    Array.from({ length: Math.min(parallel.memberConcurrency, members.length) }, worker),
+): Promise<{ readonly runs: MemberRun[]; readonly spans: MemberSpan[] }> {
+  return scheduleMembers(
+    members,
+    schedule,
+    script,
+    (member, workers) => runMember(root, member, runDir, workers, script),
+    onDone,
   )
-  return runs
 }
 
 function reportsOf(runDir: string, slug: string): Pick<MemberRun, 'report' | 'timing'> {
@@ -237,8 +347,6 @@ interface TurboSummary {
   }[]
 }
 
-const SUMMARY_LINE = /^\s*Summary:\s+(\S.*\.json)\s*$/mu
-
 const isNumber = (value: unknown): value is number => typeof value === 'number'
 
 function summaryTask(value: unknown): TurboSummary['tasks'][number] | undefined {
@@ -255,23 +363,23 @@ function takeSummary(
   root: string,
   output: string,
   runDir: string,
+  name: string,
 ): { readonly summary: TurboSummary } | { readonly missing: string } {
-  const match = SUMMARY_LINE.exec(output)
-  if (match?.[1] === undefined) return { missing: 'turbo 的输出里没有 Summary 行' }
-  const source = isAbsolute(match[1]) ? match[1] : join(root, match[1])
+  const source = summaryFileIn(root, output)
+  if (source === undefined) return { missing: 'turbo 的输出里没有 Summary 行' }
   if (!existsSync(source)) return { missing: `turbo 说的摘要文件不存在：${source}` }
-  const target = join(runDir, 'turbo-summary.json')
+  const target = join(runDir, name)
   copyFileSync(source, target)
   rmSync(source, { force: true })
+  let parsed: { tasks?: unknown }
   try {
-    const parsed = JSON.parse(readFileSync(target, 'utf8')) as { tasks?: unknown }
-    if (!Array.isArray(parsed.tasks)) return { missing: `摘要里没有 tasks：${target}` }
-    return {
-      summary: { tasks: parsed.tasks.map(summaryTask).filter(task => task !== undefined) },
-    }
+    parsed = JSON.parse(readFileSync(target, 'utf8')) as { tasks?: unknown }
   } catch {
     return { missing: `摘要不是 JSON：${target}` }
   }
+  if (!Array.isArray(parsed.tasks)) return { missing: `摘要里没有 tasks：${target}` }
+  exactOutputs(root, target)
+  return { summary: { tasks: parsed.tasks.map(summaryTask).filter(task => task !== undefined) } }
 }
 
 function memberLogs(output: string, names: readonly string[], task: string): Map<string, string[]> {
@@ -303,66 +411,322 @@ export function archivedReportFiles(
     .filter(file => file.split(/[\\/]/u).some(segment => segment.endsWith('.legacy')))
 }
 
+interface BuildOutcome {
+  readonly failed: readonly string[]
+  readonly built: ReadonlySet<string>
+  readonly log: string
+}
+
+async function buildForTests(
+  root: string,
+  names: readonly string[],
+  runDir: string,
+  admission: boolean,
+  source: TokenSource,
+): Promise<BuildOutcome> {
+  const log = join(runDir, 'turbo-build.log')
+  return runJob(
+    {
+      want: source.capacity,
+      min: 1,
+      label: 'build',
+      run: async (tokens: number) => {
+        const args = [
+          ...buildArgs(names, admission, tokens),
+          '--continue=dependencies-successful',
+          '--summarize',
+        ]
+        console.log(`$ turbo ${args.join(' ')}（输出写进 ${log}）`)
+        await spawnLogged(TURBO_BIN, args, { cwd: root, env: compileEnv(), logPath: log })
+        const taken = takeSummary(
+          root,
+          readFileSync(log, 'utf8'),
+          runDir,
+          'turbo-build-summary.json',
+        )
+        const tasks = 'summary' in taken ? taken.summary.tasks : []
+        const builds = tasks.filter(entry => entry.task === 'build')
+        return {
+          failed: builds
+            .filter(entry => (entry.execution?.exitCode ?? 0) !== 0)
+            .map(entry => entry.package),
+          built: new Set(
+            builds.filter(entry => entry.execution?.exitCode === 0).map(entry => entry.package),
+          ),
+          log,
+        }
+      },
+    },
+    source,
+  )
+}
+
 export async function runTurboTests(
   root: string,
   members: readonly TestMember[],
   runDir: string,
-  parallel: Parallelism,
+  schedule: MemberSchedule,
   tier: RunTier,
   build: TestBuild,
   onDone: (run: MemberRun, finished: number) => void,
-): Promise<MemberRun[]> {
+): Promise<{ readonly runs: MemberRun[]; readonly spans: MemberSpan[] }> {
   checkMemberTurboConfigs(root, members)
-  const names = members.map(member => member.name)
-  const task = TIER_TASKS[tier]
-  const command = turboTestCommand(names, tier, parallel, runDir, build)
-  const turboLog = join(runDir, 'turbo.log')
-  console.log(`$ turbo ${command.args.join(' ')}（输出写进 ${turboLog}）`)
-  const turbo = await spawnLogged(TURBO_BIN, command.args, {
-    cwd: root,
-    env: command.env,
-    logPath: turboLog,
-  })
-  const output = readFileSync(turboLog, 'utf8')
-  const taken = takeSummary(root, output, runDir)
-  const summary = 'summary' in taken ? taken.summary : undefined
-  const logs = memberLogs(output, names, task)
-  const failedBuilds = (summary?.tasks ?? [])
-    .filter(entry => entry.task === 'build' && (entry.execution?.exitCode ?? 0) !== 0)
-    .map(entry => entry.package)
-  return members.map((member, index) => {
-    const slug = slugOf(member.path)
-    const lines = logs.get(member.name) ?? []
-    const execution = summary?.tasks.find(
-      entry => entry.package === member.name && entry.task === task,
-    )?.execution
-    const reports = reportsOf(runDir, slug)
-    const archived = archivedReportFiles(join(root, member.path), reports.report)
-    const problem =
-      execution === undefined
-        ? failedBuilds.length > 0
-          ? `没有运行：构建失败（${failedBuilds.join('、')}），见 ${turboLog}`
-          : !hasScript(join(root, member.path), task)
-            ? `没有 \`${task}\` 脚本：成员要有 test:fast、test:slow 与 test 三个脚本`
-            : 'missing' in taken
-              ? `没有执行记录：${taken.missing}（turbo 退出码 ${turbo.exitCode}），见 ${turboLog}`
-              : `turbo 的运行摘要里没有它的执行记录（turbo 退出码 ${turbo.exitCode}），见 ${turboLog}`
-        : archived.length > 0
-          ? `跑了嵌套归档目录里的测试（成员配置的 exclude 没有排除它们）：${archived.join('、')}`
-          : reports.report === undefined && execution.exitCode === 0
-            ? `退出码 0 却没有写出报告 ${slug}.json：成员配置没有展开 testTiers，或报告目录没传到 vitest`
-            : undefined
-    if (problem !== undefined) lines.push(`test-runner: ${problem}`)
-    writeFileSync(join(runDir, `${slug}.log`), `${lines.join('\n')}\n`)
-    const exitCode = execution === undefined ? -1 : (execution.exitCode ?? -1)
-    const run: MemberRun = {
+  const built = build.build
+    ? await buildForTests(
+        root,
+        members.map(member => member.name),
+        runDir,
+        build.admission,
+        schedule.source,
+      )
+    : undefined
+  const runnable = members.filter(
+    member => built === undefined || built.failed.length === 0 || built.built.has(member.name),
+  )
+  const byMember = new Map<string, MemberRun>()
+  for (const member of members.filter(each => !runnable.includes(each))) {
+    const problem = `没有运行：构建失败（${built?.failed.join('、') ?? ''}），见 ${built?.log ?? ''}`
+    writeFileSync(join(runDir, `${slugOf(member.path)}.log`), `test-runner: ${problem}\n`)
+    const run = { member: member.path, exitCode: -1, wallSeconds: 0, problem }
+    byMember.set(member.path, run)
+    onDone(run, byMember.size)
+  }
+  const byPath = new Map(runnable.map(member => [member.path, member]))
+  const queue =
+    schedule.batches?.(runnable) ??
+    runnable.map((member): Batch => ({ member: member.path, kind: 'whole', seconds: 0 }))
+  const remaining = new Map<string, number>()
+  for (const batch of queue) remaining.set(batch.member, (remaining.get(batch.member) ?? 0) + 1)
+  const parts = new Map<string, { batch: Batch; run: MemberRun }[]>()
+  const spans: MemberSpan[] = []
+  const finish = (member: TestMember, batch: Batch, run: MemberRun) => {
+    const done = [...(parts.get(member.path) ?? []), { batch, run }]
+    parts.set(member.path, done)
+    const left = (remaining.get(member.path) ?? 1) - 1
+    remaining.set(member.path, left)
+    if (left > 0) return
+    const cached = schedule.cached?.(member.path)
+    const merged =
+      batch.kind === 'whole' && cached === undefined
+        ? run
+        : mergeBatchRuns(member.path, done, cached)
+    if (batch.kind !== 'whole' || cached !== undefined) writeMerged(runDir, member, done, merged)
+    else if (run.problem === GATE_SKIPPED)
+      writeFileSync(join(runDir, `${slugOf(member.path)}.log`), `test-runner: ${run.problem}\n`)
+    byMember.set(member.path, merged)
+    onDone(merged, byMember.size)
+  }
+  const jobs = queue.map(batch => {
+    const member = byPath.get(batch.member) as TestMember
+    const { want, min, perWorker, weightSource } = schedule.demand(member, batchFiles(batch))
+    return {
       member: member.path,
-      exitCode: problem !== undefined && exitCode === 0 ? 1 : exitCode,
-      wallSeconds: execution === undefined ? 0 : (execution.endTime - execution.startTime) / 1000,
-      ...reports,
-      ...(problem === undefined ? {} : { problem }),
+      want,
+      min,
+      label: `${batchLabel(batch)}:${TIER_TASKS[tier]}`,
+      skip: () =>
+        finish(member, batch, {
+          member: member.path,
+          exitCode: -1,
+          wallSeconds: 0,
+          problem: GATE_SKIPPED,
+        }),
+      run: async (tokens: number) => {
+        const start = Date.now()
+        const workers = workersFor(tokens, perWorker)
+        const run = await runTurboBatch(
+          root,
+          member,
+          batch,
+          runDir,
+          tier,
+          workers,
+          build.readSets === true,
+        )
+        const startupSeconds = startupOfRun(run, start)
+        spans.push({
+          member: member.path,
+          ...(batch.kind === 'whole' ? {} : { batch: batchLabel(batch) }),
+          start,
+          end: Date.now(),
+          tokens,
+          workers,
+          perWorker,
+          weightSource,
+          ...(run.cpuSeconds === undefined ? {} : { cpuSeconds: run.cpuSeconds }),
+          ...(startupSeconds === undefined ? {} : { startupSeconds }),
+        })
+        finish(member, batch, run)
+      },
     }
-    onDone(run, index + 1)
-    return run
   })
+  if (schedule.gate === undefined) await runJobs(jobs, schedule.source)
+  else await runGatedJobs(jobs, schedule.source, schedule.gate, job => job.skip())
+  return {
+    runs: members.flatMap(member => byMember.get(member.path) ?? []),
+    spans,
+  }
+}
+
+function notExecuted(
+  memberDirectory: string,
+  task: string,
+  taken: ReturnType<typeof takeSummary>,
+  where: string,
+): string {
+  if (!hasScript(memberDirectory, task))
+    return `没有 \`${task}\` 脚本：成员要有 test:fast、test:slow 与 test 三个脚本`
+  return 'missing' in taken
+    ? `没有执行记录：${taken.missing}${where}`
+    : `turbo 的运行摘要里没有它的执行记录${where}`
+}
+
+function executedWrongly(
+  memberDirectory: string,
+  report: MemberRun['report'],
+  exitCode: number | null | undefined,
+  slug: string,
+): string | undefined {
+  const archived = archivedReportFiles(memberDirectory, report)
+  if (archived.length > 0)
+    return `跑了嵌套归档目录里的测试（成员配置的 exclude 没有排除它们）：${archived.join('、')}`
+  return report === undefined && exitCode === 0
+    ? `退出码 0 却没有写出报告 ${slug}.json：成员配置没有展开 testTiers，或报告目录没传到 vitest`
+    : undefined
+}
+
+function batchSuffix(batch: Batch): string {
+  if (batch.kind === 'whole') return ''
+  return batch.kind === 'files' ? `.${batch.index}` : '.rest'
+}
+
+async function runTurboBatch(
+  root: string,
+  member: TestMember,
+  batch: Batch,
+  runDir: string,
+  tier: RunTier,
+  workers: number,
+  readSets: boolean,
+): Promise<MemberRun> {
+  const task = TIER_TASKS[tier]
+  const slug = slugOf(member.path)
+  const suffix = batchSuffix(batch)
+  const whole = batch.kind === 'whole'
+  const reportDir = whole ? runDir : join(runDir, 'batches', `${slug}${suffix}`)
+  mkdirSync(reportDir, { recursive: true })
+  const command = turboTestCommand(
+    member.name,
+    tier,
+    workers,
+    reportDir,
+    readSets,
+    whole ? undefined : batchArgs(batch),
+  )
+  const turboLog = join(runDir, `turbo-${slug}${suffix}.log`)
+  const meterFile = join(reportDir, `${slug}.cpu.json`)
+  const metered = cpuMeterAvailable()
+  const turbo = await spawnLogged(
+    metered ? process.execPath : TURBO_BIN,
+    metered ? meteredArgs(meterFile, TURBO_BIN, command.args) : command.args,
+    { cwd: root, env: command.env, logPath: turboLog },
+  )
+  const cpuSeconds = metered ? readMeteredCpu(meterFile) : undefined
+  const output = readFileSync(turboLog, 'utf8')
+  const taken = takeSummary(root, output, runDir, `turbo-summary-${slug}${suffix}.json`)
+  const summary = 'summary' in taken ? taken.summary : undefined
+  const lines = memberLogs(output, [member.name], task).get(member.name) ?? []
+  const execution = summary?.tasks.find(
+    entry => entry.package === member.name && entry.task === task,
+  )?.execution
+  const reports = reportsOf(reportDir, slug)
+  const memberDirectory = join(root, member.path)
+  const problem =
+    execution === undefined
+      ? notExecuted(
+          memberDirectory,
+          task,
+          taken,
+          `（turbo 退出码 ${turbo.exitCode}），见 ${turboLog}`,
+        )
+      : whole || reports.report !== undefined
+        ? executedWrongly(memberDirectory, reports.report, execution.exitCode, slug)
+        : undefined
+  if (problem !== undefined) lines.push(`test-runner: ${problem}`)
+  writeFileSync(join(reportDir, `${slug}.log`), `${lines.join('\n')}\n`)
+  const exitCode = execution === undefined ? -1 : (execution.exitCode ?? -1)
+  return {
+    member: member.path,
+    exitCode: problem !== undefined && exitCode === 0 ? 1 : exitCode,
+    wallSeconds: execution === undefined ? 0 : (execution.endTime - execution.startTime) / 1000,
+    ...reports,
+    ...(problem === undefined ? {} : { problem }),
+    ...(cpuSeconds === undefined ? {} : { cpuSeconds }),
+  }
+}
+
+export function mergeBatchRuns(
+  member: string,
+  parts: readonly { readonly batch: Batch; readonly run: MemberRun }[],
+  cached?: MemberRun,
+): MemberRun {
+  const results = new Map<string, VitestJsonReport['testResults'][number]>()
+  for (const run of [...(cached === undefined ? [] : [cached]), ...parts.map(part => part.run)])
+    for (const result of run.report?.testResults ?? []) {
+      const seen = results.get(result.name)
+      if (seen === undefined || result.status === 'failed') results.set(result.name, result)
+    }
+  const timings = [
+    ...(cached?.timing?.files ?? []),
+    ...parts.flatMap(({ run }) => run.timing?.files ?? []),
+  ]
+  const failing = parts.find(({ run }) => run.exitCode !== 0)
+  const problems = parts.flatMap(({ batch, run }) =>
+    run.problem === undefined ? [] : [`${batchLabel(batch)}：${run.problem}`],
+  )
+  const cpu = parts.map(({ run }) => run.cpuSeconds)
+  const measured = cpu.every(value => value !== undefined)
+  return {
+    member,
+    exitCode: failing?.run.exitCode ?? 0,
+    wallSeconds: parts.reduce((sum, { run }) => sum + run.wallSeconds, 0),
+    ...(results.size === 0 && parts.every(({ run }) => run.report === undefined)
+      ? {}
+      : { report: { testResults: [...results.values()] } }),
+    ...(timings.length === 0 ? {} : { timing: { files: timings } }),
+    ...(problems.length === 0 ? {} : { problem: problems.join('；') }),
+    ...(measured ? { cpuSeconds: cpu.reduce<number>((sum, value) => sum + (value ?? 0), 0) } : {}),
+  }
+}
+
+function writeMerged(
+  runDir: string,
+  member: TestMember,
+  parts: readonly { readonly batch: Batch; readonly run: MemberRun }[],
+  merged: MemberRun,
+): void {
+  const slug = slugOf(member.path)
+  const dirs = parts.map(({ batch }) => join(runDir, 'batches', `${slug}${batchSuffix(batch)}`))
+  if (merged.report !== undefined)
+    writeFileSync(join(runDir, `${slug}.json`), `${JSON.stringify(merged.report)}\n`)
+  if (merged.timing !== undefined)
+    writeFileSync(join(runDir, `${slug}.timing.json`), `${JSON.stringify(merged.timing)}\n`)
+  const raws = dirs.flatMap(dir => {
+    const raw = readRaw(join(dir, `${slug}.reads.json`))
+    return raw === undefined ? [] : [raw]
+  })
+  if (raws.length > 0)
+    writeFileSync(
+      join(runDir, `${slug}.reads.json`),
+      `${JSON.stringify({
+        config: [...new Set(raws.flatMap(raw => raw.config))],
+        files: raws.flatMap(raw => raw.files),
+      })}\n`,
+    )
+  const logs = parts.map(({ batch }, index) => {
+    const path = join(dirs[index] ?? runDir, `${slug}.log`)
+    const text = existsSync(path) ? readFileSync(path, 'utf8') : ''
+    return `== ${batchLabel(batch)}\n${text}`
+  })
+  writeFileSync(join(runDir, `${slug}.log`), logs.join(''))
 }

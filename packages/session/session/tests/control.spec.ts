@@ -1,7 +1,11 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { tenantEquals } from '@omne-harness/legal-identity'
-import { deriveDriveOperation, type ConsumptionId } from '@omne-harness/session-contract'
+import {
+  deriveDriveOperation,
+  type ConsumptionId,
+  type SessionCallControl,
+} from '@omne-harness/session-contract'
 import {
   creation,
   evidence,
@@ -140,7 +144,7 @@ it('单调用控制保持范围', async () => {
       control: operationId('stop'),
     }),
     control: operationId('stop'),
-    intent: { kind: 'stop-call', producer: binding.producer },
+    intent: { kind: 'stop-call', producer: binding.producer, initiator: 'user', reason: null },
   })
   const after = await readControlWork(f.h)
   expect(after.run).toEqual(before.run)
@@ -619,4 +623,261 @@ it('主体失败不调用 Agent', async () => {
   f.h.bindings.controls.answerNext({ ok: { kind: 'not-bound' } })
   await f.notice()
   expect(f.control).not.toHaveBeenCalled()
+})
+
+async function backgroundedCall(f: Awaited<ReturnType<typeof controlFixture>>) {
+  const [binding] = await f.calls('tool')
+  if (binding === undefined) throw new Error('no binding')
+  const sent = vi.fn<SessionCallControl['control']>(async () => succeed('recorded' as const))
+  f.h.callControl.port = { control: sent }
+  const execution = f.original.execution.execution
+  succeeded(
+    await f.h.backend.transactions.commitEntries({
+      observation: {
+        ...f.h.access(),
+        run: f.original.run,
+        execution,
+        channel: 'tool-received',
+        operation: operationId('entries-placeholder'),
+        after: '0',
+        through: '1',
+        position: '1',
+        boundary: {
+          execution,
+          channel: 'tool-received',
+          revision: '3',
+          executionEvidence: evidence('agent/head/3'),
+          count: '1',
+        },
+        items: [
+          {
+            ordinal: '1',
+            key: 'placeholder',
+            fact: evidence('agent/entry/placeholder'),
+            interpretation: [
+              {
+                kind: 'backgrounded',
+                producer: binding.producer,
+                source: evidence('t/p'),
+                label: {
+                  intent: 'build',
+                  tool: 'Shell',
+                  command: 'execute',
+                  preview: 'pnpm build',
+                },
+                how: 'launched',
+              },
+            ],
+          },
+        ],
+      },
+      start: { kind: 'initial' },
+    }),
+    'placeholder',
+  )
+  return { binding, sent }
+}
+
+it('停一个转了后台的调用凭引用直交 Tool，不经 Agent', async () => {
+  const f = await controlFixture()
+  open.push(f.h)
+  const { binding, sent } = await backgroundedCall(f)
+  succeeded(
+    await f.h.faces('intake').work.stopCall({
+      ...f.h.access(),
+      operation: operationId('stop'),
+      producer: binding.producer,
+    }),
+    'stopCall',
+  )
+  await vi.waitFor(() => expect(sent).toHaveBeenCalledTimes(1))
+  expect(sent.mock.calls[0]?.[0]).toEqual({
+    tenant: f.h.access().tenant,
+    session: f.h.access().session,
+    control: operationId('stop'),
+    producer: binding.producer,
+    intent: 'stop',
+  })
+  expect(f.control).not.toHaveBeenCalled()
+})
+
+it('归档对转了后台的调用凭引用送撤回，仍经 Agent 取消它终结的 Run', async () => {
+  const f = await controlFixture()
+  open.push(f.h)
+  const { binding, sent } = await backgroundedCall(f)
+  succeeded(
+    await f.h.faces('intake').work.control({
+      ...f.h.access(),
+      operation: operationId('archive'),
+      intent: { kind: 'archive' },
+    }),
+    'archive',
+  )
+  await vi.waitFor(() => expect(sent).toHaveBeenCalledTimes(1))
+  expect(sent.mock.calls[0]?.[0]).toMatchObject({ producer: binding.producer, intent: 'withdraw' })
+  await vi.waitFor(() => expect(f.control).toHaveBeenCalledTimes(1))
+  expect(f.control.mock.calls[0]?.[0].intent).toEqual({ kind: 'archive' })
+})
+
+it('直交答不可用时按回放间隔再送，答已记下就停', async () => {
+  const f = await controlFixture({ policy: { controlReplay: { intervalMs: 100, maxReplays: 3 } } })
+  open.push(f.h)
+  const { binding, sent } = await backgroundedCall(f)
+  sent.mockResolvedValueOnce(fail({ kind: 'unavailable', owner: 'tool', diagnostic: 'away' }))
+  succeeded(
+    await f.h.faces('intake').work.stopCall({
+      ...f.h.access(),
+      operation: operationId('stop'),
+      producer: binding.producer,
+    }),
+    'stopCall',
+  )
+  await vi.waitFor(() => expect(sent).toHaveBeenCalledTimes(1))
+  f.h.clock.controls.advance(100)
+  await vi.waitFor(() => expect(sent).toHaveBeenCalledTimes(2))
+  f.h.clock.controls.advance(100)
+  f.h.clock.controls.advance(100)
+  await new Promise(resolve => setTimeout(resolve, 20))
+  expect(sent).toHaveBeenCalledTimes(2)
+})
+
+it('直交一直不可用时只送到回放上限', async () => {
+  const f = await controlFixture({ policy: { controlReplay: { intervalMs: 100, maxReplays: 3 } } })
+  open.push(f.h)
+  const { binding, sent } = await backgroundedCall(f)
+  sent.mockResolvedValue(fail({ kind: 'unavailable', owner: 'tool', diagnostic: 'away' }))
+  succeeded(
+    await f.h.faces('intake').work.stopCall({
+      ...f.h.access(),
+      operation: operationId('stop'),
+      producer: binding.producer,
+    }),
+    'stopCall',
+  )
+  for (const count of [1, 2, 3]) {
+    await vi.waitFor(() => expect(sent).toHaveBeenCalledTimes(count))
+    f.h.clock.controls.advance(100)
+  }
+  f.h.clock.controls.advance(100)
+  await new Promise(resolve => setTimeout(resolve, 20))
+  expect(sent).toHaveBeenCalledTimes(3)
+})
+
+it('已记下的直交不再重送；同一调用的第二条停止答第一条，不另送（C19）', async () => {
+  const f = await controlFixture()
+  open.push(f.h)
+  const { binding, sent } = await backgroundedCall(f)
+  const stop = (name: string) =>
+    f.h.faces('intake').work.stopCall({
+      ...f.h.access(),
+      operation: operationId(name),
+      producer: binding.producer,
+    })
+  succeeded(await stop('stop'), 'first stop')
+  await vi.waitFor(() => expect(sent).toHaveBeenCalledTimes(1))
+  const second = succeeded(await stop('stop-2'), 'second stop')
+  expect(second.answer).toMatchObject({
+    kind: 'requested',
+    progress: { operation: operationId('stop') },
+  })
+  await new Promise(resolve => setTimeout(resolve, 20))
+  expect(sent.mock.calls.map(([input]) => input.control)).toEqual([operationId('stop')])
+})
+
+for (const [caller, initiator] of [
+  ['intake', 'user'],
+  ['coordinator', 'agent'],
+  ['maintainer', 'system'],
+] as const)
+  it(`${caller} 停一项时发起者是 ${initiator}：由调用方类别推出，输入里没有它（C19）`, async () => {
+    const f = await controlFixture()
+    open.push(f.h)
+    const { binding } = await backgroundedCall(f)
+    succeeded(
+      await f.h.faces(caller).work.stopCall({
+        ...f.h.access(),
+        operation: operationId('stop'),
+        producer: binding.producer,
+        reason: 'not needed',
+      }),
+      'stop',
+    )
+    const [listed] = succeeded(
+      await f.h.faces('intake').work.readBackgroundCalls(f.h.access()),
+      'read',
+    )
+    expect(listed?.stop).toEqual({ initiator, reason: 'not needed', progress: 'requested' })
+  })
+
+it('受理方与协调方读到同一份后台调用：短号、标签、来源，状态向 Tool 现问（C18）', async () => {
+  const f = await controlFixture()
+  open.push(f.h)
+  expect(
+    succeeded(await f.h.faces('intake').work.readBackgroundCalls(f.h.access()), 'read'),
+  ).toEqual([])
+  const { binding } = await backgroundedCall(f)
+  const label = { intent: 'build', tool: 'Shell', command: 'execute', preview: 'pnpm build' }
+  const unknown = { id: 'b1', producer: binding.producer, label, source: 'launched', stop: null }
+  expect(
+    succeeded(await f.h.faces('intake').work.readBackgroundCalls(f.h.access()), 'read'),
+  ).toEqual([{ ...unknown, status: 'unknown', lastLine: null }])
+  const asked: unknown[] = []
+  f.h.callStates.port = {
+    read: async input => {
+      asked.push(input)
+      return succeed({ phase: 'running', stop: null, lastLine: 'step 3/7' })
+    },
+  }
+  const intake = succeeded(await f.h.faces('intake').work.readBackgroundCalls(f.h.access()), 'read')
+  const coordinator = succeeded(
+    await f.h.faces('coordinator').work.readBackgroundCalls(f.h.access()),
+    'read',
+  )
+  expect(intake).toEqual([{ ...unknown, status: 'running', lastLine: 'step 3/7' }])
+  expect(coordinator).toEqual(intake)
+  expect(asked[0]).toMatchObject({ producer: binding.producer })
+  for (const [state, status] of [
+    [{ phase: 'queued', stop: null, lastLine: null }, 'queued'],
+    [{ phase: 'running', stop: 'accepted', lastLine: null }, 'stopping'],
+    [{ phase: 'settled', stop: 'stopped', lastLine: null }, 'ended-pending'],
+  ] as const) {
+    f.h.callStates.port = { read: async () => succeed(state) }
+    expect(
+      succeeded(await f.h.faces('intake').work.readBackgroundCalls(f.h.access()), 'read'),
+    ).toMatchObject([{ status }])
+  }
+  for (const failing of [
+    { read: async () => fail({ kind: 'unavailable', owner: 'tool', diagnostic: 'away' }) },
+    {
+      read: async () => {
+        throw new Error('down')
+      },
+    },
+  ] as const) {
+    f.h.callStates.port = failing as never
+    expect(
+      succeeded(await f.h.faces('intake').work.readBackgroundCalls(f.h.access()), 'read'),
+    ).toEqual([{ ...unknown, status: 'unknown', lastLine: null }])
+  }
+  expect(await f.h.faces('maintainer').work.readBackgroundCalls(f.h.access())).toMatchObject({
+    failure: { kind: 'denied', action: 'readBackgroundCalls' },
+  })
+})
+
+it('受理方与协调方按短号认一项：本会话的认得出，别的会话的与不存在的同答 not-found（C17）', async () => {
+  const f = await controlFixture()
+  open.push(f.h)
+  const { binding } = await backgroundedCall(f)
+  for (const caller of ['intake', 'coordinator'] as const) {
+    expect(
+      await f.h.faces(caller).work.resolveBackgroundCall({ ...f.h.access(), id: 'b1' }),
+    ).toEqual({ ok: { producer: binding.producer, settled: null } })
+    for (const id of ['b2', 'b0', 'x1'])
+      expect(await f.h.faces(caller).work.resolveBackgroundCall({ ...f.h.access(), id })).toEqual({
+        failure: { kind: 'not-found' },
+      })
+  }
+  expect(
+    await f.h.faces('maintainer').work.resolveBackgroundCall({ ...f.h.access(), id: 'b1' }),
+  ).toMatchObject({ failure: { kind: 'denied' } })
 })

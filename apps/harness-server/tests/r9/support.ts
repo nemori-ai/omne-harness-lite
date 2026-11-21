@@ -16,8 +16,15 @@ import { createSecretVault } from '@omne-harness/settings-local/secrets'
 import { providerCredentialKey, releaseProvider } from '../../src/assets/model-providers.ts'
 import { CURSOR_KEY_FILE } from '../../src/entry/cursor-signing.ts'
 import { COMBINATION_VERSION } from '../../src/rows/agent-journal/config.ts'
-import { LOCAL_TOKENIZERS, LOCAL_TOOL_RESULT_BYTES } from '../../src/local/operator-defaults.ts'
+import {
+  LOCAL_OPEN_LIMITS,
+  LOCAL_SCREEN_LIMITS,
+  LOCAL_TOKENIZERS,
+  LOCAL_TOOL_RESULT_BYTES,
+} from '../../src/local/operator-defaults.ts'
 import { providerConfig } from '../rows/storage/fixtures/tree.ts'
+import { DEFAULT_COMPACTION_BINDING } from '../../src/assembly/compaction-provider.ts'
+import { SEARCH_RANKING } from '../../src/entry/search-ranking.ts'
 
 export const memberDir = fileURLToPath(new URL('../..', import.meta.url))
 export const serverBin = join(memberDir, 'dist', 'bin.js')
@@ -83,22 +90,25 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
     compactionTriggerPercent: '80',
     updatedAt: '2026-11-02T00:00:00Z',
   }
-  const preparation = {
-    maxCitedCalls: 8,
-    openai: {
-      limits: {
-        toolArguments: {
-          maxBytes: 65_536,
-          maxDepth: 32,
-          maxItems: 1_024,
-          maxMembers: 256,
-          maxStringLength: 65_536,
-          maxNumberLength: 64,
-        },
-        maxReasoningText: 65_536,
+  const family = {
+    limits: {
+      toolArguments: {
+        maxBytes: 65_536,
+        maxDepth: 32,
+        maxItems: 1_024,
+        maxMembers: 256,
+        maxStringLength: 65_536,
+        maxNumberLength: 64,
       },
-      margin: { percent: '10', source: MODEL_TEST_ADOPTION },
+      maxReasoningText: 65_536,
     },
+    margin: { percent: '10', source: MODEL_TEST_ADOPTION },
+  }
+  const preparation = {
+    maxCitedCalls: 1_024,
+    openai: family,
+    anthropic: structuredClone(family),
+    qwen: structuredClone(family),
   }
   const host = {
     host: { concurrencyLimit: 4, wakeCapacity: 64, scanBatchSize: 10, scanIntervalMs: 1000 },
@@ -109,15 +119,20 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
       observerCheckIntervalMs: 25,
       readIdleMs: 1000,
       resultPageTargetBytes: 4096,
-      retryBackoffMs: 0,
-      cleanupRetryMs: 1000,
+    },
+    retry: {
+      adoption: profiles.retryPolicy,
+      policy: { maxAttempts: 2, maxElapsedMs: 30_000, delaysMs: [50], jitter: 0 },
+      replayResend: { max: 1 },
     },
     results: {
       maxConcurrentCalls: 4,
       maxRedeliveries: 2,
       maxCleanupSteps: 8,
+      delaysMs: [1000, 5000, 30000],
       maxPendingAccountsPerTenant: 4,
       maxPendingAccounts: 16,
+      maxCostMisses: 5,
     },
   }
   const records = {
@@ -125,6 +140,11 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
       {
         consumerOwner: '@omne-harness/agent',
         evidence: { ...MODEL_TEST_ADOPTION, name: 'agent-consumer-evidence' },
+        work: { kind: 'exempt' },
+      },
+      {
+        consumerOwner: '@omne-harness/context-compaction',
+        evidence: { ...MODEL_TEST_ADOPTION, name: 'compaction-consumer-evidence' },
         work: { kind: 'exempt' },
       },
     ],
@@ -229,13 +249,13 @@ function agentHostOperatorConfig(): Record<string, unknown> {
   return {
     jointCommits: row.config['jointCommits'],
     coordination: row.config['coordination'],
+    compactionProvider: DEFAULT_COMPACTION_BINDING,
     observerBufferBytes: 65_536,
     reconciliationDelaysMs: [0],
     reconciliationBatchLimit: 8,
     denialBackoffMs: 0,
     toolConcurrency: 1,
     loopGuardPolicy: { ...MODEL_TEST_ADOPTION, name: 'loop-guard' },
-    modelRetry: { maxAttempts: 1, maxElapsedMs: 0, delaysMs: [0], jitter: 0 },
     instanceIdleMs: 60_000,
   }
 }
@@ -264,12 +284,21 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
   return {
     filesRoot,
     construction: {
-      Shell: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, ...shell, cwd: filesRoot, env },
-      Files: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES },
+      Shell: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, ...shell, env },
+      Files: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, ...LOCAL_OPEN_LIMITS },
       Tools: { resultMaxBytes: 65536, outputModalities: ['text'] },
       TodoItems: { resultMaxBytes: 1_048_576 },
+      BkgToolCalls: { resultMaxBytes: 65_536 },
       Ask: { resultMaxBytes: 1_048_576 },
       Web: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, maxSearchResults: 10 },
+      Skills: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES },
+      Calendar: { resultMaxBytes: 65_536 },
+      Schedules: { resultMaxBytes: 65_536 },
+      Notifications: { resultMaxBytes: 65_536 },
+      Sessions: { resultMaxBytes: 131_072 },
+      Agents: { resultMaxBytes: 1_048_576 },
+      SwitchWorkspace: { resultMaxBytes: 65_536 },
+      Screen: { resultMaxBytes: 65_536, ...LOCAL_SCREEN_LIMITS },
     },
     web: {
       search: {
@@ -281,7 +310,6 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
       fetch: { maxRedirects: 5, timeoutMs: 10_000, maxBodyBytes: 1_048_576 },
     },
     records: {
-      filesRoot,
       combinationVersion: COMBINATION_VERSION,
       configuration: {
         authorBufferBytes: 65536,
@@ -330,9 +358,38 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
       observerQueueFrames: 16,
       observerResidenceMs: 5000,
     },
-    host: { filesRoot, stateDirectory },
+    host: { stateDirectory },
   }
 }
+
+/** A whole policy, as an operator gives it: the release layer carries no numbers. */
+/** The registry is walked often, so a test does not wait long for a step a lost wake-up left. */
+export const DISPATCH_POLICY = { maxOpen: 3, reconcileIntervalMs: 1000 }
+
+export const NOTIFICATION_POLICY = {
+  bodyLength: 4096,
+  causalDepth: 3,
+  pageLimit: 50,
+  listLimit: 5,
+  retry: { maxAttempts: 3, backoffMs: [100, 1000] },
+  deliverTimeoutMs: 5000,
+  beat: { defaultMinutes: 60, minMinutes: 5, maxMinutes: 1440 },
+  scanIntervalMs: 60_000,
+  recipients: { person: { channel: 'in-app', minLevel: 'weak' }, agent: null },
+}
+
+// Calendar sources point at a closed loopback port, so a test service never reaches the real
+// authorities; a test that needs the sources serves them itself.
+export const CLOSED_CALENDAR_SOURCES: Readonly<Record<string, string>> = Object.freeze(
+  Object.fromEntries(
+    [
+      'https://raw.githubusercontent.com',
+      'https://www8.cao.go.jp',
+      'https://www.opm.gov',
+      'https://www.federalregister.gov',
+    ].map(origin => [origin, 'http://127.0.0.1:1']),
+  ),
+)
 
 export function operatorLayer(options: {
   storageRoot: string
@@ -352,7 +409,7 @@ export function operatorLayer(options: {
         id: 'storage',
         config: providerConfig(options.storageRoot, {
           closeDeadlineMs: deadline - 1000,
-          maxResponseBytes: 131_072,
+          maxResponseBytes: 1_048_576,
           maxJsonDepth: options.maxJsonDepth ?? releaseMaxJsonDepth(),
         }),
       },
@@ -366,6 +423,7 @@ export function operatorLayer(options: {
         },
       },
       { kind: 'replace', id: 'secret-custody', config: { path: seedTestVault(model.vault) } },
+      { kind: 'replace', id: 'calendar', config: { sourceTestOrigins: CLOSED_CALENDAR_SOURCES } },
       { kind: 'replace', id: 'model-tokenizers', config: model.tokenizers },
       { kind: 'replace', id: 'model-profiles', config: model.profiles },
       { kind: 'replace', id: 'model-request-preparation', config: model.preparation },
@@ -400,8 +458,27 @@ export function operatorLayer(options: {
       { kind: 'replace', id: 'execution-host', config: tools.host },
       {
         kind: 'replace',
+        id: 'tenant-assets',
+        config: { packageRoot: join(dirname(options.storageRoot), 'assets') },
+      },
+      {
+        kind: 'replace',
+        id: 'session-history-index',
+        config: { root: join(dirname(options.storageRoot), 'history-index') },
+      },
+      {
+        kind: 'replace',
+        id: 'media-storage-local',
+        config: { root: join(dirname(options.storageRoot), 'media') },
+      },
+      { kind: 'replace', id: 'skills', config: { ranking: SEARCH_RANKING } },
+      { kind: 'replace', id: 'notification', config: { policy: NOTIFICATION_POLICY } },
+      { kind: 'replace', id: 'dispatch', config: { policy: DISPATCH_POLICY } },
+      { kind: 'replace', id: 'workspace', config: { node: 'local' } },
+      {
+        kind: 'replace',
         id: 'request-context',
-        config: { limits: { maxTargets: 64, maxFactsPerTarget: 64, maxRevisionsPerDispatch: 16 } },
+        config: {},
       },
       {
         kind: 'replace',
@@ -411,7 +488,11 @@ export function operatorLayer(options: {
       {
         kind: 'replace',
         id: 'session-ad03',
-        config: { scopeIndexEntries: 4096, pageBytes: 65536 },
+        config: {
+          scopeIndexEntries: 4096,
+          pageBytes: 65536,
+          defaultDirectory: tools.filesRoot,
+        },
       },
       {
         kind: 'replace',

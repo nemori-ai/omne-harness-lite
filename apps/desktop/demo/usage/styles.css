@@ -1,0 +1,12 @@
+@import '@omne-harness/ui-kit/styles.css';
+@import '@omne-harness/usage-ui/usage-ui.css';
+@source '.';
+
+body {
+  margin: 0;
+  background: var(--omne-surface-page);
+  color: var(--omne-ink-primary);
+}
+.probe {
+  color: var(--omne-chart-1);
+}

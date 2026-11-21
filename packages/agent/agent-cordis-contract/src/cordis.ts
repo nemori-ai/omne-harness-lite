@@ -7,7 +7,6 @@ import {
   judgeEvidence,
   type ActionAdmission,
   type AgentAccessCheck,
-  type AgentAccountOutlet,
   type AgentAccessOperation,
   type AgentAdoptions,
   type AgentClock,
@@ -23,11 +22,12 @@ import {
   type AgentReceivedRecords,
   type AgentRegistrationId,
   type CurrentConditions,
+  type CompactionInputStore,
+  type ContextCompaction,
   type DecisionCards,
   type ExtensionImplementations,
   type Failure,
   type MessageHandoff,
-  type ModelContextReader,
   type ModelReceptionTargets,
   type ToolReceptionTargets,
   type ModelSelection,
@@ -80,6 +80,7 @@ export abstract class AgentJournalService<P> extends Service implements AgentJou
   abstract readonly inputs: AgentJournal<P>['inputs']
   abstract readonly readReplyAdmissions: AgentJournal<P>['readReplyAdmissions']
   abstract readonly query: AgentJournal<P>['query']
+  abstract readonly inputAcceptance: AgentJournal<P>['inputAcceptance']
   abstract readonly readFinish?: NonNullable<AgentJournal<P>['readFinish']>
   abstract readonly output: AgentJournal<P>['output']
   abstract readonly capabilities: AgentJournal<P>['capabilities']
@@ -105,19 +106,6 @@ export abstract class ModelSelectionService<P> extends Service implements ModelS
   abstract readonly select: ModelSelection<P>['select']
 }
 export const agentModelSelectionKey = ModelSelectionService.provide
-
-/** @owner packages/agent/agent-cordis-contract */
-export abstract class ModelContextReaderService<P>
-  extends Service
-  implements ModelContextReader<P>
-{
-  static readonly provide = 'agentModelContext'
-  constructor(ctx: Context) {
-    super(ctx, ModelContextReaderService.provide)
-  }
-  abstract readonly read: ModelContextReader<P>['read']
-}
-export const agentModelContextKey = ModelContextReaderService.provide
 
 /** @owner packages/agent/agent-cordis-contract */
 export abstract class ActionAdmissionService<P> extends Service implements ActionAdmission<P> {
@@ -198,10 +186,37 @@ export abstract class RequestPreparationService<P>
     super(ctx, RequestPreparationService.provide)
   }
   abstract readonly prepare: RequestPreparation<P>['prepare']
-  abstract readonly derive: RequestPreparation<P>['derive']
+  abstract readonly assessCompaction: RequestPreparation<P>['assessCompaction']
   abstract readonly resume: RequestPreparation<P>['resume']
 }
 export const agentRequestsKey = RequestPreparationService.provide
+
+/** @owner packages/agent/agent-cordis-contract */
+export abstract class ContextCompactionService<P> extends Service implements ContextCompaction<P> {
+  static readonly provide = 'agentCompaction'
+  constructor(ctx: Context) {
+    super(ctx, ContextCompactionService.provide)
+  }
+  abstract readonly admit: ContextCompaction<P>['admit']
+  abstract readonly inspect: ContextCompaction<P>['inspect']
+  abstract readonly cancel: ContextCompaction<P>['cancel']
+  abstract readonly acknowledge: ContextCompaction<P>['acknowledge']
+}
+export const agentCompactionKey = ContextCompactionService.provide
+
+/** @owner packages/agent/agent-cordis-contract */
+export abstract class CompactionInputStoreService<P>
+  extends Service
+  implements CompactionInputStore<P>
+{
+  static readonly provide = 'agentCompactionInputs'
+  constructor(ctx: Context) {
+    super(ctx, CompactionInputStoreService.provide)
+  }
+  abstract readonly read: CompactionInputStore<P>['read']
+  abstract readonly freeze: CompactionInputStore<P>['freeze']
+}
+export const agentCompactionInputsKey = CompactionInputStoreService.provide
 
 /** @owner packages/agent/agent-cordis-contract */
 export abstract class AgentMaterialsService<P, B extends ContentBlock>
@@ -353,19 +368,6 @@ export abstract class ToolReceptionTargetsService<P>
   abstract readonly resolve: ToolReceptionTargets<P>['resolve']
 }
 export const agentToolReceptionTargetsKey = ToolReceptionTargetsService.provide
-
-/** @owner packages/agent/agent-cordis-contract */
-export abstract class AgentAccountOutletService<P>
-  extends Service
-  implements AgentAccountOutlet<P>
-{
-  static readonly provide = 'agentAccountOutlet'
-  constructor(ctx: Context) {
-    super(ctx, AgentAccountOutletService.provide)
-  }
-  abstract readonly deliver: AgentAccountOutlet<P>['deliver']
-}
-export const agentAccountOutletKey = AgentAccountOutletService.provide
 
 /** @owner packages/agent/agent-cordis-contract */
 export abstract class AgentExecutionControlService<P>
@@ -832,7 +834,6 @@ declare module '@deepseek-ai/cordis' {
     agentJournal: AgentJournalService<unknown>
     agentAccessCheck: AgentAccessCheckService<unknown>
     agentModelSelection: ModelSelectionService<unknown>
-    agentModelContext: ModelContextReaderService<unknown>
     agentActionAdmission: ActionAdmissionService<unknown>
     agentDecisionCards: DecisionCardsService<unknown>
     agentMessageHandoff: MessageHandoffService<unknown>
@@ -840,6 +841,8 @@ declare module '@deepseek-ai/cordis' {
     agentAdoptions: AgentAdoptionsService<unknown>
     agentConditions: CurrentConditionsService<unknown>
     agentRequests: RequestPreparationService<unknown>
+    agentCompaction: ContextCompactionService<unknown>
+    agentCompactionInputs: CompactionInputStoreService<unknown>
     agentMaterials: AgentMaterialsService<unknown, ContentBlock>
     agentReads: RegisteredReadsService<unknown>
     agentClock: AgentClockService
@@ -847,7 +850,6 @@ declare module '@deepseek-ai/cordis' {
     agentPublicationAuthority: AgentPublicationAuthorityService<unknown>
     agentExecutionRecovery: AgentExecutionRecoveryService<unknown>
     agentJournalEntries: AgentJournalEntriesService<unknown>
-    agentAccountOutlet: AgentAccountOutletService<unknown>
     agentReceivedCommits: AgentReceivedCommitsService<unknown, ContentBlock>
     agentReceivedRecords: AgentReceivedRecordsService<unknown>
     agentModelReceptionTargets: ModelReceptionTargetsService<unknown>

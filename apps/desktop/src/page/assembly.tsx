@@ -1,14 +1,54 @@
 import type { Plugin } from '@deepseek-ai/cordis'
 import '@omne-harness/assets-ui/assets-ui.css'
-import { assetsUiModule } from '@omne-harness/assets-ui/cordis'
+import {
+  assetGovernanceKey,
+  assetsCategoryPage,
+  assetsUiModule,
+} from '@omne-harness/assets-ui/cordis'
+import '@omne-harness/calendar-ui/calendar-ui.css'
+import { calendarUiModule } from '@omne-harness/calendar-ui/cordis'
 import '@omne-harness/human-intervention-ui/human-intervention-ui.css'
-import { createHumanInterventionUiModule } from '@omne-harness/human-intervention-ui/cordis'
+import {
+  createHumanInterventionUiModule,
+  releaseDetail,
+} from '@omne-harness/human-intervention-ui/cordis'
 import { identityUiModule } from '@omne-harness/identity-ui/cordis'
 import '@omne-harness/identity-ui/identity-ui.css'
+import { createMcpUiModule } from '@omne-harness/mcp-ui/cordis'
+import '@omne-harness/mcp-ui/mcp-ui.css'
+import { createMediaUiModule, mediaComposerIntakeKey } from '@omne-harness/media-ui/cordis'
+import '@omne-harness/media-ui/media-ui.css'
+import { modelChoicesKey, modelUiModule } from '@omne-harness/model-ui/cordis'
+import { notificationUiModule } from '@omne-harness/notification-ui/cordis'
+import '@omne-harness/notification-ui/notification-ui.css'
 import type { ProtocolContract } from '@omne-harness/public-contract'
-import { SESSION_DOCK, sessionUiModule } from '@omne-harness/session-ui/cordis'
+import '@omne-harness/schedule-ui/schedule-ui.css'
+import { createScheduleUiModule } from '@omne-harness/schedule-ui/cordis'
+import {
+  sessionBlock,
+  sessionBlockReadsKey,
+  sessionCallDetail,
+  sessionComposerAttachments,
+  sessionComposerIntakeKey,
+  sessionDock,
+  sessionModelChoicesKey,
+  sessionReadsSourceKey,
+  sessionReadsUiModule,
+  sessionSide,
+  sessionStatus,
+  sessionUiModule,
+  sessionWorkspaceChoicesKey,
+} from '@omne-harness/session-ui/cordis'
 import '@omne-harness/session-ui/session-ui.css'
+import { createToolUiModule } from '@omne-harness/tool-ui/cordis'
+import { storedLayouts } from '@omne-harness/usage-ui'
+import { createUsageUiModule } from '@omne-harness/usage-ui/cordis'
+import '@omne-harness/usage-ui/usage-ui.css'
+import { workspaceChoicesKey, workspaceUiModule } from '@omne-harness/workspace-ui/cordis'
 import { domainProtocols } from '../shared/protocols.ts'
+import { handOver } from './hand-over.ts'
+
+export const USAGE_REFRESH_MS = 60_000
 
 export type Assembly = Readonly<{
   protocols: readonly ProtocolContract[]
@@ -20,7 +60,26 @@ export const assembly: Assembly = {
   modules: [
     identityUiModule,
     sessionUiModule,
-    createHumanInterventionUiModule({ sessionAnchor: SESSION_DOCK }),
+    createHumanInterventionUiModule({ sessionDock }),
+    notificationUiModule,
+    createScheduleUiModule({ releaseDetail }),
+    calendarUiModule,
     assetsUiModule,
+    createMcpUiModule({ page: assetsCategoryPage, governance: assetGovernanceKey }),
+    createToolUiModule({ callDetail: sessionCallDetail }),
+    modelUiModule,
+    handOver(sessionModelChoicesKey, modelChoicesKey),
+    workspaceUiModule,
+    handOver(sessionWorkspaceChoicesKey, workspaceChoicesKey),
+    createUsageUiModule({
+      sessionSide,
+      sessionStatus,
+      store: storedLayouts(() => window.localStorage),
+      refreshMs: USAGE_REFRESH_MS,
+    }),
+    createMediaUiModule({ composerAttachments: sessionComposerAttachments, block: sessionBlock }),
+    handOver(mediaComposerIntakeKey, sessionComposerIntakeKey),
+    sessionReadsUiModule,
+    handOver(sessionBlockReadsKey, sessionReadsSourceKey),
   ],
 }

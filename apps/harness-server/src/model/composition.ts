@@ -10,11 +10,19 @@ import type {
   ModelInitialExecution,
   ModelInitialHostChannel,
 } from '@omne-harness/model/commands'
+import type { Access, TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { currentForReader } from '../entry/runtime-context-trust.ts'
 import { qualifyingObservation, type ModelObservationPair } from './observation.ts'
 import type { ModelQualification } from './qualification.ts'
 import { callKey } from './tenant-call.ts'
+import { MODEL_HOST_COMPONENT, MODEL_SCAN_OWNER } from './principals.ts'
+
+const SCAN_ACTOR = Object.freeze({
+  owner: MODEL_HOST_COMPONENT,
+  subject: MODEL_SCAN_OWNER,
+  revision: '1',
+})
 
 const COMPOSITION = 'model-run-composition'
 
@@ -61,15 +69,31 @@ export type ModelHostBinding = Readonly<{
   ): ReturnType<ModelQualification['qualifyObservation']>
   observation(): Outcome<ModelObservationPair, ModelFailure>
   ledger: ResultPushLedger
+  /** An access for the start scan of one tenant: it may only read what the tenant's calls left. */
+  scanAccess(tenant: TenantId): Outcome<Access<unknown>, ModelFailure>
+}>
+
+/** Issues the principal of the start scan for a tenant. */
+export type ModelScanIssue = (tenant: TenantId) => Outcome<object, unknown>
+
+/** A row that reads Model records qualifies each read here, like the host does. */
+export type ModelReadersPort = Readonly<{
+  bindReader(ctx: Context): Readonly<{
+    qualifyRead(
+      access: Parameters<ModelQualification['qualifyRead']>[0],
+    ): ReturnType<ModelQualification['qualifyRead']>
+  }>
 }>
 
 export type ModelRunComposition = Readonly<{
   records: ModelRecordsPort
   host: ModelHostPort
+  readers: ModelReadersPort
   grantOriginRead(target: InitialTarget): () => void
   attached(): ModelRecordsAttachment | undefined
   executionChannel(): Outcome<ModelInitialHostChannel<unknown>, ModelFailure>
   hostCurrent(): (() => boolean) | undefined
+  useScanIssue(issue: ModelScanIssue | undefined): void
 }>
 
 type Attached = ModelRecordsAttachment &
@@ -79,12 +103,33 @@ type Attached = ModelRecordsAttachment &
     end(): void
   }>
 
+function scanAccessOf(
+  attachedNow: () => Attached | undefined,
+  issue: ModelScanIssue | undefined,
+  current: () => boolean,
+  tenant: TenantId,
+): Outcome<Access<unknown>, ModelFailure> {
+  const live = attachedNow()
+  if (live === undefined) return fail(unavailable('records-not-attached'))
+  if (issue === undefined) return fail(unavailable('scan-issuer-not-installed'))
+  const issued = issue(tenant)
+  if ('failure' in issued) return fail(unavailable('scan-principal-refused'))
+  live.qualification.captureScan({
+    principal: issued.ok,
+    tenant,
+    actor: SCAN_ACTOR,
+    current: () => current() && attachedNow() === live,
+  })
+  return succeed({ principal: issued.ok, tenant })
+}
+
 export function createModelRunComposition(): ModelRunComposition {
   const grants = new Map<string, number>()
   const readers = new WeakMap<Context, () => boolean>()
   const ledger = createMemoryResultPushLedger()
   let attached: Attached | undefined
   let hostCurrent: (() => boolean) | undefined
+  let scanIssue: ModelScanIssue | undefined
 
   const checkOriginRead: ModelRecordsPort['checkOriginRead'] = target => {
     const key = callKey(target.tenant, target.call)
@@ -153,6 +198,7 @@ export function createModelRunComposition(): ModelRunComposition {
     return Object.freeze({
       executionChannel,
       ledger,
+      scanAccess: (tenant: TenantId) => scanAccessOf(() => attached, scanIssue, current, tenant),
       releaseExecution: async () => {
         const bound = attached
         if (bound === undefined) return
@@ -200,12 +246,29 @@ export function createModelRunComposition(): ModelRunComposition {
     })
   }
 
+  const bindReader: ModelReadersPort['bindReader'] = ctx => {
+    const current = currentForReader(readers, ctx)
+    return Object.freeze({
+      qualifyRead: async access => {
+        const live = attached
+        if (live === undefined)
+          return {
+            check: async () => fail(unavailable('records-not-attached')),
+            release() {},
+          }
+        return live.qualification.qualifyRead(access, () => current() && attached === live)
+      },
+    })
+  }
+
   return Object.freeze({
     records: Object.freeze({ checkOriginRead, attach }),
     host: Object.freeze({ bindHost }),
+    readers: Object.freeze({ bindReader }),
     grantOriginRead,
     attached: () => attached,
     executionChannel,
     hostCurrent: () => hostCurrent,
+    useScanIssue: issue => void (scanIssue = issue),
   })
 }

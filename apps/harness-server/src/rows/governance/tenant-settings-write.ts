@@ -17,6 +17,10 @@ import type { DomainRef, SqlStorage } from '@omne-harness/sql-contract'
 import type { GovernanceScope } from '@omne-harness/governance-contract'
 import type { ToolRelease } from '../../entry/tool-release.ts'
 import type { ToolReleaseEntry } from '../../entry/tool-release-manifest.ts'
+import { INDEPENDENT_SETTINGS_CONFIGURATION } from './independent-settings.ts'
+import { createIndependentSettingsPreparation } from './independent-settings-write.ts'
+import { HELD_SETTINGS_CONFIGURATION } from './held-settings-current.ts'
+import { createHeldSettingsPreparation } from './held-settings-write.ts'
 import { governanceStorageCombinations } from './storage-combinations.ts'
 import {
   TARGET_SNAPSHOT,
@@ -57,21 +61,43 @@ const reference = (value: Registration): Registration => ({
 const failure = (reason: 'forbidden' | 'unavailable' | 'unsupported') =>
   ({ kind: 'rejected', reason }) as const
 
-export function createTenantSettingsWrite(options: TenantSettingsWriteOptions) {
-  const scope = structuredClone(options.scope)
-  const domain = structuredClone(options.domain)
-  const combinations = governanceStorageCombinations(options.materials)
-  const writerRef = standingPrincipalRef(options.writer)
-  let planned: string | undefined
+const unsupported = async () => failure('unsupported')
 
-  function entryOf(target: SettingsTarget): ToolReleaseEntry | undefined {
-    const release = options.release()
-    if (release?.kind !== 'trusted') return undefined
-    const matches = release.manifest.entries.filter(
-      entry => canonicalText(toolAssetTarget(entry, scope.tenantRef)) === canonicalText(target),
-    )
-    return matches.length === 1 ? matches[0] : undefined
-  }
+type Prepared = ReturnType<typeof createIdentityQualifiedSettingsPreparation>
+
+/** Runs one change through a preparation: recall, the caller's last check, prepare, commit. */
+async function writeThrough(
+  service: Prepared['service'],
+  writer: Principal,
+  { command, beforeWrite }: Parameters<TenantSettingsWriter['write']>[0],
+) {
+  const operation = { target: command.target, operationId: command.operationId }
+  const known = await service.getOperation(writer, operation)
+  if (known.kind === 'not_found' || known.kind === 'pending') {
+    const refused = await beforeWrite()
+    if (refused !== null) return { kind: 'refused' as const, outcome: refused }
+  } else if (known.kind === 'rejected') return known
+  const staged = await service.prepareChange(writer, command)
+  if (staged.kind !== 'prepared') return staged
+  return service.commitChange(writer, {
+    requestId: command.requestId,
+    preparation: staged.preparation,
+  })
+}
+
+type Shared = Readonly<{
+  options: TenantSettingsWriteOptions
+  scope: GovernanceScope
+  domain: DomainRef
+  combinations: ReturnType<typeof governanceStorageCombinations>
+  writerRef: string
+  entryOf(target: SettingsTarget): ToolReleaseEntry | undefined
+}>
+
+/** Changes to a release tool's targets: its governance declaration and adoption are current facts. */
+function createReleaseSettingsPreparation(shared: Shared) {
+  const { options, scope, domain, combinations, writerRef, entryOf } = shared
+  let planned: string | undefined
 
   function snapshotBinding(epoch: string, entry: ToolReleaseEntry, target: SettingsTarget) {
     return {
@@ -175,35 +201,66 @@ export function createTenantSettingsWrite(options: TenantSettingsWriteOptions) {
             : failure('forbidden')
         },
       },
-      sources: {
-        reserve: async () => failure('unsupported'),
-        settle: async () => failure('unsupported'),
-      },
+      sources: { reserve: unsupported, settle: unsupported },
     },
   })
-
-  const writer: TenantSettingsWriter = {
-    async write({ command, beforeWrite }) {
+  return {
+    control: prepared.control,
+    async write(input: Parameters<TenantSettingsWriter['write']>[0]) {
       planned = (await options.epoch()) ?? planned
-      const service = prepared.service
-      const operation = { target: command.target, operationId: command.operationId }
-      const known = await service.getOperation(options.writer, operation)
-      if (known.kind === 'not_found' || known.kind === 'pending') {
-        const refused = await beforeWrite()
-        if (refused !== null) return { kind: 'refused', outcome: refused }
-      } else if (known.kind === 'rejected') return known
-      const staged = await service.prepareChange(options.writer, command)
-      if (staged.kind !== 'prepared') return staged
-      return service.commitChange(options.writer, {
-        requestId: command.requestId,
-        preparation: staged.preparation,
-      })
+      return writeThrough(prepared.service, options.writer, input)
     },
   }
+}
 
+/** One writer, three kinds of target: release tools, the other held assets, independent targets. */
+export function createTenantSettingsWrite(options: TenantSettingsWriteOptions) {
+  const scope = structuredClone(options.scope)
+  const domain = structuredClone(options.domain)
+  const combinations = governanceStorageCombinations(options.materials)
+  function entryOf(target: SettingsTarget): ToolReleaseEntry | undefined {
+    const release = options.release()
+    if (release?.kind !== 'trusted') return undefined
+    const matches = release.manifest.entries.filter(
+      entry => canonicalText(toolAssetTarget(entry, scope.tenantRef)) === canonicalText(target),
+    )
+    return matches.length === 1 ? matches[0] : undefined
+  }
+  const writerRef = standingPrincipalRef(options.writer)
+  const shared = { options, scope, domain, combinations, writerRef, entryOf }
+  const release = createReleaseSettingsPreparation(shared)
+  const independent = createIndependentSettingsPreparation({ ...options, domain, combinations })
+  const held = createHeldSettingsPreparation({
+    ...options,
+    domain,
+    combinations,
+    deploymentRef: scope.deploymentId,
+  })
+  const writer: TenantSettingsWriter = {
+    async write(input) {
+      const target = input.command.target
+      if (target.kind === 'independent')
+        return writeThrough(independent.service, options.writer, input)
+      if (entryOf(target) === undefined) return writeThrough(held.service, options.writer, input)
+      return release.write(input)
+    },
+  }
+  const controlOf = (destination: string) =>
+    destination === INDEPENDENT_SETTINGS_CONFIGURATION.destination
+      ? independent.control
+      : destination === HELD_SETTINGS_CONFIGURATION.destination
+        ? held.control
+        : release.control
   return {
     writer,
-    destination: prepared.control.destination,
-    close: () => prepared.control.close(),
+    destination: {
+      seal: (reservation: Parameters<typeof release.control.destination.seal>[0]) =>
+        controlOf(reservation.binding.destination).destination.seal(reservation),
+    },
+    close: async () => {
+      await release.control.close()
+      await independent.control.close()
+      await held.control.close()
+    },
   }
 }

@@ -38,7 +38,7 @@ async function createFixture(limits?: Parameters<typeof createHostFilesEngine>[1
   const path = join(root, '中文.txt')
   const bytes = Buffer.from('中文\r\n末行')
   await writeFile(path, bytes)
-  const engine = createHostFilesEngine({ root }, limits)
+  const engine = createHostFilesEngine({ scope: { read: root, write: root } }, limits)
   return {
     root,
     path,

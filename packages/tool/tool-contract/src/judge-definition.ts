@@ -12,6 +12,7 @@ import type {
   ParameterContract,
   ToolCommandDeclaration,
   ToolDefinition,
+  ToolGate,
   ToolImplementationFacts,
   ToolProgramDeclaration,
   ToolBodyDeclaration,
@@ -203,7 +204,7 @@ const names = (check: Check<string>) => unique(list(check), name => name)
 
 const element: Check<unknown> = value => succeed(value)
 
-const modalities: Check<readonly Modality[]> = (value, at) => {
+export const modalities: Check<readonly Modality[]> = (value, at) => {
   const copied = list(element)(value, at)
   if ('failure' in copied) return copied
   const judged = judgeModalities(copied.ok)
@@ -257,19 +258,92 @@ const commandFields = {
   }),
   returns: returnDeclaration,
 }
-const command = record(commandFields)
+const gateId: Check<string> = (value, at) => {
+  if (typeof value !== 'string') return reject(at, 'type')
+  return /^[a-z][a-z0-9-]{0,47}$/u.test(value) ? succeed(value) : reject(at, 'gate-id')
+}
+const gate = record({ id: gateId, title: oneLine, default: literal('deny', 'ask', 'auto') })
+export const toolGates = unique(nonEmpty(list(gate)), entry => entry.id, 'id')
+const detailKind: Check<string> = (value, at) => {
+  if (typeof value !== 'string') return reject(at, 'type')
+  return /^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)*@[1-9][0-9]{0,5}$/u.test(value) && value.length <= 128
+    ? succeed(value)
+    : reject(at, 'detail-kind')
+}
+export const commandRelease = record(
+  { gate: nullable(gateId) },
+  { detail: record({ kind: detailKind, schema: jsonObject }) },
+)
+export const commandModalities = nonEmpty(modalities)
+const conditionName: Check<string> = (value, at) => {
+  if (typeof value !== 'string') return reject(at, 'type')
+  return /^[a-z][a-z0-9-]{0,47}$/u.test(value) ? succeed(value) : reject(at, 'condition-name')
+}
+export const callConditions = nonEmpty(names(conditionName))
+const command = record(commandFields, {
+  background: record({ unless: names(filled) }),
+  release: commandRelease,
+  modalities: commandModalities,
+  conditions: callConditions,
+})
+
+// A command names only a gate its tool declares; a tool declaring none has no gate to name.
+export function unknownGateAt(
+  gates: readonly Pick<ToolGate, 'id'>[] | undefined,
+  commands: readonly Pick<ToolCommandDeclaration, 'release'>[],
+): number {
+  const ids = new Set((gates ?? []).map(entry => entry.id))
+  return commands.findIndex(
+    entry => typeof entry.release?.gate === 'string' && !ids.has(entry.release.gate),
+  )
+}
+
+function releasedGates(
+  gates: readonly Pick<ToolGate, 'id'>[] | undefined,
+  commands: readonly Pick<ToolCommandDeclaration, 'release'>[],
+  at: string,
+): Readonly<{ field: string; reason: string }> | undefined {
+  const index = unknownGateAt(gates, commands)
+  return index < 0
+    ? undefined
+    : { field: member(member(item(at, index), 'release'), 'gate'), reason: 'unknown-gate' }
+}
+
+// A command tool permits the background only where a command declares it, and only if the tool does.
+function backgroundDeclared(
+  allowed: boolean,
+  commands: readonly Pick<ToolCommandDeclaration, 'background'>[],
+  at: string,
+): Readonly<{ field: string; reason: string }> | undefined {
+  const index = commands.findIndex(entry => entry.background !== undefined)
+  if (!allowed && index >= 0)
+    return { field: member(item(at, index), 'background'), reason: 'background-not-allowed' }
+  return allowed && index < 0 ? { field: at, reason: 'no-background-command' } : undefined
+}
 
 const functionShapeFields = {
   kind: literal('function'),
   parameters: parameterContract,
   returns: returnDeclaration,
 }
+const functionShapeOptional = { conditions: callConditions }
 const commandsShapeFields = {
   kind: literal('commands'),
   encoding: literal(...COMMAND_CALL_ENCODINGS),
   commands: unique(nonEmpty(list(command)), entry => entry.name, 'name'),
 }
-const commandsShapeOptional = { guide: nonBlank }
+const commandsShapeOptional = { guide: nonBlank, gates: toolGates }
+
+function gatesNamed<
+  T extends Readonly<{
+    gates?: readonly Pick<ToolGate, 'id'>[]
+    commands: readonly Pick<ToolCommandDeclaration, 'release'>[]
+  }>,
+>(check: Check<T>): Check<T> {
+  return refine(check, (value, at) =>
+    releasedGates(value.gates, value.commands, member(at, 'commands')),
+  )
+}
 
 function flatCallable<
   T extends Readonly<{
@@ -287,22 +361,41 @@ function flatCallable<
 }
 
 export const toolDefinition: Check<ToolDefinition> = variant('kind', {
-  function: record({ ...metadataFields, ...functionShapeFields }, metadataOptional),
-  commands: flatCallable(
-    record(
-      { ...metadataFields, ...commandsShapeFields },
-      { ...metadataOptional, ...commandsShapeOptional },
+  function: record(
+    { ...metadataFields, ...functionShapeFields },
+    { ...metadataOptional, ...functionShapeOptional },
+  ),
+  commands: refine(
+    gatesNamed(
+      flatCallable(
+        record(
+          { ...metadataFields, ...commandsShapeFields },
+          { ...metadataOptional, ...commandsShapeOptional },
+        ),
+      ),
     ),
+    (value, at) =>
+      backgroundDeclared(value.backgroundAllowed, value.commands, member(at, 'commands')),
   ),
 })
 
-const implementationFacts: Check<ToolImplementationFacts> = record({
-  ...declarationFields,
-  implements: variant('kind', {
-    function: record(functionShapeFields),
-    commands: flatCallable(record(commandsShapeFields, commandsShapeOptional)),
+const implementationFacts: Check<ToolImplementationFacts> = refine(
+  record({
+    ...declarationFields,
+    implements: variant('kind', {
+      function: record(functionShapeFields, functionShapeOptional),
+      commands: gatesNamed(flatCallable(record(commandsShapeFields, commandsShapeOptional))),
+    }),
   }),
-})
+  (value, at) =>
+    value.implements.kind === 'commands'
+      ? backgroundDeclared(
+          value.backgroundAllowed,
+          value.implements.commands,
+          member(member(at, 'implements'), 'commands'),
+        )
+      : undefined,
+)
 
 export function judgeImplementationFacts(
   value: unknown,

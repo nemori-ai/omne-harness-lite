@@ -38,9 +38,15 @@ export type { SettingsSourceDestination } from './source-service-schema.ts'
 export { createIdentityQualifiedSettingsSources } from './identity-sources.ts'
 export {
   createOrganizationSettingsCurrent,
+  createTenantSettingsCurrent,
   settingsOrganizationCurrentMaterials,
+  settingsStandaloneCurrentMaterials,
 } from './organization-current.ts'
-export type { OrganizationCurrentConfiguration } from './organization-current-schema.ts'
+export { standaloneCurrentParticipant } from './organization-current-schema.ts'
+export type {
+  OrganizationCurrentConfiguration,
+  StandaloneCurrentRule,
+} from './organization-current-schema.ts'
 export {
   createOrganizationSettingsRecovery,
   type OrganizationRecoveryOptions,

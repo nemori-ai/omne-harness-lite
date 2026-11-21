@@ -1,7 +1,6 @@
 import type {
   Access,
   AgentAccessCheck,
-  AgentAccountOutlet,
   AgentReceivedProvider,
   ModelReceptionTargets,
 } from '@omne-harness/agent-contract'
@@ -21,7 +20,6 @@ export type ModelReceiverDependencies<P> = Readonly<{
   provider: AgentReceivedProvider<P, ContentBlock>
   access: AgentAccessCheck<P>
   targets: ModelReceptionTargets<P>
-  outlet: AgentAccountOutlet<P>
   models: Pick<ModelCalls<P>, 'inspect' | 'dispatches'>
   capacity(tenant: Access<P>['tenant']): ModelReceptionCapacity
 }>

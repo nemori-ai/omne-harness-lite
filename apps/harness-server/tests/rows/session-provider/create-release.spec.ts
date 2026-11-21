@@ -1,6 +1,6 @@
 import { readPublishedView } from '../../../src/rows/session-ad03/published-view.ts'
 import '../../../src/rows/session-ad03/modes.ts'
-import { modesInitialization } from '../../../src/assembly/session-modes-initialization.ts'
+import { contextInitialization } from '../../../src/assembly/session-context-initialization.ts'
 import { sessionAd03Row } from '../../../src/rows/session-ad03/index.ts'
 import { sessionModesPrincipals } from '../../../src/entry/session-modes-principals.ts'
 import { sessionModesIssuerOf, sessionWorkIssuerOf } from '../../../src/entry/principals.ts'
@@ -73,7 +73,23 @@ import { TENANT_A } from '../storage/fixtures/tree.ts'
 
 type CreateCommand = Extract<SessionCommand, { kind: 'create' }>
 type Distribution = Readonly<{ rows: readonly Readonly<{ id: string; config: unknown }>[] }>
-const residentNames = ['Files', 'Shell', 'Tools', 'TodoItems', 'Ask', 'Web']
+const residentNames = [
+  'Files',
+  'Shell',
+  'Tools',
+  'TodoItems',
+  'BkgToolCalls',
+  'Ask',
+  'Web',
+  'Calendar',
+  'Schedules',
+  'Notifications',
+  'Sessions',
+  'Agents',
+  'SwitchWorkspace',
+  'Screen',
+  'Skills',
+]
 const releaseDistribution = JSON.parse(
   readFileSync(new URL('../../../config/serve.distribution.json', import.meta.url), 'utf8'),
 ) as Distribution
@@ -134,6 +150,9 @@ async function start(
       storageRoot: base.storageRoot,
       vaultFile: `${base.stateRoot}/vault`,
       hostFilesDir: base.stateRoot,
+      assetsRoot: `${base.stateRoot}/assets`,
+      historyIndexRoot: `${base.stateRoot}/history-index`,
+      mediaRoot: `${base.stateRoot}/media`,
     },
     settings: {
       version: 1,
@@ -160,7 +179,15 @@ async function start(
       declared(sessionAd10Row),
       declared(runtimeContextRow),
       declared(sessionAd12Row),
-      ...(modes ? [declared(sessionAd03Row, { scopeIndexEntries: 100, pageBytes: 1048576 })] : []),
+      ...(modes
+        ? [
+            declared(sessionAd03Row, {
+              scopeIndexEntries: 100,
+              pageBytes: 1048576,
+              defaultDirectory: base.stateRoot,
+            }),
+          ]
+        : []),
       declared(sessionProviderRealRow, { admission: 'none' }),
       ...(release
         ? [
@@ -329,7 +356,7 @@ describe('the first create of a tenant over the release rows of the Session path
   )
 
   it(
-    '`create` of coding commits all four residents; J06 projects their release asset adoptions',
+    '`create` of coding commits all its residents; J06 projects their release asset adoptions',
     { timeout: 90_000 },
     async () => {
       const base = makeBase()
@@ -439,7 +466,10 @@ it(
       }
       return {
         ...input,
-        creation: { ...input.creation, initialization: modesInitialization(input).initialization },
+        creation: {
+          ...input.creation,
+          initialization: contextInitialization(input).initialization,
+        },
       }
     }
     const input = await makeInput(first.modePrincipal)

@@ -20,13 +20,10 @@
 - `AssemblyResult` · 包 `@omne-harness/request-context-contract`
 - `AssemblyUnknown` · 包 `@omne-harness/request-context-contract`
 - `BatchRef` · 包 `@omne-harness/request-context-contract`
-- `BlockMaterial` · 包 `@omne-harness/request-context-contract`
 - `BudgetBreach` · 包 `@omne-harness/request-context-contract`
 - `BudgetInput` · 包 `@omne-harness/request-context-contract`
 - `CandidateRef` · 包 `@omne-harness/request-context-contract`
 - `CompactionContextResult` · 包 `@omne-harness/request-context-contract`
-- `CompactionPlan` · 包 `@omne-harness/request-context-contract`
-- `CompactionPlanDraft` · 包 `@omne-harness/request-context-contract`
 - `CompactionPolicy` · 包 `@omne-harness/request-context-contract`
 - `CompactionPolicyPort` · 包 `@omne-harness/request-context-contract`
 - `CompactionSettingsValue` · 包 `@omne-harness/request-context-contract`
@@ -38,23 +35,17 @@
 - `ContextHolderParts` · `holder-sources.d.ts`
 - `ContextHolderSources` · `holder-sources.d.ts`
 - `ContextReadEligibility` · 包 `@omne-harness/request-context-contract`
-- `ContextReadGroup` · 包 `@omne-harness/request-context-contract`
 - `ContextRegistration` · 包 `@omne-harness/request-context-contract`
 - `ContextRegistryOptions` · 包 `@omne-harness/request-context-contract`
 - `ContextSourceRegistry` · 包 `@omne-harness/request-context-contract`
 - `ContextSources` · 包 `@omne-harness/request-context-contract`
 - `ContextTarget` · 包 `@omne-harness/request-context-contract`
-- `ContextTransition` · 包 `@omne-harness/request-context-contract`
 - `ContributionRejection` · 包 `@omne-harness/request-context-contract`
 - `ContributionResult` · 包 `@omne-harness/request-context-contract`
 - `ContributionsResult` · 包 `@omne-harness/request-context-contract`
-- `ConversionIndex` · 包 `@omne-harness/request-context-contract`
-- `ConversionIndexResult` · 包 `@omne-harness/request-context-contract`
-- `ConversionResultSource` · 包 `@omne-harness/request-context-contract`
 - `Coverage` · 包 `@omne-harness/request-context-contract`
 - `Decoded` · 包 `@omne-harness/request-context-contract`
 - `Decoder` · 包 `@omne-harness/request-context-contract`
-- `DeriveInput` · 包 `@omne-harness/request-context-contract`
 - `DurableEvidence` · 包 `@omne-harness/exchange-refs`
 - `EpochId` · 包 `@omne-harness/request-context-contract`
 - `FitVerdict` · 包 `@omne-harness/request-context-contract`
@@ -70,16 +61,10 @@
 - `HumanProjection` · 包 `@omne-harness/request-context-contract`
 - `InvalidReason` · 包 `@omne-harness/request-context-contract`
 - `Layer` · 包 `@omne-harness/request-context-contract`
-- `LayerAnchor` · 包 `@omne-harness/request-context-contract`
 - `LeaseSettlement` · `holder-sources.d.ts`
 - `NewInputBatch` · 包 `@omne-harness/request-context-contract`
 - `PassageRef` · 包 `@omne-harness/request-context-contract`
 - `Path` · 包 `@omne-harness/request-context-contract`
-- `Placement` · 包 `@omne-harness/request-context-contract`
-- `PlacementInput` · 包 `@omne-harness/request-context-contract`
-- `PlanId` · 包 `@omne-harness/request-context-contract`
-- `PlanProgress` · 包 `@omne-harness/request-context-contract`
-- `PlanResult` · 包 `@omne-harness/request-context-contract`
 - `PositionRef` · 包 `@omne-harness/request-context-contract`
 - `PrefixBreakReason` · 包 `@omne-harness/request-context-contract`
 - `PreparedInputKey` · 包 `@omne-harness/request-context-contract`
@@ -107,41 +92,29 @@
 - `RequestContextTrust` · `trust.d.ts`
 - `RequestLayers` · 包 `@omne-harness/request-context-contract`
 - `RequestPurpose` · 包 `@omne-harness/request-context-contract`
-- `RetainBudget` · 包 `@omne-harness/request-context-contract`
 - `ScopeRef` · 包 `@omne-harness/runtime-context-contract`
 - `SelectedModel` · 包 `@omne-harness/request-context-contract`
-- `SnapshotAnchor` · 包 `@omne-harness/request-context-contract`
-- `SnapshotMaterial` · 包 `@omne-harness/request-context-contract`
-- `SnapshotReminder` · 包 `@omne-harness/request-context-contract`
 - `SourceDecision` · 包 `@omne-harness/request-context-contract`
 - `SourceGeneration` · 包 `@omne-harness/request-context-contract`
 - `SourceRead` · 包 `@omne-harness/request-context-contract`
 - `SourceRegistrationAuthority` · 包 `@omne-harness/request-context-contract`
 - `SourceSettlement` · 包 `@omne-harness/request-context-contract`
-- `StepInput` · 包 `@omne-harness/request-context-contract`
-- `StepRequest` · 包 `@omne-harness/request-context-contract`
-- `StepResult` · 包 `@omne-harness/request-context-contract`
-- `SummaryMaterial` · 包 `@omne-harness/request-context-contract`
 - `SystemPromptResult` · 包 `@omne-harness/request-context-contract`
-- `TailFacts` · 包 `@omne-harness/request-context-contract`
 - `ToolAdoption` · 包 `@omne-harness/request-context-contract`
 - `ToolCommandSelection` · 包 `@omne-harness/request-context-contract`
 - `ToolDeclarationSet` · 包 `@omne-harness/request-context-contract`
 - `ToolRoute` · 包 `@omne-harness/request-context-contract`
 - `TransitionEvidence` · 包 `@omne-harness/request-context-contract`
 - `UnavailableOwner` · 包 `@omne-harness/request-context-contract`
-- `WindowUsageValue` · 包 `@omne-harness/request-context-contract`
 
 ## 入口 `./cordis` · `cordis.d.ts`
 
-- `ContextAccountingInboxService` · `cordis.d.ts`
 - `ContextHolderSourcesService` · `cordis.d.ts`
 - `RequestContextChangedPayload` · `cordis.d.ts`
 - `RequestContextIntercept` · `cordis.d.ts`
 - `RequestContextPolicySelection` · `cordis.d.ts`
 - `RequestContextService` · `cordis.d.ts`
 - `RequestContextTrustService` · `cordis.d.ts`
-- `contextAccountingInboxKey` · `cordis.d.ts`
 - `contextHolderSourcesKey` · `cordis.d.ts`
 - `requestContextKey` · `cordis.d.ts`
 - `requestContextTrustKey` · `cordis.d.ts`
@@ -166,7 +139,7 @@
 
 ```ts
 import { Service, type Context } from '@deepseek-ai/cordis';
-import type { AssemblyOperations, ContextAccountingInbox, CompactionPolicy, ContextSourceRegistry, ContextTarget, PromptContributionRegistry, RepresentationPolicyConfig, ScopeRef } from '@omne-harness/request-context-contract';
+import type { AssemblyOperations, CompactionPolicy, ContextSourceRegistry, ContextTarget, PromptContributionRegistry, RepresentationPolicyConfig, ScopeRef } from '@omne-harness/request-context-contract';
 import type { ContextHolderSources } from './holder-sources.js';
 import type { RequestContextTrust } from './trust.js';
 export type RequestContextIntercept = Readonly<{
@@ -200,13 +173,6 @@ export declare abstract class RequestContextTrustService<P> extends Service impl
     abstract readonly registrationAuthority: RequestContextTrust<P>['registrationAuthority'];
 }
 export declare const requestContextTrustKey = "requestContextTrust";
-export declare abstract class ContextAccountingInboxService<P> extends Service implements ContextAccountingInbox<P> {
-    static readonly provide = "contextAccountingInbox";
-    constructor(ctx: Context);
-    abstract receive(...args: Parameters<ContextAccountingInbox<P>['receive']>): ReturnType<ContextAccountingInbox<P>['receive']>;
-    abstract usage(...args: Parameters<ContextAccountingInbox<P>['usage']>): ReturnType<ContextAccountingInbox<P>['usage']>;
-}
-export declare const contextAccountingInboxKey = "contextAccountingInbox";
 export declare abstract class ContextHolderSourcesService<P> extends Service implements ContextHolderSources<P> {
     static readonly provide = "contextHolderSources";
     constructor(ctx: Context);
@@ -222,7 +188,6 @@ declare module '@deepseek-ai/cordis' {
     interface Context {
         requestContext: RequestContextService<unknown>;
         requestContextTrust: RequestContextTrustService<unknown>;
-        contextAccountingInbox: ContextAccountingInboxService<unknown>;
         contextHolderSources: ContextHolderSourcesService<unknown>;
     }
     interface Events {
@@ -263,7 +228,7 @@ export interface ContextHolderSources<P> {
 ## 声明文件 `index.d.ts`
 
 ```ts
-export type { ScopeRef, ContextBlockKey, Path, Decoded, Decoder, ToolCommandSelection, ToolRoute, ToolDeclarationSet, ConversionIndex, RepresentationResult, ProjectedMessage, ProjectedHistory, HumanProjection, CompactionSettingsValue, WindowUsageValue, SystemPromptResult, Placement, PlacementInput, Access, Adoption, DurableEvidence, RequestContextRef, CandidateRef, PositionRef, PlanId, EpochId, BatchRef, PassageRef, RefKind, RefRejection, AssemblyPolicies, AssemblyOperations, PreparedInputKey, HistoryRow, HistoryPage, HistoryReadResult, CompactionContextResult, HistorySource, ConversionIndexResult, ConversionResultSource, RetainBudget, CompactionPolicy, CompactionPlanDraft, CompactionPolicyPort, RepresentationPolicyConfig, RepresentationPolicyPort, BudgetInput, ContributionRejection, ContributionResult, ContributionsResult, PromptContributionRegistry, RequestPurpose, HistoryEvidence, NewInputBatch, BlockMaterial, SnapshotMaterial, ContextReadGroup, AssemblyContext, PromptContributionBase, PromptSection, PromptVariable, PromptContribution, PromptContributionSet, SelectedModel, ToolAdoption, ConditionsEvidence, AlterationEvidence, PreviousPreparation, TransitionEvidence, Layer, PrefixBreakReason, LayerAnchor, SnapshotAnchor, Coverage, BudgetBreach, FitVerdict, RepresentationChoice, SnapshotReminder, TailFacts, RequestLayers, RequestCandidate, CompactionPlan, PlanProgress, SummaryMaterial, StepRequest, StepInput, ContextTransition, AssemblyFailure, InvalidReason, UnavailableOwner, AssemblyUnknown, AssemblyOutcome, AssemblyResult, PlanResult, StepResult, DeriveInput, AssemblyCall, ContextTarget, GroupToken, PrincipalKey, RegistrationRef, SourceGeneration, SourceRead, GroupSource, ContextGroupSources, AdoptedRequestSource, AdoptedRequestFact, ContextReadEligibility, PrincipalBinding, ContextSources, SourceRegistrationAuthority, SourceDecision, SourceSettlement, ContextRegistration, RegistrationResult, ContextSourceRegistry, ContextRegistryOptions, HistoryResolution, HistoryEvidenceResolver, } from '@omne-harness/request-context-contract';
+export type { ScopeRef, ContextBlockKey, Path, Decoded, Decoder, ToolCommandSelection, ToolRoute, ToolDeclarationSet, RepresentationResult, ProjectedMessage, ProjectedHistory, HumanProjection, CompactionSettingsValue, SystemPromptResult, Access, Adoption, DurableEvidence, RequestContextRef, CandidateRef, PositionRef, EpochId, BatchRef, PassageRef, RefKind, RefRejection, AssemblyPolicies, AssemblyOperations, PreparedInputKey, HistoryRow, HistoryPage, HistoryReadResult, CompactionContextResult, HistorySource, CompactionPolicy, CompactionPolicyPort, RepresentationPolicyConfig, RepresentationPolicyPort, BudgetInput, ContributionRejection, ContributionResult, ContributionsResult, PromptContributionRegistry, RequestPurpose, HistoryEvidence, NewInputBatch, AssemblyContext, PromptContributionBase, PromptSection, PromptVariable, PromptContribution, PromptContributionSet, SelectedModel, ToolAdoption, ConditionsEvidence, AlterationEvidence, PreviousPreparation, TransitionEvidence, Layer, PrefixBreakReason, Coverage, BudgetBreach, FitVerdict, RepresentationChoice, RequestLayers, RequestCandidate, AssemblyFailure, InvalidReason, UnavailableOwner, AssemblyUnknown, AssemblyOutcome, AssemblyResult, AssemblyCall, ContextTarget, GroupToken, PrincipalKey, RegistrationRef, SourceGeneration, SourceRead, GroupSource, ContextGroupSources, AdoptedRequestSource, AdoptedRequestFact, ContextReadEligibility, PrincipalBinding, ContextSources, SourceRegistrationAuthority, SourceDecision, SourceSettlement, ContextRegistration, RegistrationResult, ContextSourceRegistry, ContextRegistryOptions, HistoryResolution, HistoryEvidenceResolver, } from '@omne-harness/request-context-contract';
 export type { RequestContextTrust } from './trust.js';
 export type { ContextHolderParts, LeaseSettlement, ContextHolderLease, ContextHolderLeaseResult, ContextHolderSources, } from './holder-sources.js';
 ```

@@ -6,7 +6,13 @@ import { DatabaseSync } from 'node:sqlite'
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
-import { operationId, succeeded } from '@omne-harness/session-contract/testing'
+import {
+  operationId,
+  succeeded,
+  testingDerivedInputs,
+  testingInputSources,
+  withMemberSubject,
+} from '@omne-harness/session-contract/testing'
 import type { SessionCommand, TodoItemId } from '@omne-harness/session-contract'
 import { createFixedSessionCursorSigning } from '@omne-harness/session-cordis-contract/testing'
 import type { SqlStorage } from '@omne-harness/sql-contract'
@@ -307,8 +313,10 @@ describe('Todo facts through real SQLite Workers', () => {
         }),
         snapshot: async () => ({ kind: 'ready', value: { revision: '1', entries: [] } }),
       },
-      accessCheck: app.accessCheck,
+      accessCheck: withMemberSubject(app.accessCheck),
       cursorSigning: createFixedSessionCursorSigning(),
+      sources: testingInputSources(),
+      derived: testingDerivedInputs(),
       combination: app.combination,
     })
     const command = add(app, 'lost-ack')

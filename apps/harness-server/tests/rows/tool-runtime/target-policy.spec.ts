@@ -24,6 +24,7 @@ it('applies target policy to new admissions while retaining custody of an exactl
     const store: ToolLedgerStore = {
       durability: 'none',
       scanPending: () => Promise.resolve({ kind: 'page', calls: [], more: false }),
+      usage: () => Promise.resolve({ kind: 'page', facts: [], undated: 0, more: false }),
       due: async () => ({ kind: 'complete', entries: [] }),
       readRecord: async () => {
         throw new Error('source policy requires a complete call snapshot')
@@ -57,6 +58,7 @@ it('applies target policy to new admissions while retaining custody of an exactl
       initiator: { owner: 'fixture', subject: 'session', revision: '1' },
       state: {
         call: w.call,
+        label: { intent: null, tool: 'read_file', command: null, preview: '' },
         revision,
         foreground: null,
         effect: { kind: 'not-started' },

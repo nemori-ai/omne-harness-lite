@@ -67,6 +67,7 @@ import {
 import {
   callHandler,
   createSqlModelCommands,
+  dispatchFactsMigration,
   modelMigration,
   pendingHandler,
   requestHandler,
@@ -176,6 +177,11 @@ const REQUEST: FixedModelRequest = {
 const SUPPLIER = REQUEST.suppliers[0]
 if (SUPPLIER === undefined) throw new Error('durable assembly: request without a supplier')
 
+const RETRY_SETTINGS = {
+  adoption: ADOPTION,
+  policy: { maxAttempts: 2, maxElapsedMs: 1000, delaysMs: [0], jitter: 0 },
+  replayResend: { max: 1 },
+}
 const HOST_SETTINGS = {
   concurrencyLimit: 8,
   wakeCapacity: 64,
@@ -189,6 +195,8 @@ const PUSH_LIMITS: ResultPushLimits = {
   maxCleanupSteps: 8,
   maxPendingAccountsPerTenant: 4,
   maxPendingAccounts: 8,
+  maxCostMisses: 3,
+  delaysMs: [1000, 5000, 30000],
 }
 const CONFIGURATION: ModelConfiguration = {
   outputBatchBytes: 1024,
@@ -197,8 +205,6 @@ const CONFIGURATION: ModelConfiguration = {
   observerCheckIntervalMs: 25,
   resultPageTargetBytes: 128,
   readIdleMs: 1000,
-  retryBackoffMs: 0,
-  cleanupRetryMs: 0,
 }
 const CORE_LIMITS = {
   scanPageCalls: 2,
@@ -339,6 +345,7 @@ function sqliteStorage(): SqlStorage {
     if (found !== undefined) return found
     const db = new DatabaseSync(':memory:')
     modelMigration.up({ execute: (sql, params) => rowsOf(db, sql, params) })
+    dispatchFactsMigration.up({ execute: (sql, params) => rowsOf(db, sql, params) })
     const domain = { db, receipts: new Map<string, Receipt>() }
     domains.set(name, domain)
     return domain
@@ -704,6 +711,8 @@ function commandsServiceOver(commands: ModelCommands<unknown>) {
     declare readonly nextRead: ModelCommands<unknown>['nextRead']
     declare readonly endRead: ModelCommands<unknown>['endRead']
     declare readonly handoff: ModelCommands<unknown>['handoff']
+    declare readonly abandon: ModelCommands<unknown>['abandon']
+    declare readonly confirmAccount: ModelCommands<unknown>['confirmAccount']
     declare readonly advanceCleanup: ModelCommands<unknown>['advanceCleanup']
     declare readonly query: ModelCommands<unknown>['query']
     declare readonly dispatches: ModelCommands<unknown>['dispatches']
@@ -783,6 +792,7 @@ function channels() {
 function channelSendResources(channel: (call: ModelCallId) => Channel): PiSendResources<unknown> {
   return {
     materialization: { prove: () => unavailable('model-materialization', 'scripted-transport') },
+    receive: { prove: () => unavailable('model-receive-evidence', 'scripted-transport') },
     async acquire(demand) {
       const stream = channel(demand.call)
       stream.acquired.resolve()
@@ -1058,8 +1068,12 @@ export async function durableSubject(
         network: { maxConnections: 2, idleConnectionTimeoutMs: 1_000 },
         routes: {
           'test.invalid': {
-            url: 'https://test.invalid/v1/chat/completions',
-            endMarker: '[DONE]',
+            endpoints: {
+              'chat-completions': {
+                url: 'https://test.invalid/v1/chat/completions',
+                endMarker: '[DONE]',
+              },
+            },
             accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
             auth: { kind: 'bearer', item: 'apiKey' },
           },
@@ -1194,7 +1208,12 @@ export async function durableSubject(
             await sendChild.dispose()
           },
         }),
-        { host: HOST_SETTINGS, runtime: CONFIGURATION, results: PUSH_LIMITS },
+        {
+          host: HOST_SETTINGS,
+          runtime: CONFIGURATION,
+          results: PUSH_LIMITS,
+          retry: RETRY_SETTINGS,
+        },
       )
     : root.plugin(LegacyPlugin, HOST_SETTINGS)
   try {

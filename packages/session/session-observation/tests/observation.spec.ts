@@ -54,6 +54,7 @@ describe('the domain face', () => {
       run: 'run_1',
       revision: '2',
       phase: null,
+      attempts: null,
       target: null,
     })
   })

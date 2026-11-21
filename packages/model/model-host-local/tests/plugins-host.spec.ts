@@ -79,6 +79,8 @@ function commandsServiceOver(commands: ModelCommands<unknown>) {
     declare readonly nextRead: ModelCommands<unknown>['nextRead']
     declare readonly endRead: ModelCommands<unknown>['endRead']
     declare readonly handoff: ModelCommands<unknown>['handoff']
+    declare readonly abandon: ModelCommands<unknown>['abandon']
+    declare readonly confirmAccount: ModelCommands<unknown>['confirmAccount']
     declare readonly advanceCleanup: ModelCommands<unknown>['advanceCleanup']
     declare readonly query: ModelCommands<unknown>['query']
     declare readonly dispatches: ModelCommands<unknown>['dispatches']
@@ -1022,6 +1024,59 @@ describe('a drive that ended without ending the call', () => {
       expect(f.drives).toEqual([callOf('a')])
       expect(f.waits).toEqual([])
     })
+
+  it('a wake for a later instant drives the call when that instant has come, not before', async () => {
+    const f = scripted([])
+    const pause = Promise.withResolvers<'elapsed'>()
+    await f.load()
+    f.state.wait = () => pause.promise
+    const later = '2026-11-02T00:00:03.000Z'
+    expect(await f.ctx.modelInstanceHost.schedule({ ...wake('a'), notBefore: later })).toEqual({
+      ok: { queued: true },
+    })
+    await new Promise(resolve => setTimeout(resolve, 20))
+    expect(f.drives).toEqual([])
+    expect(f.waits).toEqual([later])
+    pause.resolve('elapsed')
+    await until(() => f.drives.length === 1, 'the drive at the instant')
+    expect(f.drives).toEqual([callOf('a')])
+  })
+
+  it('a wake for an instant that has passed drives the call at once', async () => {
+    const f = scripted([])
+    await f.load()
+    await f.ctx.modelInstanceHost.schedule({ ...wake('a'), notBefore: '2026-11-02T00:00:00.000Z' })
+    await until(() => f.drives.length === 1, 'the drive')
+    expect(f.waits).toEqual([])
+  })
+
+  it('a plain wake during the wait for a later instant drives the call at once', async () => {
+    const f = scripted([])
+    const pause = Promise.withResolvers<'elapsed'>()
+    await f.load()
+    f.state.wait = () => pause.promise
+    const later = '2026-11-02T00:00:03.000Z'
+    await f.ctx.modelInstanceHost.schedule({ ...wake('a'), notBefore: later })
+    await f.ctx.modelInstanceHost.schedule(wake('a'))
+    await until(() => f.drives.length === 1, 'the drive of the plain wake')
+    expect(f.drives).toEqual([callOf('a')])
+    expect(f.waits).toEqual([later])
+    pause.resolve('elapsed')
+    await until(() => f.drives.length === 2, 'the drive at the instant')
+    expect(f.drives).toEqual([callOf('a'), callOf('a')])
+  })
+
+  it('does not drive the call at the later instant once the host closed', async () => {
+    const f = scripted([])
+    const pause = Promise.withResolvers<'elapsed'>()
+    const fiber = await f.load()
+    f.state.wait = () => pause.promise
+    await f.ctx.modelInstanceHost.schedule({ ...wake('a'), notBefore: '2026-11-02T00:00:03.000Z' })
+    await fiber.dispose()
+    pause.resolve('elapsed')
+    await new Promise(resolve => setTimeout(resolve, 20))
+    expect(f.drives).toEqual([])
+  })
 
   it('does not wake the call again once the host closes during the pause', async () => {
     const f = scripted([

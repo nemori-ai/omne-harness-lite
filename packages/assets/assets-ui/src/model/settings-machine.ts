@@ -1,5 +1,7 @@
 import type { AssetsProtocol, SettingView } from '@omne-harness/assets-protocol'
+import type { JsonValue } from '@omne-harness/json-text'
 import type { ClientOf } from '@omne-harness/sdk/core'
+import { COMMON_SENTENCES, refusal, type Notice } from './notices.ts'
 
 type Client = ClientOf<AssetsProtocol>
 type Answer<K extends Exclude<keyof Client, 'observe'>> = Awaited<ReturnType<Client[K]>>
@@ -7,10 +9,11 @@ export type ListAnswer = Answer<'list-settings'>
 export type DescribeAnswer = Answer<'describe-setting'>
 export type WriteAnswer = Answer<'set-setting'> | Answer<'clear-setting'>
 
-export type Notice = Readonly<{ kind: 'refused' | 'unavailable' | 'unknown'; text: string }>
+export type { Notice } from './notices.ts'
 
 export type WriteRequest =
   | Readonly<{ kind: 'set'; pick: string }>
+  | Readonly<{ kind: 'set-value'; value: JsonValue }>
   | Readonly<{ kind: 'set-secret' }>
   | Readonly<{ kind: 'clear' }>
 
@@ -31,10 +34,24 @@ export type RowRead =
 
 export type Row = Readonly<{ key: string; view: SettingView; read: RowRead; write: Write }>
 
+/** A read after a change elsewhere; rows stay in use meanwhile; `stale` means one more read follows. */
+export type Refresh = Readonly<{
+  token: number
+  rows: readonly Row[]
+  partial: boolean
+  stale: boolean
+}>
+
 export type List =
   | Readonly<{ kind: 'unread' }>
-  | Readonly<{ kind: 'reading'; token: number; rows: readonly Row[]; partial: boolean }>
-  | Readonly<{ kind: 'read'; rows: readonly Row[]; partial: boolean }>
+  | Readonly<{
+      kind: 'reading'
+      token: number
+      rows: readonly Row[]
+      partial: boolean
+      stale: boolean
+    }>
+  | Readonly<{ kind: 'read'; rows: readonly Row[]; partial: boolean; refresh?: Refresh }>
   | Readonly<{ kind: 'failed'; notice: Notice }>
 
 export type State = Readonly<{
@@ -43,12 +60,14 @@ export type State = Readonly<{
   issued: number
 }>
 
-export type Target = Readonly<{ asset: SettingView['asset']; item: string }>
+export type Target = Readonly<{ owner: SettingView['owner']; item: string }>
 
 export type Event =
   | Readonly<{ kind: 'read-list' }>
+  | Readonly<{ kind: 'changed' }>
   | Readonly<{ kind: 'list-answered'; token: number; answer: ListAnswer }>
   | Readonly<{ kind: 'set'; key: string; pick: string; operation: string }>
+  | Readonly<{ kind: 'set-value'; key: string; value: JsonValue; operation: string }>
   | Readonly<{ kind: 'set-secret'; key: string; secret: string; operation: string }>
   | Readonly<{ kind: 'clear'; key: string; operation: string }>
   | Readonly<{ kind: 'write-answered'; key: string; operation: string; answer: WriteAnswer }>
@@ -65,10 +84,14 @@ export type Step = Readonly<{ state: State; effects: readonly Effect[] }>
 
 export const INITIAL: State = { list: { kind: 'unread' }, issued: 0 }
 
-export const keyOf = (view: Target): string =>
-  JSON.stringify([view.asset.category, view.asset.name, view.item])
+export const keyOf = ({ owner, item }: Target): string =>
+  JSON.stringify(
+    owner.kind === 'asset'
+      ? [owner.kind, owner.category, owner.name, item]
+      : [owner.kind, owner.providerId, owner.definitionId, item],
+  )
 
-const targetOf = (view: SettingView): Target => ({ asset: view.asset, item: view.item })
+const targetOf = (view: SettingView): Target => ({ owner: view.owner, item: view.item })
 
 const same = (state: State): Step => ({ state, effects: [] })
 
@@ -79,14 +102,11 @@ type Refusal = Exclude<
 type NotWritable = Extract<WriteAnswer, { outcome: 'not-writable' }>['body']['reason']
 
 const SENTENCES: Readonly<Record<Refusal, string>> = {
-  denied: '没有权限，或登录已失效。',
+  ...COMMON_SENTENCES,
   'not-visible': '这一项现在看不到了：资产没有持有，或声明里没有这一项。',
   conflict: '这一项在别处改过了，没有写入。已重新读取。',
   invalid: '服务端认为这个值不合这一项的规定，没有写入。',
   'basis-unavailable': '服务端暂时读不出需要的依据，没有写入。稍后再试。',
-  'protocol-rejected': '服务端不认这个请求的格式。',
-  unavailable: '没有发出去。',
-  uncertain: '没有收到可信的答复。',
 }
 
 const READ_SENTENCES: Readonly<Record<Refusal, string>> = {
@@ -102,23 +122,90 @@ const NOT_WRITABLE: Readonly<Record<NotWritable, string>> = {
   'not-a-source': '这一层不能配这一项。',
 }
 
-function notice(outcome: Refusal, sentences: Readonly<Record<Refusal, string>>): Notice {
-  return {
-    kind: outcome === 'unavailable' || outcome === 'uncertain' ? 'unavailable' : 'refused',
-    text: sentences[outcome],
-  }
-}
+const notice = (outcome: Refusal, sentences: Readonly<Record<Refusal, string>>): Notice =>
+  refusal(outcome, sentences[outcome])
 
 function readList(state: State): Step {
   const token = state.issued + 1
   return {
-    state: { list: { kind: 'reading', token, rows: [], partial: false }, issued: token },
+    state: {
+      list: { kind: 'reading', token, rows: [], partial: false, stale: false },
+      issued: token,
+    },
     effects: [{ kind: 'list', token, after: null }],
   }
 }
 
+function refresh(state: State, list: ReadList): Step {
+  const token = state.issued + 1
+  return {
+    state: {
+      issued: token,
+      list: { ...list, refresh: { token, rows: [], partial: false, stale: false } },
+    },
+    effects: [{ kind: 'list', token, after: null }],
+  }
+}
+
+/** A change while a read runs only marks it: one read in flight at a time, one more after it. */
+function changed(state: State): Step {
+  const list = state.list
+  switch (list.kind) {
+    case 'unread':
+    case 'failed':
+      return readList(state)
+    case 'reading':
+      return list.stale ? same(state) : same({ ...state, list: { ...list, stale: true } })
+    case 'read':
+      if (list.refresh === undefined) return refresh(state, list)
+      if (list.refresh.stale) return same(state)
+      return same({ ...state, list: { ...list, refresh: { ...list.refresh, stale: true } } })
+  }
+}
+
+const finished = (state: State, read: ReadList, stale: boolean): Step =>
+  stale ? refresh(state, read) : same({ ...state, list: read })
+
+type Page = Extract<ListAnswer, { outcome: 'succeeded' }>['body']
+
+function gather(rows: readonly Row[], page: Page): readonly Row[] {
+  const known = new Map(rows.map(row => [row.key, row]))
+  for (const view of page.items) {
+    const key = keyOf(view)
+    known.set(key, { key, view, read: { kind: 'read' }, write: { kind: 'none' } })
+  }
+  return [...known.values()]
+}
+
+/** The rows of a finished refresh keep the write and any row read in flight of the rows before. */
+function refreshAnswered(state: State, list: ReadList, running: Refresh, answer: ListAnswer): Step {
+  if (answer.outcome !== 'succeeded')
+    return same({
+      ...state,
+      list: { kind: 'failed', notice: notice(answer.outcome, READ_SENTENCES) },
+    })
+  const gathered = gather(running.rows, answer.body)
+  const partial = running.partial || answer.body.completeness === 'partial'
+  if (answer.body.next !== null)
+    return {
+      state: { ...state, list: { ...list, refresh: { ...running, rows: gathered, partial } } },
+      effects: [{ kind: 'list', token: running.token, after: answer.body.next }],
+    }
+  const before = new Map(list.rows.map(row => [row.key, row]))
+  const rows = gathered.map(row => {
+    const kept = before.get(row.key)
+    if (kept === undefined) return row
+    return { ...row, write: kept.write, read: kept.read.kind === 'reading' ? kept.read : row.read }
+  })
+  return finished(state, { kind: 'read', rows, partial }, running.stale)
+}
+
+type ReadList = Extract<List, { kind: 'read' }>
+
 function listAnswered(state: State, token: number, answer: ListAnswer): Step {
   const list = state.list
+  if (list.kind === 'read' && list.refresh?.token === token)
+    return refreshAnswered(state, list, list.refresh, answer)
   if (list.kind !== 'reading' || list.token !== token) return same(state)
   if (answer.outcome !== 'succeeded')
     return same({
@@ -126,16 +213,11 @@ function listAnswered(state: State, token: number, answer: ListAnswer): Step {
       list: { kind: 'failed', notice: notice(answer.outcome, READ_SENTENCES) },
     })
   const page = answer.body
-  const known = new Map(list.rows.map(row => [row.key, row]))
-  for (const view of page.items) {
-    const key = keyOf(view)
-    known.set(key, { key, view, read: { kind: 'read' }, write: { kind: 'none' } })
-  }
-  const rows = [...known.values()]
+  const rows = gather(list.rows, page)
   const partial = list.partial || page.completeness === 'partial'
-  if (page.next === null) return same({ ...state, list: { kind: 'read', rows, partial } })
+  if (page.next === null) return finished(state, { kind: 'read', rows, partial }, list.stale)
   return {
-    state: { ...state, list: { kind: 'reading', token, rows, partial } },
+    state: { ...state, list: { ...list, rows, partial } },
     effects: [{ kind: 'list', token, after: page.next }],
   }
 }
@@ -288,10 +370,17 @@ export function step(state: State, event: Event): Step {
       return state.list.kind === 'unread' || state.list.kind === 'failed'
         ? readList(state)
         : same(state)
+    case 'changed':
+      return changed(state)
     case 'list-answered':
       return listAnswered(state, event.token, event.answer)
     case 'set':
       return startWrite(state, event.key, event.operation, { kind: 'set', pick: event.pick })
+    case 'set-value':
+      return startWrite(state, event.key, event.operation, {
+        kind: 'set-value',
+        value: event.value,
+      })
     case 'set-secret':
       return startWrite(state, event.key, event.operation, { kind: 'set-secret' }, event.secret)
     case 'clear':

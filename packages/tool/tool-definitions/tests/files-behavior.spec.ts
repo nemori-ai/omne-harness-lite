@@ -1,12 +1,13 @@
 import { expect, it } from 'vitest'
 import { createFilesAuthor, type FilesAuthorEnvironment } from '@omne-harness/tool-definitions'
-import { filesFixture } from './fixtures/files.ts'
+import { filesConstruction, filesFixture } from './fixtures/files.ts'
 import { run, value } from './run-author.ts'
 
 it('fails the entire list when an older provider omits one entry name', async () => {
   const fixture = filesFixture({ '/first': 'a', '/second': 'b' })
   const originalList = fixture.environment.files.list
   const environment: FilesAuthorEnvironment = {
+    ...fixture.environment,
     files: {
       ...fixture.environment.files,
       list: async input => {
@@ -45,6 +46,7 @@ it.each(['write', 'edit'] as const)(
     const fixture = filesFixture({ '/a': 'before' })
     const originalWrite = fixture.environment.files.write
     const environment: FilesAuthorEnvironment = {
+      ...fixture.environment,
       files: {
         ...fixture.environment.files,
         write: async input => {
@@ -71,6 +73,7 @@ it.each(['move', 'copy'] as const)(
     const fixture = filesFixture({ '/a': 'source', '/b': 'target' })
     const requests: Parameters<FilesAuthorEnvironment['files']['move']>[0][] = []
     const environment: FilesAuthorEnvironment = {
+      ...fixture.environment,
       files: {
         ...fixture.environment.files,
         [command]: async (request: Parameters<FilesAuthorEnvironment['files']['move']>[0]) => {
@@ -202,9 +205,6 @@ it('passes file mutations through the facade and preserves refusal and unknown c
     )
   expect(await run(author, 'mkdir', { path: '/dir' }, fixture.environment)).toContain('done')
   expect(await run(author, 'delete', { path: '/a' }, fixture.environment)).toContain('removed=')
-  expect(await run(author, 'open', { path: '/image.png' }, fixture.environment)).toContain(
-    'reason=unsupported',
-  )
   const unknown = {
     ...fixture.environment,
     files: {
@@ -217,14 +217,9 @@ it('passes file mutations through the facade and preserves refusal and unknown c
 
 it('requires a positive safe byte bound and rejects unexpected parameter fields', async () => {
   for (const resultMaxBytes of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
-    expect(
-      createFilesAuthor({
-        kind: 'object',
-        entries: [
-          { key: 'resultMaxBytes', value: { kind: 'number', lexeme: String(resultMaxBytes) } },
-        ],
-      }),
-    ).toHaveProperty('failure')
+    expect(createFilesAuthor(filesConstruction({ resultMaxBytes }))).toMatchObject({
+      failure: { reason: 'invalid-field:resultMaxBytes' },
+    })
   }
   expect(createFilesAuthor({ kind: 'object', entries: [] })).toHaveProperty('failure')
   const fixture = filesFixture()
@@ -239,6 +234,7 @@ it('reads edit pages across new handle generations and split UTF-8 while rejecti
   const author = value(createFilesAuthor(fixture.config))
   let changing = false
   const environment = {
+    ...fixture.environment,
     files: {
       ...fixture.environment.files,
       read: async (args: Parameters<typeof fixture.environment.files.read>[0]) => {
@@ -269,12 +265,7 @@ it('reads edit pages across new handle generations and split UTF-8 while rejecti
 it('bounds the complete Files text in UTF-8 and retains content head and tail', async () => {
   const fixture = filesFixture({ '/a': '首' + '中文'.repeat(500) + '尾' })
   for (const maximum of [1, 32, 512]) {
-    const author = value(
-      createFilesAuthor({
-        kind: 'object',
-        entries: [{ key: 'resultMaxBytes', value: { kind: 'number', lexeme: String(maximum) } }],
-      }),
-    )
+    const author = value(createFilesAuthor(filesConstruction({ resultMaxBytes: maximum })))
     const result = await run(author, 'read', { path: '/a', limit_bytes: 4096 }, fixture.environment)
     expect(new TextEncoder().encode(result).byteLength).toBeLessThanOrEqual(maximum)
     expect(result).not.toContain('�')
@@ -287,14 +278,20 @@ it('bounds the complete Files text in UTF-8 and retains content head and tail', 
 })
 
 it('rejects duplicate construction fields rather than taking the last value', () => {
+  const complete = filesConstruction()
+  if (complete.kind !== 'object') throw new Error('object')
   const field = { key: 'resultMaxBytes', value: { kind: 'number', lexeme: '512' } } as const
-  expect(createFilesAuthor({ kind: 'object', entries: [field, field] })).toHaveProperty('failure')
+  expect(createFilesAuthor(complete)).toHaveProperty('ok')
+  expect(
+    createFilesAuthor({ kind: 'object', entries: [...complete.entries, field] }),
+  ).toHaveProperty('failure')
 })
 
 it('rejects aliased patch paths that identify the same object before commit', async () => {
   const fixture = filesFixture({ '/a': 'abc', '/alias': 'abc' })
   const author = value(createFilesAuthor(fixture.config))
   const environment = {
+    ...fixture.environment,
     files: {
       ...fixture.environment.files,
       read: async (args: Parameters<typeof fixture.environment.files.read>[0]) =>
@@ -324,6 +321,7 @@ it('reports text-decoding refusal and bounded binary evidence without a successf
     'binary_sample=binary-observed',
   )
   const environment = {
+    ...fixture.environment,
     files: {
       ...fixture.environment.files,
       read: async (args: Parameters<typeof fixture.environment.files.read>[0]) => {

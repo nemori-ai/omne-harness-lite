@@ -1,3 +1,4 @@
+import type { CompactionTaskIdentity, CompactionResultIdentity } from './compaction.ts'
 import type { CallAccount } from '@omne-harness/call-account'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type * as M from '@omne-harness/model-contract'
@@ -26,6 +27,14 @@ export type StartFenceEntry = Readonly<{
 
 export type ReceivedDelivery =
   | Readonly<{
+      producer: 'compaction'
+      key: Readonly<{
+        kind: 'result'
+        task: CompactionTaskIdentity
+        result: CompactionResultIdentity
+      }>
+    }>
+  | Readonly<{
       producer: 'model'
       key: Extract<M.ModelDeliveryKey, { kind: 'result' }>
       accounts: readonly M.ModelAccountSnapshot[]
@@ -45,6 +54,7 @@ export type ReceivedDelivery =
       key: Extract<T.ToolDeliveryKey, { kind: 'account' }>
       account: CallAccount
     }>
+  | Readonly<{ producer: 'tool'; key: Extract<T.ToolDeliveryKey, { kind: 'placeholder' }> }>
 
 export type ReceivedEntry = Readonly<{
   kind: 'received'
@@ -152,25 +162,3 @@ export type AgentReceivedProvider<P, B extends ContentBlock> = Readonly<{
   materials: AgentMaterials<P, B>
   received: AgentReceivedCommits<P, B> | null
 }>
-
-export type AgentAccountHandoff = Readonly<{
-  call: M.ModelInvocationRef
-  dispatch: M.DispatchId
-  account: CallAccount
-  resultVersion: M.ResultVersion | null
-  committed: DurableEvidence
-}>
-
-export type AgentAccountOutcome =
-  | Readonly<{ kind: 'received' }>
-  | Readonly<{ kind: 'denied' }>
-  | Readonly<{ kind: 'conflict' }>
-  | Readonly<{ kind: 'invalid'; field: string; reason: string }>
-  | Readonly<{ kind: 'unknown' }>
-  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
-
-export interface AgentAccountOutlet<P> {
-  deliver(
-    input: Readonly<{ access: Access<P>; handoff: AgentAccountHandoff }>,
-  ): Promise<AgentAccountOutcome>
-}

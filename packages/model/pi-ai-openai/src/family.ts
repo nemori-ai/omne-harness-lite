@@ -5,6 +5,7 @@ import {
   bindChatCompletions,
   type ChatCompletionsLimits,
 } from '@omne-harness/pi-ai-transport/chat-completions'
+import { bindResponses } from '@omne-harness/pi-ai-transport/responses'
 import type { TiktokenExecutor, TiktokenResources } from '@omne-harness/tokenizer-tiktoken'
 import { createOpenAiMeter, type MeterMargin } from './meter.ts'
 import { OPENAI_OWNER } from './owner.ts'
@@ -62,6 +63,14 @@ function checkConfig(config: OpenAiFamilyConfig): void {
     throw new RangeError('config.margin.percent must be a non-negative decimal integer')
 }
 
+/** The byte limit of one image, as the profile of this record declares it. */
+function imageBytesOf(record: {
+  profile: { limits: readonly { metric: string; provided: string }[] }
+}) {
+  const limit = record.profile.limits.find(each => each.metric === 'image-bytes')
+  return limit === undefined ? {} : { imageBytes: Number(limit.provided) }
+}
+
 export function createOpenAiFamily(config: OpenAiFamilyConfig): PiFamily {
   checkConfig(config)
   return defineFamily<OpenAiRecord>({
@@ -74,18 +83,21 @@ export function createOpenAiFamily(config: OpenAiFamilyConfig): PiFamily {
       const tokenizer = config.executor.acquire(config.tokenizer.definition, signal)
       if (!('ok' in tokenizer)) return unavailable(`tokenizer-${tokenizer.failure.kind}`)
       try {
+        const input = {
+          supplier,
+          meter: createOpenAiMeter(record, tokenizer.ok.tokenizer, config.margin),
+          limits: config.limits,
+          ...imageBytesOf(record),
+          release: async () => {
+            const released = await tokenizer.ok.release()
+            if ('failure' in released) throw new Error(`tokenizer-${released.failure.kind}`)
+          },
+        }
         return {
-          ok: bindChatCompletions({
-            record,
-            supplier,
-            hooks: hooksOf(record),
-            meter: createOpenAiMeter(record, tokenizer.ok.tokenizer, config.margin),
-            limits: config.limits,
-            release: async () => {
-              const released = await tokenizer.ok.release()
-              if ('failure' in released) throw new Error(`tokenizer-${released.failure.kind}`)
-            },
-          }),
+          ok:
+            'engine' in record
+              ? bindResponses({ record, ...input })
+              : bindChatCompletions({ record, ...input, hooks: hooksOf(record) }),
         }
       } catch (error) {
         await tokenizer.ok.release()

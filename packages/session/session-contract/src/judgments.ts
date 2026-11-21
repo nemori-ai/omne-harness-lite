@@ -1,7 +1,9 @@
 import type { SessionPermissionChangeBasis } from './permission-values.ts'
-import type { SessionIntakeLimits } from './intake.ts'
+import { wakingInputs, type SessionIntakeLimits } from './intake.ts'
+import type { IntakeTerms } from './input-sources.ts'
 import { originalAttempt } from './history-validation.ts'
 import { waitKey } from './call-state.ts'
+import { backgroundCalls } from './call-control.ts'
 import { digestOf } from './operations.ts'
 import { deriveSessionOperation } from './operations.ts'
 import type { CompactionContext } from '@omne-harness/message'
@@ -34,6 +36,7 @@ import type { GuardCommand, MutationName, SessionCommand } from './ports.ts'
 import type { ConsumptionId, DurableEvidence } from './identity.ts'
 import type { SessionHistoryReads } from './history-values.ts'
 import type { SessionCallRegistration, SessionCallWait } from './call-values.ts'
+import type { SessionCall, SessionLateCallFact } from './call-settlement.ts'
 import type {
   SessionCallLookup,
   SessionCallTerminal,
@@ -114,7 +117,14 @@ export type CommittedBatch = Readonly<{
   entries: readonly HistoryEntry[]
 }>
 export type ReduceResult =
-  | Readonly<{ kind: 'reduced'; snapshot: WorkSnapshot }>
+  | Readonly<{
+      kind: 'reduced'
+      snapshot: WorkSnapshot
+      /** The calls that left the snapshot with this batch, as it held them. */
+      settled: readonly SessionCall[]
+      /** What this batch wrote about calls that had left before. */
+      late: readonly SessionLateCallFact[]
+    }>
   | Readonly<{ kind: 'quarantined'; diagnostic: string }>
 export type EncodedEntry = Omit<HistoryEntry, 'id' | 'revision'>
 export type Decision =
@@ -128,13 +138,11 @@ export type Decision =
         through: string
       }>
       interpreted?: readonly Readonly<{ ordinal: string; key: string }>[]
+      admitted?: readonly Extract<RoutedInput, { kind: 'ordinary' }>[]
     }>
   | Readonly<{
       kind: 'control-answer'
-      answer: Exclude<
-        SessionControlAnswer<RunTerminal | SessionCallTerminal>,
-        { kind: 'requested' }
-      >
+      answer: SessionControlAnswer<RunTerminal | SessionCallTerminal>
       source: DurableEvidence
     }>
   | Readonly<{ kind: 'recovered'; receipt: CommitReceipt }>
@@ -144,14 +152,19 @@ export type DecideReads = Readonly<{
   intakeLimits?: SessionIntakeLimits
   history?: SessionHistoryReads
   compaction: CompactionContext | null
+  compactionEpoch?: string
   children?: readonly SessionId[]
+  /** The other end of the relation of a create: null when the tenant has no such session. */
+  related?: import('./standing.ts').RelatedSession | null
+  fork?: import('./fork.ts').ForkFacts
   idleObservation?: IdleObservation
   idleCoverage?: IdleCoverage
   frozenReceipt?: CommitReceipt
   initializationReceipts?: readonly CommitReceipt[]
   calls?: readonly SessionCallLookup[]
   runs?: readonly SessionRunLookup[]
-  firstInput?: Readonly<{ input: InputId; origin: DurableEvidence }>
+  /** The intake terms Session prepared for this commit, read from its guards. */
+  intake?: IntakeTerms
 }>
 
 export const OFF_PATH_DIAGNOSTIC =
@@ -162,7 +175,7 @@ export const OFF_PATH_FAILURE: Extract<SessionFailure, { kind: 'unavailable' }> 
   diagnostic: OFF_PATH_DIAGNOSTIC,
 })
 
-function terminalOf(snapshot: WorkSnapshot): RunTerminal | null {
+function terminalOf(snapshot: Pick<WorkSnapshot, 'run'>): RunTerminal | null {
   return snapshot.run.kind === 'terminal' ? snapshot.run.terminal : null
 }
 
@@ -173,13 +186,16 @@ const RUN_LAYER_EXPECTED: ReadonlySet<MutationName> = new Set([
   'finishRun',
 ])
 
-export function expectedRevision(snapshot: WorkSnapshot, kind: MutationName): SessionRevision {
+export function expectedRevision(
+  snapshot: Pick<WorkSnapshot, 'run' | 'revision'>,
+  kind: MutationName,
+): SessionRevision {
   if (!RUN_LAYER_EXPECTED.has(kind) || snapshot.run.kind !== 'active') return snapshot.revision
   return snapshot.run.revision
 }
 
 export function expectedHolds(
-  snapshot: WorkSnapshot,
+  snapshot: Pick<WorkSnapshot, 'run' | 'revision'>,
   kind: MutationName,
   expected: SessionRevision,
 ): boolean {
@@ -187,7 +203,10 @@ export function expectedHolds(
 }
 
 // Archived, terminal and stale-attempt refusals come before the revision comparison, so a late writer learns the state that replaced it.
-export function judgeAdvance(snapshot: WorkSnapshot, claim: AdvanceClaim): AdvanceJudgment {
+export function judgeAdvance(
+  snapshot: Pick<WorkSnapshot, 'lifecycle' | 'run' | 'revision'>,
+  claim: AdvanceClaim,
+): AdvanceJudgment {
   if (snapshot.lifecycle === 'archived') return { kind: 'archived' }
   const terminal = terminalOf(snapshot)
   if (terminal !== null) return { kind: 'terminal', terminal }
@@ -239,7 +258,7 @@ export function judgeRunStart(snapshot: WorkSnapshot, _entry: EntryClass): RunSt
   if (snapshot.lifecycle === 'initializing') return { kind: 'not-ready' }
   if (snapshot.run.kind === 'active') return { kind: 'run-active' }
   if (snapshot.awaitingPerson === true) return { kind: 'awaiting-person' }
-  const first = snapshot.pending[0]
+  const first = wakingInputs(snapshot)[0]
   if (first === undefined) return { kind: 'no-input' }
   return { kind: 'eligible', first }
 }
@@ -259,7 +278,7 @@ export function judgeRetryRun(
   if (snapshot.frozen !== null) return 'frozen'
   const waiting = judgeWaiting(snapshot)
   if (waiting === null || waiting.run !== run) return 'not-found'
-  return waiting.pending === 0 ? 'nothing-pending' : null
+  return wakingInputs(snapshot).length === 0 ? 'nothing-pending' : null
 }
 
 export function openWork(snapshot: WorkSnapshot): OpenWork {
@@ -408,7 +427,12 @@ function runScope(
   }
 }
 
-function producerScope(snapshot: WorkSnapshot, producer: ProducerRef): ControlScope {
+// A background control of a call already in the background has nothing to send: its scope is empty.
+function producerScope(
+  snapshot: WorkSnapshot,
+  producer: ProducerRef,
+  kind: 'stop-call' | 'background-tool',
+): ControlScope {
   if (snapshot.lifecycle === 'archived')
     return { kind: 'invalid', reason: 'the session is archived' }
   if (!snapshot.consumptions.some(item => digestOf(item.binding.producer) === digestOf(producer)))
@@ -416,7 +440,11 @@ function producerScope(snapshot: WorkSnapshot, producer: ProducerRef): ControlSc
   return {
     kind: 'scope',
     unassociatedWaiting: [],
-    producers: [producer],
+    producers:
+      kind === 'background-tool' &&
+      backgroundCalls(snapshot).some(item => digestOf(item) === digestOf(producer))
+        ? []
+        : [producer],
     revokes: [],
     cancelsRun: null,
     cascade: [],
@@ -438,7 +466,7 @@ export function resolveControlScope(snapshot: WorkSnapshot, intent: ControlInten
       return runScope(snapshot, control.run, 'cancel-run')
     case 'stop-call':
     case 'background-tool':
-      return producerScope(snapshot, control.producer)
+      return producerScope(snapshot, control.producer, control.kind)
   }
 }
 
@@ -476,7 +504,7 @@ export function judgeIdle(
   }>,
 ): IdleJudgment {
   if (input.policy.kind === 'disabled') return { kind: 'disabled' }
-  if (snapshot.relation?.kind === 'main' && snapshot.relation.resident) return { kind: 'exempt' }
+  if (snapshot.resident === true) return { kind: 'exempt' }
   if (snapshot.lifecycle === 'archived' || snapshot.run.kind === 'active')
     return { kind: 'not-due' }
   if (
@@ -489,10 +517,7 @@ export function judgeIdle(
     Object.values(work).some(items => items.length > 0) ||
     snapshot.tasks.length > 0 ||
     snapshot.controls.some(control => control.state !== 'reconciled') ||
-    snapshot.consumptions.some(
-      item =>
-        item.results.length === 0 || item.results.some(result => result.release !== 'confirmed'),
-    )
+    (snapshot.callRegistrations ?? []).length > 0
   )
     return { kind: 'not-due' }
   if (input.observation.kind !== 'interval')

@@ -218,16 +218,13 @@ describe('the abort checkpoints', () => {
     expect(controls.calls()).toStrictEqual({ check: 1, resolve: 1, snapshot: 1, open: 0 })
   })
 
-  it('an already aborted signal makes read, list and export answer aborted with no port call', async () => {
+  it('an already aborted signal makes read and list answer aborted with no port call', async () => {
     const { access, controls } = createWorld()
     const signal = AbortSignal.abort()
     expect(await access.read(alice, scope, body, { signal })).toStrictEqual({
       failure: { kind: 'aborted' },
     })
     expect(await access.list(alice, scope, review, { signal })).toStrictEqual({
-      failure: { kind: 'aborted' },
-    })
-    expect(await access.export(alice, scope, review, currentBasis, { signal })).toStrictEqual({
       failure: { kind: 'aborted' },
     })
     expect(controls.calls()).toStrictEqual({ check: 0, resolve: 0, snapshot: 0, open: 0 })
@@ -313,8 +310,6 @@ describe('the body of a SKILL.md without a legal frontmatter', () => {
               declared: {
                 name: granted(isSkillName, 'review'),
                 tools: [],
-                scripts: [],
-                settings: [],
               },
             },
           },

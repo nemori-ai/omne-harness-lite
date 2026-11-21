@@ -4,7 +4,7 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   sameCapability,
   type DeclaredProjection,
-  type DescribeFailure,
+  type GateFailure,
   type SkillFailure,
   type SkillMaterialBasis,
   type SourceLayer,
@@ -23,6 +23,8 @@ export type Gated = Readonly<{
 
 export type Aborted = Extract<SkillFailure, { kind: 'aborted' }>
 
+type BasisUnavailable = Extract<SkillFailure, { kind: 'basis-unavailable' }>
+
 const NOT_AVAILABLE = Object.freeze({ kind: 'not-available-to-you' } as const)
 const UNKNOWN = Object.freeze({ kind: 'unknown' } as const)
 const ABORTED = Object.freeze({ kind: 'aborted' } as const)
@@ -30,7 +32,7 @@ const ABORTED = Object.freeze({ kind: 'aborted' } as const)
 function gatedOf(
   answer: Resolution | undefined,
   basis: SkillMaterialBasis | undefined,
-): Outcome<Gated, DescribeFailure> {
+): Outcome<Gated, GateFailure | BasisUnavailable> {
   if (answer === undefined) return fail(UNKNOWN)
   switch (answer.kind) {
     case 'adopted': {
@@ -69,7 +71,7 @@ export async function gate<P, S>(
   capability: CapabilityId,
   basis?: SkillMaterialBasis,
   signal?: AbortSignal,
-): Promise<Outcome<Gated, DescribeFailure | Aborted>> {
+): Promise<Outcome<Gated, GateFailure | BasisUnavailable | Aborted>> {
   if (basis !== undefined && !sameCapability(basis.capability, capability))
     return fail(NOT_AVAILABLE)
   if (checkpoint(signal) === 'aborted') return fail(ABORTED)

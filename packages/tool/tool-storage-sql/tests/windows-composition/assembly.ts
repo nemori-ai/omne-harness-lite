@@ -40,6 +40,7 @@ import {
   type ToolInvokeRequest,
   type ToolResultReceiver,
 } from '@omne-harness/tool-contract'
+import { testingCallLabel } from '@omne-harness/tool-contract/testing'
 import { tenantCodec, tenantEquals } from '@omne-harness/legal-identity'
 import {
   createHostFilesDomain,
@@ -209,7 +210,7 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
       TEMP: stateDirectory,
       TMP: stateDirectory,
     }
-    const authors = createAuthors(fixedRoot, executable, env, RESULT_MAX_BYTES)
+    const authors = createAuthors(executable, env, RESULT_MAX_BYTES)
     const sources = createLocalInvocationSource({
       store,
       authority: authority.sourceAuthority,
@@ -222,7 +223,6 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
     })
     const provider = createHostFilesProvider({
       domain,
-      filesRoot: fixedRoot,
       stateDirectory,
       drainBoundMs: 20_000,
       command: {
@@ -589,6 +589,7 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
             inputCompatible: true,
             outputCompatible: true,
             attachmentsReadable: true,
+            productsStorable: true,
           })
         },
       },
@@ -752,14 +753,14 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
         },
       })
       if ('failure' in availability) throw new Error(JSON.stringify(availability.failure))
+      const label = testingCallLabel(availability.ok.definition, command)
+      const intent = label.intent === null ? {} : { intent: label.intent }
+      const text = JSON.stringify(command === null ? args : { command, ...intent, params: args })
       const request: ToolInvokeRequest = {
         availability: availability.ok,
         command,
-        arguments: {
-          original: JSON.stringify(command === null ? args : { command, params: args }),
-          effective: JSON.stringify(command === null ? args : { command, params: args }),
-          complete: true,
-        },
+        arguments: { original: text, effective: text, complete: true },
+        label,
         settings: authors.settings[tool],
         context: describedAdoption({
           owner: 'windows-composition',
@@ -767,6 +768,8 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
           revision: '1',
         }),
         workspace: null,
+        // The files root of the placement and the default directory of the author are this one value.
+        directory: { path: fixedRoot, workspace: null },
         environment: availability.ok.definition.declarations.environment,
         requesterScope: authority.scope,
         resources: [],

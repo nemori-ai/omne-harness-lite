@@ -39,17 +39,15 @@ export type {
   EndpointDefinition,
   EndpointRef,
   EndpointSettings,
-  EnvironmentBinding,
   KnownActionId,
   PeerAccount,
   PeerIdentity,
   SettingValue,
-  StdioLaunch,
   TransportDeclaration,
   Untrusted,
 } from './values.ts'
 export {
-  launchesLocalCommand,
+  mcpCategoryDisplay,
   mcpEndpointBodyContract,
   parseEndpointBody,
   type EndpointBodyRejection,
@@ -112,10 +110,8 @@ export {
   type TaskReadDefect,
 } from './readers.ts'
 export {
-  PROCESS_EXIT_WINDOW_MS,
   WIRE_LIMITS,
   classifyWireEvent,
-  endedCauseOf,
   readPeerMessage,
   type AnswerClass,
   type ErrorClass,
@@ -232,9 +228,8 @@ export type {
   McpServices,
   RefreshResult,
   ReleaseReport,
-  Residual,
   TaskControl,
   TaskRef,
 } from './services.ts'
-export type { McpClock, StopScope } from './ports.ts'
+export type { McpClock } from './ports.ts'
 export type { PeerNotification } from './transport.ts'

@@ -100,7 +100,7 @@ describe('legacy check boundaries', () => {
       'package.json',
       JSON.stringify({
         private: true,
-        packageManager: 'pnpm@10.28.1',
+        packageManager: 'pnpm@12.18.0',
         scripts: { typecheck: "node -e \"require('fs').writeFileSync('root-shortcut', 'wrong')\"" },
       }),
     )
@@ -112,11 +112,7 @@ describe('legacy check boundaries', () => {
       true,
     )
     const file: PlanFile = { head: '', dirty: false, base: { ref: '', mergeBase: '' }, plan }
-    const budget = {
-      workers: 2,
-      machine: { cores: 2, idleFraction: 1, freeMemoryMiB: 4096 },
-      source: 'sampled' as const,
-    }
+    const budget = { workers: 2, cores: 2, source: 'capacity' as const }
     expect(typecheckStep(root, file, budget)).not.toBe(0)
     expect(() => readFileSync(join(root, 'root-shortcut'))).toThrow()
     put(

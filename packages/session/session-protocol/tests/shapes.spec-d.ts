@@ -48,6 +48,7 @@ type SessionRequestBodies = {
         readonly cursor: null
         readonly direction: 'forward' | 'backward'
         readonly pageBytes: string
+        readonly inherited?: boolean
       })
     | (Target & { readonly cursor: string })
   'cancel-run': Target & {
@@ -55,7 +56,11 @@ type SessionRequestBodies = {
     readonly run: string
     readonly urgency: 'graceful' | 'force'
   }
-  'stop-call': Target & { readonly controlId: string; readonly producer: ProducerRef }
+  'stop-call': Target & {
+    readonly controlId: string
+    readonly producer: ProducerRef
+    readonly reason?: string | null
+  }
 }
 
 type SessionSuccessBodies = {
@@ -73,6 +78,7 @@ type SessionSuccessBodies = {
     readonly next: string | null
     readonly exhausted: boolean
     readonly scannedThrough: string
+    readonly from?: string
   }
   'cancel-run':
     | { readonly kind: 'requested'; readonly controlId: string; readonly run: string }
@@ -140,18 +146,34 @@ type SessionOutcomes = {
     | 'unsupported'
 }
 
-test('the operations are exactly the ten of session/v1', () => {
+test('the operations are exactly the twenty-six of session/v1', () => {
   expectTypeOf<Name>().toEqualTypeOf<
     | 'create-session'
     | 'query-create-session'
     | 'send-input'
+    | 'interrupt-input'
     | 'query-send-input'
     | 'read-history'
     | 'read-waiting'
+    | 'read-pending'
+    | 'read-waiting-calls'
+    | 'read-input-fate'
+    | 'search-history'
     | 'list-sessions'
+    | 'list-archived-sessions'
+    | 'archive-session'
+    | 'unarchive-session'
     | 'cancel-run'
     | 'stop-call'
     | 'retry-run'
+    | 'background-call'
+    | 'list-background-calls'
+    | 'select-model'
+    | 'read-model-selection'
+    | 'select-workspace'
+    | 'read-workspace-selection'
+    | 'read-permission-mode'
+    | 'change-permission-mode'
   >()
   expectTypeOf<keyof SessionProtocol['observations']>().toEqualTypeOf<'observe-session'>()
   expectTypeOf(sessionProtocol.name).toEqualTypeOf<'session'>()
@@ -176,7 +198,10 @@ test('list-sessions has a body and a success body of its own, and `invalid` is e
     readonly tenant: TenantId
     readonly cursor: string | null
     readonly limit?: number
-    readonly includeArchived?: boolean
+    readonly relation?: 'main' | 'child' | 'handoff' | null
+    readonly parent?: string | null
+    readonly attendance?: 'attended' | 'unattended' | null
+    readonly definition?: string | null
   }>()
   expectTypeOf<ResultBody<'list-sessions', 'succeeded'>>().toEqualTypeOf<{
     readonly sessions: readonly {
@@ -185,6 +210,13 @@ test('list-sessions has a body and a success body of its own, and `invalid` is e
       readonly lastActivityAt: Instant | null
       readonly lifecycle: 'initializing' | 'dormant' | 'active' | 'frozen' | 'archived'
       readonly title: string | null
+      readonly relation?: 'main' | 'child' | 'handoff'
+      readonly parent?: string | null
+      readonly origin?: string | null
+      readonly root?: string
+      readonly depth?: number
+      readonly attendance?: 'attended' | 'unattended'
+      readonly definition?: string
     }[]
     readonly next: string | null
     readonly completeness: 'complete' | 'partial'
@@ -194,11 +226,13 @@ test('list-sessions has a body and a success body of its own, and `invalid` is e
   expectTypeOf<Outcomes<'list-sessions'>['basis-unavailable']>().toEqualTypeOf<true>()
 })
 
-test('create-session differs only in that definition may be left out', () => {
+test('create-session differs only in that definition may be left out, and a model and a workspace may be named', () => {
   expectTypeOf<BodyOf<'create-session'>>().toEqualTypeOf<
     Flat<
       Omit<SessionRequestBodies['create-session'], 'definition'> & {
         readonly definition?: string
+        readonly model?: string
+        readonly workspace?: { readonly workspace: string; readonly instance: string }
       }
     >
   >()
@@ -314,6 +348,15 @@ test('observe-session opens on a tenant and a session and has five frame kinds',
         readonly run: string | null
         readonly revision: string
         readonly phase: string | null
+        readonly attempts?: {
+          readonly allowed: number
+          readonly made: number
+          readonly last: {
+            readonly cause: string
+            readonly upstreamStatus: string | null
+          } | null
+          readonly notBefore: string | null
+        }
         readonly target: { readonly projection: 'model-output-v1' } | null
       }
     | {
@@ -326,4 +369,36 @@ test('observe-session opens on a tenant and a session and has five frame kinds',
     | { readonly kind: 'refreshing' }
   >()
   expectTypeOf<ValueOf<Observation['frame']>>().toEqualTypeOf<ObserveSessionFrame>()
+})
+
+test('background-call names one Tool call and answers requested or background', () => {
+  type ToolCall = { readonly kind: 'tool'; readonly call: string }
+  expectTypeOf<BodyOf<'background-call'>>().toEqualTypeOf<
+    Flat<Target & { readonly controlId: string; readonly producer: ToolCall }>
+  >()
+  expectTypeOf<ResultBody<'background-call', 'succeeded'>>().toEqualTypeOf<{
+    readonly kind: 'requested' | 'background'
+    readonly controlId: string
+    readonly producer: ToolCall
+  }>()
+  expectTypeOf<ResultBody<'list-background-calls', 'succeeded'>>().toEqualTypeOf<{
+    readonly calls: readonly {
+      readonly id: string
+      readonly producer: ToolCall
+      readonly label: {
+        readonly intent: string | null
+        readonly tool: string
+        readonly command: string | null
+        readonly preview: string
+      }
+      readonly source: 'launched' | 'control' | 'threshold' | 'foreground-limit'
+      readonly status: 'queued' | 'running' | 'ended-pending' | 'stopping' | 'unknown'
+      readonly stop: {
+        readonly initiator: 'user' | 'agent' | 'system'
+        readonly reason: string | null
+        readonly progress: 'requested' | 'accepted' | 'proven'
+      } | null
+      readonly lastLine: string | null
+    }[]
+  }>()
 })

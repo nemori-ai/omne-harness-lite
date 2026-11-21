@@ -2,7 +2,11 @@ import { expect, it } from 'vitest'
 
 it('exports the agent-host plugin with its static inject list', async () => {
   const cordis = (await import('@omne-harness/agent-host-local/cordis')) as Record<string, unknown>
-  expect(Object.keys(cordis)).toEqual(['agentHostPlugin', 'createAgentHostLocalPlugin'])
+  expect(Object.keys(cordis).sort()).toEqual([
+    'agentDefinitionCategoryPlugin',
+    'agentHostPlugin',
+    'createAgentHostLocalPlugin',
+  ])
   const plugin = cordis.agentHostPlugin as { name: string; inject: readonly string[] }
   expect(plugin.name).toBe('agent-host')
   expect(plugin.inject).toEqual([
@@ -11,8 +15,9 @@ it('exports the agent-host plugin with its static inject list', async () => {
     'agentAdoptions',
     'agentConditions',
     'agentRequests',
+    'agentCompaction',
+    'agentCompactionInputs',
     'agentModelSelection',
-    'agentModelContext',
     'agentMessageHandoff',
     'agentClock',
     'modelRuntime',
@@ -20,7 +25,6 @@ it('exports the agent-host plugin with its static inject list', async () => {
     'agentMaterials',
     'agentReceivedCommits',
     'agentModelReceptionTargets',
-    'agentAccountOutlet',
     'agentHostPrincipal',
   ])
 })

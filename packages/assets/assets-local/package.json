@@ -22,7 +22,8 @@
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run",
     "test:fast": "vitest run --mode fast",
-    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false",
+    "verify:formal": "python3 verification/check.py"
   },
   "dependencies": {
     "@omne-harness/settings": "workspace:*",
@@ -31,7 +32,8 @@
     "zod": "catalog:",
     "@omne-harness/assets": "workspace:*",
     "@omne-harness/settings-local": "workspace:*",
-    "@omne-harness/json-text": "workspace:*"
+    "@omne-harness/json-text": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*"
   },
   "devDependencies": {
     "@omne-harness/sqlite-provider": "workspace:*",

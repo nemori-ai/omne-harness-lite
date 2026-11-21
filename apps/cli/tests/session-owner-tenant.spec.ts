@@ -92,6 +92,7 @@ const existing: readonly (readonly [string, (session: string) => readonly string
   ['send-input', session => ['--session', session, '--text', 'hello']],
   ['cancel-run', session => ['--session', session, '--run', 'run-7']],
   ['stop-call', session => ['--session', session, '--producer-kind', 'model', '--call', 'call-3']],
+  ['select-model', session => ['--session', session, '--model', 'openai/gpt-6.1-sol']],
 ]
 
 describe('create-session records the owner of the session', () => {

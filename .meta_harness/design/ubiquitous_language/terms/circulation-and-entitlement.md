@@ -130,7 +130,7 @@
 - **出处**：[PF-002 §5.2「谁可以使用它」是各类资产共用的一项权限](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#谁可以使用它是各类资产共用的一项权限) ·
   [§4 Slash Command](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#slash-command) ·
   [§5.6 第 1 步](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#56-四步资产求值--组装--投影--层级计算)（rev 32） ·
-  [资产与规则：配置资产的行为，同时守住权限上界](../../product/assets-and-rules/design.md#配置资产的行为同时守住权限上界)（rev 9）
+  [资产与规则：配置资产的行为，同时守住权限上界](../../product/assets-and-rules/design.md#配置资产的行为同时守住权限上界)（rev 10）
 - **别混**：**不是[使用权](#ul-usage-right--使用权--usage-right)**——使用权说的是**一个范围**对一份资产有没有使用的权利（定义者直接有、被分享方确认后有）；
   这一项是那份持有上配的「**这个范围里哪些人**能用」
 - **注意 ①**：**「自己」在组织、租户持有的资产上指作者本人**；在工作区自带的资产上，指挂上那份工作区的租户本人
@@ -421,6 +421,6 @@
   工作区借「同名替换再禁用」藏不掉租户的资产
 - **别混**：与[当下可用性](reach-and-availability.md#ul-current-availability--当下可用性--current-availability)不是一回事——
   禁用是治理输入；不可用是会话当前求值结果，已知能力因禁用可转为不可用
-- **注意**：**只是这一阵不让用、将来还要开回来 → 用这个**。成员据以知道去申请的是**设置页**，不是 agent 的回答
+- **注意**：**只是这一阵不让用、将来还要开回来 → 用这个**。成员据以知道去申请的是这份资产的设置（在[资产页](interaction-and-dispatch.md#ul-asset-page--资产页--asset-page)里），不是 agent 的回答
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

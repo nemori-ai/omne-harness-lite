@@ -21,6 +21,8 @@ import {
   SessionNotifierService,
   SessionTransactionPortService,
   SessionWorkPrincipalsService,
+  sessionInputSourcesKey,
+  sessionInputSourcesPlugin,
   type SessionService,
 } from '@omne-harness/session-cordis-contract/cordis'
 import {
@@ -41,6 +43,7 @@ import {
   ordinaryInput,
   sessionId,
   succeeded,
+  TESTING_DECLARATIONS,
 } from '@omne-harness/session-contract/testing'
 import {
   createMemorySessionPrincipalBindings,
@@ -311,6 +314,15 @@ export async function assemble(options: AssemblyOptions = {}) {
     delete fibers[name]
   }
 
+  const sources = await mount(sessionInputSourcesPlugin)
+  await mount({
+    name: 'testing-input-sources',
+    inject: [sessionInputSourcesKey],
+    apply: (inner: Context) => {
+      for (const declaration of TESTING_DECLARATIONS)
+        inner.sessionInputSources.register(declaration)
+    },
+  })
   const omitted = new Set<PortName>(options.omit ?? [])
   for (const name of [...INJECTED, ...READ_PER_CALL]) if (!omitted.has(name)) await provide(name)
 
@@ -459,6 +471,7 @@ export async function assemble(options: AssemblyOptions = {}) {
     hold,
     mountStorageRow,
     fibers,
+    sources,
     get provider(): Fiber {
       if (provider === undefined) throw new Error('the provider was not loaded')
       return provider

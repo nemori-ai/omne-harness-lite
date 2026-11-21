@@ -3,6 +3,7 @@ import { createShellAuthor } from '@omne-harness/tool-definitions'
 import { deriveDefinition, judgeToolDefinition } from '@omne-harness/tool-contract/provider'
 import { shellFixture } from './fixtures/shell.ts'
 import { run, value } from './run-author.ts'
+import { tree } from '../src/protocol.ts'
 
 it('declares all Shell commands and explains platform, background and terminal semantics', async () => {
   const fixture = shellFixture()
@@ -29,13 +30,23 @@ it('declares all Shell commands and explains platform, background and terminal s
   expect(author.facts.implements.commands.every(item => item.parameters.kind === 'declared')).toBe(
     true,
   )
+  expect(author.facts.backgroundAllowed).toBe(true)
+  expect(
+    author.facts.implements.commands.flatMap(item =>
+      item.background === undefined ? [] : [[item.name, item.background]],
+    ),
+  ).toEqual([['execute', { unless: ['terminal'] }]])
   const help = await run(author, 'help', { name: 'execute' }, fixture.environment)
-  expect(help).toContain('Usage: Shell {"command": "execute", "params": {script, terminal?')
+  expect(help).toContain(
+    'Usage: Shell {"command": "execute", "intent": "<one line: why you make this call>", "params": {script, terminal?',
+  )
   expect(help).toContain('JSON Schema')
-  expect(help).toContain('unsupported')
+  expect(help).toContain('run_in_background')
+  expect(help).not.toContain('unsupported')
   const info = await run(author, 'info', {}, fixture.environment)
   expect(info).toContain('fixtureOS')
   expect(info).toContain('shell=["/explicit-shell","-c"] cwd="/initial"')
+  expect(info).toContain('background=execute unless=["terminal"]')
 })
 
 it('states the four lifetime rules in help, one phrase per rule', async () => {
@@ -49,10 +60,12 @@ it('states the four lifetime rules in help, one phrase per rule', async () => {
     'until it exits, is stopped explicitly, or the execution environment closes its retention scope',
   )
   expect(help).toContain('is stopped when it cannot be retained; the residue line gives the reason')
-  expect(help).toContain('run_in_background is not supported now')
+  expect(help).toContain('run_in_background=true runs a one-shot execute in the background')
+  expect(help).toContain('a terminal execution cannot run in the background')
   expect(help).toContain(
     'a one-shot command waits until the main process exits and output is quiet',
   )
+  expect(help).not.toContain('unsupported')
   expect(help).toContain('background tasks in a terminal live as long as the terminal')
   expect(help).toContain('close_session stops every process in the terminal')
   expect(help).toContain('systemd-run --user')
@@ -84,12 +97,72 @@ it('routes one-shot commands using explicit construction and per-call cwd/env', 
   expect(fixture.executions).toHaveLength(0)
 })
 
+it('starts a command and a new terminal in the working directory of the call, not of the construction', async () => {
+  const fixture = shellFixture()
+  const author = value(createShellAuthor(fixture.config))
+  const inBlog = { ...fixture.environment, directory: '/srv/blog' }
+  const inShop = { ...fixture.environment, directory: '/srv/shop' }
+  await run(author, 'execute', { script: 'pwd' }, inBlog)
+  await run(author, 'execute', { script: 'pwd' }, inShop)
+  await run(author, 'execute', { script: 'pwd', cwd: '/elsewhere' }, inShop)
+  expect(fixture.starts.map(start => start.cwd)).toEqual(['/srv/blog', '/srv/shop', '/elsewhere'])
+  await run(author, 'create_session', {}, inBlog)
+  await run(author, 'create_session', { cwd: '/elsewhere' }, inBlog)
+  expect(fixture.creates.map(create => create.cwd)).toEqual(['/srv/blog', '/elsewhere'])
+  expect(await run(author, 'info', {}, inShop)).toContain(' cwd="/srv/shop"\n')
+  expect(
+    createShellAuthor({
+      ...fixture.config,
+      entries: [
+        ...(fixture.config as { entries: readonly unknown[] }).entries,
+        { key: 'cwd', value: { kind: 'string', value: '/initial' } },
+      ],
+    } as never),
+  ).toEqual({ failure: { field: 'construction', reason: 'invalid-field:cwd' } })
+})
+
+it('starts nothing for a call that has no working directory unless the call names one', async () => {
+  const fixture = shellFixture()
+  const author = value(createShellAuthor(fixture.config))
+  const { directory: _directory, ...bare } = fixture.environment
+  const refused =
+    'rejected reason=unavailable this call has no working directory; pass cwd zero starts'
+  expect(await run(author, 'execute', { script: 'pwd' }, bare)).toBe(refused)
+  expect(await run(author, 'create_session', {}, bare)).toBe(refused)
+  expect([fixture.starts, fixture.creates]).toEqual([[], []])
+  expect(await run(author, 'info', {}, bare)).toContain(' cwd=null\n')
+  await run(author, 'execute', { script: 'pwd', cwd: '/given' }, bare)
+  expect(fixture.starts.map(start => start.cwd)).toEqual(['/given'])
+  // A terminal already has a directory of its own: the call needs none.
+  const made = await run(author, 'create_session', { cwd: '/given' }, bare)
+  const terminal = JSON.parse(made.slice(made.indexOf('terminal=') + 9).split('\n')[0]!)
+  expect(await run(author, 'execute', { terminal, script: 'pwd' }, bare)).toContain('/given')
+})
+
+it('creates a terminal with the merged environment and the geometry the call names, whole or not at all', async () => {
+  const fixture = shellFixture()
+  const author = value(createShellAuthor(fixture.config))
+  const sized = { env: { A: 'override' }, columns: 100, rows: 30 }
+  await run(author, 'create_session', sized, fixture.environment)
+  expect(fixture.creates.at(-1)).toMatchObject({
+    env: { A: 'override', BASE: 'yes' },
+    geometry: { columns: 100, rows: 30 },
+  })
+  await run(author, 'create_session', {}, fixture.environment)
+  expect(fixture.creates.at(-1)).toMatchObject({ env: { A: 'base', BASE: 'yes' } })
+  expect(fixture.creates.at(-1)).not.toHaveProperty('geometry')
+  expect(await run(author, 'create_session', { rows: 30 }, fixture.environment)).toBe(
+    'rejected reason=invalidInput columns and rows must be supplied together',
+  )
+  expect(fixture.creates).toHaveLength(2)
+})
+
 it('retains terminal cwd through the fixture and never falls back for invalid or closed references', async () => {
   const fixture = shellFixture()
   const author = value(createShellAuthor(fixture.config))
   const terminal = { id: 'session', generation: '1' }
   expect(await run(author, 'create_session', {}, fixture.environment)).toContain('"id":"session"')
-  expect(fixture.creates[0]).toMatchObject({ retain: 'session' })
+  expect(fixture.creates[0]).toMatchObject({ retain: 'scope' })
   await run(author, 'execute', { terminal, script: 'cd /next' }, fixture.environment)
   expect(await run(author, 'execute', { terminal, script: 'pwd' }, fixture.environment)).toContain(
     '/next',
@@ -166,18 +239,13 @@ it('refuses a missing or denied attachment before execute and never creates a re
   expect(fixture.starts).toHaveLength(0)
 })
 
-it('refuses background before either facility starts and drains split UTF-8 with a complete byte bound', async () => {
+it('runs a background script as given, since admission decided the relation, and drains split UTF-8 with a complete byte bound', async () => {
   const fixture = shellFixture('首' + '中文'.repeat(500) + '尾')
   const author = value(createShellAuthor(fixture.smallConfig))
   expect(
-    await run(
-      author,
-      'execute',
-      { script: 'anything', run_in_background: true },
-      fixture.environment,
-    ),
-  ).toContain('unsupported')
-  expect(fixture.starts).toHaveLength(0)
+    await run(author, 'execute', { script: 'print', run_in_background: true }, fixture.environment),
+  ).toContain('尾')
+  expect(fixture.starts).toHaveLength(1)
   const result = await run(author, 'execute', { script: 'print' }, fixture.environment)
   expect(new TextEncoder().encode(result).byteLength).toBeLessThanOrEqual(512)
   expect(result).toContain('首')
@@ -185,4 +253,77 @@ it('refuses background before either facility starts and drains split UTF-8 with
   expect(result).toContain('truncated bytes')
   expect(result).not.toContain('�')
   expect(fixture.drained()).toBe(true)
+})
+
+it('checks a start against the files of the call before it starts, and names the path it stops at', async () => {
+  const fixture = shellFixture()
+  const sh = value(
+    createShellAuthor(
+      tree({
+        resultMaxBytes: 32768,
+        executable: '/bin/sh',
+        argsPrefix: ['-c'],
+        env: { HOME: '/home/a' },
+      }),
+    ),
+  )
+  const scope = { read: '/srv/blog', write: '/srv/blog' }
+  const env = { ...fixture.environment, directory: '/srv/blog', scope }
+  const refusal = (path: string, effect: 'read' | 'write') =>
+    `rejected reason=outsideScope path=${JSON.stringify(path)} effect=${effect} the setting for files outside the workspace keeps this call from ${effect === 'read' ? 'reading' : 'writing'} there; zero starts`
+  expect(await run(sh, 'execute', { script: 'cat /etc/hosts' }, env)).toBe(
+    refusal('/etc/hosts', 'read'),
+  )
+  expect(await run(sh, 'execute', { script: 'echo x > ~/out' }, env)).toBe(
+    refusal('/home/a/out', 'write'),
+  )
+  expect(await run(sh, 'execute', { script: 'pwd', cwd: '/tmp' }, env)).toBe(
+    refusal('/tmp', 'write'),
+  )
+  expect(await run(sh, 'create_session', { cwd: '/tmp' }, env)).toBe(refusal('/tmp', 'write'))
+  expect([fixture.starts, fixture.creates]).toEqual([[], []])
+  // A segment of a retained terminal is checked the same way before it runs.
+  const made = await run(sh, 'create_session', {}, env)
+  const terminal = JSON.parse(made.slice(made.indexOf('terminal=') + 9).split('\n')[0]!)
+  expect(await run(sh, 'execute', { terminal, script: 'cat /etc/hosts' }, env)).toBe(
+    refusal('/etc/hosts', 'read'),
+  )
+  expect(fixture.executions).toEqual([])
+  // Inside the scope, with reads not limited, or with no scope at all, it starts.
+  await run(sh, 'execute', { script: 'cat README.md' }, env)
+  await run(sh, 'execute', { script: 'cat /etc/hosts' }, { ...env, scope: { write: '/srv/blog' } })
+  await run(
+    sh,
+    'execute',
+    { script: 'cat /etc/hosts' },
+    { ...fixture.environment, directory: '/srv/blog' },
+  )
+  expect(fixture.starts).toHaveLength(3)
+  // A program not of the POSIX family is checked only for where it starts.
+  const other = value(createShellAuthor(fixture.config))
+  await run(other, 'execute', { script: 'cat /etc/hosts' }, env)
+  expect(fixture.starts).toHaveLength(4)
+  expect(await run(other, 'execute', { script: 'pwd', cwd: '/tmp' }, env)).toBe(
+    refusal('/tmp', 'write'),
+  )
+})
+
+it('judges a segment of a retained terminal by the system of its host, not by the one-shot program', async () => {
+  const fixture = shellFixture()
+  const author = value(createShellAuthor(fixture.config))
+  const scope = { read: '/srv/blog', write: '/srv/blog' }
+  const onDarwin = {
+    ...fixture.environment,
+    directory: '/srv/blog',
+    scope,
+    facts: { ...fixture.environment.facts, os: 'darwin' },
+  }
+  const made = await run(author, 'create_session', {}, onDarwin)
+  const terminal = JSON.parse(made.slice(made.indexOf('terminal=') + 9).split('\n')[0]!)
+  expect(await run(author, 'execute', { terminal, script: 'cat /etc/hosts' }, onDarwin)).toContain(
+    'reason=outsideScope path="/etc/hosts" effect=read',
+  )
+  const onWindows = { ...onDarwin, facts: { ...onDarwin.facts, os: 'windows' } }
+  await run(author, 'execute', { terminal, script: 'cat /etc/hosts' }, onWindows)
+  expect(fixture.executions.map(execution => execution.script)).toEqual(['cat /etc/hosts'])
 })

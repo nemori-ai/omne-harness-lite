@@ -49,6 +49,8 @@ export {
   type CalendarOfficialNoticeArtifact,
 } from './sources/index.ts'
 export { createShippedCalendarSeedRegistry, shippedCalendarSeedRelease } from './seeds/index.ts'
+export { shippedCalendarSupplyInputs } from './seeds/sources.ts'
+export type { CalendarShippedSupplyInputs } from './seeds/sources.ts'
 export { createCalendarSupplyRunner } from './runner/index.ts'
 export type {
   CalendarSupplyRunner,
@@ -65,3 +67,4 @@ export type {
   CalendarSettingsBinding,
   CalendarSettingsEnvironmentOptions,
 } from './settings-environment.ts'
+export { calendarEnvironmentItems, calendarEnvironmentSettings } from './settings-declaration.ts'

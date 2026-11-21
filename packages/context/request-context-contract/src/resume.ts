@@ -4,7 +4,6 @@ import type { OperationContext } from './operation-context.js'
 import { assembleInputs } from './assembly.js'
 import type { ReuseBasis } from './preparation.js'
 import type { AssemblyReuse } from './reuse.js'
-import { invalid } from './compaction-request.js'
 export async function resumeInputs<P>(
   input: AssemblyInput<P>,
   key: PreparedInputKey,
@@ -12,14 +11,10 @@ export async function resumeInputs<P>(
   context: OperationContext<P>,
   basis?: ReuseBasis & Readonly<{ reuse?: AssemblyReuse | undefined }>,
 ): Promise<AssemblyResult> {
-  if (
-    input.contextRead.read.kind !== 'success' ||
-    !('viewRevision' in input.contextRead.read.value)
-  )
-    return { kind: 'invalid', field: 'contextRead', reason: 'resume-without-full-snapshot' }
   const transition = input.transition
-  if (transition === null) return invalid('missing-input', 'context.transition')
+  if (transition === null)
+    return { kind: 'invalid', reason: 'missing-input', field: 'history.transition' }
   if (transition.candidate !== input.identity.candidate || transition.epoch !== input.history.epoch)
-    return invalid('plan-mismatch')
+    return { kind: 'invalid', reason: 'transition-mismatch', field: 'history.transition' }
   return assembleInputs(input, key, rows, context, basis)
 }

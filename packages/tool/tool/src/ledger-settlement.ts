@@ -14,6 +14,8 @@ import type {
 import type { ToolFinalEnvelope, ToolTask } from '@omne-harness/tool-contract/provider'
 import { invalid } from './boundary.ts'
 import { mintEvidence, resultVersion, sameFactValue } from './evidence.ts'
+import { instantAfter } from './instant.ts'
+import { measuredDuration, settlementAccount, usageEndingOf } from './ledger-account.ts'
 import {
   firstResultWrites,
   operationRecord,
@@ -24,10 +26,13 @@ import {
   type Decision,
   type Mint,
   type Snapshot,
+  type LateVersion,
 } from './ledger-decider.ts'
 import { planEnvironmentRelease, processCustodyCovered } from './ledger-environment-release.ts'
 
-import { dropSuspensionContent, type WriteCommand } from './ledger-start.ts'
+import { lateVersionOf, releasedQueue } from './ledger-ending.ts'
+import { dropSuspensionContent, nextState, type WriteCommand } from './ledger-start.ts'
+import { type StateBody } from './ledger-state.ts'
 import {
   taskKey,
   type CallRecord,
@@ -50,6 +55,7 @@ export type SettlementCheck =
       call: CallRecord
       saved: FactEventRecord
       task: Extract<ToolTask, { kind: 'queue' | 'settle' | 'account' | 'facts' | 'clock' }>
+      late: LateVersion | null
     }>
 
 export function checkSettlement(
@@ -66,12 +72,13 @@ export function checkSettlement(
     return succeed({ kind: 'recalled', state: known.ok.receipt.state })
   if (stateRevision(snapshot) !== command.expected)
     return fail({ kind: 'stale-revision', current: stateRevision(snapshot) })
-  if (call.state.phase === 'settled') {
+  const late = lateVersionOf(call.state)
+  if (call.state.phase === 'settled' && late === null) {
     const result = snapshot.results.get(call.state.result)
     return fail({ kind: 'conflict', operation: result?.settledBy ?? command.operation })
   }
   if (
-    call.state.phase !== 'running' ||
+    (call.state.phase !== 'running' && late === null) ||
     call.start === null ||
     call.state.execution.kind !== 'live' ||
     !sameFactValue(call.start.execution, command.execution)
@@ -97,6 +104,7 @@ export function checkSettlement(
     call,
     task,
     saved,
+    late,
   })
 }
 
@@ -121,6 +129,7 @@ function settledState<B extends ContentBlock>(
   const current = call.state
   const common = {
     call: call.call,
+    label: current.label,
     revision: mint.revision,
     phase: 'settled',
     result: resultVersion(1),
@@ -135,10 +144,7 @@ function settledState<B extends ContentBlock>(
     delivery,
     supplements: current.supplements,
     wait: { kind: 'none' },
-    queue:
-      current.queue.kind === 'held' || current.queue.kind === 'waiting'
-        ? ({ ...current.queue, kind: 'released', evidence: basis } as const)
-        : current.queue,
+    queue: releasedQueue(current.queue, basis),
   } as const
   const source = mintEvidence('state', { tenant: call.tenant, call: call.call }, mint.revision, {
     ...common,
@@ -152,18 +158,51 @@ function settledState<B extends ContentBlock>(
   return succeed({ ...common, relation: 'foreground', terminal: final.terminal, source })
 }
 
+// The logical terminal and the foreground final stay; the real end, effect and result come in as a
+// late supplement, and only now does the running execution give back its queue position.
+function lateState<B extends ContentBlock>(
+  call: CallRecord,
+  final: Final<B>,
+  basis: DurableEvidence,
+  record: ResultRecord,
+  mint: Mint,
+): Outcome<ToolState, ToolFailure> {
+  const { source: _source, ...current } = call.state
+  if (current.phase !== 'settled' || record.delivery.kind !== 'pending')
+    return invalid('call', 'late-version-needs-a-logical-terminal')
+  const body: StateBody = {
+    ...current,
+    revision: mint.revision,
+    effect: final.effect,
+    execution: { kind: 'ended', evidence: basis },
+    queue: releasedQueue(current.queue, basis),
+    supplements: [
+      ...current.supplements,
+      {
+        result: record.result,
+        actual: final.terminal,
+        delivery: record.delivery,
+        source: record.source,
+      },
+    ],
+  }
+  return succeed(nextState(call, body, mint.revision))
+}
+
 export function decidePreserveResult<B extends ContentBlock>(
   snapshot: Snapshot,
   command: PreserveCommand,
   final: Final<B>,
   value: ResultValue,
-  orphanDue: ToolInstant | null,
+  clocked: Readonly<{ settledAt: ToolInstant | null; graceMs: number }>,
   mint: Mint,
 ): Decision<ToolState> {
+  const { settledAt, graceMs } = clocked
+  const orphanDue = settledAt === null ? null : instantAfter(settledAt, graceMs)
   const checked = checkSettlement(snapshot, command)
   if ('failure' in checked) return reply(checked)
   if (checked.ok.kind === 'recalled') return reply(succeed(checked.ok.state))
-  const { call, saved, task } = checked.ok
+  const { call, saved, task, late } = checked.ok
   if (!matchesFinalValue(saved.value, final)) return reply(invalid('final', 'not-original-final'))
   const materialized = mintEvidence(
     'result-custody',
@@ -207,6 +246,7 @@ export function decidePreserveResult<B extends ContentBlock>(
       cleanup,
     },
     mint,
+    late,
   )
   const references = checkBodyReferences([
     ...final.result.attachments,
@@ -220,11 +260,21 @@ export function decidePreserveResult<B extends ContentBlock>(
   if ('failure' in uses) return reply(uses)
   if (saved.fact.kind !== 'final' || saved.fact.payload.kind !== 'pending')
     return reply(invalid('final', 'pending-final-required'))
-  const state = settledState(call, final, saved.evidence, first.version.delivery, mint)
+  const state =
+    late !== null
+      ? lateState(call, final, saved.evidence, first.version.record, mint)
+      : settledState(call, final, saved.evidence, first.version.delivery, mint)
   if ('failure' in state) return reply(state)
   const writes: LedgerWrite[] = [
     put({ kind: 'call', call: { ...call, state: state.ok } }),
     ...first.writes,
+    ...settlementAccount(
+      snapshot,
+      call,
+      usageEndingOf(state.ok, final.terminal),
+      measuredDuration(call.startedAt, settledAt),
+      mint,
+    ),
     ...uses.ok,
     ...dropSuspensionContent(snapshot),
     put(operationRecord(command, { kind: 'preserve-result', state: state.ok }, mint)),

@@ -1,0 +1,5 @@
+export const assetCategoriesKey = 'assetCategories'
+export const assetPublishingKey = 'assetPublishing'
+export const assetManagementKey = 'assetManagement'
+export const assetChangesKey = 'assetChanges'
+export const independentSettingsKey = 'independentSettings'

@@ -206,7 +206,12 @@ it('shows an unadopted management target and reports its disabled state without 
   const { w, reader, request, declaration } = await setup()
   const definition = declaration.settings[0]
   if (!definition) throw new Error('Expected permission settings')
-  const target = { policyId: 'independent', targetRef: 'settings', scopeRef: w.scope.tenantRef }
+  const target = {
+    kind: 'independent' as const,
+    providerId: definition.providerId,
+    definitionId: definition.definitionId,
+    scopeRef: w.scope.tenantRef,
+  }
   const current =
     (enabled: boolean) =>
     (value: CatalogCurrent): CatalogCurrent => ({

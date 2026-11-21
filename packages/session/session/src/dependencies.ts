@@ -1,10 +1,11 @@
 import type {
   AgentDrivePort,
-  DurableEvidence,
-  GuardCommand,
-  RoutedInput,
+  InputSources,
+  IntakeProcessor,
   ScopeReleasePort,
   SessionAccessCheck,
+  SessionCallControl,
+  SessionCallStates,
   SessionClock,
   SessionContextInput,
   SessionDelegatedTransactions,
@@ -14,24 +15,9 @@ import type {
   SessionInternalPrincipals,
   SessionTransactionPort,
   SessionWorkPrincipals,
-  WorkSnapshot,
 } from '@omne-harness/session-contract'
 
 export type Current<T> = Readonly<{ current(): T | null }>
-
-export type BeforeAdmitSlot = Readonly<{
-  name: string
-  run(
-    input: Readonly<{
-      submission: RoutedInput
-      source: DurableEvidence
-      snapshot: WorkSnapshot
-    }>,
-  ): Promise<
-    | Readonly<{ kind: 'pass'; submission: RoutedInput; material: GuardCommand }>
-    | Readonly<{ kind: 'block'; reason: string; material: GuardCommand }>
-  >
-}>
 
 export type SessionDependencies<P> = Readonly<{
   accessCheck: SessionAccessCheck<P>
@@ -45,8 +31,12 @@ export type SessionDependencies<P> = Readonly<{
   context: SessionContextInput<P>
   agentDrive: Current<AgentDrivePort>
   scopeRelease: Current<ScopeReleasePort>
+  callControl: Current<SessionCallControl>
+  callStates: Current<SessionCallStates>
   principals: SessionInternalPrincipals<P>
-  admission: Current<readonly BeforeAdmitSlot[]>
+  /** The processors before intake, read at every intake; null: no list and none declared. */
+  admission: Current<readonly IntakeProcessor<P>[]>
+  sources: Current<InputSources>
 }>
 
 export class SessionDependencyError extends Error {

@@ -1,4 +1,5 @@
 import { applyTodo } from './reduce-todos.ts'
+import { judgeMessage } from '@omne-harness/message'
 import { projectWorkEntries, requiredWorkEntries, unsettled } from './work-entry-state.ts'
 import type { SessionHistoryReads } from './history-values.ts'
 import { validateReplayHistory, validateInterpretationEntry } from './frontier-state.ts'
@@ -16,22 +17,26 @@ import { pendingAfterTerminal } from './input-leases.ts'
 import { SESSION_INTERPRETER, decodeEntries, type SessionEntry } from './entries.ts'
 import type { CommittedBatch, ReduceResult } from './judgments.ts'
 import { advanceEntriesProgress, applyExtended } from './reduce-extended.ts'
+import { pruneInputLists } from './background-outcome.ts'
 import { hasUnansweredCalls, trackCalls } from './run-closure.ts'
 import { scopeBinding } from './decide-management.ts'
+import { batchEvidence } from './batch-evidence.ts'
 import { digestOf } from './operations.ts'
+import { EMPTY_AUTHORIZATIONS, retireOnce } from './authorizations.ts'
 import { applyParticipation } from './result-state.ts'
 import { initializationProjection, validateInitializationBatch } from './reduce-initialization.ts'
 import { sameInitializationValue } from './initialization-plan.ts'
 import { adoption, InitializationInvalid } from './initialization-parse.ts'
-
-export function batchEvidence(batch: CommittedBatch, session: string): DurableEvidence {
-  return {
-    owner: '@omne-harness/session-contract',
-    record: `${session}@${batch.revision}`,
-    revision: batch.revision,
-    digest: `sha256:${digestOf(batch.entries)}`,
-  }
-}
+import {
+  callKeysIn,
+  callKeysOutside,
+  lendCalls,
+  settleCalls,
+  type CallSettlement,
+  type SessionCall,
+  type SessionCallKeys,
+  type SettledCallLookup,
+} from './call-settlement.ts'
 
 const RUN_LAYER_KINDS: ReadonlySet<string> = new Set([
   'run.started',
@@ -112,12 +117,25 @@ function applyMessage(
         | 'message.tool_internal'
         | 'message.system_reminder'
         | 'message.compaction'
+        | 'message.delivered'
     }
   >,
 ): string | null {
+  if (entry.kind === 'message.compaction') {
+    const judged = judgeMessage(entry.message)
+    if (!('ok' in judged) || judged.ok.role !== 'compaction') return 'malformed compaction message'
+  }
   trackCalls(draft, entry.message)
   if (entry.kind === 'message.assistant' && draft.run.kind === 'active') delete draft.unanswered
+  trackDeliveredTail(draft, entry)
   return entry.participation === null ? null : applyParticipation(draft, entry.participation)
+}
+
+// The inputs delivered since the last reply of the model: a reply ends the tail.
+function trackDeliveredTail(draft: Draft, entry: SessionEntry): void {
+  if (entry.kind === 'message.assistant') delete draft.deliveredTail
+  if (entry.kind === 'message.delivered')
+    draft.deliveredTail = [...(draft.deliveredTail ?? []), entry.input]
 }
 
 function applyIntakeRouted(
@@ -130,6 +148,12 @@ function applyIntakeRouted(
   }
   if (draft.pending.includes(entry.input)) return `input ${entry.input} accepted twice`
   draft.pending = [...draft.pending, entry.input]
+  if (!entry.source.countsTowardCapacity)
+    draft.uncountedInputs = [...(draft.uncountedInputs ?? []), entry.input]
+  if (!entry.source.wakes) {
+    draft.quietInputs = [...(draft.quietInputs ?? []), entry.input]
+    return null
+  }
   draft.idle = null
   delete draft.awaitingPerson
   return null
@@ -223,6 +247,8 @@ function applyRunTerminal(
     item.run === entry.terminal.run ? { ...item, terminal: entry.terminal } : item,
   )
   draft.run = { kind: 'terminal', terminal: entry.terminal }
+  // No action of an ended Run starts any more: none holds a once authorization.
+  draft.authorizations = retireOnce(draft.authorizations)
   draft.handed = []
   draft.taken = []
   draft.waiting = []
@@ -253,6 +279,7 @@ function apply(
     case 'message.tool_internal':
     case 'message.system_reminder':
     case 'message.compaction':
+    case 'message.delivered':
       return applyMessage(draft, entry)
     case 'intake.routed':
       return applyIntakeRouted(draft, entry)
@@ -293,6 +320,7 @@ function created(
     execution: entry.creation.execution,
     declarations: origin,
     permissions: { revision: '0', assignments: [] },
+    authorizations: EMPTY_AUTHORIZATIONS,
     revisions: { workspace: '0', declarations: '0' },
     run: { kind: 'none' },
     pending: [],
@@ -305,6 +333,9 @@ function created(
     controls: [],
     unresolved: [],
     creation: entry.creation,
+    ...(entry.creation.relation === undefined ? {} : { relation: entry.creation.relation }),
+    ...(entry.creation.attendance === undefined ? {} : { attendance: entry.creation.attendance }),
+    ...(entry.tree === undefined ? {} : { tree: entry.tree }),
     initialization: {
       protocol: 1,
       createOperation: entry.operation,
@@ -333,10 +364,12 @@ function created(
 }
 
 function reduceBatch(
-  previous: WorkSnapshot | null,
+  held: WorkSnapshot | null,
   batch: CommittedBatch,
   reads?: SessionHistoryReads,
+  lookup?: SettledCallLookup,
 ): ReduceResult {
+  let previous = held
   if (batch.entries.length === 0) return quarantined(`batch ${batch.revision} has no entries`)
   try {
     for (const row of batch.entries) adoption(row.schema)
@@ -360,7 +393,7 @@ function reduceBatch(
     )
   if (previous !== null && batch.revision === previous.revision)
     return sameInitializationValue(previous.source, batchEvidence(batch, previous.session))
-      ? { kind: 'reduced', snapshot: previous }
+      ? { kind: 'reduced', snapshot: previous, settled: [], late: [] }
       : quarantined('the repeated batch contradicts the committed snapshot')
   if (
     previous !== null &&
@@ -395,7 +428,6 @@ function reduceBatch(
   }
   if (batch.entries.some(entry => entry.revision !== batch.revision))
     return quarantined(`batch ${batch.revision} holds an entry of another revision`)
-  let draft: Draft | null = previous === null ? null : { ...previous }
   const decodedEntries: SessionEntry[] = []
   for (const decoded of decodeEntries(
     batch.entries,
@@ -405,6 +437,9 @@ function reduceBatch(
     if ('malformed' in decoded) return quarantined(decoded.malformed)
     decodedEntries.push(decoded.ok)
   }
+  const lent = lentTo(held, decodedEntries, lookup)
+  previous = withLent(previous, lent)
+  let draft: Draft | null = previous === null ? null : { ...previous }
   const interpretationRuns =
     previous === null
       ? undefined
@@ -449,6 +484,8 @@ function reduceBatch(
         draft.controls.some(control => control.operation === item.operation && unsettled(control)),
       ),
     }
+  const { settled, late } = settlementOf(draft, lent, lookup)
+  pruneInputLists(draft)
   draft.revision = batch.revision
   draft.source = batchEvidence(batch, draft.session)
   draft.lifecycle = lifecycleOf(draft)
@@ -465,16 +502,53 @@ function reduceBatch(
     if (typeof progress === 'string') return quarantined(progress)
     draft.entriesProgress = progress
   }
-  return { kind: 'reduced', snapshot: draft }
+  return { kind: 'reduced', snapshot: draft, settled, late }
 }
 
+function lentTo(
+  held: WorkSnapshot | null,
+  entries: readonly SessionEntry[],
+  lookup: SettledCallLookup | undefined,
+): readonly SessionCall[] {
+  if (held === null || lookup === undefined) return []
+  return lookup(callKeysIn(entries))
+}
+
+const withLent = (snapshot: WorkSnapshot | null, lent: readonly SessionCall[]) =>
+  snapshot === null ? null : lendCalls(snapshot, lent)
+
+// A call leaves only when someone keeps what left: the store behind `lookup`.
+const settlementOf = (
+  draft: Draft,
+  lent: readonly SessionCall[],
+  lookup: SettledCallLookup | undefined,
+): CallSettlement => (lookup === undefined ? { settled: [], late: [] } : settleCalls(draft, lent))
+
+/** The calls a batch names that the snapshot does not hold; null when the batch does not decode. */
+export function batchCallKeys(
+  previous: WorkSnapshot,
+  batch: CommittedBatch,
+): SessionCallKeys | null {
+  const entries: SessionEntry[] = []
+  for (const decoded of decodeEntries(
+    batch.entries,
+    previous.initialization?.initialAdoption ?? null,
+  )) {
+    if (!('ok' in decoded)) return null
+    entries.push(decoded.ok)
+  }
+  return callKeysOutside(previous, callKeysIn(entries))
+}
+
+/** `lookup` answers the calls that left the snapshot. Without it no call leaves: nobody would keep it. */
 export function reduce(
   previous: WorkSnapshot | null,
   batch: CommittedBatch,
   reads?: SessionHistoryReads,
+  lookup?: SettledCallLookup,
 ): ReduceResult {
   try {
-    return reduceBatch(previous, batch, reads)
+    return reduceBatch(previous, batch, reads, lookup)
   } catch (error) {
     if (
       error instanceof SessionValidationFailure ||

@@ -1,5 +1,12 @@
 export type * from './types.ts'
 export { shippedCalendarSupplyPolicies, supplyPolicySource } from './policies.ts'
+export { inspectCalendarRelease } from './release.ts'
+export type {
+  CalendarReleaseCheck,
+  CalendarReleaseEntry,
+  CalendarReleaseStanding,
+  CalendarReleaseVerdict,
+} from './release.ts'
 export {
   parseLanceliaoCalendar,
   parseGovCnCalendar,

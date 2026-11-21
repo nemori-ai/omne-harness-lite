@@ -94,7 +94,7 @@ export const filesCommands: readonly Command[] = withHelp([
   },
   {
     name: 'open',
-    summary: 'Open a file as an attachment; images are unsupported in this delivery.',
+    summary: 'Open one static PNG, JPEG or WebP picture so the model sees it.',
     fields: [path],
   },
   {
@@ -233,9 +233,11 @@ export const shellCommands: readonly Command[] = withHelp([
       {
         name: 'run_in_background',
         kind: 'boolean',
-        description: 'true is unsupported and starts nothing in this delivery.',
+        description:
+          'true starts a one-shot execution in the background and returns a placeholder at once; not with terminal.',
       },
     ],
+    background: { unless: ['terminal'] },
   },
   {
     name: 'close_session',
@@ -247,5 +249,25 @@ export const shellCommands: readonly Command[] = withHelp([
     summary:
       'Show the current execution environment, live terminal sessions and retained processes.',
     fields: [],
+  },
+])
+
+export const screenCommands: readonly Command[] = withHelp([
+  {
+    name: 'screens',
+    summary: 'List the screens of the machine: identifier, name, pixels, scale and place.',
+    fields: [],
+  },
+  {
+    name: 'capture',
+    summary: 'Take a picture of one screen so the model sees it.',
+    fields: [
+      {
+        name: 'screen',
+        kind: 'string',
+        description:
+          'The identifier of a screen, as screens lists it. Omit for the primary screen.',
+      },
+    ],
   },
 ])

@@ -23,7 +23,13 @@ export type SessionControlStage =
 
 export type SessionControlRecordEvidence = Readonly<{
   operation: string
-  command: 'cancel' | 'interrupt-model' | 'interrupt-tool' | 'background-tool'
+  command:
+    | 'cancel'
+    | 'interrupt-model'
+    | 'interrupt-tool'
+    | 'background-tool'
+    | 'release-tool'
+    | 'withdraw-tool'
   references: readonly string[]
   invocation: string | null
   reached: readonly SessionControlStage[]
@@ -77,8 +83,7 @@ function ownedHere(rule: Rule, attempt: AttemptId | null): boolean {
 function names(record: SessionControlRecordEvidence, producer: ProducerRef): boolean {
   return producer.kind === 'model'
     ? record.command === 'interrupt-model' && record.references.includes(producer.call)
-    : (record.command === 'interrupt-tool' || record.command === 'background-tool') &&
-        record.invocation === producer.call
+    : record.command.endsWith('-tool') && record.invocation === producer.call
 }
 
 function covers(
@@ -141,6 +146,22 @@ function selectedOf(rule: Rule, current: ControlProgress): readonly Selected[] {
   })
 }
 
+// An urgent input releases each foreground call through the submit, not a control of its own.
+function releasedByUrgent(record: SessionControlRecordEvidence): boolean {
+  return (
+    (record.command === 'release-tool' || record.command === 'interrupt-model') &&
+    (reached(record, 'producer-confirmed') || reached(record, 'physically-stopped'))
+  )
+}
+
+// A call that settled or moved to the background has no foreground wait left to release.
+function waitEnded(rule: Rule, producer: ProducerRef): boolean {
+  const through = BigInt(rule.evidence.through)
+  return rule.evidence.settled.some(
+    item => BigInt(item.revision) <= through && equalValue(item.binding.producer, producer),
+  )
+}
+
 function confirms(
   rule: Rule,
   current: ControlProgress,
@@ -159,6 +180,7 @@ function confirms(
         (before === null || BigInt(item.revision) < before) &&
         equalValue(item.binding, registration.binding),
     )
+  if (current.intent.kind === 'interrupt') return releasedByUrgent(record)
   const direct = directMatches(rule, record, current, origin.execution)
   if (current.intent.kind === 'control' && current.intent.value.kind === 'background-tool')
     return (
@@ -182,6 +204,7 @@ function pendingOf(
   selected: readonly Selected[],
 ): ProducerRef[] {
   return current.pending.filter(producer => {
+    if (current.intent.kind === 'interrupt' && waitEnded(rule, producer)) return false
     const registrations =
       rule.snapshot.callRegistrations
         ?.filter(
@@ -217,7 +240,9 @@ function urgentAccepted(rule: Rule, current: ControlProgress): boolean {
   const urgent = current.intent.urgent
   const found = rule.evidence.urgent.find(item => item.input === urgent.input)
   if (found === undefined) return false
-  if (!equalValue(found.message, urgent.message) || !equalValue(found.origin, urgent.origin))
+  // The same submission is the same input with the same message. The source the Agent holds is the
+  // one the advance submitted with, the routing entry, never the origin of the message.
+  if (!equalValue(found.message, urgent.message))
     inconsistent('urgent original submission mismatch')
   return true
 }

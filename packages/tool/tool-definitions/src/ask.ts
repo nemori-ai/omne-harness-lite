@@ -1,5 +1,7 @@
+import { hitlDecisionWait } from '@omne-harness/human-intervention-tool'
 import type { JsonValue } from '@omne-harness/json-text'
 import { fail, succeed } from '@omne-harness/operation-result'
+import type { ToolCommandRelease } from '@omne-harness/tool-contract'
 import {
   ASK_STATE_MAX_BYTES,
   askAdoption,
@@ -9,7 +11,6 @@ import {
   askState,
   askStateAdoption,
   askStateSchema,
-  askWaitContract,
   type AskArguments,
   type AskCommandEntry,
 } from './ask-protocol.ts'
@@ -29,15 +30,18 @@ import { textReturns } from './returns.ts'
 
 const encoder = new TextEncoder()
 
+/** Asking needs a person who can answer where the call is made. */
+const ASK_CONDITIONS = ['person-answers'] as const
+
 export const askGuide = [
-  'Use Ask only when the answer changes what you do next and you cannot get it from the request, the workspace, or a sensible default. Do not ask for facts that you can look up. Do not ask for a polite confirmation before you start. Do not ask about an action that the permission rules forbid. Do not ask again about an action that the person already approved for this scope.',
+  'Ask exists to make answering fast. You can always ask a question in plain text in your reply. Use Ask when a few options to pick let the person answer faster. If options would not make it easier for the person, ask in text instead. Use Ask only when the answer changes what you do next and you cannot get it from the request, the workspace, or a sensible default. Do not ask for facts that you can look up. Do not ask for a polite confirmation before you start.',
+  'Do not use Ask to ask for permission, such as "May I delete these files?" or "Can I run this command?". You do not decide whether an action needs the approval of the person; the system does. When an action needs approval, the system asks the person itself before the action starts. An answer to Ask grants no permission for any action.',
   'Put all questions that you need now into one call, at most 7. Each question must stand on its own: the person may see only the card, without the conversation. Name the items that you ask about. Give 2 to 4 options. Each option has a short label and one sentence about its effect. If you recommend an option, put it first and add "(Recommended)" to its label. Do not add an "Other" option. The person can always write a free answer or skip the question.',
-  'Use request_approval for one action that you did not do yet. Describe the action and its object, the reason, the impact, whether the change can be reversed, and what you do if the person does not approve. Do not do the action before the answer.',
-  'The call returns when the person has handled all questions. There is no timeout and no default answer. When a question has no answer, continue with the safest choice and say which choice you made, or stop that part of the work. Do not ask the same question again right away. Only an explicit approval permits the action. No answer, a rejection, or words that do not approve are not permission.',
+  'The call returns when the person has handled all questions. There is no timeout and no default answer. When a question has no answer, continue with the safest choice and say which choice you made, or stop that part of the work. Do not ask the same question again right away.',
 ].join('\n\n')
 
 export const askDescription =
-  'Ask the person a question or request approval, and wait for the answer. Use it only when you are blocked on something that only the person can decide or tell you.'
+  'Ask the person questions with options they can pick, and wait for the answers. Not for asking permission: the system asks the person itself when an action needs approval.'
 
 export const askCommands: readonly AskCommandEntry[] = askCommandNames.map(askCommand)
 
@@ -51,17 +55,17 @@ export const askExecutor: CheckpointedToolExecutor<AskArguments, string, null> =
     // 参数编解码已经校验过一次。这里再核一次，因为执行者不能假定调用方用了同一个编解码器。
     const cards = askCards(args)
     if ('failure' in cards) return fail({ kind: 'invalid', reason: cards.failure })
-    const state = encoder.encode(JSON.stringify(askState(args.command, cards.ok)))
+    const state = encoder.encode(JSON.stringify(askState(cards.ok)))
     if (state.byteLength > ASK_STATE_MAX_BYTES)
       return fail({ kind: 'too-large', reason: 'ask-state-too-large' })
     return succeed({
       kind: 'suspended',
       state,
-      closedResult: askClosedResult(args.command),
+      closedResult: askClosedResult,
       wait: {
         kind: 'ask',
         key: args.command,
-        contract: askWaitContract,
+        contract: hitlDecisionWait,
         request: tree({ questions: cards.ok }),
       },
     })
@@ -92,7 +96,12 @@ export function createAskAuthor(
   const maximum = parsed.ok.number('resultMaxBytes', 0)
   const operations: Record<
     string,
-    { summary: string; operation: ToolOperation<null, ToolMessageContentBlock> }
+    {
+      summary: string
+      operation: ToolOperation<null, ToolMessageContentBlock>
+      release: ToolCommandRelease
+      conditions: readonly string[]
+    }
   > = {}
   for (const command of askCommands) {
     const operation = defineToolOperation<
@@ -107,7 +116,7 @@ export function createAskAuthor(
       author: {
         kind: 'ordinary',
         parameters: command.codec,
-        waits: [askWaitContract],
+        waits: [hitlDecisionWait],
         executor: askExecutor,
         codec: {
           adoption: askAdoption,
@@ -136,7 +145,12 @@ export function createAskAuthor(
     })
     if ('failure' in operation)
       return fail({ field: 'commands', reason: JSON.stringify(operation.failure) })
-    operations[command.name] = { summary: command.summary, operation: operation.ok }
+    operations[command.name] = {
+      summary: command.summary,
+      operation: operation.ok,
+      release: { gate: null },
+      conditions: ASK_CONDITIONS,
+    }
   }
   const author = defineCommandTool({
     implementation: {
@@ -164,8 +178,8 @@ export const askToolModule: ToolImplementationModule<null, ToolMessageContentBlo
   executor: describedAdoption({
     owner: '@omne-harness/tool-definitions',
     name: 'Ask',
-    revision: '1',
-    changes: 'ask and request_approval as one checkpointed executor that suspends on one Ask wait.',
+    revision: '2',
+    changes: 'ask as one checkpointed executor that suspends on one Ask wait.',
   }),
   createAuthor: createAskAuthor,
 }

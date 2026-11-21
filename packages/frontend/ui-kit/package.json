@@ -37,6 +37,8 @@
     "clsx": "catalog:",
     "katex": "catalog:",
     "radix-ui": "catalog:",
+    "react-is": "catalog:",
+    "recharts": "catalog:",
     "streamdown": "catalog:",
     "tailwind-merge": "catalog:"
   },

@@ -61,7 +61,6 @@ export const POSITION_OUTPUTS: Readonly<Record<PositionOutputKey, PositionOutput
       ['preparation', 'input', 'parameters'],
     ],
   },
-  'before_model_call/compaction': { allowed: ['observed', 'veto', 'stop', 'ask'], rewritable: [] },
   'after_model_call/complete_reply': {
     allowed: ['observed', 'inject', 'stop', 'ask'],
     rewritable: [],
@@ -92,7 +91,7 @@ const POWER_OUTPUTS: Readonly<Record<Power, readonly OutputKind[]>> = {
 export type ExtensionOutputJudgeInput = Readonly<{
   position: Position
   dimension: Dimension | null
-  purpose: 'main' | 'compaction' | null
+  purpose: 'main' | null
   power: Power
   trigger: 'first-content' | 'final' | null
   subject: Subject
@@ -130,10 +129,9 @@ function afterActionRow(dimension: Dimension | null): Located {
 
 function undimensionedRow(
   position: Exclude<Position, 'after_model_call' | 'after_action'>,
-  purpose: ExtensionOutputJudgeInput['purpose'],
 ): PositionOutputKey {
   if (position !== 'before_model_call') return position
-  return purpose === 'main' ? 'before_model_call/main' : 'before_model_call/compaction'
+  return 'before_model_call/main'
 }
 
 function locate(input: ExtensionOutputJudgeInput): Located {
@@ -147,7 +145,9 @@ function locate(input: ExtensionOutputJudgeInput): Located {
       return afterActionRow(dimension)
     default:
       if (dimension !== null) return refuse('dimension_not_allowed')
-      return located(undimensionedRow(position, input.purpose))
+      if (position === 'before_model_call' && input.purpose !== 'main')
+        return refuse('output_not_allowed_at_position')
+      return located(undimensionedRow(position))
   }
 }
 
@@ -189,6 +189,7 @@ const card = z
     options: z.tuple([option], option),
     about: z.strictObject({ position: z.enum(POSITIONS), action: actionId.optional() }),
     proposedRewrite: z.strictObject({ option: text, effectiveArguments: z.string() }).optional(),
+    detail: jsonValue.optional(),
   })
   .refine(draft => new Set(draft.options.map(entry => entry.id)).size === draft.options.length)
   .refine(
@@ -249,6 +250,7 @@ function copyCard(draft: Extract<Parsed, { kind: 'ask' }>['card']): DecisionCard
       ...(draft.about.action === undefined ? {} : { action: draft.about.action }),
     },
     ...(draft.proposedRewrite === undefined ? {} : { proposedRewrite: draft.proposedRewrite }),
+    ...(draft.detail === undefined ? {} : { detail: draft.detail }),
   }
 }
 
@@ -400,8 +402,8 @@ export function judgeExtensionOutput(
 export const DECISION_CARD_DRAFT_SCHEMA: Adoption = Object.freeze({
   owner: 'agent',
   name: 'decision-card-draft',
-  revision: '1',
-  digest: 'agent:decision-card-draft/1',
+  revision: '2',
+  digest: 'agent:decision-card-draft/2',
 })
 
 function treeOf(value: unknown): JsonValue {

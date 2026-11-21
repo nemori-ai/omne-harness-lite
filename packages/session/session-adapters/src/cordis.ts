@@ -5,8 +5,30 @@ export {
   sessionInquiryBinding,
   sessionInteractionBinding,
   sessionModesBindings,
+  sessionModesModelBinding,
 } from './cordis/mode-block.ts'
-export { createSessionModesPlugin, type SessionModesPluginInput } from './cordis/mode-plugin.ts'
+export {
+  workingDirectoryBindings,
+  workingDirectoryCallBinding,
+  workingDirectoryDescriptor,
+  workingDirectoryModelBinding,
+} from './cordis/working-directory-block.ts'
+export { heldBlock, type HeldBlock } from './cordis/context-records.ts'
+export {
+  createStepDirectory,
+  directoryInForce,
+  type StepDirectory,
+  type StepDirectoryInput,
+  type StepDirectoryPorts,
+  type StepDirectoryResult,
+  type WorkingDirectoryTargets,
+} from './cordis/working-directory-step.ts'
+export {
+  createSessionModesPlugin,
+  type SessionModesPluginInput,
+  type SessionModesReading,
+  type SessionPermissionModeReading,
+} from './cordis/mode-plugin.ts'
 export type {
   SessionAgentDriveInput,
   SessionCoordinatorPrincipalFailure,
@@ -79,6 +101,11 @@ export type {
 } from './cordis/history-source.ts'
 export { SessionIdentityBridgeProvider } from './cordis/identity-bridge.ts'
 export {
+  createSessionCallControlPlugin,
+  createToolCallControl,
+  type ToolCallControlInput,
+} from './cordis/tool-call-control.ts'
+export {
   createSessionToolLogConsumptionPlugin,
   type SessionToolLogConsumptionConfig,
   type SessionToolLogConsumptionInput,
@@ -87,3 +114,30 @@ export {
   type ToolLogConsumed,
   type ToolLogTarget,
 } from './cordis/tool-log-consumption.ts'
+export {
+  createModelReminders,
+  type ModelReminderFailure,
+  type ModelReminderInput,
+  type ModelReminderPorts,
+  type ModelReminders,
+  type PreparedReminders,
+} from './cordis/model-reminders.ts'
+export {
+  BACKGROUND_CALLS_COMPONENT,
+  BACKGROUND_OUTCOME_SOURCE,
+  BACKGROUND_STOP_SOURCE,
+  createBackgroundDerivedInputs,
+} from './cordis/background-sources.ts'
+export {
+  createIntakeBudgetReader,
+  sessionIntakeBudgetBlock,
+  sessionIntakeBudgetDescriptor,
+  type IntakeBudgetReaderDeps,
+  type SessionIntakeBudgetValue,
+} from './cordis/intake-budget.ts'
+export {
+  pendingLimitOf,
+  sessionIntakeItems,
+  sessionIntakeSettings,
+  sessionIntakeSettingsPlugin,
+} from './intake-settings.ts'

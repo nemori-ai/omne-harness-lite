@@ -26,6 +26,7 @@ export function options(configuration: Partial<AgentConfiguration> = {}): AgentR
       definition: adoption('definition'),
     },
     configuration: {
+      compactionProvider: { authority: 'test-compaction', adoption: adoption('compaction') },
       observerBufferBytes: 1024,
       reconciliationDelaysMs: [0],
       reconciliationBatchLimit: 8,
@@ -34,7 +35,6 @@ export function options(configuration: Partial<AgentConfiguration> = {}): AgentR
       jointCommits: [],
       coordination: 'standalone',
       loopGuardPolicy: adoption('loop-guard'),
-      modelRetry: { maxAttempts: 1, maxElapsedMs: 0, delaysMs: [0], jitter: 0 },
       ...configuration,
     },
   }

@@ -1,5 +1,5 @@
 import type { ContentBlock } from '@omne-harness/content-block'
-import { judgeMessage, type Message, type MessagePart } from '@omne-harness/message'
+import type { Message } from '@omne-harness/message'
 import type {
   AssembledModelInput,
   BudgetCheck,
@@ -12,80 +12,26 @@ import type {
   Termination,
   ToolDeclaration,
 } from '@omne-harness/model-contract'
-import type {
-  ConversionFailure,
-  ModelMessageConversion,
-  ModelProfiles,
-  ModelRequestPreparation,
-} from '@omne-harness/model-contract/provider'
-import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import { isContentBlock, meterInput, triggerLine } from './meter-input.ts'
+import type { ModelProfiles, ModelRequestPreparation } from '@omne-harness/model-contract/provider'
+import { meterInput, triggerLine } from './meter-input.ts'
 import type { Sender } from './services.ts'
-import { access, adoption, evidence, required, textBlock, type Principal } from './values.ts'
+import { access, adoption, required, textBlock, type Principal } from './values.ts'
 
 export type Services = Readonly<{
   profiles: ModelProfiles<Principal>
   preparation: ModelRequestPreparation<Principal>
   meter: ModelInputMeter
-  conversion: ModelMessageConversion<Principal>
   sender: Sender
 }>
 
 export type Prepared =
   | Readonly<{ kind: 'prepared'; request: FixedModelRequest; dropped: number }>
-  | Readonly<{ kind: 'rejected'; failure: ModelFailure | ConversionFailure; dropped: number }>
+  | Readonly<{ kind: 'rejected'; failure: ModelFailure; dropped: number }>
   | Readonly<{ kind: 'unmeasured'; dropped: number }>
   | Readonly<{ kind: 'too-large'; amount: string; limit: string; dropped: number }>
   | Readonly<{ kind: 'no-profile' }>
 
 const route = 'default'
-
-type Converted<T> = Outcome<T, ConversionFailure>
-
-async function convertedParts(
-  conversion: ModelMessageConversion<Principal>,
-  parts: readonly MessagePart[],
-  signal: AbortSignal,
-): Promise<Converted<readonly MessagePart[]>> {
-  const out: MessagePart[] = []
-  for (const part of parts) {
-    if (!isContentBlock(part)) {
-      out.push(part)
-      continue
-    }
-    const result = await conversion.prepare({
-      ...access,
-      original: part,
-      source: evidence(`source-${part.id}`),
-      origin: 'inbound',
-      signal,
-    })
-    if (!('ok' in result)) return fail(result.failure)
-    out.push(...(result.ok.kind === 'converted' ? result.ok.value.derived : [part]))
-  }
-  return succeed(out)
-}
-
-async function convertedHistory(
-  conversion: ModelMessageConversion<Principal>,
-  history: readonly Message[],
-  signal: AbortSignal,
-): Promise<Converted<readonly Message[]>> {
-  const out: Message[] = []
-  for (const message of history) {
-    const blocks = await convertedParts(conversion, message.blocks, signal)
-    if (!('ok' in blocks)) return fail(blocks.failure)
-    out.push(withBlocks(message, blocks.ok))
-  }
-  return succeed(out)
-}
-
-function withBlocks(message: Message, blocks: readonly MessagePart[]): Message {
-  const judged = judgeMessage({ ...message, blocks })
-  if (!('ok' in judged))
-    throw new Error(`converted ${message.role} message is not a message: ${judged.rejected}`)
-  return judged.ok
-}
 
 function assemble(
   messages: readonly Message[],
@@ -122,13 +68,7 @@ export async function prepareRequest(
   const chosen = resolution.ok.profile
   const trigger = triggerLine(chosen.definition.context)
   for (let dropped = 0; ; dropped += 1) {
-    const converted = await convertedHistory(
-      services.conversion,
-      input.history.slice(dropped),
-      input.signal,
-    )
-    if (!('ok' in converted)) return { kind: 'rejected', failure: converted.failure, dropped }
-    const kept = converted.ok
+    const kept = input.history.slice(dropped)
     const assembled = assemble(kept, input.tools, chosen)
     const measured = await services.meter.measure(meterInput(chosen, assembled))
     if ('failure' in measured) return { kind: 'rejected', failure: measured.failure, dropped }

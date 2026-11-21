@@ -3,29 +3,60 @@ import { describe, expect, it } from 'vitest'
 import { onReleaseTree, toolCallsThenText } from '../support/release-tree.ts'
 import { noticeTable, recordNotices, settledLog, tableLines } from './commit-notices-support.ts'
 
-const ECHO = JSON.stringify({ command: 'execute', params: { script: 'echo notices' } })
+const ECHO = JSON.stringify({
+  command: 'execute',
+  intent: 'test call',
+  params: { script: 'echo notices' },
+})
 const script = toolCallsThenText(() => [{ id: 'call_echo', tool: 'Shell', arguments: ECHO }])
 const options = { script, permission: 'bypass-permissions' }
 
 const sorted = (kinds: readonly string[]) => [...kinds].sort()
 
+// The facts of one call reach the log from two reporters: the producer's own report, and what the
+// Session reads off the Agent's output. The log takes the two commits in either order, so the
+// commits of one call are compared as a set.
+function callsAsSets(lines: readonly string[]): string[] {
+  const out: string[] = []
+  let facts: string[] = []
+  for (const line of [...lines, '']) {
+    if (line.startsWith('call.execution-fact')) {
+      facts.push(line)
+      continue
+    }
+    out.push(...facts.sort())
+    facts = []
+    if (line !== '') out.push(line)
+  }
+  return out
+}
+
 const TURN = [
   'session.created, session.adoption, session.tool-resident-admitted, session.context-registration-changed, session.initialization-item',
   'message.user, intake.routed',
   'run.started, run.attempt-started',
+  // Before the first step the working directory in force is committed at the step boundary.
+  'session.recovery-input-adopted',
+  // Before the first step the model is told the runtime context, in a commit of its own.
+  'message.system_reminder',
+  // The first step takes the input: the Session delivers it to the model view in that commit.
+  'message.delivered',
   'run.batch-taken, history.annotated',
   'call.bound, extension.passage, history.annotated',
   'call.execution-fact, account.linked, entries.interpreted',
   'call.execution-fact, history.annotated',
   'message.assistant',
+  'call.result-processed',
   'call.bound, extension.passage, history.annotated',
-  'call.execution-fact, entries.interpreted',
+  'call.execution-fact, account.linked, entries.interpreted',
   'call.execution-fact, history.annotated',
   'message.tool',
+  'call.result-processed',
   'call.bound, extension.passage, history.annotated',
   'call.execution-fact, account.linked, entries.interpreted',
   'call.execution-fact, history.annotated',
   'message.assistant',
+  'call.result-processed',
   'run.attempt-released, run.terminal, history.annotated',
 ]
 
@@ -39,7 +70,7 @@ describe('the commit notices of one turn with a tool call', () => {
         const notices = recorder.notices().filter(notice => notice.session === session)
         const rows = noticeTable(batches, notices, session)
         process.stdout.write(`${tableLines(rows).join('\n')}\n`)
-        expect(batches.map(batch => batch.kinds.join(', '))).toEqual(TURN)
+        expect(callsAsSets(batches.map(batch => batch.kinds.join(', ')))).toEqual(TURN)
         expect(rows.filter(row => row.notices !== 1)).toEqual([])
         for (const batch of batches) {
           const notice = notices.find(item => item.revision === batch.revision)

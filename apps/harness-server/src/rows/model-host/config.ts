@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 const count = (minimum: number) => z.number().int().safe().min(minimum)
+const text = z.string().min(1)
 
 export const modelHostConfig = z.strictObject({
   host: z.strictObject({
@@ -16,8 +17,16 @@ export const modelHostConfig = z.strictObject({
     observerCheckIntervalMs: count(1),
     readIdleMs: count(1),
     resultPageTargetBytes: count(1),
-    retryBackoffMs: count(0),
-    cleanupRetryMs: count(0),
+  }),
+  retry: z.strictObject({
+    adoption: z.strictObject({ owner: text, name: text, revision: text, digest: text }),
+    policy: z.strictObject({
+      maxAttempts: count(1),
+      maxElapsedMs: count(0),
+      delaysMs: z.array(count(0)).min(1),
+      jitter: z.number().min(0).max(1),
+    }),
+    replayResend: z.strictObject({ max: count(0) }),
   }),
   results: z.strictObject({
     maxConcurrentCalls: count(1),
@@ -25,6 +34,8 @@ export const modelHostConfig = z.strictObject({
     maxCleanupSteps: count(1),
     maxPendingAccountsPerTenant: count(1),
     maxPendingAccounts: count(1),
+    maxCostMisses: count(1),
+    delaysMs: z.array(count(1)).min(1),
   }),
 })
 

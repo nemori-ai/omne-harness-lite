@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { sampleReceivedModelResult } from '@omne-harness/agent-contract/testing'
 import { tenantCodec } from '@omne-harness/legal-identity'
-import { decodeRows, foldAll, receiptOf, type FactRow } from '../src/journal/index.ts'
+import {
+  decodeRows,
+  foldAll,
+  receiptOf,
+  stampOfReceipt,
+  type FactRow,
+} from '../src/journal/index.ts'
 import { JOURNAL_OWNER } from '../src/testing/journal-values.ts'
 import { ok, operation } from './fixtures/common-journal.ts'
 import { unpackText } from '@omne-harness/sql-contract/worker'
@@ -62,15 +68,27 @@ describe('a recognition that recalls derives the saved delivery’s receipt, war
     const view = foldAll(batches)
     const stored = batches.find(batch => batch.envelope.op === operation('again'))
     if (stored === undefined) throw new Error('the second operation wrote no batch')
+    const at = stampOfReceipt(first)!
     expect(stored.facts).toEqual([
-      { kind: 'op.recognized', target: operation('first'), recalls: true },
+      {
+        kind: 'op.recognized',
+        target: operation('first'),
+        at: { pub: at.pub, digest: at.digest, revision: at.revision },
+        recalls: true,
+      },
     ])
     const cold = receiptOf({ owner: JOURNAL_OWNER, session: namespace }, view, stored)
     expect(cold).toEqual(first)
 
     const plain = {
       ...stored,
-      facts: [{ kind: 'op.recognized' as const, target: operation('first') }],
+      facts: [
+        {
+          kind: 'op.recognized' as const,
+          target: operation('first'),
+          at: { pub: at.pub, digest: at.digest, revision: at.revision },
+        },
+      ],
     }
     const own = receiptOf({ owner: JOURNAL_OWNER, session: namespace }, view, plain)
     expect(own.operation).toBe(operation('again'))

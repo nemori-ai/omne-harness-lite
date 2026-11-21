@@ -12,7 +12,7 @@ export type {
   ReadResult,
   BlockState,
   BlockEntry,
-  PerRequestEntry,
+  PerReadEntry,
   Snapshot,
   ChangeEntry,
   Changes,
@@ -37,6 +37,7 @@ export type {
   RuntimeContextOperations,
 } from './operations.js'
 export type { ContextUpdate, StepBlockMaterial, StepCommit } from './update.js'
+export { renderChangeReminder, renderSnapshotReminder } from './reminder-text.js'
 export type {
   Registration,
   RegistrationChange,
@@ -51,6 +52,16 @@ export type {
   ReaderEligibilityHandoff,
 } from './reader-eligibility.js'
 export type { Necessity, ContextNeed, Translation, NeedBinding, NeedBindingRef } from './need.js'
+export type {
+  StaticBlock,
+  StaticRegistration,
+  StaticScopeFailure,
+  StaticReaderRequest,
+  StaticReaderGrant,
+  StaticRead,
+  StaticScopeHolder,
+  StaticContribution,
+} from './static-scope.js'
 export type {
   BlockDescriptorBase,
   SuppliedBlockDescriptor,

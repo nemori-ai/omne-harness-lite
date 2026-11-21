@@ -93,6 +93,49 @@ async function started(fixture: ToolBodyStoreFixture) {
   }
 }
 
+function readOpenCases(): readonly ConformanceCase<ToolBodyStoreFixture>[] {
+  return [
+    conformanceCase('BS', 'body.read-open-before-and-after-seal', async fixture => {
+      const { store, body, permit, manifest } = await started(fixture)
+      assert.deepEqual(await store.readOpen(body, { first: 0, count: 4 }), { kind: 'absent' })
+      assert.deepEqual(await store.put(permit, 0, CHUNKS[0]!), { kind: 'kept' })
+      const first = { kind: 'found', chunks: [{ seq: 0, bytes: CHUNKS[0] }] }
+      assert.deepEqual(await store.readOpen(body, { first: 0, count: 4 }), first)
+      assert.deepEqual(
+        await store.readOpen(body, { first: 0, count: 4 }),
+        first,
+        'the same position reads the same bytes again',
+      )
+      assert.deepEqual(await store.readOpen(body, { first: 1, count: 4 }), {
+        kind: 'found',
+        chunks: [],
+      })
+      await putAll(store, permit)
+      assert.deepEqual(await store.seal(permit, manifest), { kind: 'sealed' })
+      assert.deepEqual(await store.readOpen(body, { first: 1, count: 1 }), {
+        kind: 'found',
+        chunks: [{ seq: 1, bytes: CHUNKS[1] }],
+      })
+    }),
+    conformanceCase('BS', 'body.read-open-stops-at-a-gap', async fixture => {
+      const { store, body, permit } = await started(fixture)
+      assert.deepEqual(await store.put(permit, 1, CHUNKS[1]!), { kind: 'kept' })
+      assert.deepEqual(await store.readOpen(body, { first: 0, count: 4 }), {
+        kind: 'found',
+        chunks: [],
+      })
+      assert.deepEqual(await store.put(permit, 0, CHUNKS[0]!), { kind: 'kept' })
+      assert.deepEqual(await store.readOpen(body, { first: 0, count: 4 }), {
+        kind: 'found',
+        chunks: [
+          { seq: 0, bytes: CHUNKS[0] },
+          { seq: 1, bytes: CHUNKS[1] },
+        ],
+      })
+    }),
+  ]
+}
+
 export function toolBodyStoreConformance(): readonly ConformanceCase<ToolBodyStoreFixture>[] {
   return [
     conformanceCase('BS', 'body.put-seal-read', async fixture => {
@@ -111,6 +154,7 @@ export function toolBodyStoreConformance(): readonly ConformanceCase<ToolBodySto
         chunks: [],
       })
     }),
+    ...readOpenCases(),
     conformanceCase('BS', 'body.read-before-seal-absent', async fixture => {
       const { store, body, permit } = await started(fixture)
       await putAll(store, permit)
@@ -333,6 +377,19 @@ export function createMemoryToolBodyStore(
         .sort(([a], [b]) => a - b)
         .map(([seq, bytes]) => ({ seq, bytes: Uint8Array.from(bytes) }))
       return Promise.resolve({ kind: 'found', manifest: { ...target.manifest }, chunks })
+    },
+    readOpen: (body, range) => {
+      const fault = unavailable()
+      if (fault !== null) return Promise.resolve(fault)
+      const target = kept.get(refKey(body))
+      if (target === undefined) return Promise.resolve({ kind: 'absent' })
+      const chunks: { seq: number; bytes: Uint8Array }[] = []
+      for (let seq = range.first; seq < range.first + range.count; seq += 1) {
+        const bytes = target.chunks.get(seq)
+        if (bytes === undefined) break
+        chunks.push({ seq, bytes: Uint8Array.from(bytes) })
+      }
+      return Promise.resolve({ kind: 'found', chunks })
     },
     delete: body => {
       const fault = unavailable()

@@ -1,0 +1,295 @@
+[
+  {
+    "kind": "block-open",
+    "index": "0",
+    "mode": "append",
+    "content": "thinking"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "I'm counting the numb"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "ers below"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 100 that are"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " divisible by 3, "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "7, or both"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " That's"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 33 mult"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "iples of 3 "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "and 14 of 7,"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " with 4 div"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "isible by 21, so "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "39"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " are div"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "isible by exactly one of"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " them. That's"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " an odd count"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ", so the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " answer is"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Lima."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "\n\n"
+  },
+  {
+    "kind": "block-open",
+    "index": "1",
+    "mode": "append",
+    "content": "text"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "The"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " count is 39, which"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " is odd, so I'll"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " get the weather for Lima"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "."
+  },
+  {
+    "kind": "block-open",
+    "index": "2",
+    "mode": "append",
+    "content": "tool-arguments"
+  },
+  {
+    "kind": "block-delta",
+    "index": "2",
+    "delta": "{\"city\": \"L"
+  },
+  {
+    "kind": "block-delta",
+    "index": "2",
+    "delta": "ima"
+  },
+  {
+    "kind": "block-delta",
+    "index": "2",
+    "delta": "\"}"
+  },
+  {
+    "kind": "block-seal",
+    "index": "0",
+    "block": {
+      "kind": "thinking",
+      "id": "b0",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "I'm counting the numbers below 100 that are divisible by 3, 7, or both. That's 33 multiples of 3 and 14 of 7, with 4 divisible by 21, so 39 are divisible by exactly one of them. That's an odd count, so the answer is Lima.\n\n"
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "1",
+    "block": {
+      "kind": "text",
+      "id": "b1",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "The count is 39, which is odd, so I'll get the weather for Lima."
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "2",
+    "block": {
+      "kind": "tool_call",
+      "id": "b2",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "callId": "toolu_017nT92zyB64ReCur7NHiSSt",
+      "name": "get_weather",
+      "arguments": {
+        "kind": "object",
+        "entries": [
+          {
+            "key": "city",
+            "value": {
+              "kind": "string",
+              "value": "Lima"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "3",
+    "block": {
+      "kind": "reasoning_state",
+      "id": "b3",
+      "visibility": {
+        "toHuman": false,
+        "toModel": true
+      },
+      "payload": "[{\"signature\":\"CAQS+wUKEAgTGAI4AUIIdGhpbmtpbmcSDKTNbpbYO6+lJ2ByBhoM2Df9ghAGS2sUCZvUIjA2FFkOdtE15Ptae0YMJAHYJ5Gky3OGMz/gPWR7ZgmIuDpD1pBOWKZUMy/p+zPjWw8qmAW4GLx4xfC7x3YM5AhfOnASZ6cn4BaIIFDU57qPVC3Ri8O/C1OWce+iGdEdwobkPVt47r3CMqCtmPOo4Yzym8NEoc/86RVVOaDuKlG5kUCYpe9/ITRNWbzZsDNxuTVrUvu1kbVZJA2+aEh7Nszw16yYsowCY3W207gE/a6RMCiI9MdqYCHHn2WsEt0LTZOB51uINpY3FT65tsg9X8XdxjkclEKWhfrZ8hO0rVcYjpIhpVvB+h9RM5e/iwbHp1DPahQPgQjACtZzNBpsj/1vRz30NQ2IN76Q2ZIdqZl2IE+BXppBDZQic48P5zgEgH16JLaUMm75aE1Yjw6BLB6ZLznlyNPtVoHvJYHZc7r/dsUjNxC7jR2gctW7S9UeEp8yCcHlCSeQ4AG3YQIXyV764JEZW1nzX2826fuDJZEsAFge632+QIomaHm+4p23+on7CP40xZ3Anbh/Xh1RKRC2keVP3l5C/9R9R2a8cbQ4ozmn98yfRybJnw8NB6ERpS8JFQxOmdUe/ApWDZKbWEgNLX8E0sRIpKX+y9sCDa9BkUiw0RhD3bhKmNNxnj9RDWyD3EJZ8GLsHFHOnEE+IRkDebxYgvflxUyk7IGLbyKozOCHlaGpBTFSoLJzc/DDTnOwAbajRMULZruYhlfrYsWoFIY7AuNipOy1jFTj1xNC+7RvmpKiijy/ch7OzCs7H+iipQA00Lg1gQz3occkonUThVW6lI8s24KYaTFddyoIAnKsV0g9v4QZBGxBqcRSlBgwmaluro3hJumzjaWttAROPFbv+CY8Y5WewIEHYvHot4nFmnAynK/eGyHfAbJUTRWsDdMAMeWYRdm/bO+EpnQgTenw8CDi2tYA6sR3iKRR5WNKcQACmnDrk046GAE=.eyJlbmRwb2ludF9zbHVnIjoiYW50aHJvcGljL2NsYXVkZS1vcHVzLTUuNS0yMDI2MDkyMXxhbnRocm9waWMifQ\",\"thinking\":\"I'm counting the numbers below 100 that are divisible by 3, 7, or both. That's 33 multiples of 3 and 14 of 7, with 4 divisible by 21, so 39 are divisible by exactly one of them. That's an odd count, so the answer is Lima.\\n\\n\",\"type\":\"thinking\"}]",
+      "pairs": [
+        "b0"
+      ]
+    }
+  },
+  {
+    "kind": "account",
+    "event": "usage",
+    "value": {
+      "usage": [
+        {
+          "name": "input",
+          "state": "known",
+          "lexeme": "445",
+          "unit": "token"
+        },
+        {
+          "name": "output",
+          "state": "known",
+          "lexeme": "139",
+          "unit": "token"
+        },
+        {
+          "name": "cache-read",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "cache-write",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "reasoning",
+          "state": "known",
+          "lexeme": "64",
+          "unit": "token"
+        }
+      ],
+      "cost": [
+        {
+          "state": "known",
+          "lexeme": "0.00456",
+          "unit": "openrouter-credit",
+          "source": "billable"
+        }
+      ],
+      "trimmed": {
+        "state": "unknown",
+        "unit": "token"
+      },
+      "place": "openrouter/Anthropic",
+      "duration": {
+        "state": "unknown"
+      },
+      "revision": "1"
+    }
+  },
+  {
+    "kind": "ended",
+    "termination": {
+      "kind": "completed",
+      "reason": "tool-suggestions"
+    }
+  }
+]

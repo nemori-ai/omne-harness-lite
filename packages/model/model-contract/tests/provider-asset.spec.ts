@@ -1,6 +1,6 @@
 import {
   capabilityId,
-  createCategoryRegistry,
+  createCategoryPoint,
   pinBody,
   projectAssetSettings,
   readBodyText,
@@ -9,6 +9,7 @@ import {
 import {
   MODEL_PROVIDER_CATEGORY,
   modelProviderBodyContract,
+  modelProviderCategoryDisplay,
   parseModelProviderBody,
   readModelProviderBody,
 } from '@omne-harness/model-contract/provider-asset'
@@ -35,11 +36,19 @@ const CREDENTIAL = {
 function plainBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     name: 'test-gateway',
-    protocol: 'chat-completions',
-    endpoint: { url: 'https://gateway.test/v1/chat', endMarker: '[DONE]' },
+    endpoints: [
+      { protocol: 'chat-completions', url: 'https://gateway.test/v1/chat', endMarker: '[DONE]' },
+    ],
     accounting: { place: 'test-gateway', costUnit: 'test-credit' },
     credentials: [CREDENTIAL],
     ...overrides,
+  }
+}
+
+// A body whose one endpoint is the chat-completions endpoint changed by the given members.
+function one(change: Record<string, unknown>): { endpoints: Record<string, unknown>[] } {
+  return {
+    endpoints: [{ protocol: 'chat-completions', url: 'https://gateway.test/v1', ...change }],
   }
 }
 
@@ -56,7 +65,7 @@ const judge = (plain: unknown, capabilityName?: string) =>
   )
 
 describe('modelProviderBodyContract: judge', () => {
-  it('accepts a body with a name, a protocol, an https endpoint, accounting and credential items', () => {
+  it('accepts a body with a name, https endpoints by protocol, accounting and credential items', () => {
     expect(judge(plainBody(), 'test-gateway')).toEqual({ ok: true })
   })
 
@@ -65,50 +74,62 @@ describe('modelProviderBodyContract: judge', () => {
   })
 
   it('accepts an endpoint without an end marker and reads it without one', () => {
-    const plain = plainBody({ endpoint: { url: 'https://gateway.test/v1' } })
+    const plain = plainBody({
+      endpoints: [{ protocol: 'messages', url: 'https://gateway.test/v1' }],
+    })
     expect(judge(plain)).toEqual({ ok: true })
-    expect(readModelProviderBody(body(plain))?.endpoint).toEqual({ url: 'https://gateway.test/v1' })
+    expect(readModelProviderBody(body(plain))?.endpoints).toEqual([
+      { protocol: 'messages', url: 'https://gateway.test/v1' },
+    ])
+  })
+
+  it('reads several endpoints, one per protocol, in their order', () => {
+    const endpoints = [
+      { protocol: 'chat-completions', url: 'https://gateway.test/v1/chat', endMarker: '[DONE]' },
+      { protocol: 'messages', url: 'https://gateway.test/v1/messages' },
+      { protocol: 'responses', url: 'https://gateway.test/v1/responses' },
+    ]
+    expect(readModelProviderBody(body(plainBody({ endpoints })))?.endpoints).toEqual(endpoints)
   })
 
   it.each([
     ['a name outside the provider alphabet', { name: 'Test Gateway' }, 'invalid-name'],
-    ['an empty protocol', { protocol: '' }, 'invalid-protocol'],
-    ['a missing protocol', { protocol: undefined }, 'invalid-protocol'],
-    ['an http endpoint', { endpoint: { url: 'http://gateway.test/v1' } }, 'invalid-endpoint'],
+    ['an empty protocol', one({ protocol: '' }), 'invalid-protocol'],
+    ['a missing protocol', one({ protocol: undefined }), 'invalid-protocol'],
+    ['no endpoints', { endpoints: [] }, 'invalid-endpoints'],
+    [
+      'endpoints that are not a list',
+      { endpoints: { url: 'https://gateway.test/v1' } },
+      'invalid-endpoints',
+    ],
+    [
+      'two endpoints for one protocol',
+      { endpoints: [one({}).endpoints[0], one({}).endpoints[0]] },
+      'duplicate-protocol',
+    ],
+    ['an http endpoint', one({ url: 'http://gateway.test/v1' }), 'invalid-endpoint'],
     [
       'an endpoint with credentials',
-      { endpoint: { url: 'https://u:p@gateway.test/v1' } },
+      one({ url: 'https://u:p@gateway.test/v1' }),
       'invalid-endpoint',
     ],
-    [
-      'an endpoint with a user name',
-      { endpoint: { url: 'https://u@gateway.test/v1' } },
-      'invalid-endpoint',
-    ],
-    [
-      'an endpoint with a password',
-      { endpoint: { url: 'https://:p@gateway.test/v1' } },
-      'invalid-endpoint',
-    ],
-    [
-      'an endpoint with a fragment',
-      { endpoint: { url: 'https://gateway.test/v1#x' } },
-      'invalid-endpoint',
-    ],
-    ['an endpoint that is not a URL', { endpoint: { url: 'gateway test' } }, 'invalid-endpoint'],
+    ['an endpoint with a user name', one({ url: 'https://u@gateway.test/v1' }), 'invalid-endpoint'],
+    ['an endpoint with a password', one({ url: 'https://:p@gateway.test/v1' }), 'invalid-endpoint'],
+    ['an endpoint with a fragment', one({ url: 'https://gateway.test/v1#x' }), 'invalid-endpoint'],
+    ['an endpoint that is not a URL', one({ url: 'gateway test' }), 'invalid-endpoint'],
     [
       'an endpoint that is not an object',
-      { endpoint: 'https://gateway.test/v1' },
+      { endpoints: ['https://gateway.test/v1'] },
       'invalid-endpoint',
     ],
     [
       'an empty end marker',
-      { endpoint: { url: 'https://gateway.test/v1', endMarker: '' } },
+      one({ url: 'https://gateway.test/v1', endMarker: '' }),
       'invalid-endpoint',
     ],
     [
       'an end marker that is not a string',
-      { endpoint: { url: 'https://gateway.test/v1', endMarker: 7 } },
+      one({ url: 'https://gateway.test/v1', endMarker: 7 }),
       'invalid-endpoint',
     ],
     ['accounting without a cost unit', { accounting: { place: 'x' } }, 'invalid-accounting'],
@@ -208,7 +229,7 @@ describe('modelProviderBodyContract: hooks', () => {
   })
 
   it('throws when a hook receives a body the registry would have refused', () => {
-    const refused = body(plainBody({ protocol: '' }))
+    const refused = body(plainBody(one({ protocol: '' })))
     expect(() => contract.settings?.(refused)).toThrow(
       'model provider body failed judgment: invalid-protocol',
     )
@@ -221,16 +242,17 @@ describe('readModelProviderBody', () => {
   it('reads the judged body in its typed form', () => {
     expect(readModelProviderBody(body(plainBody()))).toEqual({
       name: 'test-gateway',
-      protocol: 'chat-completions',
-      endpoint: { url: 'https://gateway.test/v1/chat', endMarker: '[DONE]' },
+      endpoints: [
+        { protocol: 'chat-completions', url: 'https://gateway.test/v1/chat', endMarker: '[DONE]' },
+      ],
       accounting: { place: 'test-gateway', costUnit: 'test-credit' },
       credentials: [CREDENTIAL],
     })
   })
 
   it('answers undefined for a body the contract refuses', () => {
-    expect(readModelProviderBody(body(plainBody({ protocol: '' })))).toBeUndefined()
-    expect(parseModelProviderBody(body(plainBody({ protocol: '' })))).toEqual({
+    expect(readModelProviderBody(body(plainBody(one({ protocol: '' }))))).toBeUndefined()
+    expect(parseModelProviderBody(body(plainBody(one({ protocol: '' }))))).toEqual({
       failure: 'invalid-protocol',
     })
   })
@@ -246,8 +268,11 @@ describe('decodeProviderName', () => {
 
 describe('modelProviderBodyContract: settings through projectAssetSettings', () => {
   function project(plain: unknown) {
-    const registry = createCategoryRegistry()
-    registry.register(modelProviderBodyContract())
+    const registry = createCategoryPoint()
+    registry.contribute({
+      contract: modelProviderBodyContract(),
+      display: modelProviderCategoryDisplay,
+    })
     const identity = capabilityId(MODEL_PROVIDER_CATEGORY, 'test-gateway')
     if (!identity.ok) throw new Error('capability id fixture')
     const pinned = pinBody({
@@ -299,7 +324,7 @@ describe('modelProviderBodyContract: settings through projectAssetSettings', () 
   })
 
   it('refuses to project a body the contract refuses', () => {
-    expect(project(plainBody({ endpoint: { url: 'http://gateway.test' } }))).toEqual({
+    expect(project(plainBody(one({ url: 'http://gateway.test' })))).toEqual({
       kind: 'rejected',
       reason: 'invalid_body',
     })

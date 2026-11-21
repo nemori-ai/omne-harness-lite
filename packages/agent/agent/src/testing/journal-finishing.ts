@@ -489,7 +489,7 @@ export function buildObligations(
     }
   }
   for (const responsibility of source.results) {
-    const key = `${responsibility.result.producer.kind}/${responsibility.result.producer.call}/${responsibility.result.version}/${responsibility.consumption}`
+    const key = `${canonical(responsibility.result.producer)}/${responsibility.result.version}/${responsibility.consumption}`
     const parameters = { result: responsibility.result, consumption: responsibility.consumption }
     items.push({
       kind: 'result',
@@ -629,7 +629,7 @@ function interruptionsOf(effect: EffectIntent, source: ObligationSource): AgentO
       const command = control.command
       if (command.kind === 'interrupt-model')
         return pending.kind === 'model' && callOfModel(pending.reference, source) === command.call
-      if (command.kind === 'interrupt-tool' || command.kind === 'background-tool')
+      if (command.kind.endsWith('-tool'))
         return (
           pending.kind === 'tool' &&
           pending.association === 'associated' &&

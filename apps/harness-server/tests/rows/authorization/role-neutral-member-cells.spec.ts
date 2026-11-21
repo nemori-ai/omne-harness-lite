@@ -75,6 +75,7 @@ async function probeCell(
     },
     systemActions: { check: input => systemActions.check(input) },
     login: { queryCurrentTenant: () => Promise.reject(new Error('no login source')) },
+    cards: () => ({ read: async () => ({ ok: ANSWERED }) }) as never,
   }
   const actor = okOf(authority.issuer.issueSystem({ component: 'sessionWorkPrincipals' }), 'actor')
   const acting = (owner: string, work: string) =>
@@ -96,6 +97,23 @@ const scopeReleaseFact = {
     scope: 'scope_1',
     dispositions: ['released'],
     source: 'e',
+  },
+}
+const SAID = { owner: 'cards', record: 'answer', revision: '1', digest: 'a' }
+const ANSWERED = { kind: 'chosen', option: 'allow-once', value: null, evidence: SAID }
+// What the Run writes after a person released one call on a card.
+const AUTHORIZED = {
+  kind: 'authorization-expression',
+  authorization: { owner: 'cards', record: 'card', revision: '1', digest: 'c' },
+  expression: {
+    scope: {
+      kind: 'once',
+      consumer: { owner: '@omne-harness/agent', work: 'execution', position: 'action' },
+      target: 'Shell',
+      argumentsDigest: 'd',
+    },
+    direction: 'grant',
+    source: SAID,
   },
 }
 const ordinary = { value: { kind: 'ordinary', input: 'i', message: 'm', origin: 'o' } }
@@ -121,7 +139,7 @@ const MUTATING = new Set([
   'create',
   'completeInitialization',
   'change',
-  'setRelation',
+  'setResident',
   'configureAutoArchive',
   'considerAutoArchive',
   'recordIdle',
@@ -139,8 +157,17 @@ function extraFor(
 ): Record<string, unknown> {
   if (operation === 'accept') return cell.when?.kinds.includes('business') ? business : ordinary
   if (operation === 'receive') return scopeReleaseFact
+  if (operation === 'change' && cell.when?.kinds.includes('authorization-expression'))
+    return { declaration: AUTHORIZED }
   if (operation === 'change')
-    return { declaration: { kind: 'permission-mode', value: 'never', authorization: evidence } }
+    return {
+      declaration: {
+        kind: 'permission-mode',
+        value: 'never',
+        expectedRevision: '0',
+        authorization: evidence,
+      },
+    }
   return {}
 }
 
@@ -166,11 +193,18 @@ function agentRun(operation: string, column: 'login' | 'work'): Run {
     createAgentAccessCheck(ports).check({
       access: { principal: principals[column], tenant: TENANT },
       operation,
-      target: {
-        kind: 'scope',
-        scope: { owner: 'session', record: OWN, revision: '1', digest: 'd' },
-        definition: { owner: 'o', name: 'n', revision: '1', digest: 'd' },
-      },
+      target: operation.startsWith('compaction.')
+        ? {
+            kind: 'compaction',
+            task: { authority: 'compaction', task: 'task', requestDigest: 'digest' },
+          }
+        : operation === 'read-message-handoff'
+          ? { kind: 'execution', execution: 'execution' }
+          : {
+              kind: 'scope',
+              scope: { owner: 'session', record: OWN, revision: '1', digest: 'd' },
+              definition: { owner: 'o', name: 'n', revision: '1', digest: 'd' },
+            },
     } as unknown as Parameters<ReturnType<typeof createAgentAccessCheck>['check']>[0])
 }
 
@@ -219,7 +253,7 @@ describe('role-neutral-member-cells', () => {
 
   it('includes the two cells R2-D204 opened for the own login, so restoring them to pending turns this red', () => {
     const ids = cells.map(cell => cell.id)
-    expect(ids).toContain('session.setRelation.login')
+    expect(ids).toContain('session.setResident.login')
     expect(ids).toContain('session.configureAutoArchive.login')
   })
 

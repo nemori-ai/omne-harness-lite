@@ -7,7 +7,7 @@ import type {
   SessionId,
   SessionListItem,
 } from '@omne-harness/session-contract'
-import { encodeInstant, type Instant } from '@omne-harness/utc-instant'
+import { encodeInstant, parseInstant, type Instant } from '@omne-harness/utc-instant'
 import { describe, expect, it } from 'vitest'
 import { sessionAccessConfig, sessionListingOf } from '../../../src/rows/session-access/index.ts'
 
@@ -18,8 +18,13 @@ const call = {
   tenant: {} as TenantId,
   after: null,
   limit: 5,
-  includeArchived: false,
+  filter: { relation: null, parent: null, attendance: null, definition: null },
 }
+const archivedCall = { ...call, from: null, to: null, by: null, titleContains: null }
+const asDirectory = <T extends typeof call>({ filter: _filter, ...rest }: T) => ({
+  ...rest,
+  filter: {},
+})
 
 const text = (instant: Instant | null | undefined) =>
   instant === null || instant === undefined ? instant : encodeInstant(instant)
@@ -30,18 +35,25 @@ const item = (over: Partial<SessionListItem> = {}): SessionListItem => ({
   lastActivityAt: '2026-11-13T02:00:00.5Z',
   lifecycle: 'dormant',
   title: 'hello',
+  archivedAt: null,
+  archivedBy: null,
+  relation: { kind: 'main' },
+  root: 'a'.repeat(64) as SessionId,
+  depth: 0,
+  attendance: 'attended',
+  definition: 'coding',
+  toReference: null,
   ...over,
 })
 
 function adapted(reply: Reply | 'throw') {
   const asked: unknown[] = []
-  const directory: SessionDirectory<Principal> = {
-    async list(input) {
-      asked.push(input)
-      if (reply === 'throw') throw new Error('directory fault')
-      return reply
-    },
+  const read = async (input: unknown) => {
+    asked.push(input)
+    if (reply === 'throw') throw new Error('directory fault')
+    return reply
   }
+  const directory: SessionDirectory<Principal> = { list: read, listArchived: read }
   return { listing: sessionListingOf(directory), asked }
 }
 
@@ -55,7 +67,7 @@ describe('sessionListingOf', () => {
       },
     })
     const answer = await listing.list(call)
-    expect(asked).toEqual([call])
+    expect(asked).toEqual([asDirectory(call)])
     if (!('ok' in answer)) throw new Error('the page was refused')
     expect(answer.ok).toMatchObject({ next: 'n', completeness: 'partial' })
     const [first, second] = answer.ok.items
@@ -63,6 +75,113 @@ describe('sessionListingOf', () => {
     expect(text(first?.lastActivityAt)).toBe('2026-11-13T02:00:00.5Z')
     expect(first).toMatchObject({ session: 'a'.repeat(64), lifecycle: 'dormant', title: 'hello' })
     expect(second).toMatchObject({ createdAt: null, lastActivityAt: null })
+  })
+
+  it('reads the archive time of an archived item as an instant, and keeps how it was archived', async () => {
+    const { listing } = adapted({
+      ok: {
+        items: [
+          item({
+            lifecycle: 'archived',
+            archivedAt: '2026-11-14T00:00:00.250Z',
+            archivedBy: 'auto',
+          }),
+        ],
+        next: null,
+        completeness: 'complete',
+      },
+    })
+    const answer = await listing.listArchived(archivedCall)
+    if (!('ok' in answer)) throw new Error('the page was refused')
+    expect(text(answer.ok.items[0]?.archivedAt)).toBe('2026-11-14T00:00:00.250Z')
+    expect(answer.ok.items[0]?.archivedBy).toBe('auto')
+  })
+
+  it('puts the time bounds in the clock form, to the millisecond', async () => {
+    const { listing, asked } = adapted({ ok: { items: [], next: null, completeness: 'complete' } })
+    const from = parseInstant('2026-11-13T01:00:00Z')
+    const to = parseInstant('2026-11-13T02:00:00.123456Z')
+    if (!from.ok || !to.ok) throw new Error('instant')
+    await listing.listArchived({ ...archivedCall, from: from.value, to: to.value, by: 'person' })
+    expect(asked).toEqual([
+      {
+        ...asDirectory(archivedCall),
+        from: '2026-11-13T01:00:00.000Z',
+        to: '2026-11-13T02:00:00.123Z',
+        by: 'person',
+      },
+    ])
+  })
+
+  it('hands the filters of the protocol to the directory, and gives each row what it is to others', async () => {
+    const parent = 'b'.repeat(64) as SessionId
+    const origin = 'c'.repeat(64) as SessionId
+    const { listing, asked } = adapted({
+      ok: {
+        items: [
+          item({
+            relation: { kind: 'child', parent },
+            root: parent,
+            depth: 1,
+            attendance: 'unattended',
+          }),
+          item({ relation: { kind: 'handoff', origin } }),
+          item(),
+        ],
+        next: null,
+        completeness: 'complete',
+      },
+    })
+    const filter = {
+      relation: 'child',
+      parent,
+      attendance: 'unattended',
+      definition: 'coding',
+    } as const
+    const answer = await listing.list({ ...call, filter })
+    await listing.listArchived({ ...archivedCall, filter: { ...call.filter, relation: 'handoff' } })
+    expect(asked).toMatchObject([
+      { filter: { kind: 'child', parent, attendance: 'unattended', definition: 'coding' } },
+      { filter: { kind: 'handoff' } },
+    ])
+    expect((asked[1] as { filter: object }).filter).toEqual({ kind: 'handoff' })
+    if (!('ok' in answer)) throw new Error('the page was refused')
+    expect(
+      answer.ok.items.map(({ relation, parent: of, origin: from, root, depth, attendance }) => ({
+        relation,
+        of,
+        from,
+        root,
+        depth,
+        attendance,
+      })),
+    ).toEqual([
+      {
+        relation: 'child',
+        of: parent,
+        from: null,
+        root: parent,
+        depth: 1,
+        attendance: 'unattended',
+      },
+      {
+        relation: 'handoff',
+        of: null,
+        from: origin,
+        root: 'a'.repeat(64),
+        depth: 0,
+        attendance: 'attended',
+      },
+      {
+        relation: 'main',
+        of: null,
+        from: null,
+        root: 'a'.repeat(64),
+        depth: 0,
+        attendance: 'attended',
+      },
+    ])
+    expect(answer.ok.items[0]?.definition).toBe('coding')
   })
 
   it.each([

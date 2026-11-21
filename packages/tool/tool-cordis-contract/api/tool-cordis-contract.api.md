@@ -29,6 +29,7 @@
 - `ToolInstancesService` · `cordis.d.ts`
 - `ToolLoadFailure` · `cordis.d.ts`
 - `ToolLoadState` · `cordis.d.ts`
+- `ToolMediaStoreService` · `cordis.d.ts`
 - `ToolOffloaderService` · `cordis.d.ts`
 - `ToolPublication` · `cordis.d.ts`
 - `ToolPublicationAuthority` · `cordis.d.ts`
@@ -37,6 +38,7 @@
 - `ToolRegistration` · `cordis.d.ts`
 - `ToolRegistrationFailure` · `cordis.d.ts`
 - `ToolRegistrationInput` · `cordis.d.ts`
+- `ToolReleaseDetailsService` · `cordis.d.ts`
 - `ToolResidencyPage` · `cordis.d.ts`
 - `ToolResidencyReader` · `cordis.d.ts`
 - `ToolResidencyReaderService` · `cordis.d.ts`
@@ -45,6 +47,7 @@
 - `ToolRuntimeService` · `cordis.d.ts`
 - `ToolStartAuthorityService` · `cordis.d.ts`
 - `ToolStartFenceService` · `cordis.d.ts`
+- `ToolStartReleasesService` · `cordis.d.ts`
 - `ToolSweepReport` · `cordis.d.ts`
 - `ToolUnloadState` · `cordis.d.ts`
 - `VerifiedAuthority` · `cordis.d.ts`
@@ -60,15 +63,18 @@
 - `toolGenerationsKey` · `cordis.d.ts`
 - `toolInstanceHostKey` · `cordis.d.ts`
 - `toolInstancesKey` · `cordis.d.ts`
+- `toolMediaStoreKey` · `cordis.d.ts`
 - `toolOffloaderKey` · `cordis.d.ts`
 - `toolPublicationAuthorityKey` · `cordis.d.ts`
 - `toolReadsKey` · `cordis.d.ts`
+- `toolReleaseDetailsKey` · `cordis.d.ts`
 - `toolResidencyReaderKey` · `cordis.d.ts`
 - `toolResourceResponsesKey` · `cordis.d.ts`
 - `toolResultPolicyKey` · `cordis.d.ts`
 - `toolRuntimeKey` · `cordis.d.ts`
 - `toolStartAuthorityKey` · `cordis.d.ts`
 - `toolStartFenceKey` · `cordis.d.ts`
+- `toolStartReleasesKey` · `cordis.d.ts`
 
 ## 入口 `./testing` · `testing.d.ts`
 
@@ -124,8 +130,8 @@ import { type Context, Service } from '@deepseek-ai/cordis';
 import type { ContentBlock } from '@omne-harness/content-block';
 import { type Outcome } from '@omne-harness/operation-result';
 import type { Access, TenantId } from '@omne-harness/legal-identity';
-import { type ConsumerRef, type DurableEvidence, type SourceLayer, type ToolCallId, type ToolCatalog, type ToolRevision, type ToolResultReceiver, type ToolRuntime } from '@omne-harness/tool-contract';
-import { type ResultPolicy, type ToolAccounts, type ToolAuthority, type ToolBindingKey, type ToolBindingRegistry, type ToolBindingScope, type ToolBindings, type ToolChildren, type ToolClock, type ToolCommands, type ToolDecisionBridge, type ToolDirectory, type ToolEnvironment, type ToolInstanceHost, type ToolLoader, type ToolOffloader, type ToolReads, type ToolResourceResponses, type ToolStartAuthority, type ToolStartFence, type ToolShape } from '@omne-harness/tool-contract/provider';
+import { type ConsumerRef, type DurableEvidence, type SourceLayer, type ToolCallId, type ToolCatalog, type ToolReleaseDetails, type ToolRevision, type ToolResultReceiver, type ToolRuntime } from '@omne-harness/tool-contract';
+import { type ResultPolicy, type ToolAccounts, type ToolAuthority, type ToolBindingKey, type ToolBindingRegistry, type ToolBindingScope, type ToolBindings, type ToolChildren, type ToolClock, type ToolCommands, type ToolDecisionBridge, type ToolDirectory, type ToolEnvironment, type ToolInstanceHost, type ToolMediaStore, type ToolLoader, type ToolOffloader, type ToolReads, type ToolResourceResponses, type ToolStartAuthority, type ToolStartFence, type ToolStartReleases, type ToolShape } from '@omne-harness/tool-contract/provider';
 export declare abstract class ToolRuntimeService<P, B extends ContentBlock> extends Service implements ToolRuntime<P, B> {
     static readonly provide = "toolRuntime";
     private readonly resultReceivers;
@@ -151,6 +157,7 @@ export declare abstract class ToolCommandsService<P, B extends ContentBlock> ext
     abstract readonly acceptDecision: ToolCommands<P, B>['acceptDecision'];
     abstract readonly acceptResource: ToolCommands<P, B>['acceptResource'];
     abstract readonly releaseDelivery: ToolCommands<P, B>['releaseDelivery'];
+    abstract readonly releasePlaceholder: ToolCommands<P, B>['releasePlaceholder'];
     abstract readonly scanPending: ToolCommands<P, B>['scanPending'];
     abstract readonly loadRecovery: ToolCommands<P, B>['loadRecovery'];
     abstract readonly claim: ToolCommands<P, B>['claim'];
@@ -326,6 +333,12 @@ export declare abstract class ToolDecisionBridgeService<P> extends Service imple
     abstract readonly resolve: ToolDecisionBridge<P>['resolve'];
 }
 export declare const toolDecisionsKey = "toolDecisions";
+export declare abstract class ToolMediaStoreService<P> extends Service implements ToolMediaStore<P> {
+    static readonly provide = "toolMediaStore";
+    constructor(ctx: Context);
+    abstract readonly put: ToolMediaStore<P>['put'];
+}
+export declare const toolMediaStoreKey = "toolMediaStore";
 export type ToolPublication = Extract<Awaited<ReturnType<ToolInstanceHost<never>['publish']>>, {
     ok: unknown;
 }>['ok'];
@@ -395,6 +408,7 @@ export declare abstract class ToolReadsService<P, B extends ContentBlock> extend
     static readonly provide = "toolReads";
     constructor(ctx: Context);
     abstract readonly lookup: ToolReads<P, B>['lookup'];
+    abstract readonly state: ToolReads<P, B>['state'];
     abstract readonly operation: ToolReads<P, B>['operation'];
     abstract readonly result: ToolReads<P, B>['result'];
     abstract readonly process: ToolReads<P, B>['process'];
@@ -403,6 +417,7 @@ export declare abstract class ToolReadsService<P, B extends ContentBlock> extend
     abstract readonly account: ToolReads<P, B>['account'];
     abstract readonly content: ToolReads<P, B>['content'];
     abstract readonly body: ToolReads<P, B>['body'];
+    abstract readonly output: ToolReads<P, B>['output'];
 }
 export declare const toolReadsKey = "toolReads";
 export declare abstract class ToolCatalogService<P> extends Service implements ToolCatalog<P> {
@@ -413,6 +428,12 @@ export declare abstract class ToolCatalogService<P> extends Service implements T
     abstract readonly search: ToolCatalog<P>['search'];
 }
 export declare const toolCatalogKey = "toolCatalog";
+export declare abstract class ToolReleaseDetailsService<P> extends Service implements ToolReleaseDetails<P> {
+    static readonly provide = "toolReleaseDetails";
+    constructor(ctx: Context);
+    abstract readonly describe: ToolReleaseDetails<P>['describe'];
+}
+export declare const toolReleaseDetailsKey = "toolReleaseDetails";
 export declare abstract class ToolStartAuthorityService<P> extends Service implements ToolStartAuthority<P> {
     static readonly provide = "toolStartAuthority";
     constructor(ctx: Context);
@@ -429,6 +450,12 @@ export declare abstract class ToolStartFenceService<P> extends Service implement
     abstract readonly invalidate: ToolStartFence<P>['invalidate'];
 }
 export declare const toolStartFenceKey = "toolStartFence";
+export declare abstract class ToolStartReleasesService<P> extends Service implements ToolStartReleases<P> {
+    static readonly provide = "toolStartReleases";
+    constructor(ctx: Context);
+    abstract readonly releaseOf: ToolStartReleases<P>['releaseOf'];
+}
+export declare const toolStartReleasesKey = "toolStartReleases";
 export declare abstract class ToolResourceResponsesService<P> extends Service implements ToolResourceResponses<P> {
     static readonly provide = "toolResourceResponses";
     constructor(ctx: Context);
@@ -475,6 +502,7 @@ declare module '@deepseek-ai/cordis' {
         toolGenerations: ToolGenerationsService<unknown, unknown, ContentBlock>;
         toolEnvironments: ToolEnvironmentService<unknown, unknown>;
         toolDecisions: ToolDecisionBridgeService<unknown>;
+        toolMediaStore: ToolMediaStoreService<unknown>;
         toolInstances: ToolInstancesService<unknown>;
         toolPublicationAuthority: ToolPublicationAuthorityService<unknown>;
         toolInstanceHost: ToolInstanceHostService<unknown>;
@@ -482,6 +510,7 @@ declare module '@deepseek-ai/cordis' {
         toolResultPolicy: ResultPolicyService<ContentBlock>;
         toolReads: ToolReadsService<unknown, ContentBlock>;
         toolCatalog: ToolCatalogService<unknown>;
+        toolReleaseDetails: ToolReleaseDetailsService<unknown>;
         toolStartAuthority: ToolStartAuthorityService<unknown>;
         toolStartFence: ToolStartFenceService<unknown>;
         toolResourceResponses: ToolResourceResponsesService<unknown>;
@@ -581,7 +610,7 @@ export type MemoryToolResidencyReader = Readonly<{
     reader: ToolResidencyReader;
     set(key: ToolBindingKey, holders: readonly Readonly<{
         tenant: TenantId;
-        session: string;
+        holder: string;
         shape: ToolShape;
     }>[]): void;
     interrupt(diagnostic?: string): void;
@@ -610,7 +639,7 @@ export interface ResidentKeyRoundTripFixture {
     writeRaw?(input: Readonly<{
         tenant: TenantId;
         key: ToolBindingKey;
-        shape: ResidentReferencesPage['sessions'][number]['shape'];
+        shape: ResidentReferencesPage['references'][number]['shape'];
     }>): Promise<void>;
 }
 export type ResidentKeyCaseDependencies = Readonly<{

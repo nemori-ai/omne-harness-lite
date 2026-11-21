@@ -45,8 +45,10 @@ export function transportOver(
     url: string
     credential?: PiCredentialSlot
     auth?: PiRouteAuth
+    accounting?: Readonly<{ place: string; costUnit: string }>
     limits?: PiTransportLimits
     onConnectRetry?: PiTransportConfig['onConnectRetry']
+    onResponseBody?: PiTransportConfig['onResponseBody']
   }>,
 ): TransportUnderTest {
   const family = createTestFamily()
@@ -56,15 +58,15 @@ export function transportOver(
     families: family.families,
     routes: {
       [SUPPLIER.provider]: {
-        url: options.url,
-        endMarker: END_MARKER,
-        accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+        endpoints: { 'chat-completions': { url: options.url, endMarker: END_MARKER } },
+        accounting: options.accounting ?? { place: 'openrouter', costUnit: 'openrouter-credit' },
         auth: options.auth === undefined ? { kind: 'bearer', item: 'apiKey' } : options.auth,
       },
     },
     credential: options.credential ?? { read: () => new Map([['apiKey', 'test-secret']]) },
     limits: options.limits ?? LIMITS,
     ...(options.onConnectRetry === undefined ? {} : { onConnectRetry: options.onConnectRetry }),
+    ...(options.onResponseBody === undefined ? {} : { onResponseBody: options.onResponseBody }),
   })
   async function prepare(): Promise<PreparedTransport> {
     const prepared = await built.transport.prepare(REQUEST, SUPPLIER, { resent: [] })

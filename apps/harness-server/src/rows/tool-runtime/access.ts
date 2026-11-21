@@ -12,7 +12,7 @@ import type {
 } from '@omne-harness/tool-host-local'
 import type { LocalToolRuntimeInput } from '@omne-harness/tool-host-local/cordis'
 import { SESSION_WORK_OWNER } from '../authorization/principals.ts'
-import { createToolAccessGuard } from '../authorization/tool-access.ts'
+import { createToolAccessGuard, createToolAccountsGuard } from '../authorization/tool-access.ts'
 import type { ToolRuntimeHolder } from './holder.ts'
 import {
   SESSION_WORK_COMPONENT,
@@ -97,6 +97,7 @@ export function createReleaseToolIdentity(holder: ToolRuntimeHolder): ReleaseToo
   const { verifier, standing } = identityPorts(holder)
   const admission = referenceAdmissionCheck({ verifier, standing, permits: null })
   const guard = createToolAccessGuard(() => admission)
+  const accounts = createToolAccountsGuard(() => admission)
   const project = (principal: unknown) => projectWith(verifier, principal)
 
   const sessionWork = (principal: unknown, tenant: TenantId) =>
@@ -172,7 +173,7 @@ export function createReleaseToolIdentity(holder: ToolRuntimeHolder): ReleaseToo
   }
 
   return Object.freeze({
-    access: { guard, start: guard },
+    access: { guard, start: guard, accounts },
     subjects,
     sourceAuthority,
     sessionOf,

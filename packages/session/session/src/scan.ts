@@ -1,4 +1,5 @@
 import { fail, succeed } from '@omne-harness/operation-result'
+import { runStartInputs } from '@omne-harness/session-contract'
 import type {
   PendingReason,
   Reply,
@@ -6,6 +7,7 @@ import type {
   SessionInternalPrincipals,
 } from '@omne-harness/session-contract'
 import type { Advance } from './advance.ts'
+import type { CascadeDrive } from './cascade.ts'
 import type { ControlPropagation } from './control.ts'
 import { OWNERS, unavailable } from './failures.ts'
 import type { Lifecycle } from './lifecycle.ts'
@@ -52,10 +54,11 @@ export function createScan<P>(
     resolution: Resolution
     controls: ControlPropagation
     recovery: Recovery
+    cascade: CascadeDrive
   }>,
 ): Scan {
   const { lifecycle, policy, scheduling, principals, maintainer } = input
-  const { advance, resolution, controls, recovery } = input
+  const { advance, resolution, controls, recovery, cascade } = input
   const scanners = new Map<string, Scanner>()
 
   const page = (tenant: TenantId, after: string | null, reason?: PendingReason) =>
@@ -73,8 +76,9 @@ export function createScan<P>(
     const snapshot = await maintainer.work.readWork({ principal: principal.ok, ...ref })
     if ('failure' in snapshot) return
     if (snapshot.ok.controls.some(control => control.state === 'propagating')) controls.trigger(ref)
-    if (snapshot.ok.pending.length > 0) advance.trigger(ref)
+    if (runStartInputs(snapshot.ok).length > 0) advance.trigger(ref)
     if (snapshot.ok.run.kind === 'active') recovery.trigger(ref)
+    if (snapshot.ok.tasks.some(task => task.kind === 'cascade')) cascade.trigger(ref)
     for (const operation of snapshot.ok.unresolved)
       resolution.watch(ref, operation, () => {
         advance.trigger(ref)

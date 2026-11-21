@@ -92,6 +92,9 @@ function project(messages: readonly Message[], overrides: Partial<ReplayProjecti
     formats: new Set(['f1']),
     off: false,
     resent: new Set(),
+    system: [],
+    tools: [],
+    binding: 'none',
     ...overrides,
   })
 }
@@ -121,7 +124,7 @@ describe('projectReplay: when a message can continue', () => {
       thinking: 'omit',
     })
     expect(result.diagnostics).toEqual([
-      { message: messageId('a'), scope: 'B', format: 'f1', omittedParts: 1 },
+      { message: messageId('a'), scope: 'B', format: 'f1', omittedParts: 1, reason: 'scope' },
     ])
   })
 
@@ -134,7 +137,7 @@ describe('projectReplay: when a message can continue', () => {
     const result = project([withState('a', 'A', 'other')])
     expect(result.treatments[0]).toMatchObject({ continuable: false, omit: [1] })
     expect(result.diagnostics).toEqual([
-      { message: messageId('a'), scope: 'A', format: 'other', omittedParts: 1 },
+      { message: messageId('a'), scope: 'A', format: 'other', omittedParts: 1, reason: 'format' },
     ])
   })
 
@@ -146,11 +149,11 @@ describe('projectReplay: when a message can continue', () => {
     expect(result.diagnostics.map(item => item.message)).toEqual([messageId('a')])
   })
 
-  it('does not continue any message when replay is off, even a known scope and format', () => {
+  it('does not continue any message when replay is off, and says nothing: off is the request choosing it (T1 rule 1)', () => {
     const result = project([withState('a', 'A'), thinkingOnly('b', 'A')], { off: true })
     expect(result.treatments.map(item => item.continuable)).toEqual([false, false])
     expect(result.treatments.map(item => ('omit' in item ? item.omit : null))).toEqual([[1], []])
-    expect(result.diagnostics.map(item => item.message)).toEqual([messageId('a')])
+    expect(result.diagnostics).toEqual([])
   })
 })
 
@@ -261,12 +264,13 @@ describe('projectReplay: a history of A then B then A', () => {
 })
 
 describe('projectReplay: what leaves the function', () => {
-  it('gives diagnostics exactly the four keys and no payload', () => {
+  it('gives diagnostics exactly the five keys and no payload', () => {
     const result = project([withState('a', 'B')])
     expect(Object.keys(result.diagnostics[0] ?? {}).sort()).toEqual([
       'format',
       'message',
       'omittedParts',
+      'reason',
       'scope',
     ])
     expect(JSON.stringify(result)).not.toContain(SECRET)

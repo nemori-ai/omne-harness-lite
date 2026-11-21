@@ -1,14 +1,16 @@
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { createElement, type ReactNode } from 'react'
 import type {
+  AttachedLayout,
   ItemOf,
   ScopeSource,
   ShellLogin,
   ShellSlots,
   SlotName,
+  ToastBoard,
 } from '@omne-harness/shell-contract'
 import { ShellService } from '@omne-harness/shell-contract/cordis'
-import { Attached } from './attached.tsx'
+import { Arranged, Attached } from './attached.tsx'
 import type { ShellState } from './state.ts'
 
 export class DesktopShell extends ShellService implements ShellSlots {
@@ -31,8 +33,8 @@ export class DesktopShell extends ShellService implements ShellSlots {
     return this.state.slots.subscribe(slot, listener)
   }
 
-  navigate(pageId: string): void {
-    this.state.page.choose(pageId)
+  navigate(pageId: string, subject?: string): void {
+    this.state.page.choose(pageId, subject)
   }
 
   attached(anchor: string, subject: string): ReactNode {
@@ -44,8 +46,22 @@ export class DesktopShell extends ShellService implements ShellSlots {
     })
   }
 
+  arranged(anchor: string, subject: string, layout: AttachedLayout): ReactNode {
+    return createElement(Arranged, {
+      slots: this.state.slots,
+      scope: this.state.scope,
+      anchor,
+      subject,
+      layout,
+    })
+  }
+
   protected place<K extends SlotName>(slot: K, item: ItemOf<K>): () => void {
     return this.state.slots.place(slot, item)
+  }
+
+  protected override toasts(): ToastBoard {
+    return this.state.toasts
   }
 }
 

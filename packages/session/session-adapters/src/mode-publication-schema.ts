@@ -12,15 +12,21 @@ const evidence = z
   .readonly()
 const inquiry = z
   .strictObject({
-    policy: z.strictObject({ onAsk: z.enum(['deny', 'ask-human', 'skip-ask']) }).readonly(),
+    policy: z
+      .strictObject({
+        onAsk: z.enum(['deny', 'ask-human', 'skip-ask']),
+        denial: z.literal('nobody-to-ask').optional(),
+      })
+      .readonly(),
     source: evidence,
     translation: adoption,
   })
   .readonly()
 const interaction = z
   .strictObject({
+    attendance: z.enum(['attended', 'unattended']),
+    child: z.boolean(),
     humanInteraction: z.boolean(),
-    requestApproval: z.boolean(),
     source: evidence,
     translation: adoption,
   })
@@ -60,7 +66,7 @@ export type SessionModesPublication = z.infer<typeof sessionModesPublicationSche
 export const SESSION_MODES_PUBLICATION: Adoption = Object.freeze({
   owner: '@omne-harness/session-adapters',
   name: 'session.modes-publication',
-  revision: '1',
+  revision: '2',
   digest: `sha256:${createHash('sha256')
     .update(JSON.stringify(z.toJSONSchema(sessionModesPublicationSchema)))
     .digest('hex')}`,

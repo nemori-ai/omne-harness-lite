@@ -38,6 +38,7 @@ const ASK = JSON.stringify({
 })
 const WAIT_FOR_B = JSON.stringify({
   command: 'execute',
+  intent: 'test call',
   params: { script: 'while [ ! -f go-b ]; do sleep 0.1; done; echo go-b-done' },
 })
 const options = {
@@ -225,8 +226,9 @@ describe('a control ends a suspended Ask on the release tree', () => {
         expect(cards.map(item => item.card)).toMatchObject([
           { kind: 'invalidated', reason: 'cancelled' },
         ])
+        await ended(world, session)
       })
-      expect([0, 5]).toContain(exit)
+      expect(exit).toBe(0)
     },
   )
 
@@ -360,6 +362,11 @@ describe('a lost answer of HITL on the release tree is recalled by the original 
           'the parked Ask',
           () => askOf(world),
           ask => ask?.phase === 'suspended' && stageOf(world, 'Ask') === 'parked',
+        )
+        await pollUntil(
+          'the recalled registration',
+          () => recalls.length,
+          count => count === 1,
         )
         expect(ensured).toHaveLength(1)
         const receipt = (ensured[0] as { ok: unknown }).ok

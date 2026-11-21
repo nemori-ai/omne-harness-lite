@@ -1,6 +1,5 @@
 import { expect, it } from 'vitest'
 import {
-  decodeActionId,
   decodeInputId,
   type AgentJournal,
   type CommandReceipt,
@@ -24,6 +23,7 @@ import {
 } from './fixtures/common-journal.ts'
 import { resultCall } from './fixtures/result-call.ts'
 import { accept, take } from './fixtures/progression.ts'
+import { retainedCompaction, compactionFixtureGeneration } from './fixtures/compaction.ts'
 
 type Scene = Awaited<ReturnType<typeof scene>>
 const outrun = {
@@ -93,17 +93,22 @@ async function compactionScene(name: string, qualification: SceneQualification):
       },
     ],
     covers: { from: rows[0]!.id, to: rows[last]!.id },
-    retained: rows.filter(row => row.kind.startsWith('message.')).map(row => row.id),
-    derivation: evidence('summary'),
+    // The accepted input is not in the model view before a step takes it.
+    retained: [],
+    derivation: compactionFixtureGeneration,
   })
   if (!('ok' in judged)) throw new Error('valid compaction message required')
+  const retained = await retainedCompaction(
+    { ...s, history: s.backend.transactions.history },
+    judged.ok,
+  )
   const request: CommitRequest = {
     ...s.access,
     execution: s.execution,
     operation: operation('compact'),
     authority: s.opened.authority,
-    expected: s.opened.receipt.revision,
-    checkpoint: s.checkpoint,
+    expected: retained.receipt.revision,
+    checkpoint: retained.checkpoint,
     state: { kind: 'advancing' },
     events: [],
     effects: [],
@@ -112,20 +117,7 @@ async function compactionScene(name: string, qualification: SceneQualification):
     finish: null,
     caller: {
       kind: 'context-transition',
-      value: {
-        preparation: ok(decodeActionId('compact')),
-        message: judged.ok,
-        source: evidence('model-summary'),
-        derivation: evidence('derivation'),
-        commitment: evidence('commitment'),
-        candidate: evidence('transition-candidate'),
-        plan: evidence('transition-plan'),
-        basis: {
-          schema: { owner: 'test', name: 'basis', revision: '1', digest: 'test:basis' },
-          value: { kind: 'null' },
-        },
-        epoch: '1',
-      },
+      value: retained.value,
       admission: evidence('admitted-summary'),
     },
   }

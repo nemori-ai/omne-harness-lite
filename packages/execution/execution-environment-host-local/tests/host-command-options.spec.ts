@@ -127,9 +127,7 @@ describe('the chunk bound against the buffer bound', () => {
 })
 
 it('ignores the fields that are not command options, as the plugin configuration passes them', () => {
-  expect(commandOptionsIssue({ filesRoot: 'relative', stateDirectory: 7, drainBoundMs: -1 })).toBe(
-    undefined,
-  )
+  expect(commandOptionsIssue({ stateDirectory: 7, drainBoundMs: -1 })).toBe(undefined)
   expect(commandOptionsIssue({})).toBe(undefined)
 })
 

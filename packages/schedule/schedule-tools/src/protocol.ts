@@ -1,223 +1,175 @@
-import { createHash } from 'node:crypto'
-import canonicalize from 'canonicalize'
 import { z } from 'zod'
 import * as schedule from '@omne-harness/schedule-contract'
-import {
-  readJsonText,
-  writeJsonText,
-  type JsonValue,
-  type JsonLimits,
-} from '@omne-harness/json-text'
-import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import { decodeToolOperationId, type ToolFailure } from '@omne-harness/tool-contract'
+import { readJsonText, writeJsonText, type JsonValue } from '@omne-harness/json-text'
+import { fail, succeed } from '@omne-harness/operation-result'
+import type { ParameterContract } from '@omne-harness/tool-contract'
 import {
   createDefaultParameterCodec,
   describedAdoption,
-  decodeToolInstanceId,
-  decodeToolRevision,
   type ParameterCodec,
 } from '@omne-harness/tool-contract/provider'
 
-const [update, revise, consent, control, replace] = schedule.ScheduleCommandSchema.options
-export const scheduleToolCommandSchema = z.discriminatedUnion('action', [
-  update.extend({ meta: update.shape.meta.omit({ operationKey: true }) }),
-  revise.extend({ meta: revise.shape.meta.omit({ operationKey: true }) }),
-  consent.extend({ meta: consent.shape.meta.omit({ operationKey: true }) }),
-  control.extend({ meta: control.shape.meta.omit({ operationKey: true }) }),
-  replace.extend({ meta: replace.shape.meta.omit({ operationKey: true }) }),
-])
-export const scheduleToolArgumentsSchema = z.discriminatedUnion('action', [
-  z.strictObject({
-    action: z.literal('create'),
-    input: schedule.ScheduleCreateRequestSchema.extend({
-      meta: schedule.ScheduleCreateRequestSchema.shape.meta.omit({ operationKey: true }),
-    }),
-  }),
-  z.strictObject({ action: z.literal('execute'), input: scheduleToolCommandSchema }),
-  z.strictObject({
-    action: z.literal('queryOperation'),
-    input: schedule.ScheduleOperationLocatorSchema,
-  }),
-  z.strictObject({ action: z.literal('list'), input: schedule.ScheduleListRequestSchema }),
-  z.strictObject({ action: z.literal('get'), input: schedule.ScheduleGetRequestSchema }),
-  z.strictObject({
-    action: z.literal('revisions'),
-    input: schedule.ScheduleRevisionsRequestSchema,
-  }),
-  z.strictObject({
-    action: z.literal('executions'),
-    input: schedule.ScheduleExecutionsRequestSchema,
-  }),
-  z.strictObject({ action: z.literal('agenda'), input: schedule.ScheduleAgendaRequestSchema }),
-  z.strictObject({ action: z.literal('preview'), input: schedule.SchedulePreviewRequestSchema }),
-])
-export type ScheduleToolArguments = z.infer<typeof scheduleToolArgumentsSchema>
-export const argumentLimits = Object.freeze({
+export const schedulesAdoption = describedAdoption({
+  owner: '@omne-harness/schedule-tools',
+  name: 'schedules-protocol',
+  revision: '2',
+  changes:
+    'One declaration with the command named in the call; definitions follow the user environment; consent through an inquiry card.',
+})
+const vocabulary = describedAdoption({
+  owner: '@omne-harness/schedule-tools',
+  name: 'json-schema',
+  revision: '2020-12',
+  dialect: 'https://json-schema.org/draft/2020-12/schema',
+})
+const limits = {
   maxBytes: 65_536,
   maxDepth: 32,
-  maxItems: 200_000,
+  maxItems: 4096,
   maxMembers: 512,
   maxStringLength: 65_536,
   maxNumberLength: 64,
-})
-export const resultLimits = Object.freeze({
-  maxBytes: 4_194_304,
-  maxDepth: 32,
-  maxItems: 200_000,
-  maxMembers: 512,
-  maxStringLength: 1_048_576,
-  maxNumberLength: 64,
-})
-export const summaryMaxBytes = 32_768
-export const scheduleToolAdoption = Object.freeze(
-  describedAdoption({
-    owner: '@omne-harness/schedule-tools',
-    name: 'schedule',
-    revision: '1',
-    protocol: 'omne.calendar-schedule/1',
-    actions: [
-      'create',
-      'execute',
-      'queryOperation',
-      'list',
-      'get',
-      'revisions',
-      'executions',
-      'agenda',
-      'preview',
-    ],
-    capabilities: ['schedule.read', 'schedule.write'],
-    argumentLimits,
-    resultLimits,
-    summaryMaxBytes,
-  }),
-)
-export const adoptionSchema = z.strictObject({
-  owner: z.string().min(1),
-  name: z.string().min(1),
-  revision: z.string().min(1),
-  digest: z.string().min(1),
-})
-export const evidenceSchema = z.strictObject({
-  owner: z.string().min(1),
-  record: z.string().min(1),
-  revision: z.string().min(1),
-  digest: z.string().min(1),
-})
-export function toolIdentitySchema<T>(decode: (value: unknown) => Outcome<T, unknown>) {
-  return z.string().transform((value, ctx) => {
-    const result = decode(value)
-    if ('ok' in result) return result.ok
-    ctx.addIssue({ code: 'custom', message: 'Invalid Tool identity' })
-    return z.NEVER
-  })
 }
-const operationId = toolIdentitySchema(decodeToolOperationId)
-export const toolFailureSchema: z.ZodType<ToolFailure> = z.discriminatedUnion('kind', [
-  z.strictObject({ kind: z.literal('denied'), action: z.string() }),
-  z.strictObject({ kind: z.literal('invalid'), field: z.string(), reason: z.string() }),
-  z.strictObject({ kind: z.enum(['conflict', 'commit-unknown']), operation: operationId }),
-  z.strictObject({
-    kind: z.literal('unavailable'),
-    dependency: z.string(),
-    diagnostic: z.string(),
-  }),
-  z.strictObject({ kind: z.literal('not-settled') }),
-  z.strictObject({
-    kind: z.literal('stale-instance'),
-    instance: toolIdentitySchema(decodeToolInstanceId),
-  }),
-  z.strictObject({
-    kind: z.literal('stale-revision'),
-    current: toolIdentitySchema(decodeToolRevision),
-  }),
-  z.strictObject({ kind: z.literal('invalid-cursor'), reason: z.string() }),
-  z.strictObject({ kind: z.literal('unsupported'), adoption: adoptionSchema, reason: z.string() }),
-])
-const result = <A extends ScheduleToolArguments['action'], S extends z.ZodType>(
-  action: A,
-  value: S,
-  write = false,
-) =>
-  z.strictObject({
-    kind: z.literal('result'),
-    action: z.literal(action),
-    result: value,
-    operation: write ? schedule.ScheduleOperationLocatorSchema.options[1] : z.null(),
-  })
-export const scheduleToolResultSchema = z.union([
-  result('create', schedule.ScheduleManagementResultSchema, true),
-  result('execute', schedule.ScheduleManagementResultSchema, true),
-  result('queryOperation', schedule.ScheduleOperationResultSchema),
-  result('list', schedule.ScheduleListResultSchema),
-  result('get', schedule.ScheduleGetResultSchema),
-  result('revisions', schedule.ScheduleRevisionsResultSchema),
-  result('executions', schedule.ScheduleExecutionsResultSchema),
-  result('agenda', schedule.ScheduleAgendaResultSchema),
-  result('preview', schedule.SchedulePreviewResultSchema),
-  z.strictObject({
-    kind: z.literal('adapterFailure'),
-    action: z.enum([
-      'create',
-      'execute',
-      'queryOperation',
-      'list',
-      'get',
-      'revisions',
-      'executions',
-      'agenda',
-      'preview',
-    ]),
-    failure: toolFailureSchema,
-    operation: z.null(),
-  }),
-])
-export type ScheduleToolResult = z.infer<typeof scheduleToolResultSchema>
-export function unbox<T>(outcome: Outcome<T, unknown>): T {
-  if ('failure' in outcome) throw new TypeError('Invalid adapter configuration')
-  return outcome.ok
-}
-export function jsonTree(value: unknown, limits: JsonLimits = resultLimits): JsonValue {
+
+export function tree(value: unknown): JsonValue {
   const read = readJsonText(JSON.stringify(value), limits)
-  if (read.kind !== 'ok') throw new TypeError('output_limit')
+  if (read.kind !== 'ok') throw new TypeError('Schedules protocol JSON is not bounded')
   return read.value
 }
-export function nativeJson(value: JsonValue): unknown {
-  return JSON.parse(writeJsonText(value))
+
+/** A definition as the agent writes it: no calendar binding and no overlay, so it cannot pick a calendar. */
+export const agentDefinitionSchema = z.strictObject({
+  label: schedule.ScheduleLabelSchema,
+  recurrence: schedule.ScheduleRecurrenceSchema,
+  limits: schedule.ScheduleRuleLimitsSchema,
+  purpose: schedule.SchedulePurposeSchema,
+})
+export type AgentDefinition = z.infer<typeof agentDefinitionSchema>
+
+/** The full definition: it follows the owner's environment. */
+export function definitionOf(agent: AgentDefinition) {
+  return schedule.ScheduleDefinitionSchema.safeParse({
+    ...agent,
+    binding: { kind: 'followUserEnvironment' },
+    calendarOverlay: null,
+  })
 }
-export function canonical(value: unknown): string {
-  const encoded = canonicalize(value)
-  if (encoded === undefined) throw new TypeError('Non-JSON value')
-  return encoded
+
+const scheduleId = schedule.ScheduleIdSchema
+const revision = z.int().min(1)
+const reason = schedule.ScheduleReasonSchema
+const control = z.enum(['promote', 'pause', 'resume', 'stop', 'discard'])
+
+export const schedulesCommandNames = [
+  'help',
+  'preview',
+  'create',
+  'draft',
+  'list',
+  'show',
+  'history',
+  'update',
+  'revise',
+  'replace',
+  ...control.options,
+  'recover',
+] as const
+export type SchedulesCommandName = (typeof schedulesCommandNames)[number]
+
+const shapes = {
+  help: z.strictObject({ name: z.enum(schedulesCommandNames).optional() }),
+  preview: z.strictObject({
+    definition: agentDefinitionSchema.optional(),
+    schedule: scheduleId.optional(),
+    count: z.int().min(1).max(20).optional(),
+  }),
+  create: z.strictObject({ definition: agentDefinitionSchema }),
+  draft: z.strictObject({ definition: agentDefinitionSchema, reason }),
+  list: z.strictObject({
+    state: schedule.ScheduleControlSchema.optional(),
+    limit: z.int().min(1).max(50).optional(),
+    after: z.string().min(1).optional(),
+  }),
+  show: z.strictObject({ schedule: scheduleId }),
+  history: z.strictObject({ schedule: scheduleId }),
+  update: z.strictObject({
+    schedule: scheduleId,
+    revision,
+    label: schedule.ScheduleLabelSchema.optional(),
+    instruction: schedule.ScheduleInstructionSchema.optional(),
+  }),
+  revise: z.strictObject({
+    schedule: scheduleId,
+    revision,
+    definition: agentDefinitionSchema,
+    reason,
+  }),
+  replace: z.strictObject({
+    schedule: scheduleId,
+    revision,
+    definition: agentDefinitionSchema,
+    reason,
+  }),
+  promote: z.strictObject({ schedule: scheduleId, revision, reason: reason.optional() }),
+  pause: z.strictObject({ schedule: scheduleId, revision, reason: reason.optional() }),
+  resume: z.strictObject({ schedule: scheduleId, revision, reason: reason.optional() }),
+  stop: z.strictObject({ schedule: scheduleId, revision, reason: reason.optional() }),
+  discard: z.strictObject({ schedule: scheduleId, revision, reason: reason.optional() }),
+  recover: z.strictObject({ operation: schedule.ScheduleOperationRefSchema }),
+} as const satisfies Record<SchedulesCommandName, z.ZodType>
+
+export type SchedulesArguments = {
+  [K in SchedulesCommandName]: Readonly<{ command: K; params: z.output<(typeof shapes)[K]> }>
+}[SchedulesCommandName]
+
+export const schedulesSummaries: Readonly<Record<SchedulesCommandName, string>> = {
+  help: 'Read command usage.',
+  preview:
+    'The next times of a definition or a saved schedule, each with the calendar and version it used. Saves nothing.',
+  create: 'Create a schedule that takes effect now.',
+  draft: 'Save a schedule as a draft: it does not run until it is promoted. Give a reason.',
+  list: 'List schedules, newest first.',
+  show: 'One schedule: definition, state, author, the consent it took effect on, and the next time.',
+  history: 'The revisions of one schedule.',
+  update: 'Rename a schedule or change its instruction text. Give the revision you read.',
+  revise: 'Rewrite a draft. Give the revision you read.',
+  replace: 'Replace the rule of an active schedule; the old one becomes superseded.',
+  promote: 'Bring a draft into effect.',
+  pause: 'Pause an active schedule.',
+  resume: 'Resume a paused schedule.',
+  stop: 'Stop a schedule for good.',
+  discard: 'Discard your own draft for good.',
+  recover: 'Read the outcome of a write that answered unknown, by its operation.',
 }
-export function digest(value: unknown): string {
-  return createHash('sha256').update(canonical(value)).digest('hex')
+
+export function schedulesContract(name: SchedulesCommandName): ParameterContract {
+  const document = z.toJSONSchema(shapes[name], { io: 'input', unrepresentable: 'any' })
+  const { $schema: _dialect, ...schema } = document as Record<string, unknown>
+  return { schema: tree(schema), vocabulary, descriptions: [] }
 }
-export function same(left: unknown, right: unknown): boolean {
-  return canonical(left) === canonical(right)
-}
-export function freeze<T>(value: T): T {
-  if (value !== null && typeof value === 'object') {
-    for (const child of Object.values(value)) freeze(child)
-    Object.freeze(value)
+
+const strictJson = createDefaultParameterCodec(limits)
+
+/** Parses one command's params; anything the schema refuses is invalid before a service is asked. */
+export function schedulesParameterCodec(
+  name: SchedulesCommandName,
+): ParameterCodec<SchedulesArguments> {
+  if ('failure' in strictJson) throw new TypeError(strictJson.failure.reason)
+  const base = strictJson.ok
+  return {
+    adoption: schedulesAdoption,
+    parse(input) {
+      const read = base.parse(input)
+      if ('failure' in read) return read
+      const parsed = shapes[name].safeParse(JSON.parse(writeJsonText(read.ok)))
+      if (!parsed.success)
+        return fail({ kind: 'invalid', reason: parsed.error.issues[0]?.message ?? 'invalid' })
+      if (name === 'update' && 'label' in parsed.data === 'instruction' in parsed.data)
+        return fail({
+          kind: 'invalid',
+          reason: 'update takes exactly one of label and instruction',
+        })
+      return succeed({ command: name, params: parsed.data } as SchedulesArguments)
+    },
   }
-  return value
-}
-const jsonCodec = unbox(createDefaultParameterCodec(argumentLimits))
-export const scheduleToolParameterCodec: ParameterCodec<ScheduleToolArguments> = {
-  adoption: scheduleToolAdoption,
-  parse(input) {
-    const read = jsonCodec.parse(input)
-    if ('failure' in read) return read
-    const parsed = scheduleToolArgumentsSchema.safeParse(nativeJson(read.ok))
-    return parsed.success
-      ? succeed(parsed.data)
-      : fail({ kind: 'invalid', reason: parsed.error.message })
-  },
-}
-export function invalid(field: string, reason: string): ToolFailure {
-  return { kind: 'invalid', field, reason }
-}
-export function unavailable(diagnostic: string): ToolFailure {
-  return { kind: 'unavailable', dependency: 'schedule-tools', diagnostic }
 }

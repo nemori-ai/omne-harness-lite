@@ -41,6 +41,8 @@ import type {
   ToolFinalEnvelope,
   ToolPlannedFinal,
   ToolCanonicalFingerprint,
+  ToolUsageFact,
+  ToolUsageQuery,
 } from '@omne-harness/tool-contract/provider'
 
 export type TenantId = Access<unknown>['tenant']
@@ -72,6 +74,8 @@ export type CallRecord = Readonly<{
   start: ToolStartRecord | null
   startRejection: StartRejection | null
   execution: ToolExecutionRef | null
+  /** When the execution was recorded as started, by the ledger clock; absent on older records. */
+  startedAt?: ToolInstant | null
 }>
 
 export type OperationReceipt =
@@ -79,7 +83,7 @@ export type OperationReceipt =
   | Readonly<{ kind: 'admit'; state: ToolState }>
   | Readonly<{ kind: 'control'; control: ControlReceipt; subject?: DurableEvidence }>
   | Readonly<{ kind: 'record-control'; control: ControlRecord }>
-  | Readonly<{ kind: 'release-delivery'; delivery: ReleasedDelivery }>
+  | Readonly<{ kind: 'release-delivery' | 'release-placeholder'; delivery: ReleasedDelivery }>
   | Readonly<{ kind: 'plan-preparation'; preparation: PreparationRecord }>
   | Readonly<{ kind: 'prepared'; state: ToolState }>
   | Readonly<{ kind: 'enqueue'; state: ToolState }>
@@ -268,7 +272,7 @@ export type QueueCounterRecord = Readonly<{ next: string }>
 export type ReleaseBasis =
   | Readonly<{ kind: 'pre-start-rejection'; exclusion: DurableEvidence }>
   | Readonly<{ kind: 'physical-end'; proof: DurableEvidence }>
-  | Readonly<{ kind: 'ledger-rejected'; result: DurableEvidence }>
+  | Readonly<{ kind: 'ledger-rejected' | 'ended-before-start'; result: DurableEvidence }>
   | Readonly<{
       kind: 'suspended-exclusion'
       checkpoint: DurableEvidence
@@ -396,6 +400,7 @@ export function hostKey(key: string): string {
 
 export type LedgerWrite =
   | Readonly<{ kind: 'drop' }>
+  | Readonly<{ kind: 'usage'; fact: ToolUsageFact }>
   | Readonly<{ kind: 'put'; record: LedgerRecord }>
   | Readonly<{ kind: 'delete'; key: string }>
   | Readonly<{ kind: 'schedule'; key: string; dueAt: ToolInstant }>
@@ -446,6 +451,20 @@ export type LedgerCommit =
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
   | Readonly<{ kind: 'rejected'; reason: string }>
 
+/** An admitted usage query: the range and the scope checked, the position opened from its cursor. */
+export type LedgerUsageQuery = Readonly<{
+  tenant: TenantId
+  range: Readonly<{ from: string; to: string }> | null
+  consumer: ToolUsageQuery['consumer']
+  order: ToolUsageQuery['order']
+  after: Readonly<{ start: string; call: ToolCallId }> | null
+  limit: number
+}>
+
+export type LedgerUsageRead =
+  | Readonly<{ kind: 'page'; facts: readonly ToolUsageFact[]; undated: number; more: boolean }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+
 export interface ToolLedgerStore {
   readonly durability: 'none' | 'durable'
   read(domain: LedgerDomain): Promise<LedgerRead>
@@ -453,4 +472,5 @@ export interface ToolLedgerStore {
   commit(input: LedgerCommitInput): Promise<LedgerCommit>
   due(tenant: TenantId, now: ToolInstant, limit: number): Promise<LedgerDueRead>
   scanPending(input: LedgerPendingScanInput): Promise<LedgerPendingScan>
+  usage(query: LedgerUsageQuery): Promise<LedgerUsageRead>
 }

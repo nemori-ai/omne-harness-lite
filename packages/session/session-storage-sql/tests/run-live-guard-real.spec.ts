@@ -1,5 +1,11 @@
+import type { SessionCommand } from '@omne-harness/session-contract'
 import { afterEach, expect, it, vi } from 'vitest'
-import { operationId, ordinaryInput, sessionId } from '@omne-harness/session-contract/testing'
+import {
+  operationId,
+  ordinaryInput,
+  sessionId,
+  testingIntakeGuards,
+} from '@omne-harness/session-contract/testing'
 import {
   SESSION_LOG_PARTICIPANTS,
   SESSION_RUN_LIVE_FACT,
@@ -41,18 +47,16 @@ function commit(
   })
 }
 function acceptance(app: RealApp, name: string) {
-  return sessionCommandFacts(
-    {
-      kind: 'accept',
-      input: {
-        tenant: TENANT_A,
-        session: app.access(TENANT_A).session,
-        operation: operationId(name),
-        value: ordinaryInput(name),
-      },
+  const command: SessionCommand = {
+    kind: 'accept',
+    input: {
+      tenant: TENANT_A,
+      session: app.access(TENANT_A).session,
+      operation: operationId(name),
+      value: ordinaryInput(name),
     },
-    [],
-  )
+  }
+  return sessionCommandFacts(command, testingIntakeGuards(command))
 }
 async function live() {
   const app = await openRealApp({ participants })

@@ -20,6 +20,7 @@ export type {
   SessionRevision,
   TodoItemId,
 } from './identity.ts'
+export { requiredWorkEntries, compactionCallChangeOf } from './work-entry-state.ts'
 export type {
   AutoArchivePolicy,
   BoundedClose,
@@ -47,12 +48,15 @@ export type {
   ProducerRef,
   RecoveryTask,
   Relation,
+  Attendance,
+  SessionTree,
   ResidentTool,
   ResultConsumption,
   RoutedInput,
   RunState,
   RunTerminal,
   ScopeReleaseDisposition,
+  BackgroundDisposition,
   SessionCreation,
   SessionFrozen,
   SessionWaiting,
@@ -62,13 +66,16 @@ export type {
 } from './values.ts'
 export type {
   AdmittedMessage,
+  DeliveredInputs,
   CommitReceipt,
+  CompactionContextRead,
   Completion,
   EntryClass,
   ExternalCompletion,
   HistoryEntry,
   HistoryPage,
   ModelViewBasis,
+  ForkPointRead,
   ModelViewRead,
   ModelViewRow,
   OperationResolution,
@@ -81,7 +88,12 @@ export type {
   SessionFaces,
   SessionFailure,
   SessionHistory,
+  ArchivedBy,
+  SessionListFilter,
   SessionListItem,
+  SessionListPage,
+  SessionListRelation,
+  UnarchivedLifecycle,
   SessionManagement,
   SessionReconciliation,
   SessionWork,
@@ -139,6 +151,8 @@ export type {
   MutationName,
   ScopeReleasePort,
   ScopeReleaseReadback,
+  SessionCallControl,
+  SessionCallStates,
   SessionBlockDeclaration,
   SessionClock,
   SessionCommand,
@@ -183,9 +197,46 @@ export {
   type RouteJudgment,
   type RunStartJudgment,
 } from './judgments.ts'
-export { decide, commandDigest } from './decide.ts'
-export { runCancelledBy } from './decision-support.ts'
-export { batchEvidence, reduce } from './reduce.ts'
+export { decide, commandDigest, runIdOf } from './decide.ts'
+export {
+  RELATIONS_TO_REFERENCE,
+  relationToReference,
+  type DirectoryStanding,
+  type RelationToReference,
+} from './directory-relation.ts'
+export {
+  MAX_SESSION_DEPTH,
+  childRecorded,
+  judgeStanding,
+  relatedOf,
+  relatedSessionOf,
+  standingOf,
+  type ChildRecord,
+  type RelatedSession,
+} from './standing.ts'
+export { workspaceSelection, type WorkspaceSelection } from './workspace-selection.ts'
+export { cancellationDriveOf, runCancelledBy } from './decision-support.ts'
+export { batchEvidence } from './batch-evidence.ts'
+export {
+  EMPTY_AUTHORIZATIONS,
+  incompleteAuthorization,
+  onceAuthorizationOf,
+  reduceAuthorizations,
+  retireOnce,
+  type AuthorizationConsumer,
+  type AuthorizationContext,
+  type AuthorizationExpression,
+  type AuthorizationScope,
+  type OnceAuthorization,
+  type SessionAuthorization,
+} from './authorizations.ts'
+export { batchCallKeys, reduce } from './reduce.ts'
+export { consumptionIdOf } from './decide-results.ts'
+export {
+  decideCompactionCommit,
+  projectCompactionCommit,
+  type CompactionCommitState,
+} from './compaction-commit.ts'
 export { expandHistoryEntries } from './entries.ts'
 export {
   CONTEXT_SCOPE_KINDS,
@@ -242,8 +293,23 @@ export type {
   SessionInputAdmission,
   SessionExecutionPrefix,
   SessionPrefixFact,
+  SessionUninterpretedCall,
 } from './history-values.ts'
+export { uninterpretedCalls } from './uninterpreted-calls.ts'
 export type { SessionCallRegistration, SessionCallRecord, SessionCallWait } from './call-values.ts'
+export {
+  bindingOf,
+  boundCall,
+  callKeysIn,
+  callKeysOutside,
+  callWithLate,
+  lendCalls,
+  type SessionCallBinding,
+  type SessionCall,
+  type SessionCallKeys,
+  type SessionLateCallFact,
+  type SettledCallLookup,
+} from './call-settlement.ts'
 export { readCallRegistration } from './call-registration.ts'
 export type { CallRegistrationView } from './call-registration.ts'
 export { readRunBoundary } from './run-boundary.ts'
@@ -273,8 +339,60 @@ export {
   sessionIntakeLimits,
   sessionInputBytes,
   judgeSessionIntake,
+  pendingIntakeCount,
+  inputsToDeliver,
+  runStartInputs,
+  wakingInputs,
 } from './intake.ts'
+export {
+  archiveCollapse,
+  backgroundCalls,
+  controlAnswer,
+  controlRoutes,
+  type ArchiveCollapse,
+  type ControlRoutes,
+  type DirectCallControl,
+} from './call-control.ts'
+export {
+  backgroundInputId,
+  judgeBackgroundOutcome,
+  type BackgroundOutcomeJudgment,
+} from './background-outcome.ts'
 export type { SessionIntakeLimits } from './intake.ts'
+export {
+  INTAKE_BUDGET_REQUIRED,
+  INTAKE_GUARD_OWNER,
+  admitDerived,
+  admitDerivedOf,
+  admitSource,
+  createInputSourceRegistry,
+  inputSourceName,
+  commandInput,
+  prepareEntriesTerms,
+  prepareIntakeTerms,
+  budgetTermsOf,
+  commitWithinBudget,
+  withIntakeTerms,
+  intakeTermsOf,
+  parseInputSourceName,
+  type AdmittedSource,
+  type DerivedAdmission,
+  type DerivedInputKind,
+  type InputSourceDeclaration,
+  type InputSourceLookup,
+  type InputSourceName,
+  type InputSourceRegistry,
+  type InputSources,
+  type IntakeBasis,
+  type IntakeSubject,
+  type SourceTerms,
+  type IntakeTerms,
+  type SessionDerivedInputs,
+  type SessionIntakeBudget,
+  type BudgetTerms,
+  type SourceAdmission,
+  type SourceRefusal,
+} from './input-sources.ts'
 export type {
   TodoItem,
   VisibleTodoItem,
@@ -292,3 +410,59 @@ export type {
 } from './permission-values.ts'
 
 export { rebuildSessionPermissions, type SessionPermissionHistory } from './permission-history.ts'
+export { backgroundCallView, shortCallId } from './background-calls.ts'
+export type {
+  BackgroundCallLabel,
+  BackgroundCallResolution,
+  BackgroundCallRecord,
+  BackgroundCallSource,
+  BackgroundCallState,
+  BackgroundCallStatus,
+  BackgroundCallStop,
+  BackgroundCallView,
+  StopInitiator,
+  StopView,
+} from './background-calls.ts'
+export { compactionContextForView, isAcceptedInputRecord } from './model-view.ts'
+export {
+  forkPointAfterRows,
+  forkPointText,
+  judgeForkPoint,
+  ownPositionAfter,
+  parseForkPoint,
+  type ForkFacts,
+  type ForkPoint,
+  type ForkPointJudgment,
+  type SessionFork,
+} from './fork.ts'
+export {
+  sourceRequestIdentities,
+  type SourceRequest,
+  type SourceRequestIdentities,
+} from './source-requests.ts'
+export { INPUT_FATE_KINDS, foldInputFate, type InputFate } from './input-fate.ts'
+export {
+  PENDING_PAGE_LIMIT,
+  PENDING_PREVIEW_CHARS,
+  inputFateOfRows,
+  pendingAcceptances,
+  pendingInputOf,
+  pendingPageOf,
+  previewOf,
+  waitingCalls,
+  type PendingInput,
+  type PendingPage,
+  type WaitingCall,
+} from './intake-reads.ts'
+export {
+  createBeforeIntakeRegistry,
+  judgeIntakeBlocks,
+  originalContent,
+  screenInput,
+  type BeforeIntakeRegistry,
+  type IntakeBlockRefusal,
+  type IntakeProcessor,
+  type IntakeScreening,
+  type IntakeVerdict,
+  type Screened,
+} from './before-intake.ts'

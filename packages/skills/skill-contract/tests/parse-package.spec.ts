@@ -15,26 +15,21 @@ const EXPECTED: Readonly<Record<string, InspectRejectionCode | 'accepted'>> = {
   'missing-manifest': 'manifest-missing',
   'name-mismatch': 'name-mismatch',
   'format-unsupported': 'declaration-format-unsupported',
-  'script-outside': 'outside-package',
   'tool-ref-invalid': 'tool-ref-invalid',
-  'setting-category-unknown': 'setting-category-unknown',
   'malformed-duplicate-key': 'malformed',
   'mismatch-before-format': 'name-mismatch',
   'tool-before-setting': 'tool-ref-invalid',
   'format-stops-declaration': 'declaration-format-unsupported',
-  'outside-before-malformed': 'outside-package',
 }
 
 describe('fixture packages', () => {
-  it('has an expectation for every fixture and a fixture for every rejection code', () => {
+  it('has an expectation for every fixture and a fixture for every parse rejection code', () => {
     expect(fixtureNames().sort()).toEqual(Object.keys(EXPECTED).sort())
     const codes: readonly InspectRejectionCode[] = [
       'manifest-missing',
       'name-mismatch',
       'declaration-format-unsupported',
-      'outside-package',
       'tool-ref-invalid',
-      'setting-category-unknown',
       'malformed',
     ]
     for (const code of codes) expect(Object.values(EXPECTED)).toContain(code)
@@ -79,39 +74,20 @@ describe('a legal package', () => {
       allowedTools: 'Bash(git:*) Read',
       extra: { 'x-review': { level: 2, tags: ['alpha', 'beta'] } },
     })
-    expect(result.ok.declaration.dependencies).toEqual([{ category: 'tool', name: 'read_file' }])
-    expect(result.ok.declaration.settings).toEqual([
-      { name: 'api-endpoint', category: 'binding' },
-      { name: 'tone', category: 'preference' },
-    ])
-    expect(result.ok.declaration.scripts).toEqual([
-      {
-        entry: 'scripts/run.sh',
-        runKind: 'shell',
-        facilities: ['network'],
-        parameters: {
-          kind: 'object',
-          entries: [
-            { key: 'type', value: { kind: 'string', value: 'object' } },
-            {
-              key: 'required',
-              value: { kind: 'array', items: [{ kind: 'string', value: 'target' }] },
-            },
-          ],
-        },
-      },
-    ])
+    expect(result.ok.declaration).toEqual({
+      dependencies: [{ category: 'tool', name: 'read_file' }],
+    })
     expect(Object.isFrozen(result.ok)).toBe(true)
     expect(Object.isFrozen(result.ok.manifest)).toBe(true)
   })
 
   it('gives empty declarations when .omne/skill.json is absent or omits a part', () => {
     expect(parse('demo', { 'SKILL.md': demo() })).toMatchObject({
-      ok: { declaration: { dependencies: [], scripts: [], settings: [] } },
+      ok: { declaration: { dependencies: [] } },
     })
     expect(
       parse('demo', { 'SKILL.md': demo(), '.omne/skill.json': '{"formatVersion":1}' }),
-    ).toMatchObject({ ok: { declaration: { dependencies: [], scripts: [], settings: [] } } })
+    ).toMatchObject({ ok: { declaration: { dependencies: [] } } })
   })
 
   it('accepts CRLF line ends and gives the same manifest as LF', () => {
@@ -128,26 +104,6 @@ describe('a legal package', () => {
     expect(codeOf(parse('demo', { 'SKILL.md': '---\nname: demo\ndescription: d\n---' }))).toBe(
       'accepted',
     )
-  })
-
-  it('accepts every setting category and every legal script field', () => {
-    const settings = ['preference', 'binding', 'placement-identity', 'governance'].map(
-      (category, index) => ({ name: `s${index}`, category }),
-    )
-    const result = parse('demo', {
-      'SKILL.md': demo(),
-      'run.sh': 'echo',
-      '.omne/skill.json': declaration({
-        formatVersion: 1,
-        settings,
-        scripts: [{ entry: './run.sh', runKind: `a${'-'.repeat(31)}`, facilities: [] }],
-      }),
-    })
-    expect(result).toMatchObject({
-      ok: {
-        declaration: { settings, scripts: [{ entry: 'run.sh', runKind: `a${'-'.repeat(31)}` }] },
-      },
-    })
   })
 
   it('accepts a name that equals the expected name', () => {
@@ -176,26 +132,12 @@ describe('rejection order', () => {
     )
   })
 
-  it('gives declaration-format-unsupported before outside-package and malformed', () => {
+  it('gives declaration-format-unsupported before malformed', () => {
     const files = {
       'SKILL.md': manifestText(['name: demo']),
-      '.omne/skill.json': declaration({
-        formatVersion: 2,
-        scripts: [{ entry: '../x', runKind: 'shell', facilities: [] }],
-      }),
+      '.omne/skill.json': declaration({ formatVersion: 2, dependencies: {} }),
     }
     expect(codeOf(parse('demo', files))).toBe('declaration-format-unsupported')
-  })
-
-  it('gives setting-category-unknown before a malformed manifest', () => {
-    const files = {
-      'SKILL.md': manifestText(['name: demo']),
-      '.omne/skill.json': declaration({
-        formatVersion: 1,
-        settings: [{ name: 'x', category: 'secret' }],
-      }),
-    }
-    expect(codeOf(parse('demo', files))).toBe('setting-category-unknown')
   })
 
   it('gives tool-ref-invalid before a malformed declaration part', () => {
@@ -204,7 +146,7 @@ describe('rejection order', () => {
       '.omne/skill.json': declaration({
         formatVersion: 1,
         dependencies: [{ category: 'mcp', name: 'files' }],
-        scripts: [{ entry: 'missing.sh', runKind: 'shell', facilities: [] }],
+        extra: true,
       }),
     }
     expect(codeOf(parse('demo', files))).toBe('tool-ref-invalid')

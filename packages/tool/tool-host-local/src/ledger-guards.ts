@@ -4,12 +4,18 @@ import {
   type LedgerCommit,
   type LedgerCommitInput,
   type ToolAccessGuard,
+  type ToolAccountsGuard,
   type ToolGrantVerifier,
   type ToolLedgerBudgets,
   type ToolLedgerGuards,
 } from '@omne-harness/tool'
 import type { FixedToolRequest } from '@omne-harness/tool-contract'
-import type { CallAccess, ToolBindings } from '@omne-harness/tool-contract/provider'
+import type {
+  CallAccess,
+  ToolBindings,
+  ToolPermitConsumption,
+  ToolStartRelease,
+} from '@omne-harness/tool-contract/provider'
 import {
   defaultResultPolicy,
   type ToolMessageContentBlock,
@@ -31,7 +37,14 @@ export const localArgumentLimits: ToolLedgerBudgets['arguments'] = Object.freeze
 export type StartCondition = Readonly<Record<string, unknown>>
 
 export type RequestAccessVerdict =
-  | Readonly<{ kind: 'allowed'; condition: StartCondition | null }>
+  | Readonly<{
+      kind: 'allowed'
+      condition: StartCondition | null
+      /** The once authorizations this start consumes; recorded with its acceptance. */
+      authorizations?: readonly ToolPermitConsumption[]
+      /** What the start was released on; recorded with its acceptance. */
+      release?: ToolStartRelease
+    }>
   | Exclude<AccessVerdict, { kind: 'allowed' }>
 
 export interface ToolRequestAccess<P> {
@@ -50,6 +63,8 @@ export type ToolHostAccess<P> = Readonly<{
   guard: ToolAccessGuard<P>
   start: StartCoordinatorAccess<P>
   request?: ToolRequestAccess<P>
+  /** Who may list the usage of a tenant; without it the list answers unavailable. */
+  accounts?: ToolAccountsGuard<P>
 }>
 
 export type LocalToolLedgerGuardsInput<P, E = unknown> = Readonly<{

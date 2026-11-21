@@ -14,7 +14,7 @@ import type { ProtocolDriver } from '../support/matrix/protocol-driver.ts'
 const ESSAY = 'D'.repeat(1500)
 
 const CAUSE =
-  /connect-failed|connect retry|fault=upstream|upstream-un|no-reply|stream ended|interrupted/i
+  /connect-failed|connect retry|fault=upstream|upstream-un|no-reply|stream ended|stream-lost|interrupted/i
 
 async function causeInHistory(
   tools: CellTools,
@@ -50,16 +50,20 @@ function causeInServerLog(tools: CellTools, mark: number): void {
 const OUTAGE_MS = 120_000
 const QUIET_MS = 5_000
 
-function retryInServerLog(tools: CellTools, mark: number): void {
-  const lines = tools.env
-    .records()
-    .slice(mark)
-    .map(record => JSON.stringify(record))
-    .filter(line => line.includes('agent run retries the model'))
+async function retryInDiagnostics(
+  tools: CellTools,
+  client: ProtocolDriver,
+  session: string,
+): Promise<void> {
+  const calls = await client.modelDispatches(session)
+  const retried = calls.filter(
+    dispatches =>
+      dispatches.length > 1 && CAUSE.test(JSON.stringify(dispatches[0]?.outcome ?? null)),
+  )
   tools.check(
-    'the retry and its cause are in the server log',
-    lines.length > 0,
-    lines.slice(0, 1).join('').slice(0, 300),
+    'the retry and its cause are in the diagnostics of the call',
+    retried.length > 0,
+    JSON.stringify(calls).slice(0, 300),
   )
 }
 
@@ -97,7 +101,6 @@ export const dCells: readonly Cell[] = [
       const by = await bystander(tools, client)
 
       const brief = await client.createSession()
-      const briefMark = tools.env.mark()
       tools.stub.push({ kind: 'refuse' }, { kind: 'refuse' }, { kind: 'refuse' })
       tools.stub.push({ kind: 'reply', text: 'd1-after-retry' })
       tools.check('input accepted', (await client.send(brief, 'd1 hello')) === 'succeeded')
@@ -117,7 +120,7 @@ export const dCells: readonly Cell[] = [
         recovered?.assistants.includes('d1-after-retry') === true && recovered.users.length === 1,
         `${JSON.stringify(recovered?.assistants)}, ${String(recovered?.users.length)} user messages`,
       )
-      retryInServerLog(tools, briefMark)
+      await retryInDiagnostics(tools, client, brief)
 
       const long = await client.createSession()
       const longMark = tools.env.mark()
@@ -131,7 +134,7 @@ export const dCells: readonly Cell[] = [
       )
       tools.stub.clear()
       tools.check(
-        'a long outage: the run ends as failed once the budget is used up',
+        'a long outage: the run ends as failed once the dispatches of the call are used up',
         failed?.terminals.length === 1 && failed.terminals[0] === 'failed',
         JSON.stringify(failed?.terminals),
       )
@@ -139,6 +142,12 @@ export const dCells: readonly Cell[] = [
         'a long outage: no reply is invented',
         failed?.assistants.length === 0,
         JSON.stringify(failed?.assistants),
+      )
+      const longCalls = await client.modelDispatches(long)
+      tools.check(
+        'a long outage: one call, and it stops at the dispatches the request allows',
+        longCalls.length === 1 && longCalls[0]?.length === 2,
+        JSON.stringify(longCalls.map(dispatches => dispatches.length)),
       )
       await causeInHistory(tools, client, long)
       causeInServerLog(tools, longMark)
@@ -156,7 +165,6 @@ export const dCells: readonly Cell[] = [
       const session = await client.createSession()
       const mark = tools.env.mark()
       tools.stub.push({ kind: 'cut', text: ESSAY, afterChars: 135, chunkGapMs: 20 })
-      tools.stub.push({ kind: 'reply', text: 'd2-whole-reply' })
       tools.check(
         'input accepted',
         (await client.send(session, 'd2 write an essay')) === 'succeeded',
@@ -168,21 +176,23 @@ export const dCells: readonly Cell[] = [
         TURN_MS,
       )
       tools.check(
-        'the run completes by itself after the cut',
-        log?.terminals.length === 1 && log.terminals[0] === 'completed',
+        'the run ends as failed after the cut: content was seen, so the call is not sent again',
+        log?.terminals.length === 1 && log.terminals[0] === 'failed',
         JSON.stringify(log?.terminals),
       )
       tools.check(
-        'the reply is the whole second answer and the half reply is dropped',
-        log?.assistants.length === 1 && log.assistants[0] === 'd2-whole-reply',
+        'the half reply is dropped and no reply is invented',
+        log?.assistants.length === 0,
         JSON.stringify(log?.assistants.map(text => text.slice(0, 40))),
       )
+      const calls = await client.modelDispatches(session)
       tools.check(
-        'the reply arrives without a new input',
-        log?.users.length === 1,
-        `${String(log?.users.length)} user messages`,
+        'one call with one dispatch',
+        calls.length === 1 && calls[0]?.length === 1,
+        JSON.stringify(calls.map(dispatches => dispatches.length)),
       )
-      retryInServerLog(tools, mark)
+      await causeInHistory(tools, client, session)
+      causeInServerLog(tools, mark)
       bystanderUnchanged(tools, by)
       await retryWorks(tools, client, session, 1)
     },

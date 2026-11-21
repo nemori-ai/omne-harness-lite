@@ -6,6 +6,7 @@ export type {
   SealedToolBody,
 } from './body-writer.ts'
 export type { ToolBodyReader } from './body-reads.ts'
+export { OUTPUT_BODY_KEY } from './body-reads.ts'
 export {
   decodeToolInstant,
   manifestOf,
@@ -21,6 +22,7 @@ export {
   type ToolBodyPermitVerdict,
   type ToolBodyPutAnswer,
   type ToolBodyRange,
+  type ToolBodyOpenReadAnswer,
   type ToolBodyReadAnswer,
   type ToolBodyRef,
   type ToolBodySealAnswer,
@@ -85,7 +87,7 @@ export { judgeFixedToolRequest, judgeToolInvokeRequest } from './judge-request.t
 export { judgePreparationFact } from './judge-preparation.ts'
 export { judgeConsumerRef, judgeHandoff } from './judge-release.ts'
 export { judgeToolState } from './judge-state.ts'
-export { evaluateToolAvailability, presentTool } from './catalog.ts'
+export { commandAddedModalities, evaluateToolAvailability, presentTool } from './catalog.ts'
 export {
   TOOL_REFERENCE_MAX_LENGTH,
   decodeToolInvocationRef,
@@ -118,6 +120,8 @@ export type {
   ToolEmitReceipt,
   ToolExecutionContext,
   ToolExecutionScope,
+  ToolMediaProduct,
+  ToolMediaSink,
   ToolPrimitiveFailure,
   ToolProcessEmitter,
   ToolProcessReceiver,
@@ -162,6 +166,7 @@ export type {
   ToolExecutorBinding,
   ToolInstanceHost,
   ToolInstanceIdentities,
+  ToolMediaStore,
   ToolInvocationSourceIssuer,
   ToolInvocationSourceOutcome,
   ToolLiveExecution,
@@ -229,10 +234,16 @@ export type {
   ToolPermitRef,
   ToolStartAcceptance,
   ToolStartFence,
+  ToolStartRelease,
+  ToolStartReleaseReading,
+  ToolStartReleases,
 } from './records.ts'
 export type {
-  AccountScope,
   ToolAccounts,
+  ToolUsageFact,
+  ToolUsageOutcome,
+  ToolUsagePage,
+  ToolUsageQuery,
   ToolContentReader,
   ToolOffloader,
   ToolReads,
@@ -263,7 +274,11 @@ export {
   decodeCommandCall,
   describeCommandArgumentsRejection,
   encodeCommandCall,
+  INTENT_MAX_BYTES,
+  intentFault,
+  needsIntent,
 } from './command-call.ts'
+export { PREVIEW_MAX_CHARS, actionPreview, toolCallLabel } from './call-label.ts'
 export { attachToolsCapability } from './tools-capability.ts'
 export type {
   ToolForwardParent,
@@ -273,3 +288,4 @@ export type {
   ToolForwardRuntime,
 } from './forwarding.ts'
 export { returnGuide } from './return-description.ts'
+export { DEFAULT_RELEASE_DETAIL_POLICY, judgeReleaseDescription } from './release-detail.ts'

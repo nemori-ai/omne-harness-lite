@@ -1,11 +1,11 @@
 import { expect, it } from 'vitest'
 import {
-  createCategoryRegistry,
+  createCategoryPoint,
   readBodyText,
   type JsonLimits,
   type JsonValue,
 } from '@omne-harness/assets'
-import { skillBodyContract } from '@omne-harness/skill-contract'
+import { skillBodyContract, skillCategoryDisplay } from '@omne-harness/skill-contract'
 
 const limits: JsonLimits = {
   maxBytes: 1_000,
@@ -25,8 +25,8 @@ function document(text: string): JsonValue {
 it('reads a skill body without running a script and records required tool identities', () => {
   const body = document('{"name":"review","tools":[{"category":"tool","name":"read_file"}]}')
   const port = skillBodyContract()
-  const registry = createCategoryRegistry()
-  registry.register(port)
+  const registry = createCategoryPoint()
+  registry.contribute({ contract: port, display: skillCategoryDisplay })
   expect(port.judge(body, { capabilityName: 'review' })).toEqual({ ok: true })
   expect(port.references(body)).toEqual([{ category: 'tool', name: 'read_file' }])
   expect(registry.lookup('skill')?.category).toBe('skill')

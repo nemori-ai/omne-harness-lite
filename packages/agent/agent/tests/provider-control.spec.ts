@@ -478,6 +478,29 @@ describe('tool call control', () => {
     expect(assembly.controls.tools.commands.control.calls).toHaveLength(1)
   })
 
+  it('asks Tool to move a named call to the background, or else reject, for a background control', async () => {
+    const assembly = await toolAssembly({ toolConcurrency: 2 })
+    const { handle, first } = await twoCalls(assembly)
+    assembly.controls.tools.commands.control.always(() =>
+      acceptedStop(toolOperation(first, 'move-a'), 'move-a'),
+    )
+    const { call } = ok(resolveToolInvocationRef(first.reference, alice.tenant))
+    ok(
+      await handle.control.control({
+        ...alice,
+        execution: handle.execution,
+        operation: operation('move-a'),
+        command: { kind: 'background-tool', call, reason: evidence('move-a') },
+      }),
+    )
+    expect(assembly.controls.tools.commands.control.calls).toEqual([
+      expect.objectContaining({
+        reference: first.reference,
+        intent: { kind: 'background', otherwise: 'reject' },
+      }),
+    ])
+  })
+
   it('queries a Tool control with an unknown answer and never sends it again', async () => {
     const assembly = await toolAssembly({ toolConcurrency: 2 })
     const { handle, first } = await twoCalls(assembly)
@@ -553,7 +576,7 @@ describe('tool call control', () => {
     expect(assembly.controls.tools.queries.queryOperation.calls).toHaveLength(0)
   })
 
-  it('cancels with a per-call interrupt for each foreground Tool call and keeps late results', async () => {
+  it('cancels by withdrawing each foreground Tool call and keeps late results', async () => {
     const assembly = await toolAssembly({ toolConcurrency: 2 })
     const { handle, first, second } = await twoCalls(assembly)
     assembly.controls.tools.commands.control.always(input =>
@@ -574,6 +597,8 @@ describe('tool call control', () => {
     expect(
       assembly.controls.tools.commands.control.calls.map(item => item.reference).sort(),
     ).toEqual([first.reference, second.reference].sort())
+    for (const sent of assembly.controls.tools.commands.control.calls)
+      expect(sent.intent).toEqual({ kind: 'withdraw', reach: 'foreground-and-unadmitted' })
     const receiver = toolReceiver(assembly)
     for (const [pending, name] of [
       [first, 'a'],
@@ -597,7 +622,10 @@ describe('tool call control', () => {
     expect(assembly.controls.tools.invoke.calls).toHaveLength(2)
     expect(ended.effects.some(effect => effect.pending.action.startsWith('step-2/'))).toBe(false)
     const accounts = (ended.entries ?? []).flatMap(entry =>
-      entry.kind === 'received' && entry.delivery.producer === 'tool'
+      entry.kind === 'received' &&
+      entry.delivery.producer === 'tool' &&
+      entry.delivery.key.kind !== 'placeholder' &&
+      'account' in entry.delivery
         ? [entry.delivery.account]
         : [],
     )
@@ -698,7 +726,10 @@ describe('tool call control', () => {
     expect(cancel).toBeNull()
     await eventually(async () => assembly.controls.tools.commands.control.calls.length === 1)
     expect(assembly.controls.tools.commands.control.calls).toEqual([
-      expect.objectContaining({ reference: held.reference, intent: { kind: 'stop' } }),
+      expect.objectContaining({
+        reference: held.reference,
+        intent: { kind: 'withdraw', reach: 'foreground-and-unadmitted' },
+      }),
     ])
     ok(
       await pushToolResult(

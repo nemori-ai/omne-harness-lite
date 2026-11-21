@@ -152,15 +152,6 @@ const CASES: readonly Case[] = [
   ],
   [
     'I1',
-    'modelContext.read',
-    'I1',
-    d => ({
-      ...d,
-      modelContext: { read: failing(d.modelContext.read, fail(PORT_FAILURE), fromNth(1)) },
-    }),
-  ],
-  [
-    'I1',
     'requests.prepare',
     'I1',
     d => ({

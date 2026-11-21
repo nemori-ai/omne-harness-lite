@@ -11,6 +11,7 @@ import { createLocalToolHostPlugin } from '@omne-harness/tool-host-local/cordis'
 import { registrantOf, releaseOf } from '../../entry/tool-release.ts'
 import { z } from 'zod'
 import { defineRow } from '../../row.ts'
+import { ToolOperatorSettingsImpl, toolOperatorSettingsKey } from './operator-settings.ts'
 import { releaseAuthorInput, type ReleaseAuthorOptions } from './release-author.ts'
 
 const positive = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER)
@@ -24,13 +25,20 @@ export const toolHostConfig = z
             resultMaxBytes: positive,
             executable: z.string().min(1),
             argsPrefix: z.array(z.string()),
-            cwd: z.string().min(1),
             env: z.record(z.string(), z.string()),
           })
           .optional(),
         TodoItems: z.strictObject({ resultMaxBytes: positive }).optional(),
+        BkgToolCalls: z.strictObject({ resultMaxBytes: positive }).optional(),
         Ask: z.strictObject({ resultMaxBytes: positive }).optional(),
         Web: z.strictObject({ resultMaxBytes: positive, maxSearchResults: positive }).optional(),
+        Skills: z.strictObject({ resultMaxBytes: positive }).optional(),
+        Calendar: z.strictObject({ resultMaxBytes: positive }).optional(),
+        Schedules: z.strictObject({ resultMaxBytes: positive }).optional(),
+        Notifications: z.strictObject({ resultMaxBytes: positive }).optional(),
+        Sessions: z.strictObject({ resultMaxBytes: positive }).optional(),
+        Agents: z.strictObject({ resultMaxBytes: positive }).optional(),
+        SwitchWorkspace: z.strictObject({ resultMaxBytes: positive }).optional(),
         Tools: z
           .strictObject({
             resultMaxBytes: positive,
@@ -38,10 +46,29 @@ export const toolHostConfig = z
           })
           .optional(),
         Files: z
-          .strictObject({ resultMaxBytes: positive, cwd: z.string().min(1).optional() })
+          .strictObject({
+            resultMaxBytes: positive,
+            openMaxBytes: positive,
+            imageMaxWidth: positive,
+            imageMaxHeight: positive,
+            imageMaxDecodedBytes: positive,
+            imageConcurrency: positive,
+          })
+          .optional(),
+        Screen: z
+          .strictObject({
+            resultMaxBytes: positive,
+            captureMaxLongSide: positive,
+            imageMaxWidth: positive,
+            imageMaxHeight: positive,
+            imageMaxDecodedBytes: positive,
+            imageConcurrency: positive,
+          })
           .optional(),
       })
       .optional(),
+    /** The operator's values for the settings a release tool declares, by tool name and item id. */
+    settings: z.record(z.string(), z.record(z.string(), z.json())).optional(),
   })
   .default({})
 
@@ -108,7 +135,8 @@ export function createToolHostPlugin(
     inject: [toolBindingsKey, toolContributionAuthorityKey, toolResidencyReaderKey],
     Config: toolHostConfig,
     apply(ctx: Context, config: unknown) {
-      const { construction } = toolHostConfig.parse(config)
+      const { construction, settings } = toolHostConfig.parse(config)
+      new ToolOperatorSettingsImpl(ctx, settings ?? {})
       const Host = createLocalToolHostPlugin<unknown, unknown, ToolMessageContentBlock>(
         releaseAuthorInput(ctx, construction ?? {}, options),
       )
@@ -123,7 +151,7 @@ export const toolHostRow = defineRow({
   row: 'tool-host',
   implementation: 'real',
   manifest: {
-    provides: [toolGenerationsKey],
+    provides: [toolGenerationsKey, toolOperatorSettingsKey],
     injects: [toolBindingsKey, toolContributionAuthorityKey, toolResidencyReaderKey],
     sameProviderGroup: null,
   },

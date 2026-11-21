@@ -15,6 +15,7 @@ import {
   creation,
   ordinaryInput,
   operationId,
+  testingIntakeGuards,
 } from '@omne-harness/session-contract/testing'
 import type { JsonValue } from '@omne-harness/json-text'
 import { emptyHistory } from '../../src/testing/empty-history.ts'
@@ -42,7 +43,9 @@ export async function originalScope(
     ),
   )
   const guards = ok(await initialization.prepare(command)),
-    created = decide(null, command, guards, null, { compaction: null })
+    created = decide(null, command, [...guards, ...testingIntakeGuards(command)], null, {
+      compaction: null,
+    })
   if (created.kind !== 'entries') throw new Error(JSON.stringify(created))
   const first: CommittedBatch = {
     revision: '1' as CommittedBatch['revision'],
@@ -73,7 +76,6 @@ export async function originalScope(
     {
       history: material.reads,
       compaction: null,
-      firstInput: { input: initial.input, origin: initial.origin },
     },
   )
   if (started.kind !== 'entries') throw new Error(JSON.stringify(started))

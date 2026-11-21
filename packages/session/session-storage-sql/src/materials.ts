@@ -1,8 +1,14 @@
 import {
+  AUTHORIZATION_CONTEXT_MIGRATION,
+  AUTHORIZATION_CONTEXT_TABLES,
   PERMISSION_CURRENT_MIGRATION,
   PERMISSION_CURRENT_TABLES,
 } from './worker/permission-current-schema.ts'
-import { SESSION_PERMISSION_CURRENT_FACT, SESSION_PERMISSION_GUARD } from './permission-current.ts'
+import {
+  SESSION_AUTHORIZATION_GUARD,
+  SESSION_PERMISSION_CURRENT_FACT,
+  SESSION_PERMISSION_GUARD,
+} from './permission-current.ts'
 import {
   SESSION_ORDINARY_BASIS,
   SESSION_COMMIT_BASIS,
@@ -29,6 +35,8 @@ import {
   FACT_BLOB_TABLES,
   FACT_BODY_MIGRATION,
   FACT_BODY_TABLES,
+  ITEM_MIGRATION,
+  ITEM_TABLES,
   EXECUTION_RECORD_INDEX_TABLES,
   EXECUTION_RECORD_MIGRATION,
   EXECUTION_RECORD_TABLES,
@@ -51,10 +59,20 @@ import {
   ATTEMPT_GRANT_TABLES,
   SCOPE_INDEX_MIGRATION,
   SCOPE_INDEX_TABLES,
+  SESSION_LIST_HELD,
   SESSION_LIST_MIGRATION,
   SESSION_LIST_SCAN_ROWS,
   SESSION_LIST_TABLES,
+  SESSION_ARCHIVE_MIGRATION,
+  SESSION_ARCHIVE_TABLES,
+  SESSION_STANDING_MIGRATION,
 } from './worker/schema.ts'
+import {
+  COMPACTION_INDEX_MIGRATION,
+  COMPACTION_INDEX_TABLES,
+} from './worker/compaction-index-migration.ts'
+import { CALL_LEFT_MIGRATION, CALL_LEFT_TABLES } from './worker/call-left.ts'
+import { FORK_MIGRATION, FORK_TABLES } from './worker/fork.ts'
 
 const extension = import.meta.url.endsWith('.ts') ? '.ts' : '.js'
 
@@ -91,6 +109,14 @@ const sessionListMigrationRef = Object.freeze({
   owner: SESSION_LIST_MIGRATION.owner,
   id: SESSION_LIST_MIGRATION.id,
 })
+const sessionArchiveMigrationRef = Object.freeze({
+  owner: SESSION_ARCHIVE_MIGRATION.owner,
+  id: SESSION_ARCHIVE_MIGRATION.id,
+})
+const sessionStandingMigrationRef = Object.freeze({
+  owner: SESSION_STANDING_MIGRATION.owner,
+  id: SESSION_STANDING_MIGRATION.id,
+})
 const recordMigrationRef = Object.freeze({
   owner: EXECUTION_RECORD_MIGRATION.owner,
   id: EXECUTION_RECORD_MIGRATION.id,
@@ -115,6 +141,7 @@ const factBlobMigrationRef = Object.freeze({
   owner: FACT_BLOB_MIGRATION.owner,
   id: FACT_BLOB_MIGRATION.id,
 })
+const itemMigrationRef = Object.freeze({ owner: ITEM_MIGRATION.owner, id: ITEM_MIGRATION.id })
 const indexMigrations = [
   migrationRef,
   attemptGrantMigrationRef,
@@ -123,6 +150,7 @@ const indexMigrations = [
   factBlobMigrationRef,
 ]
 const factMigrations = [migrationRef, recordMigrationRef, factBlobMigrationRef]
+const itemMigrations = [...factMigrations, itemMigrationRef]
 
 export type SessionStorageMaterialsOptions = Readonly<{
   readOutputLimitBytes: number
@@ -149,6 +177,27 @@ const WORK_ROWS_READ = 4000
 
 export const HANDLERS: readonly Handler[] = [
   {
+    handler: 'session.compaction-input-check',
+    file: 'check-compaction-input',
+    tables: ['sl_journal', 'sl_model_view', 'sl_blob', ...COMPACTION_INDEX_TABLES, ...FORK_TABLES],
+    migrations: [...factMigrations, COMPACTION_INDEX_MIGRATION, FORK_MIGRATION],
+    maxRowsRead: 300_010,
+  },
+  {
+    handler: 'session.compaction-context',
+    file: 'read-compaction-context',
+    tables: ['sl_journal', 'sl_model_view', 'sl_blob', ...COMPACTION_INDEX_TABLES, ...FORK_TABLES],
+    migrations: [...factMigrations, COMPACTION_INDEX_MIGRATION, FORK_MIGRATION],
+    maxRowsRead: 200_010,
+  },
+  {
+    handler: 'session.entry-message',
+    file: 'read-entry-message',
+    tables: ['sl_journal', 'sl_model_view', 'sl_entry', 'sl_blob', ...FORK_TABLES],
+    migrations: [...factMigrations, COMPACTION_INDEX_MIGRATION, FORK_MIGRATION],
+    maxRowsRead: 16,
+  },
+  {
     handler: 'session.permission-mode',
     file: 'read-permission-mode',
     tables: ['sl_permission_head', 'sl_journal', 'sl_entry'],
@@ -158,9 +207,10 @@ export const HANDLERS: readonly Handler[] = [
   {
     handler: 'session.permission-current',
     file: 'read-permission-current',
-    tables: PERMISSION_CURRENT_TABLES,
-    migrations: [PERMISSION_CURRENT_MIGRATION],
-    maxRowsRead: 2,
+    tables: [...PERMISSION_CURRENT_TABLES, ...AUTHORIZATION_CONTEXT_TABLES],
+    migrations: [PERMISSION_CURRENT_MIGRATION, AUTHORIZATION_CONTEXT_MIGRATION],
+    // The permission row and its assignment; the authorization revision and the two rows asked for.
+    maxRowsRead: 5,
   },
   {
     handler: 'session.work',
@@ -177,6 +227,13 @@ export const HANDLERS: readonly Handler[] = [
     maxRowsRead: WORK_ROWS_READ,
   },
   {
+    handler: 'session.current-scope',
+    file: 'read-current-scope',
+    tables: ['sl_journal', 'sl_state', ...STATE_ITEM_TABLES],
+    migrations: [stateItemMigrationRef],
+    maxRowsRead: 3,
+  },
+  {
     handler: 'session.work-version',
     file: 'read-work-version',
     tables: ['sl_journal', 'er_root'],
@@ -187,6 +244,12 @@ export const HANDLERS: readonly Handler[] = [
     file: 'read-work-index',
     tables: ['sl_journal', 'sl_entry', ...ATTEMPT_GRANT_TABLES, ...EXECUTION_RECORD_INDEX_TABLES],
     migrations: indexMigrations,
+  },
+  {
+    handler: 'session.calls-left',
+    file: 'read-calls-left',
+    tables: [...CALL_LEFT_TABLES],
+    migrations: [migrationRef, CALL_LEFT_MIGRATION],
   },
   {
     handler: 'session.work-reads',
@@ -209,21 +272,65 @@ export const HANDLERS: readonly Handler[] = [
   {
     handler: 'session.history',
     file: 'read-history',
-    tables: ['sl_journal', 'sl_entry', 'sl_annotation_idx'],
+    tables: ['sl_journal', 'sl_entry', 'sl_annotation_idx', 'sl_blob'],
+    migrations: factMigrations,
+  },
+  {
+    handler: 'session.fork-point',
+    file: 'read-fork-point',
+    tables: ['sl_journal', 'sl_model_view', 'sl_entry', ...FORK_TABLES],
+    migrations: [migrationRef, FORK_MIGRATION],
+    maxRowsRead: 128,
+  },
+  {
+    handler: 'session.history-inherited',
+    file: 'read-inherited-history',
+    tables: ['sl_journal', 'sl_model_view', 'sl_entry', 'sl_blob', ...FORK_TABLES],
+    migrations: [...factMigrations, FORK_MIGRATION],
   },
   {
     handler: 'session.model-view',
     file: 'read-model-view',
-    tables: ['sl_journal', 'sl_model_view'],
+    tables: ['sl_journal', 'sl_model_view', 'sl_blob', ...FORK_TABLES],
+    migrations: [...factMigrations, FORK_MIGRATION],
   },
   { handler: 'session.pending', file: 'read-pending', tables: ['sl_pending_idx'] },
+  {
+    handler: 'session.search-sessions',
+    file: 'read-search-sessions',
+    tables: ['sl_journal', 'sl_session_list'],
+    migrations: [...factMigrations, sessionListMigrationRef],
+    maxRowsRead: 40_010,
+  },
+  {
+    handler: 'session.search-stamp',
+    file: 'read-search-stamp',
+    tables: ['sl_journal', 'sl_session_list'],
+    migrations: [...factMigrations, sessionListMigrationRef],
+    maxRowsRead: 4,
+  },
+  {
+    handler: 'session.search-entries',
+    file: 'read-search-entries',
+    tables: ['sl_journal', 'sl_entry', 'sl_blob', 'sl_commit_time'],
+    migrations: [...factMigrations, sessionListMigrationRef],
+    maxRowsRead: 4000,
+  },
   {
     handler: 'session.list',
     file: 'read-session-list',
     tables: ['sl_session_list'],
-    migrations: [sessionListMigrationRef],
-    maxRowsRead: SESSION_LIST_SCAN_ROWS + 1,
+    migrations: [sessionStandingMigrationRef],
+    maxRowsRead: SESSION_LIST_SCAN_ROWS + 2,
   },
+  {
+    handler: 'session.list-archived',
+    file: 'read-archived-sessions',
+    tables: ['sl_session_list', 'sl_session_archive'],
+    migrations: [sessionArchiveMigrationRef, sessionStandingMigrationRef],
+    maxRowsRead: SESSION_LIST_SCAN_ROWS + 2,
+  },
+
   { handler: 'session.references', file: 'read-references', tables: ['sl_resident_idx'] },
   {
     handler: 'session.released-scopes',
@@ -285,6 +392,28 @@ export const HANDLERS: readonly Handler[] = [
     migrations: [factBlobMigrationRef],
   },
   {
+    handler: 'execution-record.blobs',
+    file: 'read-blobs',
+    tables: ['sl_blob'],
+    protocol: EXECUTION_RECORD_PROTOCOL,
+    migrations: [factBlobMigrationRef],
+    maxRowsRead: 20_000,
+  },
+  {
+    handler: 'execution-record.open-items',
+    file: 'read-execution-open-items',
+    tables: ['sl_journal', 'er_root', 'er_fact', 'er_execution', ...ITEM_TABLES],
+    protocol: EXECUTION_RECORD_PROTOCOL,
+    migrations: itemMigrations,
+  },
+  {
+    handler: 'execution-record.items',
+    file: 'read-execution-items',
+    tables: ['sl_journal', 'er_root', 'er_fact', 'er_execution', ...ITEM_TABLES],
+    protocol: EXECUTION_RECORD_PROTOCOL,
+    migrations: itemMigrations,
+  },
+  {
     handler: 'execution-record.preadmission',
     file: 'read-preadmission',
     tables: PREADMISSION_TABLES,
@@ -299,55 +428,56 @@ export type SessionStorageMaterials = Readonly<{
   readHandlers: readonly ReadHandlerDescriptor[]
 }>
 
+function migrationOf(
+  ref: Readonly<{ owner: string; id: string }>,
+  file: string,
+  requires: readonly Readonly<{ owner: string; id: string }>[],
+): MigrationDescriptor {
+  const found = module(file)
+  return { ...ref, moduleUrl: found.moduleUrl, checksum: found.digest, requires }
+}
+
+/** A guard reads in the commit's transaction and writes nothing. */
+function guardOf(
+  participant: string,
+  file: string,
+  readTables: readonly string[],
+  providesFacts: ParticipantDescriptor['providesFacts'],
+): ParticipantDescriptor {
+  const found = module(file)
+  return {
+    participant,
+    protocol: '1',
+    moduleUrl: found.moduleUrl,
+    codeDigest: found.digest,
+    ownedTables: [],
+    readTables,
+    requiresFacts: [],
+    providesFacts,
+    allowedFunctions: [],
+    grouping: 'singleton',
+  }
+}
+
 export function sessionStorageMaterials(
   options: SessionStorageMaterialsOptions,
 ): SessionStorageMaterials {
   const readOutputLimitBytes = requireReadOutputLimit(options)
-  const permissionMigration = module('permission-current-migration')
-  const permissionGuard = module('permission-current-guard')
-  const runLiveGuard = module('run-live-guard')
   const participant = module('participant')
   const ordinaryBasis = module('ordinary-basis')
   const record = module('execution-record')
-  const migration = module('migration')
-  const recordMigration = module('execution-record-migration')
-  const indexMigration = module('execution-index-migration')
-  const evidenceMigration = module('operation-evidence-migration')
-  const stateItemMigration = module('state-item-migration')
-  const attemptGrantMigration = module('attempt-grant-migration')
-  const scopeIndexMigration = module('scope-index-migration')
-  const sessionListMigration = module('session-list-migration')
-  const preadmissionMigration = module('preadmission-migration')
-  const admissionAttemptMigration = module('admission-attempt-migration')
-  const statePartMigration = module('state-part-migration')
-  const factBodyMigration = module('fact-body-migration')
-  const factBlobMigration = module('fact-blob-migration')
   return {
     participants: [
-      {
-        participant: SESSION_RUN_LIVE_GUARD,
-        protocol: '1',
-        moduleUrl: runLiveGuard.moduleUrl,
-        codeDigest: runLiveGuard.digest,
-        ownedTables: [],
-        readTables: ['sl_journal', 'sl_state', ...STATE_ITEM_TABLES],
-        requiresFacts: [],
-        providesFacts: [SESSION_RUN_LIVE_FACT],
-        allowedFunctions: [],
-        grouping: 'singleton',
-      },
-      {
-        participant: SESSION_PERMISSION_GUARD,
-        protocol: '1',
-        moduleUrl: permissionGuard.moduleUrl,
-        codeDigest: permissionGuard.digest,
-        ownedTables: [],
-        readTables: PERMISSION_CURRENT_TABLES,
-        requiresFacts: [],
-        providesFacts: [SESSION_PERMISSION_CURRENT_FACT],
-        allowedFunctions: [],
-        grouping: 'singleton',
-      },
+      guardOf(
+        SESSION_RUN_LIVE_GUARD,
+        'run-live-guard',
+        ['sl_journal', 'sl_state', ...STATE_ITEM_TABLES],
+        [SESSION_RUN_LIVE_FACT],
+      ),
+      guardOf(SESSION_PERMISSION_GUARD, 'permission-current-guard', PERMISSION_CURRENT_TABLES, [
+        SESSION_PERMISSION_CURRENT_FACT,
+      ]),
+      guardOf(SESSION_AUTHORIZATION_GUARD, 'authorization-guard', AUTHORIZATION_CONTEXT_TABLES, []),
       {
         participant: EXECUTION_RECORD_PARTICIPANT,
         protocol: EXECUTION_RECORD_PROTOCOL,
@@ -360,6 +490,7 @@ export function sessionStorageMaterials(
           ...STATE_PART_TABLES,
           ...FACT_BODY_TABLES,
           ...FACT_BLOB_TABLES,
+          ...ITEM_TABLES,
         ],
         readTables: [],
         requiresFacts: [],
@@ -374,15 +505,21 @@ export function sessionStorageMaterials(
         codeDigest: participant.digest,
         ownedTables: [
           ...SESSION_TABLES,
+          ...COMPACTION_INDEX_TABLES,
+          ...CALL_LEFT_TABLES,
+          ...FORK_TABLES,
           ...PERMISSION_CURRENT_TABLES,
+          ...AUTHORIZATION_CONTEXT_TABLES,
           ...EXECUTION_INDEX_TABLES,
           ...OPERATION_EVIDENCE_TABLES,
           ...STATE_ITEM_TABLES,
           ...ATTEMPT_GRANT_TABLES,
           ...SCOPE_INDEX_TABLES,
           ...SESSION_LIST_TABLES,
+          SESSION_LIST_HELD,
+          ...SESSION_ARCHIVE_TABLES,
         ],
-        readTables: EXECUTION_RECORD_INDEX_TABLES,
+        readTables: [...EXECUTION_RECORD_INDEX_TABLES, 'sl_blob'],
         requiresFacts: [SESSION_COMMIT_BASIS],
         providesFacts: [],
         allowedFunctions: [],
@@ -402,90 +539,41 @@ export function sessionStorageMaterials(
       },
     ],
     migrations: [
-      {
-        ...migrationRef,
-        moduleUrl: migration.moduleUrl,
-        checksum: migration.digest,
-        requires: [],
-      },
-      {
-        ...recordMigrationRef,
-        moduleUrl: recordMigration.moduleUrl,
-        checksum: recordMigration.digest,
-        requires: [],
-      },
-      {
-        ...indexMigrationRef,
-        moduleUrl: indexMigration.moduleUrl,
-        checksum: indexMigration.digest,
-        requires: [migrationRef],
-      },
-      {
-        ...evidenceMigrationRef,
-        moduleUrl: evidenceMigration.moduleUrl,
-        checksum: evidenceMigration.digest,
-        requires: [indexMigrationRef],
-      },
-      {
-        ...stateItemMigrationRef,
-        moduleUrl: stateItemMigration.moduleUrl,
-        checksum: stateItemMigration.digest,
-        requires: [evidenceMigrationRef],
-      },
-      {
-        ...attemptGrantMigrationRef,
-        moduleUrl: attemptGrantMigration.moduleUrl,
-        checksum: attemptGrantMigration.digest,
-        requires: [stateItemMigrationRef],
-      },
-      {
-        ...PERMISSION_CURRENT_MIGRATION,
-        moduleUrl: permissionMigration.moduleUrl,
-        checksum: permissionMigration.digest,
-        requires: [attemptGrantMigrationRef],
-      },
-      {
-        ...scopeIndexMigrationRef,
-        moduleUrl: scopeIndexMigration.moduleUrl,
-        checksum: scopeIndexMigration.digest,
-        requires: [migrationRef],
-      },
-      {
-        ...sessionListMigrationRef,
-        moduleUrl: sessionListMigration.moduleUrl,
-        checksum: sessionListMigration.digest,
-        requires: [stateItemMigrationRef],
-      },
-      {
-        ...preadmissionMigrationRef,
-        moduleUrl: preadmissionMigration.moduleUrl,
-        checksum: preadmissionMigration.digest,
-        requires: [recordMigrationRef],
-      },
-      {
-        ...admissionAttemptMigrationRef,
-        moduleUrl: admissionAttemptMigration.moduleUrl,
-        checksum: admissionAttemptMigration.digest,
-        requires: [recordMigrationRef],
-      },
-      {
-        ...statePartMigrationRef,
-        moduleUrl: statePartMigration.moduleUrl,
-        checksum: statePartMigration.digest,
-        requires: [recordMigrationRef],
-      },
-      {
-        ...factBodyMigrationRef,
-        moduleUrl: factBodyMigration.moduleUrl,
-        checksum: factBodyMigration.digest,
-        requires: [recordMigrationRef],
-      },
-      {
-        ...factBlobMigrationRef,
-        moduleUrl: factBlobMigration.moduleUrl,
-        checksum: factBlobMigration.digest,
-        requires: [recordMigrationRef, statePartMigrationRef, factBodyMigrationRef],
-      },
+      migrationOf(migrationRef, 'migration', []),
+      migrationOf(recordMigrationRef, 'execution-record-migration', []),
+      migrationOf(indexMigrationRef, 'execution-index-migration', [migrationRef]),
+      migrationOf(evidenceMigrationRef, 'operation-evidence-migration', [indexMigrationRef]),
+      migrationOf(stateItemMigrationRef, 'state-item-migration', [evidenceMigrationRef]),
+      migrationOf(attemptGrantMigrationRef, 'attempt-grant-migration', [stateItemMigrationRef]),
+      migrationOf(PERMISSION_CURRENT_MIGRATION, 'permission-current-migration', [
+        attemptGrantMigrationRef,
+      ]),
+      migrationOf(scopeIndexMigrationRef, 'scope-index-migration', [migrationRef]),
+      migrationOf(sessionListMigrationRef, 'session-list-migration', [stateItemMigrationRef]),
+      migrationOf(COMPACTION_INDEX_MIGRATION, 'compaction-index-migration', [migrationRef]),
+      migrationOf(sessionArchiveMigrationRef, 'session-archive-migration', [
+        sessionListMigrationRef,
+      ]),
+      migrationOf(AUTHORIZATION_CONTEXT_MIGRATION, 'authorization-context-migration', [
+        PERMISSION_CURRENT_MIGRATION,
+      ]),
+      migrationOf(CALL_LEFT_MIGRATION, 'call-left-migration', [migrationRef]),
+      migrationOf(FORK_MIGRATION, 'fork-migration', [COMPACTION_INDEX_MIGRATION]),
+      migrationOf(sessionStandingMigrationRef, 'session-standing-migration', [
+        sessionArchiveMigrationRef,
+      ]),
+      migrationOf(preadmissionMigrationRef, 'preadmission-migration', [recordMigrationRef]),
+      migrationOf(admissionAttemptMigrationRef, 'admission-attempt-migration', [
+        recordMigrationRef,
+      ]),
+      migrationOf(statePartMigrationRef, 'state-part-migration', [recordMigrationRef]),
+      migrationOf(factBodyMigrationRef, 'fact-body-migration', [recordMigrationRef]),
+      migrationOf(factBlobMigrationRef, 'fact-blob-migration', [
+        recordMigrationRef,
+        statePartMigrationRef,
+        factBodyMigrationRef,
+      ]),
+      migrationOf(itemMigrationRef, 'item-migration', [factBlobMigrationRef]),
     ],
     readHandlers: HANDLERS.map(item => {
       const file = module(item.file)

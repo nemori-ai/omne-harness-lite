@@ -20,7 +20,7 @@ import {
   thinkingBlock,
   type RequestParts,
 } from './support/openai.ts'
-import type { OpenAiRecord } from '@omne-harness/pi-ai-openai'
+import { OPENAI_REASONING_FORMAT, type OpenAiRecord } from '@omne-harness/pi-ai-openai'
 import { TOKENIZER } from './support/openai.ts'
 
 const tokens = (
@@ -137,6 +137,45 @@ const SOL = recordNamed('openai/gpt-5.6-sol')
 const ASTRA = recordNamed('openai/gpt-6-astra')
 const o200k = getEncoding('o200k_base')
 
+function memberJson(value: JsonValue, key: string): string {
+  const member =
+    value.kind === 'object' ? value.entries.find(entry => entry.key === key) : undefined
+  if (member === undefined) throw new Error(`no member ${key}`)
+  return writeJsonText(member.value)
+}
+
+// An encrypted reasoning state in the format of the interface of the record. On chat-completions it
+// is one encrypted detail; on Responses it is the output items of the reply, the reasoning item
+// first, then the shell of the message that holds the visible text when there is one.
+function carriedState(
+  record: OpenAiRecord,
+  withText: boolean,
+): Readonly<{ format: string; payload: string }> {
+  if (!('engine' in record))
+    return {
+      format: 'openai-responses-v1',
+      payload: JSON.stringify({
+        type: 'reasoning.encrypted',
+        format: 'openai-responses-v1',
+        data: 'fixture-only-ciphertext',
+      }),
+    }
+  const reasoning = {
+    type: 'reasoning',
+    item: {
+      type: 'reasoning',
+      id: 'rs_1',
+      summary: [],
+      encrypted_content: 'fixture-only-ciphertext',
+    },
+  }
+  const shell = { type: 'message', id: 'msg_1', parts: 1, phase: 'final_answer' }
+  return {
+    format: OPENAI_REASONING_FORMAT,
+    payload: JSON.stringify(withText ? [reasoning, shell] : [reasoning]),
+  }
+}
+
 describe('measure', () => {
   it('estimates the visible projection with the o200k proxy and the configured margin', async () => {
     const { measured, tokenInput } = await planAndMeasure(SOL, {
@@ -183,12 +222,8 @@ describe('measure', () => {
     'openai/gpt-5.6-luna-pro',
   ])('%s has no estimate for carried encrypted reasoning and never tokenizes it', async name => {
     const record = recordNamed(name)
-    const payload = JSON.stringify({
-      type: 'reasoning.encrypted',
-      format: 'openai-responses-v1',
-      data: 'fixture-only-ciphertext',
-    })
     for (const mixed of [false, true]) {
+      const { format, payload } = carriedState(record, mixed)
       const blocks = mixed
         ? [textBlock('t1', 'Visible answer.'), stateBlock('s1', payload)]
         : [stateBlock('s1', payload)]
@@ -196,11 +231,7 @@ describe('measure', () => {
         messages: [
           message('u1', 'user', [textBlock('b1', 'hello')]),
           message('a1', 'assistant', blocks, {
-            replay: {
-              scope: `openrouter/${name}`,
-              format: 'openai-responses-v1',
-              at: [mixed ? 1 : 0],
-            },
+            replay: { scope: `openrouter/${name}`, format, at: [mixed ? 1 : 0] },
           }),
           message('u2', 'user', [textBlock('b2', 'next')]),
         ],
@@ -315,9 +346,25 @@ describe('measure', () => {
     expect(written).not.toContain('"role":"system"')
   })
 
+  it.each([
+    ['chat-completions', SOL, 'system'],
+    ['Responses', ASTRA, 'developer'],
+  ] as const)(
+    'on %s writes the instruction in the role the interface sends it in and the image with the auto detail',
+    async (_engine, record, role) => {
+      const { tokenInput } = await planAndMeasure(record, {
+        system: [textBlock('s1', 'instruction')],
+        messages: [message('u1', 'user', [textBlock('b1', 'look'), imageBlock('i1')])],
+      })
+      expect(memberJson(tokenInput, 'messages')).toBe(
+        `[{"role":"${role}","content":[{"type":"text","text":"instruction"}]},{"role":"user","content":[{"type":"text","text":"look"},{"type":"image","mediaType":"image/png","detail":"auto"}]}]`,
+      )
+    },
+  )
+
   it('an image the rule does not cover is unsupported, never a guess', async () => {
     const luna = recordNamed('openai/gpt-6-luna')
-    const parts = { messages: [message('u1', 'user', [imageBlock('i1')])] }
+    const parts = { messages: [message('u1', 'user', [textBlock('b1', 'look'), imageBlock('i1')])] }
     const { measured } = await planAndMeasure(luna, parts, value => ({
       ...value,
       media: [{ ...fact, widthPixels: '4294967295', heightPixels: '4294967295' }],
@@ -327,7 +374,7 @@ describe('measure', () => {
     })
   })
 
-  it('refuses a representation of another adoption or with media still pending', async () => {
+  it('refuses a representation of another adoption', async () => {
     const parts = { messages: [message('u1', 'user', [textBlock('b1', 'hi')])] }
     const other = await planAndMeasure(SOL, parts, value => ({
       ...value,
@@ -340,19 +387,31 @@ describe('measure', () => {
         adapter: componentAdoption(SOL, 'meter'),
       },
     })
-    const pending = await planAndMeasure(SOL, parts, value => ({
-      adoption: value.adoption,
-      tokenInput: value.tokenInput,
-      media: [],
-      kind: 'pending-media',
-      references: [reference],
-    }))
-    expect(pending.measured).toEqual({
-      failure: {
-        kind: 'unsupported',
-        field: 'representation.kind',
-        adapter: componentAdoption(SOL, 'meter'),
-      },
+  })
+
+  it('counts an image by reference from the facts on its block, and leaves its bytes to the read', async () => {
+    const referred = {
+      kind: 'image',
+      id: 'i1',
+      visibility: { toHuman: true, toModel: true },
+      ref: { ...reference, bytes: '9000000' },
+      transcript: null,
+      facts: { kind: 'image', widthPixels: 1024, heightPixels: 1024 },
+    }
+    const parts = { messages: [message('u1', 'user', [textBlock('b1', 'look'), referred])] }
+    const { measured, tokenInput } = await planAndMeasure(ASTRA, parts)
+    if (!('ok' in measured)) throw new Error(JSON.stringify(measured.failure))
+    expect(measured.ok).toMatchObject({
+      kind: 'deferred-media',
+      references: [{ ...reference, bytes: '9000000' }],
     })
+    const [input, image] = measured.ok.checks
+    expect(input?.measurement).toMatchObject({
+      kind: 'estimate',
+      amount: String(o200k.encode(sortedJsonText(tokenInput), [], []).length + 1229),
+    })
+    // What is sent is read later and may be a smaller version: its bytes are not checked here.
+    expect(image).toBeUndefined()
+    expect(measured.ok.checks.map(check => check.metric)).toEqual(['input-tokens'])
   })
 })

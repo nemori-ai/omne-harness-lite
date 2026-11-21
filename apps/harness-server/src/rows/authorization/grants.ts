@@ -1,18 +1,20 @@
 import type { MaintenanceGrant, MaintenanceGrantSource } from '@omne-harness/authorization'
 import type { SystemPurpose } from './cells.ts'
 
-export const MAINTENANCE_GRANT_REVISION = '6'
+export const MAINTENANCE_GRANT_REVISION = '7'
 
 export const AGENT_HOST_COMPONENT = 'agent-host'
 export const TOOL_RESIDENCY_COMPONENT = 'toolResidencyPrincipal'
 export const TENANT_DOMAIN_SCANNER_COMPONENT = 'tenant-domain-scanner'
 export const SESSION_MAINTAINER_COMPONENT = 'sessionPrincipals.maintainer'
+export const DISPATCH_COMPONENT = 'dispatch'
 
 export type GrantHolder =
   | typeof AGENT_HOST_COMPONENT
   | typeof TOOL_RESIDENCY_COMPONENT
   | typeof TENANT_DOMAIN_SCANNER_COMPONENT
   | typeof SESSION_MAINTAINER_COMPONENT
+  | typeof DISPATCH_COMPONENT
 
 export type ReleaseGrant = MaintenanceGrant & Readonly<{ purposes: readonly SystemPurpose[] }>
 
@@ -31,6 +33,11 @@ export const MAINTENANCE_GRANTS: Readonly<Record<GrantHolder, ReleaseGrant>> = O
   [TENANT_DOMAIN_SCANNER_COMPONENT]: record(TENANT_DOMAIN_SCANNER_COMPONENT, ['enumerate-tenants']),
   [TOOL_RESIDENCY_COMPONENT]: record(TOOL_RESIDENCY_COMPONENT, ['resident-references']),
   [SESSION_MAINTAINER_COMPONENT]: record(SESSION_MAINTAINER_COMPONENT, ['pending-sessions']),
+  [DISPATCH_COMPONENT]: record(DISPATCH_COMPONENT, [
+    'session-create',
+    'session-input',
+    'input-fate',
+  ]),
   [AGENT_HOST_COMPONENT]: record(AGENT_HOST_COMPONENT, [
     'agent-instance-publish',
     'agent-instance-quiesce',
@@ -45,15 +52,23 @@ function isGrantHolder(
   return Object.hasOwn(table, component)
 }
 
+/** The holders whose grant a row installs: the grant is revoked while that row is not installed. */
+export const ROW_INSTALLED_GRANTS: ReadonlySet<GrantHolder> = new Set([DISPATCH_COMPONENT])
+
 export function releaseMaintenanceGrants(
   table: Readonly<Record<GrantHolder, ReleaseGrant>> = MAINTENANCE_GRANTS,
+  installed: (holder: GrantHolder) => boolean = () => true,
 ): MaintenanceGrantSource {
+  const grantOf = (holder: GrantHolder): ReleaseGrant =>
+    ROW_INSTALLED_GRANTS.has(holder) && !installed(holder)
+      ? Object.freeze({ ...table[holder], revoked: true })
+      : table[holder]
   const source: MaintenanceGrantSource = {
     read: input => {
       const { component } = input.principal
       return Promise.resolve(
         isGrantHolder(table, component)
-          ? Object.freeze({ kind: 'found', grant: table[component] })
+          ? Object.freeze({ kind: 'found', grant: grantOf(component) })
           : Object.freeze({ kind: 'none' }),
       )
     },

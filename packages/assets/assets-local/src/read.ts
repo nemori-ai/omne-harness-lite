@@ -1,22 +1,49 @@
 import type { ReadHandlerModule } from '@omne-harness/sql-contract/worker'
 import {
   belongs,
+  foreign,
   readAsset,
   readDomain,
   readHolding,
+  readSummary,
   readVersion,
   selectedVersion,
 } from './records.ts'
 import { HANDLER, PROTOCOL, readRequestSchema } from './schema.ts'
-import { equal, json, scopeRef, withinBudget } from './encoding.ts'
+import { canonical, json, scopeRef, withinBudget } from './encoding.ts'
+const FORBIDDEN = { kind: 'read', output: { kind: 'rejected', reason: 'forbidden' } } as const
+
+type ReadRequest = ReturnType<typeof readRequestSchema.parse>
+type Port = Parameters<ReadHandlerModule['read']>[1]
+
 function holdingResult(
-  request: Extract<ReturnType<typeof readRequestSchema.parse>, { kind: 'holding' }>,
-  port: Parameters<ReadHandlerModule['read']>[1],
+  request: Extract<ReadRequest, { kind: 'holding' }>,
+  port: Port,
 ): ReturnType<ReadHandlerModule['read']> {
   const { lookup, domain } = request
   if (lookup.scopeRef !== scopeRef(domain))
     return { kind: 'read', output: { kind: 'rejected', reason: 'forbidden' } }
-  const holding = readHolding(port, domain, lookup.holdingRef)
+  return heldResult(readHolding(port, domain, lookup.holdingRef), port)
+}
+function heldCapabilityResult(
+  request: Extract<ReadRequest, { kind: 'heldCapability' }>,
+  port: Port,
+): ReturnType<ReadHandlerModule['read']> {
+  const { lookup, domain } = request
+  const current = readDomain(port)
+  if (foreign(current, domain)) return FORBIDDEN
+  if (current === null) return { kind: 'read', output: { kind: 'absent' } }
+  const row = port.execute(
+    "SELECT holding_ref FROM al_holdings WHERE scope_key = ? AND capability_key = ? AND state = 'held' LIMIT 1",
+    [canonical(domain), canonical([lookup.category, lookup.name])],
+  ).rows[0]
+  if (!row || typeof row[0] !== 'string') return { kind: 'read', output: { kind: 'absent' } }
+  return heldResult(readHolding(port, domain, row[0]), port)
+}
+function heldResult(
+  holding: ReturnType<typeof readHolding>,
+  port: Port,
+): ReturnType<ReadHandlerModule['read']> {
   if (!holding) return { kind: 'read', output: { kind: 'absent' } }
   const selected = holding.state === 'held' ? selectedVersion(port, holding) : null
   if (holding.state === 'held' && !selected)
@@ -43,39 +70,71 @@ function holdingResult(
   }
 }
 function assetResult(
-  request: Extract<ReturnType<typeof readRequestSchema.parse>, { kind: 'asset' }>,
-  port: Parameters<ReadHandlerModule['read']>[1],
+  request: Extract<ReadRequest, { kind: 'asset' }>,
+  port: Port,
 ): ReturnType<ReadHandlerModule['read']> {
   const { domain } = request
   const current = readDomain(port)
-  if (scopeRef(domain) === null || (current !== null && !equal(current.domain, domain)))
-    return { kind: 'read', output: { kind: 'rejected', reason: 'forbidden' } }
+  if (foreign(current, domain)) return FORBIDDEN
   const asset = readAsset(port, domain, request.lookup.assetRef)
   return { kind: 'read', output: json(asset ? { kind: 'asset', asset } : { kind: 'absent' }) }
 }
+function versionResult(
+  request: Extract<ReadRequest, { kind: 'version' }>,
+  port: Port,
+): ReturnType<ReadHandlerModule['read']> {
+  const { domain, lookup } = request
+  const version = readVersion(port, domain, lookup.assetRef, lookup.version)
+  return { kind: 'read', output: json(version ? { kind: 'version', version } : { kind: 'absent' }) }
+}
+function summaryResult(
+  request: Extract<ReadRequest, { kind: 'summary' }>,
+  port: Port,
+): ReturnType<ReadHandlerModule['read']> {
+  const { domain, lookup } = request
+  const summary = readSummary(port, domain, lookup.assetRef, lookup.version)
+  return { kind: 'read', output: json({ kind: 'summary', summary }) }
+}
+
+function domainResult(
+  request: Extract<ReadRequest, { kind: 'domain' }>,
+  port: Port,
+): ReturnType<ReadHandlerModule['read']> {
+  const current = readDomain(port)
+  if (foreign(current, request.domain)) return FORBIDDEN
+  return { kind: 'read', output: json({ kind: 'domain', revision: current?.revision ?? 0 }) }
+}
+
+type Kind = ReadRequest['kind']
+type Reader<K extends Kind> = (
+  request: Extract<ReadRequest, { kind: K }>,
+  port: Port,
+) => ReturnType<ReadHandlerModule['read']>
+
+function owned<K extends Kind>(reader: Reader<K>): Reader<K> {
+  return (request, port) => (belongs(port, request.domain) ? reader(request, port) : FORBIDDEN)
+}
+
+const READERS: { readonly [K in Kind]: Reader<K> } = {
+  asset: assetResult,
+  heldCapability: heldCapabilityResult,
+  version: owned(versionResult),
+  holding: owned(holdingResult),
+  summary: owned(summaryResult),
+  domain: domainResult,
+}
+
+function dispatch<K extends Kind>(request: Extract<ReadRequest, { kind: K }>, port: Port) {
+  return (READERS[request.kind] as Reader<K>)(request, port)
+}
+
 export default {
   handler: HANDLER,
   protocol: PROTOCOL,
   read(input, port) {
     if (!withinBudget(input)) return { kind: 'failed', diagnostic: 'assets_input_budget' }
-    const request = readRequestSchema.safeParse(input)
-    if (!request.success) return { kind: 'failed', diagnostic: 'assets_invalid_input' }
-    const { domain } = request.data
-    if (request.data.kind === 'asset') return assetResult(request.data, port)
-    if (!belongs(port, domain))
-      return { kind: 'read', output: { kind: 'rejected', reason: 'forbidden' } }
-    if (request.data.kind === 'version') {
-      const version = readVersion(
-        port,
-        domain,
-        request.data.lookup.assetRef,
-        request.data.lookup.version,
-      )
-      return {
-        kind: 'read',
-        output: json(version ? { kind: 'version', version } : { kind: 'absent' }),
-      }
-    }
-    return holdingResult(request.data, port)
+    const parsed = readRequestSchema.safeParse(input)
+    if (!parsed.success) return { kind: 'failed', diagnostic: 'assets_invalid_input' }
+    return dispatch(parsed.data, port)
   },
 } satisfies ReadHandlerModule

@@ -1,6 +1,8 @@
 import type { SessionPermissions } from './permission-values.ts'
+import type { AuthorizationContext, AuthorizationExpression } from './authorizations.ts'
 import type { PermissionDefinitionRef, PermissionRule } from '@omne-harness/permissions'
 import type { TodoItem } from './todos.ts'
+import type { BackgroundCallRecord, StopInitiator } from './background-calls.ts'
 import type { SessionWorkEntryIndex } from './work-entry-values.ts'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { CompactionMessage, Message } from '@omne-harness/message'
@@ -24,6 +26,7 @@ import type {
   SessionRevision,
 } from './identity.ts'
 
+import type { InputSourceName } from './input-sources.ts'
 export type ResidentTool = Readonly<{
   capability: string
   version: string
@@ -44,7 +47,7 @@ export type ExecutionRef = Readonly<{
 export type Participation = Readonly<{
   execution: string
   operation: string
-  joint: 'message' | 'context-transition' | 'custody' | 'processed'
+  joint: 'message' | 'context-transition' | 'custody' | 'processed' | 'delivered'
   written: string
   handover: DurableEvidence
 }>
@@ -117,12 +120,22 @@ export type Waiting =
       members: readonly Readonly<{ card: DurableEvidence; decision: DurableEvidence | null }>[]
     }>
   | Readonly<{ kind: 'dependency'; owner: string; position: string }>
+export type BackgroundDisposition =
+  | Readonly<{ kind: 'input'; input: InputId }>
+  | Readonly<{ kind: 'kept'; reason: 'archived' | 'frozen' }>
 export type ControlTarget =
   | Readonly<{ kind: 'run'; run: RunId }>
   | Readonly<{ kind: 'producer'; producer: ProducerRef }>
   | Readonly<{ kind: 'session' }>
 export type RoutedInput =
-  | Readonly<{ kind: 'ordinary'; input: InputId; message: Message; origin: DurableEvidence }>
+  | Readonly<{
+      kind: 'ordinary'
+      input: InputId
+      message: Message
+      origin: DurableEvidence
+      source: InputSourceName
+      wake?: boolean
+    }>
   | Readonly<{
       kind: 'card-decision'
       card: DurableEvidence
@@ -135,11 +148,19 @@ export type RoutedInput =
       input: DurableEvidence
       destination: DurableEvidence
     }>
+/** An archive that follows the archive of the parent: the parent and the control of the parent it follows. */
+export type ArchiveCascade = Readonly<{ parent: SessionId; control: SessionOperationId }>
 export type Control =
   | Readonly<{ kind: 'cancel-run'; run: RunId; urgency: 'graceful' | 'force' }>
-  | Readonly<{ kind: 'stop-call'; producer: ProducerRef }>
+  | Readonly<{
+      kind: 'stop-call'
+      producer: ProducerRef
+      /** Who asked; Session derives it from the caller class, never from the input. */
+      initiator?: StopInitiator
+      reason?: string | null
+    }>
   | Readonly<{ kind: 'background-tool'; producer: Extract<ProducerRef, { kind: 'tool' }> }>
-  | Readonly<{ kind: 'archive' }>
+  | Readonly<{ kind: 'archive'; cascade?: ArchiveCascade }>
   | Readonly<{ kind: 'unarchive' }>
   | Readonly<{ kind: 'retry-run'; run: RunId }>
 export type ControlIntent =
@@ -209,7 +230,7 @@ export type BoundedClose =
       input: InputId | null
     }>
 export type DerivedMessage =
-  | Readonly<{ kind: 'compaction'; message: CompactionMessage }>
+  | Readonly<{ kind: 'compaction'; message: CompactionMessage; epoch: string }>
   | Readonly<{ kind: 'context-reminder'; message: Message; source: DurableEvidence }>
 
 export type Modes = Readonly<{
@@ -233,6 +254,9 @@ export type SessionCreation = Readonly<{
   initialModelSelection?: import('./control-values.ts').SavedModelSelection
   residentAdoption?: ResidentAdoption
   initialization?: InitializationSources
+  relation?: Relation
+  attendance?: Attendance
+  fork?: import('./fork.ts').SessionFork
 }>
 export type InitializationSource = Readonly<{
   item: string
@@ -273,8 +297,14 @@ export type DeclarationChange =
       authorization: DurableEvidence
     }>
   | Readonly<{
+      kind: 'authorization-expression'
+      expression: AuthorizationExpression
+      authorization: DurableEvidence
+    }>
+  | Readonly<{
       kind: 'permission-mode'
       value: Modes['permission']
+      expectedRevision: string
       authorization: DurableEvidence
     }>
   | Readonly<{
@@ -315,9 +345,11 @@ export type DeclarationChange =
       basis: DurableEvidence
     }>
 export type Relation =
-  | Readonly<{ kind: 'main'; resident: boolean }>
+  | Readonly<{ kind: 'main' }>
   | Readonly<{ kind: 'child'; parent: SessionId; basis: DurableEvidence }>
   | Readonly<{ kind: 'handoff'; origin: SessionId; basis: DurableEvidence }>
+export type Attendance = 'attended' | 'unattended'
+export type SessionTree = Readonly<{ root: SessionId; depth: number }>
 export type ClockSample = Readonly<{ at: string; protocol: Adoption; source: DurableEvidence }>
 export type IdleCoverage = Readonly<{
   own: DurableEvidence
@@ -361,6 +393,8 @@ export type WorkSnapshot = Readonly<{
   execution: Adoption
   declarations: DurableEvidence
   permissions: SessionPermissions
+  /** The authorizations a person expressed in this session that are in force now. */
+  authorizations: AuthorizationContext
   revisions: Readonly<{ workspace: string; declarations: string }>
   run: RunState
   pending: readonly InputId[]
@@ -376,12 +410,23 @@ export type WorkSnapshot = Readonly<{
   executions?: readonly RunExecution[]
   residentKeys?: ResidentAdoption['keys']
   relation?: Relation
+  tree?: SessionTree
+  attendance?: Attendance
+  resident?: boolean
   children?: readonly SessionId[]
   autoArchive?: AutoArchivePolicy
   taken?: readonly InputId[]
   unanswered?: readonly InputId[]
   awaitingPerson?: true
   backgroundPlaceholders?: readonly ConsumptionId[]
+  /** The calls in the background, with their short numbers; the last number given so far. */
+  backgroundCalls?: readonly BackgroundCallRecord[]
+  backgroundOrdinal?: number
+  uncountedInputs?: readonly InputId[]
+  /** Pending inputs that cannot start a Run on their own; they go in with the next batch. */
+  quietInputs?: readonly InputId[]
+  /** Inputs delivered to the model view since the last assistant message. */
+  deliveredTail?: readonly InputId[]
   releasedScopes?: readonly Readonly<{ task: SessionOperationId; scope: string }>[]
   contextScopes?: readonly ContextScopeBinding[]
   contextRecords?: readonly Readonly<{ scope: string; declaration: DeclarationChange }>[]

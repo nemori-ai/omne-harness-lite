@@ -1,4 +1,5 @@
 import { Service, type Context } from '@deepseek-ai/cordis'
+import { switchWorkspaceToolModule } from '@omne-harness/workspace-tools'
 import { describe, expect, it } from 'vitest'
 import { executionScopeBindingKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
 import type { PrincipalIssuer } from '@omne-harness/identity'
@@ -6,7 +7,11 @@ import { principalIssuerKey } from '@omne-harness/identity/cordis'
 import type { ScopeBindingSource } from '@omne-harness/runtime-context-contract'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
-import { fail, succeed } from '@omne-harness/operation-result'
+import { workspaceCodec } from '@omne-harness/legal-identity'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import type { WorkingDirectory } from '@omne-harness/session-adapters'
+import type { FilesScope } from '@omne-harness/execution-environment-contract'
+import type { OutsideFiles } from '@omne-harness/workspace-local'
 import type { SessionFaces, WorkSnapshot } from '@omne-harness/session-contract'
 import { SessionService } from '@omne-harness/session-cordis-contract/cordis'
 import type {
@@ -21,16 +26,24 @@ import {
   judgeToolDefinition,
   judgeToolInvokeRequest,
 } from '@omne-harness/tool-contract/provider'
-import { askToolModule, filesToolModule, shellToolModule } from '@omne-harness/tool-definitions'
+import {
+  askToolModule,
+  filesToolModule,
+  shellToolModule,
+  todoItemsToolModule,
+  toolsToolModule,
+} from '@omne-harness/tool-definitions'
 import { sessionWorkIssuerOf } from '../../src/entry/principals.ts'
 import { releaseOf } from '../../src/entry/tool-release.ts'
 import { governanceOf } from '../../src/entry/tool-release-manifest.ts'
 import {
   createReleaseToolRequests,
   releaseToolRequestsOf,
+  TOOL_REQUESTS_OWNER,
   type ReleaseToolRequests,
   type ToolRequestPorts,
 } from '../../src/entry/tool-requests.ts'
+import { ToolOperatorSettingsImpl } from '../../src/rows/tool-host/operator-settings.ts'
 import { toolRuntimeHolder } from '../../src/rows/tool-runtime/holder.ts'
 import { runToolScope } from '../../src/rows/tool-runtime/scope.ts'
 import { TEST_CONSTRUCTION, entryOf, releaseFixture, tree } from '../rows/tool-host/support.ts'
@@ -62,8 +75,17 @@ async function world() {
     Shell: okOf(shellToolModule.createAuthor(tree(TEST_CONSTRUCTION.Shell)), 'Shell').facts,
     Files: okOf(filesToolModule.createAuthor(tree(TEST_CONSTRUCTION.Files)), 'Files').facts,
     Ask: okOf(askToolModule.createAuthor(tree(TEST_CONSTRUCTION.Ask)), 'Ask').facts,
+    TodoItems: okOf(
+      todoItemsToolModule.createAuthor(tree(TEST_CONSTRUCTION.TodoItems)),
+      'TodoItems',
+    ).facts,
+    Tools: okOf(toolsToolModule.createAuthor(tree(TEST_CONSTRUCTION.Tools)), 'Tools').facts,
+    SwitchWorkspace: okOf(
+      switchWorkspaceToolModule.createAuthor(tree({ resultMaxBytes: 4096 })),
+      'SwitchWorkspace',
+    ).facts,
   }
-  for (const name of ['Shell', 'Files', 'Ask'] as const)
+  for (const name of ['Shell', 'Files', 'Ask', 'TodoItems', 'Tools', 'SwitchWorkspace'] as const)
     definitions.set(
       name,
       okOf(
@@ -105,13 +127,18 @@ async function world() {
     readWork: async () => succeed(snapshot),
     scopeBinding: () => bindings,
     release: () => releaseOf(fixture.root),
-    interaction: async () => succeed({ humanInteraction: true, requestApproval: true }),
-    inquiry: async () => succeed('ask-human' as const),
+    operatorSettings: () => ({}),
+    interaction: async () =>
+      succeed({ attendance: 'attended', humanInteraction: true, child: false }),
+    workingDirectory: async () => succeed({ state: 'default', directory: '/srv/default' }),
+    outsideFiles: async () => 'none',
   }
   return { fixture, ports, principalA, principalB, snapshot, definitions }
 }
 
-const EXECUTE = '{"command":"execute","params":{"script":"echo tool-b"}}'
+const EXECUTE = '{"command":"execute","intent":"test call","params":{"script":"echo tool-b"}}'
+const LIST_TODOS = '{"command":"list","params":{}}'
+const SEARCH_TOOLS = '{"command":"search","params":{"query":"echo"}}'
 
 function actionInput(principal: unknown, tenant = TENANT_A, name = 'Shell', args = EXECUTE) {
   return {
@@ -135,6 +162,11 @@ function actionInput(principal: unknown, tenant = TENANT_A, name = 'Shell', args
       purpose: 'action',
     },
   } as unknown as Parameters<ReturnType<typeof createReleaseToolRequests>['describe']>[0]
+}
+
+function parsedWorkspace(text: string) {
+  const parsed = workspaceCodec.parse(text)
+  return parsed.ok ? succeed(parsed.value) : fail('not a workspace')
 }
 
 async function prepared(ports: ToolRequestPorts, principal: unknown, tenant = TENANT_A) {
@@ -188,6 +220,126 @@ describe('the trusted Tool request source', () => {
     )
   })
 
+  it('answers an execute without an intent with the usage, and never prepares it (C5)', async () => {
+    const { ports, principalA } = await world()
+    const source = createReleaseToolRequests(ports)
+    const describe = (args: string) =>
+      source.describe(actionInput(principalA, TENANT_A, 'Shell', args))
+    const missing = await describe('{"command":"execute","params":{"script":"pnpm build"}}')
+    expect(missing).toMatchObject({ ok: { kind: 'answered' } })
+    const text = 'ok' in missing && 'text' in missing.ok ? missing.ok.text : ''
+    expect(text.split('\n')[0]).toBe(
+      'Shell: "execute" needs "intent": one line saying why you make this call.',
+    )
+    expect(text).toContain(
+      'Usage: Shell {"command": "execute", "intent": "<one line: why you make this call>", "params": {script',
+    )
+    const multiline = await describe(
+      '{"command":"execute","intent":"one\\ntwo","params":{"script":"pnpm build"}}',
+    )
+    expect(multiline).toMatchObject({
+      ok: { kind: 'answered', text: expect.stringMatching(/^Shell: "intent" must be one line/) },
+    })
+  })
+
+  it('fixes the label of the call from the envelope: intent, tool, command and preview (C2)', async () => {
+    const { ports, principalA } = await world()
+    const source = createReleaseToolRequests(ports)
+    const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
+    const labelOf = async (args: string) => {
+      const input = actionInput(principalA, TENANT_A, 'Shell', args)
+      const described = await source.describe(input)
+      if ('failure' in described || described.ok.kind === 'answered') throw new Error('describe')
+      const answer = await source.prepare({
+        ...input,
+        definition: described.ok.definition,
+        admission,
+      })
+      return (okOf(answer, 'prepare') as ToolInvokeRequest).label
+    }
+    expect(
+      await labelOf(
+        '{"command":"execute","intent":"build the front end","params":{"script":"pnpm build\\nls"}}',
+      ),
+    ).toEqual({
+      intent: 'build the front end',
+      tool: 'Shell',
+      command: 'execute',
+      preview: 'pnpm build',
+    })
+    expect(await labelOf('{"command":"info","params":{}}')).toEqual({
+      intent: null,
+      tool: 'Shell',
+      command: 'info',
+      preview: '',
+    })
+  })
+
+  it('reads the time limits from the Shell settings before admission (C6)', async () => {
+    const { ports, principalA } = await world()
+    const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
+    const limitsOf = async (args: string, operator = ports.operatorSettings) => {
+      const source = createReleaseToolRequests({ ...ports, operatorSettings: operator })
+      const input = actionInput(principalA, TENANT_A, 'Shell', args)
+      const described = await source.describe(input)
+      if ('failure' in described || described.ok.kind === 'answered') throw new Error('describe')
+      return source.prepare({ ...input, definition: described.ok.definition, admission })
+    }
+    const once = '{"command":"execute","intent":"build","params":{"script":"pnpm build"}}'
+    const terminal =
+      '{"command":"execute","intent":"build","params":{"script":"pnpm build","terminal":{"id":"t","generation":"g"}}}'
+    const limits = (answer: Awaited<ReturnType<typeof limitsOf>>) =>
+      (okOf(answer, 'prepare') as ToolInvokeRequest).limits
+    expect(limits(await limitsOf(once))).toEqual({
+      concurrency: null,
+      scopeBudget: null,
+      foregroundMs: null,
+      backgroundAfterMs: 60_000,
+    })
+    const lowered = () => ({ backgroundAfterMs: 1500, foregroundMs: 9000 })
+    expect(limits(await limitsOf(once, lowered))).toMatchObject({
+      foregroundMs: 9000,
+      backgroundAfterMs: 1500,
+    })
+    // A call that may not go to the background gets no threshold, only the foreground limit.
+    expect(limits(await limitsOf(terminal, lowered))).toMatchObject({
+      foregroundMs: 9000,
+      backgroundAfterMs: null,
+    })
+    expect(await limitsOf(once, () => undefined)).toMatchObject({
+      failure: { kind: 'unavailable' },
+    })
+    expect(await limitsOf(once, () => ({ backgroundAfterMs: 'soon' }))).toMatchObject({
+      failure: { kind: 'unavailable' },
+    })
+    expect(await limitsOf(once, () => ({ nothing: 1 }))).toMatchObject({
+      failure: { kind: 'unavailable' },
+    })
+  })
+
+  it('does not read operator settings for a tool that declares none', async () => {
+    const { ports, principalA } = await world()
+    const source = createReleaseToolRequests({
+      ...ports,
+      operatorSettings: () => {
+        throw new Error('read')
+      },
+    })
+    const input = actionInput(principalA, TENANT_A, 'Files', '{"command":"list","params":{}}')
+    const described = await source.describe(input)
+    if ('failure' in described || described.ok.kind === 'answered') throw new Error('describe')
+    const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
+    const answer = await source.prepare({
+      ...input,
+      definition: described.ok.definition,
+      admission,
+    })
+    expect((okOf(answer, 'prepare') as ToolInvokeRequest).limits).toMatchObject({
+      foregroundMs: null,
+      backgroundAfterMs: null,
+    })
+  })
+
   it('prepares the complete request of the admitted action, and it passes the public Tool judgement', async () => {
     const { ports, principalA, definitions } = await world()
     const answer = await prepared(ports, principalA)
@@ -203,12 +355,277 @@ describe('the trusted Tool request source', () => {
       requesterScope: SCOPE,
       scope: runToolScope(TENANT_A, actionInput(principalA).consumer),
       workspace: null,
+      directory: { path: '/srv/default', workspace: null },
       resources: [],
       mode: 'foreground',
       consumer: { owner: '@omne-harness/agent', work: 'exec-1', purpose: 'action' },
     })
     expect(request.availability.definition.adoption).toEqual(definitions.get('Shell')?.adoption)
     expect(request.environment).toEqual(definitions.get('Shell')?.declarations.environment)
+  })
+
+  it('pins the call to the working directory the coordinator reads for its session when the call is prepared', async () => {
+    const { ports, principalA } = await world()
+    const read: unknown[] = []
+    const blog = 'wsp_00000000000000000000000001'
+    const reading = (value: WorkingDirectory): ToolRequestPorts => ({
+      ...ports,
+      workingDirectory: async access => {
+        read.push(access)
+        return succeed(value)
+      },
+    })
+    const attached = okOf(
+      await prepared(
+        reading({
+          state: 'attached',
+          workspace: blog,
+          instance: 'wsi_blog',
+          directory: '/srv/blog',
+        }),
+        principalA,
+      ),
+      'attached',
+    ) as ToolInvokeRequest
+    expect(attached.directory).toEqual({
+      path: '/srv/blog',
+      workspace: { id: okOf(parsedWorkspace(blog), 'workspace'), instance: 'wsi_blog' },
+      files: { read: '/srv/blog', write: '/srv/blog' },
+    })
+    expect(okOf(judgeToolInvokeRequest(attached), 'judge').directory).toEqual(attached.directory)
+    // It is read when the call is described, to answer a call that has none, and again to pin it.
+    const access = { principal: principalA, tenant: TENANT_A, session: expect.any(String) }
+    expect(read).toEqual([access, access])
+  })
+
+  describe('the files a call may read and write, pinned when it is prepared (table two)', () => {
+    const blog = 'wsp_00000000000000000000000001'
+    const attachedTo: WorkingDirectory = {
+      state: 'attached',
+      workspace: blog,
+      instance: 'wsi_blog',
+      directory: '/srv/blog',
+    }
+    const reads = (setting: OutsideFiles | null) => {
+      const asked: unknown[] = []
+      return {
+        asked,
+        outsideFiles: async (tenant: unknown) => (asked.push(tenant), setting),
+      }
+    }
+
+    it.each<[OutsideFiles, FilesScope]>([
+      ['none', { read: '/srv/blog', write: '/srv/blog' }],
+      ['read', { write: '/srv/blog' }],
+      ['read-write', {}],
+    ])('a session with a usable workspace and the setting %s', async (setting, files) => {
+      const { ports, principalA } = await world()
+      const setting$ = reads(setting)
+      const source: ToolRequestPorts = {
+        ...ports,
+        workingDirectory: async () => succeed(attachedTo),
+        outsideFiles: setting$.outsideFiles,
+      }
+      const request = okOf(await prepared(source, principalA), 'prepared') as ToolInvokeRequest
+      expect(request.directory?.files).toEqual(files)
+      expect(setting$.asked).toEqual([TENANT_A, TENANT_A])
+      // The setting changing after the call was prepared does not change what it was pinned to.
+      const pinned = structuredClone(request.directory)
+      setting$.asked.length = 0
+      expect(request.directory).toEqual(pinned)
+      expect(setting$.asked).toEqual([])
+    })
+
+    it('is unavailable, neither allowed nor refused, when the setting cannot be read', async () => {
+      const { ports, principalA } = await world()
+      const source = createReleaseToolRequests({
+        ...ports,
+        workingDirectory: async () => succeed(attachedTo),
+        outsideFiles: reads(null).outsideFiles,
+      })
+      expect(await source.describe(actionInput(principalA))).toEqual({
+        failure: {
+          kind: 'unavailable',
+          owner: TOOL_REQUESTS_OWNER,
+          diagnostic: 'the setting for files outside the workspace is not readable',
+        },
+      })
+    })
+
+    it.each<[string, WorkingDirectory | null]>([
+      ['no workspace', { state: 'default', directory: '/srv/default' }],
+      [
+        'a workspace that cannot be used',
+        { state: 'unusable', workspace: blog, instance: 'wsi_blog', reason: 'not-permitted' },
+      ],
+      ['no working directory', null],
+    ])('a session with %s does not read the setting', async (_name, value) => {
+      const { ports, principalA } = await world()
+      const setting$ = reads('read-write')
+      const source = createReleaseToolRequests({
+        ...ports,
+        workingDirectory: async () => succeed(value),
+        outsideFiles: setting$.outsideFiles,
+      })
+      const described = await source.describe(actionInput(principalA))
+      expect(setting$.asked).toEqual([])
+      if (value?.state === 'default') {
+        const request = okOf(
+          await prepared({ ...ports, outsideFiles: setting$.outsideFiles }, principalA),
+          'prepared',
+        ) as ToolInvokeRequest
+        expect(request.directory).toEqual({ path: '/srv/default', workspace: null })
+        expect(setting$.asked).toEqual([])
+      } else expect(described).toMatchObject({ ok: { kind: 'answered' } })
+    })
+  })
+
+  it.each<[string, WorkingDirectory | null, string]>([
+    [
+      'the selected workspace cannot be used',
+      { state: 'unusable', workspace: 'wsp_x', instance: 'wsi_x', reason: 'not-permitted' },
+      'unavailable: the workspace selected for this session cannot be used now (reason: not-permitted). Nothing ran, and no other directory was used in its place. Tell the user. The call works again when the workspace can be used or when the session selects another one.',
+    ],
+    [
+      'the session has no working directory, as a session made before it was recorded',
+      null,
+      'unavailable: this session has no working directory to use, so file and command tools cannot run in it. Nothing ran. Tell the user: a session created now has one.',
+    ],
+  ])(
+    'answers the call, so the step goes on, and prepares nothing when %s',
+    async (_name, value, text) => {
+      const { ports, principalA } = await world()
+      const source = createReleaseToolRequests({
+        ...ports,
+        workingDirectory: async () => succeed(value),
+      })
+      const input = actionInput(principalA)
+      // Waiting here would wait for ever: the directory changes only when the next step begins.
+      expect(await source.describe(input)).toEqual({ ok: { kind: 'answered', text } })
+      const prepared = await source.prepare({
+        ...input,
+        definition: {} as never,
+        admission: { owner: 'test', record: 'admission', revision: '1', digest: 'd' },
+      })
+      expect(prepared).toEqual({
+        failure: {
+          kind: 'unavailable',
+          owner: TOOL_REQUESTS_OWNER,
+          diagnostic: 'the call is answered, not run',
+        },
+      })
+    },
+  )
+
+  it.each<[string, Outcome<WorkingDirectory | null, string>, string]>([
+    [
+      'the working directory cannot be read',
+      fail('eligibility: unavailable'),
+      'the working directory of the session is not readable: eligibility: unavailable',
+    ],
+    [
+      'the working directory names a workspace that is not one',
+      succeed({ state: 'attached', workspace: 'nope', instance: 'wsi_x', directory: '/srv/x' }),
+      'the working directory names a workspace that is not one',
+    ],
+  ])('is unavailable, to be asked again, when %s', async (_name, answer, diagnostic) => {
+    const { ports, principalA } = await world()
+    const failure = { kind: 'unavailable', owner: TOOL_REQUESTS_OWNER, diagnostic }
+    const reading = { ...ports, workingDirectory: async () => answer }
+    expect(await createReleaseToolRequests(reading).describe(actionInput(principalA))).toEqual({
+      failure,
+    })
+  })
+
+  it.each([
+    ['the forwarding tool', 'Tools', SEARCH_TOOLS],
+    ['the workspace switch', 'SwitchWorkspace', '{"none":true}'],
+  ])(
+    'pins %s when the session has a directory, and never answers or fails it for the lack of one',
+    async (_what, tool, call) => {
+      const { ports, principalA } = await world()
+      const directoryFor = async (answer: Outcome<WorkingDirectory | null, string>) => {
+        const source = createReleaseToolRequests({ ...ports, workingDirectory: async () => answer })
+        const input = actionInput(principalA, TENANT_A, tool, call)
+        const described = okOf(await source.describe(input), 'describe')
+        if (described.kind !== 'tool') throw new Error(`describe answered: ${described.text}`)
+        const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
+        const prepared = await source.prepare({
+          ...input,
+          definition: described.definition,
+          admission,
+        })
+        return (okOf(prepared, 'prepare') as ToolInvokeRequest).directory
+      }
+      expect(await directoryFor(succeed({ state: 'default', directory: '/srv/default' }))).toEqual({
+        path: '/srv/default',
+        workspace: null,
+      })
+      const blog = {
+        state: 'attached',
+        workspace: 'wsp_00000000000000000000000001',
+        instance: 'wsi_x',
+        directory: '/srv/blog',
+      }
+      expect(await directoryFor(succeed(blog as WorkingDirectory))).toMatchObject({
+        path: '/srv/blog',
+        workspace: { instance: 'wsi_x' },
+      })
+      const unusable = { state: 'unusable', workspace: 'w', instance: 'i', reason: 'not-permitted' }
+      for (const none of [succeed(null), succeed(unusable as WorkingDirectory), fail('read: x')])
+        expect(await directoryFor(none)).toBeUndefined()
+    },
+  )
+
+  it('does not read the working directory for a tool that works in no environment', async () => {
+    const { ports, principalA } = await world()
+    const source = createReleaseToolRequests({
+      ...ports,
+      workingDirectory: async () => {
+        throw new Error('a tool without an environment has no directory')
+      },
+    })
+    const input = actionInput(principalA, TENANT_A, 'TodoItems', LIST_TODOS)
+    const described = okOf(await source.describe(input), 'describe')
+    if (described.kind !== 'tool') throw new Error('describe answered')
+    const request = okOf(
+      await source.prepare({
+        ...input,
+        definition: described.definition,
+        admission: { owner: 'test', record: 'admission', revision: '1', digest: 'd' },
+      }),
+      'prepare',
+    ) as ToolInvokeRequest
+    expect(request.environment).toBeNull()
+    expect('directory' in request).toBe(false)
+  })
+
+  it('reads the wait mode from run_in_background in the call: true is a launch in the background, anything else the foreground', async () => {
+    const { ports, principalA } = await world()
+    const source = createReleaseToolRequests(ports)
+    const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
+    const modeOf = async (params: string) => {
+      const args = `{"command":"execute","intent":"test call","params":${params}}`
+      const input = actionInput(principalA, TENANT_A, 'Shell', args)
+      const described = await source.describe(input)
+      if ('failure' in described || described.ok.kind === 'answered') throw new Error('describe')
+      const answer = await source.prepare({
+        ...input,
+        definition: described.ok.definition,
+        admission,
+      })
+      return (okOf(answer, 'prepare') as ToolInvokeRequest).mode
+    }
+    expect(await modeOf('{"script":"sleep 9","run_in_background":true}')).toBe('background')
+    expect(await modeOf('{"script":"sleep 9","run_in_background":false}')).toBe('foreground')
+    expect(await modeOf('{"script":"sleep 9","run_in_background":"true"}')).toBe('foreground')
+    expect(await modeOf('{"script":"sleep 9"}')).toBe('foreground')
+    // A call that names the command but does not decode waits in the foreground; admission answers it.
+    expect(await modeOf('[{"run_in_background":true}]')).toBe('foreground')
+    // Admission, not the entry, refuses a terminal execution in the background.
+    expect(await modeOf('{"script":"x","terminal":"t1","run_in_background":true}')).toBe(
+      'background',
+    )
   })
 
   it('answers unavailable when the principal verifier is absent (authorization source missing)', async () => {
@@ -346,102 +763,51 @@ const ASK = JSON.stringify({
     questions: [{ title: 'Which port?', options: [{ label: '8081' }, { label: '3000' }] }],
   },
 })
-const APPROVAL = JSON.stringify({
-  command: 'request_approval',
-  params: {
-    action: 'Delete the build directory',
-    reason: 'It holds stale output.',
-    impact: 'The next build is slower.',
-    reversibility: 'The output can be built again.',
-    fallback: 'I keep the directory.',
-  },
-})
-
 describe('the meta-capability host: Ask runs only while the session lets the model ask a person', () => {
   const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
-  type Interaction = Readonly<{ humanInteraction: boolean; requestApproval: boolean }> | null
+  type Interaction = Readonly<{ humanInteraction: boolean }> | null
+  const facts = (value: NonNullable<Interaction>) =>
+    ({ attendance: 'attended', child: false, ...value }) as const
 
-  type OnAsk = 'deny' | 'ask-human' | 'skip-ask' | null
-
-  async function hosted(interaction: () => Interaction, onAsk: () => OnAsk = () => 'ask-human') {
+  async function hosted(interaction: () => Interaction) {
     const { ports, principalA } = await world()
     const reads: unknown[] = []
-    const inquiries: unknown[] = []
     const source = createReleaseToolRequests({
       ...ports,
       interaction: async access => {
         reads.push(access)
         const value = interaction()
-        return value === null ? fail('the publication is not there') : succeed(value)
-      },
-      inquiry: async access => {
-        inquiries.push(access)
-        const value = onAsk()
-        return value === null ? fail('the publication is not there') : succeed(value)
+        return value === null ? fail('the publication is not there') : succeed(facts(value))
       },
     })
     const call = (name: string, args: string) => actionInput(principalA, TENANT_A, name, args)
-    return { source, call, reads, inquiries, principalA }
+    return { source, call, reads, principalA }
   }
-  const open = () => ({ humanInteraction: true, requestApproval: true })
 
-  it('routes both commands while the interaction is open, and reads it for the call session', async () => {
-    const { source, call, reads, principalA } = await hosted(() => ({
-      humanInteraction: true,
-      requestApproval: true,
-    }))
-    for (const [args, command] of [
-      [ASK, 'ask'],
-      [APPROVAL, 'request_approval'],
-    ] as const) {
-      const input = call('Ask', args)
-      const described = await source.describe(input)
-      if ('failure' in described || described.ok.kind !== 'tool') throw new Error('not a tool')
-      expect(
-        await source.prepare({ ...input, definition: described.ok.definition, admission }),
-      ).toMatchObject({ ok: { command } })
-    }
+  it('routes ask while the interaction is open, and reads it for the call session', async () => {
+    const { source, call, reads, principalA } = await hosted(() => ({ humanInteraction: true }))
+    const input = call('Ask', ASK)
+    const described = await source.describe(input)
+    if ('failure' in described || described.ok.kind !== 'tool') throw new Error('not a tool')
+    expect(
+      await source.prepare({ ...input, definition: described.ok.definition, admission }),
+    ).toMatchObject({ ok: { command: 'ask' } })
     expect(reads[0]).toEqual({ principal: principalA, tenant: TENANT_A, session: 'ses-a' })
   })
 
-  it('answers each command with its reason while the interaction is closed, and never runs it', async () => {
-    const { source, call } = await hosted(() => ({
-      humanInteraction: false,
-      requestApproval: false,
-    }))
+  it('answers ask with its reason while the interaction is closed, and never runs it', async () => {
+    const { source, call } = await hosted(() => ({ humanInteraction: false }))
     expect(await source.describe(call('Ask', ASK))).toEqual({
       ok: {
         kind: 'answered',
-        text: 'Ask: the command "ask" is not available now. This session does not let you ask a person (collaboration mode). Continue without the answer, or stop and report what you need.',
+        text: 'Ask: the command "ask" is not available here: no person can be asked for an answer in this session now. Continue without it, or stop and report what you need.',
       },
-    })
-    expect(await source.describe(call('Ask', APPROVAL))).toMatchObject({
-      ok: {
-        kind: 'answered',
-        text: expect.stringMatching(
-          /^Ask: the command "request_approval" is not available now\. .*This is not permission: do not do the action\.$/,
-        ),
-      },
-    })
-  })
-
-  it('judges each command by its own value', async () => {
-    const { source, call } = await hosted(() => ({
-      humanInteraction: true,
-      requestApproval: false,
-    }))
-    expect(await source.describe(call('Ask', ASK))).toMatchObject({ ok: { kind: 'tool' } })
-    expect(await source.describe(call('Ask', APPROVAL))).toMatchObject({
-      ok: { kind: 'answered' },
     })
   })
 
   it('judges again at prepare: an interaction closed after describe is not run', async () => {
     let open = true
-    const { source, call } = await hosted(() => ({
-      humanInteraction: open,
-      requestApproval: open,
-    }))
+    const { source, call } = await hosted(() => ({ humanInteraction: open }))
     const input = call('Ask', ASK)
     const described = await source.describe(input)
     if ('failure' in described || described.ok.kind !== 'tool') throw new Error('not a tool')
@@ -456,8 +822,7 @@ describe('the meta-capability host: Ask runs only while the session lets the mod
     expect(await source.describe(call('Ask', ASK))).toMatchObject({
       failure: {
         kind: 'unavailable',
-        diagnostic:
-          'the human interaction of the session is unreadable: the publication is not there',
+        diagnostic: 'the standing of the session is unreadable: the publication is not there',
       },
     })
     reads.length = 0
@@ -467,49 +832,122 @@ describe('the meta-capability host: Ask runs only while the session lets the mod
     })
     expect(reads).toEqual([])
   })
+})
 
-  it('closes request_approval while the permission side asks nobody, and leaves ask open', async () => {
-    const { source, call, inquiries, principalA } = await hosted(open, () => 'deny')
-    expect(await source.describe(call('Ask', ASK))).toMatchObject({ ok: { kind: 'tool' } })
-    expect(inquiries).toEqual([])
-    expect(await source.describe(call('Ask', APPROVAL))).toEqual({
-      ok: {
-        kind: 'answered',
-        text: 'Ask: the command "request_approval" is not available now. This session asks nobody for approval (permission mode). This is not permission: do not do the action.',
-      },
+describe('a command whose result carries more than the tool declares is judged by itself before it runs', () => {
+  const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
+  const OPEN = '{"command":"open","params":{"path":"/a.png"}}'
+  const READ = '{"command":"read","params":{"path":"/a.txt"}}'
+  type Inspect = ToolCatalog<unknown>['inspect']
+  type Answer = Awaited<ReturnType<Inspect>> | 'available'
+
+  async function hosted(forCommand: () => Answer) {
+    const { ports, principalA } = await world()
+    const whole = ports.catalog()
+    if (whole === undefined) throw new Error('fixture: no catalog')
+    const asked: (string | null)[] = []
+    const inspect: Inspect = async input => {
+      asked.push(input.command)
+      const answer = input.command === null ? 'available' : forCommand()
+      return answer === 'available' ? whole.inspect({ ...input, command: null }) : answer
+    }
+    const source = createReleaseToolRequests({ ...ports, catalog: () => ({ ...whole, inspect }) })
+    const call = (args: string) => actionInput(principalA, TENANT_A, 'Files', args)
+    return { source, call, asked }
+  }
+  const unavailableFor = (reason: string) => async () => {
+    const { definitions } = await world()
+    return succeed({
+      kind: 'known-unavailable' as const,
+      definition: definitions.get('Files')!,
+      reason,
     })
-    expect(inquiries).toEqual([{ principal: principalA, tenant: TENANT_A, session: 'ses-a' }])
+  }
+
+  it('asks the catalog about the command, and runs it while the catalog says available', async () => {
+    const { source, call, asked } = await hosted(() => 'available')
+    const input = call(OPEN)
+    const described = await source.describe(input)
+    if ('failure' in described || described.ok.kind !== 'tool') throw new Error('not a tool')
+    expect(asked).toEqual([null, 'open'])
+    expect(
+      await source.prepare({ ...input, definition: described.ok.definition, admission }),
+    ).toMatchObject({ ok: { command: 'open' } })
   })
 
-  it.each(['ask-human', 'skip-ask'] as const)(
-    'keeps request_approval open while the inquiry policy is %s',
-    async policy => {
-      const { source, call } = await hosted(open, () => policy)
-      expect(await source.describe(call('Ask', APPROVAL))).toMatchObject({ ok: { kind: 'tool' } })
-    },
-  )
-
-  it('answers unavailable for request_approval when the inquiry policy cannot be read', async () => {
-    const { source, call } = await hosted(open, () => null)
-    expect(await source.describe(call('Ask', APPROVAL))).toMatchObject({
-      failure: {
-        kind: 'unavailable',
-        diagnostic:
-          'the permission inquiry of the session is unreadable: the publication is not there',
-      },
+  it('does not ask again for a command that adds nothing to what the tool declares', async () => {
+    const { source, call, asked } = await hosted(() => {
+      throw new Error('asked about a plain command')
     })
-    expect(await source.describe(call('Ask', ASK))).toMatchObject({ ok: { kind: 'tool' } })
+    expect(await source.describe(call(READ))).toMatchObject({ ok: { kind: 'tool' } })
+    expect(asked).toEqual([null])
   })
 
-  it('does not read the inquiry policy when the collaboration already closes request_approval', async () => {
-    const { source, call, inquiries } = await hosted(
-      () => ({ humanInteraction: true, requestApproval: false }),
-      () => 'deny',
+  it.each([
+    [
+      'products-unstorable',
+      'Files: the command "open" is not available now (products-unstorable). This deployment has nowhere to store what the command produces. Continue without it.',
+    ],
+    [
+      'output-incompatible',
+      'Files: the command "open" is not available now (output-incompatible). The model of this session does not take what the command returns. Continue without it.',
+    ],
+    [
+      'qualification-denied; output-incompatible',
+      'Files: the command "open" is not available now (qualification-denied; output-incompatible). Continue without it.',
+    ],
+  ])('answers with the reason and never runs it: %s', async (reason, text) => {
+    const known = await unavailableFor(reason)()
+    const { source, call } = await hosted(() => known)
+    expect(await source.describe(call(OPEN))).toEqual({ ok: { kind: 'answered', text } })
+  })
+
+  it('a tool the catalog knows but cannot offer now answers any call with the reason, and never runs (TL: a dummy in place)', async () => {
+    const { ports, principalA, definitions } = await world()
+    const whole = ports.catalog()
+    if (whole === undefined) throw new Error('fixture: no catalog')
+    const inspect: Inspect = async input =>
+      input.name === 'Files'
+        ? succeed({
+            kind: 'known-unavailable' as const,
+            definition: definitions.get('Files')!,
+            reason: 'dependency-unavailable:screen.read',
+          })
+        : whole.inspect(input)
+    const source = createReleaseToolRequests({ ...ports, catalog: () => ({ ...whole, inspect }) })
+    const text =
+      'Files is not available now (dependency-unavailable:screen.read). Continue without it.'
+    for (const args of [READ, OPEN, '{"command":"nope"}', '{}'])
+      expect(await source.describe(actionInput(principalA, TENANT_A, 'Files', args))).toEqual({
+        ok: { kind: 'answered', text },
+      })
+    expect(await source.describe(actionInput(principalA))).toMatchObject({ ok: { kind: 'tool' } })
+    const input = actionInput(principalA, TENANT_A, 'Files', READ)
+    expect(
+      await source.prepare({ ...input, definition: definitions.get('Files')!.adoption, admission }),
+    ).toMatchObject({ failure: { kind: 'unavailable' } })
+  })
+
+  it('answers unavailable, not a run, when the catalog cannot say whether the command is available', async () => {
+    const { source, call } = await hosted(() =>
+      fail({ kind: 'unavailable', dependency: 'tool-availability', diagnostic: 'unreadable' }),
     )
-    expect(await source.describe(call('Ask', APPROVAL))).toMatchObject({
-      ok: { kind: 'answered', text: expect.stringContaining('(collaboration mode)') },
+    expect(await source.describe(call(OPEN))).toMatchObject({
+      failure: { kind: 'unavailable', diagnostic: 'tool catalog answered unavailable for open' },
     })
-    expect(inquiries).toEqual([])
+  })
+
+  it('judges again at prepare: a command that became unavailable after describe is not run', async () => {
+    const known = await unavailableFor('products-unstorable')()
+    let answer: Answer = 'available'
+    const { source, call } = await hosted(() => answer)
+    const input = call(OPEN)
+    const described = await source.describe(input)
+    if ('failure' in described || described.ok.kind !== 'tool') throw new Error('not a tool')
+    answer = known
+    expect(
+      await source.prepare({ ...input, definition: described.ok.definition, admission }),
+    ).toMatchObject({ failure: { kind: 'unavailable' } })
   })
 })
 
@@ -519,14 +957,40 @@ describe('the release composition releaseToolRequestsOf on a real Cordis root (N
     const callers: unknown[] = []
     await fixture.root.plugin(recordingSession(snapshot, callers))
     fixture.root.provide(toolCatalogKey, ports.catalog())
-    fixture.root.provide(executionScopeBindingKey, ports.scopeBinding())
+    const looked: string[] = []
+    const bindings: ScopeBindingSource = {
+      lookup: async scope => {
+        looked.push(scope.ref)
+        return okOf(succeed(ports.scopeBinding()), 'bindings')!.lookup(scope)
+      },
+    }
+    fixture.root.provide(executionScopeBindingKey, bindings)
+    new ToolOperatorSettingsImpl(fixture.root, {})
     toolRuntimeHolder(fixture.root).verifier = ports.verifier
+    const source = releaseToolRequestsOf(fixture.root)
+    // This root has no service to read the working directory from: a call that needs one waits.
+    expect(await preparedBy(source, principalA)).toEqual({
+      failure: {
+        kind: 'unavailable',
+        owner: TOOL_REQUESTS_OWNER,
+        diagnostic:
+          'the working directory of the session is not readable: the Session or Runtime Context services are absent',
+      },
+    })
+    const input = actionInput(principalA, TENANT_A, 'TodoItems', LIST_TODOS)
+    const described = okOf(await source.describe(input), 'describe')
+    if (described.kind !== 'tool') throw new Error('describe answered')
     const request = okOf(
-      await preparedBy(releaseToolRequestsOf(fixture.root), principalA),
+      await source.prepare({
+        ...input,
+        definition: described.definition,
+        admission: { owner: 'test', record: 'admission', revision: '1', digest: 'd' },
+      }),
       'prepare',
     ) as ToolInvokeRequest
     expect(okOf(judgeToolInvokeRequest(request), 'judge')).toBeDefined()
     expect(request.requesterScope).toEqual(SCOPE)
+    expect(looked).toEqual([SCOPE.ref])
     expect(callers.length).toBeGreaterThan(0)
     expect(new Set(callers)).toEqual(new Set(['coordinator']))
   })

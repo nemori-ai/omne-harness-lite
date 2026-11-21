@@ -11,7 +11,6 @@ import {
 } from '../../../src/local/operator-defaults.ts'
 import { captureShellEnvironment } from '../../../src/local/settings.ts'
 import {
-  bodyOf,
   distributionPath,
   freePort,
   killTree,
@@ -30,10 +29,14 @@ import {
 import { readFileSync } from 'node:fs'
 import {
   answer504,
+  createSession,
   diagnosticsBodyOf,
   modelCallsOf,
+  registerAndLogin,
+  sendInput,
   startScenarioGateway,
   structuredCauseOf,
+  until,
   untilRunEnded,
   type Cli,
   type ScenarioGateway,
@@ -64,33 +67,6 @@ const PROJECTED_KINDS = [
 ]
 
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
-
-async function until(ready: () => boolean, what: string, ms: number): Promise<void> {
-  const deadline = Date.now() + ms
-  while (!ready()) {
-    if (Date.now() > deadline) throw new Error(`timed out waiting for ${what}`)
-    await sleep(50)
-  }
-}
-
-async function registerAndLogin(cli: Cli, who: string, credential: string): Promise<void> {
-  for (const step of [
-    await cli(['register', '--login-identifier', who], credential),
-    await cli(['login', '--login-identifier', who], credential),
-  ])
-    expect(step.status, step.stderr).toBe(0)
-}
-
-async function createSession(cli: Cli): Promise<string> {
-  const created = await cli(['create-session', '--definition', 'assistant'])
-  expect(created.status, created.stderr).toBe(0)
-  return String(bodyOf(created)['session'])
-}
-
-async function sendInput(cli: Cli, session: string, text: string): Promise<void> {
-  const sent = await cli(['send-input', '--session', session, '--text', text])
-  expect(sent.status, sent.stderr).toBe(0)
-}
 
 describe('session diagnostics over real processes: the two smoke failures', () => {
   let scratch: Scratch
@@ -171,6 +147,8 @@ describe('session diagnostics over real processes: the two smoke failures', () =
       }
 
       gateway.release(answer504)
+      await until(() => gateway.held() >= 1, 'the second dispatch of the held call', 60_000)
+      gateway.release(answer504)
       const { run, body } = await untilRunEnded(alice, sessions.waiting, RUN_END_TIMEOUT_MS)
       expect(structuredCauseOf(run)).toEqual({
         kind: 'no-reply',
@@ -200,6 +178,12 @@ describe('session diagnostics over real processes: the two smoke failures', () =
         upstreamStatus: '504',
       })
       expect(body.gaps.filter(gap => gap.reason === 'unsupported')).toEqual([])
+      const calls = modelCallsOf(run)
+      const references = calls.map(call => call['reference'])
+      expect(calls.map(call => call['reads'])).toEqual(calls.map(() => []))
+      expect(
+        body.gaps.filter(gap => gap.source !== 'model' && references.includes(gap.subject)),
+      ).toEqual([])
 
       const text = await bob(['read-session-diagnostics', '--session', sessions.upstream])
       expect(text.status, text.stderr).toBe(0)
@@ -216,12 +200,12 @@ describe('session diagnostics over real processes: the two smoke failures', () =
       expect(run['calls'], JSON.stringify(run)).toEqual({ registered: '1', projected: '1' })
       expect(typeof call?.['reference'], JSON.stringify(run)).toBe('string')
       expect(call?.['call']).toMatchObject({ kind: 'found', phase: 'settled' })
-      expect(call?.['dispatches']).toEqual([
-        expect.objectContaining({
-          outcome: { kind: 'failed', cause: 'upstream-unavailable', upstreamStatus: '504' },
-          account: { kind: 'unknown', reason: 'not-recorded' },
-        }),
-      ])
+      const failed504 = expect.objectContaining({
+        firstContent: 'none-proven',
+        outcome: { kind: 'failed', cause: 'upstream-unavailable', upstreamStatus: '504' },
+        account: { kind: 'unknown', reason: 'not-recorded' },
+      })
+      expect(call?.['dispatches']).toEqual([failed504, failed504])
       expect(call?.['coverage']).toBe('complete-through-snapshot')
       const text = await bob(['read-session-diagnostics', '--session', sessions.upstream])
       expect(text.status, text.stderr).toBe(0)

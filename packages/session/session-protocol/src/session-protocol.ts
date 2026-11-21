@@ -19,6 +19,39 @@ const nullable = <const R extends Rule>(rule: R) =>
 const target = { tenant: { rule: tenant }, session: { rule: session } } as const
 
 const producer = object({ kind: { rule: literal('model', 'tool') }, call: { rule: text } })
+const toolCall = object({ kind: { rule: literal('tool') }, call: { rule: text } })
+const backgroundAnswer = object({
+  kind: { rule: literal('requested', 'background') },
+  controlId: { rule: text },
+  producer: { rule: toolCall },
+})
+const callLabel = object({
+  intent: { rule: nullable(anyText) },
+  tool: { rule: text },
+  command: { rule: nullable(text) },
+  preview: { rule: anyText },
+})
+// One call in the background as every reader sees it: its short number, label and state now.
+const backgroundCall = object({
+  id: { rule: text },
+  producer: { rule: toolCall },
+  label: { rule: callLabel },
+  source: { rule: literal('launched', 'control', 'threshold', 'foreground-limit') },
+  status: { rule: literal('queued', 'running', 'ended-pending', 'stopping', 'unknown') },
+  stop: {
+    rule: nullable(
+      object({
+        initiator: { rule: literal('user', 'agent', 'system') },
+        reason: { rule: nullable(anyText) },
+        progress: { rule: literal('requested', 'accepted', 'proven') },
+      }),
+    ),
+  },
+  lastLine: { rule: nullable(anyText) },
+})
+const backgroundCalls = object({
+  calls: { rule: { kind: 'array', item: backgroundCall } },
+})
 const terminalSource = object({
   owner: { rule: text },
   record: { rule: text },
@@ -42,6 +75,7 @@ function controlAnswer<const T extends Fields, const R extends Rule>(controlled:
 }
 
 const empty = ruleCodec(object({}))
+const workspaceTarget = object({ workspace: { rule: text }, instance: { rule: text } })
 const limited = ruleCodec(
   object({
     resource: { rule: literal('pending-inputs', 'input-bytes') },
@@ -49,28 +83,82 @@ const limited = ruleCodec(
   }),
 )
 
-const listSessions = object({
+const instant = { kind: 'instant' } as const
+const relation = literal('main', 'child', 'handoff')
+const attendance = literal('attended', 'unattended')
+const page = {
   tenant: { rule: tenant },
   cursor: { rule: nullable(text) },
   limit: { rule: { kind: 'positive-integer' }, optional: true },
-  includeArchived: { rule: boolean, optional: true },
+  relation: { rule: nullable(relation), optional: true },
+  parent: { rule: nullable(session), optional: true },
+  attendance: { rule: nullable(attendance), optional: true },
+  definition: { rule: nullable(text), optional: true },
+} as const
+const listSessions = object(page)
+// The archived list narrows by archive time (from inclusive, to exclusive), by how, by title text.
+const listArchivedSessions = object({
+  ...page,
+  from: { rule: nullable(instant), optional: true },
+  to: { rule: nullable(instant), optional: true },
+  by: { rule: nullable(literal('person', 'auto', 'parent')), optional: true },
+  titleContains: { rule: nullable(anyText), optional: true },
 })
 
-const sessionList = object({
-  sessions: {
-    rule: {
-      kind: 'array',
-      item: object({
-        session: { rule: session },
-        createdAt: { rule: nullable({ kind: 'instant' }) },
-        lastActivityAt: { rule: nullable({ kind: 'instant' }) },
-        lifecycle: { rule: literal('initializing', 'dormant', 'active', 'frozen', 'archived') },
-        title: { rule: nullable(anyText) },
-      }),
-    },
-  },
-  next: { rule: nullable(text) },
-  completeness: { rule: literal('complete', 'partial') },
+// What a session is to others. A server that does not know these yet leaves them out, so each is optional.
+const standing = {
+  relation: { rule: relation, optional: true },
+  parent: { rule: nullable(session), optional: true },
+  origin: { rule: nullable(session), optional: true },
+  root: { rule: session, optional: true },
+  depth: { rule: { kind: 'count' }, optional: true },
+  attendance: { rule: attendance, optional: true },
+  definition: { rule: text, optional: true },
+} as const
+const sessionItem = {
+  session: { rule: session },
+  createdAt: { rule: nullable(instant) },
+  lastActivityAt: { rule: nullable(instant) },
+  lifecycle: { rule: literal('initializing', 'dormant', 'active', 'frozen', 'archived') },
+  title: { rule: nullable(anyText) },
+  ...standing,
+} as const
+const listOf = <const F extends Fields>(item: F) =>
+  object({
+    sessions: { rule: { kind: 'array', item: object(item) } },
+    next: { rule: nullable(text) },
+    completeness: { rule: literal('complete', 'partial') },
+  })
+const sessionList = listOf(sessionItem)
+const archivedList = listOf({
+  ...sessionItem,
+  archivedAt: { rule: nullable(instant) },
+  archivedBy: { rule: nullable(literal('person', 'auto', 'parent')) },
+})
+
+// Archiving an archived session, or unarchiving one that is not, answers so; it is not refused.
+const archiveAnswer = {
+  kind: 'one-of',
+  rules: [
+    object({
+      kind: { rule: literal('archived') },
+      controlId: { rule: text },
+      runs: { rule: { kind: 'count' } },
+      backgroundCalls: { rule: { kind: 'count' } },
+    }),
+    object({ kind: { rule: literal('already-archived') }, controlId: { rule: text } }),
+  ],
+} as const
+const unarchiveAnswer = object({
+  kind: { rule: literal('unarchived', 'not-archived') },
+  controlId: { rule: text },
+})
+
+// The permission handling mode now, with the permission revision it stands at.
+const permissionModeValue = literal('never', 'auto_permission', 'bypass-permissions')
+const permissionMode = object({
+  mode: { rule: permissionModeValue },
+  revision: { rule: text },
 })
 
 const readHistory = {
@@ -81,6 +169,7 @@ const readHistory = {
       cursor: { rule: nothing },
       direction: { rule: literal('forward', 'backward') },
       pageBytes: { rule: { kind: 'page-bytes' } },
+      inherited: { rule: boolean, optional: true },
     }),
     object({ ...target, cursor: { rule: text } }),
   ],
@@ -102,6 +191,7 @@ const historyPage = object({
   next: { rule: nullable(text) },
   exhausted: { rule: boolean },
   scannedThrough: { rule: anyText },
+  from: { rule: text, optional: true },
 })
 
 const waiting = object({
@@ -118,11 +208,143 @@ const waiting = object({
   },
 })
 
+const position = { kind: 'revision' } as const
+const run = { rule: text } as const
+const pendingInput = object({
+  input: { rule: text },
+  position: { rule: position },
+  source: { rule: object({ name: { rule: text }, label: { rule: text } }) },
+  role: { rule: literal('user', 'system_reminder') },
+  wakes: { rule: boolean },
+  preview: { rule: anyText },
+})
+const readPending = object({
+  ...target,
+  after: { rule: nullable(position) },
+  limit: { rule: { kind: 'page-limit' } },
+})
+const pendingPage = object({
+  inputs: { rule: { kind: 'array', item: pendingInput } },
+  next: { rule: nullable(position) },
+})
+const waitingCalls = object({
+  calls: {
+    rule: {
+      kind: 'array',
+      item: object({
+        card: { rule: terminalSource },
+        action: { rule: nullable(text) },
+        passage: { rule: text },
+        position: { rule: text },
+        run: { rule: nullable(text) },
+      }),
+    },
+  },
+})
+const SEARCHABLE_KINDS = [
+  'message.user',
+  'message.assistant',
+  'message.tool',
+  'message.system_reminder',
+  'message.tool_internal',
+  'message.compaction',
+] as const
+const searchHistory = object({
+  tenant: { rule: tenant },
+  sessions: { rule: nullable({ kind: 'array', item: session, max: 64 }), optional: true },
+  archived: { rule: literal('unarchived', 'archived', 'all'), optional: true },
+  from: { rule: nullable(instant), optional: true },
+  to: { rule: nullable(instant), optional: true },
+  kinds: { rule: { kind: 'array', item: literal(...SEARCHABLE_KINDS), max: 6 }, optional: true },
+  modelReadable: { rule: literal('only', 'any'), optional: true },
+  content: {
+    rule: {
+      kind: 'one-of',
+      rules: [
+        object({
+          kind: { rule: literal('literals') },
+          all: { rule: { kind: 'array', item: anyText, nonempty: true, max: 8 } },
+          caseSensitive: { rule: boolean },
+        }),
+        object({
+          kind: { rule: literal('regex') },
+          pattern: { rule: anyText },
+          caseSensitive: { rule: boolean },
+        }),
+      ],
+    },
+  },
+  cursor: { rule: nullable(text) },
+  limit: { rule: { kind: 'positive-integer' }, optional: true },
+})
+const searchHit = object({
+  session: { rule: session },
+  position: { rule: text },
+  kind: { rule: literal(...SEARCHABLE_KINDS) },
+  at: { rule: nullable(instant) },
+  snippet: {
+    rule: object({ before: { rule: anyText }, match: { rule: anyText }, after: { rule: anyText } }),
+  },
+})
+const searchPage = object({
+  hits: { rule: { kind: 'array', item: searchHit } },
+  next: { rule: nullable(text) },
+  complete: { rule: boolean },
+  incomplete: {
+    rule: nullable(
+      object({
+        reason: { rule: literal('budget', 'tail-budget', 'rebuilding') },
+        behind: { rule: { kind: 'count' } },
+        progress: {
+          rule: nullable(
+            object({ indexed: { rule: { kind: 'count' } }, total: { rule: { kind: 'count' } } }),
+          ),
+        },
+      }),
+    ),
+  },
+})
+const searchInvalid = object({
+  field: { rule: literal('query', 'cursor', 'limit') },
+  reason: { rule: text },
+})
+const inputFate = object({
+  fate: {
+    rule: {
+      kind: 'one-of',
+      rules: [
+        object({ kind: { rule: literal('pending') }, returnedFrom: { rule: nullable(text) } }),
+        object({ kind: { rule: literal('taken') }, run }),
+        object({
+          kind: { rule: literal('answered') },
+          run,
+          terminal: { rule: literal('active', 'completed', 'failed', 'cancelled') },
+        }),
+        object({
+          kind: { rule: literal('settled') },
+          by: { rule: literal('cancelled', 'archived', 'frozen') },
+          run: { rule: nullable(text) },
+        }),
+        object({ kind: { rule: literal('refused') }, reason: { rule: anyText } }),
+      ],
+    },
+  },
+})
+
 const modelOutput = { rule: literal('model-output-v1') } as const
 const projected = <const K extends string>(kind: K) =>
   object({ kind: { rule: literal(kind) }, projection: modelOutput, value: { rule: json } })
 
 const observeSessionOpen = object(target)
+// How far the real dispatches of the main call got, as the Model states it.
+const dispatchProgress = object({
+  allowed: { rule: { kind: 'count' } },
+  made: { rule: { kind: 'count' } },
+  last: {
+    rule: nullable(object({ cause: { rule: text }, upstreamStatus: { rule: nullable(text) } })),
+  },
+  notBefore: { rule: nullable(text) },
+})
 const observeSessionFrame = {
   kind: 'one-of',
   rules: [
@@ -131,6 +353,7 @@ const observeSessionFrame = {
       run: { rule: nullable(text) },
       revision: { rule: anyText },
       phase: { rule: nullable(text) },
+      attempts: { rule: dispatchProgress, optional: true },
       target: { rule: nullable(object({ projection: modelOutput })) },
     }),
     projected('snapshot'),
@@ -146,6 +369,8 @@ const observeSessionFrame = {
 export type ObserveSessionOpen = RuleValue<typeof observeSessionOpen>
 export type ObserveSessionFrame = RuleValue<typeof observeSessionFrame>
 
+const blockPosition = object({ message: { rule: text }, block: { rule: text } })
+
 export const sessionProtocol = defineProtocol({
   name: 'session',
   major: 1,
@@ -158,6 +383,8 @@ export const sessionProtocol = defineProtocol({
         object({
           createCallId: { rule: text },
           definition: { rule: text, optional: true },
+          model: { rule: text, optional: true },
+          workspace: { rule: workspaceTarget, optional: true },
           purpose: { rule: anyText },
         }),
       ),
@@ -199,6 +426,31 @@ export const sessionProtocol = defineProtocol({
       },
       countsAsAccess: true,
     },
+    // An urgent input: it releases the foreground wait of the Run there, or is taken as ordinary.
+    'interrupt-input': {
+      identity: 'login',
+      effect: 'commit',
+      limit: 'input',
+      body: ruleCodec(
+        object({
+          ...target,
+          acceptId: { rule: text },
+          inputId: { rule: text },
+          message: { rule: { kind: 'user-message' } },
+        }),
+      ),
+      outcomes: {
+        succeeded: ruleCodec(
+          object({ recovered: { rule: boolean }, as: { rule: literal('interrupt', 'ordinary') } }),
+        ),
+        limited,
+        invalid: empty,
+        archived: empty,
+        frozen: empty,
+        conflict: empty,
+      },
+      countsAsAccess: true,
+    },
     'query-send-input': {
       identity: 'login',
       effect: 'read',
@@ -223,12 +475,99 @@ export const sessionProtocol = defineProtocol({
       outcomes: { succeeded: ruleCodec(waiting), invalid: empty },
       countsAsAccess: true,
     },
+    'read-pending': {
+      identity: 'login',
+      effect: 'read',
+      limit: 'small',
+      body: ruleCodec(readPending),
+      outcomes: { succeeded: ruleCodec(pendingPage), invalid: empty },
+      countsAsAccess: true,
+    },
+    'read-waiting-calls': {
+      identity: 'login',
+      effect: 'read',
+      limit: 'small',
+      body: ruleCodec(object(target)),
+      outcomes: { succeeded: ruleCodec(waitingCalls), invalid: empty },
+      countsAsAccess: true,
+    },
+    'read-input-fate': {
+      identity: 'login',
+      effect: 'read',
+      limit: 'small',
+      body: ruleCodec(object({ ...target, inputId: { rule: text } })),
+      outcomes: { succeeded: ruleCodec(inputFate), invalid: empty },
+      countsAsAccess: true,
+    },
+    'search-history': {
+      identity: 'login',
+      effect: 'read',
+      limit: 'small',
+      body: ruleCodec(searchHistory),
+      outcomes: {
+        succeeded: ruleCodec(searchPage),
+        invalid: ruleCodec(searchInvalid),
+        limited: empty,
+      },
+      countsAsAccess: true,
+    },
     'list-sessions': {
       identity: 'login',
       effect: 'read',
       limit: 'small',
       body: ruleCodec(listSessions),
       outcomes: { succeeded: ruleCodec(sessionList), invalid: empty },
+      countsAsAccess: true,
+    },
+    'list-archived-sessions': {
+      identity: 'login',
+      effect: 'read',
+      limit: 'small',
+      body: ruleCodec(listArchivedSessions),
+      outcomes: { succeeded: ruleCodec(archivedList), invalid: empty },
+      countsAsAccess: true,
+    },
+    'archive-session': {
+      identity: 'login',
+      effect: 'commit',
+      limit: 'small',
+      body: ruleCodec(object({ ...target, controlId: { rule: text } })),
+      outcomes: { succeeded: ruleCodec(archiveAnswer), invalid: empty, conflict: empty },
+      countsAsAccess: true,
+    },
+    'unarchive-session': {
+      identity: 'login',
+      effect: 'commit',
+      limit: 'small',
+      body: ruleCodec(object({ ...target, controlId: { rule: text } })),
+      outcomes: { succeeded: ruleCodec(unarchiveAnswer), invalid: empty, conflict: empty },
+      countsAsAccess: true,
+    },
+    'read-permission-mode': {
+      identity: 'login',
+      effect: 'read',
+      limit: 'small',
+      body: ruleCodec(object(target)),
+      outcomes: { succeeded: ruleCodec(permissionMode), invalid: empty },
+      countsAsAccess: true,
+    },
+    'change-permission-mode': {
+      identity: 'login',
+      effect: 'commit',
+      limit: 'small',
+      body: ruleCodec(
+        object({
+          ...target,
+          mode: { rule: permissionModeValue },
+          expectedRevision: { rule: text },
+        }),
+      ),
+      outcomes: {
+        succeeded: ruleCodec(permissionMode),
+        'no-change': ruleCodec(permissionMode),
+        conflict: empty,
+        invalid: empty,
+      },
       countsAsAccess: true,
     },
     'cancel-run': {
@@ -264,7 +603,12 @@ export const sessionProtocol = defineProtocol({
       effect: 'commit',
       limit: 'small',
       body: ruleCodec(
-        object({ ...target, controlId: { rule: text }, producer: { rule: producer } }),
+        object({
+          ...target,
+          controlId: { rule: text },
+          producer: { rule: producer },
+          reason: { rule: nullable(anyText), optional: true },
+        }),
       ),
       outcomes: {
         succeeded: ruleCodec(
@@ -286,6 +630,24 @@ export const sessionProtocol = defineProtocol({
       },
       countsAsAccess: true,
     },
+    'background-call': {
+      identity: 'login',
+      effect: 'commit',
+      limit: 'small',
+      body: ruleCodec(
+        object({ ...target, controlId: { rule: text }, producer: { rule: toolCall } }),
+      ),
+      outcomes: { succeeded: ruleCodec(backgroundAnswer), invalid: empty, conflict: empty },
+      countsAsAccess: true,
+    },
+    'list-background-calls': {
+      identity: 'login',
+      effect: 'read',
+      limit: 'small',
+      body: ruleCodec(object(target)),
+      outcomes: { succeeded: ruleCodec(backgroundCalls), invalid: empty },
+      countsAsAccess: true,
+    },
     'retry-run': {
       identity: 'login',
       effect: 'commit',
@@ -299,6 +661,89 @@ export const sessionProtocol = defineProtocol({
         'not-found': empty,
         'no-change': empty,
         conflict: empty,
+      },
+      countsAsAccess: true,
+    },
+    'select-model': {
+      identity: 'login',
+      effect: 'commit',
+      limit: 'small',
+      body: ruleCodec(object({ ...target, controlId: { rule: text }, model: { rule: text } })),
+      outcomes: {
+        succeeded: ruleCodec(
+          object({
+            controlId: { rule: text },
+            model: { rule: text },
+            credential: { rule: literal('available', 'missing', 'unknown') },
+          }),
+        ),
+        invalid: ruleCodec(
+          object({
+            reason: {
+              rule: literal('unknown-name', 'withdrawn', 'excluded', 'modality', 'locked', 'scope'),
+            },
+            blocks: { rule: { kind: 'array', item: blockPosition, max: 16 }, optional: true },
+          }),
+        ),
+        archived: empty,
+        frozen: empty,
+        'not-found': empty,
+        conflict: empty,
+      },
+      countsAsAccess: true,
+    },
+    'select-workspace': {
+      identity: 'login',
+      effect: 'commit',
+      limit: 'small',
+      body: ruleCodec(
+        object({
+          ...target,
+          controlId: { rule: text },
+          workspace: { rule: nullable(workspaceTarget) },
+        }),
+      ),
+      outcomes: {
+        succeeded: ruleCodec(
+          object({ controlId: { rule: text }, directory: { rule: nullable(text) } }),
+        ),
+        invalid: ruleCodec(
+          object({ reason: { rule: literal('not-permitted', 'instance-unavailable') } }),
+        ),
+        archived: empty,
+        frozen: empty,
+        'not-found': empty,
+        conflict: empty,
+      },
+      countsAsAccess: true,
+    },
+    'read-workspace-selection': {
+      identity: 'login',
+      effect: 'read',
+      limit: 'small',
+      body: ruleCodec(object(target)),
+      outcomes: {
+        succeeded: ruleCodec(
+          object({
+            workspace: { rule: nullable(workspaceTarget) },
+            state: { rule: literal('default', 'attached', 'unusable') },
+            directory: { rule: nullable(text) },
+            reason: { rule: nullable(text) },
+            revision: { rule: anyText },
+          }),
+        ),
+        'not-found': empty,
+      },
+      countsAsAccess: true,
+    },
+    'read-model-selection': {
+      identity: 'login',
+      effect: 'read',
+      limit: 'small',
+      body: ruleCodec(object(target)),
+      outcomes: {
+        succeeded: ruleCodec(object({ model: { rule: text }, revision: { rule: anyText } })),
+        invalid: empty,
       },
       countsAsAccess: true,
     },

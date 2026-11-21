@@ -41,7 +41,7 @@ it('retains literal prototype keys throughout command parsing and fingerprinting
         },
       },
       initial: { kind: 'active' },
-      meta: { operationKey: 'first', expectedRevision: null, consentRef: null },
+      meta: { operationKey: 'first', expectedRevision: null },
     },
   }
   const first = ScheduleOperationIntentInputSchema.parse(request)

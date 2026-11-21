@@ -1,0 +1,12 @@
+valid-empty-start.cfg pass
+valid-installed-start.cfg pass
+bad-resnap.cfg SnapStable
+bad-recall.cfg NoRecall
+bad-fresh.cfg FreshOnce
+bad-unknown.cfg UnavailableNeverRan
+bad-cancel.cfg NoStartAfterCancel
+bad-unreadable.cfg NeverLeftUnread
+reach-applied.cfg NeverAppliedAfterRun
+reach-hot-install.cfg NeverHotInstall
+reach-replay.cfg NeverReplayed
+reach-revoked.cfg NeverSkippedRevoked

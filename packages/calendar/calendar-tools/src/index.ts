@@ -1,9 +1,10 @@
-export { createCalendarToolModule } from './author.ts'
-export { createCalendarToolEnvironment } from './environment.ts'
-export type { CalendarToolContextResolver, CalendarToolEnvironment } from './environment.ts'
+export { calendarToolModule, createCalendarAuthor } from './author.ts'
+export { attachCalendar, bindCalendar, calendarOf } from './port.ts'
+export type { BoundCalendar, CalendarCallSource } from './port.ts'
 export {
-  calendarToolArgumentsSchema,
-  calendarToolResultSchema,
-  calendarToolAdoption,
+  calendarAdoption,
+  calendarCommandNames,
+  calendarContract,
+  calendarParameterCodec,
 } from './protocol.ts'
-export type { CalendarToolArguments, CalendarToolResult } from './protocol.ts'
+export type { CalendarArguments, CalendarCommandName } from './protocol.ts'

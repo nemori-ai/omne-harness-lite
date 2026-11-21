@@ -247,6 +247,7 @@ async function bound(s: SqlScene) {
     operation: operationId('entries-1'),
     after: '0',
     through: '1',
+    position: '1',
     boundary: {
       execution: s.execution,
       channel: 'tool-received',

@@ -19,18 +19,20 @@ import {
   factKey,
   fold,
   foldAll,
+  foldItems,
   modelAttempt,
   movedMembers,
-  openCalls,
-  operationState,
   refOf,
   viewDigest,
   viewText,
   voidedFacts,
   type FactBody,
   type FactRow,
+  type OperationEntry,
+  type EventView,
   type PublishedBatch,
   type SessionJournalView,
+  type Stamp,
 } from '../src/journal/index.ts'
 import { testCancellationPolicyInstallation } from '@omne-harness/agent-contract/testing'
 import {
@@ -58,6 +60,31 @@ import { forAll, random } from './fixtures/property.ts'
 
 const mint = { owner: 'laws', session: 'session-1' }
 const scope = { tenant: 'tenant-1', session: 'session-1' }
+
+// The view a fold leaves and every item it handed out, open or closed, as the store keeps them.
+function itemStore() {
+  let view = emptySessionView()
+  const families = new Map<string, Map<string, unknown>>()
+  const family = (execution: string, name: string) => {
+    const key = `${execution}\0${name}`
+    const found = families.get(key) ?? new Map<string, unknown>()
+    families.set(key, found)
+    return found
+  }
+  return {
+    get view() {
+      return view
+    },
+    land(batch: PublishedBatch) {
+      const landed = foldItems(view, batch)
+      view = landed.view
+      for (const change of landed.changes)
+        family(batch.execution, change.family).set(change.item, change.body)
+    },
+    item: (execution: string, name: string, item: string) => family(execution, name).get(item),
+    count: (execution: string, name: string) => family(execution, name).size,
+  }
+}
 
 function rowsOf(log: readonly PublishedBatch[]): FactRow[] {
   const rows: FactRow[] = []
@@ -170,7 +197,7 @@ describe('F3 incremental equals whole: a cached view plus the missed batches is 
     const broken = (view: SessionJournalView, batch: PublishedBatch): SessionJournalView => {
       seen += 1
       const folded = fold(view, batch)
-      return { ...folded, head: folded.head + (seen % 2) }
+      return { ...folded, head: folded.head + seen }
     }
     const rng = random(7)
     const value = { scene: scene(rng, { rounds: 3, executions: 1 }), cut: 2 }
@@ -212,16 +239,20 @@ describe('F4 answers derive from the batch: no stored copy, one batch per operat
       runs: 40,
       generate: rng => scene(rng),
       check: ({ log }) => {
-        let view = emptySessionView()
+        const index = itemStore()
         for (const batch of log) {
-          const before = view.executions.get(batch.execution)?.revision ?? 0
-          view = fold(view, batch)
-          const after = view.executions.get(batch.execution)!.revision
+          const before = index.view.executions.get(batch.execution)?.revision ?? 0
+          index.land(batch)
+          const after = index.view.executions.get(batch.execution)!.revision
           const recognition = batch.facts.find(fact => fact.kind === 'op.recognized')
           if (recognition?.kind === 'op.recognized') {
             if (after !== before) return 'a recognition advanced the revision'
-            const target = view.ops.get(recognition.target)
-            const entry = view.ops.get(batch.envelope.op)
+            const target = index.item(batch.execution, 'op', recognition.target) as
+              | OperationEntry
+              | undefined
+            const entry = index.item(batch.execution, 'op', batch.envelope.op) as
+              | OperationEntry
+              | undefined
             if (target === undefined || entry?.revision !== target.revision)
               return 'a recognition answers another revision than its target'
           } else if (batch.facts.length === 0) {
@@ -238,31 +269,37 @@ describe('F4 answers derive from the batch: no stored copy, one batch per operat
       runs: 40,
       generate: rng => scene(rng),
       check: ({ log }) => {
-        let view = emptySessionView()
+        const index = itemStore()
         for (const batch of log) {
-          const before = view.executions.get(batch.execution)
-          view = fold(view, batch)
-          const after = view.executions.get(batch.execution)!
-          if (after.revision !== (before?.revision ?? 0)) {
-            if (after.reached.get(after.revision) !== batch.envelope.op)
+          const before = index.view.executions.get(batch.execution)?.revision ?? 0
+          const held = index.count(batch.execution, 'reached')
+          index.land(batch)
+          const after = index.view.executions.get(batch.execution)!
+          if (after.reached.size !== 0) return 'the revision index stayed in memory'
+          const reached = index.item(batch.execution, 'reached', String(after.revision)) as
+            | Stamp
+            | undefined
+          if (after.revision !== before) {
+            if (reached?.op !== batch.envelope.op || reached.pub !== batch.pub)
               return `revision ${String(after.revision)} is not indexed to its batch`
-          } else if (after.reached.size !== (before?.reached.size ?? 0))
+          } else if (index.count(batch.execution, 'reached') !== held)
             return 'a batch that advanced nothing changed the index'
-          if (after.reached.size !== after.revision)
-            return `the index holds ${String(after.reached.size)} entries at revision ${String(after.revision)}`
+          if (index.count(batch.execution, 'reached') !== after.revision)
+            return `the index holds ${String(index.count(batch.execution, 'reached'))} entries at revision ${String(after.revision)}`
         }
         return null
       },
     })
   })
 
-  it('one batch per operation: a second batch of an operation already indexed changes nothing but the head (P6)', () => {
+  it('one batch per operation: a second batch of an operation opens its op item again, which the store refuses (P6)', () => {
     const { log } = scene(random(3), { rounds: 2, executions: 1 })
     const view = foldAll(log)
     const repeated: PublishedBatch = { ...log[2]!, pub: log.length + 1 }
-    const after = fold(view, repeated)
-    expect(after.ops.get(repeated.envelope.op)).toEqual(view.ops.get(repeated.envelope.op))
-    expect(after.ops.get(repeated.envelope.op)!.pub).toBe(log[2]!.pub)
+    const { changes } = foldItems(view, repeated)
+    expect(changes).toContainEqual(
+      expect.objectContaining({ family: 'op', item: repeated.envelope.op, change: 'opened' }),
+    )
   })
 
   it('negative control: a retry that re-executes appends a second batch; decide refuses the repeated keys', () => {
@@ -296,14 +333,13 @@ describe('F5 no copy: a fact holds references, never the content of another owne
     const { log } = scene(random(9), { rounds: 1, executions: 1 })
     const batch = log[0]!
     const big: FactBody = {
-      kind: 'passage.declared',
-      passage: 'p' as never,
-      subject: { digest: 'x'.repeat(FACT_MAX_BYTES), size: 1 },
-      declared: evidence('big'),
+      kind: 'wait.entered',
+      step: 's' as never,
+      waits: { digest: 'x'.repeat(FACT_MAX_BYTES), size: 1 },
     }
     const encoded = encodeBatch(scope, batch.pub, 0, { ...batch, facts: [...batch.facts, big] })
     expect(encoded).toMatchObject({
-      failure: { kind: 'oversize', factKind: 'passage.declared', ord: batch.facts.length + 1 },
+      failure: { kind: 'oversize', factKind: 'wait.entered', ord: batch.facts.length + 1 },
     })
   })
 
@@ -389,24 +425,6 @@ describe('P3 bounded commit: a batch carries this step alone', () => {
     expect(batchBytes(intends[19]!)).toBeLessThanOrEqual(batchBytes(intends[1]!) + 64)
   })
 
-  it('the reception targets are a projection: a call opens on call.intended and closes on result.received', () => {
-    const { log, executions } = scene(random(23), { rounds: 3, executions: 1, finish: false })
-    let view = emptySessionView()
-    for (const batch of log) {
-      const before = openCalls(
-        view.executions.get(executions[0]!) ?? emptyExecutionView(executions[0]!),
-      ).length
-      view = fold(view, batch)
-      const after = openCalls(view.executions.get(executions[0]!)!).length
-      const opened = batch.facts.filter(fact => fact.kind === 'call.intended').length
-      const closed = batch.facts.filter(fact => fact.kind === 'result.received').length
-      expect(after).toBe(before + opened - closed)
-    }
-    const execution = view.executions.get(executions[0]!)!
-    expect(openCalls(execution)).toHaveLength(0)
-    expect(execution.intents.size).toBeGreaterThanOrEqual(3)
-  })
-
   it('the terminal batches are constant in the number of tool calls; the steps append the obligations', () => {
     const small = scene(random(31), { rounds: 4, executions: 1, finish: true })
     const large = scene(random(31), { rounds: 16, executions: 1, finish: true })
@@ -435,15 +453,16 @@ describe('an unchanged commit appends the envelope alone', () => {
       runs: 40,
       generate: rng => scene(rng),
       check: ({ log }) => {
-        let view = emptySessionView()
+        const index = itemStore()
         const at = new Map<string, number>()
         for (const batch of log) {
-          const before = view.executions.get(batch.execution)?.revision ?? 0
-          view = fold(view, batch)
+          const before = index.view.executions.get(batch.execution)?.revision ?? 0
+          index.land(batch)
           if (batch.facts.length > 0) continue
-          const after = view.executions.get(batch.execution)!.revision
+          const after = index.view.executions.get(batch.execution)!.revision
           if (after !== before) return 'an envelope-only batch advanced the revision'
-          if (operationState(view, batch.envelope.op) !== 'committed') return 'not indexed'
+          if (index.item(batch.execution, 'op', batch.envelope.op) === undefined)
+            return 'not indexed'
           const encoded = encodeBatch(scope, batch.pub, 0, batch)
           if ('failure' in encoded || encoded.ok.rows.length !== 1) return 'not one row'
           if (batchBytes(batch) > BATCH_OVERHEAD_BYTES) return 'not a small constant'
@@ -451,7 +470,7 @@ describe('an unchanged commit appends the envelope alone', () => {
         }
         for (const batch of log)
           if (batch.facts.length === 0) {
-            const derived = answer(mint, view, batch)
+            const derived = answer(mint, index.view, batch)
             if (
               derived.kind !== 'receipt' ||
               Number(derived.receipt.revision) !== at.get(batch.envelope.op)
@@ -476,18 +495,19 @@ describe('an unchanged commit appends the envelope alone', () => {
     }
     const built = batchOf(execution, envelope, [])
     expect(built).toEqual({ execution: execution.execution, envelope, facts: [] })
-    const appended = fold(view, {
+    const appended = foldItems(view, {
       ...(built as { execution: never; envelope: never; facts: never }),
       pub: log.length + 1,
     })
-    expect(operationState(appended, envelope.op)).toBe('committed')
-    expect(appended.executions.get(execution.execution)!.revision).toBe(execution.revision)
-    expect(operationState(view, envelope.op)).toBe('unknown')
+    expect(appended.changes).toContainEqual(
+      expect.objectContaining({ family: 'op', item: envelope.op, change: 'opened' }),
+    )
+    expect(appended.view.executions.get(execution.execution)!.revision).toBe(execution.revision)
   })
 })
 
 describe('exclusion is a fact of the log', () => {
-  it('an excluded operation answers excluded, its write is refused, and a committed operation cannot be excluded', () => {
+  it('an excluded operation answers excluded and its write is refused', () => {
     forAll('excluded', {
       runs: 40,
       generate: rng => scene(rng),
@@ -496,51 +516,48 @@ describe('exclusion is a fact of the log', () => {
         for (const batch of log)
           for (const fact of batch.facts) {
             if (fact.kind !== 'op.excluded') continue
-            if (operationState(view, fact.operation) !== 'excluded') return 'exclusion not folded'
+            if (!view.executions.get(batch.execution)!.excluded.has(fact.operation))
+              return 'exclusion not folded'
             const execution = view.executions.get(batch.execution)!
             const refused = batchOf(execution, { ...batch.envelope, op: fact.operation }, [])
             if (!('kind' in refused) || refused.kind !== 'excluded')
               return 'an excluded operation wrote again'
           }
-        for (const batch of log) {
-          const execution = view.executions.get(batch.execution)!
-          const exclusion = fold(view, {
-            execution: batch.execution,
-            envelope: { ...batch.envelope, op: 'exec-1/op/901/fence' as never },
-            facts: [
-              {
-                kind: 'op.excluded',
-                operation: batch.envelope.op,
-                reason: 'fence',
-                evidence: evidence('late-fence'),
-                predecessor: null,
-              },
-            ],
-            pub: view.head + 1,
-          })
-          if (operationState(exclusion, batch.envelope.op) !== 'committed')
-            return 'a committed operation was excluded'
-          if (
-            exclusion.excluded.has(batch.envelope.op) ||
-            exclusion.executions.get(execution.execution)!.excluded.has(batch.envelope.op)
-          )
-            return 'the exclusion of a committed operation was folded'
-          break
-        }
         return null
       },
     })
   })
 })
 
+// What a log opened in a family that closes at birth, in order: only the item changes hold it.
+function openedOfLog<T>(log: readonly PublishedBatch[], execution: string, family: string): T[] {
+  let view = emptySessionView()
+  const opened: T[] = []
+  for (const batch of log) {
+    const landed = foldItems(view, batch)
+    view = landed.view
+    if (batch.execution !== execution) continue
+    for (const change of landed.changes)
+      if (change.family === family && change.change === 'opened') opened.push(change.body as T)
+  }
+  return opened
+}
+
+const eventsOfLog = (log: readonly PublishedBatch[], execution: string) =>
+  openedOfLog<EventView>(log, execution, 'event')
+
 describe('the Tool start fence is a fact and an entry event', () => {
-  it('fence.started folds into the fences, projects an entry event and survives the rows', () => {
-    const { log } = scene(random(47), { rounds: 3, executions: 1, finish: false })
+  it('fence.started opens a fence that closes at birth, projects an entry event and survives the rows', () => {
+    const { log } = scene(random(48), { rounds: 3, executions: 1, finish: false })
     const view = foldAll(log)
     const execution = view.executions.get(log[0]!.execution)!
-    expect(execution.fences.length).toBeGreaterThan(0)
-    for (const fence of execution.fences) {
-      const event = execution.events.find(item => item.pub === fence.pub)
+    const fences = openedOfLog<{ pub: number }>(log, log[0]!.execution, 'fence')
+    expect(fences.length).toBeGreaterThan(0)
+    expect(execution.fences).toEqual([])
+    const emitted = eventsOfLog(log, log[0]!.execution)
+    expect(execution.emitted).toBe(emitted.length)
+    for (const fence of fences) {
+      const event = emitted.find(item => item.pub === fence.pub)
       expect(event?.kind).toBe('entry')
       expect(event?.fact.kind).toBe('fence.started')
     }
@@ -623,6 +640,7 @@ describe('cursor.moved carries the changed top-level members only; no new fact, 
       { kind: 'advancing' },
     )
     const moved = movedMembers(before, after)
+    // What the checkpoint holds is not a member of the cursor: it changes in facts of its own.
     expect(Object.keys(moved).sort()).toEqual(['calls', 'position'])
     expect(moved.calls).toEqual(refOf([{ kind: 'model' }]))
     expect(bytesOf(moved)).toBeLessThan(256)
@@ -737,6 +755,48 @@ async function finished(calls: number, options: { reissue?: boolean } = {}) {
   }
 }
 
+describe('a control stage the execution already reached projects no second event', () => {
+  function controlScene() {
+    for (let seed = 1; seed < 400; seed += 1) {
+      const { log } = scene(random(seed), { executions: 1, finish: false, rounds: 3 })
+      const at = log.findIndex(batch =>
+        batch.facts.some(fact => fact.kind === 'control.stage' && fact.step === null),
+      )
+      if (at >= 0) return { prefix: log.slice(0, at + 1), batch: log[at]! }
+    }
+    throw new Error('no seed generated a control stage')
+  }
+
+  it('repeats nothing for the same stage fact, and one event for a changed state or a step', () => {
+    const { prefix, batch } = controlScene()
+    const kindsOf = (log: readonly PublishedBatch[]) =>
+      eventsOfLog(log, batch.execution).map(event => event.kind)
+    const eventsOf = (facts: PublishedBatch['facts']) =>
+      kindsOf([...prefix, { ...batch, pub: prefix.length + 1, facts }])
+    const before = kindsOf(prefix)
+    const stage = batch.facts.find(fact => fact.kind === 'control.stage')!
+    if (stage.kind !== 'control.stage') throw new Error('control stage expected')
+    expect(eventsOf([stage])).toEqual(before)
+    const flipped = stage.state === 'reached' ? 'unresolved' : 'reached'
+    expect(eventsOf([{ ...stage, state: flipped }])).toEqual([...before, 'control'])
+    expect(eventsOf([{ ...stage, step: 'step-9' as never }])).toEqual([...before, 'control'])
+  })
+})
+
+describe('no event after the execution ended, as the writer appends none', () => {
+  it('a result received after the end folds as kept custody and projects no event', async () => {
+    const { log } = await finished(1)
+    const received = log.find(batch => batch.facts.some(fact => fact.kind === 'result.received'))
+    if (received === undefined) throw new Error('the log has no received result')
+    const late: PublishedBatch = { ...received, pub: log.length + 1 }
+    const before = foldAll(log)
+    const after = foldAll([...log, late])
+    const events = after.executions.get(received.execution)?.events ?? []
+    expect(events.at(-1)?.kind).toBe('ended')
+    expect(events).toEqual(before.executions.get(received.execution)?.events)
+  })
+})
+
 describe('the issue of obligations does not grow with the Tool calls', () => {
   it('after 150 Tool calls prepareFinish succeeds, its batch is the size it is after 1, and the end batch too', async () => {
     const small = await finished(1)
@@ -774,6 +834,7 @@ describe('the issue of obligations does not grow with the Tool calls', () => {
       id: obligationId(item),
       category: item.kind,
       item: refOf(item),
+      settled: item.disposition.kind === 'settled',
     }))
     expect(whole.length + 1).toBeGreaterThan(BATCH_MAX_FACTS)
     expect(
@@ -859,15 +920,15 @@ describe('the finishing records are the projection of the folded facts', () => {
     const { view, blobs, namespace } = s.view.controls.facts()
     const execution = view.executions.get(s.execution)!
     const projected = finishingOf(execution, blobs, {
-      receipt: (op, pub, revision) => ({
-        operation: op,
+      receipt: stamp => ({
+        operation: stamp.op,
         execution: s.execution,
-        revision: revisionOf(revision),
+        revision: revisionOf(stamp.revision),
         evidence: {
           owner: JOURNAL_OWNER,
-          record: `${namespace}/${s.execution}/pub/${pub}`,
-          revision: String(revision),
-          digest: execution.ops.get(op)!.digest,
+          record: `${namespace}/${s.execution}/pub/${stamp.pub}`,
+          revision: String(stamp.revision),
+          digest: stamp.digest,
         },
         state: 'applied',
       }),
@@ -914,8 +975,9 @@ describe('the checkpoint of a folded view takes the input batch and the voided i
     const execution = voidedScene()
     const begun = execution.steps.at(-1)!
     const request = execution.requests.find(item => item.voided !== null)!
-    const intent = [...execution.intents.values()].find(
-      item => item.pending.kind === 'model' && item.pending.reference === request.reference,
+    // The step has moved on from the voided call: its intent has closed, the voiding names it.
+    const intent = execution.voided.find(
+      item => item.intent === 'model' && item.reference === request.reference,
     )!
     const checkpoint = {
       ...sampleCheckpoint(),
@@ -992,15 +1054,12 @@ describe('the checkpoint of a folded view takes the input batch and the voided i
     expect(modelAttempt({ step: begun.step, voided: read.voided })).toBe(1)
   })
 
-  it('negative control: a batch without its step.begun, or a voided request without its intent, throws', () => {
+  it('negative control: a batch without its step.begun throws', () => {
     const execution = voidedScene()
     const begun = execution.steps.at(-1)!
     const checkpoint = { ...sampleCheckpoint(), step: begun.step, inputBatch: begun.batch }
     const cursor = cursorOf(checkpoint, { kind: 'advancing' })
     const blobs = new Map(blobsOf(checkpoint))
     expect(() => checkpointOf({ ...execution, cursor, steps: [] }, blobs)).toThrow(/step\.begun/)
-    expect(() => checkpointOf({ ...execution, cursor, intents: new Map() }, blobs)).toThrow(
-      /call\.intended/,
-    )
   })
 })

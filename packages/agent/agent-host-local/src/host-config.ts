@@ -1,6 +1,5 @@
 import type { AgentConfiguration } from '@omne-harness/agent'
 import { judgeAdoption } from '@omne-harness/agent-contract'
-import { parseRetryPolicy } from '@omne-harness/retry'
 
 export type AgentHostReceptionConfig = Readonly<{
   records: number
@@ -41,19 +40,10 @@ const FIELDS: ReadonlySet<string> = new Set([
   'jointCommits',
   'coordination',
   'loopGuardPolicy',
-  'modelRetry',
+  'compactionProvider',
   'maxRunSteps',
   'reception',
 ])
-
-function modelRetryIssues(value: unknown): readonly string[] {
-  try {
-    parseRetryPolicy(value)
-    return []
-  } catch (error) {
-    return [`modelRetry: ${error instanceof Error ? error.message : 'not a retry policy'}`]
-  }
-}
 
 const RECEPTION_FIELDS = [
   'records',
@@ -127,12 +117,22 @@ function issuesOf(value: unknown): readonly Issue[] {
   const delays = read('reconciliationDelaysMs')
   if (!Array.isArray(delays) || delays.length === 0 || !delays.every(isNonNegative))
     issues.push('reconciliationDelaysMs: not a non-empty list of non-negative safe integers')
-  issues.push(...modelRetryIssues(read('modelRetry')))
   issues.push(...stepLimitIssues(read('maxRunSteps')))
   issues.push(...receptionIssues(read('reception')))
   if (!COORDINATION.includes(read('coordination'))) issues.push('coordination: unknown mode')
   const joint = jointCommitsIssue(read('jointCommits'))
   if (joint !== undefined) issues.push(joint)
+  const provider = read('compactionProvider')
+  if (
+    typeof provider !== 'object' ||
+    provider === null ||
+    Array.isArray(provider) ||
+    typeof Reflect.get(provider, 'authority') !== 'string' ||
+    Reflect.get(provider, 'authority').length === 0 ||
+    'failure' in judgeAdoption(Reflect.get(provider, 'adoption')) ||
+    Object.keys(provider).some(key => key !== 'authority' && key !== 'adoption')
+  )
+    issues.push('compactionProvider: authority and adoption are required')
   const guard = judgeAdoption(read('loopGuardPolicy'))
   if ('failure' in guard) issues.push(`loopGuardPolicy: ${guard.failure.reason}`)
   return issues.map(message => ({ message }))

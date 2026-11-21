@@ -397,7 +397,34 @@ it('compares a repeated key by its fingerprint: binding, provider and requiremen
     requirement: requirement([host], ['command'], ['process']),
   }
   expect(await registry.acquire(accessA, acquireInput(isolated))).toEqual(conflict)
+  const rooted: Placement = { ...onHost, filesScope: { read: '/srv', write: '/srv/blog' } }
+  expect(await registry.acquire(accessA, acquireInput(rooted))).toEqual(conflict)
   expect(provider.calls.acquire).toBe(1)
+})
+
+it('carries the files scope the integrator gave into the placement and into the acquisition', async () => {
+  const provider = scriptedProvider()
+  const registry = registryWith([provider])
+  const wanted = want(requirement([host]))
+  const bare = await registry.resolvePlacement(accessA, wanted)
+  expect(bare).not.toHaveProperty('filesScope')
+  const scope = { read: '/srv', write: '/srv/blog' }
+  const rooted = await registry.resolvePlacement(accessA, { ...wanted, filesScope: scope })
+  expect(rooted).toEqual({ ...bare, filesScope: scope })
+  if (rooted.kind !== 'placement') throw new Error('no placement')
+  const first = await registry.acquire(accessA, acquireInput(rooted, 'rooted'))
+  if (first.kind !== 'acquired') throw new Error(JSON.stringify(first))
+  expect(first.lease.placement).toEqual(rooted)
+  // The same key with another scope is another acquisition, not the original again.
+  const moved: Placement = { ...rooted, filesScope: { ...scope, read: '/' } }
+  expect(await registry.acquire(accessA, acquireInput(moved, 'rooted'))).toEqual({
+    kind: 'rejected',
+    reason: 'acquisitionConflict',
+  })
+  expect(await registry.acquire(accessA, acquireInput({ ...rooted }, 'rooted'))).toMatchObject({
+    kind: 'acquired',
+    lease: first.lease,
+  })
 })
 
 it('compares isolation claims as a set, whatever the order', async () => {

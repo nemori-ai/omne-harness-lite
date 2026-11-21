@@ -11,6 +11,7 @@ import {
   type ToolCallId,
 } from './identity.ts'
 import { encodeToolInvocationRef, resolveToolInvocationRef } from './reference.ts'
+import type { BackgroundSource } from './operations.ts'
 import type { ToolInvocationRef } from './reference.ts'
 import {
   judgeToolDelivery,
@@ -120,6 +121,24 @@ function accountDelivery(
   }
 }
 
+function placeholderDelivery(
+  access: Access<unknown>,
+  consumer: ConsumerRef,
+  name: string,
+  source: BackgroundSource = { kind: 'launched' },
+): Extract<ToolDelivery<ContentBlock>, { kind: 'placeholder' }> {
+  const call = callId(name)
+  return {
+    kind: 'placeholder',
+    key: { kind: 'placeholder', producer: 'tool', reference: referenceOf(access, call) },
+    consumer,
+    delivery: minted(decodeToolDeliveryId(`${name}/placeholder`), 'placeholder'),
+    source,
+    label: { intent: `run ${name}`, tool: 'Shell', command: 'execute', preview: 'sleep 60' },
+    evidence: evidence(`placeholder/${name}`),
+  }
+}
+
 function scene<P>(fixture: Fixture<P>, access: Access<P> = fixture.access) {
   const push = (delivery: ToolDelivery<ContentBlock>, signal = new AbortController().signal) =>
     fixture.receiver.push({ access, delivery, signal })
@@ -128,6 +147,8 @@ function scene<P>(fixture: Fixture<P>, access: Access<P> = fixture.access) {
       resultDelivery(access, fixture.consumer, name, version, text),
     account: (name: string, revision: string) =>
       accountDelivery(access, fixture.consumer, name, revision),
+    placeholder: (name: string, source?: BackgroundSource) =>
+      placeholderDelivery(access, fixture.consumer, name, source),
     push,
     saved: async (delivery: ToolDelivery<ContentBlock>, what: string): Promise<ToolSavedReceipt> =>
       savedOf(await push(delivery), what),
@@ -308,6 +329,28 @@ async function notOriginal<P>(fixture: Fixture<P>): Promise<void> {
   await s.saved(s.account('call-1', '2'), 'push of the account to the original position')
 }
 
+async function placeholderBeforeResult<P>(fixture: Fixture<P>): Promise<void> {
+  const s = scene(fixture)
+  const placeholder = s.placeholder('call-1')
+  const receipt = await s.saved(placeholder, 'push of the placeholder')
+  assert.deepEqual(receipt.key, placeholder.key, 'the receipt names the key of the placeholder')
+  assert.equal(receipt.evidence.owner, fixture.consumer.owner)
+  assert.deepEqual(await s.saved(placeholder, 'push of the placeholder again'), receipt)
+  const result = await s.saved(s.result('call-1'), 'push of the result of the same call')
+  assert.notDeepEqual(result.key, receipt.key, 'the result has its own key')
+}
+
+async function placeholderConflicts<P>(fixture: Fixture<P>): Promise<void> {
+  const s = scene(fixture)
+  const first = await s.saved(s.placeholder('call-1'), 'push of the placeholder')
+  const other = failureOf(
+    await s.push(s.placeholder('call-1', { kind: 'threshold' })),
+    'push of another placeholder of the same call',
+  )
+  assert.equal(other.kind, 'conflict')
+  assert.deepEqual(await s.saved(s.placeholder('call-1'), 'push again'), first)
+}
+
 export function toolResultReceiverConformance<P>(): readonly ConformanceCase<Fixture<P>>[] {
   const named = (name: string, run: (fixture: Fixture<P>) => Promise<void>) =>
     conformanceCase('结果推送与保存', name, run)
@@ -336,6 +379,14 @@ export function toolResultReceiverConformance<P>(): readonly ConformanceCase<Fix
     named(
       'a principal without receiving qualification is denied and saves nothing',
       unqualifiedReceiver,
+    ),
+    named(
+      'a placeholder saves under its own key, recalls on resend, and the result of the call still saves',
+      placeholderBeforeResult,
+    ),
+    named(
+      'another placeholder of the same call is a conflict that keeps the first',
+      placeholderConflicts,
     ),
   ]
 }
@@ -384,14 +435,16 @@ export function createMemoryToolResultReceiver<P>(
     const key = JSON.stringify(
       delivery.key.kind === 'result'
         ? [tenant, delivery.key.producer, 'result', resolved.ok.call, delivery.key.result]
-        : [
-            tenant,
-            delivery.key.producer,
-            'account',
-            resolved.ok.call,
-            delivery.key.event,
-            delivery.key.revision,
-          ],
+        : delivery.key.kind === 'placeholder'
+          ? [tenant, delivery.key.producer, 'placeholder', resolved.ok.call]
+          : [
+              tenant,
+              delivery.key.producer,
+              'account',
+              resolved.ok.call,
+              delivery.key.event,
+              delivery.key.revision,
+            ],
     )
     const known = records.get(key)
     if (known !== undefined)

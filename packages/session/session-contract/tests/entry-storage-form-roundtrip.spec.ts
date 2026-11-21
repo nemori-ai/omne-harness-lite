@@ -56,7 +56,7 @@ describe('the stored form holds each repeated value once', () => {
         )?.shape,
       )
     expect(plain(byKind('message.tool')[0]!)['source']).toEqual(SAMPLES.at(-1)!.origin.source)
-    expect(rows.every(row => row.schema.revision === '4')).toBe(true)
+    expect(rows.every(row => row.schema.revision === SESSION_INTERPRETER.revision)).toBe(true)
   })
 
   it('decodes every representative entry to the value it encoded, member order kept', () => {
@@ -126,12 +126,15 @@ describe('a reference without its target is malformed, never guessed', () => {
     })
   })
 
-  it('reports bytes of revision 3 as malformed instead of reading them in the new form', () => {
-    const third = { ...SESSION_INTERPRETER, revision: '3' }
-    for (const row of rows)
-      expect(decodeEntry({ ...row, schema: third }, { created: INITIAL_ADOPTION })).toEqual({
-        malformed: `${row.kind}: stored by session-log revision 3; this interpreter reads only revision 4`,
-      })
+  it('reports bytes of an earlier revision as malformed instead of reading them in the new form', () => {
+    expect(SESSION_INTERPRETER.revision).toBe('5')
+    for (const earlier of ['3', '4']) {
+      const schema = { ...SESSION_INTERPRETER, revision: earlier }
+      for (const row of rows)
+        expect(decodeEntry({ ...row, schema }, { created: INITIAL_ADOPTION })).toEqual({
+          malformed: `${row.kind}: stored by session-log revision ${earlier}; this interpreter reads only revision 5`,
+        })
+    }
   })
 })
 

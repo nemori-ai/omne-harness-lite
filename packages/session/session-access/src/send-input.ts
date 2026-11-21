@@ -1,3 +1,4 @@
+import { MEMBER_INPUT_SOURCE } from './member-source.ts'
 import type { LoginIdentity, Principal } from '@omne-harness/access-cordis-contract'
 import { writeJsonText } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/legal-identity'
@@ -42,11 +43,12 @@ function userMessageOf(text: string): Message | undefined {
   return 'ok' in judged && judged.ok.role === 'user' ? judged.ok : undefined
 }
 
-export async function sendInput(
+async function enqueueInput(
   ports: SendInputPorts,
   login: LoginIdentity,
   body: Body<'send-input'>,
-): Promise<Answer<'send-input'>> {
+  urgent: boolean,
+): Promise<Answer<'send-input'> | Answer<'interrupt-input'>> {
   const message = writeJsonText(body.message)
   if (userMessageOf(message) === undefined) return { outcome: 'protocol-rejected' }
   const targeted = await ports.target(login, body.tenant, body.session)
@@ -60,13 +62,70 @@ export async function sendInput(
     inputId: body.inputId,
     message,
     login: caller.login,
+    ...(urgent ? { urgent: true as const } : {}),
   })
+}
+
+export async function sendInput(
+  ports: SendInputPorts,
+  login: LoginIdentity,
+  body: Body<'send-input'>,
+): Promise<Answer<'send-input'>> {
+  return (await enqueueInput(ports, login, body, false)) as Answer<'send-input'>
+}
+
+// The same queue and the same query as send-input; Session decides if a Run is there to interrupt.
+export async function interruptInput(
+  ports: SendInputPorts,
+  login: LoginIdentity,
+  body: Body<'interrupt-input'>,
+): Promise<Answer<'interrupt-input'>> {
+  return (await enqueueInput(ports, login, body, true)) as Answer<'interrupt-input'>
 }
 
 const RETRY: Admission = Object.freeze({ kind: 'retry' })
 
+// An urgent input that met no Run was taken as ordinary; the answer says which (C27).
+function answerOf(
+  value: Readonly<{ receipt: Readonly<{ recovered: boolean }>; progress: unknown }>,
+): Readonly<{ recovered: boolean; as: 'interrupt' | 'ordinary' }> {
+  return {
+    recovered: value.receipt.recovered,
+    as: value.progress === null ? 'ordinary' : 'interrupt',
+  }
+}
+
 function settled(answer: Answer<'send-input'>): Admission {
   return { kind: 'settled', answer }
+}
+
+type Caller = NonNullable<ReturnType<typeof describedBy>>
+
+// One queued input to Session: an urgent one interrupts the Run there, an ordinary one is accepted.
+function commitInput(
+  faces: SessionAccessFaces,
+  principal: Principal,
+  caller: Caller,
+  request: QueuedRequest,
+  message: Message,
+) {
+  const session = request.session as SessionId
+  const access = { principal, tenant: caller.tenant, session }
+  const operation = acceptOperation(request.tenant, session, request.acceptId)
+  const value = {
+    kind: 'ordinary' as const,
+    input: inputIdentity(request.tenant, session, request.inputId) as InputId,
+    message,
+    origin: loginEntryOrigin(caller.account, caller.login),
+    source: MEMBER_INPUT_SOURCE.name,
+  }
+  if (request.urgent === true)
+    return faces.management
+      .interrupt({ ...access, operation, run: null, urgent: value, decision: value.origin })
+      .then(answer => ('ok' in answer ? { ok: answerOf(answer.ok) } : answer))
+  return faces.work
+    .accept({ ...access, operation, value })
+    .then(answer => ('ok' in answer ? { ok: { recovered: answer.ok.recovered } } : answer))
 }
 
 export async function admitRequest(
@@ -83,24 +142,9 @@ export async function admitRequest(
   if (caller === undefined) return settled(UNAVAILABLE)
   const message = userMessageOf(request.message)
   if (message === undefined) return settled({ outcome: 'protocol-rejected' })
-  const session = request.session as SessionId
-  const result = await commitCall(() =>
-    faces.work.accept({
-      principal: issued.ok,
-      tenant: caller.tenant,
-      session,
-      operation: acceptOperation(request.tenant, session, request.acceptId),
-      value: {
-        kind: 'ordinary',
-        input: inputIdentity(request.tenant, session, request.inputId) as InputId,
-        message,
-        origin: loginEntryOrigin(caller.account, caller.login),
-      },
-    }),
-  )
+  const result = await commitCall(() => commitInput(faces, issued.ok, caller, request, message))
   if (result === 'unknown') return RETRY
-  if ('ok' in result)
-    return settled({ outcome: 'succeeded', body: { recovered: result.ok.recovered } })
+  if ('ok' in result) return settled({ outcome: 'succeeded', body: result.ok })
   const { kind } = result.failure
   if (kind === 'unavailable' || kind === 'commit-unknown') return RETRY
   return settled(refused('send-input', result.failure))

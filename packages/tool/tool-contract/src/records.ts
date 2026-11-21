@@ -16,7 +16,7 @@ import type {
   ToolResultVersion,
   ToolWaitId,
 } from './identity.ts'
-import type { ToolControl } from './operations.ts'
+import type { BackgroundSource, ToolControl } from './operations.ts'
 import type {
   DecisionValue,
   PreparedEnvironment,
@@ -135,7 +135,20 @@ export type ToolStartAcceptance = Readonly<{
   authorizations: readonly ToolPermitConsumption[]
   executorReceipt: DurableEvidence
   acceptance: DurableEvidence
+  release?: ToolStartRelease
 }>
+/** What a start was released on, as the request-access owner answered it; kept as given, unread. */
+export type ToolStartRelease = Readonly<
+  | { by: 'verdict' | 'once' | 'session' | 'skip-ask'; grant: string }
+  | { by: 'carrier' | 'ungated'; grant: null }
+>
+export type ToolStartReleaseReading =
+  | Readonly<{ kind: 'released'; release: ToolStartRelease }>
+  | Readonly<{ kind: 'absent' }>
+/** What a call's start was released on, for an owner that keeps a consent basis. */
+export interface ToolStartReleases<P> {
+  releaseOf(input: CallAccess<P>): Reply<ToolStartReleaseReading>
+}
 export type WaitIntent = Readonly<{
   wait: ToolWaitId
   resume: DurableEvidence
@@ -297,6 +310,13 @@ export type ToolTask = Readonly<{
         result: ToolResultVersion
         delivery: ToolDeliveryId
         consumer: ConsumerRef
+      }>
+    | Readonly<{
+        kind: 'placeholder'
+        delivery: ToolDeliveryId
+        consumer: ConsumerRef
+        source: BackgroundSource
+        evidence: DurableEvidence
       }>
     | Readonly<{ kind: 'queue' | 'settle' | 'account' | 'facts' | 'clock'; basis: DurableEvidence }>
     | Readonly<{

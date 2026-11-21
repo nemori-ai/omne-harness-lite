@@ -9,6 +9,7 @@ import type {
   EnvironmentLease,
   EnvironmentProvider,
   FacilityKey,
+  FilesScope,
   LeaseInvalidation,
   ManagedResource,
   OriginalAcquisition,
@@ -38,7 +39,9 @@ import {
   type HostFilesDomain,
 } from './host-domain.ts'
 import type { HostFileDiagnostic, HostFilesLimits } from './host-files.ts'
+import type { ScreenBackend } from '@omne-harness/screen'
 import { probeHostFilesPrerequisite } from './host-paths.ts'
+import { createScreenFacility } from './host-screen.ts'
 import { probeWindowsFilesPrerequisite } from './windows-files/facility.ts'
 import { probeMacosFilesPrerequisite } from './macos-files/prerequisite.ts'
 import { type HostTerminalPrerequisite } from './host-probe.ts'
@@ -101,9 +104,10 @@ export type HostFilesProviderOptions = Readonly<{
   diagnose?: (diagnostic: HostFilesDiagnostic) => void
   command?: HostCommandOptions
   terminal?: HostTerminalOptions
-  filesRoot?: string
   stateDirectory?: string
   limits?: Partial<HostFilesLimits>
+  /** The screen backend this host offers (see `offeredScreen`); absent: it offers no `screen`. */
+  screen?: ScreenBackend
 }>
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
@@ -167,6 +171,53 @@ function temporaryFileRemains(
   }
 }
 
+type Joined = ReturnType<DomainInternals['joinEngine']>
+
+/** One engine for each files scope a placement names; in it a root keeps the identity it was first seen with. */
+function enginesByScope(
+  internals: DomainInternals,
+  options: Pick<HostFilesProviderOptions, 'stateDirectory' | 'limits'>,
+  diagnose: Parameters<DomainInternals['joinEngine']>[1],
+) {
+  const joined = new Map<string, Joined>()
+  const join = (scope: FilesScope = {}): Joined['engine'] => {
+    const key = JSON.stringify([scope.read ?? null, scope.write ?? null])
+    const known = joined.get(key) ?? internals.joinEngine({ ...options, scope }, diagnose)
+    joined.set(key, known)
+    return known.engine
+  }
+  // The engine without a scope is made now, so a bad state directory or bound fails the construction.
+  join()
+  return {
+    /** Undefined: a root is not an absolute path, so it names no directory to keep the files in. */
+    under(scope: FilesScope | undefined): Joined['engine'] | undefined {
+      try {
+        return join(scope)
+      } catch {
+        return undefined
+      }
+    },
+    leave(): void {
+      for (const membership of joined.values()) membership.leave()
+    },
+  }
+}
+
+function screenPart(backend: ScreenBackend | undefined) {
+  const screen = backend === undefined ? undefined : createScreenFacility(backend)
+  const keys: readonly FacilityKey[] = ['files', 'command', 'terminal']
+  return {
+    facilities: Object.freeze(screen === undefined ? keys : [...keys, 'screen' as const]),
+    leased: (record: DomainRecord): Partial<EnvironmentFacilities> => ({
+      files: record.facade.facility,
+      command: record.commands.facility,
+      terminal: record.terminals.facility,
+      ...(screen === undefined ? {} : { screen }),
+    }),
+    screenPermission: async () => (backend === undefined ? [] : [await backend.permission()]),
+  }
+}
+
 export function createHostFilesProvider(options: HostFilesProviderOptions): EnvironmentProvider {
   const domain = options.domain
   const internals: DomainInternals | undefined = domain ? domainInternals(domain) : undefined
@@ -184,12 +235,11 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
       options.diagnose?.(Object.freeze(diagnostic))
     } catch {}
   }
-  const files = internals.joinEngine(
-    { root: options.filesRoot, stateDirectory: options.stateDirectory, limits: options.limits },
-    fact => report(temporaryFileRemains(name, generation, fact)),
+  const engines = enginesByScope(internals, options, fact =>
+    report(temporaryFileRemains(name, generation, fact)),
   )
   internals.registerGeneration(generation)
-  const facilities: readonly FacilityKey[] = Object.freeze(['files', 'command', 'terminal'])
+  const { facilities, leased, screenPermission } = screenPart(options.screen)
   let retired = false
   const execution = createHostPlatform({
     settings,
@@ -224,9 +274,6 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
       { key: 'provider', value: { kind: 'string', value: name } },
       { key: 'generation', value: { kind: 'string', value: generation } },
       { key: 'version', value: { kind: 'string', value: version } },
-      ...(options.filesRoot === undefined
-        ? []
-        : [{ key: 'filesRoot', value: { kind: 'string', value: 'configured' } } as const]),
     ],
   }
 
@@ -270,11 +317,7 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
     const invalidated = new Promise<LeaseInvalidation>(resolve => {
       settle = resolve
     })
-    const available: Partial<EnvironmentFacilities> = {
-      files: record.facade.facility,
-      command: record.commands.facility,
-      terminal: record.terminals.facility,
-    }
+    const available = leased(record)
     record.invalidate = value => {
       settle(value)
       record.invalidate = () => undefined
@@ -352,7 +395,11 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
         platform,
         facilities,
         isolation: [],
-        prerequisites: merged([...(await execution.prerequisites()), await filesPrerequisite()]),
+        prerequisites: merged([
+          ...(await execution.prerequisites()),
+          await filesPrerequisite(),
+          ...(await screenPermission()),
+        ]),
       })
     },
     async quota(tenant) {
@@ -371,11 +418,13 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
         ...(input.retention === undefined ? {} : { retentionScope: input.retention.scope }),
         placement: input.placement,
       }
+      const engine = engines.under(input.placement.filesScope)
+      if (engine === undefined) return { kind: 'rejected', reason: 'invalidInput' }
       const admitted = internals.admit(
         original,
         fingerprintOf(original),
         generation,
-        files.engine,
+        engine,
         () =>
           execution.commands({
             ledger: input.ledger,
@@ -573,7 +622,7 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
       const results = await Promise.all(own.map(record => internals.drain(record, drainBoundMs)))
       const retainedResources = await retainedDrain
       if (results.every(result => result.kind === 'settled') && retainedResources.length === 0) {
-        files.leave()
+        engines.leave()
         return { kind: 'drained' }
       }
       const resources = [

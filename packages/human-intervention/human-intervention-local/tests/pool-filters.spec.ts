@@ -62,8 +62,8 @@ it('matches an independent reference evaluator across every state subset and del
       expect(await list(filter, 'outsider')).toEqual([])
     }
 })
-it('returns empty independent-scope projections for foreign origin and session filters', async () => {
-  for (const originKind of ['agent-extension', 'tool', 'admission'] as const)
+it('returns empty projections for foreign origin and session filters', async () => {
+  for (const originKind of ['tool', 'admission'] as const)
     expect(await list({ states: ['pending', 'decided', 'invalidated'], originKind })).toEqual([])
   expect(
     await list({ states: ['pending', 'decided', 'invalidated'], sessionRef: 'session-unrelated' }),

@@ -19,6 +19,7 @@ const legacy: AgentJournalReading<string> = {
   inputs: () => Promise.resolve(fail(unavailable)),
   readReplyAdmissions: () => Promise.resolve(fail(unavailable)),
   query: () => Promise.resolve({ ok: { kind: 'unknown' } }),
+  inputAcceptance: () => Promise.resolve(fail(unavailable)),
   output: {
     read: () => Promise.resolve(fail(unavailable)),
     async *events() {

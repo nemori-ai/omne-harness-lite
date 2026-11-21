@@ -1,3 +1,5 @@
+import type { AssetsLocal } from '@omne-harness/assets-local'
+import type { PermissionDeclaration } from '../../entry/permission-declarations.ts'
 import type { ToolRelease } from '../../entry/tool-release.ts'
 import { createPermissionBasisRead, type PermissionOrigins } from './permission-basis-read.ts'
 import { GOVERNANCE_PROJECTION_READ } from './storage-materials.ts'
@@ -6,7 +8,7 @@ import type { SessionPermissionLogin } from '../authorization/session-permission
 import type { ActingForTenantPrincipal, StandingDestinationResolver } from '@omne-harness/identity'
 import { access, tenantCodec } from '@omne-harness/legal-identity'
 import { GovernanceScopeSchema } from '@omne-harness/governance-contract'
-import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
+import type { ReadUnavailableReason, SqlMaterialCatalog } from '@omne-harness/sql-contract'
 import type {
   SettingsBasis,
   SettingsFailure,
@@ -22,6 +24,7 @@ import type { SessionPermissionSettingsResolver } from './session-permission-set
 import { governanceStorageCombinations } from './storage-combinations.ts'
 import { createGovernanceAdoptionProjection } from './adoption-current.ts'
 import { governanceCatalogProjection } from './catalog-current.ts'
+import type { GovernedCapture } from './governed-capture.ts'
 import { createSessionPermissionBasisSource } from './session-permission-basis-source.ts'
 
 export type TenantGovernanceOptions = Omit<
@@ -32,9 +35,11 @@ export type TenantGovernanceOptions = Omit<
     materials: SqlMaterialCatalog
     catalogPrincipal: ActingForTenantPrincipal
     permissionRelease?: () => ToolRelease
+    permissionDeclarations?: () => readonly PermissionDeclaration[]
     permissionOrigins?: () => PermissionOrigins | undefined
     login?: () => SessionPermissionLogin | undefined
     settings?: SessionPermissionSettingsResolver
+    capture: GovernedCapture
   }>
 type Combinations = ReturnType<typeof governanceStorageCombinations>
 const unavailable = (phase: 'binding' | 'registration' | 'startup', reason: string) => ({
@@ -92,6 +97,7 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
     const handler = options.materials.readHandlers.find(
       item => item.handler === GOVERNANCE_PROJECTION_READ,
     )
+    let refused: ReadUnavailableReason | null = null
     const runtime = await createGovernanceLocal({
       ...options,
       metadata: reference(combinations.metadata),
@@ -103,23 +109,24 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
         read: async commands => {
           if (handler === undefined) return { kind: 'unavailable' }
           const read = await readProjection(options.storage, options.domain, handler, commands)
+          refused = read.kind === 'unavailable' ? read.reason : null
           return read.kind === 'completed' ? read : { kind: 'unavailable' }
         },
       },
       current: {
         adoption: createGovernanceAdoptionProjection(options.domain.transactionDomain),
-        catalog: governanceCatalogProjection,
+        catalog: governanceCatalogProjection(options.capture),
       },
     })
     if (runtime.kind !== 'created') return unavailable(phase, `${runtime.owner} ${runtime.kind}`)
     const { service } = runtime
     let closed = false
     const permissionBasis =
-      options.permissionRelease === undefined || handler === undefined
+      options.permissionDeclarations === undefined || handler === undefined
         ? undefined
         : createPermissionBasisRead({
             scope: options.scope,
-            release: options.permissionRelease,
+            declarations: options.permissionDeclarations,
             storage: options.storage,
             domain: options.domain,
             epoch: runtime.epoch,
@@ -155,6 +162,8 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
           mapped: reference(combinations.sessionMapped),
         },
       }),
+      /** Why the store refused the latest projection read; null when it answered. */
+      readRefusal: () => refused,
       close: () => {
         closed = true
         return runtime.close()
@@ -170,10 +179,13 @@ export type TenantSettingsAccess = Readonly<{
   writer: TenantSettingsWriter
 }>
 
+export type TenantAssetsAccess = Pick<AssetsLocal, 'readHolding'>
+
 /** Publish the durable settlement routes before open() can begin historical recovery. */
 export type TenantGovernanceAssembly = Readonly<{
   destination: StandingDestinationResolver
   settings?: TenantSettingsAccess
+  assets?: TenantAssetsAccess
   open(): Promise<
     | Awaited<ReturnType<typeof open>>
     | Readonly<{

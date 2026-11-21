@@ -6,7 +6,13 @@ export type {
   ToolBodyAppendReceipt,
 } from './body-writer.ts'
 export { decodeToolCallId, decodeToolOperationId } from './identity.ts'
-export type { ToolBodyReadRequest, ToolBodyPage, ToolInvocationBodyReader } from './body-reads.ts'
+export type {
+  CallOutput,
+  ToolBodyReadRequest,
+  ToolBodyPage,
+  ToolInvocationBodyReader,
+  ToolOutputReadRequest,
+} from './body-reads.ts'
 export type {
   Access,
   Adoption,
@@ -41,6 +47,7 @@ export type {
   ToolReferenceFailure,
   ToolReferenceRejection,
 } from './reference.ts'
+export { pinnedFiles } from './call-directory.ts'
 export type {
   FixedToolRequest,
   ParameterContract,
@@ -49,9 +56,16 @@ export type {
   ToolArguments,
   ToolAvailability,
   ToolBodyDeclaration,
+  ToolCommandBackground,
   ToolCommandDeclaration,
+  ToolCallConditions,
+  ToolCommandRelease,
+  ToolCommandReleaseDetail,
   ToolDefinition,
+  ToolCallDirectory,
   ToolEnvironmentDeclaration,
+  ToolGate,
+  ToolGateDefault,
   ToolImplementationShape,
   ToolInvocation,
   ToolProgramDeclaration,
@@ -122,7 +136,7 @@ export type {
   ToolUsage,
 } from './authoring.ts'
 export { toolAssetBody } from './asset-body.ts'
-export { toolBodyContract } from './contract.ts'
+export { toolBodyContract, toolCategoryDisplay } from './contract.ts'
 export type {
   ClockSegment,
   ControlProgress,
@@ -167,11 +181,31 @@ export type {
   CommandCall,
   CommandCallEncoding,
   CommandCallRejection,
+  CommandShape,
   CommandTable,
+  IntentFault,
 } from './command-call.ts'
+export { callLabel } from './call-label.ts'
+export { IMPLICIT_TOOL_GATE, commandGateOf, toolGatesOf } from './gates.ts'
+export type {
+  ReleaseDescription,
+  ReleaseDetail,
+  ReleaseDetailAnswer,
+  ReleaseDetailPolicy,
+  ReleaseRow,
+  ToolReleaseDescriber,
+  ToolReleaseDetails,
+} from './release-detail.ts'
+export type { ToolActionGate } from './gates.ts'
+export type { ToolCallLabel } from './call-label.ts'
 export { toolsCapabilityOf } from './tools-capability.ts'
 export type { ToolsCapability, ToolsExecuteAnswer } from './tools-capability.ts'
-export type { ToolForwardIntent } from './forwarding.ts'
+export type {
+  ToolActionResolution,
+  ToolActionTarget,
+  ToolCallAction,
+  ToolForwardIntent,
+} from './forwarding.ts'
 export type {
   SearchArguments,
   SearchPage,
@@ -181,3 +215,4 @@ export type {
   ToolsReadArguments,
 } from './tools-protocol.ts'
 export { returnSummary } from './return-description.ts'
+export { offeredDefinition, unmetConditions } from './conditions.ts'

@@ -75,6 +75,12 @@ const STATE = {
   phase: 'running' as const,
   dispatch: DISPATCH,
   firstContent: 'observed' as const,
+  attempts: {
+    allowed: 2,
+    made: 2,
+    last: { cause: 'upstream-unavailable' as const, upstreamStatus: '503', diagnostic: 'http-503' },
+    notBefore: null,
+  },
 }
 const SEALED = {
   kind: 'sealed' as const,
@@ -216,11 +222,32 @@ describe('parse of a call read', () => {
   it('gives back every field of the document, its version, pending flag and parts', () => {
     const read = ok(parse(outputOf()))
     expect(read.record?.document).toEqual(documentOf())
+    expect(read.record?.document.state.attempts).toEqual(STATE.attempts)
     expect(read.record?.version).toBe(4)
     expect(read.record?.pending).toBe(true)
     expect(read.record?.parts).toEqual(PARTS)
     expect(read.binding).toEqual({ ...BINDING, operation: OPERATION })
     expect(read.held).toBe(3)
+  })
+
+  it('gives back the encoded media of a materialization receipt unchanged', () => {
+    const plain = documentOf()
+    const [first] = plain.dispatches
+    if (first === undefined) throw new Error('the document has a dispatch')
+    const reference = { storage: 's', key: 'k', mediaType: 'image/png', bytes: '9', digest: 'd' }
+    const receipt = {
+      supplier: SUPPLIER.adoption,
+      representation: ADOPTION,
+      payloadDigest: 'a'.repeat(64),
+      media: [{ reference, mediaType: 'image/webp', bytes: '4' }],
+    }
+    const materialization = { receipt, source: EVIDENCE }
+    const document = {
+      ...plain,
+      dispatches: [{ ...first, record: { ...first.record, materialization } }],
+    }
+    const read = ok(parse(outputOf(document)))
+    expect(read.record?.document.dispatches[0]?.record.materialization).toEqual(materialization)
   })
 
   it('gives no record and an empty answer for a call without rows', () => {

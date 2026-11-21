@@ -28,22 +28,22 @@ Model、Tool 的内部不用认识 Agent 或 Session 的治理模型。它们以
 | 关系与供需 | 契约成员及公开入口 | 谁协调 | 失败、未知与未完成责任 |
 | --- | --- | --- | --- |
 | Runtime Context ↔ Session。中介供注册材料、读取资格及变化材料，Session 是作用域持有者、部分块生产者及变化消费者 | [runtime-context-contract 三面操作](../../packages/context/SPEC.md#领域边界)；[runtime-context-cordis-contract](../../packages/context/SPEC.md#cordis-装配) 的 `runtimeContext` 持有者面与 `registerProducer` | Session 的 [AD-03](../../packages/session/SPEC.md#领域边界)安排恢复、资格和提醒追加，Session 自己提交注册决定 | 提交未知按同一操作查询，不能先生效后补记。作用域结束协议见 [RC-09](../../packages/context/SPEC.md#提交链与恢复会话)；AD-03 的补拉前提见 [NP-11](../../packages/session/SPEC.md#领域边界) |
-| Runtime Context → Agent。提供模型类、扩展类读者需要的合法块投影，Agent 是请求准备协调者 | `runtimeContext.bind` 及 [RC-03](../../packages/context/SPEC.md#块注册与资格)；Context 一侧适配器实现 Agent 声明的 `ModelContextReader`，见[字段对应](../../packages/context/SPEC.md#适配) | Agent 经适配器读取，再把读取结果用于请求准备。适配器按持有者签发的资格绑定读者 | 读取不可用则不准备请求，资格或来源未知不变成空集合，见[邻域交接](runtime-context/architecture.md#4-与邻域的交接) |
+| Runtime Context → 读者。模型类读者由作用域持有者（Session）建立，读到的快照与变化写成会话日志里的提醒；扩展类读者照各自的资格读 | `runtimeContext.bind` 及 [RC-03](../../packages/context/SPEC.md#块注册与资格)；提醒怎样写见 [Session 的日志与提交](../../packages/session/SPEC.md#日志与提交)                                 | 持有者在一步取走输入的那次会话提交里写提醒；请求准备不读 Runtime Context                                              | 读取被拒、缺项或未知时这一步的提交失败，不写提醒，也不当成没有变化，见[邻域交接](runtime-context/architecture.md#4-与邻域的交接)                                                         |
 | Runtime Context 与 Model 无直接块供给关系。当前档案块由模型选择端口的集成方提供，块值引用 Model 档案投影 | [Context 与模型的交接](runtime-context/architecture.md#4-与邻域的交接)；块方用 `runtimeContext.registerProducer`，请求计算另经 [Model 计量规则](../../packages/model/SPEC.md#计量)取得计量和准备能力 | 模型选择的持有方发布当前档案。请求协调者的适配器读取模型类块，再交 Request Context，不能把该路径写成 Model 直接读中介 | 档案不可用表现为缺项，限额未知仍未知，见同一[邻域交接表](runtime-context/architecture.md#4-与邻域的交接) |
 | Tool → Runtime Context 提供未结束后台工具块，Runtime Context → Tool 提供工具私有块的合法工具类读面 | [Context 与工具的交接](runtime-context/architecture.md#4-与邻域的交接)；`runtimeContext.registerProducer`、`bind` 及 [RC-07](../../packages/context/SPEC.md#生产者与供值) | 工具宿主承担块生产与工具侧读取的集成，注册决定仍归持有者 | 查不到状态不虚构进度，生产者更新与撤除按 RC-07 处理。[邻域表](runtime-context/architecture.md#4-与邻域的交接)只给出生产者与读者角色，具体工具块的声明和更新携带协议仍归块声明方 |
 
 ### Request Context
 
-Request Context 消费其他拥有者的事实，给出请求候选、覆盖证据、压缩计划和装入裁定。固定请求、发出调用、保存计划进度及共同提交归相应协调者或持有者。
+Request Context 消费其他拥有者的事实，给出请求候选、覆盖证据和装入裁定。固定请求与压缩任务消费归 Agent，压缩内部执行归提供者，日志采用归 Session。
 
 | 关系与供需 | 契约成员及公开入口 | 谁协调 | 失败、未知与未完成责任 |
 | --- | --- | --- | --- |
-| Session → Request Context 提供历史与未结工作，Request Context → Session 提供人侧投影和压缩转换材料 | [request-context-contract 历史源读口与 epoch 视图](../../packages/context/SPEC.md#七组稳定读取与来源登记)、`projectForHuman` 与 [RQ-06](../../packages/context/SPEC.md#压缩) | Session 实现历史持有者读口，协调者提出压缩转换并与历史持有者共同提交，见[Session 邻域交接](sessions-and-work/architecture.md#与邻域的交接) | 历史不可用不当作空历史，转换与历史不符时不提交，提交未知查原操作。不能用同库替代共同提交 |
-| Request Context → Agent 提供请求准备、压缩计划与步请求，Agent 提供调用身份、用途及各组来源 | `AssemblyOperations` 的 `assemble`、`planCompaction`、`deriveStep`、`resume`；托管适配器经 [request-context-cordis-contract](../../packages/context/SPEC.md#cordis-装配) 的 `requestContext.register`、`assembly(target)`；对外实现 `agentRequests` | Agent 保存计划进度、发起摘要步调用并固定最终请求。Context 一侧适配器翻译 Agent 的端口，见[适配方案](../../packages/context/SPEC.md#适配) | [失败对应](../../packages/context/SPEC.md#适配)区分 denied、invalid、unavailable 和 cannot-fit |
-| Model → Request Context 提供档案、限制、计量资源与转换结果，Request Context 给协调者可交 Model 准备的候选 | [RQ-12 来源集合](../../packages/context/SPEC.md#七组稳定读取与来源登记)、[RQ-05 候选完成](../../packages/context/SPEC.md#计量与装入)及 [Model 计量规则](../../packages/model/SPEC.md#计量) | 协调者选模型并登记准备资源，适配器取得和交还准备租约。候选可固定时由协调者交 Model 准备，实际调用由协调者另发 | Model 准备的确定拒绝译为 invalid/request，暂不可用保持 unavailable，限额未知在覆盖证据标明，见[结果对应](../../packages/context/SPEC.md#适配)与[失败对应](../../packages/context/SPEC.md#适配) |
-| Tool → Request Context 提供定义、绑定与可编程许可，经协调者给第六组读口，不由请求计算直接读取 Tool | [RQ-02 工具侧输入](../../packages/context/SPEC.md#七组稳定读取与来源登记)、[RQ-13 稳定读取](../../packages/context/SPEC.md#七组稳定读取与来源登记)及[邻域交接](../../packages/context/SPEC.md#适配) | 协调者一侧经装配求值供给完整工具材料。声明投影交 Model，不授予 Tool 执行权 | 两次读取仍不稳定、来源缺席或不可用时按原失败交回。第六组解析完整工具定义不能增造 Tool 直连 |
+| Session → Request Context 提供当前有效历史与未结工作，Request Context 提供投影与预算 | [历史源](../../packages/context/SPEC.md#六组稳定读取与来源登记) | 完整压缩结果由服务产生，Agent 原样提出，Session [核验采用](../../packages/session/SPEC.md#压缩采用与有效历史) | 读取不可用不作空；提交未知认回原操作 |
+| Request Context → Agent 提供请求准备与采用后重组 | [请求计算](../../packages/context/SPEC.md#请求的计算边界与结局)与[适配](../../packages/context/SPEC.md#适配) | 适配器翻译准备端口；Agent 单独调用[压缩服务](../../packages/agent/SPEC.md#上下文压缩服务)，不驱动内部步骤 | 原失败如实交回，不以空历史或替代任务恢复 |
+| Model → Request Context 提供档案、限制、计量资源与转换结果，Request Context 给协调者可交 Model 准备的候选 | [RQ-12 来源集合](../../packages/context/SPEC.md#六组稳定读取与来源登记)、[RQ-05 候选完成](../../packages/context/SPEC.md#计量与装入)及 [Model 计量规则](../../packages/model/SPEC.md#计量) | 协调者选模型并登记准备资源，适配器取得和交还准备租约。候选可固定时由协调者交 Model 准备，实际调用由协调者另发 | Model 准备的确定拒绝译为 invalid/request，暂不可用保持 unavailable，限额未知在覆盖证据标明，见[结果对应](../../packages/context/SPEC.md#适配)与[失败对应](../../packages/context/SPEC.md#适配) |
+| Tool → Request Context 提供定义、绑定与可编程许可，经协调者给工具侧这一组的读口，不由请求计算直接读取 Tool | [RQ-02 工具侧输入](../../packages/context/SPEC.md#六组稳定读取与来源登记)、[RQ-13 稳定读取](../../packages/context/SPEC.md#六组稳定读取与来源登记)及[邻域交接](../../packages/context/SPEC.md#适配) | 协调者一侧经装配求值供给完整工具材料。声明投影交 Model，不授予 Tool 执行权 | 两次读取仍不稳定、来源缺席或不可用时按原失败交回。工具侧这一组解析完整工具定义不能增造 Tool 直连 |
 
-Runtime Context 到 Request Context 有两条不同路径。模型类读取结果经第三组进入候选计算，持有者另从变化材料形成提醒并可靠追加历史。快照读取成功不表示提醒已追加，见 [Request Context 的邻域交接](../../packages/context/SPEC.md#适配)与 [AD-03](../../packages/session/SPEC.md#领域边界)。七组按来源计数稳定读取，组间没有整体快照时刻，不能把它们当作同一版本，见 [RQ-13](../../packages/context/SPEC.md#七组稳定读取与来源登记)。
+Runtime Context 的内容只经一条路径到达模型：作用域持有者从快照与变化材料形成提醒并可靠追加历史，请求组装不读 Runtime Context。快照读取成功不表示提醒已追加，见 [Request Context 的邻域交接](../../packages/context/SPEC.md#适配)与 [AD-03](../../packages/session/SPEC.md#领域边界)。六组按来源计数稳定读取，组间没有整体快照时刻，不能把它们当作同一版本，见 [RQ-13](../../packages/context/SPEC.md#六组稳定读取与来源登记)。
 
 ### Execution Environment
 

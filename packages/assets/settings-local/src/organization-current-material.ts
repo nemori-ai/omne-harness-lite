@@ -4,7 +4,10 @@ import { commitMaterialSchema, type CommitMaterial } from './commit-current.ts'
 import type { SourceReference } from './source-retention-schema.ts'
 import type { SettingsTargetProjection } from './projection.ts'
 import { digest, equal } from './encoding.ts'
-import type { OrganizationCurrentConfiguration } from './organization-current-schema.ts'
+import type {
+  OrganizationCurrentConfiguration,
+  StandaloneCurrentRule,
+} from './organization-current-schema.ts'
 export type OrganizationCurrentInput = {
   source: SourceReference
   actorTenantRef: string
@@ -19,23 +22,53 @@ export function matchesOrganizationCurrentSource(source: SourceReference, actorT
     organization.ok &&
     source.domain.scope.kind === 'system' &&
     source.domain.transactionDomain === 'system.settings' &&
-    source.target.policyId === 'independent' &&
+    source.target.kind === 'independent' &&
     source.target.scopeRef === organization.value
   )
+}
+function matchesTenantCurrentSource(source: SourceReference, actorTenantRef: string) {
+  return (
+    tenantCodec.parse(actorTenantRef).ok &&
+    source.domain.scope.kind === 'tenant' &&
+    source.domain.scope.tenant === actorTenantRef &&
+    source.target.kind === 'independent' &&
+    source.target.scopeRef === actorTenantRef
+  )
+}
+/** Which independent targets an actor tenant writes, and in which scope their sources live. */
+const rules = {
+  organization: {
+    matches: matchesOrganizationCurrentSource,
+    sourceScope: 'organization',
+    required: ['organization-settings-manage'],
+  },
+  tenant: { matches: matchesTenantCurrentSource, sourceScope: 'tenant', required: [] },
+} as const
+export function matchesStandaloneCurrentSource(
+  rule: StandaloneCurrentRule,
+  source: SourceReference,
+  actorTenantRef: string,
+) {
+  return rules[rule].matches(source, actorTenantRef)
 }
 export function organizationCurrentMaterial(
   input: OrganizationCurrentInput,
   configuration: OrganizationCurrentConfiguration,
 ): CommitMaterial | SettingsFailure {
+  return standaloneCurrentMaterial(input, 'organization', configuration)
+}
+export function standaloneCurrentMaterial(
+  input: OrganizationCurrentInput,
+  rule: StandaloneCurrentRule,
+  configuration: OrganizationCurrentConfiguration,
+): CommitMaterial | SettingsFailure {
   const { source, projection, value, actorTenantRef } = input
-  if (
-    !matchesOrganizationCurrentSource(source, actorTenantRef) ||
-    !equal(source.target, projection.target)
-  )
+  const { matches, sourceScope, required } = rules[rule]
+  if (!matches(source, actorTenantRef) || !equal(source.target, projection.target))
     return { kind: 'rejected', reason: 'forbidden' }
   if (
     projection.sources.some(
-      s => s.scope.kind !== 'organization' || s.scope.subjectRef !== source.target.scopeRef,
+      s => s.scope.kind !== sourceScope || s.scope.subjectRef !== source.target.scopeRef,
     )
   )
     return { kind: 'rejected', reason: 'unsupported' }
@@ -85,7 +118,7 @@ export function organizationCurrentMaterial(
       kind: 'identity',
       destination: configuration.destination,
       scopeRef: actorTenantRef,
-      required: ['organization-settings-manage'],
+      required,
     },
     sources: { route: configuration.sourceRoute, sources: [] },
     definition: projection.definition,

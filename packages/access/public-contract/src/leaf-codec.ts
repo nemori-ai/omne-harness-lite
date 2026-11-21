@@ -101,6 +101,16 @@ function identity<T>(
   return encoded.ok ? { local: input, wire: stringWire(encoded.value) } : undefined
 }
 
+/** A calendar day without a time or a zone, `YYYY-MM-DD` in the proleptic Gregorian calendar. */
+function isPlainDate(value: string): boolean {
+  const parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (parts === null) return false
+  const [year, month, dayOfMonth] = [Number(parts[1]), Number(parts[2]), Number(parts[3])]
+  const date = new Date(0)
+  date.setUTCFullYear(year, month - 1, dayOfMonth)
+  return date.getUTCMonth() === month - 1 && date.getUTCDate() === dayOfMonth
+}
+
 function instant(input: unknown, direction: Direction): Converted | undefined {
   if (direction === 'decode') {
     if (typeof input !== 'string') return undefined
@@ -287,6 +297,29 @@ function count(input: unknown, direction: Direction, limits: JsonLimits): Conver
   return withinCount(input, direction, limits)
 }
 
+const BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/
+const CHUNK = 0x8000
+
+function base64Of(value: Uint8Array): string {
+  let binary = ''
+  for (let start = 0; start < value.length; start += CHUNK)
+    binary += String.fromCharCode(...value.subarray(start, start + CHUNK))
+  return btoa(binary)
+}
+
+/** Bytes on the wire are base64 text; only the one canonical spelling of a value is read. */
+function bytes(input: unknown, direction: Direction): Converted | undefined {
+  if (direction === 'encode')
+    return input instanceof Uint8Array
+      ? { local: input, wire: stringWire(base64Of(input)) }
+      : undefined
+  const node = nodeOf(input)
+  if (node?.kind !== 'string' || !BASE64.test(node.value)) return undefined
+  const binary = atob(node.value)
+  const local = Uint8Array.from(binary, character => character.charCodeAt(0))
+  return base64Of(local) === node.value ? { local, wire: node } : undefined
+}
+
 const leaves: { readonly [K in LeafKind]: Leaf } = {
   'positive-integer': boundedInteger(Number.MAX_SAFE_INTEGER),
   count,
@@ -295,6 +328,7 @@ const leaves: { readonly [K in LeafKind]: Leaf } = {
   string: textLeaf(() => true),
   session: textLeaf(value => /^[0-9a-f]{64}$/.test(value)),
   'page-bytes': textLeaf(value => /^[1-9][0-9]*$/.test(value)),
+  bytes,
   revision: textLeaf(value => /^(0|[1-9][0-9]*)$/.test(value)),
   boolean: onPrimitive(value =>
     typeof value === 'boolean' ? { local: value, wire: { kind: 'boolean', value } } : undefined,
@@ -305,6 +339,7 @@ const leaves: { readonly [K in LeafKind]: Leaf } = {
   login: identityLeaf(loginStateCodec),
   tenant: onPrimitive(tenant),
   instant: onPrimitive(instant),
+  'plain-date': textLeaf(isPlainDate),
   parameters: tree('parameters'),
   json: tree('json'),
   'user-message': tree('user-message'),

@@ -57,7 +57,7 @@ function sequence<T>(
   }
   return succeed(result)
 }
-function adoption(value: unknown, field: string): Checked<Adoption> {
+export function adoption(value: unknown, field: string): Checked<Adoption> {
   const record = closed(value, ['owner', 'name', 'revision', 'digest'], field)
   if ('failure' in record) return record
   const owner = text(record.ok.owner, `${field}/owner`)
@@ -166,7 +166,7 @@ function parameterValue(record: Record<string, unknown>, field: string): Checked
       return rejected(`${field}/kind`, 'value')
   }
 }
-function parameter(value: unknown, field: string): Checked<Parameter> {
+export function parameter(value: unknown, field: string): Checked<Parameter> {
   if (!isRecord(value)) return rejected(field, 'type')
   const record = closed(
     value,
@@ -208,7 +208,7 @@ function parameterAdoption(value: unknown, field: string): Checked<ParameterAdop
         origin: { kind: 'explicit', source: source.ok, requested: requested.ok },
       })
 }
-function tool(value: unknown, field: string): Checked<ToolDeclaration> {
+export function tool(value: unknown, field: string): Checked<ToolDeclaration> {
   const record = closed(value, ['name', 'description', 'argumentsSchema'], field)
   if ('failure' in record) return record
   const name = text(record.ok.name, `${field}/name`)
@@ -393,9 +393,11 @@ export function requestShape(value: unknown, field: string): Checked<FixedModelR
       'source',
     ],
     field,
-    ['replay'],
+    ['replay', 'contextWindow'],
   )
   if ('failure' in record) return record
+  const window = contextWindowOf(record.ok, field)
+  if ('failure' in window) return window
   const routing = requestRouting(record.ok, field)
   if ('failure' in routing) return routing
   const content = requestContent(record.ok, field)
@@ -404,7 +406,22 @@ export function requestShape(value: unknown, field: string): Checked<FixedModelR
   if ('failure' in provenance) return provenance
   const replay = requestReplay(record.ok, field, routing.ok.suppliers)
   if ('failure' in replay) return replay
-  return succeed({ ...routing.ok, ...content.ok, ...replay.ok, ...provenance.ok })
+  return succeed({ ...routing.ok, ...window.ok, ...content.ok, ...replay.ok, ...provenance.ok })
+}
+function contextWindowOf(
+  input: Record<string, unknown>,
+  field: string,
+): Checked<Pick<FixedModelRequest, 'contextWindow'>> {
+  if (!Object.hasOwn(input, 'contextWindow')) return succeed({})
+  const at = `${field}/contextWindow`
+  const record = closed(input.contextWindow, ['tokens', 'compactionTriggerPercent'], at)
+  if ('failure' in record) return record
+  const tokens = integer(record.ok.tokens, `${at}/tokens`, true)
+  if ('failure' in tokens) return tokens
+  const percent = record.ok.compactionTriggerPercent
+  if (typeof percent !== 'string' || !/^(?:[1-9][0-9]?|100)$/u.test(percent))
+    return rejected(`${at}/compactionTriggerPercent`, 'value')
+  return succeed({ contextWindow: { tokens: tokens.ok, compactionTriggerPercent: percent } })
 }
 export function consumerShape(value: unknown): Checked<ConsumerRef> {
   const record = closed(value, ['owner', 'work', 'position', 'purpose'], '/consumer')

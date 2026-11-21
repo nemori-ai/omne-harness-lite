@@ -1,31 +1,67 @@
 // @module-tag slow
 import { expect, it } from 'vitest'
 import { loginAccess } from '../../model/public-stream-support.ts'
-import { onReleaseTreeRuns, toolCallsThenText } from '../../support/release-tree.ts'
+import { onReleaseTreeRuns, pollUntil, toolCallsThenText } from '../../support/release-tree.ts'
 import { SHELL, faceOf, settledSession } from '../../governance/tenant-settings-support.ts'
 
-it('a login principal sets the Shell invoke permission to deny on the release tree and reads it back after a restart', async () => {
+it('a login principal sets the Shell run permission to deny on the release tree and reads it back after a restart', async () => {
   const seen: unknown[] = []
   const exits = await onReleaseTreeRuns({ script: toolCallsThenText(() => []) }, [
     async tree => {
       const face = faceOf(tree)
       await settledSession(tree, 'hello')
       const { principal, tenant } = await loginAccess(tree)
-      const item = { principal, tenant, asset: SHELL, item: 'invoke' }
-      const listed = await face.list({ principal, tenant, after: null, limit: 100 })
+      const item = { principal, tenant, owner: SHELL, item: 'run' }
+      const listed = await face.list({
+        principal,
+        tenant,
+        scope: { kind: 'asset' },
+        after: null,
+        limit: 100,
+      })
       if (listed.kind !== 'listed') throw new Error(JSON.stringify(listed))
       expect(listed.completeness).toBe('complete')
-      expect(listed.items.map(value => `${value.asset.name}/${value.item}`).sort()).toEqual(
-        ['Ask', 'Files', 'Shell', 'TodoItems', 'Tools', 'Web'].map(name => `${name}/invoke`),
-      )
-      for (const value of listed.items)
+      const permissions = listed.items.filter(value => value.kind === 'permission')
+      const nameOf = (owner: (typeof permissions)[number]['owner']) =>
+        owner.kind === 'asset' ? owner.name : owner.definitionId
+      expect(
+        permissions.map(value => `${nameOf(value.owner)}/${value.item}:${value.default}`).sort(),
+      ).toEqual([
+        'Agents/dispatch:auto',
+        'Agents/message:auto',
+        'Agents/read:auto',
+        'Agents/report:auto',
+        'BkgToolCalls/invoke:auto',
+        'Calendar/invoke:auto',
+        'Files/read:auto',
+        'Files/write:ask',
+        'Notifications/read:auto',
+        'Notifications/send:ask',
+        'Notifications/subscribe:auto',
+        'Notifications/triage:auto',
+        'Schedules/activate:auto',
+        'Schedules/draft:auto',
+        'Schedules/read:auto',
+        'Screen/observe:ask',
+        'Screen/read:auto',
+        'Sessions/invoke:auto',
+        'Shell/read:auto',
+        'Shell/run:ask',
+        'Skills/invoke:auto',
+        'SwitchWorkspace/invoke:ask',
+        'TodoItems/invoke:auto',
+        'Tools/discover:auto',
+        'Tools/forward:auto',
+        'Web/fetch:ask',
+        'Web/read:auto',
+      ])
+      for (const value of permissions)
         expect(value).toMatchObject({
           kind: 'permission',
           revision: '0',
           declaration: { title: expect.any(String), appliesAt: expect.any(String) },
           own: null,
-          default: 'ask',
-          effective: { kind: 'value', value: 'ask', source: 'default' },
+          effective: { kind: 'value', value: value.default, source: 'default' },
           bound: null,
           editable: { kind: 'yes' },
         })
@@ -57,7 +93,11 @@ it('a login principal sets the Shell invoke permission to deny on the release tr
       const face = faceOf(tree)
       await settledSession(tree, 'again')
       const { principal, tenant } = await loginAccess(tree)
-      const reread = await face.describe({ principal, tenant, asset: SHELL, item: 'invoke' })
+      const reread = await pollUntil(
+        'the tenant settings to open after the restart',
+        () => face.describe({ principal, tenant, owner: SHELL, item: 'run' }),
+        value => value.kind !== 'unavailable',
+      )
       expect(reread).toEqual(seen[0])
     },
   ])

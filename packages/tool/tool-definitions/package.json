@@ -39,10 +39,13 @@
     "@omne-harness/json-text": "workspace:*",
     "@omne-harness/schema-provider": "workspace:*",
     "@omne-harness/unix-format": "workspace:*",
-    "@omne-harness/operation-result": "workspace:*"
+    "@omne-harness/operation-result": "workspace:*",
+    "@omne-harness/human-intervention-tool": "workspace:*",
+    "@omne-harness/image": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "sharp": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

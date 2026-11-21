@@ -32,6 +32,7 @@ import {
   tool,
   type Principal,
   type Scope,
+  ranking,
 } from './access-world.ts'
 
 export { missing, retired, review }
@@ -47,16 +48,12 @@ const reviewDeclared: DeclaredProjection = {
   name: granted(isSkillName, 'review'),
   description: 'Reviews a change.',
   tools: [tool('read-file')],
-  scripts: [],
-  settings: [{ name: 'tone', category: 'preference' }],
 }
 
 const secretDeclared: DeclaredProjection = {
   name: granted(isSkillName, 'secret'),
   description: 'Keeps a secret.',
   tools: [],
-  scripts: [],
-  settings: [],
 }
 
 export const reviewEntry: Extract<CatalogEntry, { kind: 'adopted' }> = {
@@ -156,7 +153,7 @@ export function createCatalogWorld(): CatalogWorld {
   }
   return {
     ports,
-    catalog: createSkillCatalog(ports),
+    catalog: createSkillCatalog(ports, { ranking }),
     controls: {
       lawfulSetUnknown() {
         setUnknown = true

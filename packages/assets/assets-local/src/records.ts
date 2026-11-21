@@ -7,8 +7,10 @@ import {
   domainSchema,
   holdingSchema,
   revisionSchema,
+  summarySchema,
   versionSchema,
   type Holding,
+  type Summary,
   type Version,
 } from './schema.ts'
 import { canonical, digest, equal, scopeRef, withinBudget } from './encoding.ts'
@@ -24,6 +26,9 @@ export function decode<T>(schema: z.ZodType<T>, value: unknown): T {
   const raw: unknown = JSON.parse(value)
   if (!withinBudget(raw)) throw new TypeError('Assets record exceeds budget')
   return schema.parse(raw)
+}
+export function foreign(current: ReturnType<typeof readDomain>, domain: DomainRef): boolean {
+  return scopeRef(domain) === null || (current !== null && !equal(current.domain, domain))
 }
 export function belongs(port: ReadPort, domain: DomainRef): boolean {
   const record = readDomain(port)
@@ -58,6 +63,28 @@ export function readVersion(
   validateDeclaration(result)
   return result
 }
+const summaryRecordSchema = z.strictObject({
+  domain: domainSchema,
+  assetRef: z.string(),
+  version: z.string(),
+  summary: summarySchema,
+})
+/** The asset summary stored with a version, or `null` when its category gave none. */
+export function readSummary(
+  port: ReadPort,
+  domain: DomainRef,
+  assetRef: string,
+  version: string,
+): Summary | null {
+  const row = port.execute('SELECT record FROM al_summaries WHERE version_key = ? LIMIT 1', [
+    canonical([domain, assetRef, version]),
+  ]).rows[0]
+  if (!row) return null
+  const record = decode(summaryRecordSchema, row[0])
+  if (!equal(record.domain, domain) || record.assetRef !== assetRef || record.version !== version)
+    throw new TypeError('Misbound summary record')
+  return record.summary
+}
 export function validateDeclaration(version: Pick<Version, 'declaration'>) {
   if (version.declaration.kind === 'none') return
   const { definition, definitionRef } = version.declaration
@@ -76,12 +103,13 @@ export function readHolding(port: ReadPort, domain: DomainRef, holdingRef: strin
     [canonical(domain), holdingRef],
   ).rows[0]
   if (!row) return null
-  const holding = decode(holdingSchema, row[0])
-  if (
-    !equal(holding.domain, domain) ||
-    holding.holdingRef !== holdingRef ||
-    holding.scopeRef !== scopeRef(domain)
-  )
+  const holding = boundHolding(row[0], domain)
+  if (holding.holdingRef !== holdingRef) throw new TypeError('Misbound holding record')
+  return holding
+}
+export function boundHolding(record: unknown, domain: DomainRef): Holding {
+  const holding = decode(holdingSchema, record)
+  if (!equal(holding.domain, domain) || holding.scopeRef !== scopeRef(domain))
     throw new TypeError('Misbound holding record')
   return holding
 }

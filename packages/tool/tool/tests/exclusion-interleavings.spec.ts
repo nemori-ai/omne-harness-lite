@@ -50,6 +50,7 @@ function hooked() {
   const store: ToolLedgerStore = {
     durability: 'none',
     scanPending: input => memory.scanPending(input),
+    usage: query => memory.usage(query),
     readRecord: memory.readRecord,
     due: memory.due,
     read: d => memory.read(d),
@@ -181,5 +182,30 @@ describe('14 exclusion interleavings', () => {
         ),
       ).recovered,
     ).toBe(false)
+  })
+
+  it('the state read writes no fence: it answers invalid before the admission and the admission still lands', async () => {
+    const h = hooked()
+    const ledger: ToolLedger<Principal, Block> = ledgerOver(h.store)
+    let before: unknown
+    h.hooks.push({
+      matches: putsOperation('op-1'),
+      land: async () => {
+        before = await ledger.reads.state(lk('op-1'))
+      },
+    })
+    const admitted = ok(
+      await ledger.admissions.admit(
+        admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
+      ),
+    )
+    expect(before).toMatchObject({ failure: { kind: 'invalid', field: 'reference' } })
+    expect(h.log.flatMap(entry => entry.excl)).toEqual([])
+    expect(ok(await ledger.reads.state(lk('op-1')))).toEqual(admitted.state)
+    expect(await ledger.reads.state(lk('op-9'))).toMatchObject({ failure: { kind: 'invalid' } })
+    expect(await ledger.reads.state({ ...lk('op-1'), admission: '' as never })).toMatchObject({
+      failure: { kind: 'invalid', field: 'admission' },
+    })
+    expect(h.log.flatMap(entry => entry.excl)).toEqual([])
   })
 })

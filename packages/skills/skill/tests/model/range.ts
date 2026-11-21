@@ -52,8 +52,6 @@ function serviceOf(files: Files) {
           declared: {
             name: granted(isSkillName, 'alpha'),
             tools: [tool('read-file')],
-            scripts: [],
-            settings: [],
           },
         },
       },

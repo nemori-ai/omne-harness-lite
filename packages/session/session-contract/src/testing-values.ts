@@ -19,6 +19,7 @@ import type { RoutedInput, SessionCreation } from './values.ts'
 import type { GuardCommand } from './ports.ts'
 import { digestOf } from './operations.ts'
 
+import { TESTING_SOURCES } from './testing-sources.ts'
 export const TESTING_OWNER = '@omne-harness/session-contract/testing'
 
 export function adoption(name: string): Adoption {
@@ -105,14 +106,8 @@ export function ordinaryInput(
     input: inputId(input),
     message: userMessage(text, `msg_${input.padEnd(22, '0')}`),
     origin: { ...evidence(`login-entry/${input}`), owner: 'login-entry' },
+    source: TESTING_SOURCES.person,
   }
-}
-
-export function intakeInput(
-  input: string,
-  text = `input ${input}`,
-): Extract<RoutedInput, { kind: 'ordinary' }> {
-  return { ...ordinaryInput(input, text), origin: evidence(`intake/${input}`) }
 }
 
 export function creation(overrides: Partial<SessionCreation> = {}): SessionCreation {

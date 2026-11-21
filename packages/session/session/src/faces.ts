@@ -1,21 +1,31 @@
 import { listTodos } from './todos.ts'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
+  backgroundCallView,
   judgeWaiting,
+  shortCallId,
   type MutationName,
   type SessionAccess,
   type SessionCallerClass,
+  type StopInitiator,
   type SessionCommand,
   type SessionDirectory,
   type SessionFaces,
   type SessionManagement,
   type SessionReconciliation,
   type SessionWork,
+  type BackgroundCallRecord,
+  type BackgroundCallResolution,
+  type BackgroundCallState,
+  type BackgroundCallView,
+  type Reply,
+  type SessionCallStates,
 } from '@omne-harness/session-contract'
 import type { CommandHandler } from './command.ts'
-import type { SessionDependencies } from './dependencies.ts'
+import type { Current, SessionDependencies } from './dependencies.ts'
 import { guarded, OWNERS, unavailable } from './failures.ts'
 import { createHistoryPages } from './history-pages.ts'
+import { readInputFateOf, readPendingOf, readWaitingCallsOf } from './intake-reads.ts'
 import { readSnapshot } from './qualify.ts'
 import type { Reads } from './reads.ts'
 
@@ -42,11 +52,153 @@ function readSnapshotOf<P>(
   )
 }
 
+// Who stops a call is the caller class: a person's client, the agent, or the system (I-4).
+const INITIATORS: Readonly<Record<SessionCallerClass, StopInitiator>> = {
+  intake: 'user',
+  coordinator: 'agent',
+  maintainer: 'system',
+  reader: 'user',
+}
+
+function stopCallOf<P>(handle: CommandHandler<P>, caller: SessionCallerClass) {
+  return (value: Parameters<SessionWork<P>['stopCall']>[0]) => {
+    const { principal, ...rest } = value
+    const input = { ...rest, initiator: INITIATORS[caller] }
+    return handle(caller, { kind: 'stopCall', input }, principal) as ReturnType<
+      SessionWork<P>['stopCall']
+    >
+  }
+}
+
 function readWaitingOf<P>(reads: Reads<P>, caller: SessionCallerClass, value: SessionAccess<P>) {
   return reads.session(caller, 'readWaiting', value, async view => {
     const snapshot = await readSnapshot(view, accessOf(value), 'readWaiting')
     return 'failure' in snapshot ? snapshot : succeed(judgeWaiting(snapshot.ok))
   })
+}
+
+// The state of one call as Tool answers it now; an absent or failing port is an unknown state.
+async function stateOf<P>(
+  port: SessionCallStates | null,
+  value: SessionAccess<P>,
+  record: BackgroundCallRecord,
+): Promise<BackgroundCallState | null> {
+  if (port === null) return null
+  try {
+    const read = await port.read({
+      tenant: value.tenant,
+      session: value.session,
+      producer: record.producer,
+    })
+    return 'ok' in read ? read.ok : null
+  } catch {
+    return null
+  }
+}
+
+async function readBackgroundCallsOf<P>(
+  reads: Reads<P>,
+  caller: SessionCallerClass,
+  value: SessionAccess<P>,
+  states: Current<SessionCallStates>,
+): Reply<readonly BackgroundCallView[]> {
+  const records = await reads.session(caller, 'readBackgroundCalls', value, async view => {
+    const snapshot = await readSnapshot(view, accessOf(value), 'readBackgroundCalls')
+    if ('failure' in snapshot) return snapshot
+    const calls = (snapshot.ok.backgroundCalls ?? []).filter(item => item.settled === undefined)
+    return succeed([...calls].sort((left, right) => left.ordinal - right.ordinal))
+  })
+  if ('failure' in records) return records
+  const port = states.current()
+  const views = await Promise.all(
+    records.ok.map(async record => backgroundCallView(record, await stateOf(port, value, record))),
+  )
+  return succeed(views)
+}
+
+function resolveBackgroundCallOf<P>(
+  reads: Reads<P>,
+  caller: SessionCallerClass,
+  value: SessionAccess<P> & Readonly<{ id: string }>,
+): Reply<BackgroundCallResolution> {
+  return reads.session(caller, 'resolveBackgroundCall', value, async view => {
+    const snapshot = await readSnapshot(view, accessOf(value), 'resolveBackgroundCall')
+    if ('failure' in snapshot) return snapshot
+    const record = snapshot.ok.backgroundCalls?.find(item => shortCallId(item.ordinal) === value.id)
+    if (record === undefined) return fail({ kind: 'not-found' })
+    return succeed({ producer: record.producer, settled: record.settled ?? null })
+  })
+}
+
+// The reads that answer from one snapshot of the session.
+function snapshotReads<P>(
+  reads: Reads<P>,
+  caller: SessionCallerClass,
+  states: Current<SessionCallStates>,
+) {
+  return {
+    readWork: (value: SessionAccess<P>) => readSnapshotOf(reads, caller, 'readWork', value),
+    readWaiting: (value: SessionAccess<P>) => readWaitingOf(reads, caller, value),
+    readPending: (value: Parameters<SessionWork<P>['readPending']>[0]) =>
+      readPendingOf(reads, caller, value),
+    readWaitingCalls: (value: SessionAccess<P>) => readWaitingCallsOf(reads, caller, value),
+    readInputFate: (value: Parameters<SessionWork<P>['readInputFate']>[0]) =>
+      readInputFateOf(reads, caller, value),
+    readBackgroundCalls: (value: SessionAccess<P>) =>
+      readBackgroundCallsOf(reads, caller, value, states),
+    resolveBackgroundCall: (value: SessionAccess<P> & Readonly<{ id: string }>) =>
+      resolveBackgroundCallOf(reads, caller, value),
+    readCurrentScope: (value: SessionAccess<P>) =>
+      reads.session(caller, 'readCurrentScope', value, view =>
+        view.readCurrentScope(accessOf(value)),
+      ),
+  }
+}
+
+// The history reads of the model view: the current window and the context a compaction is judged in.
+function modelViewReads<P>(
+  reads: Reads<P>,
+  caller: SessionCallerClass,
+): Pick<SessionFaces<P>['history'], 'readCompactionContext' | 'readModelView' | 'readForkPoint'> {
+  return {
+    readForkPoint: value =>
+      reads.session(caller, 'history.readModelView', value, view =>
+        view.history.readForkPoint(accessOf(value)),
+      ),
+    readCompactionContext: value =>
+      reads.session(caller, 'history.readCompactionContext', value, view =>
+        view.history.readCompactionContext({
+          ...accessOf(value),
+          basis: value.basis,
+          coverTo: value.coverTo,
+        }),
+      ),
+    readModelView: value =>
+      reads.session(caller, 'history.readModelView', value, view =>
+        view.history.readModelView({
+          ...accessOf(value),
+          basis: value.basis,
+          after: value.after,
+          pageBytes: value.pageBytes,
+        }),
+      ),
+  }
+}
+
+// Both lists of the directory are one read of the tenant's sessions (the same access check).
+function directoryOf<P>(reads: Reads<P>, caller: SessionCallerClass): SessionDirectory<P> {
+  const absent = () =>
+    Promise.resolve(fail(unavailable(OWNERS.directory, 'the transaction port offers no directory')))
+  return {
+    list: value =>
+      reads.directory(caller, 'directory.list', value.tenant, port =>
+        port.directory === undefined ? absent() : port.directory.list(value),
+      ),
+    listArchived: value =>
+      reads.directory(caller, 'directory.list', value.tenant, port =>
+        port.directory === undefined ? absent() : port.directory.listArchived(value),
+      ),
+  }
 }
 
 export function createFaces<P>(
@@ -73,8 +225,11 @@ export function createFaces<P>(
     markTodoComplete: mutation('markTodoComplete'),
     listTodos: value => reads.session(caller, 'listTodos', value, view => listTodos(view, value)),
     accept: mutation('accept'),
-    readWork: value => readSnapshotOf(reads, caller, 'readWork', value),
-    readWaiting: value => readWaitingOf(reads, caller, value),
+    ...snapshotReads(reads, caller, dependencies.callStates),
+    readCall: value =>
+      reads.session(caller, 'readWork', value, view =>
+        view.readCall({ ...accessOf(value), producer: value.producer }),
+      ),
     readInput: value =>
       reads.session(caller, 'readInput', value, view =>
         view.readInput({ ...accessOf(value), input: value.input }),
@@ -101,7 +256,7 @@ export function createFaces<P>(
         view.readModelSelection(accessOf(value)),
       ),
     cancelRun: mutation('cancelRun'),
-    stopCall: mutation('stopCall'),
+    stopCall: stopCallOf(handle, caller),
     retryRun: mutation('retryRun'),
     queryControlOperation: value =>
       reads.session(caller, 'queryControlOperation', value, view =>
@@ -125,7 +280,7 @@ export function createFaces<P>(
     create: mutation('create'),
     completeInitialization: mutation('completeInitialization'),
     change: mutation('change'),
-    setRelation: mutation('setRelation'),
+    setResident: mutation('setResident'),
     configureAutoArchive: mutation('configureAutoArchive'),
     considerAutoArchive: mutation('considerAutoArchive'),
     interrupt: mutation('interrupt'),
@@ -155,6 +310,7 @@ export function createFaces<P>(
             from: value.from,
             direction: value.direction,
             pageBytes: value.pageBytes,
+            ...(value.inherited === true ? { inherited: true } : {}),
           }),
         ),
       ),
@@ -181,27 +337,10 @@ export function createFaces<P>(
           }),
         ),
       ),
-    readModelView: value =>
-      reads.session(caller, 'history.readModelView', value, view =>
-        view.history.readModelView({
-          ...accessOf(value),
-          basis: value.basis,
-          after: value.after,
-          pageBytes: value.pageBytes,
-        }),
-      ),
+    ...modelViewReads(reads, caller),
   }
 
-  const directory: SessionDirectory<P> = {
-    list: value =>
-      reads.directory(caller, 'directory.list', value.tenant, port =>
-        port.directory === undefined
-          ? Promise.resolve(
-              fail(unavailable(OWNERS.directory, 'the transaction port offers no directory')),
-            )
-          : port.directory.list(value),
-      ),
-  }
+  const directory = directoryOf(reads, caller)
 
   return Object.freeze({
     work: Object.freeze(work),

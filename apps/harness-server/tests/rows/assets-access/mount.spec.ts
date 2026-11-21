@@ -101,7 +101,7 @@ describe('assets-access row', () => {
   })
 
   it(
-    'loads on the release tree, assets/v1 appears in availability, and a login sets and reads back a setting',
+    'loads on the release tree, assets/v1 appears in availability, a login sets and reads back a setting, and lists the categories the rows installed',
     { tags: ['slow'], timeout: 180_000 },
     async () => {
       const exitCode = await onReleaseTree({ script: toolCallsThenText(() => []) }, async tree => {
@@ -114,7 +114,7 @@ describe('assets-access row', () => {
         }
         await settledSession(tree, 'hello')
         const tenant = savedTenant(tree.home)
-        const item = { tenant, asset: SHELL, item: 'invoke' }
+        const item = { tenant, owner: SHELL, item: 'run' }
 
         const before = await assets(tree, 'describe-setting', item, 'm-describe-1')
         expect(before).toMatchObject({
@@ -153,10 +153,28 @@ describe('assets-access row', () => {
         const listed = await assets(
           tree,
           'list-settings',
-          { tenant, after: null, limit: 100 },
+          { tenant, scope: { kind: 'asset' }, after: null, limit: 100 },
           'm-list',
         )
         expect(listed).toMatchObject({ status: 200, json: { outcome: 'succeeded' } })
+
+        const categories = await assets(
+          tree,
+          'list-categories',
+          { after: null, limit: 100 },
+          'm-categories',
+        )
+        expect(categories).toMatchObject({
+          status: 200,
+          json: { outcome: 'succeeded', body: { next: null } },
+        })
+        const page = categories.json as { body: { items: { category: string; title: string }[] } }
+        expect(page.body.items.map(item => [item.category, item.title])).toEqual([
+          ['converter', '转换件'],
+          ['model-provider', '模型供应商'],
+          ['skill', '技能'],
+          ['tool', '工具'],
+        ])
 
         const foreign = await assets(
           tree,

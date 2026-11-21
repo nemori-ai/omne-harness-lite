@@ -6,6 +6,7 @@ import type {
   DomainRef,
   FactCommandV2,
   JsonValue,
+  ReadUnavailableReason,
   SqlMaterialCatalog,
   SqlStorage,
 } from '@omne-harness/sql-contract'
@@ -64,7 +65,8 @@ export type ProjectionReadResult =
   | Readonly<{ kind: 'completed'; response: JsonValue }>
   /** A member did not participate. The read gives no result; it never means an empty result. */
   | Readonly<{ kind: 'stopped'; participant: string; reply: JsonValue }>
-  | Readonly<{ kind: 'unavailable' }>
+  /** `reason` is the closed reason of a storage refusal; null when the store did answer. */
+  | Readonly<{ kind: 'unavailable'; reason: ReadUnavailableReason | null }>
 
 export async function readProjection(
   storage: Pick<SqlStorage, 'read'>,
@@ -79,7 +81,8 @@ export async function readProjection(
     requestKey: randomUUID(),
     input: { commands: z.json().parse(commands) },
   })
-  if (read.kind !== 'read') return { kind: 'unavailable' }
+  if (read.kind !== 'read')
+    return { kind: 'unavailable', reason: read.kind === 'unavailable' ? read.reason : null }
   const output = outputSchema.safeParse(read.output)
-  return output.success ? output.data : { kind: 'unavailable' }
+  return output.success ? output.data : { kind: 'unavailable', reason: null }
 }

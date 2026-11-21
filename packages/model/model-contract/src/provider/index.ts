@@ -2,6 +2,7 @@ export type { ActorRef, FixedRequestHead } from '../root.ts'
 export type {
   CallAccountReport,
   CommitQuery,
+  CostLookupAnswer,
   DispatchPlan,
   ExecutionRef,
   IndependentModelFact,
@@ -11,8 +12,12 @@ export type {
   ModelCommands,
   ModelInstanceDirectory,
   ModelInstanceHost,
-  ModelMediaLease,
-  ModelMediaReader,
+  MaterializeFailure,
+  MediaRefusal,
+  ModelMedia,
+  ModelMediaFailure,
+  ModelMediaLimits,
+  ModelMediaSource,
   ModelProvider,
   ModelRetryPolicy,
   ModelSendBoundary,
@@ -38,20 +43,13 @@ export type {
   ModelRequestPreparation,
   OutputWithheld,
   ProfileChange,
+  ReplayBinding,
   ReplayDiagnostic,
+  ReplayOmission,
   ReplayProjection,
   ReplayProjectionInput,
   ReplayTreatment,
 } from '../profile.ts'
-export type {
-  ConversionFailure,
-  ConversionReply,
-  ConverterKey,
-  ConverterLookup,
-  ModelConverter,
-  ModelConverterCatalog,
-  ModelMessageConversion,
-} from '../conversion.ts'
 export type { ModelTextTokenizer, TokenizationFailure, TokenizationSegment } from '../tokenizer.ts'
 export type {
   ModelBindingFailure,

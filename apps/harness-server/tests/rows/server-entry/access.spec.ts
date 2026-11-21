@@ -8,7 +8,12 @@ import type { AccessIdentity } from '@omne-harness/access-cordis-contract'
 import { createCapturingTelemetry } from '@omne-harness/telemetry-contract/testing'
 import { afterEach, describe, expect, it } from 'vitest'
 import { defineProtocol } from '@omne-harness/public-contract'
-import { accessDiagnostics, entryAccess } from '../../../src/rows/server-entry/access.ts'
+import { simulatedTime } from '@omne-harness/time-source/simulated'
+import {
+  accessClockOf,
+  accessDiagnostics,
+  entryAccess,
+} from '../../../src/rows/server-entry/access.ts'
 import {
   distributionPath,
   freePort,
@@ -142,6 +147,22 @@ describe('server-entry row: the access it gives the entry', () => {
     expect(identity).toBe(port)
   })
 
+  it('gives the entry a clock, and the clock schedules and cancels on the time source it adapts', () => {
+    expect(
+      entryAccess(new Context(), createCapturingTelemetry().port, NO_IDENTITY).clock,
+    ).toBeDefined()
+    const time = simulatedTime()
+    const clock = accessClockOf(time.source)
+    const ran: string[] = []
+    clock.schedule(40, () => ran.push('heartbeat'))
+    const cancel = clock.schedule(40, () => ran.push('cancelled'), { background: true })
+    cancel()
+    time.advance(39)
+    expect([ran, time.pending()]).toEqual([[], 1])
+    time.advance(1)
+    expect([ran, time.pending()]).toEqual([['heartbeat'], 0])
+  })
+
   it('writes access.listener-fault when an availability listener throws', () => {
     const capture = createCapturingTelemetry()
     const { registry } = entryAccess(new Context(), capture.port, NO_IDENTITY)
@@ -188,7 +209,7 @@ function withTelemetry(layer: unknown): unknown {
 
 describe('the serve process with the release', () => {
   it(
-    'the release answers the availability with a snapshot of the six protocols it mounts, and never asks its identity port',
+    'the release answers the availability with a snapshot of the seven protocols it mounts, and never asks its identity port',
     { tags: ['slow'] },
     async () => {
       const base = realpathSync(mkdtempSync(join(tmpdir(), 'access-serve-')))
@@ -251,10 +272,18 @@ describe('the serve process with the release', () => {
       expect(event.frame.protocols.map(key => `${key.name}/v${key.major}`).sort()).toStrictEqual([
         'access/v1',
         'assets/v1',
+        'calendar/v1',
         'human-intervention/v1',
         'identity/v1',
+        'media/v1',
+        'model/v1',
+        'notification/v1',
+        'schedule/v1',
         'session-diagnostics/v1',
         'session/v1',
+        'tool/v1',
+        'usage/v1',
+        'workspace/v1',
       ])
       const records = stdout
         .trim()

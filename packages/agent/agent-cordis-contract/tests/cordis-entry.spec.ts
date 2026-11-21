@@ -20,7 +20,6 @@ const documentedPairs = {
   agentJournalKey: 'AgentJournalService',
   agentAccessCheckKey: 'AgentAccessCheckService',
   agentModelSelectionKey: 'ModelSelectionService',
-  agentModelContextKey: 'ModelContextReaderService',
   agentActionAdmissionKey: 'ActionAdmissionService',
   agentDecisionCardsKey: 'DecisionCardsService',
   agentMessageHandoffKey: 'MessageHandoffService',
@@ -35,7 +34,6 @@ const documentedPairs = {
   agentPublicationAuthorityKey: 'AgentPublicationAuthorityService',
   agentExecutionRecoveryKey: 'AgentExecutionRecoveryService',
   agentJournalEntriesKey: 'AgentJournalEntriesService',
-  agentAccountOutletKey: 'AgentAccountOutletService',
   agentReceivedCommitsKey: 'AgentReceivedCommitsService',
   agentReceivedRecordsKey: 'AgentReceivedRecordsService',
   agentModelReceptionTargetsKey: 'ModelReceptionTargetsService',
@@ -43,6 +41,8 @@ const documentedPairs = {
   agentExecutionControlKey: 'AgentExecutionControlService',
   agentInstancesKey: 'AgentInstancesService',
   agentInstanceProvisionKey: 'AgentInstanceProvisionService',
+  agentCompactionKey: 'ContextCompactionService',
+  agentCompactionInputsKey: 'CompactionInputStoreService',
 } as const
 
 const dependent = /^@omne-harness\/agent(-host-local)?(\/|$)/u
@@ -91,7 +91,6 @@ describe('the key texts', () => {
       agentJournalKey: 'agentJournal',
       agentAccessCheckKey: 'agentAccessCheck',
       agentModelSelectionKey: 'agentModelSelection',
-      agentModelContextKey: 'agentModelContext',
       agentActionAdmissionKey: 'agentActionAdmission',
       agentDecisionCardsKey: 'agentDecisionCards',
       agentMessageHandoffKey: 'agentMessageHandoff',
@@ -106,7 +105,6 @@ describe('the key texts', () => {
       agentPublicationAuthorityKey: 'agentPublicationAuthority',
       agentExecutionRecoveryKey: 'agentExecutionRecovery',
       agentJournalEntriesKey: 'agentJournalEntries',
-      agentAccountOutletKey: 'agentAccountOutlet',
       agentReceivedCommitsKey: 'agentReceivedCommits',
       agentReceivedRecordsKey: 'agentReceivedRecords',
       agentModelReceptionTargetsKey: 'agentModelReceptionTargets',
@@ -114,6 +112,8 @@ describe('the key texts', () => {
       agentExecutionControlKey: 'agentExecutionControl',
       agentInstancesKey: 'agentInstances',
       agentInstanceProvisionKey: 'agentInstanceProvision',
+      agentCompactionKey: 'agentCompaction',
+      agentCompactionInputsKey: 'agentCompactionInputs',
     })
   })
 })
@@ -164,7 +164,7 @@ describe('the cordis definition entry has no Agent implementation', () => {
   })
 })
 
-describe('under Cordis 4.0.4', () => {
+describe('under Cordis 4.1.0', () => {
   it('resolves a provider through the abstract definition key, as an instance of the definition', async () => {
     let available = true
     class FixedClock extends AgentClockService {

@@ -155,7 +155,11 @@ async function demonstrate(
 }
 
 const TOOL_INPUT = 'call a tool, then answer'
-const ECHO = JSON.stringify({ command: 'execute', params: { script: 'echo notices' } })
+const ECHO = JSON.stringify({
+  command: 'execute',
+  intent: 'test call',
+  params: { script: 'echo notices' },
+})
 const toolScript = toolCallsThenText(() => [{ id: 'call_echo', tool: 'Shell', arguments: ECHO }])
 
 async function noticeSummary(tree: ReleaseTree, recorder: NoticeRecorder, sessions: string[]) {

@@ -4,18 +4,16 @@ import type { Access } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
 import type {
   Bytes,
-  DescribeFailure,
-  ExportFailure,
   GateFailure,
   ListFailure,
   PackageEntry,
   PinFailure,
   ReadFailure,
   SkillAccess,
+  SkillFailure,
   SkillMaterialBasis,
 } from '@omne-harness/skill-contract'
-import type { PackageInspection } from '@omne-harness/skill-contract/provider'
-import type { createPackageInspection, createSkillAccess, SkillPorts } from '@omne-harness/skill'
+import type { createSkillAccess, SkillPorts } from '@omne-harness/skill'
 import { verifiedBytes, type ByteFailure } from '../src/access/bytes.ts'
 import { gate, type Aborted, type Gated } from '../src/access/gate.ts'
 import {
@@ -41,7 +39,6 @@ declare const pinned: Pinned
 declare const entry: PackageEntry
 
 test('the factories give the interfaces of the contract', () => {
-  expectTypeOf<ReturnType<typeof createPackageInspection>>().toEqualTypeOf<PackageInspection>()
   expectTypeOf<ReturnType<typeof createSkillAccess<'p', 's'>>>().toEqualTypeOf<
     SkillAccess<'p', 's'>
   >()
@@ -50,12 +47,12 @@ test('the factories give the interfaces of the contract', () => {
   expectTypeOf<SkillPorts<'p', 's'>>().toHaveProperty('source')
 })
 
-test('the gate fails only with the describe failures and the abort', () => {
+test('the gate fails only with the gate failures, an unlawful basis and the abort', () => {
   expectTypeOf(gate(ports, access, 's', capability, basis, undefined)).resolves.toEqualTypeOf<
-    Outcome<Gated, DescribeFailure | Aborted>
+    Outcome<Gated, GateFailure | Extract<SkillFailure, { kind: 'basis-unavailable' }> | Aborted>
   >()
-  expectTypeOf<Kind<DescribeFailure>>().toEqualTypeOf<
-    'not-available-to-you' | 'unavailable-stand-in' | 'unknown' | 'basis-unavailable'
+  expectTypeOf<Kind<GateFailure>>().toEqualTypeOf<
+    'not-available-to-you' | 'unavailable-stand-in' | 'unknown'
   >()
 })
 
@@ -90,7 +87,6 @@ test('the bytes stage fails only with the kinds of step 10 and the abort', () =>
     | 'aborted'
   >()
   expectTypeOf<ByteFailure>().toExtend<ReadFailure>()
-  expectTypeOf<ByteFailure>().toExtend<ExportFailure>()
 })
 
 test('the mapping table has one column per source call of the byte operations', () => {

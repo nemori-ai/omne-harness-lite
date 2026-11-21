@@ -2,6 +2,8 @@ import { randomBytes } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
 import {
   decodeModelOperationId,
+  type DispatchRecord,
+  type FixedModelRequest,
   type MaterializationReceipt,
   type ModelFailure,
   type ModelFault,
@@ -9,15 +11,25 @@ import {
 } from '@omne-harness/model-contract'
 import {
   MODEL_SEND,
+  type MaterializeFailure,
   type MaterializedTransport,
+  type MediaRefusal,
   type ModelCommands,
   type SendDemand,
   type SendResult,
-  type ModelTransport,
 } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import { SendLifetime, ownedFacts } from './lifetime.ts'
 import type { CredentialSelection, ModelSendBoundaryOptions, SendStart } from './types.ts'
+
+// A dispatch without reasoning state leaves out every reply that carries a replay mark: the
+// resend after a refusal of it, and every dispatch of the call after the resend.
+function resentOf(request: FixedModelRequest, dispatch: DispatchRecord) {
+  if (dispatch.withoutReplay === undefined) return []
+  return request.messages.flatMap(message =>
+    message.role === 'assistant' && message.replay !== undefined ? [message.id] : [],
+  )
+}
 type Commands = ModelCommands<unknown>
 type Write<A, T> = {
   input: A
@@ -39,10 +51,6 @@ type Window = Parameters<Commands['openReceiveWindow']>[0]
 type RecordSend = Parameters<Commands['recordSend']>[0]
 type Preserve = Parameters<Commands['preserve']>[0]
 type Refusal = Extract<SendStart, { kind: 'refused' }>
-type TransportFailure = Extract<
-  Awaited<ReturnType<ModelTransport['prepare']>>,
-  { failure: unknown }
->['failure']
 type Stage =
   | { kind: 'acquire' }
   | { kind: 'refusal'; result: Refusal }
@@ -75,7 +83,30 @@ function credentialFault(diagnostic: string): ModelFault {
   return { cause: 'credential', diagnostic, upstreamStatus: null }
 }
 type RefusalReason = Readonly<{ failure: ModelFailure; fault?: ModelFault }>
-function transportRefusal(failure: TransportFailure): RefusalReason {
+type MediaEnd = Readonly<{
+  failure: Extract<ModelFailure, { kind: 'invalid' }>
+  fault: ModelFault
+}>
+/** A medium that could not be sent ends the call with its own cause, never as a modality. */
+export function mediaRefusal(refusal: MediaRefusal): MediaEnd {
+  const failure = { kind: 'invalid', field: 'request.media', reason: refusal.reason } as const
+  if (refusal.reason === 'material-unavailable')
+    return {
+      failure,
+      fault: { cause: 'input-rejected', diagnostic: refusal.reason, upstreamStatus: null },
+    }
+  return {
+    failure,
+    fault: {
+      cause: 'input-over-limit',
+      diagnostic: 'media-over-limit',
+      upstreamStatus: null,
+      reported: { metric: 'image-bytes', limit: refusal.limit, actual: null },
+    },
+  }
+}
+function transportRefusal(failure: MaterializeFailure): RefusalReason {
+  if (failure.kind === 'media') return mediaRefusal(failure)
   if (failure.kind === 'unavailable') return { failure }
   const causes = { denied: 'excluded', invalid: 'input-rejected', unsupported: 'modality' } as const
   return {
@@ -209,14 +240,14 @@ export function createAttemptRunner<P>(
   }
   async function acquireResources(
     attempt: SendAttempt<P>,
+    dispatch: DispatchRecord,
   ): Promise<{ ok: MaterializedTransport } | RefusalReason> {
     const input = attempt.input
     const acquired = await resources.acquire(input)
     if ('failure' in acquired) return acquired
     attempt.lifetime.resource = acquired.ok
-    const prepared = await acquired.ok.transport.prepare(input.request, input.supplier, {
-      resent: [],
-    })
+    const resent = resentOf(input.request, dispatch)
+    const prepared = await acquired.ok.transport.prepare(input.request, input.supplier, { resent })
     if ('failure' in prepared) return transportRefusal(prepared.failure)
     attempt.lifetime.prepared = prepared.ok
     const materialized = await prepared.ok.materialize(attempt.signal)
@@ -254,7 +285,7 @@ export function createAttemptRunner<P>(
         kind: 'complete',
         result: stop(id, attempt, unavailable('model-send', 'cancelled-before-prepare')),
       }
-    const materialized = await acquireResources(attempt)
+    const materialized = await acquireResources(attempt, dispatch)
     if ('failure' in materialized) {
       if (materialized.fault !== undefined) {
         attempt.stage = { kind: 'refusal', result: { kind: 'refused', ...materialized } }

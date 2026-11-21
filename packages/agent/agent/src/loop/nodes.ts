@@ -94,7 +94,7 @@ export type Label =
   | 'settled'
   | 'kept'
   | 'partial'
-  | 'retry'
+  | 'lost'
   | 'empty'
   | 'fixed'
   | 'cancel'
@@ -118,6 +118,28 @@ export type Label =
 export type Transition = Readonly<{ from: LoopNode; on: Label; to: LoopNode | null }>
 
 export const TRANSITIONS: readonly Transition[] = [
+  { from: 'E4', on: 'resume-C0', to: 'C0' },
+  { from: 'C0', on: 'wait', to: 'W0' },
+  { from: 'E4', on: 'resume-C1', to: 'C1' },
+  { from: 'C1', on: 'wait', to: 'W0' },
+  { from: 'E4', on: 'resume-C2', to: 'C2' },
+  { from: 'C2', on: 'wait', to: 'W0' },
+  { from: 'E4', on: 'resume-C3', to: 'C3' },
+  { from: 'C3', on: 'wait', to: 'W0' },
+  { from: 'E4', on: 'resume-C4', to: 'C4' },
+  { from: 'C4', on: 'wait', to: 'W0' },
+  { from: 'I1', on: 'compact', to: 'C0' },
+  { from: 'P1', on: 'compact', to: 'C0' },
+  { from: 'P1', on: 'try-finish', to: 'F1' },
+  { from: 'C0', on: 'recorded', to: 'C1' },
+  { from: 'C1', on: 'received', to: 'C2' },
+  { from: 'C2', on: 'prepared', to: 'C3' },
+  { from: 'C2', on: 'try-finish', to: 'F2' },
+  { from: 'C3', on: 'resolved', to: 'C4' },
+  { from: 'C3', on: 'try-finish', to: 'F2' },
+  { from: 'C4', on: 'ready', to: 'I2' },
+  { from: 'C4', on: 'prepared', to: 'P0' },
+  { from: 'C4', on: 'try-finish', to: 'F1' },
   { from: 'U0', on: 'candidate', to: 'Q1' },
   { from: 'Q1', on: 'prepared', to: 'Q2' },
   { from: 'Q1', on: 'rejected', to: 'Q5' },
@@ -198,7 +220,7 @@ export const TRANSITIONS: readonly Transition[] = [
   { from: 'I3', on: 'admitted', to: 'I4' },
   { from: 'I3', on: 'rejected', to: 'I8' },
   { from: 'I3', on: 'partial', to: 'I8' },
-  { from: 'I3', on: 'retry', to: 'I8' },
+  { from: 'I3', on: 'lost', to: 'I8' },
   { from: 'I3', on: 'try-finish', to: 'F1' },
   { from: 'I4', on: 'empty', to: 'I8' },
   { from: 'I4', on: 'tools', to: 'A0' },

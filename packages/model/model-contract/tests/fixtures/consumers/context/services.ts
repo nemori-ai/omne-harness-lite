@@ -1,6 +1,5 @@
 import { succeed } from '@omne-harness/operation-result'
 import type {
-  ConversionResult,
   FixedModelRequest,
   ModelCountingBasis,
   ModelInputMeter,
@@ -8,9 +7,8 @@ import type {
   RequestBudget,
   Termination,
 } from '@omne-harness/model-contract'
-import type { ModelMessageConversion } from '@omne-harness/model-contract/provider'
 import { blocksOf, inputBound, referencesOf, type MeterInput } from './meter-input.ts'
-import { adoption, evidence, profile, textBlock, type Principal } from './values.ts'
+import { adoption, profile } from './values.ts'
 
 export const basis: ModelCountingBasis = {
   supplier: profile.definition.suppliers[0],
@@ -83,34 +81,6 @@ export function createSender(endings: readonly Termination[]): ScriptedSender {
       sent.push(input)
       if (ending === undefined) throw new Error('the script has no ending for this call')
       return ending
-    },
-  }
-}
-
-export function createConversion(): ModelMessageConversion<Principal> {
-  return {
-    async prepare({ original }) {
-      if (original.kind === 'voice')
-        return succeed<ConversionResult>({
-          kind: 'converted',
-          value: {
-            original,
-            derived: [textBlock(`${original.id}-text`, 'hello there')],
-            transcript: 'hello there',
-            converter: adoption('transcriber'),
-          },
-        })
-      if ('ref' in original)
-        return succeed<ConversionResult>({
-          kind: 'deferred',
-          original,
-          source: evidence('deferred'),
-        })
-      return succeed<ConversionResult>({
-        kind: 'unchanged',
-        original,
-        reason: original.kind === 'text' ? 'text' : 'no-converter',
-      })
     },
   }
 }

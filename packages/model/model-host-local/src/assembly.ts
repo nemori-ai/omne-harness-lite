@@ -28,6 +28,7 @@ import type {
   ModelMaterializationEvidenceReader,
   PiMaterializationOptions,
 } from './materialization-proof.ts'
+import type { ModelReceiveEvidenceReader } from './receive-evidence.ts'
 
 const ASSEMBLY_CLOSED: ModelFailure = Object.freeze({
   kind: 'unavailable',
@@ -47,6 +48,7 @@ export type LocalModelConfig<P> = Readonly<{
   materialization: PiMaterializationOptions
   requestDisclosure?: PiSendResourcesConfig['requestDisclosure']
   onConnectRetry?: (retry: ConnectRetryReport) => void
+  media?: PiSendResourcesConfig<P>['media']
   preparation: Readonly<{
     maxCitedCalls: number
     supplierOf: SupplierPort<P>
@@ -56,6 +58,7 @@ export type LocalModelConfig<P> = Readonly<{
 export type LocalModel<P> = Readonly<{
   send: ModelSendBoundary<P>
   materialization: ModelMaterializationEvidenceReader
+  receive: ModelReceiveEvidenceReader
   preparation: ModelPreparationResources<P>
   close(): Promise<void>
 }>
@@ -65,7 +68,7 @@ type ClosableNetwork = Readonly<{ close(): Promise<void> }>
 export type AssemblyFactories<P, N extends ClosableNetwork> = Readonly<{
   createNetwork(config: NetworkConfig): N
   createSendResources(
-    config: Omit<PiSendResourcesConfig, 'network'> & { network: N },
+    config: Omit<PiSendResourcesConfig<P>, 'network'> & { network: N },
   ): PiSendResources<P>
 }>
 
@@ -124,6 +127,7 @@ export function assembleOver<P, N extends ClosableNetwork>(
         ? {}
         : { requestDisclosure: config.requestDisclosure }),
       ...(config.onConnectRetry === undefined ? {} : { onConnectRetry: config.onConnectRetry }),
+      ...(config.media === undefined ? {} : { media: config.media }),
     })
     send = createModelSendBoundary<P>({
       commands: config.commands,
@@ -157,6 +161,7 @@ export function assembleOver<P, N extends ClosableNetwork>(
   return {
     send,
     materialization: opened.materialization,
+    receive: opened.receive,
     preparation,
     close() {
       closing ??= closeAll()

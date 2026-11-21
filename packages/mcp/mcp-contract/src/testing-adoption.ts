@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Access, TenantId } from '@omne-harness/legal-identity'
-import type { AdoptedEndpoint, AdoptionView, ProcessSetting } from './ports.ts'
+import type { AdoptedEndpoint, AdoptionView } from './ports.ts'
 import { conformanceCase, handle, tenantText, type ConformanceCase } from './testing-case.ts'
 import { isAdoptionRevision, type AdoptionRevision } from './brands.ts'
 import type { EndpointRef, EndpointSettings } from './values.ts'
@@ -97,7 +97,6 @@ export type MemoryAdoption<S> = Readonly<{
   ref: EndpointRef
   body: JsonValue
   settings?: EndpointSettings
-  processEnv?: readonly ProcessSetting[]
 }>
 
 export type MemoryAdoptionView<P, S> = AdoptionView<P, S> &
@@ -106,7 +105,7 @@ export type MemoryAdoptionView<P, S> = AdoptionView<P, S> &
     update(
       tenant: TenantId,
       ref: EndpointRef,
-      change: Partial<Pick<AdoptedEndpoint, 'body' | 'settings' | 'processEnv'>>,
+      change: Partial<Pick<AdoptedEndpoint, 'body' | 'settings'>>,
     ): AdoptedEndpoint
     withdraw(tenant: TenantId, ref: EndpointRef): void
     setUnreadable(unreadable: boolean): void
@@ -161,7 +160,6 @@ export function createMemoryAdoptionView<P, S>(
         revision: nextRevision(),
         body: adoption.body,
         settings: adoption.settings ?? NO_SETTINGS,
-        processEnv: adoption.processEnv ?? [],
       }),
     update(tenant, ref, change) {
       const previous = stored.get(keyOf(tenant, ref))

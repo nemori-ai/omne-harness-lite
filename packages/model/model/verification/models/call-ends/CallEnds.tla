@@ -1,7 +1,7 @@
 ------------------------------ MODULE CallEnds ------------------------------
 (* One logical model call, from its admission to the delivery of its result.
    The driver does the execution writes of the call: prepare, open the receive
-   window, preserve each batch of output, and the settlement. The store
+   window, preserve each batch of output, the retry record, and the settlement. The store
    answers each write: taken, refused for good, or not confirmed (the answer
    is lost or the store cannot answer now; the write took effect or it did
    not). The rule under check:
@@ -12,16 +12,50 @@
      confirmed the driver stops, and the host runs it again. A settled call
      wakes the push, and the push delivers the result to the consumer.
 
-   So every call ends, whatever the store refuses, and the consumer is told. *)
+     A dispatch that fails before any content, with a cause that can be
+     retried, brings the call to the policy point. There the driver takes a
+     retry position and asks the policy. The policy stops, or sends again
+     within the bound of the request, or cannot answer; when it cannot answer
+     the call ends as failed. A decided dispatch goes out when its instant has
+     come, and the host wakes the driver at that instant. Once the caller
+     asked to stop, no further dispatch is prepared and the call ends with the
+     terminal of the dispatch that failed, whatever the retry record says.
+
+     A dispatch that fails before any content because the supplier refused
+     the reasoning state it carried brings the call to the policy point too.
+     There the policy sends again at once to the same supplier, without any
+     reasoning state, within its own bound and outside the bound of ordinary
+     retries. When that bound is spent the call ends as failed. A refusal of
+     reasoning state that the dispatch did not carry ends the call as failed.
+
+   The process can crash between any two steps, a bounded number of times. A
+   crash stops the driver, drops every wake and timer the host held, and ends
+   the transport of the dispatch in flight. On the next start the host scans
+   the store and wakes every call that is not settled. A driver that finds the
+   dispatch sent and its transport gone records a failed terminal for it
+   (runtime-lost); its first content cannot be ruled out, so the call ends
+   with that failure and no further dispatch goes out.
+
+   So every call ends, whatever the store refuses, whatever the policy
+   answers and however often the process restarts, and the consumer is told. *)
 EXTENDS Naturals
 
 CONSTANTS MaxBatches,   \* batches of output the supplier sends
           MaxUnknown,   \* how many answers may be lost
           DriveEndsOnRefusal,  \* negative control: a refused write only ends the drive (the defect)
           TerminalRefusable,   \* negative control: the terminal write can be refused for good too
-          NoRewake             \* negative control: after a lost answer nothing runs the driver again
+          NoRewake,            \* negative control: after a lost answer nothing runs the driver again
+          MaxDispatches,       \* real dispatches the fixed request allows
+          PolicyFailStuck,     \* negative control: a policy that cannot answer only ends the drive (the defect)
+          ControlBlocksSettle, \* negative control: a retry record refuses the settlement after a stop request
+          MaxResends,          \* sends again without reasoning state that the policy allows
+          ResendKeepsState,    \* negative control: the dispatch sent again still carries the reasoning state
+          ResendNoWake,        \* negative control: the saved decision to send again does not run the driver
+          MaxCrashes,          \* how many times the process may crash
+          ScanSkipsUnsettled,  \* negative control: the startup scan wakes no call that is not settled
+          ResendAfterLost      \* negative control: a dispatch whose transport was lost is retried
 
-VARIABLES phase,     \* "accepted", "prepared", "receiving", "ending", "settled"
+VARIABLES phase,     \* "accepted", "prepared", "receiving", "deciding", "ending", "settled"
           outcome,   \* "none", "completed", "failed", "interrupted": the terminal in the store
           batches,   \* batches the store took
           sent,      \* whether the supplier got the request
@@ -29,22 +63,41 @@ VARIABLES phase,     \* "accepted", "prepared", "receiving", "ending", "settled"
           woken,     \* whether something asked the driver to run
           cancelled, \* whether the caller asked to stop
           delivered, \* whether the consumer got the result
-          unknowns
+          unknowns,
+          dispatches, \* real dispatches prepared so far
+          retry,      \* "none", "positioned", "stop", "again", "omit": the retry record of the call
+          due,        \* whether the instant of a decided dispatch has come
+          carried,    \* whether the dispatch carries reasoning state
+          rejected,   \* whether the supplier said it refused the dispatch for reasoning state
+          resends,    \* sends again without reasoning state so far
+          crashes,    \* crashes so far
+          live,       \* whether the transport of the dispatch in flight still runs in this process
+          lostAt      \* the dispatch whose transport was lost, numbered as dispatches; 0 when none
 
-vars == <<phase, outcome, batches, sent, driver, woken, cancelled, delivered, unknowns>>
+vars == <<phase, outcome, batches, sent, driver, woken, cancelled, delivered, unknowns,
+          dispatches, retry, due, carried, rejected, resends, crashes, live, lostAt>>
 
 Init == /\ phase = "accepted" /\ outcome = "none" /\ batches = 0 /\ sent = FALSE
         /\ driver = "idle" /\ woken = TRUE /\ cancelled = FALSE /\ delivered = FALSE
-        /\ unknowns = 0
+        /\ unknowns = 0 /\ dispatches = 0 /\ retry = "none" /\ due = FALSE
+        /\ carried \in BOOLEAN /\ rejected = FALSE /\ resends = 0
+        /\ crashes = 0 /\ live = FALSE /\ lostAt = 0
+
+Replay == <<carried, rejected, resends>>
+Restart == <<crashes, live, lostAt>>
 
 (* The admission woke the driver; a cancel wakes it again. Nothing else does. *)
-Start == /\ driver # "running" /\ woken /\ phase # "settled"
+Start == /\ driver \in {"idle", "stopped"} /\ woken /\ phase # "settled"
          /\ driver' = "running" /\ woken' = FALSE
-         /\ UNCHANGED <<phase, outcome, batches, sent, cancelled, delivered, unknowns>>
+         /\ UNCHANGED <<phase, outcome, batches, sent, cancelled, delivered, unknowns,
+                         dispatches, retry, due>>
+    /\ UNCHANGED Replay
 
 Cancel == /\ ~cancelled /\ phase # "settled"
           /\ cancelled' = TRUE /\ woken' = TRUE
-          /\ UNCHANGED <<phase, outcome, batches, sent, driver, delivered, unknowns>>
+          /\ UNCHANGED <<phase, outcome, batches, sent, driver, delivered, unknowns,
+                          dispatches, retry, due>>
+    /\ UNCHANGED Replay
 
 (* A write the store refuses for good. *)
 Refused(next) ==
@@ -57,10 +110,12 @@ Lost == /\ unknowns < MaxUnknown /\ unknowns' = unknowns + 1
         /\ driver' = "stopped" /\ woken' = ~NoRewake
 
 Prepare == /\ driver = "running" /\ phase = "accepted"
-           /\ \/ /\ phase' = "prepared" /\ UNCHANGED <<outcome, driver, woken, unknowns>>
-              \/ /\ Refused("failed") /\ UNCHANGED <<woken, unknowns>>
-              \/ /\ Lost /\ UNCHANGED <<phase, outcome>>
-           /\ UNCHANGED <<batches, sent, cancelled, delivered>>
+           /\ \/ /\ phase' = "prepared" /\ dispatches' = dispatches + 1
+                 /\ UNCHANGED <<outcome, driver, woken, unknowns>>
+              \/ /\ Refused("failed") /\ UNCHANGED <<woken, unknowns, dispatches>>
+              \/ /\ Lost /\ UNCHANGED <<phase, outcome, dispatches>>
+           /\ UNCHANGED <<batches, sent, cancelled, delivered, retry, due>>
+    /\ UNCHANGED Replay
 
 (* The request goes out, and the receive window opens. *)
 Send == /\ driver = "running" /\ phase = "prepared"
@@ -68,10 +123,13 @@ Send == /\ driver = "running" /\ phase = "prepared"
              THEN /\ phase' = "ending" /\ outcome' = "interrupted" /\ UNCHANGED <<sent, driver, woken, unknowns>>
              ELSE \/ /\ phase' = "receiving" /\ sent' = TRUE /\ UNCHANGED <<outcome, driver, woken, unknowns>>
                   \/ /\ sent' = TRUE /\ Refused("failed") /\ UNCHANGED <<woken, unknowns>>
-        /\ UNCHANGED <<batches, cancelled, delivered>>
+        /\ UNCHANGED <<batches, cancelled, delivered, dispatches, retry, due>>
+    /\ UNCHANGED Replay
 
-(* One batch of output is preserved, or the output ends. *)
-Preserve == /\ driver = "running" /\ phase = "receiving"
+(* One batch of output is preserved, or the output ends, or the supplier fails. A failure
+   before any content can be retried and brings the call to the policy point; a failure
+   after content, or one that cannot be retried, ends the call. *)
+Preserve == /\ driver = "running" /\ phase = "receiving" /\ live
             /\ \/ /\ batches < MaxBatches /\ batches' = batches + 1
                   /\ UNCHANGED <<phase, outcome, driver, woken, unknowns>>
                \/ /\ Refused("failed") /\ UNCHANGED <<batches, woken, unknowns>>
@@ -80,7 +138,94 @@ Preserve == /\ driver = "running" /\ phase = "receiving"
                   /\ phase' = "ending"
                   /\ outcome' = IF cancelled THEN "interrupted" ELSE "completed"
                   /\ UNCHANGED <<batches, driver, woken, unknowns>>
-            /\ UNCHANGED <<sent, cancelled, delivered>>
+               \/ /\ ~cancelled /\ batches = 0 /\ phase' = "deciding" /\ rejected' \in BOOLEAN
+                  /\ UNCHANGED <<outcome, batches, driver, woken, unknowns>>
+               \/ /\ ~cancelled /\ phase' = "ending" /\ outcome' = "failed"
+                  /\ UNCHANGED <<batches, driver, woken, unknowns>>
+            /\ phase' # "deciding" => UNCHANGED rejected
+            /\ UNCHANGED <<sent, cancelled, delivered, dispatches, retry, due, carried, resends>>
+
+(* The caller asked to stop while the call is at the policy point. No further dispatch is
+   prepared; the call ends with the terminal of the dispatch that failed. With the negative
+   control a retry record that is positioned or decided to send again refuses that
+   settlement, and then no write of the driver is accepted. *)
+Yield == /\ driver = "running" /\ phase = "deciding" /\ cancelled
+         /\ IF ControlBlocksSettle /\ retry \in {"positioned", "again"}
+              THEN /\ driver' = "stopped" /\ UNCHANGED <<phase, outcome>>
+              ELSE /\ phase' = "ending" /\ outcome' = "failed" /\ UNCHANGED driver
+         /\ UNCHANGED <<batches, sent, woken, cancelled, delivered, unknowns, dispatches, retry, due>>
+    /\ UNCHANGED Replay
+
+(* The driver takes the retry position. *)
+Position == /\ driver = "running" /\ phase = "deciding" /\ ~cancelled /\ retry = "none"
+            /\ \/ /\ retry' = "positioned" /\ UNCHANGED <<phase, outcome, driver, woken, unknowns>>
+               \/ /\ Refused("failed") /\ UNCHANGED <<woken, unknowns, retry>>
+               \/ /\ Lost /\ UNCHANGED <<phase, outcome, retry>>
+            /\ UNCHANGED <<batches, sent, cancelled, delivered, dispatches, due>>
+    /\ UNCHANGED Replay
+
+(* The driver asks the policy and writes its decision. For an ordinary failure the policy
+   stops, or sends again within the bound of the request. For a refusal of the reasoning
+   state the dispatch carried it sends again without it within its own bound, and ends the
+   call when that bound is spent; a refusal of state that was not carried ends the call.
+   The policy can also not answer. A decision that does not pass the store counts as a
+   policy that cannot answer. *)
+Decide == /\ driver = "running" /\ phase = "deciding" /\ ~cancelled /\ retry = "positioned"
+          /\ \/ /\ ~rejected /\ retry' = "stop" /\ UNCHANGED <<phase, outcome, driver, woken, unknowns, due>>
+             \/ /\ ~rejected /\ dispatches - resends < MaxDispatches /\ retry' = "again" /\ due' = FALSE
+                /\ UNCHANGED <<phase, outcome, driver, woken, unknowns>>
+             \/ /\ rejected /\ carried /\ resends < MaxResends /\ retry' = "omit"
+                /\ IF ResendNoWake THEN driver' = "stopped" ELSE UNCHANGED driver
+                /\ UNCHANGED <<phase, outcome, woken, unknowns, due>>
+             \/ /\ rejected /\ (~carried \/ resends >= MaxResends)
+                /\ phase' = "ending" /\ outcome' = "failed"
+                /\ UNCHANGED <<retry, driver, woken, unknowns, due>>
+             \/ /\ IF PolicyFailStuck
+                     THEN /\ driver' = "stopped" /\ UNCHANGED <<phase, outcome>>
+                     ELSE /\ phase' = "ending" /\ outcome' = "failed" /\ UNCHANGED driver
+                /\ UNCHANGED <<retry, woken, unknowns, due>>
+             \/ /\ Lost /\ UNCHANGED <<phase, outcome, retry, due>>
+          /\ UNCHANGED <<batches, sent, cancelled, delivered, dispatches>>
+          /\ UNCHANGED Replay
+
+(* The policy stopped: the call ends as failed. *)
+Stop == /\ driver = "running" /\ phase = "deciding" /\ ~cancelled /\ retry = "stop"
+        /\ phase' = "ending" /\ outcome' = "failed"
+        /\ UNCHANGED <<batches, sent, driver, woken, cancelled, delivered, unknowns, dispatches, retry, due>>
+    /\ UNCHANGED Replay
+
+(* The instant of the decided dispatch has not come: the drive ends. *)
+Wait == /\ driver = "running" /\ phase = "deciding" /\ ~cancelled /\ retry = "again" /\ ~due
+        /\ driver' = "stopped"
+        /\ UNCHANGED <<phase, outcome, batches, sent, woken, cancelled, delivered, unknowns, dispatches, retry, due>>
+    /\ UNCHANGED Replay
+
+(* The instant comes, and the host wakes the driver. *)
+Timer == /\ driver # "down" /\ phase = "deciding" /\ retry = "again" /\ ~due
+         /\ due' = TRUE /\ woken' = TRUE
+         /\ UNCHANGED <<phase, outcome, batches, sent, driver, cancelled, delivered, unknowns, dispatches, retry>>
+    /\ UNCHANGED Replay
+
+(* The decided dispatch is prepared. The retry record is cleared with it. *)
+Redispatch == /\ driver = "running" /\ phase = "deciding" /\ ~cancelled /\ retry = "again" /\ due
+              /\ \/ /\ phase' = "prepared" /\ retry' = "none" /\ due' = FALSE
+                    /\ dispatches' = dispatches + 1
+                    /\ UNCHANGED <<outcome, driver, woken, unknowns>>
+                 \/ /\ Refused("failed") /\ UNCHANGED <<woken, unknowns, retry, due, dispatches>>
+                 \/ /\ Lost /\ UNCHANGED <<phase, outcome, retry, due, dispatches>>
+              /\ UNCHANGED <<batches, sent, cancelled, delivered>>
+    /\ UNCHANGED Replay
+
+(* The decision to send again without reasoning state: the next dispatch is prepared at
+   once, carrying none, and it counts as a resend, not as an ordinary retry. *)
+Resend == /\ driver = "running" /\ phase = "deciding" /\ ~cancelled /\ retry = "omit"
+          /\ \/ /\ phase' = "prepared" /\ retry' = "none" /\ dispatches' = dispatches + 1
+                /\ carried' = (ResendKeepsState /\ carried) /\ rejected' = FALSE
+                /\ resends' = resends + 1
+                /\ UNCHANGED <<outcome, driver, woken, unknowns>>
+             \/ /\ Refused("failed") /\ UNCHANGED <<woken, unknowns, retry, dispatches, Replay>>
+             \/ /\ Lost /\ UNCHANGED <<phase, outcome, retry, dispatches, Replay>>
+          /\ UNCHANGED <<batches, sent, cancelled, delivered, due>>
 
 (* The settlement. The store takes it for good or does not confirm it; with the negative
    control it can refuse it too, and then nothing is left to write. *)
@@ -88,16 +233,55 @@ Settle == /\ driver = "running" /\ phase = "ending"
           /\ \/ /\ phase' = "settled" /\ driver' = "idle" /\ UNCHANGED <<woken, unknowns>>
              \/ /\ Lost /\ UNCHANGED phase
              \/ /\ TerminalRefusable /\ driver' = "stopped" /\ UNCHANGED <<phase, woken, unknowns>>
-          /\ UNCHANGED <<outcome, batches, sent, cancelled, delivered>>
+          /\ UNCHANGED <<outcome, batches, sent, cancelled, delivered, dispatches, retry, due>>
+    /\ UNCHANGED Replay
 
 (* The settlement wakes the push; the push delivers the result. *)
 Push == /\ phase = "settled" /\ ~delivered /\ delivered' = TRUE
-        /\ UNCHANGED <<phase, outcome, batches, sent, driver, woken, cancelled, unknowns>>
+        /\ UNCHANGED <<phase, outcome, batches, sent, driver, woken, cancelled, unknowns,
+                        dispatches, retry, due>>
+    /\ UNCHANGED Replay
 
-Next == Start \/ Cancel \/ Prepare \/ Send \/ Preserve \/ Settle \/ Push
+(* The process crashes: the driver, every wake and timer of the host, and the transport of the
+   dispatch in flight are gone. The store keeps what it took. *)
+Crash == /\ crashes < MaxCrashes /\ phase # "settled" /\ driver # "down"
+         /\ crashes' = crashes + 1 /\ driver' = "down" /\ woken' = FALSE /\ live' = FALSE
+         /\ UNCHANGED <<phase, outcome, batches, sent, cancelled, delivered, unknowns,
+                         dispatches, retry, due, lostAt>>
+    /\ UNCHANGED Replay
+
+(* The next start scans the store and wakes every call that is not settled. *)
+Scan == /\ driver = "down"
+        /\ driver' = "idle" /\ woken' = ~ScanSkipsUnsettled
+        /\ UNCHANGED <<phase, outcome, batches, sent, cancelled, delivered, unknowns,
+                        dispatches, retry, due>>
+    /\ UNCHANGED Replay /\ UNCHANGED Restart
+
+(* The dispatch was sent and its transport is gone: it ends failed as runtime-lost. Its first
+   content cannot be ruled out, so the call ends with it. With the negative control it is taken
+   as a failure before any content and brought to the policy point. *)
+RuntimeLost == /\ driver = "running" /\ phase = "receiving" /\ ~live
+               /\ lostAt' = dispatches
+               /\ IF ResendAfterLost
+                    THEN /\ phase' = "deciding" /\ rejected' = FALSE /\ UNCHANGED outcome
+                    ELSE /\ phase' = "ending" /\ outcome' = "failed" /\ UNCHANGED rejected
+               /\ UNCHANGED <<batches, sent, driver, woken, cancelled, delivered, unknowns,
+                               dispatches, retry, due, carried, resends, crashes, live>>
+
+(* The steps of one process leave the crash bookkeeping as it is; the send starts a transport. *)
+Kept(A) == A /\ UNCHANGED Restart
+Sent == Send /\ live' = TRUE /\ UNCHANGED <<crashes, lostAt>>
+
+Next == Kept(Start \/ Cancel \/ Prepare \/ Preserve \/ Settle \/ Push
+             \/ Yield \/ Position \/ Decide \/ Stop \/ Wait \/ Timer \/ Redispatch \/ Resend)
+        \/ Sent \/ Crash \/ Scan \/ RuntimeLost
 Spec == Init /\ [][Next]_vars
-          /\ WF_vars(Start) /\ WF_vars(Prepare) /\ WF_vars(Send) /\ WF_vars(Settle) /\ WF_vars(Push)
-          /\ SF_vars(Preserve /\ phase' # phase) /\ SF_vars(Preserve /\ batches' # batches)
+          /\ WF_vars(Kept(Start)) /\ WF_vars(Kept(Prepare)) /\ WF_vars(Sent)
+          /\ WF_vars(Kept(Settle)) /\ WF_vars(Kept(Push))
+          /\ SF_vars(Kept(Preserve) /\ phase' # phase) /\ SF_vars(Kept(Preserve) /\ batches' # batches)
+          /\ WF_vars(Kept(Yield)) /\ WF_vars(Kept(Position)) /\ WF_vars(Kept(Decide)) /\ WF_vars(Kept(Stop))
+          /\ WF_vars(Kept(Timer)) /\ WF_vars(Kept(Redispatch)) /\ WF_vars(Kept(Resend))
+          /\ WF_vars(Scan) /\ WF_vars(RuntimeLost)
 
 (* Safety. *)
 TerminalOnlyWhenEnding == (outcome # "none") => phase \in {"ending", "settled"}
@@ -105,6 +289,18 @@ DeliveredOnlySettled == delivered => phase = "settled"
 NothingAfterSettle == phase = "settled" => outcome # "none"
 (* A call that was not sent never ends as completed. *)
 CompletedWasSent == outcome = "completed" => sent
+(* The request bounds the real dispatches of a call, and the resends have their own bound. *)
+DispatchesBounded == dispatches <= MaxDispatches + MaxResends
+(* Once the call sent again without reasoning state, no dispatch of it carries any. *)
+ResendCarriesNone == resends > 0 => ~carried
+(* Reachability witness, not a property: the resend-reachable configuration expects it to fail. *)
+NeverResends == resends = 0
+(* After the transport of a dispatch was lost, no further dispatch of the call goes out. *)
+NoDispatchAfterLost == lostAt > 0 => dispatches = lostAt
+(* Reachability witness, not a property: the lost-reachable configuration expects it to fail. *)
+NeverLost == lostAt = 0
+(* A retry record exists only from the policy point on. *)
+RetryOnlyFromPolicyPoint == retry # "none" => phase \in {"deciding", "ending", "settled"}
 
 (* Liveness: every call ends, and the consumer gets its result. *)
 CallEnds == <>(phase = "settled")

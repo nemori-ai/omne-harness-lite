@@ -28,7 +28,6 @@ export type AccessFixture<P, S> = Readonly<{
   world: Readonly<{
     replaceAdopted(): void
     changeEntry(): PackagePath
-    breakOpen(): void
     abortAfterSnapshot(): AbortSignal
     calls(): PortCalls
   }>
@@ -50,15 +49,12 @@ function ok<T, F>(outcome: Outcome<T, F>, what: string): T {
   return outcome.ok
 }
 
-async function describedBasis<P, S>(f: AccessFixture<P, S>): Promise<SkillMaterialBasis> {
+async function listedBasis<P, S>(f: AccessFixture<P, S>): Promise<SkillMaterialBasis> {
   const { reader } = f.principals
-  const description = ok(
-    await f.access.describe(reader.access, reader.scope, f.capability.adopted),
-    'describe of the adopted identity',
-  )
-  if (description.material.kind !== 'pinned')
-    assert.fail('the adopted identity has no readable package')
-  return description.material.basis
+  return ok(
+    await f.access.list(reader.access, reader.scope, f.capability.adopted),
+    'list of the adopted identity',
+  ).basis
 }
 
 async function readAll<P, S>(f: AccessFixture<P, S>, path: PackagePath): Promise<string> {
@@ -119,12 +115,6 @@ export function skillAccessConformance<P, S>(): ConformanceCase<AccessFixture<P,
         const { stranger } = f.principals
         const { adopted, missing } = f.capability
         const ask = f.access
-        const existing = await ask.describe(stranger.access, stranger.scope, adopted)
-        assert.deepStrictEqual(existing, NOT_AVAILABLE)
-        assert.deepStrictEqual(
-          await ask.describe(stranger.access, stranger.scope, missing),
-          existing,
-        )
         const read = await ask.read(stranger.access, stranger.scope, body(adopted))
         assert.deepStrictEqual(read, NOT_AVAILABLE)
         assert.deepStrictEqual(await ask.read(stranger.access, stranger.scope, body(missing)), read)
@@ -139,22 +129,18 @@ export function skillAccessConformance<P, S>(): ConformanceCase<AccessFixture<P,
       'answers a basis of another identity the same as a refused read',
       async f => {
         const { reader, stranger } = f.principals
-        const basis = { ...(await describedBasis(f)), capability: f.capability.missing }
-        const refused = await f.access.describe(
+        const basis = { ...(await listedBasis(f)), capability: f.capability.missing }
+        const refused = await f.access.read(
           stranger.access,
           stranger.scope,
-          f.capability.adopted,
-        )
-        assert.deepStrictEqual(
-          await f.access.describe(reader.access, reader.scope, f.capability.adopted, { basis }),
-          refused,
+          body(f.capability.adopted),
         )
         assert.deepStrictEqual(
           await f.access.read(reader.access, reader.scope, body(f.capability.adopted), { basis }),
           refused,
         )
         assert.deepStrictEqual(
-          await f.access.export(reader.access, reader.scope, f.capability.adopted, basis),
+          await f.access.list(reader.access, reader.scope, f.capability.adopted, { basis }),
           refused,
         )
       },
@@ -165,17 +151,17 @@ export function skillAccessConformance<P, S>(): ConformanceCase<AccessFixture<P,
       async f => {
         const { reader, stranger } = f.principals
         const { checkedOnly } = f.capability
-        const refused = await f.access.describe(
+        const refused = await f.access.read(
           stranger.access,
           stranger.scope,
-          f.capability.adopted,
-        )
-        assert.deepStrictEqual(
-          await f.access.describe(reader.access, reader.scope, checkedOnly),
-          refused,
+          body(f.capability.adopted),
         )
         assert.deepStrictEqual(
           await f.access.read(reader.access, reader.scope, body(checkedOnly)),
+          refused,
+        )
+        assert.deepStrictEqual(
+          await f.access.list(reader.access, reader.scope, checkedOnly),
           refused,
         )
       },
@@ -185,7 +171,7 @@ export function skillAccessConformance<P, S>(): ConformanceCase<AccessFixture<P,
       'answers basis-unavailable with a basis of material that the source no longer holds',
       async f => {
         const { reader } = f.principals
-        const basis = await describedBasis(f)
+        const basis = await listedBasis(f)
         f.world.replaceAdopted()
         assertNoContent(
           await f.access.read(reader.access, reader.scope, body(f.capability.adopted), { basis }),
@@ -193,10 +179,6 @@ export function skillAccessConformance<P, S>(): ConformanceCase<AccessFixture<P,
         )
         assert.deepStrictEqual(
           await f.access.list(reader.access, reader.scope, f.capability.adopted, { basis }),
-          { failure: { kind: 'basis-unavailable' } },
-        )
-        assert.deepStrictEqual(
-          await f.access.export(reader.access, reader.scope, f.capability.adopted, basis),
           { failure: { kind: 'basis-unavailable' } },
         )
       },
@@ -245,19 +227,12 @@ export function skillAccessConformance<P, S>(): ConformanceCase<AccessFixture<P,
           { failure: { kind: 'aborted' } },
         )
         assert.deepStrictEqual(f.world.calls(), NO_CALLS, 'a port was called after the abort')
-        const basis = await describedBasis(f)
-        const before = f.world.calls()
-        assert.deepStrictEqual(
-          await f.access.export(reader.access, reader.scope, adopted, basis, { signal: already }),
-          { failure: { kind: 'aborted' } },
-        )
-        assert.deepStrictEqual(f.world.calls(), before, 'export called a port after the abort')
         const signal = f.world.abortAfterSnapshot()
         assertNoContent(
           await f.access.read(reader.access, reader.scope, body(adopted), { signal }),
           'aborted',
         )
-        assert.equal(f.world.calls().open, before.open, 'open was called after the abort')
+        assert.equal(f.world.calls().open, NO_CALLS.open, 'open was called after the abort')
       },
     ),
     conformanceCase(
@@ -266,11 +241,6 @@ export function skillAccessConformance<P, S>(): ConformanceCase<AccessFixture<P,
       async f => {
         const noPackage = handle(f.capability.noPackage, 'noPackage')
         const { reader } = f.principals
-        const description = ok(
-          await f.access.describe(reader.access, reader.scope, noPackage),
-          'describe without a package',
-        )
-        assert.deepStrictEqual(description.material, { kind: 'no-readable-package' })
         const unsupported = { failure: { kind: 'unsupported', what: 'no-readable-package' } }
         assert.deepStrictEqual(
           await f.access.read(reader.access, reader.scope, body(noPackage)),
@@ -367,57 +337,39 @@ export function skillAccessConformance<P, S>(): ConformanceCase<AccessFixture<P,
       assert.deepStrictEqual(past.range, { start: total, length: 0 })
       assert.equal(past.complete, true)
     }),
-    conformanceCase('A12a', 'exports every entry of the pinned snapshot, each checked', async f => {
-      const { reader } = f.principals
-      const basis = await describedBasis(f)
-      const listing = ok(
-        await f.access.list(reader.access, reader.scope, f.capability.adopted),
-        'list',
-      )
-      const exported = ok(
-        await f.access.export(reader.access, reader.scope, f.capability.adopted, basis),
-        'export',
-      )
-      assert.deepStrictEqual(exported.basis, basis)
-      assert.equal(exported.digest, basis.digest)
-      const paths = new Set<string>(exported.entries.map(entry => entry.path))
-      for (const entry of listing.resources)
-        assert.ok(paths.has(entry.path), `${entry.path} missing`)
-      assert.ok(paths.has('SKILL.md'), 'the control file SKILL.md is missing')
-      for (const entry of exported.entries) {
-        assert.equal(computeDigest(entry.bytes), entry.digest, `${entry.path}: digest`)
-        assert.equal(entry.bytes.length, entry.size, `${entry.path}: size`)
-      }
-    }),
     conformanceCase(
-      'A12b',
-      'answers version-changed without entries when one entry moved after the snapshot',
+      'A12',
+      'gives the pinned basis and only the bytes of the pinned entries',
       async f => {
         const { reader } = f.principals
-        const basis = await describedBasis(f)
-        f.world.changeEntry()
-        assert.deepStrictEqual(
-          await f.access.export(reader.access, reader.scope, f.capability.adopted, basis),
-          { failure: { kind: 'version-changed' } },
+        const { adopted } = f.capability
+        const listing = ok(await f.access.list(reader.access, reader.scope, adopted), 'list')
+        const { basis } = listing
+        const again = ok(
+          await f.access.list(reader.access, reader.scope, adopted, { basis }),
+          'list with the basis',
         )
-      },
-    ),
-    conformanceCase(
-      'A13',
-      'describes without reading bytes: the source may throw at open',
-      async f => {
-        const { reader } = f.principals
-        f.world.breakOpen()
-        const before = f.world.calls()
-        const description = ok(
-          await f.access.describe(reader.access, reader.scope, f.capability.adopted),
-          'describe with a broken open',
+        assert.deepStrictEqual(again.basis, basis)
+        const main = ok(
+          await f.access.read(reader.access, reader.scope, body(adopted), { basis }),
+          'read of the body with the basis',
         )
-        assert.equal(description.material.kind, 'pinned')
-        assert.equal(description.addressing, 'package-relative-path')
-        const after = f.world.calls()
-        assert.equal(after.snapshot, before.snapshot, 'describe took a snapshot')
-        assert.equal(after.open, before.open, 'describe opened an entry')
+        assert.deepStrictEqual(main.basis, basis)
+        for (const entry of listing.resources) {
+          const page = ok(
+            await f.access.read(reader.access, reader.scope, resource(adopted, entry.path), {
+              basis,
+            }),
+            `read ${entry.path} with the basis`,
+          )
+          assert.deepStrictEqual(page.basis, basis)
+          if (page.range.start !== 0 || !page.complete) continue
+          const bytes =
+            page.content.kind === 'text'
+              ? new TextEncoder().encode(page.content.text)
+              : page.content.bytes
+          assert.equal(computeDigest(bytes), entry.digest, `${entry.path}: digest`)
+        }
       },
     ),
     conformanceCase(
@@ -426,18 +378,14 @@ export function skillAccessConformance<P, S>(): ConformanceCase<AccessFixture<P,
       async f => {
         const standIn = handle(f.capability.standIn, 'standIn')
         const { reader } = f.principals
-        const described = await f.access.describe(reader.access, reader.scope, standIn)
-        if ('ok' in described) assert.fail('describe of the stand-in succeeded')
-        const { failure } = described
+        const read = await f.access.read(reader.access, reader.scope, body(standIn))
+        if ('ok' in read) assert.fail('read of the stand-in succeeded')
+        const { failure } = read
         if (failure.kind !== 'unavailable-stand-in')
           assert.fail(`expected a stand-in, got ${failure.kind}`)
         assert.deepStrictEqual(failure.standIn.capability, standIn)
         assert.ok(failure.standIn.reason.length > 0, 'the stand-in has no reason')
-        assert.deepStrictEqual(
-          await f.access.read(reader.access, reader.scope, body(standIn)),
-          described,
-        )
-        assert.deepStrictEqual(await f.access.list(reader.access, reader.scope, standIn), described)
+        assert.deepStrictEqual(await f.access.list(reader.access, reader.scope, standIn), read)
       },
     ),
   ]

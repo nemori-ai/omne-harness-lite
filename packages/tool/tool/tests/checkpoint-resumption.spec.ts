@@ -281,6 +281,7 @@ describe('the queue entry of a call whose decision was accepted', () => {
       store: memory => ({
         durability: memory.durability,
         scanPending: input => memory.scanPending(input),
+        usage: query => memory.usage(query),
         readRecord: memory.readRecord,
         due: memory.due,
         read: domain => memory.read(domain),
@@ -405,6 +406,59 @@ describe('a resume segment whose environment is lost', () => {
       `${second}/resume/prepare/2`,
       `${second}/resume/prepare/3`,
     ])
+  })
+
+  it('is planned again by a second runtime when the first recorded the resume start and stopped before it was accepted', async () => {
+    const built = await suspended()
+    const { harness, bridge, author } = built
+    bridge.decide(FIRST, { kind: 'answer', value: text('a.txt') })
+    ok(
+      await harness.commands.acceptDecision({
+        ...ACCESS,
+        operation: operationId(`${FIRST}/accept`),
+        wait: FIRST,
+        decision: evidence(`decision/${FIRST}`, 'test-decisions'),
+      }),
+    )
+    const accepted = await recovery(harness)
+    const preparation = accepted.preparations.at(-1)
+    if (preparation?.purpose !== 'resume' || accepted.execution === null)
+      throw new Error('the acceptance planned no resume preparation')
+    const write = { ...accepted.execution, principal: principalA }
+    const prepared = ok(
+      await harness.commands.prepared({
+        ...write,
+        operation: operationId(`${preparation.operation}/prepared`),
+        expected: accepted.state.revision,
+        preparation,
+        resources: evidence('resume-environment'),
+      }),
+    )
+    if (prepared.phase !== 'suspended') throw new Error('the prepared call is not suspended')
+    ok(
+      await harness.commands.prepareResume({
+        ...write,
+        operation: operationId(`${FIRST}/resume`),
+        expected: prepared.revision,
+        checkpoint: prepared.checkpoint,
+      }),
+    )
+    const planned = await recovery(harness)
+    expect(planned.state).toMatchObject({ phase: 'starting', execution: { kind: 'starting' } })
+    expect(planned.start?.kind).toBe('resume')
+
+    const second = restarted(built, losing([preparation.operation]))
+    ok(await second.recover({ principal: principalA, tenant: tenantA }))
+    await settle(second)
+    expect(author.resumed).toHaveLength(1)
+    const after = await recovery(second)
+    expect(after.state.phase).toBe('settled')
+    expect(after.preparations.map(item => [item.operation, item.purpose])).toEqual([
+      ['op-c1/plan', 'initial'],
+      [`${FIRST}/resume/prepare`, 'resume'],
+      [`${FIRST}/resume/prepare/2`, 'resume'],
+    ])
+    expect(after.start).toMatchObject({ kind: 'resume', operation: `${FIRST}/resume` })
   })
 
   it('is planned again by a second runtime when the first prepared it and stopped before the resume', async () => {

@@ -61,7 +61,7 @@ it('releases A and lets a new origin B attach and continue the retained peer thr
   })
   const a = await acquire('a')
   const terminal = value(
-    await a.terminal.create({ ...request('a'), cwd: '/first', env: {}, retain: 'session' }),
+    await a.terminal.create({ ...request('a'), cwd: '/first', env: {}, retain: 'scope' }),
   ).terminal
   await value(await a.terminal.execute({ ...request('a'), terminal, script: '/next' })).result
   expect(await a.lease.release()).toEqual({ kind: 'released' })

@@ -1,3 +1,4 @@
+import { hitlDecisionWait } from '@omne-harness/human-intervention-tool'
 import { describe, expect, it } from 'vitest'
 import { readJsonText, writeJsonText } from '@omne-harness/json-text'
 import { createSchemaProvider, validate } from '@omne-harness/schema-provider'
@@ -6,7 +7,6 @@ import {
   askCommands,
   askExecutor,
   askToolModule,
-  askWaitContract,
   type AskArguments,
   type AskCommand,
 } from '@omne-harness/tool-definitions'
@@ -69,19 +69,12 @@ const questions = (count: number) =>
     description: 'D',
     options: options(4),
   }))
-const approval = {
-  action: 'Delete the build directory',
-  reason: 'It holds stale output.',
-  impact: 'The next build takes longer.',
-  reversibility: 'A new build makes it again.',
-  fallback: 'I keep the directory and build in place.',
-}
 
 describe('ask', () => {
   it('suspends with the whole batch, one question card per question in order', async () => {
     const { request, state, wait } = await suspended(parsed('ask', oneQuestion))
     expect(wait.kind).toBe('ask')
-    expect(wait.contract).toBe(askWaitContract)
+    expect(wait.contract).toBe(hitlDecisionWait)
     expect(request).toEqual({
       questions: [
         {
@@ -109,7 +102,6 @@ describe('ask', () => {
       ],
     })
     expect(state).toEqual({
-      command: 'ask',
       questions: [
         {
           cardId: 'q1',
@@ -246,66 +238,11 @@ describe('the result for a wait that a control closes', () => {
       'No selection was made: the question was closed before the person answered.',
     )
   })
-
-  it('says for an approval that it was not obtained and the action must not be performed', async () => {
-    expect((await suspended(parsed('request_approval', approval))).closedResult).toBe(
-      'No approval was obtained: the request was closed before the person decided. Do not perform the action.',
-    )
-  })
-})
-
-describe('request_approval', () => {
-  it('suspends with one approval card that has the two fixed options', async () => {
-    const { request, state, wait } = await suspended(parsed('request_approval', approval))
-    expect(wait.contract).toBe(askWaitContract)
-    expect(request).toEqual({
-      questions: [
-        {
-          cardId: 'approval',
-          kind: 'approval',
-          title: 'Delete the build directory',
-          description:
-            '原因：It holds stale output.\n影响：The next build takes longer.\n可逆性：A new build makes it again.\n不同意时的退路：I keep the directory and build in place.',
-          options: [
-            { id: 'approve', label: '同意', description: '同意执行这个动作。' },
-            { id: 'reject', label: '不同意', description: '不同意，这个动作不会执行。' },
-          ],
-          declineConsequence: '不作准驳，这个动作不会执行',
-        },
-      ],
-    })
-    expect(state).toEqual({
-      command: 'request_approval',
-      questions: [
-        {
-          cardId: 'approval',
-          title: 'Delete the build directory',
-          options: [
-            { id: 'approve', label: '同意' },
-            { id: 'reject', label: '不同意' },
-          ],
-        },
-      ],
-    })
-  })
-
-  it.each([
-    ['an empty action', { ...approval, action: '' }, 'invalid-field:action'],
-    ['a blank fallback', { ...approval, fallback: '   ' }, 'invalid-field:fallback'],
-    [
-      'a missing reversibility',
-      { ...approval, reversibility: undefined },
-      'invalid-field:reversibility',
-    ],
-    ['options from the model', { ...approval, options: [] }, 'invalid-field:options'],
-  ])('rejects %s', (_name, args, reason) => {
-    expect(parse('request_approval', args)).toEqual({ failure: { kind: 'invalid', reason } })
-  })
 })
 
 describe('wait contract and checkpoint', () => {
-  it('forbids expiry, and the cards of both commands pass the declared request schema', async () => {
-    expect(askWaitContract.expiry).toBe('forbidden')
+  it('forbids expiry, and the cards pass the declared request schema', async () => {
+    expect(hitlDecisionWait.expiry).toBe('forbidden')
     const provider = createSchemaProvider({
       maxSnapshots: 4,
       maxConstructDepth: 16,
@@ -313,21 +250,19 @@ describe('wait contract and checkpoint', () => {
       failureBackoffMs: 0,
       maxAttempts: 1,
     })
-    for (const args of [parsed('ask', oneQuestion), parsed('request_approval', approval)]) {
-      const segment = await askExecutor.initial(args, null, context)
-      if (!('ok' in segment) || segment.ok.kind !== 'suspended') throw new Error('suspend')
-      const { wait, state } = segment.ok
-      const read = readJsonText(writeJsonText(wait.request), {
-        maxBytes: askWaitContract.request.maxBytes,
-        maxDepth: 8,
-        maxItems: 32_768,
-        maxMembers: 16,
-        maxStringLength: 8192,
-        maxNumberLength: 32,
-      })
-      expect((await validate(provider, askWaitContract.request.ref, read)).kind).toBe('valid')
-      expect(state.byteLength).toBeLessThanOrEqual(askExecutor.checkpoint.maxBytes)
-    }
+    const segment = await askExecutor.initial(parsed('ask', oneQuestion), null, context)
+    if (!('ok' in segment) || segment.ok.kind !== 'suspended') throw new Error('suspend')
+    const { wait, state } = segment.ok
+    const read = readJsonText(writeJsonText(wait.request), {
+      maxBytes: hitlDecisionWait.request.maxBytes,
+      maxDepth: 8,
+      maxItems: 32_768,
+      maxMembers: 16,
+      maxStringLength: 8192,
+      maxNumberLength: 32,
+    })
+    expect((await validate(provider, hitlDecisionWait.request.ref, read)).kind).toBe('valid')
+    expect(state.byteLength).toBeLessThanOrEqual(askExecutor.checkpoint.maxBytes)
   })
 
   it('accepts the batch reply shape that the resume segment will read', async () => {
@@ -341,7 +276,7 @@ describe('wait contract and checkpoint', () => {
     const check = (value: unknown) =>
       validate(
         provider,
-        askWaitContract.response.ref,
+        hitlDecisionWait.response.ref,
         readJsonText(JSON.stringify(value), {
           maxBytes: 65536,
           maxDepth: 8,
@@ -414,35 +349,11 @@ describe('resume', () => {
   })
 
   it.each([
-    ['ask', 'no-answer', 'The person did not answer any question.'],
-    ['ask', 'declined', 'The person declined to reply.'],
-    [
-      'request_approval',
-      'no-answer',
-      'No decision: the person did not approve or reject. This is not permission.',
-    ],
-    ['request_approval', 'declined', 'The person declined to reply.'],
-  ] as const)('answers %s %s without a value', async (command, kind, value) => {
-    const checkpoint = await checkpointOf(command, command === 'ask' ? oneQuestion : approval)
+    ['no-answer', 'The person did not answer any question.'],
+    ['declined', 'The person declined to reply.'],
+  ] as const)('answers %s without a value', async (kind, value) => {
+    const checkpoint = await checkpointOf('ask', oneQuestion)
     expect(await resumed(checkpoint, { kind })).toEqual({ ok: { kind: 'completed', value } })
-  })
-
-  it.each([
-    [{ kind: 'selection', optionId: 'approve' }, `Approved: ${approval.action}`],
-    [{ kind: 'selection', optionId: 'reject' }, `Not approved: ${approval.action}`],
-    [
-      { kind: 'text', text: 'Only the cache.' },
-      'No decision. The person wrote: "Only the cache.". This is not permission.',
-    ],
-    [
-      { kind: 'no-answer' },
-      'No decision: the person did not approve or reject. This is not permission.',
-    ],
-  ])('projects the approval answer %j', async (reply, value) => {
-    const checkpoint = await checkpointOf('request_approval', approval)
-    expect(await resumed(checkpoint, answered({ cardId: 'approval', ...reply }))).toEqual({
-      ok: { kind: 'completed', value },
-    })
   })
 
   it.each([
@@ -498,13 +409,31 @@ describe('the Ask command tool', () => {
     return new Map(registration.operations)
   }
 
-  it('runs both commands in segments with the one Ask executor and wait protocol', () => {
+  it('runs its one command in segments with the Ask executor and wait protocol', () => {
     const operations = slots({ resultMaxBytes: 64 })
-    expect([...operations.keys()]).toEqual(['ask', 'request_approval'])
+    expect([...operations.keys()]).toEqual(['ask'])
     for (const [, slot] of operations) {
       expect(slot.segments).toBe(askExecutor)
-      expect(slot.author.waits).toEqual([askWaitContract])
+      expect(slot.author.waits).toEqual([hitlDecisionWait])
     }
+  })
+
+  it('says why it exists and that it is no way to ask for permission, and declares ask ungated', () => {
+    const author = askToolModule.createAuthor(json({ resultMaxBytes: 64 }))
+    if ('failure' in author) throw new Error(JSON.stringify(author.failure))
+    const { description, implements: shape } = author.ok.facts
+    if (shape.kind !== 'commands') throw new Error('Ask must be a command tool')
+    expect(description).toContain('Not for asking permission')
+    expect(shape.guide).toContain(
+      'Use Ask when a few options to pick let the person answer faster.',
+    )
+    expect(shape.guide).toContain('Do not use Ask to ask for permission')
+    expect(shape.guide).toContain('An answer to Ask grants no permission for any action.')
+    expect(shape.guide).toContain('There is no timeout and no default answer.')
+    expect(shape.gates).toBeUndefined()
+    expect(shape.commands.map(command => [command.name, command.release])).toEqual([
+      ['ask', { gate: null }],
+    ])
   })
 
   it('keeps a result within resultMaxBytes and refuses a longer one', () => {

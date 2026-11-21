@@ -31,6 +31,11 @@ export interface Deps {
 
 const USAGE = 2
 
+export function cpusFor(env: Readonly<Record<string, string | undefined>>, cores: number): number {
+  const tokens = env['OMNE_WORKER_BUDGET']
+  return tokens !== undefined && /^[1-9]\d*$/u.test(tokens) ? Number(tokens) : cores
+}
+
 function requireBase(options: Options): string {
   if (options.base === undefined) throw new UsageError('要给 --base <起点>')
   return options.base
@@ -126,7 +131,14 @@ async function listRange(deps: Deps, options: Options, base: string): Promise<Mu
     scopes,
   )
   const outDir = outDirOf(deps, options, head, repo.dirty(), 'mutation')
-  const context = { root: repo.root, base, files: options.files, outDir, exec: deps.exec }
+  const context: MutationContext = {
+    root: repo.root,
+    base,
+    files: options.files,
+    outDir,
+    exec: deps.exec,
+    stryker: options,
+  }
   const untestable = grouping.members.filter(member => !member.testable)
   if (untestable.length > 0)
     deps.print(`没有 test 脚本、不变异：${untestable.map(member => member.path).join('、')}`)
@@ -165,6 +177,10 @@ export async function closeoutMutation(argv: readonly string[], deps: Deps): Pro
     '--plan-only',
     '--max-lines',
     '--out',
+    '--timeout',
+    '--timeout-factor',
+    '--recheck',
+    '--recheck-limit',
   ])
   const base = deps.repo.mergeBase(requireBase(options))
   const range = await listRange(deps, options, base)

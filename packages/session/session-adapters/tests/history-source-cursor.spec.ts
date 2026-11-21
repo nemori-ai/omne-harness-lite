@@ -14,7 +14,7 @@ import { evidence, operationId } from '@omne-harness/session-contract/testing'
 import { SessionService } from '@omne-harness/session-cordis-contract/cordis'
 import { createSessionHistorySource } from '../src/cordis/history-source.ts'
 import { ok } from './fixtures/common-journal.ts'
-import { sqlScene } from './fixtures/sql-scene.ts'
+import { sqlScene, takeInputs } from './fixtures/sql-scene.ts'
 
 type ModelViewInput = Parameters<SessionFaces<unknown>['history']['readModelView']>[0]
 type Sent = Readonly<{ after: string | null; rows: number }>
@@ -35,6 +35,7 @@ async function world() {
   const s = await sqlScene(`history-cursor-${++scenes}`)
   disposers.push(() => s.close())
   ok(await s.view.journal.open(s.openInput))
+  await takeInputs(s, s.view.journal)
   const head = ok(await s.view.journal.load({ ...s.access, execution: s.execution })).history
   const history = (s.port as unknown as SessionFaces<unknown>).history
   const work = s.port as unknown as SessionFaces<unknown>['work']
@@ -72,6 +73,7 @@ async function world() {
     get work(): SessionFaces<unknown>['work'] {
       return {
         readWork: (input: SessionAccess<unknown>) => work.readWork(input as never),
+        readCurrentScope: (input: SessionAccess<unknown>) => work.readCurrentScope(input as never),
       } as unknown as SessionFaces<unknown>['work']
     }
     readonly management = {} as SessionFaces<unknown>['management']

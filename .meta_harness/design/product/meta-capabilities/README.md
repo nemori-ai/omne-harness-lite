@@ -2,7 +2,7 @@
 id: PD-meta-capabilities
 title: 元能力入口
 status: accepted
-revision: 7
+revision: 16
 relations:
   supersedes: []
   depends-on: []
@@ -15,7 +15,7 @@ relations:
 
 ## 阅读入口
 
-- [入口总表](design.md#入口清单与分工)导航 Tools、Skills、Files、Shell、Web、Browser、Computer、Agents、TodoItems、BkgJobs、Ask、Cordis、Engram，以及 Code 程序编排入口。Stop 仅保留名称占位。
+- [入口总表](design.md#入口清单与分工)导航 Tools、Skills、Files、Shell、Web、Browser、Computer、Agents、TodoItems、BkgToolCalls、Ask、Cordis、Engram，以及 Code 程序编排入口。Stop 仅保留名称占位。
 - [关键用户旅程与判据](design.md#关键用户旅程与可观察判据)说明使用路径和必须守住的异常边界。
 - [能力定义](design.md#能力定义)和[未决](design.md#未决问题与待定事项)分别记录定义和待承接责任。
 - [Meta Capability 词义](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability)拥有统一概念。

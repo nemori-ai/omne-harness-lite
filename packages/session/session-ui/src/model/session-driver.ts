@@ -2,7 +2,8 @@ import type { TenantId } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import {
   userMessageId,
-  userTextMessage,
+  userMessage,
+  type UserAttachment,
   type SessionProtocol,
 } from '@omne-harness/session-protocol'
 import {
@@ -12,6 +13,7 @@ import {
   type WorkspaceEffect,
   type WorkspaceEvent,
 } from './workspace.ts'
+import type { CreateChoice } from './session-machine.ts'
 
 export type SessionDriverDeps = Readonly<{
   client: ClientOf<SessionProtocol>
@@ -23,7 +25,9 @@ export type SessionDriverDeps = Readonly<{
 const HISTORY_PAGE_BYTES = '65536'
 
 // The client throws only before anything is sent, so such a call provably did not leave: local unavailable.
-function notSent<T>(call: () => Promise<T>): Promise<T | { readonly outcome: 'unavailable' }> {
+export function notSent<T>(
+  call: () => Promise<T>,
+): Promise<T | { readonly outcome: 'unavailable' }> {
   return Promise.resolve()
     .then(call)
     .catch(() => ({ outcome: 'unavailable' as const }))
@@ -66,8 +70,15 @@ const CALLS: Calls = {
       token,
       answer,
     })),
-  'create-session': ({ createCallId }, { client }) =>
-    notSent(() => client['create-session']({ createCallId, purpose: '' })).then(answer => ({
+  'create-session': ({ createCallId, model, workspace }, { client }) =>
+    notSent(() =>
+      client['create-session']({
+        createCallId,
+        purpose: '',
+        ...(model === undefined ? {} : { model }),
+        ...(workspace === undefined ? {} : { workspace }),
+      }),
+    ).then(answer => ({
       kind: 'create-answered',
       createCallId,
       answer,
@@ -78,14 +89,14 @@ const CALLS: Calls = {
       createCallId,
       answer,
     })),
-  'send-input': ({ session, acceptId, inputId, text }, { client, tenant }) =>
+  'send-input': ({ session, acceptId, inputId, text, attachments }, { client, tenant }) =>
     notSent(async () =>
       client['send-input']({
         tenant,
         session,
         acceptId,
         inputId,
-        message: await userTextMessage(text, inputId),
+        message: await userMessage({ inputId, text, attachments }),
       }),
     ).then(answer => ({ kind: 'send-answered', session, acceptId, answer })),
   'query-send-input': ({ session, acceptId }, { client, tenant }) =>
@@ -160,19 +171,21 @@ export class SessionDriver {
     this.dispatch({ kind: 'open-session', session })
   }
 
-  createSession(): void {
-    this.dispatch({ kind: 'create', createCallId: this.#deps.newId() })
+  createSession(choice: CreateChoice = {}): void {
+    const createCallId = this.#deps.newId()
+    this.dispatch({ kind: 'create', createCallId, ...choice })
   }
 
   confirmCreate(): void {
     this.dispatch({ kind: 'create-confirm' })
   }
 
-  async send(text: string): Promise<void> {
-    if (text.trim().length === 0) return
+  async send(text: string, attachments: readonly UserAttachment[] = []): Promise<void> {
+    if (text.trim().length === 0 && attachments.length === 0) return
     const inputId = this.#deps.newId()
     const messageId = await userMessageId(inputId)
-    this.dispatch({ kind: 'send', text, inputId, acceptId: this.#deps.newId(), messageId })
+    const acceptId = this.#deps.newId()
+    this.dispatch({ kind: 'send', text, attachments, inputId, acceptId, messageId })
   }
 
   confirmSend(acceptId: string): void {

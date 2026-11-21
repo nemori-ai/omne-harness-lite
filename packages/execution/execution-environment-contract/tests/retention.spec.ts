@@ -77,7 +77,7 @@ it('refuses retention on the per-acquisition scripted terminal without creating 
     binding: { kind: 'host_machine' } as const,
   }
   expect(
-    await terminal.facility.create({ ...request, cwd: '/', env: {}, retain: 'session' }),
+    await terminal.facility.create({ ...request, cwd: '/', env: {}, retain: 'scope' }),
   ).toEqual({ kind: 'rejected', requestId: request.requestId, reason: 'unsupported' })
   expect(await terminal.facility.list(request)).toEqual({
     kind: 'done',

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { backgroundInputId } from '@omne-harness/session-contract'
 import type {
+  RoutedInput,
   RunId,
   SessionEntriesObservation,
   SessionEntriesReceipt,
@@ -22,6 +24,8 @@ const ok = <T>(value: unknown): T => {
   expect(value, JSON.stringify(value)).toHaveProperty('ok')
   return (value as { ok: T }).ok
 }
+type Message = Extract<RoutedInput, { kind: 'ordinary' }>['message']
+
 const failureOf = (value: unknown): SessionFailure => {
   expect(value, JSON.stringify(value)).toHaveProperty('failure')
   return (value as { failure: SessionFailure }).failure
@@ -90,6 +94,7 @@ async function opened() {
     operation: operationId('entries-1'),
     after: '0',
     through: '2',
+    position: '2',
     boundary: {
       execution,
       channel: 'tool-received',
@@ -241,5 +246,120 @@ describe('the operation identity of commitEntries', () => {
       field: 'tenant',
     })
     expect(a.provider.calls.length).toBe(calls)
+  })
+})
+
+describe('commitEntries accepts the outcome of a backgrounded call as an input', () => {
+  const producer = { kind: 'tool', call: CALL } as const
+  const reminder = {
+    id: 'msg_bgreminder0000000000000',
+    role: 'system_reminder',
+    blocks: [
+      {
+        kind: 'text',
+        id: 'blk_bgreminder',
+        visibility: { toHuman: true, toModel: true },
+        text: 'background done',
+      },
+    ],
+  } as unknown as Message
+
+  async function backgrounded() {
+    const { a, input } = await opened()
+    const { observation } = input
+    const placed: SessionEntriesObservation = {
+      ...observation,
+      operation: operationId('entries-placeholder'),
+      through: '1',
+      position: '1',
+      boundary: { ...observation.boundary, count: '1' },
+      items: [
+        {
+          ordinal: '1',
+          key: 'key-placeholder',
+          fact: evidence('agent/entry/placeholder'),
+          interpretation: [
+            {
+              kind: 'backgrounded',
+              producer,
+              source: evidence('t/placeholder'),
+              label: { intent: 'build', tool: 'Shell', command: 'execute', preview: 'pnpm build' },
+              how: 'launched',
+            },
+          ],
+        },
+      ],
+    }
+    ok<SessionEntriesReceipt>(
+      await a.port.commitEntries({ observation: placed, start: input.start }),
+    )
+    const saved = (await work(a)).entriesProgress?.[0]
+    if (saved === undefined) throw new Error('no saved progress')
+    const outcome: SessionEntriesObservation = {
+      ...observation,
+      operation: operationId('entries-outcome'),
+      after: '1',
+      through: '2',
+      position: '2',
+      boundary: { ...observation.boundary, revision: '2', count: '2' },
+      items: [
+        {
+          ordinal: '2',
+          key: 'key-outcome',
+          fact: evidence('agent/entry/outcome'),
+          interpretation: [
+            { kind: 'execution', producer, source: evidence('t/result') },
+            {
+              kind: 'background-outcome',
+              producer,
+              result: 'rv-1',
+              reminder,
+              source: evidence('t/result'),
+            },
+          ],
+        },
+      ],
+    }
+    return {
+      a,
+      outcome: { observation: outcome, start: { kind: 'saved' as const, progress: saved } },
+    }
+  }
+
+  const inputs = (a: App) =>
+    Number(a.provider.select('dom_0', 'SELECT COUNT(*) FROM sl_input').rows[0]?.[0] ?? -1)
+
+  it('writes the settlement, the reminder and its input row in one transaction', async () => {
+    const { a, outcome } = await backgrounded()
+    const before = { ...tables(a), inputs: inputs(a) }
+    ok<SessionEntriesReceipt>(await a.port.commitEntries(outcome))
+    expect({ ...tables(a), inputs: inputs(a) }).toEqual({
+      entries: before.entries + 5,
+      operations: before.operations + 1,
+      covered: before.covered + 1,
+      tail: before.tail + 1,
+      inputs: before.inputs + 1,
+    })
+    const input = backgroundInputId(producer, 'rv-1')
+    const snapshot = await work(a)
+    expect(snapshot.pending).toContain(input)
+    expect(snapshot.backgroundPlaceholders).toEqual([])
+    const read = ok<{ message: Message }>(
+      await a.port.readInput({ ...a.access(TENANT_A), session: base.session, input }),
+    )
+    expect(read.message).toEqual(reminder)
+  })
+
+  it('a failed input row leaves every table, and the same outcome then commits once', async () => {
+    const { a, outcome } = await backgrounded()
+    const before = { ...tables(a), inputs: inputs(a) }
+    a.provider.failWrite(/INSERT OR REPLACE INTO sl_input/u, 1)
+    expect(failureOf(await a.port.commitEntries(outcome)).kind).toBe('commit-unknown')
+    expect({ ...tables(a), inputs: inputs(a) }).toEqual(before)
+    a.provider.failWrite(null)
+    ok<SessionEntriesReceipt>(await a.port.commitEntries(outcome))
+    ok<SessionEntriesReceipt>(await a.port.commitEntries(outcome))
+    expect(inputs(a)).toBe(before.inputs + 1)
+    expect(tables(a).entries).toBe(before.entries + 5)
   })
 })

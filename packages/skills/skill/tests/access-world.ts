@@ -35,6 +35,8 @@ import {
   type MemoryPackage,
 } from '@omne-harness/skill-contract/testing'
 
+export const ranking = Object.freeze({ k1: 1.2, b: 0.75 })
+
 export type Principal = 'alice' | 'mallory'
 export type Scope = 'workspace-a'
 
@@ -128,8 +130,6 @@ const declared: DeclaredProjection = {
   name: granted(isSkillName, 'review'),
   description: 'Reviews a change.',
   tools: [tool('read-file')],
-  scripts: [],
-  settings: [{ name: 'tone', category: 'preference' }],
 }
 
 function material(digest: PackageDigest | undefined, version: string): MemoryMaterial {
@@ -165,7 +165,6 @@ export type PortCalls = Readonly<{ check: number; resolve: number; snapshot: num
 export type Controls = Readonly<{
   replaceAdopted(): void
   tamper(path: PackagePath): void
-  breakOpen(): void
   refuseAll(): void
   abortAfterSnapshot(): AbortSignal
   abortAfterCheck(): AbortSignal
@@ -189,7 +188,6 @@ export function createWorld(options: WorldOptions = {}): World {
     { locator: largeLocator, rootName: 'large', files: largeFiles },
   ])
   const tampered = new Set<PackagePath>()
-  let broken = false
   let refused = false
   let snapshotAborter: AbortController | undefined
   let checkAborter: AbortController | undefined
@@ -204,7 +202,6 @@ export function createWorld(options: WorldOptions = {}): World {
     },
     async open(locator, digest, entryPath) {
       calls.open += 1
-      if (broken) throw new Error('the source broke at open')
       const answer = await inner.open(locator, digest, entryPath)
       if ('ok' in answer && tampered.has(entryPath)) return succeed(encoder.encode('tampered'))
       return answer
@@ -314,9 +311,6 @@ export function createWorld(options: WorldOptions = {}): World {
       tamper(entryPath) {
         tampered.add(entryPath)
       },
-      breakOpen() {
-        broken = true
-      },
       refuseAll() {
         refused = true
       },
@@ -356,7 +350,6 @@ export function accessFixture(
         controls.tamper(guide)
         return guide
       },
-      breakOpen: controls.breakOpen,
       abortAfterSnapshot: controls.abortAfterSnapshot,
       calls: controls.calls,
     },

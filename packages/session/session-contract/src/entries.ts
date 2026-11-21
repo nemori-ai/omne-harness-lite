@@ -1,4 +1,5 @@
 import type { JsonValue } from '@omne-harness/json-text'
+import { canonicalText } from './operations.ts'
 import {
   tenantCodec,
   workspaceCodec,
@@ -28,18 +29,21 @@ import type {
   ResidentAdoption,
   ResidentTool,
   DeclarationChange,
-  Relation,
+  SessionTree,
   AutoArchivePolicy,
   IdleObservation,
   ControlProgress,
   ContextScopeBinding,
   CallBinding,
   ProducedResult,
+  ProducerRef,
   InputBatch,
   Waiting,
   ExecutionRef,
+  BackgroundDisposition,
 } from './values.ts'
 import type { EntryClass, HistoryEntry } from './faces.ts'
+import type { AdmittedSource } from './input-sources.ts'
 import type { EncodedEntry } from './judgments.ts'
 import type {
   InitialAdoption,
@@ -54,11 +58,13 @@ import { SESSION_RELEASE_DIGEST } from './release-digests.ts'
 import { member } from './payload-members.ts'
 import type { SessionCallRegistration, SessionCallWait } from './call-values.ts'
 import type { SessionEntriesChannel } from './interpretation-values.ts'
+import type { BackgroundCallLabel, BackgroundCallSource } from './background-calls.ts'
+import type { AuthorizationExpression } from './authorizations.ts'
 
 export const SESSION_INTERPRETER: Adoption = Object.freeze({
   owner: '@omne-harness/session-contract',
   name: 'session-log',
-  revision: '4',
+  revision: '5',
   digest: SESSION_RELEASE_DIGEST,
 })
 
@@ -75,6 +81,11 @@ export type SessionEntry =
       revision: string
       authority: DurableEvidence
     }>
+  | Readonly<{
+      kind: 'session.authorization-expressed'
+      expression: AuthorizationExpression
+      authority: DurableEvidence
+    }>
   | Readonly<{ kind: 'session.todo-added'; item: TodoItemId; text: string }>
   | Readonly<{ kind: 'session.todo-completed' | 'session.todo-removed'; item: TodoItemId }>
   | Readonly<{
@@ -83,6 +94,8 @@ export type SessionEntry =
       session: SessionId
       operation: SessionOperationId
       creation: SessionCreation
+      /** Present on a child only: what the parent stood at when the child was created. */
+      tree?: SessionTree
       items: readonly InitializationItem[]
       initializationProtocol: 1
       initialAdoption: InitialAdoption
@@ -118,11 +131,23 @@ export type SessionEntry =
       participation: Participation | null
     }>
   | Readonly<{
+      /** The message of an input, placed in the model view when a step takes the input. */
+      kind: 'message.delivered'
+      input: InputId
+      message: Message
+      source: DurableEvidence
+      admission: DurableEvidence
+      consumption: null
+      participation: Participation
+    }>
+  | Readonly<{
       kind: 'intake.routed'
       input: InputId
       destination: 'current-run' | 'next-run'
       run: RunId | null
       origin: DurableEvidence
+      /** The values this admission fixed; every later judgment reads them, never the declaration. */
+      source: AdmittedSource
     }>
   | Readonly<{
       kind: 'intake.handed-over'
@@ -187,7 +212,8 @@ export type SessionEntry =
       basis: DurableEvidence
     }>
   | Readonly<{ kind: 'session.declaration-adopted'; policy: AutoArchivePolicy }>
-  | Readonly<{ kind: 'session.relation' | 'session.resident'; relation: Relation }>
+  | Readonly<{ kind: 'session.resident'; resident: boolean }>
+  | Readonly<{ kind: 'session.child-recorded'; child: SessionId; basis: DurableEvidence }>
   | Readonly<{ kind: 'session.idle-evidence'; observation: IdleObservation | null }>
   | Readonly<{ kind: 'session.frozen'; evidence: DurableEvidence }>
   | Readonly<{ kind: 'intake.released'; inputs: readonly InputId[] }>
@@ -232,6 +258,20 @@ export type SessionEntry =
       participation: Participation | null
       position: string | null
     }>
+  | Readonly<{
+      kind: 'call.backgrounded'
+      consumption: ConsumptionId
+      producer: ProducerRef
+      ordinal: number
+      label: BackgroundCallLabel
+      source: BackgroundCallSource
+    }>
+  | Readonly<{
+      kind: 'call.background-settled'
+      consumption: ConsumptionId
+      result: string
+      disposition: BackgroundDisposition
+    }>
   | Readonly<{ kind: 'extension.passage'; run: RunId; waiting: readonly Waiting[] }>
   | Readonly<{
       kind: 'extension.passage'
@@ -262,6 +302,7 @@ export type SessionEntry =
       channel: SessionEntriesChannel
       after: string
       through: string
+      position: string
       boundary: Readonly<{ revision: string; executionEvidence: DurableEvidence; count: string }>
       interpreted: readonly Readonly<{ ordinal: string; key: string }>[]
     }>
@@ -331,6 +372,7 @@ export function encodeEntry(
 ): EncodedEntry {
   const { kind, ...body } = entry
   const plain: Record<string, unknown> = { ...body }
+  if (kind === 'message.compaction') plain['message'] = JSON.parse(canonicalText(entry.message))
   if (kind === 'session.created') {
     plain['tenant'] = tenantText(entry.tenant)
     plain['creation'] = { ...entry.creation, workspace: workspaceText(entry.creation.workspace) }
@@ -489,6 +531,7 @@ const KNOWN_KINDS: ReadonlySet<string> = new Set<SessionEntryKind>([
   'message.tool_internal',
   'message.system_reminder',
   'message.compaction',
+  'message.delivered',
   'intake.routed',
   'intake.handed-over',
   'run.started',
@@ -500,11 +543,12 @@ const KNOWN_KINDS: ReadonlySet<string> = new Set<SessionEntryKind>([
   'session.model-selected',
   'session.declaration-adopted',
   'session.permission-assigned',
+  'session.authorization-expressed',
   'session.context-registration-changed',
   'session.recovery-input-adopted',
   'session.workspace-changed',
-  'session.relation',
   'session.resident',
+  'session.child-recorded',
   'session.idle-evidence',
   'session.frozen',
   'intake.released',
@@ -516,6 +560,8 @@ const KNOWN_KINDS: ReadonlySet<string> = new Set<SessionEntryKind>([
   'account.linked',
   'call.result-preserved',
   'call.result-processed',
+  'call.backgrounded',
+  'call.background-settled',
   'extension.passage',
   'control.requested',
   'control.progress',

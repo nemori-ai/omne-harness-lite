@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import {
-  buildCatalogCorpus,
-  createCatalogRanking,
-  tokenizeCatalog,
-} from '../src/catalog-ranking.ts'
+import { buildCorpus } from '@omne-harness/text-search'
+import { createCatalogRanking } from '../src/catalog-ranking.ts'
 
 const config = { k1: 1.2, b: 0.75, maxCachedCorpora: 2 }
 const docs = [
@@ -12,23 +9,7 @@ const docs = [
   { name: 'charlie', fields: ['apple pear'] },
 ]
 describe('catalog index', () => {
-  it('uses positive IDF and deduplicated query tokens with deterministic identifier and Chinese segmentation', () => {
-    expect(tokenizeCatalog('readFile read_file ＡＢＣ 中文工具')).toEqual([
-      'read',
-      'file',
-      'readfile',
-      'read',
-      'file',
-      'read_file',
-      'abc',
-      '中',
-      '文',
-      '工',
-      '具',
-      '中文',
-      '文工',
-      '工具',
-    ])
+  it('uses positive IDF and deduplicated query tokens', () => {
     const rank = createCatalogRanking(config)
     expect(rank(docs, 'apple pear').names).toEqual(['charlie', 'bravo', 'alpha'])
     expect(rank(docs, 'apple apple pear').names).toEqual(rank(docs, 'apple pear').names)
@@ -46,7 +27,7 @@ describe('catalog index', () => {
     let builds = 0
     const rank = createCatalogRanking(config, documents => {
       builds++
-      return buildCatalogCorpus(documents)
+      return buildCorpus(documents)
     })
     rank(docs, 'apple')
     rank(docs, 'pear')
@@ -73,5 +54,9 @@ describe('catalog index', () => {
       { maxCachedCorpora: Number.MAX_SAFE_INTEGER + 1 },
     ])
       expect(() => createCatalogRanking({ ...config, ...options })).toThrow(TypeError)
+    expect(createCatalogRanking({ ...config, maxCachedCorpora: 1 })(docs, 'apple').names).toEqual([
+      'alpha',
+      'charlie',
+    ])
   })
 })

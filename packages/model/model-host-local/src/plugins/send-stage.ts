@@ -7,18 +7,21 @@ import {
   ModelSendBoundaryService,
   modelCommandsKey,
   modelCredentialKey,
+  modelMediaSourceKey,
 } from '@omne-harness/model-cordis-contract/cordis'
 import { assembleLocalModel, type LocalModel, type LocalModelConfig } from '../assembly.ts'
 import { fieldOf, isIntegerAtLeast } from '../fields.ts'
 import type { ModelMaterializationEvidenceReader } from '../materialization-proof.ts'
+import type { ModelReceiveEvidenceReader } from '../receive-evidence.ts'
 
 export type ModelSendStagePluginOptions<P = unknown> = Readonly<
   Omit<
     LocalModelConfig<P>,
-    'credentials' | 'commands' | 'maxRetainedAttempts' | 'onConnectRetry'
+    'credentials' | 'commands' | 'maxRetainedAttempts' | 'onConnectRetry' | 'media'
   > & {
     executionChannel?(): ReturnType<ModelInitialExecution<P>['openHost']>
     installMaterialization?(reader: ModelMaterializationEvidenceReader): () => void
+    installReceive?(reader: ModelReceiveEvidenceReader): () => void
   }
 >
 
@@ -62,6 +65,27 @@ function withdrawablePort<P>(service: ModelCredentialService<P>): {
   }
 }
 
+function withdrawEvidence(ctx: Context, withdrawals: readonly (() => void)[]): void {
+  for (const withdraw of withdrawals)
+    try {
+      withdraw()
+    } catch {
+      ctx.logger.warn('model send stage: evidence reader withdrawal failed')
+    }
+}
+
+// Fills `withdrawals` as it goes, so a reader installed before a later one throws is still withdrawn.
+function installEvidence<P>(
+  options: Pick<ModelSendStagePluginOptions<P>, 'installMaterialization' | 'installReceive'>,
+  local: Pick<LocalModel<P>, 'materialization' | 'receive'>,
+  withdrawals: (() => void)[],
+): void {
+  const materialization = options.installMaterialization?.(local.materialization)
+  if (materialization !== undefined) withdrawals.push(materialization)
+  const receive = options.installReceive?.(local.receive)
+  if (receive !== undefined) withdrawals.push(receive)
+}
+
 export function sendStagePluginOver<P>(
   input: Readonly<{
     options: ModelSendStagePluginOptions<P>
@@ -74,6 +98,7 @@ export function sendStagePluginOver<P>(
     static readonly Config = modelSendStageConfigSchema
 
     readonly send: ModelSendBoundary<P>['send']
+    readonly lookupCost: NonNullable<ModelSendBoundary<P>['lookupCost']>
 
     constructor(ctx: Context, settings: ModelSendStageSettings) {
       super(ctx)
@@ -99,15 +124,18 @@ export function sendStagePluginOver<P>(
           execution: channel?.qualifyExecution ?? options.materialization.execution,
         },
         maxRetainedAttempts: settings.maxRetainedAttempts,
+        // Asked at every read: the source may come and go while the send stage lives.
+        media: () => ctx.get(modelMediaSourceKey) ?? null,
         onConnectRetry: retry =>
           ctx.logger.warn(
             `model send: connect retry (call ${retry.call}, dispatch ${retry.dispatch}, retry ${retry.attempt}, delay ${retry.delayMs} ms, reason ${retry.reason})`,
           ),
       })
-      let withdrawMaterialization: (() => void) | undefined
+      const withdrawals: (() => void)[] = []
       try {
-        withdrawMaterialization = options.installMaterialization?.(local.materialization)
+        installEvidence(options, local, withdrawals)
       } catch (error) {
+        withdrawEvidence(ctx, withdrawals)
         credentials.withdraw()
         void local
           .close()
@@ -115,13 +143,11 @@ export function sendStagePluginOver<P>(
         throw error
       }
       this.send = (demand, signal) => local.send.send(demand, signal)
+      this.lookupCost = (input, signal) =>
+        local.send.lookupCost?.(input, signal) ?? Promise.resolve({ kind: 'unsupported' })
       ctx.fiber.effect(() => async () => {
         credentials.withdraw()
-        try {
-          withdrawMaterialization?.()
-        } catch {
-          ctx.logger.warn('model send stage: materialization reader withdrawal failed')
-        }
+        withdrawEvidence(ctx, withdrawals)
         try {
           await local.close()
         } catch {

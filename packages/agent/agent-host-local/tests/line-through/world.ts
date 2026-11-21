@@ -21,11 +21,12 @@ import {
   decodeAgentExecutionId,
   type AgentExecutionId,
   type AgentJournal,
+  type AgentReceivedProvider,
   type DurableEvidence,
   type RuntimeConditions,
   type SelectedModel,
 } from '@omne-harness/agent-contract'
-import { createMemoryAgentAccountOutlet } from '@omne-harness/agent-contract/testing'
+import type { ContentBlock } from '@omne-harness/content-block'
 import {
   AgentContextProvider,
   MODEL_PREPARATION_RESOURCES,
@@ -33,9 +34,9 @@ import {
 import {
   ActionAdmissionService,
   AgentAccessCheckService,
-  AgentAccountOutletService,
   AgentAdoptionsService,
   AgentClockService,
+  ContextCompactionService,
   CurrentConditionsService,
   DecisionCardsService,
   ExtensionImplementationsService,
@@ -43,8 +44,11 @@ import {
   ModelSelectionService,
   RegisteredReadsService,
   agentInstancesPlugin,
+  agentJournalEntriesKey,
   agentJournalKey,
+  agentMaterialsKey,
   agentModelReceptionTargetsKey,
+  agentReceivedCommitsKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import {
@@ -137,6 +141,9 @@ import {
   memoryOtherAccess,
   sessionId,
   type SessionAccessScript,
+  testingDerivedInputs,
+  testingInputSources,
+  withMemberSubject,
 } from '@omne-harness/session-contract/testing'
 import { createSessionCommitNotifier, SessionProvider } from '@omne-harness/session-cordis/cordis'
 import {
@@ -312,6 +319,16 @@ function logOf(command: Readonly<{ facts?: unknown }>): SeenCommit['log'] {
 type Constructible = new (ctx: Context) => object
 type AbstractService = abstract new (ctx: Context) => Service
 
+const UNSCRIPTED = {
+  failure: { kind: 'unavailable', dependency: 'line-compaction', diagnostic: 'not scripted' },
+} as const
+const UNSCRIPTED_COMPACTION = {
+  admit: async () => UNSCRIPTED,
+  inspect: async () => UNSCRIPTED,
+  cancel: async () => UNSCRIPTED,
+  acknowledge: async () => UNSCRIPTED,
+}
+
 function serviceOf(Base: AbstractService, port: object, name: string): Constructible {
   const Concrete = class extends (Base as unknown as Constructible) {
     constructor(ctx: Context) {
@@ -416,7 +433,8 @@ export type LineWorldOptions = Readonly<{
   wrapTransactions?: (port: SessionTransactionPort<string>) => SessionTransactionPort<string>
   wrapProvider?: <T extends object>(provider: T) => T
   wrapModelReceiver?: (receiver: AgentModelReceiver<unknown>) => AgentModelReceiver<unknown>
-  receptionTargets?: 'journal'
+  // 'routed': the receivers find their targets and write their results through the Cordis-routed journal, as agent-host does in production.
+  reception?: 'routed'
   journalReport?: (report: JournalPublicationReport) => void
 }>
 
@@ -458,8 +476,11 @@ const AGENT_HOST_CONFIG: AgentHostConfig = {
   toolConcurrency: 1,
   jointCommits: ['message', 'context-transition', 'custody', 'processed'],
   coordination: 'coordinated',
+  compactionProvider: {
+    authority: 'test-compaction',
+    adoption: { owner: 'test', name: 'compaction', revision: '1', digest: 'd' },
+  },
   loopGuardPolicy: { owner: 'agents', name: 'loop-guard', revision: '1', digest: 'sha256:guard' },
-  modelRetry: { maxAttempts: 1, maxElapsedMs: 0, delaysMs: [0], jitter: 0 },
   instanceIdleMs: 60_000,
 }
 
@@ -538,7 +559,8 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     },
   }
 
-  const sessionChecks = createPolicySessionAccessCheck<string>(sessionPolicy)
+  // This world admits inputs as a member of the tenant: every allowed answer names that subject.
+  const sessionChecks = withMemberSubject(createPolicySessionAccessCheck<string>(sessionPolicy))
   const pairOver = (over: SqlStorage) =>
     createSessionStoragePair<string>({
       storage: over,
@@ -562,6 +584,8 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
       },
       accessCheck: sessionChecks,
       cursorSigning: createFixedSessionCursorSigning(),
+      sources: testingInputSources(),
+      derived: testingDerivedInputs(),
       combination,
     })
   const pair = pairOver(storage)
@@ -647,6 +671,19 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     ...(options.journalReport === undefined ? {} : { report: options.journalReport }),
   }).forSession({ tenant: TENANT, session: sessionId(SESSION) as SessionId })
 
+  const routedProvider = (): AgentReceivedProvider<unknown, ContentBlock> => {
+    const [journal, entries, materials, received] = [
+      ctx.get(agentJournalKey),
+      ctx.get(agentJournalEntriesKey),
+      ctx.get(agentMaterialsKey),
+      ctx.get(agentReceivedCommitsKey),
+    ]
+    if (!journal || !entries || !materials || !received)
+      throw new Error('the routed Agent journal services are not provided')
+    return { journal, entries, materials, received } as AgentReceivedProvider<unknown, ContentBlock>
+  }
+  const receivedProvider = options.reception === 'routed' ? routedProvider() : sessionLog
+
   const probeLog = createSessionLogJournal<unknown>({
     storage: seeing,
     tenantDomainLookup: lookup,
@@ -658,7 +695,12 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
   const adoptions = createTableAdoptions<unknown>()
   const run = creation().definition.candidate
   adoptions.define(run, {
-    definition: { category: 'AgentDefinition', name: 'assistant' } as never,
+    definition: {
+      category: 'AgentDefinition',
+      type: 'master',
+      summary: 'Works on what the person asks for.',
+      name: 'assistant',
+    } as never,
     evaluator: agentEvaluator,
     extensions: [],
   })
@@ -691,7 +733,7 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     rows: EARLIER.map((text, index) => historyRow(index, text)),
     policies: {
       compaction: createDefaultCompactionPolicy({
-        config: { retainBudget: { kind: 'tokens', retainTokens: '600' } },
+        config: {},
       }),
       representation: createDefaultRepresentationPolicy(),
     },
@@ -887,7 +929,6 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
   const instance = decodeModelInstanceId('minst_cp3')
   if ('failure' in instance) throw new Error('model instance')
   const scripted = createScriptedModelProvider<unknown>({ instance: instance.ok })
-  const outlet = createMemoryAgentAccountOutlet<unknown>()
   const receiverState = createModelReceiverState<unknown>()
   const pushes: Promise<unknown>[] = []
   const admits: unknown[] = []
@@ -909,10 +950,10 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
   }
   const reception = createLocalModelReceiver<unknown>(
     {
-      provider: options.wrapProvider?.(sessionLog) ?? sessionLog,
+      provider: options.wrapProvider?.(receivedProvider) ?? receivedProvider,
       access: access.port,
       targets:
-        options.receptionTargets === 'journal'
+        options.reception === 'routed'
           ? {
               forExecution(input) {
                 const targets = ctx.get(agentModelReceptionTargetsKey)
@@ -955,7 +996,6 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
                 return fail({ kind: 'denied', action: 'resolve' })
               },
             },
-      outlet,
       models: scripted.provider.runtime.calls,
       capacity: () => ({
         records: options.receiverRecords ?? 10000,
@@ -1000,8 +1040,13 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     },
   }
   await mount(serviceOf(ModelRuntimeService, models, 'ModelRuntime'))
+  // These lines never reach the compaction budget; a scripted provider answers unavailable.
   await mount(
-    serviceOf(AgentAccountOutletService as unknown as AbstractService, outlet, 'AccountOutlet'),
+    serviceOf(
+      ContextCompactionService as unknown as AbstractService,
+      UNSCRIPTED_COMPACTION,
+      'Compaction',
+    ),
   )
 
   ctx.provide('agentHostPrincipal', 'agent-host-maintainer')
@@ -1072,9 +1117,9 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     mount,
     storage,
     sessionLog,
+    receivedProvider,
     access,
     tools,
-    outlet,
     scripted,
     pusher,
     receiverState,

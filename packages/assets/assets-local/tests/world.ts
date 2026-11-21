@@ -4,7 +4,14 @@ import { mkdtempSync, mkdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import canonicalize from 'canonicalize'
-import { capabilityId, createCategoryRegistry, pinBody, readBodyText } from '@omne-harness/assets'
+import {
+  capabilityId,
+  createCategoryPoint,
+  pinBody,
+  readBodyText,
+  type CategoryContribution,
+  type CategoryView,
+} from '@omne-harness/assets'
 import { SettingDefinitionsSchema } from '@omne-harness/settings'
 import { settingsSqlMaterials, type SettingsProjectionBinding } from '@omne-harness/settings-local'
 import { SETTINGS_RECOVERY_PARTICIPANTS } from '@omne-harness/settings-local/preparation'
@@ -56,22 +63,26 @@ export function definition(version = '1', enabled = false) {
     ],
   })
 }
-export const categories = createCategoryRegistry()
-categories.register({
-  category: 'service',
-  schema: { kind: 'null' },
-  judge: () => ({ ok: true }),
-  deriveDeclarations: () => ({ entries: [] }),
-  references: () => [],
-  settings(body, context) {
-    const enabled =
-      body.kind === 'object' &&
-      body.entries.some(
-        entry => entry.key === 'enabled' && entry.value.kind === 'boolean' && entry.value.value,
-      )
-    return definition(context?.definition, enabled)
+export const service: CategoryContribution = {
+  display: { title: 'Service', summary: 'A category that exists only in these tests.' },
+  contract: {
+    category: 'service',
+    schema: { kind: 'null' },
+    judge: () => ({ ok: true }),
+    deriveDeclarations: () => ({ entries: [] }),
+    references: () => [],
+    settings(body, context) {
+      const enabled =
+        body.kind === 'object' &&
+        body.entries.some(
+          entry => entry.key === 'enabled' && entry.value.kind === 'boolean' && entry.value.value,
+        )
+      return definition(context?.definition, enabled)
+    },
   },
-})
+}
+export const categories = createCategoryPoint()
+categories.contribute(service)
 export function pinned(version = '1', enabled = false, name = 'example') {
   const id = capabilityId('service', name)
   const body = readBodyText(JSON.stringify({ enabled }), {
@@ -85,6 +96,19 @@ export function pinned(version = '1', enabled = false, name = 'example') {
   if (!id.ok || body.kind !== 'ok') throw new Error('invalid fixture')
   return pinBody({ identity: id.id, version, source: 'owner-source', body: body.value })
 }
+export function noteBody(name: string) {
+  const id = capabilityId('note', name)
+  const body = readBodyText('null', {
+    maxBytes: 100,
+    maxDepth: 2,
+    maxItems: 1,
+    maxMembers: 1,
+    maxStringLength: 10,
+    maxNumberLength: 10,
+  })
+  if (!id.ok || body.kind !== 'ok') throw new Error('invalid fixture')
+  return pinBody({ identity: id.id, version: '1', source: 'owner-source', body: body.value })
+}
 export function definitionRef(version = '1', enabled = false) {
   return {
     providerId: 'service',
@@ -95,7 +119,7 @@ export function definitionRef(version = '1', enabled = false) {
       .digest('hex'),
   }
 }
-export const target = { policyId: 'asset', targetRef: 'holding-a', scopeRef: 'tenant-a' }
+export const target = { kind: 'asset' as const, holdingRef: 'holding-a', scopeRef: 'tenant-a' }
 export const grants = [
   {
     sourceId: 'tenant',
@@ -104,10 +128,16 @@ export const grants = [
 ]
 export async function openWorld(
   options: {
-    categories?: typeof categories
+    categories?: Pick<CategoryView, 'lookup'>
     config?: Partial<import('@omne-harness/sqlite-provider').SqliteStorageConfig>
     root?: string
     ownerWrap?: (storage: SqlStorage) => SqlStorage
+    packageRoot?: string
+    afterPackageStep?: Parameters<typeof createAssetsLocal>[0]['afterPackageStep']
+    packageDurability?: Parameters<typeof createAssetsLocal>[0]['packageDurability']
+    uploads?: Parameters<typeof createAssetsLocal>[0]['uploads']
+    clock?: () => number
+    onCommitted?: Parameters<typeof createAssetsLocal>[0]['onCommitted']
   } = {},
 ) {
   const parent = fileURLToPath(
@@ -154,6 +184,16 @@ export async function openWorld(
     domain,
     storage: options.ownerWrap?.(storage) ?? storage,
     categories: options.categories ?? categories,
+    ...(options.packageRoot === undefined ? {} : { packageRoot: options.packageRoot }),
+    ...(options.afterPackageStep === undefined
+      ? {}
+      : { afterPackageStep: options.afterPackageStep }),
+    ...(options.packageDurability === undefined
+      ? {}
+      : { packageDurability: options.packageDurability }),
+    ...(options.uploads === undefined ? {} : { uploads: options.uploads }),
+    ...(options.clock === undefined ? {} : { clock: options.clock }),
+    ...(options.onCommitted === undefined ? {} : { onCommitted: options.onCommitted }),
   })
   async function setup() {
     const published = await owner.publish({
@@ -164,7 +204,7 @@ export async function openWorld(
     })
     const held = await owner.hold({
       operationId: 'hold-1',
-      holdingRef: target.targetRef,
+      holdingRef: target.holdingRef,
       scopeRef: target.scopeRef,
       assetRef: 'asset-a',
       selection: { kind: 'follow' },
@@ -174,7 +214,10 @@ export async function openWorld(
     if (published.kind !== 'committed' || held.kind !== 'committed')
       throw new Error(JSON.stringify({ published, held }))
   }
-  async function capture(overrides: Partial<SettingsProjectionBinding['request']> = {}) {
+  async function capture(
+    overrides: Partial<SettingsProjectionBinding['request']> = {},
+    scope: { excluded: readonly string[] } = { excluded: [] },
+  ) {
     const binding: SettingsProjectionBinding = {
       domain,
       principalRef: 'alice',
@@ -196,7 +239,7 @@ export async function openWorld(
       },
       combinationVersion: combination.combinationVersion,
       manifestDigest: combination.manifestDigest,
-      commands: [assetsSettingsProjectionCommand(binding)],
+      commands: [assetsSettingsProjectionCommand(binding, scope)],
     })
   }
   let closing: Promise<void> | undefined

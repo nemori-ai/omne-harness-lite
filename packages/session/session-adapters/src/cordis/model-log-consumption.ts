@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import type {
   AgentExecutionId,
@@ -6,7 +5,7 @@ import type {
   AgentJournalEntries,
   AgentJournalEntry,
   AgentMaterials,
-  ExecutionSnapshot,
+  JournalEntryItem,
   Failure,
   Material,
   ReceivedEntry,
@@ -31,17 +30,18 @@ import type {
   SessionAccess,
   SessionEntriesItem,
   SessionEntriesObservation,
-  SessionEntriesProgress,
   SessionEntriesStart,
   SessionFailure,
   SessionId,
-  SessionOperationId,
   SessionTransactionPort,
   WorkSnapshot,
+  ProducerRef,
+  SessionCallBinding,
 } from '@omne-harness/session-contract'
 import { sessionKey, sessionTransactionsKey } from '@omne-harness/session-cordis-contract/cordis'
 import { canonical } from '../testing/canonical.ts'
 import type { SessionCoordinatorPrincipalFailure } from './agent-drive.ts'
+import { entriesAfter, entriesBatch, progressOf, savedProgress } from './entries-window.ts'
 import { subscribePublished } from './published-queue.ts'
 
 const OWNER = 'session-adapters/model-log'
@@ -75,6 +75,7 @@ export type SessionModelLogConsumptionInput<P> = Readonly<{
 
 type Ports<P> = Readonly<{
   readWork(access: SessionAccess<P>): Reply<WorkSnapshot>
+  readCall(access: SessionAccess<P>, producer: ProducerRef): Reply<SessionCallBinding | null>
   load: AgentJournal<P>['load']
   entries: AgentJournalEntries<P>['read']
   read: AgentMaterials<P, ContentBlock>['read']
@@ -83,25 +84,9 @@ type Ports<P> = Readonly<{
 }>
 
 type Answer<T> = Outcome<T, SessionFailure>
-const ENTRY_PAGE = 256
-
-async function committedEntries<P>(
-  read: AgentJournalEntries<P>['read'],
-  input: Readonly<{ principal: P; tenant: TenantId; execution: AgentExecutionId }>,
-): Promise<Outcome<readonly AgentJournalEntry[], Failure>> {
-  const found: AgentJournalEntry[] = []
-  let after: string | null = null
-  for (;;) {
-    const page = await read({ ...input, after, limit: ENTRY_PAGE })
-    if ('failure' in page) return page
-    found.push(...page.ok.items.map(item => item.entry))
-    if (page.ok.caughtUp) return succeed(found)
-    after = page.ok.next
-  }
-}
-
 type ModelEntry = ReceivedEntry &
   Readonly<{ delivery: Extract<ReceivedEntry['delivery'], { producer: 'model' }> }>
+type ModelItem = Readonly<{ sequence: string; entry: ModelEntry }>
 type Step = Readonly<{ kind: 'item'; item: SessionEntriesItem }> | Readonly<{ kind: 'unbound' }>
 
 const unavailable = (diagnostic: string, owner = OWNER): Answer<never> =>
@@ -132,6 +117,8 @@ function agentFailure(read: string, failure: Failure): Answer<never> {
 function isModelReceived(entry: AgentJournalEntry): entry is ModelEntry {
   return entry.kind === 'received' && entry.delivery.producer === 'model'
 }
+
+const isModelItem = (item: JournalEntryItem): item is ModelItem => isModelReceived(item.entry)
 
 function runOf(work: WorkSnapshot, execution: string): RunId | null {
   if (work.run.kind === 'active' && work.run.execution.execution === execution) return work.run.run
@@ -209,16 +196,6 @@ function materialRefusal(
   return null
 }
 
-function operationOf(
-  tenantText: string,
-  observation: Omit<SessionEntriesObservation, 'operation' | 'tenant'>,
-) {
-  const digest = createHash('sha256')
-    .update(canonical(['ad05/1', tenantText, observation]))
-    .digest('hex')
-  return `ad05_${digest}` as SessionOperationId
-}
-
 function createModelLogConsumption<P>(
   given: SessionModelLogConsumptionInput<P>,
   ports: Ports<P>,
@@ -229,21 +206,19 @@ function createModelLogConsumption<P>(
     work: WorkSnapshot,
     entry: ModelEntry,
     ordinal: bigint,
-    at: number,
   ): Promise<Answer<Step>> {
-    const field = `entries[${at}]`
+    const field = `entries[${ordinal - 1n}]`
     const { key } = entry.delivery
     const call = resolveModelInvocationRef(key.reference, access.tenant)
     if ('failure' in call)
       return call.failure.kind === 'malformed'
         ? invalid(`${field}.delivery.key.reference`, 'not a Model invocation reference')
         : denied()
-    const bound = work.consumptions.find(
-      item =>
-        item.binding.producer.kind === 'model' && item.binding.producer.call === key.reference,
-    )
-    if (bound === undefined) return succeed({ kind: 'unbound' })
-    if (!sameText(bound.id, entry.consumption))
+    const asked = await ports.readCall(access, { kind: 'model', call: key.reference })
+    if ('failure' in asked) return asked
+    const bound = asked.ok
+    if (bound === null) return succeed({ kind: 'unbound' })
+    if (!sameText(bound.consumption, entry.consumption))
       return invalid(`${field}.consumption`, 'not the consumption Session bound to the call')
     if (canonical(bound.binding.consumer) !== canonical(entry.consumer))
       return invalid(`${field}.consumer`, 'not the consumer Session bound to the call')
@@ -290,70 +265,43 @@ function createModelLogConsumption<P>(
     const run = runOf(work.ok, target.execution)
     if (run === null)
       return unavailable('Session recorded no Run of this execution', 'session-history')
-    const loaded = await ports.load({
+    const reading = {
       principal: access.principal,
       tenant: access.tenant,
       execution: target.execution,
-    })
+    }
+    const loaded = await ports.load(reading)
     if ('failure' in loaded) return agentFailure('load', loaded.failure)
-    const snapshot: ExecutionSnapshot = loaded.ok
-    const read = await committedEntries(ports.entries, {
-      principal: access.principal,
-      tenant: access.tenant,
-      execution: target.execution,
-    })
+    const { revision } = loaded.ok
+    const saved = savedProgress(work.ok, run, target.execution, CHANNEL)
+    const read = await entriesAfter(ports.entries, reading, saved?.position ?? null)
     if ('failure' in read) return agentFailure('load', read.failure)
-    const again = await ports.load({
-      principal: access.principal,
-      tenant: access.tenant,
-      execution: target.execution,
-    })
+    const again = await ports.load(reading)
     if ('failure' in again) return agentFailure('load', again.failure)
-    if (again.ok.revision !== snapshot.revision)
+    if (again.ok.revision !== revision)
       return unavailable('the execution changed while its entries were read')
-    const channel = read.ok.filter(isModelReceived)
-    const saved: SessionEntriesProgress | undefined = work.ok.entriesProgress?.find(
-      item => item.run === run && item.execution === target.execution && item.channel === CHANNEL,
-    )
+    const window = read.ok.filter(isModelItem)
     const after = BigInt(saved?.through ?? '0')
-    const count = BigInt(channel.length)
-    if (count < after)
-      return unavailable('the saved progress passes the Model entries of the execution')
-    const progress =
-      saved === undefined ? null : { through: saved.through, interpreted: saved.interpreted }
     const items: SessionEntriesItem[] = []
-    for (let at = Number(after); at < channel.length; at += 1) {
-      const step = await translate(access, tenantText, work.ok, channel[at]!, BigInt(at) + 1n, at)
+    for (const [at, { entry }] of window.entries()) {
+      const step = await translate(access, tenantText, work.ok, entry, after + BigInt(at) + 1n)
       if ('failure' in step) return step
       if (step.ok.kind === 'unbound') break
       items.push(step.ok.item)
     }
-    const waiting = channel.length - Number(after) - items.length
-    if (items.length === 0) return succeed({ progress, committed: false, waiting })
-    const through = after + BigInt(items.length)
-    const range = {
-      session: target.session,
-      run,
-      execution: target.execution,
+    const waiting = window.length - items.length
+    if (items.length === 0)
+      return succeed({ progress: progressOf(saved), committed: false, waiting })
+    const { tenant, session, execution } = target
+    const batch = { owner: OWNER, tag: 'ad05', tenant, tenantText, session, run, execution }
+    const { observation, start } = entriesBatch({
+      ...batch,
       channel: CHANNEL,
-      after: after.toString(),
-      through: through.toString(),
-      boundary: {
-        execution: target.execution,
-        channel: CHANNEL,
-        revision: snapshot.revision,
-        executionEvidence: headEvidence(tenantText, target.execution, snapshot.revision, channel),
-        count: count.toString(),
-      },
+      revision,
+      saved,
+      window,
       items,
-    } satisfies Omit<SessionEntriesObservation, 'operation' | 'tenant'>
-    const observation: SessionEntriesObservation = {
-      ...range,
-      tenant: target.tenant,
-      operation: operationOf(tenantText, range),
-    }
-    const start: SessionEntriesStart =
-      saved === undefined ? { kind: 'initial' } : { kind: 'saved', progress: saved }
+    })
     return commit(observation, start, waiting)
   }
 
@@ -393,22 +341,6 @@ function createModelLogConsumption<P>(
   }
 }
 
-function headEvidence(
-  tenantText: string,
-  execution: string,
-  revision: string,
-  channel: readonly ModelEntry[],
-): DurableEvidence {
-  return {
-    owner: OWNER,
-    record: execution,
-    revision,
-    digest: createHash('sha256')
-      .update(canonical([tenantText, execution, revision, channel]))
-      .digest('hex'),
-  }
-}
-
 function failureText(failure: Failure | SessionFailure): string {
   const detail =
     'diagnostic' in failure
@@ -443,6 +375,7 @@ export function createSessionModelLogConsumptionPlugin<P>(
         const logger = ctx.logger(OWNER)
         const consume = createModelLogConsumption<P>(input, {
           readWork: access => session.work.readWork(access),
+          readCall: (access, producer) => session.work.readCall({ ...access, producer }),
           load: value => journal.load(value),
           entries: value => entries.read(value),
           read: value => materials.read(value),

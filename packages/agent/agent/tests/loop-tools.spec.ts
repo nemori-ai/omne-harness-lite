@@ -22,6 +22,7 @@ import {
   execution,
   ok,
   loadWithEntries,
+  operation,
   type LoadedWithEntries,
 } from './journal-support.ts'
 import { alice, eventually, invoke } from './loop-support.ts'
@@ -155,6 +156,61 @@ describe('tool action dispatch', () => {
 })
 
 describe('tool result round', () => {
+  it.each(['model-reply', 'tool-result'] as const)(
+    'rebuilds an uncommitted %s handoff after a concurrent output acknowledgement',
+    async kind => {
+      let injected = false
+      const assembly = await toolAssembly({}, {}, {}, dependencies => {
+        const journal = dependencies.journal
+        return {
+          ...dependencies,
+          journal: {
+            ...journal,
+            async commit(write) {
+              if (
+                !injected &&
+                write.handoff?.kind === 'prepare' &&
+                write.handoff.request.source.kind === kind
+              ) {
+                injected = true
+                const before = ok(await journal.load(input))
+                if (before.output.emittedThrough === null)
+                  throw new Error('an input event is required')
+                ok(
+                  await journal.acknowledge({
+                    ...input,
+                    operation: operation('concurrent-ack'),
+                    through: before.output.emittedThrough,
+                    receipt: evidence('consumer'),
+                  }),
+                )
+              }
+              return journal.commit(write)
+            },
+          },
+        }
+      })
+      acceptEach(assembly)
+      ok(await invoke(assembly))
+      await deliverToolSuggestion(assembly)
+      const [pending] = await associatedTools(assembly, 1)
+      if (pending === undefined) throw new Error('no associated Tool call')
+      expect(
+        await pushToolResult(
+          toolReceiver(assembly),
+          toolDelivery(pending, {
+            name: 'one',
+            content: [textBlock('result', 'blk_result_one')],
+            account: toolAccount(pending, '9'),
+          }),
+        ),
+      ).toHaveProperty('ok')
+      await secondModelCall(assembly)
+      expect(injected).toBe(true)
+      expect(toolMessages(await events(assembly))).toHaveLength(1)
+    },
+  )
+
   it('admits the received result as a tool message and sends the next model request', async () => {
     const assembly = await toolAssembly()
     acceptEach(assembly)
@@ -573,7 +629,12 @@ describe('tool result round', () => {
   it('admits a denial message for each action when the whole batch is denied', async () => {
     const assembly = await toolAssembly()
     assembly.controls.admission.admit.always(() => ({
-      ok: { kind: 'deny', evidence: evidence('denied-by-policy'), reason: 'policy' },
+      ok: {
+        kind: 'deny',
+        category: 'rule',
+        evidence: evidence('denied-by-policy'),
+        reason: 'policy',
+      },
     }))
     ok(await invoke(assembly))
     await deliverToolSuggestion(assembly, [toolCall('call-a'), toolCall('call-b')])
@@ -651,7 +712,12 @@ describe('tool result round', () => {
     const assembly = await toolAssembly()
     acceptEach(assembly)
     assembly.controls.admission.admit.always(() => ({
-      ok: { kind: 'deny', reason: 'rule/no-shell', evidence: evidence('denied-by-rule') },
+      ok: {
+        kind: 'deny',
+        category: 'rule',
+        reason: 'rule/no-shell',
+        evidence: evidence('denied-by-rule'),
+      },
     }))
     ok(await invoke(assembly))
     await deliverToolSuggestion(assembly, [toolCall('call-a')])
@@ -660,7 +726,7 @@ describe('tool result round', () => {
       toolMessages(await events(assembly)).map(message =>
         message.blocks.flatMap(block => (block.kind === 'text' ? [block.text] : [])),
       ),
-    ).toEqual([['The tool call was denied and did not run.']])
+    ).toEqual([['The tool call was denied by a rule or a prohibition and did not run.']])
   })
 
   it('does not release an action allowed earlier in a batch while a later admission is unavailable', async () => {

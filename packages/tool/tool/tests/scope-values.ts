@@ -118,10 +118,13 @@ export function valueSchema(id: string, maxBytes = 1_024): ToolValueSchema<unkno
   return { identity: { id, revision: '1', digest: `sha256:${id}` }, ref, maxBytes }
 }
 
-export function askContract(maxBytes = 1_024): ToolWaitContract<string, 'ask'> {
+export function askContract(
+  maxBytes = 1_024,
+  name = 'ask-protocol',
+): ToolWaitContract<string, 'ask'> {
   const fixed = defineToolWaitContract<string, 'ask'>({
     kind: 'ask',
-    adoption: adoption('ask-protocol'),
+    adoption: adoption(name),
     request: valueSchema('request', maxBytes),
     response: valueSchema('response', maxBytes) as ToolValueSchema<string>,
     expiry: 'forbidden',

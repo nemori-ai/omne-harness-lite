@@ -2,6 +2,7 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import { describe, expect, it } from 'vitest'
 import type { SessionCommand, SessionTransactionPort } from '@omne-harness/session-contract'
 import {
+  TESTING_SOURCES,
   evidence,
   memorySessionTransactionsFixture,
   ordinaryInput,
@@ -25,7 +26,8 @@ const NAMES = {
   recall: 'the same operation with the same input recalls the original receipt',
   conflict: 'the same operation with another input is a conflict',
   tenant: 'another tenant reads denied, the same as for a session that never was',
-  login: 'an interactive startRun needs a first input whose stored origin is the login entry',
+  source:
+    'an input of a source that is not registered is unavailable and accepts nothing; a registered one starts a Run',
   rehand:
     'after a bounded terminal the successor Run re-hands the same input, and judgeCompletion follows',
   accept: 'accept queues an ordinary input and readInput returns it',
@@ -42,8 +44,8 @@ const NAMES = {
   finish: 'finishRun with an admission rejection fails the Run and releases the first input',
   offPath: 'archive commits its scope cleanup without pretending physical release',
   oneIdentity: 'an operation identity belongs to one operation, whatever its form',
-  toolUnsupported:
-    'stopCall of a Tool target is unsupported before the identity and the session are read',
+  toolTarget:
+    'stopCall of a Tool target takes the same path as a Model target: an unbound call answers not-found and writes nothing',
   answerOnly: 'an answer-only control writes no revision and replays the original answer',
   malformedControl:
     'a malformed cancelRun or stopCall is refused invalid and saves neither an answer nor an operation',
@@ -108,7 +110,7 @@ const variants: readonly Variant<Fixture>[] = [
   },
   {
     name: 'a conflict is reported as unavailable',
-    fails: [NAMES.conflict, NAMES.oneIdentity],
+    fails: [NAMES.conflict, NAMES.oneIdentity, NAMES.toolTarget],
     fixture: variant(real => ({
       commit: (async input => {
         const answer = await real.commit(input)
@@ -260,21 +262,19 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    name: 'startRun opens an interactive Run without reading the origin of its first input',
-    fails: [NAMES.login],
+    name: 'the port accepts an input of any source as if it were the registered person source',
+    fails: [NAMES.source],
     fixture: variant(real => ({
-      commit: (async input =>
-        real.commit(
-          input.command.kind === 'startRun'
-            ? {
-                ...input,
-                command: {
-                  ...input.command,
-                  input: { ...input.command.input, entry: 'dispatch' },
-                },
-              }
-            : input,
-        )) as Port['commit'],
+      commit: (async input => {
+        const command = input.command as SessionCommand
+        if (command.kind !== 'accept' || command.input.value.kind !== 'ordinary')
+          return real.commit(input)
+        const value = { ...command.input.value, source: TESTING_SOURCES.person }
+        return real.commit({
+          ...input,
+          command: { ...command, input: { ...command.input, value } },
+        } as typeof input)
+      }) as Port['commit'],
     })),
   },
   {
@@ -313,7 +313,7 @@ const variants: readonly Variant<Fixture>[] = [
   },
   {
     name: 'split-operation-tables: a control keeps an identity table of its own',
-    fails: [NAMES.oneIdentity, NAMES.answerOnly],
+    fails: [NAMES.oneIdentity, NAMES.answerOnly, NAMES.toolTarget],
     fixture: variant(real => ({
       commit: (async input => {
         const command = input.command as SessionCommand
@@ -323,24 +323,6 @@ const variants: readonly Variant<Fixture>[] = [
           input: { ...command.input, operation: `ctl:${command.input.operation}` },
         }
         return real.commit({ ...input, command: renamed } as never)
-      }) as Port['commit'],
-    })),
-  },
-  {
-    name: 'tool-check-after-identity-lookup: a used identity answers conflict before unsupported',
-    fails: [NAMES.toolUnsupported],
-    fixture: variant(real => ({
-      commit: (async input => {
-        const command = input.command as SessionCommand
-        if (command.kind === 'stopCall' && command.input.producer.kind === 'tool') {
-          const known = await real.queryOperation({
-            ...input.access,
-            operation: command.input.operation,
-          })
-          if ('ok' in known && known.ok.kind === 'committed')
-            return fail({ kind: 'conflict' as const, operation: command.input.operation })
-        }
-        return real.commit(input)
       }) as Port['commit'],
     })),
   },

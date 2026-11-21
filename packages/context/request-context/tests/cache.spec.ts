@@ -10,7 +10,6 @@ import {
   createAssemblyFixture,
   createAssemblyGroups,
   createMemoryContextSources,
-  createMemoryConversionResults,
   createMemoryHistorySource,
   createScriptedInputMeter,
   createTestingPrincipalBinding,
@@ -86,10 +85,9 @@ function otherSession(f: AssemblyFixture): AssemblyFixture {
   const sources = createMemoryContextSources<string>({
     target,
     values: createAssemblyGroups(target, {
-      history: { evidence: { ...history.evidence() }, inputs: base.inputs },
+      history: { evidence: { ...history.evidence() }, inputs: base.inputs, transition: null },
     }),
     history,
-    conversions: createMemoryConversionResults<string>(),
     preparation: f.preparation,
   })
   return { ...f, target, history, sources }
@@ -147,8 +145,7 @@ describe('a hot call gives the content of a cold call', () => {
     const fresh = createAssemblyFixture({ rows: rows() })
     growTo(fresh, 5)
     const alone = candidateOf(await fresh.operations().assemble(fresh.call))
-    expect(longer.layers.historyHead).toEqual(alone.layers.historyHead)
-    expect(longer.layers.historyBody).toEqual(alone.layers.historyBody)
+    expect(longer.layers.history).toEqual(alone.layers.history)
     expect(longer.preparation.view).toEqual(alone.preparation.view)
   })
 

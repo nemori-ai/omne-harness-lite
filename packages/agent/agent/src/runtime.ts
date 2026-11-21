@@ -20,10 +20,8 @@ const REQUIRED = [
   'conditions',
   'requests',
   'selection',
-  'modelContext',
   'handoff',
   'clock',
-  'random',
 ] as const satisfies readonly (keyof AgentDependencies<unknown, ContentBlock>)[]
 
 function isPresent(value: unknown): boolean {
@@ -85,7 +83,6 @@ export async function createAgentRuntime<P, B extends ContentBlock>(
       failed: extras.failed,
       endedFailed: extras.endedFailed,
       waiting: extras.waiting,
-      modelRetrying: extras.modelRetrying,
     }),
   )
 }

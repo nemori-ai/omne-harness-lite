@@ -30,6 +30,7 @@ export { judgePart } from './parts.ts'
 export {
   REASONING_STATE_PAYLOAD_MAX_LENGTH,
   REPLAY_TAG_MAX_LENGTH,
+  REPLAY_PREFIX_MAX_LENGTH,
   isReplayTag,
 } from './reasoning.ts'
 export type { ReasoningReplay, ReasoningStatePart } from './reasoning.ts'
@@ -43,3 +44,5 @@ export type {
   ToolResultPart,
   UnparsedToolCallPart,
 } from './parts.ts'
+
+export { projectMessage } from './projection.ts'

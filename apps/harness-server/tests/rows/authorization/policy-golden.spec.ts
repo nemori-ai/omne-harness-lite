@@ -18,9 +18,15 @@ const M = 'member'
 const NOT_MEMBER_ROW: Golden = [D, D, D]
 const WORK_ONLY: Golden = [D, M, D]
 const BOTH: Golden = [M, M, D]
+// A work principal may read another session of its own tenant here, and only here (#1427 C9).
+const TENANT_READ: Golden = [M, 'member reach tenant', D]
 
 const SESSION_GOLDEN = {
-  accept: ['member [routed ordinary|card-decision]', 'member [routed business]', D],
+  accept: [
+    'member [routed ordinary|card-decision]',
+    'member [routed business]',
+    'matrix session-input [routed ordinary]',
+  ],
   startRun: WORK_ONLY,
   claim: WORK_ONLY,
   reload: WORK_ONLY,
@@ -33,10 +39,14 @@ const SESSION_GOLDEN = {
   release: WORK_ONLY,
   control: BOTH,
   finishRun: WORK_ONLY,
-  create: [M, D, D],
+  create: [M, D, 'matrix session-create'],
   completeInitialization: NOT_MEMBER_ROW,
-  change: [M, D, D],
-  setRelation: [M, D, D],
+  change: [
+    'member [declaration permission-assignment|permission-mode|collaboration-mode|environment-mode|workspace|model|declaration|context-registration|context-step-commit|recovery-input]',
+    'member [declaration authorization-expression|workspace]',
+    D,
+  ],
+  setResident: [M, D, D],
   configureAutoArchive: [M, D, D],
   considerAutoArchive: WORK_ONLY,
   recordIdle: WORK_ONLY,
@@ -50,20 +60,28 @@ const SESSION_GOLDEN = {
   retryRun: BOTH,
   freeze: WORK_ONLY,
   receive: [D, M, 'matrix scope-release-receive [fact scope-release]'],
-  readWork: WORK_ONLY,
+  readWork: BOTH,
+  readCurrentScope: WORK_ONLY,
   readWaiting: [M, D, D],
+  readPending: [M, D, D],
+  readWaitingCalls: [M, D, D],
+  readInputFate: [M, D, 'matrix input-fate'],
+  readBackgroundCalls: [M, M, D],
+  resolveBackgroundCall: [M, M, D],
   readInput: WORK_ONLY,
   queryOperation: BOTH,
   readModelSelection: BOTH,
   queryControlOperation: BOTH,
   loadRecovery: WORK_ONLY,
   inspectIdle: WORK_ONLY,
-  'history.begin': BOTH,
-  'history.next': BOTH,
+  'history.begin': TENANT_READ,
+  'history.next': TENANT_READ,
   'history.since': BOTH,
   'history.readModelView': WORK_ONLY,
+  'history.readCompactionContext': WORK_ONLY,
+  'history.readAdoptedRequest': BOTH,
   pending: [D, M, 'matrix pending-sessions'],
-  'directory.list': [M, D, D],
+  'directory.list': BOTH,
   references: [D, D, 'matrix resident-references'],
   releasedScopes: [D, D, 'matrix released-scopes'],
 } as const satisfies Readonly<Record<SessionAccessOperation, Golden>>
@@ -90,11 +108,15 @@ const AGENT_GOLDEN = {
   detach: WORK_ONLY,
   'record-terminal-observation': NOT_MEMBER_ROW,
   'receive-result': WORK_ONLY,
-  'read-message-handoff': NOT_MEMBER_ROW,
+  'read-message-handoff': WORK_ONLY,
   'record-message-handoff': NOT_MEMBER_ROW,
   'exclude-message-handoff': NOT_MEMBER_ROW,
   settle: NOT_MEMBER_ROW,
   'migrate-cancellation': NOT_MEMBER_ROW,
+  'compaction.admit': WORK_ONLY,
+  'compaction.inspect': WORK_ONLY,
+  'compaction.cancel': WORK_ONLY,
+  'compaction.acknowledge': WORK_ONLY,
 } as const satisfies Readonly<Record<AgentAccessOperation, Golden>>
 
 function describeCell(cell: PolicyCell): string {
@@ -103,7 +125,10 @@ function describeCell(cell: PolicyCell): string {
       return 'deny'
     case 'member':
     case 'matrix': {
-      const head = cell.verdict === 'member' ? 'member' : `matrix ${cell.purpose}`
+      const head =
+        cell.verdict === 'member'
+          ? `member${cell.reach === undefined ? '' : ` reach ${cell.reach}`}`
+          : `matrix ${cell.purpose}`
       if (cell.when === undefined) return head
       const kinds: readonly string[] = cell.when.kinds
       return `${head} [${cell.when.kind} ${kinds.join('|')}]`
@@ -138,8 +163,8 @@ compare('Session', SESSION_POLICY, SESSION_GOLDEN)
 compare('Agent', AGENT_POLICY, AGENT_GOLDEN)
 
 describe('the golden itself', () => {
-  it('has the 46 Session rows and 26 Agent rows of the baseline enumerations', () => {
-    expect(Object.keys(SESSION_GOLDEN)).toHaveLength(46)
-    expect(Object.keys(AGENT_GOLDEN)).toHaveLength(26)
+  it('has the 54 Session rows and 30 Agent rows of the baseline enumerations', () => {
+    expect(Object.keys(SESSION_GOLDEN)).toHaveLength(54)
+    expect(Object.keys(AGENT_GOLDEN)).toHaveLength(30)
   })
 })

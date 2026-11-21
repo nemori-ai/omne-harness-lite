@@ -30,7 +30,7 @@ const CALLER: Readonly<Record<SessionCommand['kind'], SessionCallerClass>> = {
   create: 'intake',
   completeInitialization: 'intake',
   change: 'intake',
-  setRelation: 'intake',
+  setResident: 'intake',
   configureAutoArchive: 'intake',
   considerAutoArchive: 'maintainer',
   recordIdle: 'maintainer',
@@ -66,6 +66,8 @@ export function facadeOf(h: Harness): SessionTransactionPort<string> {
       return method(value)
     }) as SessionTransactionPort<string>['commit'],
     readWork: input => coordinator.work.readWork(input),
+    readCurrentScope: input => coordinator.work.readCurrentScope(input),
+    readCall: input => coordinator.work.readCall(input),
     readInput: input => coordinator.work.readInput(input),
     queryOperation: input => coordinator.work.queryOperation(input),
     readModelSelection: input => intake.work.readModelSelection(input),

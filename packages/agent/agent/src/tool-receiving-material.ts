@@ -25,6 +25,7 @@ import {
   decodeToolResultVersion,
   decodeToolWaitId,
   judgeConsumerRef,
+  toolCallLabel,
 } from '@omne-harness/tool-contract/provider'
 import { canonical } from './canonical.ts'
 import { account } from './receiving-material.ts'
@@ -187,6 +188,32 @@ function resultDelivery(value: Record<string, unknown>, key: Record<string, unkn
   )
 }
 
+const BACKGROUND_SOURCES: ReadonlySet<unknown> = new Set([
+  'launched',
+  'threshold',
+  'foreground-limit',
+])
+
+function backgroundSource(value: unknown): boolean {
+  if (!object(value)) return false
+  if (value.kind === 'control')
+    return Object.keys(value).length === 2 && 'ok' in decodeToolOperationId(value.operation)
+  return Object.keys(value).length === 1 && BACKGROUND_SOURCES.has(value.kind)
+}
+
+function placeholderDelivery(
+  value: Record<string, unknown>,
+  key: Record<string, unknown>,
+): boolean {
+  return (
+    key.kind === 'placeholder' &&
+    'ok' in decodeToolDeliveryId(value.delivery) &&
+    backgroundSource(value.source) &&
+    'ok' in toolCallLabel(value.label, 'label') &&
+    'ok' in judgeEvidence(value.evidence)
+  )
+}
+
 function delivery(value: unknown): value is ToolDelivery<ContentBlock> {
   if (
     !object(value) ||
@@ -196,6 +223,7 @@ function delivery(value: unknown): value is ToolDelivery<ContentBlock> {
     'failure' in judgeConsumerRef(value.consumer)
   )
     return false
+  if (value.kind === 'placeholder') return placeholderDelivery(value, value.key)
   return value.kind === 'account'
     ? accountDelivery(value, value.key)
     : resultDelivery(value, value.key)
@@ -219,9 +247,14 @@ export function toolReceivedDraft(
   consumption: ReceivedEntry['consumption'],
 ): Omit<ReceivedEntry, 'material'> {
   const common = { kind: 'received' as const, consumer: value.consumer, consumption }
-  return value.kind === 'result'
-    ? { ...common, delivery: { producer: 'tool', key: value.key, account: value.account } }
-    : { ...common, delivery: { producer: 'tool', key: value.key, account: value.account } }
+  switch (value.kind) {
+    case 'placeholder':
+      return { ...common, delivery: { producer: 'tool', key: value.key } }
+    case 'result':
+      return { ...common, delivery: { producer: 'tool', key: value.key, account: value.account } }
+    case 'account':
+      return { ...common, delivery: { producer: 'tool', key: value.key, account: value.account } }
+  }
 }
 
 export function decodeAgentToolDeliveryMaterial(

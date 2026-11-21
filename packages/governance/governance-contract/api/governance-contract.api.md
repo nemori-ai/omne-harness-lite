@@ -634,11 +634,19 @@ export declare const GovernanceSelectionSchema: z.ZodObject<{
         generation: z.ZodString;
         registrationId: z.ZodString;
     }, z.core.$strict>;
-    selectedTargets: z.ZodArray<z.ZodObject<{
-        policyId: z.ZodString;
-        targetRef: z.ZodString;
-        scopeRef: z.ZodString;
-    }, z.core.$strict>>;
+    selectedTargets: z.ZodArray<z.ZodDiscriminatedUnion<[
+        z.ZodObject<{
+            kind: z.ZodLiteral<"asset">;
+            holdingRef: z.ZodString;
+            scopeRef: z.ZodString;
+        }, z.core.$strict>,
+        z.ZodObject<{
+            kind: z.ZodLiteral<"independent">;
+            providerId: z.ZodString;
+            definitionId: z.ZodString;
+            scopeRef: z.ZodString;
+        }, z.core.$strict>
+    ], "kind">>;
 }, z.core.$strict>;
 export declare const GovernanceCollectionRefSchema: z.ZodObject<{
     scope: z.ZodObject<{
@@ -734,11 +742,19 @@ export declare const GovernanceAdoptionCommandSchema: z.ZodObject<{
             generation: z.ZodString;
             registrationId: z.ZodString;
         }, z.core.$strict>;
-        selectedTargets: z.ZodArray<z.ZodObject<{
-            policyId: z.ZodString;
-            targetRef: z.ZodString;
-            scopeRef: z.ZodString;
-        }, z.core.$strict>>;
+        selectedTargets: z.ZodArray<z.ZodDiscriminatedUnion<[
+            z.ZodObject<{
+                kind: z.ZodLiteral<"asset">;
+                holdingRef: z.ZodString;
+                scopeRef: z.ZodString;
+            }, z.core.$strict>,
+            z.ZodObject<{
+                kind: z.ZodLiteral<"independent">;
+                providerId: z.ZodString;
+                definitionId: z.ZodString;
+                scopeRef: z.ZodString;
+            }, z.core.$strict>
+        ], "kind">>;
     }, z.core.$strict>>;
 }, z.core.$strict>;
 export declare const GovernanceBasisSchema: z.ZodObject<{
@@ -851,11 +867,19 @@ export declare const GovernanceCatalogRequestSchema: z.ZodObject<{
         management: "management";
         runtime: "runtime";
     }>;
-    targets: z.ZodArray<z.ZodObject<{
-        policyId: z.ZodString;
-        targetRef: z.ZodString;
-        scopeRef: z.ZodString;
-    }, z.core.$strict>>;
+    targets: z.ZodArray<z.ZodDiscriminatedUnion<[
+        z.ZodObject<{
+            kind: z.ZodLiteral<"asset">;
+            holdingRef: z.ZodString;
+            scopeRef: z.ZodString;
+        }, z.core.$strict>,
+        z.ZodObject<{
+            kind: z.ZodLiteral<"independent">;
+            providerId: z.ZodString;
+            definitionId: z.ZodString;
+            scopeRef: z.ZodString;
+        }, z.core.$strict>
+    ], "kind">>;
     limit: z.ZodNumber;
     cursor: z.ZodNullable<z.ZodString>;
 }, z.core.$strict>;

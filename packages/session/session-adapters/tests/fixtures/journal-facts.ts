@@ -1,5 +1,4 @@
 import {
-  decodeActionBatchId,
   decodeActionId,
   decodeAgentExecutionId,
   decodeAgentInstanceId,
@@ -8,7 +7,6 @@ import {
   decodeExecutionAttachmentId,
   decodeInputBatchId,
   decodeInputId,
-  decodePassageId,
   decodeStepId,
   type ActionId,
   type AgentExecutionId,
@@ -24,9 +22,12 @@ import {
   batchBytes,
   emptySessionView,
   fold,
+  heldBy,
+  holdText,
   refOf,
   type Batch,
   type FactBody,
+  type HoldRef,
   type ParticipationKind,
   type PublishedBatch,
   type Ref,
@@ -74,7 +75,6 @@ type Builder = {
   step: number
   action: number
   consumption: number
-  passage: number
   admissions: number
   events: number
   authority: Authority
@@ -82,6 +82,19 @@ type Builder = {
   intends: Batch[]
   finish: { candidate: Batch; obligations: Batch; ended: Batch } | null
   obligations: string[]
+  held: HoldRef[]
+}
+
+// What the Journal writes beside a cursor move: the holds the checkpoint gained and let go, read
+// from its calls the way the Journal reads them.
+function holdsOf(builder: Builder, step: StepId, calls: readonly PendingCall[]): FactBody[] {
+  const next = heldBy({ calls, batch: null, passages: [], compaction: null } as never)
+  const wanted = new Set(next.map(holdText))
+  const had = new Set(builder.held.map(holdText))
+  const held = next.filter(ref => !had.has(holdText(ref)))
+  const released = builder.held.filter(ref => !wanted.has(holdText(ref)))
+  builder.held = next
+  return held.length + released.length === 0 ? [] : [{ kind: 'hold.changed', step, held, released }]
 }
 
 function authorityOf(builder: Builder): Authority {
@@ -202,12 +215,14 @@ function roundBatches(builder: Builder, rng: Random): void {
     reference,
     purpose: 'main',
   }
+  // As the Journal writes it: the batch a step takes is the cursor's batch in the same commit.
+  const taken = minted(decodeInputBatchId(`${builder.execution}/batch/${builder.step}`), 'batch')
   const intend = batch(builder, 'intend', [
     {
       kind: 'step.begun',
       step,
       batch: {
-        id: minted(decodeInputBatchId(`${builder.execution}/batch/${builder.step}`), 'batch'),
+        id: taken,
         watermark: evidence(`${builder.execution}/watermark/${builder.step}`),
         ordered: [],
       },
@@ -233,8 +248,9 @@ function roundBatches(builder: Builder, rng: Random): void {
     {
       kind: 'cursor.moved',
       step,
-      members: { position: 'M0', step, calls: blob([pending]) },
+      members: { position: 'M0', step, inputBatch: taken, calls: blob([pending]) },
     },
+    ...holdsOf(builder, step, [pending]),
   ])
   builder.intends.push(intend)
   if (rng.chance(1, 4))
@@ -244,6 +260,8 @@ function roundBatches(builder: Builder, rng: Random): void {
         intent: 'model',
         step,
         attempt: 0,
+        action: modelAction,
+        reference,
         cause: 'not-accepted',
         basis: evidence(`${builder.execution}/not-accepted/${builder.step}`),
       },
@@ -259,7 +277,13 @@ function roundBatches(builder: Builder, rng: Random): void {
       },
     ])
   if (rng.chance(1, 3))
-    batch(builder, 'recognize', [{ kind: 'op.recognized', target: intend.envelope.op }])
+    batch(builder, 'recognize', [
+      {
+        kind: 'op.recognized',
+        target: intend.envelope.op,
+        at: { pub: 0, digest: '', revision: 0 },
+      },
+    ])
   batch(builder, 'receive', [
     {
       kind: 'result.received',
@@ -314,39 +338,7 @@ function roundBatches(builder: Builder, rng: Random): void {
     },
   ]
   const tool = rng.chance(2, 3)
-  if (tool) {
-    builder.action += 1
-    const toolAction = actionOf(builder, builder.action)
-    const batchId = minted(
-      decodeActionBatchId(`${builder.execution}/batch/${builder.step}`),
-      'action batch',
-    )
-    judge.push(
-      {
-        kind: 'batch.fixed',
-        batch: batchId,
-        step,
-        source: {
-          producer: 'model',
-          call: `call-${builder.step}`,
-          version: '1',
-          delivery: null,
-          source: evidence(`${builder.execution}/result/${builder.step}`),
-        },
-        actions: [
-          { action: toolAction, callId: `call_${builder.step}`, arguments: blob({ a: 1 }) },
-        ],
-      },
-      {
-        kind: 'action.judged',
-        action: toolAction,
-        judgment: 'allowed',
-        evidence: evidence(`${builder.execution}/judged/${builder.step}`),
-        passage: null,
-        request: blob({ tool: 'read', arguments: { path: 'x' } }),
-      },
-    )
-  }
+  if (tool) builder.action += 1
   judge.push({ kind: 'cursor.moved', step, members: { position: tool ? 'A2' : 'Ja' } })
   batch(builder, 'judge', judge, ['message'])
   if (tool) {
@@ -375,14 +367,7 @@ function roundBatches(builder: Builder, rng: Random): void {
         request: blob({ tool: 'read', arguments: { path: 'x' } }),
       },
       { kind: 'cursor.moved', step, members: { position: 'X2', calls: blob([toolPending]) } },
-    ])
-    batch(builder, 'tool-associated', [
-      {
-        kind: 'call.associated',
-        action: toolAction,
-        reference: `tool:${builder.execution}:${builder.step}` as ToolInvocationRef,
-        receipt: evidence(`${builder.execution}/tool-receipt/${builder.step}`),
-      },
+      ...holdsOf(builder, step, [toolPending]),
     ])
     batch(builder, 'fence', [
       {
@@ -409,6 +394,7 @@ function roundBatches(builder: Builder, rng: Random): void {
             call: `tool-call-${builder.step}` as never,
             reason: evidence(`${builder.execution}/interrupt/${builder.step}`),
           },
+          modelInvocation: null,
           toolInvocation: `tool:${builder.execution}:${builder.step}` as ToolInvocationRef,
           toolOperation: null,
           stage: 'accepted',
@@ -426,6 +412,7 @@ function roundBatches(builder: Builder, rng: Random): void {
             call: `tool-call-${builder.step}` as never,
             reason: evidence(`${builder.execution}/interrupt/${builder.step}`),
           },
+          modelInvocation: null,
           toolInvocation: `tool:${builder.execution}:${builder.step}` as ToolInvocationRef,
           toolOperation: null,
           step: null,
@@ -481,37 +468,10 @@ function roundBatches(builder: Builder, rng: Random): void {
           evidence: evidence(`${builder.execution}/tool-processed/${builder.step}`),
           step: stepOf(builder),
         },
-        {
-          kind: 'slot.settled',
-          action: toolAction,
-          settlement: evidence(`${builder.execution}/slot/${builder.step}`),
-        },
         { kind: 'cursor.moved', step, members: { position: 'T5', state: 'advancing' } },
       ],
       ['processed'],
     )
-  }
-  if (rng.chance(1, 5)) {
-    builder.passage += 1
-    const passage = minted(
-      decodePassageId(`${builder.execution}/passage/${builder.passage}`),
-      'passage',
-    )
-    batch(builder, 'passage', [
-      {
-        kind: 'passage.declared',
-        passage,
-        subject: blob({ subject: 'extension' }),
-        declared: evidence(`${builder.execution}/passage/${builder.passage}`),
-      },
-      { kind: 'passage.progressed', passage, progress: blob({ round: 1 }), round: '1' },
-      {
-        kind: 'passage.concluded',
-        passage,
-        conclusion: blob({ conclusion: 'done' }),
-        evidence: evidence(`${builder.execution}/concluded/${builder.passage}`),
-      },
-    ])
   }
   if (rng.chance(1, 6)) {
     batch(builder, 'ack', [{ kind: 'ack.through', sequence: builder.step }])
@@ -550,6 +510,7 @@ function obligation(builder: Builder, id: string, category: string): FactBody {
     id: `${builder.execution}/${id}`,
     category,
     item: blob({ obligation: id, detail: 'd'.repeat(6000) }),
+    settled: false,
   }
 }
 
@@ -609,7 +570,6 @@ export function scene(rng: Random, options: SceneOptions = {}): Scene {
       step: 0,
       action: 0,
       consumption: 0,
-      passage: 0,
       admissions: 0,
       events: 0,
       authority: null as never,
@@ -617,6 +577,7 @@ export function scene(rng: Random, options: SceneOptions = {}): Scene {
       intends: [],
       finish: null,
       obligations: [],
+      held: [],
     }
     builder.authority = authorityOf(builder)
     openBatches(builder, rng)
@@ -641,10 +602,16 @@ export function scene(rng: Random, options: SceneOptions = {}): Scene {
   } else for (const builder of builders) ordered.push(...builder.batches)
   const log: PublishedBatch[] = []
   let view = emptySessionView()
+  // A recognition names the batch it recognizes, known once that batch is published.
+  const stamps = new Map<string, Readonly<{ pub: number; digest: string; revision: number }>>()
   for (const [index, value] of ordered.entries()) {
-    const draft = { ...value, pub: index + 1 }
+    const facts = value.facts.map(fact =>
+      fact.kind === 'op.recognized' ? { ...fact, at: stamps.get(fact.target)! } : fact,
+    )
+    const draft = { ...value, facts, pub: index + 1 }
     view = fold(view, draft)
     const rev = view.executions.get(value.execution)!.revision
+    stamps.set(value.envelope.op, { pub: draft.pub, digest: value.envelope.digest, revision: rev })
     log.push({ ...draft, envelope: { ...draft.envelope, rev } })
   }
   const byOp = new Map(log.map(item => [item.envelope.op, item]))

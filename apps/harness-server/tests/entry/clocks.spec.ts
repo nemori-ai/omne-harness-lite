@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { parseInstant } from '@omne-harness/utc-instant'
 import { AgentClockService, agentClockKey } from '@omne-harness/agent-cordis-contract/cordis'
 import { SessionClockService, sessionClockKey } from '@omne-harness/session-cordis-contract/cordis'
+import { simulatedTime } from '@omne-harness/time-source/simulated'
 import { agentClock } from '../../src/entry/agent-clock.ts'
 import { sessionClock } from '../../src/entry/session-clock.ts'
 import { fixtureEnv, got } from './support.ts'
@@ -94,5 +95,35 @@ describe('agentClock (AgentClock shape)', () => {
     ).resolves.toEqual({
       failure: { kind: 'invalid', field: 'instant', reason: 'offset' },
     })
+  })
+})
+
+describe('the entry clocks read the time the assembly gives', () => {
+  const DAY = 86_400_000
+
+  it('a simulated time source moves both clocks and their waits together, under its own protocol name', async () => {
+    const time = simulatedTime({ wall: Date.parse('2030-01-01T00:00:00.000Z') })
+    const fixture = fixtureEnv([], 'fixture-state-root', {
+      source: time.source,
+      protocol: 'simulated-clock',
+    })
+    await fixture.install(sessionClock)
+    await fixture.install(agentClock)
+    const session = got(fixture.root.get(sessionClockKey), 'sessionClock')
+    const agent = got(fixture.root.get(agentClockKey), 'agentClock')
+
+    const sample = await session.sample()
+    if ('failure' in sample) throw new Error(`sample failed: ${sample.failure.kind}`)
+    expect(sample.ok.at).toBe('2030-01-01T00:00:00.000Z')
+    expect(sample.ok.protocol).toMatchObject({ owner: 'harness-server', name: 'simulated-clock' })
+
+    const month = session.waitUntil('2030-01-31T00:00:00.000Z', new AbortController().signal)
+    const day = agent.waitUntil('2030-01-02T00:00:00.000Z', new AbortController().signal)
+    time.advance(30 * DAY - 1)
+    await expect(day).resolves.toEqual({ ok: 'elapsed' })
+    expect(time.pending()).toBe(1)
+    time.advance(1)
+    await expect(month).resolves.toBe('elapsed')
+    await expect(agent.now()).resolves.toEqual({ ok: '2030-01-31T00:00:00.000Z' })
   })
 })

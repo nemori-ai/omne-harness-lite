@@ -87,11 +87,11 @@ it.skipIf(process.platform !== 'linux')(
   },
 )
 
-it('passes the configured root to the backend and rejects four escapes without changing files', async () => {
+it('passes the root of the placement to the backend and rejects four escapes without changing files', async () => {
   const fixture = await hostFixture()
   try {
     const { provider } = await fixture.load()
-    const input = providerInput(provider, 'boundaries')
+    const input = providerInput(provider, 'boundaries', fixture.filesRoot)
     const acquired = await provider.acquire(input)
     if (acquired.kind !== 'acquired') throw new Error('expected acquisition')
     const files = acquired.lease.facility('files')

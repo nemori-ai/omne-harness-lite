@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { ClientOf, Credentials } from '@omne-harness/sdk/core'
+import type { sessionDiagnosticsProtocol } from '@omne-harness/session-diagnostics-protocol'
 import {
   userTextMessage,
   type ObserveSessionFrame,
@@ -9,6 +10,13 @@ import {
 import { clientsOver, protocolTransport } from '../protocol-clients.ts'
 
 type SessionClient = ClientOf<typeof sessionProtocol>
+type DiagnosticsAnswer = Awaited<
+  ReturnType<ClientOf<typeof sessionDiagnosticsProtocol>['read-session-diagnostics']>
+>
+export type DiagnosticsRun = Extract<
+  DiagnosticsAnswer,
+  { outcome: 'succeeded' }
+>['body']['runs'][number]
 type SendBody = Parameters<SessionClient['send-input']>[0]
 type Tenant = SendBody['tenant']
 type Session = SendBody['session']
@@ -30,6 +38,8 @@ export type HistoryRead = Readonly<{
 }>
 
 export type RecordedFrame = Readonly<{ at: number; frame: ObserveSessionFrame }>
+
+export type ModelDispatch = Readonly<{ firstContent: string; outcome: unknown }>
 
 export type Observation = Readonly<{
   frames(): readonly RecordedFrame[]
@@ -61,6 +71,13 @@ export type ProtocolDriver = Readonly<{
     run: string,
     controlId: string,
   ): Promise<{ outcome: string; recovered: boolean | null }>
+  /** The dispatches of every Model call of the session, as the diagnostics read gives them. */
+  modelDispatches(session: string): Promise<readonly (readonly ModelDispatch[])[]>
+  /** Every Run of the session, as the diagnostics read gives them, page after page. */
+  diagnostics(
+    session: string,
+  ): Promise<Readonly<{ outcome: string; runs: readonly DiagnosticsRun[] }>>
+  selectModel(session: string, model: string): Promise<string>
   observe(session: string): Observation
   currentRun(session: string, timeoutMs: number): Promise<string | null>
   rawOutcome(call: 'list-sessions' | 'read-history', session?: string): Promise<string>
@@ -83,7 +100,7 @@ export function createProtocolDriver(origin: string, account?: Account): Protoco
     credential: `pw-${randomUUID()}`,
   }
   const transport = protocolTransport(origin, (): Credentials => credentials)
-  const { identity, session } = clientsOver(transport)
+  const { identity, session, sessionDiagnostics } = clientsOver(transport)
   let reasks = 0
   const asShipped: SessionClient = clientsOver(transport, {
     session: {
@@ -212,6 +229,42 @@ export function createProtocolDriver(origin: string, account?: Account): Protoco
         run,
         controlId: randomUUID(),
         urgency: 'graceful',
+      })
+      return answer.outcome
+    },
+    modelDispatches: async id => {
+      const answer = await sessionDiagnostics['read-session-diagnostics']({
+        ...target(id),
+        cursor: null,
+        run: null,
+        pageBytes: String(DEFAULT_PAGE_BYTES),
+      } as Parameters<(typeof sessionDiagnostics)['read-session-diagnostics']>[0])
+      if (answer.outcome !== 'succeeded') return []
+      return answer.body.runs.flatMap(run => run.modelCalls.map(call => call.dispatches))
+    },
+    diagnostics: async id => {
+      const runs: DiagnosticsRun[] = []
+      let cursor: string | null = null
+      for (;;) {
+        const body =
+          cursor === null
+            ? { ...target(id), cursor: null, run: null, pageBytes: String(DEFAULT_PAGE_BYTES) }
+            : { ...target(id), cursor }
+        const answer = await sessionDiagnostics['read-session-diagnostics'](
+          body as Parameters<(typeof sessionDiagnostics)['read-session-diagnostics']>[0],
+        )
+        if (answer.outcome !== 'succeeded') return { outcome: answer.outcome, runs }
+        runs.push(...answer.body.runs)
+        if (answer.body.exhausted || answer.body.next === null)
+          return { outcome: 'succeeded', runs }
+        cursor = answer.body.next
+      }
+    },
+    selectModel: async (id, model) => {
+      const answer = await session['select-model']({
+        ...target(id),
+        controlId: randomUUID(),
+        model,
       })
       return answer.outcome
     },

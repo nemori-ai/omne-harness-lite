@@ -748,7 +748,7 @@ function tree(plain: unknown): JsonValue {
   }
 }
 
-async function sessionLog(options: Readonly<{ archive?: boolean }> = {}) {
+async function sessionLog(options: Readonly<{ archive?: boolean; declared?: boolean }> = {}) {
   const access = memoryAccess<string>('tester')
   const base = { tenant: access.tenant, session: access.session }
   const source = createMemoryInitializationSource()
@@ -764,7 +764,7 @@ async function sessionLog(options: Readonly<{ archive?: boolean }> = {}) {
         key: NOTES,
         bindings: [notesModel],
         parameters: undefined,
-        declaration: notesDeclaration,
+        ...(options.declared === false ? {} : { declaration: notesDeclaration }),
       },
       definitions,
     ),
@@ -1042,6 +1042,20 @@ describe('the translation of committed Session entries', () => {
     expect(fresh.commitOf(other, log.access)).toEqual(succeed(null))
   })
 
+  it('reads an add made without its declaration with the declaration its definition has now', async () => {
+    const log = await sessionLog({ declared: false })
+    const translation = createSessionContextTranslation(definitions)
+    const first = ok(translation.commitOf(log.entries[0]!, log.access), 'initial')
+    if (first?.kind !== 'registration') throw new Error(String(first?.kind))
+    expect(first.change.kind === 'add' && first.change.declaration).toBe(notesDeclaration)
+    const undeclared = createSessionContextTranslation({
+      ...definitions,
+      declaration: () => undefined,
+    })
+    const plain = ok(undeclared.commitOf(log.entries[0]!, log.access), 'initial')
+    expect(plain?.kind === 'registration' && plain.change).not.toHaveProperty('declaration')
+  })
+
   it('fails, never guesses, on a record it cannot restore', async () => {
     const log = await sessionLog()
     const [initial, later] = log.entries
@@ -1053,6 +1067,18 @@ describe('the translation of committed Session entries', () => {
     expect(translation.commitOf(misplaced, log.access)).toHaveProperty('failure')
     const forgetful = createSessionContextTranslation({ ...definitions, binding: () => undefined })
     expect(forgetful.commitOf(initial!, log.access)).toHaveProperty('failure')
+    // A registration that brought its declaration needs the definition to give that one back.
+    const undeclaring = createSessionContextTranslation({
+      ...definitions,
+      declaration: () => undefined,
+    })
+    expect(undeclaring.commitOf(initial!, log.access)).toHaveProperty('failure')
+    const elsewhere = { ...notesDeclaration, key: DRAFT }
+    const misdeclaring = createSessionContextTranslation({
+      ...definitions,
+      declaration: () => elsewhere,
+    })
+    expect(misdeclaring.commitOf(initial!, log.access)).toHaveProperty('failure')
     const moved: HistoryEntry = {
       ...later!,
       payload: rewrite(later!.payload, 'scope', tree('session-scope:elsewhere')),

@@ -2,6 +2,7 @@ import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-id
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import type {
   EnvironmentBinding,
+  FilesScope,
   OriginalAcquisition,
   Placement,
 } from '@omne-harness/execution-environment-contract'
@@ -90,7 +91,27 @@ export function fingerprint(original: OriginalAcquisition): string {
     [...new Set(p.requirement.facilities)].sort(),
     [...new Set(p.requirement.isolation)].sort(),
     p.requirement.allowedBindings.map(bindingFacts),
+    p.filesScope === undefined ? null : [p.filesScope.read ?? null, p.filesScope.write ?? null],
   ])
+}
+
+/** The placement on a matched provider, with the files scope the integrator gave for it, if any. */
+export function placementOn(
+  wanted: Readonly<{ requirement: Placement['requirement']; filesScope: FilesScope | undefined }>,
+  binding: EnvironmentBinding,
+  identity: Placement['provider'],
+  provider: Pick<Placement, 'continuity' | 'quotaDomain'>,
+): Placement {
+  const { requirement, filesScope } = wanted
+  return Object.freeze({
+    kind: 'placement',
+    requirement,
+    binding,
+    provider: identity,
+    continuity: provider.continuity,
+    quotaDomain: provider.quotaDomain,
+    ...(filesScope === undefined ? {} : { filesScope: Object.freeze({ ...filesScope }) }),
+  })
 }
 
 /** Copies the data of a placement before the first await; tenant values keep their minted identity. */
@@ -126,6 +147,9 @@ export function copyPlacement(placement: Placement): Placement {
     provider: Object.freeze({ ...placement.provider }),
     continuity: Object.freeze({ ...placement.continuity }),
     quotaDomain: placement.quotaDomain,
+    ...(placement.filesScope === undefined
+      ? {}
+      : { filesScope: Object.freeze({ ...placement.filesScope }) }),
   })
 }
 

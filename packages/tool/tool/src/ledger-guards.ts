@@ -32,6 +32,7 @@ export type ToolLedgerAction =
   | 'read-diagnostics'
   | 'read-result'
   | 'read-content'
+  | 'read-output'
   | 'release-delivery'
   | 'account'
   | 'recover'
@@ -46,6 +47,11 @@ export interface ToolAccessGuard<P> {
   qualify(
     input: Readonly<{ principal: P; tenant: TenantId; call: ToolCallId; action: ToolLedgerAction }>,
   ): Promise<AccessVerdict>
+}
+
+/** May this principal read the usage of the tenant's calls; the tenant-wide read names no call. */
+export interface ToolAccountsGuard<P> {
+  qualify(input: Readonly<{ principal: P; tenant: TenantId }>): Promise<AccessVerdict>
 }
 
 export type SourceVerdict =

@@ -1,6 +1,6 @@
 # 形式模型与规格、代码的对照
 
-本页对照 `session-adapters/verification` 下两个有限模型：进程代次与准入记录（`generation-handoff`）、Agent 事实族（`journal-facts`）。条款在包组规格 [`packages/session/SPEC.md`](../../SPEC.md)；Agent 一侧的承诺在 [Agent 规格](../../../agent/SPEC.md)。模型检查只说明有限范围内的设计性质。配置预期见下表；运行器按预期判读，正控要求无反例，负控要求命中指定性质。手写的无界证明见 [proofs/](proofs/)。
+本页对照 `session-adapters/verification` 下四个有限模型：进程代次与准入记录（`generation-handoff`）、Agent 事实族（`journal-facts`）、执行日志的开放集（`journal-open-set`）、会话工作目录（`working-directory`）。条款在包组规格 [`packages/session/SPEC.md`](../../SPEC.md)；Agent 一侧的承诺在 [Agent 规格](../../../agent/SPEC.md)。模型检查只说明有限范围内的设计性质。配置预期见下表；运行器按预期判读，正控要求无反例，负控要求命中指定性质。手写的无界证明见 [proofs/](proofs/)。
 
 ## generation-handoff
 
@@ -97,3 +97,46 @@
 | `RetrySame`、`RetryConflict` | 同语义输入认回原结果，异语义输入答冲突，无写入                                                     |
 | `Crash`、`Recover`           | 进程重启；继任者冷启动折叠，再挂接                                                                 |
 | `Refuse`                     | 存储在受理前拒绝，无写入：暂时的原因驱动等待后以同一操作重发，确定的原因驱动不重发，Run 以失败终结 |
+
+## journal-open-set
+
+`OpenSet.tla` 是抽象模型：一个执行，项有原键，开、改、关，关后不变。持久投影与关闭索引在追加批的同一次提交里写；写者的进程内视图折叠到哪一批就持有哪一批的开放集；冷装载分两页读投影，两页的头不同就重来；Agent 先看快照，缺席的项按原键点查，决定只在读到的修订上条件提交；生产方保存迟到结果，不带期望修订。规格见 Agent 规格「执行日志」的快照与开放两条。
+
+| 性质         | 含义                                           | 模型中的名字           | 负控                                                                              |
+| ------------ | ---------------------------------------------- | ---------------------- | --------------------------------------------------------------------------------- |
+| 快照是开放集 | 快照等于它所标修订的开放项                     | `P1_SnapshotIsOpenSet` | `bad-mix-pages`：冷装载接受两个头的页                                             |
+| 投影同提交   | 持久投影始终是整条日志的开放集，头等于日志长度 | `P2_ProjectionCurrent` | `bad-projection-lags`：投影由之后的步骤写                                         |
+| 按原键可达   | 开着的在投影里，关了的按原键查得到             | `P3_Reachable`         | `bad-no-closed-index`：关闭只从投影删，不写关闭索引                               |
+| 决定看到真值 | 提交的决定看到的是它提交修订上的真值           | `P4_DecisionsTrue`     | `bad-absent-as-never`：缺席当作从未发生；`bad-unchecked-commit`：不带期望修订提交 |
+| 只含开放项   | 快照的大小只取决于开放工作                     | `P5_OpenBound`         | `bad-keep-closed`：关闭项留在快照                                                 |
+
+配置：`open-set` 是正控（2 个键、4 个批、每批至多 2 处改动、1 次崩溃、2 次重来），预期无反例；六个 `bad-*` 各打开一个错误，预期只命中上表对应的性质。运行：`models/run-tlc.sh models <证据目录>`。
+
+| 模型                       | 实现                                                                                   |
+| -------------------------- | -------------------------------------------------------------------------------------- |
+| 开放的判据                 | `agent-contract` 的 `openItems`；两份核心都照它裁快照                                  |
+| 按原键点查                 | `AgentJournalReading.inputAcceptance`；模型控制记录自带 `modelInvocation`              |
+| 进程内视图与冷重建同一投影 | `testing/journal-records.ts` 与进程内推进；守卫 `tests/journal-records-parity.spec.ts` |
+| 持久投影、冷装载两页同头   | 尚未实现：冷装载仍从头重放事实（#1310）                                                |
+
+## working-directory
+
+`WorkingDirectory.tla` 检查会话工作目录在更换、步的边界、工具调用的受理与进程重建任意交错下的四条性质。采用的承诺：Session 规格[日志与提交](../../SPEC.md#日志与提交)里会话工作目录的规则，Tool 规格里固定请求钉住工作目录的规则。模型里的耐久事实是会话的选择、块在最近一次步边界提交的值、写给模型的最后一条提醒、每次已受理调用钉住的目录；活体只有持有者的「已告知」，重建时丢。
+
+| 性质（模型名） | 含义 | 负控：去掉的规则 |
+| --- | --- | --- |
+| `PinnedDirectory` | 一次调用执行时用的目录等于它第一次受理时钉住的目录 | `bad-exec-reread` 执行时重新读块；`bad-volatile-pin` 钉住的值不耐久，重建后重新取 |
+| `ToldDirectory` | 一次调用钉住的目录等于模型发出它时被告知的目录 | `bad-live-read` 受理时读最新的选择；`bad-direct-publish` 更换的提交直接改块；`bad-recover-latest` 重建后按最新的选择给块赋值 |
+| `NoRefusal` | 没有调用因为没有目录而被答不可用，跨重建也成立 | `bad-volatile-block` 重建时把块丢掉 |
+| `ToldAtBoundary` | 走到模型请求的一步，已经把这一步开始时的选择告知了模型 | `bad-refresh-after-read` 先读变化、后刷新 |
+
+| 配置 | 预期 |
+| --- | --- |
+| `working-directory`、`working-directory-wide` | 无反例。前者两个目录、两次调用、两次更换、三步、一次重建；后者三个目录、三次调用、三次更换、四步、两次重建 |
+| `bad-live-read`、`bad-direct-publish`、`bad-recover-latest` | 命中 `ToldDirectory` |
+| `bad-volatile-block` | 命中 `NoRefusal` |
+| `bad-exec-reread`、`bad-volatile-pin` | 命中 `PinnedDirectory` |
+| `bad-refresh-after-read` | 命中 `ToldAtBoundary` |
+| `witness-new-directory`、`witness-outlives-switch`、`witness-resume` | 见证：有调用在新目录里执行；有调用在更换之后仍在原目录执行完；有调用还没受理时发生了重建。证明正控不是空转 |
+
+环境假设：一个会话同一时刻只有一个 Run，一个 Run 的步串行；一步的调用都在下一步开始之前受理；一步开始之前的动作失败时这一步不发模型请求。模型检查只说明这些假设与上界之内的设计性质。

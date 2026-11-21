@@ -4,6 +4,7 @@ import {
   closeoutMetrics,
   closeoutMutation,
   COMMANDS,
+  cpusFor,
   isCommandName,
   risk,
   runCommand,
@@ -209,6 +210,38 @@ it('mutation prints each member line after the run and exits 1 when a measuremen
   expect(d.printed.at(-1)).toMatch(/^限制：/)
 })
 
+it('mutation hands the time limit factor and the recheck switch to the run of mutation.mjs', async () => {
+  const { calls, exec } = planned(['tools/t/src/a.ts:1-10'])
+  const d = deps({ repo, exec })
+  expect(
+    await closeoutMutation(
+      ['--base', 'B', '--timeout-factor', '6', '--recheck', '--out', scratch()],
+      d,
+    ),
+  ).toBe(0)
+  const run = calls.find(call => call.args.includes('--json') && !call.args.includes('--plan-only'))
+  expect(valueOf(run?.args ?? [], '--timeout-factor')).toBe('6')
+  expect(run?.args).toContain('--recheck')
+  expect(run?.args).not.toContain('--timeout')
+})
+
+it('mutation takes the time limit constant and the recheck limit too, and metrics takes none of the four', async () => {
+  const { calls, exec } = planned(['tools/t/src/a.ts:1-10'])
+  const d = deps({ repo, exec })
+  expect(
+    await closeoutMutation(
+      ['--base', 'B', '--timeout', '15s', '--recheck-limit', '3', '--out', scratch()],
+      d,
+    ),
+  ).toBe(0)
+  const run = calls.find(call => call.args.includes('--json') && !call.args.includes('--plan-only'))
+  expect(valueOf(run?.args ?? [], '--timeout')).toBe('15s')
+  expect(valueOf(run?.args ?? [], '--recheck-limit')).toBe('3')
+  for (const flag of ['--timeout', '--timeout-factor', '--recheck-limit'])
+    await expect(runCommand(closeoutMetrics, ['--base', 'B', flag, '1'], d)).resolves.toBe(2)
+  await expect(runCommand(closeoutMetrics, ['--base', 'B', '--recheck'], d)).resolves.toBe(2)
+})
+
 it('risk reads the toolchain list from github-gate, matches it through git and exits 1 when the list is missing', async () => {
   const seen: string[][] = []
   const withList = fakeRepo({
@@ -244,6 +277,14 @@ it('turns usage errors into exit 2 and lets other errors through', async () => {
       d,
     ),
   ).rejects.toThrow('boom')
+})
+
+it('takes the tokens it was given as its CPU count, and the cores of the machine when it has none', () => {
+  expect(cpusFor({ OMNE_WORKER_BUDGET: '3' }, 8)).toBe(3)
+  expect(cpusFor({ OMNE_WORKER_BUDGET: '12' }, 8)).toBe(12)
+  expect(cpusFor({}, 8)).toBe(8)
+  for (const bad of ['', '0', 'x', '03', '3x', '-3', '3.5'])
+    expect(cpusFor({ OMNE_WORKER_BUDGET: bad }, 8)).toBe(8)
 })
 
 it('knows its three commands by name, and a missing or unknown name is no command', () => {
@@ -300,7 +341,9 @@ it('metrics shows the last ten lines of a failed build, from stdout when stderr 
   const loud = deps({ repo, exec: recorder(() => ({ code: 1, stderr: `${many}\n` })).exec })
   expect(await closeoutMetrics(['--base', 'B', '--out', scratch()], loud)).toBe(1)
   expect(loud.printed[0]).toContain('退出 1')
-  expect(loud.printed[0]).toContain('pnpm exec turbo run build --output-logs=errors-only')
+  expect(loud.printed[0]).toContain(
+    'pnpm exec node scripts/turbo-exact.mjs run build --output-logs=errors-only',
+  )
   expect(loud.printed[1]).toBe(many.split('\n').slice(2).join('\n'))
   const quiet = deps({
     repo,

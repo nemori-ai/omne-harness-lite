@@ -1,5 +1,11 @@
 import type { AccessVerdict, StartVerdict, ToolStartGuard } from '@omne-harness/tool'
 import type { StartCoordinatorAccess } from './start-coordinator.ts'
+import type {
+  ToolPermitConsumption,
+  ToolPermitRef,
+  ToolStartRelease,
+} from '@omne-harness/tool-contract/provider'
+import { z } from 'zod'
 import type { RequestAccessVerdict, StartCondition, ToolRequestAccess } from './ledger-guards.ts'
 
 export const PROGRAMMATIC_NOT_IN_M2 = 'programmatic-not-in-m2'
@@ -9,31 +15,86 @@ export type LocalStartGuardInput<P> = Readonly<{
   requestAccess?: ToolRequestAccess<P>
 }>
 
+const MALFORMED = 'request-access answered a malformed authorization'
+const text = z.string().min(1)
+const held = <T>() => z.custom<T>(value => typeof value === 'object' && value !== null)
+const consumptions: z.ZodType<readonly ToolPermitConsumption[]> = z
+  .array(
+    z
+      .object({
+        permit: z.object({ tenant: held<ToolPermitRef['tenant']>(), permit: text }).readonly(),
+        consumer: z.object({ owner: text, work: text, position: text }).readonly(),
+        evidence: z.object({ owner: text, record: text, revision: text, digest: text }).readonly(),
+      })
+      .readonly(),
+  )
+  .readonly()
+const releases: z.ZodType<ToolStartRelease> = z.union([
+  z.object({ by: z.enum(['verdict', 'once', 'session', 'skip-ask']), grant: text }).readonly(),
+  z.object({ by: z.enum(['carrier', 'ungated']), grant: z.null() }).readonly(),
+])
+// What the provider answered is read as data: a shape it does not have answers unavailable.
+const answered = z.union([
+  z.object({
+    kind: z.literal('allowed'),
+    condition: z.custom<StartCondition | null>(value => typeof value === 'object'),
+    authorizations: z.unknown().optional(),
+    release: z.unknown().optional(),
+  }),
+  z.object({ kind: z.literal('denied'), reason: z.string() }),
+  z.object({ kind: z.literal('unavailable'), diagnostic: z.string() }),
+])
+
+// Absent is none; anything present must be a whole list of consumptions and a whole release.
+function allowed(
+  condition: StartCondition | null,
+  authorizations: unknown,
+  release: unknown,
+): RequestAccessVerdict {
+  const consumed = consumptions.safeParse(authorizations === undefined ? [] : authorizations)
+  const released = release === undefined ? null : releases.safeParse(release)
+  if (!consumed.success || released?.success === false)
+    return { kind: 'unavailable', diagnostic: MALFORMED }
+  return {
+    kind: 'allowed',
+    condition,
+    ...(consumed.data.length === 0 ? {} : { authorizations: consumed.data }),
+    ...(released === null ? {} : { release: released.data }),
+  }
+}
+
+/** What an allowed start records with its acceptance besides the permit. */
+export type AcceptedFacts = Readonly<{
+  authorizations?: readonly ToolPermitConsumption[]
+  release?: ToolStartRelease
+}>
+
+export function acceptedFacts(
+  verdict: Extract<RequestAccessVerdict, { kind: 'allowed' }>,
+): AcceptedFacts {
+  return {
+    ...(verdict.authorizations === undefined ? {} : { authorizations: verdict.authorizations }),
+    ...(verdict.release === undefined ? {} : { release: verdict.release }),
+  }
+}
+
 export async function qualifyRequestAccess<P>(
   provider: ToolRequestAccess<P> | undefined,
   input: Parameters<ToolRequestAccess<P>['qualify']>[0],
 ): Promise<RequestAccessVerdict> {
   if (provider === undefined) return { kind: 'allowed', condition: null }
-  try {
-    const result: unknown = await provider.qualify(input)
-    if (typeof result === 'object' && result !== null && 'kind' in result) {
-      if (
-        result.kind === 'allowed' &&
-        'condition' in result &&
-        typeof result.condition === 'object'
-      )
-        return { kind: 'allowed', condition: result.condition as StartCondition | null }
-      if (result.kind === 'denied' && 'reason' in result && typeof result.reason === 'string')
-        return { kind: 'denied', reason: result.reason }
-      if (
-        result.kind === 'unavailable' &&
-        'diagnostic' in result &&
-        typeof result.diagnostic === 'string'
-      )
-        return { kind: 'unavailable', diagnostic: result.diagnostic }
-    }
-  } catch {}
-  return { kind: 'unavailable', diagnostic: 'request-access unavailable' }
+  const result = await Promise.resolve(input)
+    .then(asked => provider.qualify(asked))
+    .then(
+      value => answered.safeParse(value),
+      () => undefined,
+    )
+  if (result?.success !== true)
+    return { kind: 'unavailable', diagnostic: 'request-access unavailable' }
+  const verdict = result.data
+  return verdict.kind === 'allowed'
+    ? allowed(verdict.condition, verdict.authorizations, verdict.release)
+    : verdict
 }
 
 export function createLocalStartGuard<P>(input: LocalStartGuardInput<P>): ToolStartGuard<P> {

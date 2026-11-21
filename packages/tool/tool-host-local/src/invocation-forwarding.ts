@@ -123,8 +123,18 @@ const binding = (stored: StoredForward): ToolForwardBinding => ({
   recovered: true,
 })
 
-function parsedArguments(request: FixedToolRequest | ToolInvokeRequest) {
-  const cut = commandArguments(request.availability.definition, request.command, request.arguments)
+type CallParts = Readonly<{
+  definition: FixedToolRequest['availability']['definition']
+  command: string | null
+  arguments: FixedToolRequest['arguments']
+}>
+const partsOf = (request: FixedToolRequest | ToolInvokeRequest): CallParts => ({
+  definition: request.availability.definition,
+  command: request.command,
+  arguments: request.arguments,
+})
+function parsedArguments(call: CallParts) {
+  const cut = commandArguments(call.definition, call.command, call.arguments)
   return 'failure' in cut
     ? null
     : (() => {
@@ -133,30 +143,47 @@ function parsedArguments(request: FixedToolRequest | ToolInvokeRequest) {
       })()
 }
 export function forwardIntentOf(request: FixedToolRequest): ToolForwardIntent | null {
-  const args = parsedArguments(request)
+  return forwardIntentOfCall(partsOf(request))
+}
+type IntentValue = ToolForwardIntent['arguments']
+
+const intentCommandOf = (value: IntentValue | undefined): string | null | undefined => {
+  if (value?.kind === 'string') return value.value
+  return value?.kind === 'null' ? null : undefined
+}
+
+/** The target a `Tools` execute call names, read from the call's own definition, command and arguments. */
+export function forwardIntentOfCall(call: CallParts): ToolForwardIntent | null {
+  const args = parsedArguments(call)
   if (args?.kind !== 'object') return null
   const get = (key: string) => args.entries.find(entry => entry.key === key)?.value
-  const name = get('name'),
-    command = get('command'),
-    argumentsValue = get('arguments')
-  if (
-    name?.kind !== 'string' ||
-    argumentsValue === undefined ||
-    (command?.kind !== 'string' && command?.kind !== 'null')
-  )
-    return null
-  return {
-    name: name.value,
-    command: command.kind === 'null' ? null : command.value,
-    arguments: normalizeJson(argumentsValue),
-  }
+  const name = get('name')
+  const command = intentCommandOf(get('command'))
+  const argumentsValue = get('arguments')
+  if (name?.kind !== 'string' || argumentsValue === undefined || command === undefined) return null
+  return { name: name.value, command, arguments: normalizeJson(argumentsValue) }
 }
+const INHERITED = [
+  'scope',
+  'requesterScope',
+  'context',
+  'workspace',
+  'resources',
+  'limits',
+  'mode',
+] as const
+/** What a target takes from its parent as it is; the pinned directory too, absent or not. */
+const inheritedOf = (request: ToolInvokeRequest) => [
+  ...INHERITED.map(key => request[key]),
+  request.directory ?? null,
+]
+
 function matchesTarget(
   parent: FixedToolRequest,
   intent: ToolForwardIntent,
   target: ToolInvokeRequest,
 ): boolean {
-  const targetArguments = parsedArguments(target)
+  const targetArguments = parsedArguments(partsOf(target))
   if (
     intent.name === 'Tools' ||
     target.availability.definition.name !== intent.name ||
@@ -173,9 +200,7 @@ function matchesTarget(
   )
     return false
   if (target.batchDecision !== null) return false
-  return (
-    ['scope', 'requesterScope', 'context', 'workspace', 'resources', 'limits', 'mode'] as const
-  ).every(key => same(parent[key], target[key]))
+  return same(inheritedOf(parent), inheritedOf(target))
 }
 
 export function createInvocationForwarding<P>(

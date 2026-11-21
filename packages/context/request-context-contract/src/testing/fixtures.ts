@@ -30,7 +30,6 @@ import {
   type MemoryContextSources,
 } from './sources.js'
 import {
-  createMemoryConversionResults,
   createScriptedInputMeter,
   createScriptedPreparationResources,
   type ScriptedPreparationResources,
@@ -131,7 +130,7 @@ export function fixtureBudget(amount = '1'): RequestBudget {
       {
         supplier: adoption,
         metric: 'input-tokens',
-        subject: 'whole',
+        subject: 'request',
         measurement: { kind: 'exact', amount, method: adoption },
         limit: '1000',
         constraint: {
@@ -154,33 +153,6 @@ export function createAssemblyGroups(
     history: {
       evidence: { target, epoch, upper: { kind: 'entry', seq: seq(0) } },
       inputs: { batch: must(decodeBatchRef('batch:1')), entries: [], saved: evidence },
-    },
-    context: {
-      contextRead: {
-        scope: target.scope,
-        recipient: 'route/model',
-        read: {
-          kind: 'success',
-          registration: { issued: 0, current: 0 },
-          value: {
-            scope: target.scope,
-            viewRevision: 1,
-            cursor: { cursor: 'c' },
-            blocks: [],
-            missing: [],
-            perRequest: [],
-          },
-        },
-        snapshot: {
-          scope: target.scope,
-          eligibility: { eligibility: 'eligible' },
-          revision: 1,
-          blocks: [],
-        },
-        perRequest: [],
-        source: evidence,
-        coverage: evidence,
-      },
       transition: null,
     },
     prompt: {
@@ -215,23 +187,10 @@ export function fixturePolicies(): AssemblyPolicies {
     compaction: {
       identity: adoption,
       config: {
-        retainBudget: { kind: 'tokens', retainTokens: '100' },
-        retainPreference: 'newest-first',
         triggerPercent: null,
         headroomTokens: null,
-        trimFirst: false,
-        stepBound: '2',
       },
       configDigest: () => 'config:1',
-      plan: async ({ context }) => ({
-        kind: 'draft',
-        coverTo: context.covered.at(-1)?.ref ?? entry('entry:0'),
-        retained: [],
-        bound: '2',
-        shape: { kind: 'summarize', trimFirst: false },
-      }),
-      trim: m => m,
-      summaryInstruction: () => [text('summarize')],
     },
   }
 }
@@ -278,6 +237,7 @@ export function createAssemblyFixture(options: AssemblyFixtureOptions = {}): Ass
         upper: last === undefined ? { kind: 'empty' } : { kind: 'entry', seq: last.seq },
       },
       inputs: { batch: must(decodeBatchRef('batch:1')), entries: [], saved: evidence },
+      transition: null,
     },
     ...options.groups,
   })
@@ -289,7 +249,6 @@ export function createAssemblyFixture(options: AssemblyFixtureOptions = {}): Ass
     target,
     values: groups,
     history,
-    conversions: createMemoryConversionResults<string>(),
     preparation,
   })
   const policies = options.policies ?? fixturePolicies()

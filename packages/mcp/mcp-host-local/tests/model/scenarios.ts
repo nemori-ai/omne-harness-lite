@@ -80,39 +80,6 @@ export const HTTP_BARE: Scenario = {
   wireFaults: 1,
 }
 
-export const STDIO_DISCOVER: Scenario = {
-  name: 'stdio-discover',
-  material: 'stdio',
-  discovers: 1,
-  calls: 0,
-  lists: 0,
-  close: true,
-  pings: 1,
-  lineEnds: ['ended', 'exited', 'broken'],
-  answers: {
-    'line.send': ['sent', 'unsent', 'reject'],
-  },
-  breaches: 1,
-  wireFaults: 1,
-}
-
-export const STDIO_CALL: Scenario = {
-  name: 'stdio-call',
-  material: 'stdio',
-  discovers: 0,
-  calls: 1,
-  lists: 0,
-  cancels: 1,
-  close: true,
-  signals: true,
-  lineEnds: ['ended', 'exited', 'broken'],
-  answers: {
-    'line.send': ['sent', 'unsent', 'reject'],
-  },
-  breaches: 1,
-  wireFaults: 1,
-}
-
 export const SSE_FALLBACK: Scenario = {
   name: 'sse-fallback',
   material: 'http',

@@ -21,29 +21,66 @@ export function questionItem(cardId = 'card-1', revision = '3'): HumanInterventi
       },
     },
     origin: { kind: 'tool', sessionRef: 'ses_0123456789abcdef', toolCallRef: 'call-1' },
-    displayContext: '来自工具 Ask',
+    displayContext: 'Ask',
   }
 }
 
-export function approvalItem(cardId = 'card-2'): HumanInterventionCardItem {
+export function extensionItem(cardId = 'card-2'): HumanInterventionCardItem {
   return {
     card: {
       kind: 'pending',
       ref: { request: { tenantRef: TENANT_REF, requestId: `request-${cardId}` }, cardId },
       revision: '1',
       question: {
-        kind: 'approval',
+        kind: 'extension',
         cardId,
-        title: '运行 rm -rf build？',
+        title: '发布窗口开着吗？',
         description: '',
         declineConsequence: '',
         options: [
-          { id: 'allow', label: '允许', description: '这一次允许。', effectRef: 'effect-1' },
-          { id: 'deny', label: '拒绝', description: '' },
+          { id: 'allow', label: '开着', description: '可以发布。' },
+          { id: 'deny', label: '关了', description: '' },
         ],
       },
     },
-    origin: { kind: 'admission' },
+    origin: { kind: 'agent-extension' },
+    displayContext: '',
+  }
+}
+
+export function releaseItem(cardId = 'card-3'): HumanInterventionCardItem {
+  const option = (id: string, label: string, offered: boolean, lasting: boolean) => ({
+    id,
+    label,
+    description: `${label}的作用范围`,
+    offered,
+    lasting,
+  })
+  return {
+    card: {
+      kind: 'pending',
+      ref: { request: { tenantRef: TENANT_REF, requestId: `request-${cardId}` }, cardId },
+      revision: '1',
+      question: {
+        kind: 'release',
+        cardId,
+        title: '要执行 Shell run，放行吗？',
+        description: '',
+        declineConsequence: '这一次调用不执行。',
+        target: { tool: 'Shell', command: 'run', preview: 'ls -la' },
+        gateTitle: '执行',
+        arguments: { text: '{"cmd":"ls -la"}', truncated: true, digest: 'digest-of-all' },
+        origin: { session: 'ses_0123456789abcdef', agent: 'exe-1' },
+        options: [
+          option('deny-once', '本次不放行', true, false),
+          option('allow-once', '本次放行', false, false),
+          option('allow-session', '本会话放行', false, true),
+          option('allow-always', '始终放行', false, true),
+          option('deny-always', '始终禁止', false, true),
+        ],
+      },
+    },
+    origin: { kind: 'admission', sessionRef: 'ses_0123456789abcdef' },
     displayContext: '',
   }
 }

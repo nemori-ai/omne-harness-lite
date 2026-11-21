@@ -8,6 +8,7 @@ import {
   type SourceLayer,
   type ToolCallId,
   type ToolCatalog,
+  type ToolReleaseDetails,
   type ToolRevision,
   type ToolResultReceiver,
   type ToolRuntime,
@@ -28,12 +29,14 @@ import {
   type ToolDirectory,
   type ToolEnvironment,
   type ToolInstanceHost,
+  type ToolMediaStore,
   type ToolLoader,
   type ToolOffloader,
   type ToolReads,
   type ToolResourceResponses,
   type ToolStartAuthority,
   type ToolStartFence,
+  type ToolStartReleases,
   type ToolShape,
 } from '@omne-harness/tool-contract/provider'
 
@@ -110,6 +113,7 @@ export abstract class ToolCommandsService<P, B extends ContentBlock>
   abstract readonly acceptDecision: ToolCommands<P, B>['acceptDecision']
   abstract readonly acceptResource: ToolCommands<P, B>['acceptResource']
   abstract readonly releaseDelivery: ToolCommands<P, B>['releaseDelivery']
+  abstract readonly releasePlaceholder: ToolCommands<P, B>['releasePlaceholder']
   abstract readonly scanPending: ToolCommands<P, B>['scanPending']
   abstract readonly loadRecovery: ToolCommands<P, B>['loadRecovery']
   abstract readonly claim: ToolCommands<P, B>['claim']
@@ -297,6 +301,16 @@ export abstract class ToolDecisionBridgeService<P>
 }
 export const toolDecisionsKey = ToolDecisionBridgeService.provide
 
+/** @owner packages/tool/tool-cordis-contract */
+export abstract class ToolMediaStoreService<P> extends Service implements ToolMediaStore<P> {
+  static readonly provide = 'toolMediaStore'
+  constructor(ctx: Context) {
+    super(ctx, ToolMediaStoreService.provide)
+  }
+  abstract readonly put: ToolMediaStore<P>['put']
+}
+export const toolMediaStoreKey = ToolMediaStoreService.provide
+
 export type ToolPublication = Extract<
   Awaited<ReturnType<ToolInstanceHost<never>['publish']>>,
   { ok: unknown }
@@ -413,6 +427,7 @@ export abstract class ToolReadsService<P, B extends ContentBlock>
     super(ctx, ToolReadsService.provide)
   }
   abstract readonly lookup: ToolReads<P, B>['lookup']
+  abstract readonly state: ToolReads<P, B>['state']
   abstract readonly operation: ToolReads<P, B>['operation']
   abstract readonly result: ToolReads<P, B>['result']
   abstract readonly process: ToolReads<P, B>['process']
@@ -421,6 +436,7 @@ export abstract class ToolReadsService<P, B extends ContentBlock>
   abstract readonly account: ToolReads<P, B>['account']
   abstract readonly content: ToolReads<P, B>['content']
   abstract readonly body: ToolReads<P, B>['body']
+  abstract readonly output: ToolReads<P, B>['output']
 }
 export const toolReadsKey = ToolReadsService.provide
 
@@ -435,6 +451,19 @@ export abstract class ToolCatalogService<P> extends Service implements ToolCatal
   abstract readonly search: ToolCatalog<P>['search']
 }
 export const toolCatalogKey = ToolCatalogService.provide
+
+/** @owner packages/tool/tool-cordis-contract */
+export abstract class ToolReleaseDetailsService<P>
+  extends Service
+  implements ToolReleaseDetails<P>
+{
+  static readonly provide = 'toolReleaseDetails'
+  constructor(ctx: Context) {
+    super(ctx, ToolReleaseDetailsService.provide)
+  }
+  abstract readonly describe: ToolReleaseDetails<P>['describe']
+}
+export const toolReleaseDetailsKey = ToolReleaseDetailsService.provide
 
 /** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolStartAuthorityService<P>
@@ -462,6 +491,16 @@ export abstract class ToolStartFenceService<P> extends Service implements ToolSt
   abstract readonly invalidate: ToolStartFence<P>['invalidate']
 }
 export const toolStartFenceKey = ToolStartFenceService.provide
+
+/** @owner packages/tool/tool-cordis-contract */
+export abstract class ToolStartReleasesService<P> extends Service implements ToolStartReleases<P> {
+  static readonly provide = 'toolStartReleases'
+  constructor(ctx: Context) {
+    super(ctx, ToolStartReleasesService.provide)
+  }
+  abstract readonly releaseOf: ToolStartReleases<P>['releaseOf']
+}
+export const toolStartReleasesKey = ToolStartReleasesService.provide
 
 /** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolResourceResponsesService<P>
@@ -531,6 +570,7 @@ declare module '@deepseek-ai/cordis' {
     toolGenerations: ToolGenerationsService<unknown, unknown, ContentBlock>
     toolEnvironments: ToolEnvironmentService<unknown, unknown>
     toolDecisions: ToolDecisionBridgeService<unknown>
+    toolMediaStore: ToolMediaStoreService<unknown>
     toolInstances: ToolInstancesService<unknown>
     toolPublicationAuthority: ToolPublicationAuthorityService<unknown>
     toolInstanceHost: ToolInstanceHostService<unknown>
@@ -538,6 +578,7 @@ declare module '@deepseek-ai/cordis' {
     toolResultPolicy: ResultPolicyService<ContentBlock>
     toolReads: ToolReadsService<unknown, ContentBlock>
     toolCatalog: ToolCatalogService<unknown>
+    toolReleaseDetails: ToolReleaseDetailsService<unknown>
     toolStartAuthority: ToolStartAuthorityService<unknown>
     toolStartFence: ToolStartFenceService<unknown>
     toolResourceResponses: ToolResourceResponsesService<unknown>

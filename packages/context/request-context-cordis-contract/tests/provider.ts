@@ -112,16 +112,12 @@ export class ProbeProvider extends RequestContextService<unknown> {
       const variable = current.set.contributions.find(item => item.name === name)
       if (variable?.kind !== 'variable')
         return { kind: 'rejected', reason: 'unknown-variable', name: input.name }
-      if (variable?.kind === 'variable' && variable.volatility === 'per-request')
-        return { kind: 'rejected', reason: 'per-request-variable', name: input.name }
     }
     return this.add(input)
   }
   contributeVariable(
     ...[input]: Parameters<PromptContributionRegistry['contributeVariable']>
   ): ContributionResult {
-    if (input.volatility === 'per-request')
-      return { kind: 'rejected', reason: 'per-request-variable', name: input.name }
     return this.add(input)
   }
   contributions(scope: ScopeRef | null): ContributionsResult {
@@ -255,8 +251,6 @@ export class ProbeProvider extends RequestContextService<unknown> {
     }
     return {
       assemble: call => run(o => o.assemble(call)),
-      planCompaction: call => run(o => o.planCompaction(call)),
-      deriveStep: input => run(o => o.deriveStep(input)),
       resume: call => run(o => o.resume(call)),
     }
   }

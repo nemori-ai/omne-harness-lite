@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { Context, type Plugin } from '@deepseek-ai/cordis'
 import type { ReactNode } from 'react'
@@ -10,8 +10,17 @@ import type {
   ShellLoginState,
 } from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
+import { assetsProtocol } from '@omne-harness/assets-protocol'
+import {
+  assetGovernanceKey,
+  assetsCategoryPage,
+  assetsUiModule,
+} from '@omne-harness/assets-ui/cordis'
+import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
+import { createMcpUiModule } from '@omne-harness/mcp-ui/cordis'
 import type { ResolvedTheme, ThemeChoice } from '@omne-harness/ui-kit'
 import type { Connectivity } from '../src/page/connectivity.ts'
+import { ITEM_FAILED_TEXT } from '../src/page/shell/item.tsx'
 import { DesktopShell, shellPlugin } from '../src/page/shell/service.ts'
 import { NO_LOGIN_TEXT, Shell } from '../src/page/shell/shell.tsx'
 import { LOGOUT_UNKNOWN_TEXT, createShellState } from '../src/page/shell/state.ts'
@@ -49,6 +58,8 @@ function source<T>(initial: T) {
 }
 
 const settle = () => new Promise(resolve => setTimeout(resolve, 0))
+const TENANT_TEXT =
+  '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
 
 async function setup(
   options: {
@@ -56,6 +67,7 @@ async function setup(
     modules?: readonly Plugin.Object[]
     logout?: LogoutResult
     connectivity?: Connectivity
+    missingAtForwarding?: readonly string[]
   } = {},
 ) {
   const login = source<ShellLoginState>(options.login ?? 'signed-out')
@@ -88,7 +100,17 @@ async function setup(
       return choice === 'dark' ? 'dark' : 'light'
     },
   }
-  render(<Shell appName="omne" state={state} connectivity={connectivity} theme={theme} />)
+  render(
+    <Shell
+      appName="omne"
+      state={state}
+      connectivity={connectivity}
+      theme={theme}
+      {...(options.missingAtForwarding === undefined
+        ? {}
+        : { missingAtForwarding: options.missingAtForwarding })}
+    />,
+  )
   const provide = async (name: string) => {
     let withdraw: () => void = () => {}
     await act(async () => {
@@ -172,6 +194,19 @@ describe('外壳：连接', () => {
     act(() => t.connectivity.set('disconnected'))
     expect(screen.getByRole('alert').textContent).toContain('连不上服务。正在按间隔重新连接')
   })
+
+  it.each(['signed-out', 'signed-in'] as const)(
+    '%s 时转发层少了页面要用的协议：主区上方写应用的版本旧了、需要重启，列出少的那几样；不少时不写',
+    async login => {
+      await setup({ login, missingAtForwarding: ['human-intervention/v1'] })
+      expect(screen.getByRole('alert').textContent).toBe(
+        '应用的版本旧了，需要重启。它不认得这个页面要用的：human-intervention/v1。',
+      )
+      cleanup()
+      await setup({ login, missingAtForwarding: [] })
+      expect(screen.queryByRole('alert')).toBeNull()
+    },
+  )
 
   it('侧栏显示连接状态', async () => {
     const t = await setup({ login: 'signed-in' })
@@ -411,6 +446,478 @@ describe('外壳：附着位置与页面标记', () => {
   })
 })
 
+describe('外壳：宿主自己排版', () => {
+  const labelled = (id: string, anchor: string, order: number, label?: string) =>
+    defineUiModule({
+      name: `arranged-${id}`,
+      inject: [],
+      apply(shell) {
+        shell.contribute('attached', {
+          id,
+          order,
+          anchor,
+          ...(label === undefined ? {} : { label }),
+          render: ({ scope, subject }) => (
+            <p data-attached={id} data-scope={scope ?? ''} data-subject={subject}>
+              {`附着${id}`}
+            </p>
+          ),
+        })
+      },
+    })
+  const tabsPage = (anchor: string, subject: string) =>
+    defineUiModule({
+      name: 'tabs-page',
+      inject: [],
+      apply(shell) {
+        shell.contribute('pages', {
+          id: 'host',
+          title: '宿主',
+          order: 0,
+          render: (): ReactNode =>
+            shell.arranged(anchor, subject, entries => (
+              <ul data-tabs={entries.length}>
+                {entries.map(entry => (
+                  <li key={entry.id} data-tab={entry.id} data-label={entry.label ?? ''}>
+                    {entry.node}
+                  </li>
+                ))}
+              </ul>
+            )),
+        })
+      },
+    })
+  const tabs = () =>
+    [...document.querySelectorAll<HTMLElement>('[data-tab]')].map(
+      node => `${node.dataset['tab']}:${node.dataset['label']}`,
+    )
+
+  it('排版函数收到每一项的标识、标签与渲染结果，次序与附着位置相同', async () => {
+    const t = await setup({
+      login: 'signed-in',
+      modules: [
+        labelled('late', 'a', 2, '晚'),
+        labelled('other', 'b', 0),
+        labelled('early', 'a', 1),
+        tabsPage('a', 's1'),
+      ],
+    })
+    act(() => t.state.scope.set('tenant-x'))
+    expect(tabs()).toEqual(['early:', 'late:晚'])
+    const late = document.querySelector<HTMLElement>('[data-tab="late"] [data-attached="late"]')!
+    expect(late.dataset['subject']).toBe('s1')
+    expect(late.dataset['scope']).toBe('tenant-x')
+  })
+
+  it('没有名字相同的项时排版函数收到空表', async () => {
+    await setup({ login: 'signed-in', modules: [labelled('x', 'b', 0), tabsPage('a', 's1')] })
+    expect(document.querySelector<HTMLElement>('[data-tabs]')?.dataset['tabs']).toBe('0')
+    expect(tabs()).toEqual([])
+  })
+
+  it('宿主画出之后放进一项、撤下一项，排版跟着重画', async () => {
+    const t = await setup({ login: 'signed-in', modules: [tabsPage('a', 's1')] })
+    expect(tabs()).toEqual([])
+    const fiber = t.root.plugin(labelled('x', 'a', 0, '甲'))
+    await act(async () => {
+      await fiber
+    })
+    expect(tabs()).toEqual(['x:甲'])
+    await act(async () => {
+      await fiber.dispose()
+    })
+    expect(tabs()).toEqual([])
+  })
+
+  it('贡献方依赖的服务不在时它不加载；服务出现，它的项出现；服务撤下，只有它的项没有了；服务回来，项回来，次序不变', async () => {
+    const DEPENDED = 'fake:contributor-protocol'
+    const dependent = defineUiModule({
+      name: 'dependent-contributor',
+      inject: [DEPENDED],
+      apply(shell) {
+        shell.contribute('attached', {
+          id: 'dependent',
+          order: 1,
+          anchor: 'a',
+          label: '依赖协议的',
+          render: () => <p data-attached="dependent">依赖协议的一项</p>,
+        })
+      },
+    })
+    const t = await setup({
+      login: 'signed-in',
+      modules: [dependent, labelled('always', 'a', 2, '一直在'), tabsPage('a', 's1')],
+    })
+    expect(tabs()).toEqual(['always:一直在'])
+    const withdraw = await t.provide(DEPENDED)
+    expect(tabs()).toEqual(['dependent:依赖协议的', 'always:一直在'])
+    await withdraw()
+    expect(tabs()).toEqual(['always:一直在'])
+    expect(document.querySelector('[data-attached="dependent"]')).toBeNull()
+    await t.provide(DEPENDED)
+    expect(tabs()).toEqual(['dependent:依赖协议的', 'always:一直在'])
+  })
+
+  it('三个插件按三种次序加载，排版出来逐字相同', async () => {
+    const modules = [
+      labelled('one', 'a', 1, '一'),
+      labelled('two', 'a', 2, '二'),
+      tabsPage('a', 's1'),
+    ]
+    const markups: string[] = []
+    for (const order of [
+      [0, 1, 2],
+      [2, 1, 0],
+      [1, 2, 0],
+    ]) {
+      await setup({ login: 'signed-in', modules: order.map(index => modules[index]!) })
+      markups.push(document.querySelector('[data-tabs]')?.outerHTML ?? '')
+      cleanup()
+    }
+    expect(markups[0]).toContain('data-tab="one"')
+    expect(new Set(markups).size).toBe(1)
+  })
+
+  it('租户变了，排版里的项跟着重渲染', async () => {
+    const t = await setup({
+      login: 'signed-in',
+      modules: [labelled('x', 'a', 0), tabsPage('a', 's1')],
+    })
+    act(() => t.state.scope.set('t1'))
+    expect(document.querySelector<HTMLElement>('[data-attached="x"]')?.dataset['scope']).toBe('t1')
+    act(() => t.state.scope.set('t2'))
+    expect(document.querySelector<HTMLElement>('[data-attached="x"]')?.dataset['scope']).toBe('t2')
+  })
+})
+
+describe('外壳：一项坏了只坏这一项', () => {
+  beforeEach(() => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  const boom = (): never => {
+    throw new Error('boom')
+  }
+  function Boom(): ReactNode {
+    return boom()
+  }
+  const failed = () => [...document.querySelectorAll('.shell-item-failed')]
+  const attachedModule = (id: string, anchor: string, order: number, render: () => ReactNode) =>
+    defineUiModule({
+      name: `attached-${id}`,
+      inject: [],
+      apply(shell) {
+        shell.contribute('attached', { id, order, anchor, render })
+      },
+    })
+  const good = (id: string) => () => <p data-attached={id}>{`附着${id}`}</p>
+  const attachedIds = () =>
+    [...document.querySelectorAll('[data-attached]')].map(node =>
+      node.getAttribute('data-attached'),
+    )
+  const pageModule = (id: string, order: number, render: () => ReactNode) =>
+    defineUiModule({
+      name: `page-${id}`,
+      inject: [],
+      apply(shell) {
+        shell.contribute('pages', { id, title: `页${id}`, order, render })
+      },
+    })
+
+  it('附着的一项的渲染函数抛出：只有它显示读不出，同一个位置里别的项与宿主的页照常', async () => {
+    await setup({
+      login: 'signed-in',
+      modules: [
+        attachedModule('bad', 'a', 0, boom),
+        attachedModule('good', 'a', 1, good('good')),
+        pageModule('host', 0, () => null),
+        defineUiModule({
+          name: 'host-attached',
+          inject: [],
+          apply(shell) {
+            shell.contribute('sidebar', {
+              id: 'host',
+              order: 0,
+              render: () => shell.attached('a', 's1'),
+            })
+          },
+        }),
+      ],
+    })
+    expect(ITEM_FAILED_TEXT).toBe('这一块读不出')
+    expect(failed().map(node => node.textContent)).toEqual(['这一块读不出'])
+    expect(attachedIds()).toEqual(['good'])
+    expect(navTitles()).toEqual(['页host'])
+  })
+
+  it('附着的一项返回的组件在渲染当中抛出：也只坏这一项', async () => {
+    await setup({
+      login: 'signed-in',
+      modules: [
+        attachedModule('bad', 'a', 0, () => <Boom />),
+        attachedModule('good', 'a', 1, good('good')),
+        pageModule('host', 0, () => null),
+        defineUiModule({
+          name: 'host-attached',
+          inject: [],
+          apply(shell) {
+            shell.contribute('sidebar', {
+              id: 'host',
+              order: 0,
+              render: () => shell.attached('a', 's1'),
+            })
+          },
+        }),
+      ],
+    })
+    expect(failed()).toHaveLength(1)
+    expect(attachedIds()).toEqual(['good'])
+  })
+
+  it('经排版函数拿到的一项抛出：宿主的排版照常，只有这一项的位置上显示读不出', async () => {
+    await setup({
+      login: 'signed-in',
+      modules: [
+        attachedModule('bad', 'a', 0, boom),
+        attachedModule('good', 'a', 1, good('good')),
+        defineUiModule({
+          name: 'host-arranged',
+          inject: [],
+          apply(shell) {
+            shell.contribute('pages', {
+              id: 'host',
+              title: '宿主',
+              order: 0,
+              render: (): ReactNode =>
+                shell.arranged('a', 's1', entries => (
+                  <ul>
+                    {entries.map(entry => (
+                      <li key={entry.id} data-tab={entry.id}>
+                        {entry.node}
+                      </li>
+                    ))}
+                  </ul>
+                )),
+            })
+          },
+        }),
+      ],
+    })
+    expect(
+      [...document.querySelectorAll<HTMLElement>('[data-tab]')].map(node => node.dataset['tab']),
+    ).toEqual(['bad', 'good'])
+    expect(document.querySelector('[data-tab="bad"] .shell-item-failed')).not.toBeNull()
+    expect(document.querySelector('[data-tab="good"] [data-attached="good"]')).not.toBeNull()
+    expect(failed()).toHaveLength(1)
+  })
+
+  it('一页抛出：只有这一页读不出，导航、别的页与侧栏区照常', async () => {
+    await setup({
+      login: 'signed-in',
+      modules: [
+        pageModule('bad', 0, boom),
+        pageModule('fine', 1, () => <p data-fine="">好的一页</p>),
+        fakeSidebar({ id: 'side', order: 0, text: '侧栏占位' }),
+      ],
+    })
+    expect(navTitles()).toEqual(['页bad', '页fine'])
+    expect(section('bad')?.querySelector('.shell-item-failed')?.textContent).toBe(ITEM_FAILED_TEXT)
+    expect(section('fine')?.querySelector('[data-fine]')).not.toBeNull()
+    expect(document.querySelector('[data-placeholder="侧栏占位"]')).not.toBeNull()
+    expect(failed()).toHaveLength(1)
+  })
+
+  it('资产页上一个类别的页面抛出：只有它那一页读不出，页签、别的类别的页面与设置页照常', async () => {
+    const animate = Element.prototype.animate
+    Object.assign(Element.prototype, {
+      animate: () => ({ cancel: () => undefined, finished: Promise.resolve() }),
+    })
+    onTestFinished(() => void Object.assign(Element.prototype, { animate }))
+    const assets = protocolServiceName({ name: assetsProtocol.name, major: assetsProtocol.major })
+    const client = {
+      'list-settings': async () => ({
+        outcome: 'succeeded',
+        body: { items: [], next: null, completeness: 'complete' },
+      }),
+    }
+    const categoryPage = (id: string, order: number, render: () => ReactNode) =>
+      defineUiModule({
+        name: `category-${id}`,
+        inject: [],
+        apply(shell) {
+          assetsCategoryPage.contribute(shell, { id, order, label: id, render })
+        },
+      })
+    const t = await setup({
+      login: 'signed-in',
+      modules: [
+        { name: 'fake-assets', apply: (ctx: Context) => void ctx.reflect.provide(assets, client) },
+        assetsUiModule,
+        categoryPage('bad', 0, boom),
+        categoryPage('good', 1, () => <p data-category="good">好的类别</p>),
+      ],
+    })
+    await act(async () => {
+      t.state.scope.set(TENANT_TEXT)
+      await settle()
+    })
+    expect(navTitles()).toEqual(['资产', '设置'])
+    const page = section('assets')!
+    expect([...page.querySelectorAll('[role=tab]')].map(tab => tab.textContent)).toEqual([
+      'bad',
+      'good',
+    ])
+    expect(failed().map(node => node.textContent)).toEqual([ITEM_FAILED_TEXT])
+    expect(page.querySelector('[role=tabpanel]:not([hidden]) .shell-item-failed')).not.toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: 'good' }))
+    expect(
+      page.querySelector('[role=tabpanel]:not([hidden]) [data-category="good"]'),
+    ).not.toBeNull()
+    expect(failed()).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: '设置' }))
+    await act(async () => {
+      await settle()
+    })
+    expect(section('settings')?.textContent).toContain('这一层还没有不属于资产的设置。')
+  })
+
+  it('侧栏区的一项抛出：只有它读不出，别的侧栏项与页面照常', async () => {
+    await setup({
+      login: 'signed-in',
+      modules: [
+        defineUiModule({
+          name: 'bad-side',
+          inject: [],
+          apply(shell) {
+            shell.contribute('sidebar', { id: 'bad', order: 0, render: boom })
+          },
+        }),
+        fakeSidebar({ id: 'side', order: 1, text: '侧栏占位' }),
+        pageModule('fine', 0, () => <p data-fine="">好的一页</p>),
+      ],
+    })
+    expect(
+      document.querySelector('.shell-sidebar-item[data-item="bad"] .shell-item-failed'),
+    ).not.toBeNull()
+    expect(document.querySelector('[data-placeholder="侧栏占位"]')).not.toBeNull()
+    expect(section('fine')?.querySelector('[data-fine]')).not.toBeNull()
+    expect(failed()).toHaveLength(1)
+  })
+
+  it('登录门抛出：登录之外的页面还在，门的位置上显示读不出', async () => {
+    await setup({
+      modules: [
+        defineUiModule({
+          name: 'bad-gate',
+          inject: [],
+          apply(shell) {
+            shell.contribute('gate', { id: 'bad.gate', render: boom })
+          },
+        }),
+      ],
+    })
+    expect(document.querySelector('.shell-gate .shell-item-failed')?.textContent).toBe(
+      ITEM_FAILED_TEXT,
+    )
+    expect(document.querySelector('.shell-brand-outside')?.textContent).toBe('omne')
+  })
+
+  it('页面的小标记抛出：标记不画，导航与页面照常', async () => {
+    await setup({
+      login: 'signed-in',
+      modules: [
+        defineUiModule({
+          name: 'bad-badge',
+          inject: [],
+          apply(shell) {
+            shell.contribute('pages', {
+              id: 'badged',
+              title: '待办',
+              order: 0,
+              badge: boom,
+              render: () => <p data-fine="">好的一页</p>,
+            })
+          },
+        }),
+      ],
+    })
+    expect(navTitles()).toEqual(['待办'])
+    expect(document.querySelector('.shell-nav-badge')?.textContent).toBe('')
+    expect(section('badged')?.querySelector('[data-fine]')).not.toBeNull()
+    expect(failed()).toHaveLength(0)
+  })
+
+  it('失败之后换了对象会重试一次；对象与租户都没变的重画不重试', async () => {
+    let calls = 0
+    const t = await setup({
+      login: 'signed-in',
+      modules: [
+        defineUiModule({
+          name: 'picky-real',
+          inject: [],
+          apply(shell) {
+            shell.contribute('attached', {
+              id: 'real',
+              order: 1,
+              anchor: 'a',
+              render: ({ subject }) => {
+                calls += 1
+                if (subject === 's1') throw new Error('boom')
+                return <p data-attached="real">{subject}</p>
+              },
+            })
+          },
+        }),
+      ],
+    })
+    const view = render(<>{t.service.attached('a', 's1')}</>)
+    expect(view.container.querySelectorAll('.shell-item-failed')).toHaveLength(1)
+    const afterFailure = calls
+    view.rerender(<>{t.service.attached('a', 's1')}</>)
+    expect(calls).toBe(afterFailure)
+    expect(view.container.querySelectorAll('.shell-item-failed')).toHaveLength(1)
+    view.rerender(<>{t.service.attached('a', 's2')}</>)
+    expect(view.container.querySelector('[data-attached="real"]')?.textContent).toBe('s2')
+    expect(view.container.querySelectorAll('.shell-item-failed')).toHaveLength(0)
+  })
+
+  it('失败之后租户每换一次重试一次：从没有到有，从一个到另一个', async () => {
+    const seen: (string | undefined)[] = []
+    const t = await setup({
+      login: 'signed-in',
+      modules: [
+        pageModule('host', 0, () => null),
+        defineUiModule({
+          name: 'tenant-picky',
+          inject: [],
+          apply(shell) {
+            shell.contribute('sidebar', {
+              id: 'picky',
+              order: 0,
+              render: ({ scope }) => {
+                seen.push(scope)
+                if (scope !== 't2') throw new Error('boom')
+                return <p data-side={scope}>{scope}</p>
+              },
+            })
+          },
+        }),
+      ],
+    })
+    expect(failed()).toHaveLength(1)
+    expect(new Set(seen)).toEqual(new Set([undefined]))
+    act(() => t.state.scope.set('t1'))
+    expect(failed()).toHaveLength(1)
+    expect(new Set(seen)).toEqual(new Set([undefined, 't1']))
+    act(() => t.state.scope.set('t2'))
+    expect(failed()).toHaveLength(0)
+    expect(document.querySelector('[data-side="t2"]')).not.toBeNull()
+  })
+})
+
 describe('外壳：地标', () => {
   it.each(['signed-out', 'signing-out', 'signed-in'] as const)(
     '%s 时主区地标恰好一个，登录之后侧栏是补充区并带页面导航',
@@ -456,6 +963,183 @@ describe('外壳：读位置的快照', () => {
       await settle()
     })
     expect(renders).toBe(settled)
+  })
+})
+
+describe('资产页：类别带来自己的页面（MCP）', () => {
+  const ASSETS = protocolServiceName({ name: assetsProtocol.name, major: assetsProtocol.major })
+  const CONTEXT7 = { kind: 'asset', category: 'mcp', name: 'context7' }
+  const declaration = (title: string) => ({
+    title,
+    purpose: `${title}的用途。`,
+    appliesAt: '下一次连接起生效。',
+    clearEffect: '这一层不再提供这个值。',
+    group: { id: 'context7', title: 'context7', description: 'context7 的设置' },
+  })
+  const items = [
+    {
+      kind: 'permission',
+      owner: CONTEXT7,
+      item: 'call-actions',
+      revision: '1',
+      declaration: declaration('调用这个接入点的动作'),
+      choices: [
+        { value: 'deny', label: '禁止', description: '不允许调用。', permitsOperation: false },
+        { value: 'ask', label: '询问', description: '每次调用先问人。', permitsOperation: true },
+        { value: 'auto', label: '自动', description: '不需要人批准。', permitsOperation: true },
+      ],
+      default: 'ask',
+      own: null,
+      effective: { kind: 'value', value: 'ask', source: 'default' },
+      bound: null,
+      editable: { kind: 'yes' },
+    },
+    {
+      kind: 'ordinary',
+      owner: CONTEXT7,
+      item: 'target',
+      revision: '1',
+      declaration: declaration('连接目标'),
+      valueSchema: { kind: 'object', entries: [] },
+      default: { kind: 'unset' },
+      own: { kind: 'unset' },
+      effective: { value: { kind: 'unset' }, source: null },
+      lockedBy: null,
+      editable: { kind: 'no', reason: 'locked' },
+    },
+  ]
+  const fakeAssets: Plugin.Object = {
+    name: 'fake-assets',
+    apply: (ctx: Context) =>
+      void ctx.reflect.provide(ASSETS, {
+        'list-settings': async () => ({
+          outcome: 'succeeded',
+          body: { items, next: null, completeness: 'complete' },
+        }),
+        'list-categories': async () => ({
+          outcome: 'succeeded',
+          body: {
+            items: [{ category: 'mcp', title: 'mcp', summary: '', creation: 'none' }],
+            next: null,
+          },
+        }),
+        'describe-category': async () => ({
+          outcome: 'succeeded',
+          body: {
+            category: 'mcp',
+            title: 'mcp',
+            summary: '',
+            hint: null,
+            creation: { kind: 'none' },
+          },
+        }),
+        'list-assets': async () => ({
+          outcome: 'succeeded',
+          body: {
+            items: [
+              {
+                category: CONTEXT7.category,
+                name: CONTEXT7.name,
+                version: 'sha256:00',
+                selection: 'follow',
+                enabled: true,
+                holding: 'held-context7',
+                origin: 'customized',
+                summary: null,
+              },
+            ],
+            next: null,
+            completeness: 'complete',
+          },
+        }),
+        observe: {
+          'observe-assets': async function* (_open: unknown, options: { signal: AbortSignal }) {
+            yield { kind: 'changed' }
+            await new Promise(resolve =>
+              options.signal.addEventListener('abort', resolve, { once: true }),
+            )
+            return { kind: 'aborted' }
+          },
+        },
+      }),
+  }
+  const mcpUiModule = createMcpUiModule({
+    page: assetsCategoryPage,
+    governance: assetGovernanceKey,
+  })
+
+  beforeEach(() => {
+    const animate = Element.prototype.animate
+    Object.assign(Element.prototype, {
+      animate: () => ({ cancel: () => undefined, finished: Promise.resolve() }),
+    })
+    onTestFinished(() => void Object.assign(Element.prototype, { animate }))
+  })
+
+  async function opened(modules: readonly Plugin.Object[]) {
+    const t = await setup({ login: 'signed-in', modules })
+    await act(async () => {
+      t.state.scope.set(TENANT_TEXT)
+      await settle()
+      await settle()
+    })
+    return t
+  }
+
+  const page = () => section('assets')!
+  const tabTexts = () => [...page().querySelectorAll('[role=tab]')].map(tab => tab.textContent)
+  const shownPanel = () => page().querySelector('[role=tabpanel]:not([hidden])')!
+
+  it('MCP 的界面模块在：MCP 这一类画它自己的页面，不画通用的；权限它自己画，别的设置项用默认部件', async () => {
+    await opened([fakeAssets, assetsUiModule, mcpUiModule])
+    expect(tabTexts()).toEqual(['MCP'])
+    const panel = shownPanel()
+    expect(panel.querySelector('.mcp-page')).not.toBeNull()
+    expect(panel.querySelector('.assets-category')).toBeNull()
+    expect(
+      screen
+        .getByRole('group', { name: '调用这个接入点的动作' })
+        .querySelector('[aria-pressed="true"]')?.textContent,
+    ).toBe('询问')
+    expect(
+      [...panel.querySelectorAll('.assets-setting-title')].map(title => title.textContent),
+    ).toEqual(['连接目标'])
+  })
+
+  it('MCP 的界面模块撤下：这一类回到通用的页面；它回来，又画它自己的', async () => {
+    const t = await opened([fakeAssets, assetsUiModule])
+    expect(tabTexts()).toEqual(['mcp'])
+    expect(shownPanel().querySelector('.assets-category')).not.toBeNull()
+    const fiber = t.root.plugin(mcpUiModule)
+    await act(async () => {
+      await fiber
+      await settle()
+    })
+    expect(tabTexts()).toEqual(['MCP'])
+    expect(shownPanel().querySelector('.mcp-page')).not.toBeNull()
+    await act(async () => {
+      await fiber.dispose()
+      await settle()
+    })
+    expect(tabTexts()).toEqual(['mcp'])
+    expect(shownPanel().querySelector('.assets-category')).not.toBeNull()
+    expect(page().querySelector('.mcp-page')).toBeNull()
+  })
+
+  it('资产协议、资产的界面模块、MCP 的界面模块按三种次序加载，资产页逐字相同', async () => {
+    const modules = [fakeAssets, assetsUiModule, mcpUiModule]
+    const markups: string[] = []
+    for (const order of [
+      [0, 1, 2],
+      [2, 1, 0],
+      [1, 2, 0],
+    ]) {
+      await opened(order.map(index => modules[index]!))
+      markups.push(page().outerHTML)
+      cleanup()
+    }
+    expect(markups[0]).toContain('mcp-page')
+    expect(new Set(markups).size).toBe(1)
   })
 })
 

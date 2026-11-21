@@ -170,6 +170,12 @@ export function lateStore(holder: ToolRuntimeHolder): ToolLedgerStore {
         return Promise.resolve(unavailableRead('tool-records: no SQL ledger store is installed'))
       return sql.store.scanPending(input)
     },
+    usage(query) {
+      const sql = holder.sql
+      if (sql === null)
+        return Promise.resolve(unavailableRead('tool-records: no SQL ledger store is installed'))
+      return sql.store.usage(query)
+    },
     async commit(input) {
       const sql = holder.sql
       if (sql === null) return unavailableRead('tool-records: no SQL ledger store is installed')
@@ -232,6 +238,8 @@ export function lateBodyStore(holder: ToolRuntimeHolder): ToolBodyStore {
       holder.sql?.bodies.store.seal(permit, manifest) ?? Promise.resolve(unavailable),
     read: (body, range) =>
       holder.sql?.bodies.store.read(body, range) ?? Promise.resolve(unavailable),
+    readOpen: (body, range) =>
+      holder.sql?.bodies.store.readOpen(body, range) ?? Promise.resolve(unavailable),
     delete: body => holder.sql?.bodies.store.delete(body) ?? Promise.resolve(unavailable),
   } satisfies ToolBodyStore)
 }

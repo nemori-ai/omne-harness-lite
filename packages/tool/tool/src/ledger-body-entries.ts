@@ -12,11 +12,13 @@ import type {
   ToolStartRecord,
 } from '@omne-harness/tool-contract'
 import {
+  OUTPUT_BODY_KEY,
   decodeToolBodyId,
   type ToolBodyManifest,
   type ToolInstant,
 } from '@omne-harness/tool-contract/provider'
 import { invalid } from './boundary.ts'
+import { instantAfter } from './instant.ts'
 import { canonicalJson, digestOf, mintEvidence, sameFactValue } from './evidence.ts'
 import { currentBodyExecution } from './ledger-body-admission.ts'
 import type {
@@ -196,21 +198,44 @@ export type LinkedBody = Readonly<{
   expiresAt: ToolInstant
 }>
 
+// The result's own body is linked; a sealed output body stays with the result for its retention;
+// every other open or sealed body is orphaned.
 export function settleBodyEntries(
   snapshot: BodyView,
   linked: LinkedBody | null,
   orphanDue: ToolInstant,
+  result: ToolResultVersion | null = null,
 ): Outcome<readonly LedgerWrite[], ToolFailure> {
   const link = linked === null ? succeed([]) : linkWrites(snapshot, linked)
   if ('failure' in link) return link
+  const kept = result === null ? null : keptOutput(snapshot, linked, result, orphanDue)
+  const keep = kept === null ? succeed([]) : linkWrites(snapshot, kept)
+  if ('failure' in keep) return keep
   const orphans = [...snapshot.bodies.values()]
-    .filter(entry => entry.bodyId !== linked?.bodyId)
+    .filter(entry => entry.bodyId !== linked?.bodyId && entry.bodyId !== kept?.bodyId)
     .filter(entry => entry.state.kind === 'opened' || entry.state.kind === 'sealed')
     .flatMap(entry => [
       put({ kind: 'body-entry', body: { ...entry, state: { kind: 'orphaned' } } }),
       { kind: 'schedule' as const, key: bodyEntryKey(entry.bodyId), dueAt: orphanDue },
     ])
-  return succeed([...link.ok, ...orphans])
+  return succeed([...link.ok, ...keep.ok, ...orphans])
+}
+
+function keptOutput(
+  snapshot: BodyView,
+  linked: LinkedBody | null,
+  result: ToolResultVersion,
+  settledAt: ToolInstant,
+): LinkedBody | null {
+  const entry = [...snapshot.bodies.values()]
+    .filter(body => body.key === OUTPUT_BODY_KEY && body.state.kind === 'sealed')
+    .at(-1)
+  if (entry === undefined || entry.bodyId === linked?.bodyId) return null
+  return {
+    bodyId: entry.bodyId,
+    result,
+    expiresAt: linked?.expiresAt ?? instantAfter(settledAt, entry.policy.retentionMs),
+  }
 }
 
 function linkWrites(

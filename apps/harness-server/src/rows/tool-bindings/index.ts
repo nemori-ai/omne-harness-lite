@@ -9,6 +9,7 @@ import {
   toolBindingsKey,
   toolCatalogKey,
   toolContributionAuthorityKey,
+  toolReleaseDetailsKey,
   toolStartAuthorityKey,
 } from '@omne-harness/tool-cordis-contract/cordis'
 import {
@@ -23,15 +24,34 @@ import { releaseCatalogViewOf } from './catalog-view.ts'
 import { z } from 'zod'
 import { isReleaseToolRequest, isReleaseToolsRequest } from '../../entry/tool-forward-requests.ts'
 import { releaseOf } from '../../entry/tool-release.ts'
+import { SEARCH_RANKING } from '../../entry/search-ranking.ts'
 import { createReleaseToolsCapability, toolsCapabilityConfig } from './tools-capability.ts'
+import { bindReleaseSkills } from './skills.ts'
 import { bindReleaseTodoItems } from './todo-items.ts'
+import { bindReleaseBackgroundCalls } from './background-calls.ts'
 import { bindReleaseWeb, webBindingConfig, type WebBindingConfig } from './web.ts'
+import { bindReleaseCalendar } from './calendar.ts'
+import { attachReleaseScheduleReads, bindReleaseSchedules } from './schedules.ts'
+import { bindReleaseNotifications } from './notifications.ts'
+import { bindReleaseSessions } from './sessions.ts'
+import { bindReleaseAgents } from './agents.ts'
+import { bindReleaseSwitchWorkspace } from './switch-workspace.ts'
 
 export const toolBindingsConfig = z
   .strictObject({ tools: toolsCapabilityConfig.optional(), web: webBindingConfig.optional() })
   .default({})
 
 type Input = LocalToolBindingsPluginInput<unknown, unknown, ToolMessageContentBlock>
+
+/** The tools a domain brings: each call of one gets that domain's services attached, read per call. */
+const DOMAIN_TOOLS = [
+  ['Calendar', bindReleaseCalendar],
+  ['Schedules', bindReleaseSchedules],
+  ['Notifications', bindReleaseNotifications],
+  ['Sessions', bindReleaseSessions],
+  ['Agents', bindReleaseAgents],
+  ['SwitchWorkspace', bindReleaseSwitchWorkspace],
+] as const
 type Attachments = Readonly<{
   tools: ReturnType<typeof createReleaseToolsCapability> | null
   web: WebBindingConfig | null
@@ -44,16 +64,29 @@ export function releaseCapability(
   const custody = () => ctx.get(settingsSecretCustodyKey)
   return (input, scope) => {
     const release = releaseOf(ctx)
+    const { start } = input
+    // Tools forwards from the first segment only; resumed segments belong to checkpoint authors.
     const withTools =
-      attachments.tools !== null && isReleaseToolsRequest(release, input.request)
-        ? attachments.tools.bind(input, scope)
+      attachments.tools !== null &&
+      start.kind === 'start' &&
+      isReleaseToolsRequest(release, input.request)
+        ? attachments.tools.bind({ ...input, start }, scope)
         : scope
     const withTodos = isReleaseToolRequest(release, input.request, 'TodoItems')
       ? bindReleaseTodoItems(ctx, input, withTools)
       : withTools
-    return attachments.web !== null && isReleaseToolRequest(release, input.request, 'Web')
-      ? bindReleaseWeb(input, withTodos, attachments.web, custody)
+    const withCalls = isReleaseToolRequest(release, input.request, 'BkgToolCalls')
+      ? bindReleaseBackgroundCalls(ctx, input, withTodos)
       : withTodos
+    const withSkills = isReleaseToolRequest(release, input.request, 'Skills')
+      ? bindReleaseSkills(ctx, input, withCalls)
+      : withCalls
+    const withWeb =
+      attachments.web !== null && isReleaseToolRequest(release, input.request, 'Web')
+        ? bindReleaseWeb(input, withSkills, attachments.web, custody)
+        : withSkills
+    const domain = DOMAIN_TOOLS.find(([name]) => isReleaseToolRequest(release, input.request, name))
+    return domain === undefined ? withWeb : domain[1](ctx, input, withWeb)
   }
 }
 
@@ -130,11 +163,12 @@ const bindingsPlugin: Plugin.Object = {
     const Bindings = createLocalToolBindingsPlugin<unknown, unknown, ToolMessageContentBlock>({
       availability: createReleaseAvailability(ctx),
       view: releaseCatalogViewOf(ctx),
-      search: { k1: 1.2, b: 0.75, maxCachedCorpora: 16 },
+      search: { ...SEARCH_RANKING, maxCachedCorpora: 16 },
       authority: startAuthorityProxy(ctx),
       scope: bundleScope(ctx),
       settle: bundleSettle(ctx),
       capability: releaseCapability(ctx, { tools, web: config.web ?? null }),
+      releaseDetails: { attach: input => attachReleaseScheduleReads(ctx, input) },
     })
     new Bindings(ctx)
   },
@@ -144,7 +178,7 @@ export const toolBindingsRow = defineRow({
   row: 'tool-bindings',
   implementation: 'real',
   manifest: {
-    provides: [toolBindingsKey, toolCatalogKey],
+    provides: [toolBindingsKey, toolCatalogKey, toolReleaseDetailsKey],
     injects: [toolContributionAuthorityKey],
     sameProviderGroup: null,
   },

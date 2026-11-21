@@ -1,6 +1,7 @@
 // Derived from pi 1.0.0, commit a13d35a742c6ef8462812a28fbe1d8c8b7431c32 (buildParams; the source
 // file is named in provenance.json). Copyright (c) 2025 Mario Zechner. MIT: ../../LICENSE.pi.
 // See provenance.json.
+import { mediaPending, mediaRead, nativeParsing, type MediaView } from '../media.ts'
 import type { JsonValue } from '@omne-harness/json-text'
 import {
   type Adoption,
@@ -14,17 +15,21 @@ import {
   type Supplier,
   type TransportFailure,
 } from '@omne-harness/model-contract'
-import {
-  judgeReplayDeclaration,
-  type ProviderDiagnostic,
-  type TransportDispatch,
-} from '@omne-harness/model-contract/provider'
+import type { ProviderDiagnostic, TransportDispatch } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { PiMaterializedMedia } from '../family.ts'
-import { serializeBody } from '../payload.ts'
 import { gatewayMembers } from './gateway.ts'
 import { bool, list, object, text } from './json.ts'
-import { planParameters, wireParameter } from './parameters.ts'
+import { planParameters } from './parameters.ts'
+import {
+  appliedFor,
+  carriesReplay,
+  materialize,
+  represented,
+  profileDeclaration,
+  wiredParams,
+  type Materialized,
+} from '../engine-request.ts'
 import { cacheTarget, messagesJson, project, type Projection } from './projection.ts'
 import type {
   ChatCompletionsRecord,
@@ -42,38 +47,6 @@ export type RequestContext = Readonly<{
   adapter: Adoption
 }>
 
-type Materialized = Extract<MeterRepresentation, { kind: 'materialized' }>
-
-function sameAdoption(left: Adoption, right: Adoption): boolean {
-  return (
-    left.owner === right.owner &&
-    left.name === right.name &&
-    left.revision === right.revision &&
-    left.digest === right.digest
-  )
-}
-
-function profileDeclaration(
-  context: RequestContext,
-  profile: ModelProfile,
-  supplier: Supplier,
-): Outcome<ReplayDeclaration, TransportFailure> {
-  if (
-    !sameAdoption(supplier.adoption, context.adapter) ||
-    supplier.provider !== context.supplier.provider ||
-    supplier.model !== context.supplier.model
-  )
-    return { failure: { kind: 'invalid', field: 'supplier', reason: 'not-this-binding' } }
-  const index = profile.definition.suppliers.findIndex(item =>
-    sameAdoption(item.adoption, supplier.adoption),
-  )
-  const entry = profile.definition.suppliers[index]
-  if (entry === undefined)
-    return { failure: { kind: 'invalid', field: 'supplier', reason: 'not-in-profile' } }
-  const declared = judgeReplayDeclaration(entry, index)
-  return 'ok' in declared ? declared : { failure: declared.failure }
-}
-
 function diagnosticsOf(projection: Projection): readonly ProviderDiagnostic[] {
   return projection.diagnostics.map(item => ({
     kind: 'replay-omitted',
@@ -81,6 +54,7 @@ function diagnosticsOf(projection: Projection): readonly ProviderDiagnostic[] {
     scope: item.scope,
     format: item.format,
     omittedParts: item.omittedParts,
+    reason: item.reason,
   }))
 }
 
@@ -88,28 +62,15 @@ function gatewayParams(
   context: RequestContext,
   applied: readonly Parameter[],
 ): Outcome<readonly GatewayParam[], TransportFailure> {
-  const params: GatewayParam[] = []
-  const fields = new Set<GatewayParam['field']>()
-  for (const param of applied) {
-    const wired = wireParameter(param, {
-      record: context.record,
-      adapter: context.adapter,
-      outputLimit: null,
-    })
-    if (!('ok' in wired)) return wired
-    if (fields.has(wired.ok.field))
-      return { failure: { kind: 'invalid', field: 'parameterAdoptions', reason: 'repeated' } }
-    fields.add(wired.ok.field)
-    params.push(wired.ok)
-  }
-  params.push(...context.record.wire.fixed)
-  return { ok: params }
+  const params = wiredParams(context, applied)
+  return 'ok' in params ? { ok: [...params.ok, ...context.record.wire.fixed] } : params
 }
 
 function bodyOf(
   context: RequestContext,
   projection: Projection,
   params: readonly GatewayParam[],
+  plugins: JsonValue | undefined,
 ): Outcome<JsonValue, TransportFailure> {
   const { record } = context
   let target = null
@@ -133,6 +94,7 @@ function bodyOf(
       messages: messagesJson(projection.messages, record.wire, target),
       tools: projection.tools.length > 0 ? list(projection.tools) : undefined,
       tool_choice: projection.toolChoice,
+      plugins,
     }),
   }
 }
@@ -158,34 +120,20 @@ function viewOf(projection: Projection, applied: readonly Parameter[]): Projecte
   }
 }
 
-function represent(
-  context: RequestContext,
-  input: Readonly<{
-    projection: Projection
-    applied: readonly Parameter[]
-    representation: Adoption
-  }>,
-): Outcome<Readonly<{ body: JsonValue; representation: Materialized }>, TransportFailure> {
+type RepresentInput = Readonly<{
+  projection: Projection
+  applied: readonly Parameter[]
+  representation: Adoption
+  media: MediaView
+}>
+function shown(context: RequestContext, input: RepresentInput) {
   const params = gatewayParams(context, input.applied)
   if (!('ok' in params)) return params
-  const body = bodyOf(context, input.projection, params.ok)
+  const body = bodyOf(context, input.projection, params.ok, nativeParsing(input.media))
   if (!('ok' in body)) return body
-  const shown = context.meter.represent(viewOf(input.projection, input.applied))
-  if (!sameAdoption(shown.adoption, input.representation))
-    return { failure: { kind: 'unsupported', field: 'representation', adapter: context.adapter } }
-  return {
-    ok: {
-      body: body.ok,
-      representation: {
-        kind: 'materialized',
-        adoption: shown.adoption,
-        tokenInput: shown.tokenInput,
-        units: shown.units,
-        media: [],
-        requestBytes: String(serializeBody(body.ok).byteLength),
-      },
-    },
-  }
+  const { representation, media } = input
+  const view = viewOf(input.projection, input.applied)
+  return { ok: { body: body.ok, view, representation, media } }
 }
 
 export function planRequest(
@@ -198,6 +146,7 @@ export function planRequest(
   const { profile, supplier, assembled } = input
   const declaration = profileDeclaration(context, profile, supplier)
   if (!('ok' in declaration)) return declaration
+  const media = mediaPending()
   const planned = planParameters({
     record: context.record,
     adapter: context.adapter,
@@ -216,6 +165,7 @@ export function planRequest(
     declaration: declaration.ok,
     replayOff: assembled.replay === 'off',
     resent: new Set(),
+    media,
   })
   if (!('ok' in projection)) return projection
   const parameters = planned.ok
@@ -226,11 +176,14 @@ export function planRequest(
     treatments: projection.ok.treatments,
   })
   if (!('ok' in checked)) return checked
-  const encoded = represent(context, {
+  const request = shown(context, {
     projection: projection.ok,
     applied,
     representation: assembled.representation,
+    media,
   })
+  if (!('ok' in request)) return request
+  const encoded = represented(context, request.ok)
   if (!('ok' in encoded)) return encoded
   return { ok: { parameters, representation: encoded.ok.representation } }
 }
@@ -248,12 +201,13 @@ export function encodeRequest(
     body: JsonValue
     representation: Materialized
     diagnostics: readonly ProviderDiagnostic[]
+    replayPrefix: string
+    replayCarried: boolean
   }>,
   TransportFailure
 > {
   const { request } = input
-  if (input.media.length > 0)
-    return { failure: { kind: 'unsupported', field: 'media', adapter: context.adapter } }
+  const media = mediaRead(input.media)
   const projection = project({
     ...context,
     system: request.system,
@@ -263,22 +217,31 @@ export function encodeRequest(
     declaration: input.declaration,
     replayOff: request.replay === 'off',
     resent: new Set(input.resent),
+    media,
   })
   if (!('ok' in projection)) return projection
-  const applied = request.parameterAdoptions
-    .filter(adoption => sameAdoption(adoption.supplier, context.adapter))
-    .map(adoption => adoption.applied)
+  const applied = appliedFor(context, request)
   const checked = context.hooks.check({
     applied,
     messages: request.messages,
     treatments: projection.ok.treatments,
   })
   if (!('ok' in checked)) return checked
-  const encoded = represent(context, {
+  const sent = shown(context, {
     projection: projection.ok,
     applied,
     representation: request.representation,
+    media,
   })
+  if (!('ok' in sent)) return sent
+  const encoded = materialize(context, sent.ok)
   if (!('ok' in encoded)) return encoded
-  return { ok: { ...encoded.ok, diagnostics: diagnosticsOf(projection.ok) } }
+  return {
+    ok: {
+      ...encoded.ok,
+      diagnostics: diagnosticsOf(projection.ok),
+      replayPrefix: projection.ok.replayPrefix,
+      replayCarried: carriesReplay(projection.ok.treatments),
+    },
+  }
 }

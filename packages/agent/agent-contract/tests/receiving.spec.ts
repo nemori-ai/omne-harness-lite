@@ -12,7 +12,6 @@ import {
   decodeAgentExecutionId,
   decodeAgentOperationId,
   type Access,
-  type AgentAccountOutlet,
   type AgentEvent,
   type AgentExecutionId,
   type AgentJournalEntries,
@@ -22,9 +21,7 @@ import {
   type ReceivedCommitInput,
 } from '@omne-harness/agent-contract'
 import {
-  agentAccountOutletConformance,
   agentJournalEntriesConformance,
-  memoryAgentAccountOutletFixture,
   memoryAgentJournalEntriesFixture,
   memoryReceivedCommitFixture,
   sampleReceivedModelResult,
@@ -94,12 +91,6 @@ describe('the doubles of the receiving ports', () => {
   it('the double of AgentJournalEntries passes every case of its suite', async () => {
     await runAll(
       agentJournalEntriesConformance(memoryAgentJournalEntriesFixture(access, otherAccess)),
-    )
-  })
-
-  it('the double of AgentAccountOutlet passes every case of its suite', async () => {
-    await runAll(
-      agentAccountOutletConformance(memoryAgentAccountOutletFixture(access, otherAccess)),
     )
   })
 })
@@ -560,38 +551,6 @@ describe('the commit cases of the suite fail a provider that breaks a rule', () 
     }))
     await expect(caseNamed(cases, 'denied and conflicting commits').run()).rejects.toThrow(
       /a refused commit allocates no event/u,
-    )
-  })
-})
-
-describe('the outlet suite fails a provider that breaks a rule', () => {
-  it('fails the tenant case when a handoff reaches another tenant', async () => {
-    const fixture = memoryAgentAccountOutletFixture(access, otherAccess)
-    const leaking: AgentAccountOutlet<string> = {
-      deliver: async ({ handoff }) => fixture.outlet.deliver({ access: otherAccess, handoff }),
-    }
-    const cases = agentAccountOutletConformance({ ...fixture, outlet: leaking })
-    await expect(caseNamed(cases, 'another tenant').run()).rejects.toThrow(
-      /another tenant should not see the handoff/u,
-    )
-  })
-
-  it('fails the order case when a late lower revision replaces the higher one', async () => {
-    const fixture = memoryAgentAccountOutletFixture(access, otherAccess)
-    let last: string | null = null
-    const lastWins: AgentAccountOutlet<string> = {
-      deliver: async input => {
-        last = input.handoff.account.revision
-        return fixture.double.deliver(input)
-      },
-    }
-    const cases = agentAccountOutletConformance({
-      ...fixture,
-      outlet: lastWins,
-      current: async () => last,
-    })
-    await expect(caseNamed(cases, 'arrives late').run()).rejects.toThrow(
-      /should not replace the higher one/u,
     )
   })
 })

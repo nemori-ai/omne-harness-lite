@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { MAX_ASSET_PAGE, SUMMARY_LIMITS } from '@omne-harness/assets'
 import { bodySchema } from './body.ts'
 import {
   SettingDefinitionsSchema,
@@ -15,8 +16,9 @@ import {
 export const PARTICIPANT = 'assets.settings'
 export const PROTOCOL = 'assets-local/1'
 export const HANDLER = 'assets.read'
+export const LIST_HANDLER = 'assets.list'
 export const MIGRATION = { owner: PARTICIPANT, id: 'assets-local-1' }
-export const TABLES = ['al_domain', 'al_assets', 'al_versions', 'al_holdings']
+export const TABLES = ['al_domain', 'al_assets', 'al_versions', 'al_summaries', 'al_holdings']
 export const domainSchema = SettingsProjectionBindingSchema.shape.domain
 export const revisionSchema = z
   .number()
@@ -40,6 +42,11 @@ export const declarationSchema = z.discriminatedUnion('kind', [
     definitionRef: SettingsDefinitionRefSchema,
   }),
 ])
+export const summarySchema = z.strictObject({
+  title: z.string(),
+  description: z.string(),
+  facts: z.array(z.strictObject({ name: z.string(), text: z.string() })).max(SUMMARY_LIMITS.facts),
+})
 export const versionSchema = z.strictObject({
   domain: domainSchema,
   assetRef: SettingsReferenceSchema,
@@ -86,14 +93,35 @@ export const publishMetadataSchema = z.strictObject({
   assetRef: SettingsReferenceSchema,
   expectedRevision: revisionSchema,
 })
-export const publishSchema = publishMetadataSchema.extend({
-  kind: z.literal('publish'),
+const publishedFields = {
   category: SettingsIdSchema,
   name: SettingsIdSchema,
   version: SettingsIdSchema,
   source: SettingsReferenceSchema,
   body: bodySchema,
   declaration: declarationSchema,
+  summary: summarySchema.nullable(),
+}
+export const publishSchema = publishMetadataSchema.extend({
+  kind: z.literal('publish'),
+  ...publishedFields,
+})
+export const publishedHoldingSchema = z
+  .strictObject({
+    holdingRef: SettingsReferenceSchema,
+    scopeRef: SettingsReferenceSchema,
+    sources: SettingsSourceIdentitiesSchema,
+    grants: grantsSchema,
+  })
+  .refine(holding =>
+    holding.grants.every(grant =>
+      holding.sources.some(source => source.sourceId === grant.sourceId),
+    ),
+  )
+export const publishAndHoldSchema = publishMetadataSchema.extend({
+  kind: z.literal('publishAndHold'),
+  ...publishedFields,
+  holding: publishedHoldingSchema,
 })
 export const holdSchema = z
   .strictObject({
@@ -129,6 +157,7 @@ export const changeHoldingSchema = z.strictObject({
 })
 export const mutationSchema = z.discriminatedUnion('kind', [
   publishSchema,
+  publishAndHoldSchema,
   holdSchema.safeExtend({ kind: z.literal('hold') }),
   changeHoldingSchema.extend({ kind: z.literal('changeHolding') }),
 ])
@@ -136,12 +165,18 @@ export const mutationBindingSchema = z.strictObject({
   domain: domainSchema,
   command: mutationSchema,
 })
+export const captureExcludedSchema = z.array(z.string().min(1).max(64)).max(16)
 export const workerCommandSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('mutate'), binding: mutationBindingSchema }),
-  z.strictObject({ kind: z.literal('capture'), binding: SettingsProjectionBindingSchema }),
+  z.strictObject({
+    kind: z.literal('capture'),
+    binding: SettingsProjectionBindingSchema,
+    excluded: captureExcludedSchema,
+  }),
   z.strictObject({
     kind: z.literal('capturePublication'),
     binding: SettingsProjectionBindingSchema,
+    excluded: captureExcludedSchema,
   }),
 ])
 export const failureSchema = z.strictObject({
@@ -161,6 +196,7 @@ export const failureSchema = z.strictObject({
     'operation_conflict',
     'closing',
     'unsupported',
+    'unknown_category',
   ]),
 })
 export const committedSchema = z.strictObject({
@@ -172,6 +208,7 @@ export const committedSchema = z.strictObject({
 export const receiptSchema = z.strictObject({
   binding: mutationBindingSchema,
   result: z.union([committedSchema, failureSchema]),
+  domainRevision: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
 })
 export const holdingLookupSchema = z.strictObject({
   holdingRef: SettingsReferenceSchema,
@@ -209,14 +246,66 @@ export const versionResultSchema = z.union([
   z.strictObject({ kind: z.literal('absent') }),
   failureSchema,
 ])
+export const heldCapabilityLookupSchema = z.strictObject({
+  category: SettingsIdSchema,
+  name: SettingsIdSchema,
+})
+export const listLookupSchema = z.strictObject({
+  category: SettingsIdSchema,
+  after: SettingsIdSchema.nullable(),
+  limit: z.number().int().min(1).max(MAX_ASSET_PAGE),
+})
+export const listRequestSchema = z.strictObject({
+  kind: z.literal('list'),
+  domain: domainSchema,
+  lookup: listLookupSchema,
+})
+export const listedSchema = z.strictObject({
+  category: SettingsIdSchema,
+  name: SettingsIdSchema,
+  assetRef: SettingsReferenceSchema,
+  version: SettingsIdSchema,
+  holdingRef: SettingsReferenceSchema,
+  selection: z.enum(['follow', 'pinned']),
+  enabled: z.boolean(),
+  origin: z.enum(['customized', 'official']),
+  summary: summarySchema.nullable(),
+})
+export const listResultSchema = z.union([
+  z.strictObject({
+    kind: z.literal('page'),
+    items: z.array(listedSchema),
+    next: SettingsIdSchema.nullable(),
+  }),
+  failureSchema,
+])
 export const readRequestSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('asset'), domain: domainSchema, lookup: assetLookupSchema }),
   z.strictObject({ kind: z.literal('holding'), domain: domainSchema, lookup: holdingLookupSchema }),
   z.strictObject({ kind: z.literal('version'), domain: domainSchema, lookup: versionLookupSchema }),
+  z.strictObject({
+    kind: z.literal('heldCapability'),
+    domain: domainSchema,
+    lookup: heldCapabilityLookupSchema,
+  }),
+  z.strictObject({ kind: z.literal('summary'), domain: domainSchema, lookup: versionLookupSchema }),
+  z.strictObject({ kind: z.literal('domain'), domain: domainSchema, lookup: z.null() }),
+])
+export const domainResultSchema = z.union([
+  z.strictObject({
+    kind: z.literal('domain'),
+    revision: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+  }),
+  failureSchema,
+])
+export const summaryResultSchema = z.union([
+  z.strictObject({ kind: z.literal('summary'), summary: summarySchema.nullable() }),
+  failureSchema,
 ])
 export type Mutation = z.infer<typeof mutationSchema>
 export type MutationBinding = z.infer<typeof mutationBindingSchema>
 export type Holding = z.infer<typeof holdingSchema>
 export type Version = z.infer<typeof versionSchema>
+export type Summary = z.infer<typeof summarySchema>
 export type Asset = z.infer<typeof assetSchema>
 export type Failure = z.infer<typeof failureSchema>

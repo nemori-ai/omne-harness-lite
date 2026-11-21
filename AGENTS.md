@@ -97,7 +97,7 @@ flowchart LR
 下面是每个 agent 始终要懂的。全文在技能 `domain-mental-models`：每个领域一份，跨领域协调一份，都答「它是什么、不是什么、拿它怎样量一个设计」。在一个领域里做设计或实现，或改动波及别的领域时加载它。
 
 - **会话日志是一个会话的唯一事实源，而且只有一个写入者。** 运行着的对象不存别处没有的事实；它丢了，从日志接着来。别的领域要留下事实，把一条会话命令交给这个写入者，由它在同一次提交里写。每次提交之后要做的事挂在写入者上，不挂在各个提交方上。
-- **Session 管一个会话的业务流程，Agent 管一轮 Run 怎样往前推。** Run 是边界。Session 不发模型请求，不运行工具，也不直接控制它们的调用：会话路径上这些由 Agent 发起，控制经 Agent 送达。
+- **Session 管一个会话的业务流程，Agent 管一轮 Run 怎样往前推。** Run 是边界。Session 不发模型请求，不运行工具：会话路径上这些由 Agent 发起。对一次调用的控制送到它当前的等待者：还在某一步等待里的经 Agent 送达；转了后台的没有人在等，Session 凭调用引用直接交给被调用方。
 - **逻辑收口和物理收场分开。** 取消、归档只改变资格与责任。模型发没发出、工具停没停，由各自的拥有者报告，Session 只对账。
 - **对 Session 和 Agent，Model 和 Tool 是被远程调用的服务。** 两端各管各的生命周期。不让一方等另一方收场，不让一方替另一方取消，不让一方要求另一方为它多留。
 - **结果不知道就是不知道。** 按原来的那次操作认回。不重新发一次，不写成成功或失败。
@@ -177,7 +177,7 @@ pqw 技能里写「从项目接入点取」的地方都读这一节；没填的�
 | 槽位 | omne 的值 |
 | --- | --- |
 | 类型检查与 lint 命令 | `pnpm run typecheck`；`pnpm run lint:rules`；`pnpm run lint:oxlint`；`pnpm run lint:deps` |
-| 改动成员的合入检查 | `pnpm run preflight`，再在每个改动成员目录 `pnpm exec vitest run --mode fast` 与 `--mode slow`，有 `acceptance/` 的再 `pnpm run acceptance`。准入排在这些之后，在最终的头上只跑一次；没通过就把失败归类后补证，不重排整跑，见 `omne-card` 技能的[准入证据怎样取得](.meta_harness/agents/skills/omne-card/canonical/references/admission-evidence.md) |
+| 改动成员的合入检查 | `pnpm run preflight`，再在每个改动成员目录 `pnpm exec vitest run --mode fast` 与 `--mode slow`，有 `acceptance/` 的再 `pnpm run acceptance`。准入不在切片之间跑，在一程最终的头上只跑一次（见 `omne-card` 的「进轨道」）；没通过就把失败归类后补证，不重排整跑，见 `omne-card` 技能的[准入证据怎样取得](.meta_harness/agents/skills/omne-card/canonical/references/admission-evidence.md) |
 | 结构读数的覆盖率文件、范围与带位线 | `pnpm run closeout:metrics -- --base <起点> [--scope <路径>...]`：按改动成员各出一份 lcov（写到工作树外）、各调一次 pqw `metrics.mjs`，线与断言写法取自 `repo-toolchain.config.json`；切片收口用缺省的快层，一程全量加 `--full`，并另跑 [`loop:status --base <起点>`](docs/clean-loop.md#入口)。行为见 [pqw-adapter 的规格](tools/pqw-adapter/SPEC.md)，参数见命令的帮助 |
 | 差分变异的范围与点名文件 | `pnpm run closeout:mutation -- --base <起点> --scope <关键位置>...`：先 `--plan-only` 看范围，超过上限要给 `--scope` 或 `--files`；按改动成员各调一次 pqw `mutation.mjs`。[风险级别](docs/architecture/assurance.md#按风险选择接受实现的看法)的路径下限：`pnpm run risk -- --base <起点>` |
 | 项目合入检查已按整程改动跑结构读数与差分变异时的命令 | 无 |

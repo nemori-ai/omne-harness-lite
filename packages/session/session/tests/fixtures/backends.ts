@@ -41,7 +41,15 @@ export function fixtureInitializationGuard(command: InitializationCommand): Guar
   )
 }
 
+type MemoryPairOptions = Parameters<typeof createMemorySessionTransactionPair<string>>[0]
+
 export function memoryBackendWithLimits(intakeLimits?: SessionIntakeLimits): BackendFactory {
+  return memoryBackendWith(intakeLimits === undefined ? {} : { intakeLimits })
+}
+
+export function memoryBackendWith(
+  extra: Partial<Omit<MemoryPairOptions, 'accessCheck' | 'initialization' | 'history'>>,
+): BackendFactory {
   return {
     name: 'memory pair',
     open: accessCheck => {
@@ -50,7 +58,7 @@ export function memoryBackendWithLimits(intakeLimits?: SessionIntakeLimits): Bac
         initialization,
         history: createMemorySessionHistorySource(),
         accessCheck,
-        ...(intakeLimits === undefined ? {} : { intakeLimits }),
+        ...extra,
       })
       return Promise.resolve({
         name: 'memory pair',

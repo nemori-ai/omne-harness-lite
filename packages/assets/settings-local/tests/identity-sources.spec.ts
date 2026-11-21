@@ -49,8 +49,9 @@ it('qualifies the actual organization member and recovers the original hold afte
         principalRef: identity.principalRef,
         operation: {
           target: {
-            policyId: 'independent',
-            targetRef: 'preferences',
+            kind: 'independent' as const,
+            providerId: 'example',
+            definitionId: 'preferences',
             scopeRef: identity.scopeRef,
           },
           operationId: 'consumer-operation',

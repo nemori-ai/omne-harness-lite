@@ -20,7 +20,6 @@ export function serveModelCredential<P>(
 }
 
 export { ModelInstancesLocalPlugin } from './plugins/instances.ts'
-export { ModelConvertersLocalPlugin } from './plugins/converters.ts'
 export { createModelRequestPreparationPlugin } from './plugins/preparation.ts'
 export type {
   ModelPreparationPlugin,
@@ -62,3 +61,4 @@ export type {
   ModelSendStagePluginOptions,
   ModelSendStageSettings,
 } from './plugins/send-stage.ts'
+export { modelProviderCategoryPlugin } from './category.ts'

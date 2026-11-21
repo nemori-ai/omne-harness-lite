@@ -11,7 +11,7 @@ import { permissionView } from './fixtures/views.ts'
 
 const VIEW = permissionView()
 const KEY = keyOf(VIEW)
-const TARGET = { asset: VIEW.asset, item: VIEW.item }
+const TARGET = { owner: VIEW.owner, item: VIEW.item }
 
 function run(state: State, ...events: Event[]): { state: State; effects: unknown[] } {
   let current = state
@@ -73,6 +73,19 @@ function stillUnknown(): State {
     answer: { outcome: 'uncertain' },
   }).state
 }
+
+describe('一项的键', () => {
+  it('同名的项，归属不同就是两项：两个独立归属只差提供者也分得开，资产与独立也分得开', () => {
+    const independent = (providerId: string) =>
+      keyOf({
+        ...VIEW,
+        owner: { kind: 'independent', providerId, definitionId: 'environment' },
+      })
+    expect(independent('calendar')).not.toBe(independent('schedule'))
+    expect(independent('calendar')).not.toBe(KEY)
+    expect(independent('calendar')).toBe(independent('calendar'))
+  })
+})
 
 describe('整张表', () => {
   it('挂上：读中，列出第一页', () => {
@@ -183,6 +196,101 @@ describe('整张表', () => {
   })
 })
 
+describe('别处改了：重读整张表', () => {
+  const OTHER = permissionView({ item: 'other-permission' })
+  const page = (items: readonly unknown[], next: string | null = null) => ({
+    outcome: 'succeeded' as const,
+    body: { items: items as never, next, completeness: 'complete' as const },
+  })
+  const refreshing = (state: State) => {
+    const changed = run(state, { kind: 'changed' })
+    const token = state.issued + 1
+    expect(changed.effects).toEqual([{ kind: 'list', token, after: null }])
+    return { state: changed.state, token }
+  }
+
+  it('没读过、读不出：从头读', () => {
+    expect(run(INITIAL, { kind: 'changed' }).state.list.kind).toBe('reading')
+    const failed = run(
+      INITIAL,
+      { kind: 'read-list' },
+      { kind: 'list-answered', token: 1, answer: { outcome: 'denied' } },
+    ).state
+    expect(run(failed, { kind: 'changed' }).effects).toEqual([
+      { kind: 'list', token: 2, after: null },
+    ])
+  })
+
+  it('正在读时又变了几次：不另发，只记一笔；读完再读一次，只一次', () => {
+    const reading = run(INITIAL, { kind: 'read-list' }).state
+    const marked = run(reading, { kind: 'changed' }, { kind: 'changed' }, { kind: 'changed' })
+    expect(marked.effects).toEqual([])
+    expect(marked.state.list).toMatchObject({ kind: 'reading', token: 1, stale: true })
+    const answered = run(marked.state, { kind: 'list-answered', token: 1, answer: page([VIEW]) })
+    expect(answered.effects).toEqual([{ kind: 'list', token: 2, after: null }])
+    expect(rowIn(answered.state)).toMatchObject({ key: KEY })
+  })
+
+  it('重读正在跑时又变了几次：读完它再读一次', () => {
+    const { state, token } = refreshing(listed())
+    const marked = run(state, { kind: 'changed' }, { kind: 'changed' })
+    expect(marked.effects).toEqual([])
+    const answered = run(marked.state, { kind: 'list-answered', token, answer: page([VIEW]) })
+    expect(answered.effects).toEqual([{ kind: 'list', token: token + 1, after: null }])
+    const done = run(answered.state, {
+      kind: 'list-answered',
+      token: token + 1,
+      answer: page([VIEW]),
+    })
+    expect(done.effects).toEqual([])
+    expect(done.state.list).toMatchObject({ kind: 'read' })
+  })
+
+  it('已读：重读时各行照旧能用，读完换成新的一张表', () => {
+    const { state, token } = refreshing(listed())
+    expect(rowIn(state)).toEqual(rowIn(listed()))
+    const paged = run(state, { kind: 'list-answered', token, answer: page([OTHER], 'next') })
+    expect(paged.effects).toEqual([{ kind: 'list', token, after: 'next' }])
+    const done = run(paged.state, { kind: 'list-answered', token, answer: page([VIEW]) }).state
+    expect(done.list).toMatchObject({ kind: 'read', partial: false })
+    if (done.list.kind !== 'read') return
+    expect(done.list.rows.map(row => row.key)).toEqual([keyOf(OTHER), KEY])
+    expect(done.list.refresh).toBeUndefined()
+  })
+
+  it('不再出现的项随之消失', () => {
+    const { state, token } = refreshing(listed())
+    const done = run(state, { kind: 'list-answered', token, answer: page([]) }).state
+    expect(done.list).toEqual({ kind: 'read', rows: [], partial: false })
+  })
+
+  it('重读期间一行的写照旧答复；读完这一行仍带着它的写', () => {
+    const { state, token } = refreshing(submitting())
+    const answered = run(state, {
+      kind: 'write-answered',
+      key: KEY,
+      operation: 'op-1',
+      answer: { outcome: 'unknown' },
+    }).state
+    expect(rowIn(answered).write).toMatchObject({ kind: 'unknown', confirming: true })
+    const done = run(answered, { kind: 'list-answered', token, answer: page([VIEW]) }).state
+    expect(rowIn(done).write).toEqual(rowIn(answered).write)
+  })
+
+  it('重读读不出：照实说，不把上一次读到的当成现在的，也不显示成空', () => {
+    const { state, token } = refreshing(listed())
+    const failed = run(state, {
+      kind: 'list-answered',
+      token,
+      answer: { outcome: 'basis-unavailable' },
+    }).state
+    expect(failed.list).toEqual({
+      kind: 'failed',
+      notice: { kind: 'refused', text: '服务端暂时读不出需要的依据，稍后再试。' },
+    })
+  })
+})
+
 describe('一项', () => {
   it('闲时点「设置」：交，带这一项的修订号与挑选', () => {
     const { state, effects } = run(listed(), {
@@ -207,6 +315,28 @@ describe('一项', () => {
       answer: { outcome: 'succeeded', body: { revision: '2' } },
     }).state
     expect(step(rereading, { kind: 'clear', key: KEY, operation: 'op-2' }).state).toBe(rereading)
+  })
+
+  it('闲时交一个普通值：交，带这一项的修订号与值；结果未知时原样再送同一个值', () => {
+    const value = { kind: 'string', value: 'Asia/Shanghai' } as const
+    const sent = { operation: 'op-1', expectedRevision: '1', request: { kind: 'set-value', value } }
+    const { state, effects } = run(listed(), {
+      kind: 'set-value',
+      key: KEY,
+      value,
+      operation: 'op-1',
+    })
+    expect(rowIn(state).write).toEqual({ kind: 'submitting', sent })
+    expect(effects).toEqual([{ kind: 'write', key: KEY, target: TARGET, sent }])
+    const unknown = run(state, {
+      kind: 'write-answered',
+      key: KEY,
+      operation: 'op-1',
+      answer: { outcome: 'unknown' },
+    })
+    expect(rowIn(unknown.state).write).toMatchObject({ kind: 'unknown', confirming: true, sent })
+    expect(unknown.effects).toEqual([{ kind: 'write', key: KEY, target: TARGET, sent }])
+    expect(step(state, { kind: 'set-value', key: KEY, value, operation: 'op-2' }).state).toBe(state)
   })
 
   it('闲时点「清除」：交，带这一项的修订号', () => {

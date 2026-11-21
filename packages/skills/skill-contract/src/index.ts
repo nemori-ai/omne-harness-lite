@@ -1,6 +1,7 @@
 export { sameCapability } from './capability.ts'
-export { skillBodyContract } from './contract.ts'
+export { skillBodyContract, skillCategoryDisplay } from './contract.ts'
 export { computeDigest, isPackageDigest } from './digest.ts'
+export { SKILL_PACKAGE_LIMITS } from './layout.ts'
 export { inferMediaType } from './media.ts'
 export {
   DECLARATION_PATH,
@@ -22,20 +23,14 @@ export type {
   ByteRange,
   CatalogEntry,
   CatalogQuery,
-  ExportedEntry,
-  MaterialState,
   ReadContent,
   ReadResult,
   ReadTarget,
   ResourceListing,
   SkillAccess,
   SkillCatalog,
-  SkillDescription,
-  SkillExport,
 } from './services.ts'
 export type {
-  DescribeFailure,
-  ExportFailure,
   GateFailure,
   InspectFailure,
   InspectRejectionCode,
@@ -57,10 +52,6 @@ export type {
   PackageEntry,
   PackagePath,
   SafeReason,
-  ScriptDeclaration,
-  ScriptIdentity,
-  SettingCategory,
-  SettingDeclaration,
   SkillDeclaration,
   SkillDefinition,
   SkillManifest,

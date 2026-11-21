@@ -28,7 +28,7 @@
 | 共同原子动作         | 保证与跨模型投影                                                                          | 实现                                                                                                                                                             |
 | -------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Register             | 请求与等待一一对应且结果可认回，之后才进入 HumanDecision 与 RecoveryRouting 的初态        | local 的终态（T）、等待规划（W）、组合规划（J）、等待写者（F）、请求写者（H）在一次 SQL 提交里共同成立                                                           |
-| AnswerCommit         | 决定与收件箱同时增加；对应 RecoveryRouting 的已答与收件箱、ContinuationComposition 的答复 | H 写唯一决定，F 写原等待的收件箱与待接手项，同一提交；按来源冻结的守卫与 Identity 保留在同一提交里                                                               |
+| AnswerCommit         | 决定与收件箱同时增加；对应 RecoveryRouting 的已答与收件箱、ContinuationComposition 的答复 | H 写唯一决定，F 写原等待的答复箱与待接手项，同一提交；按来源冻结的守卫与 Identity 保留在同一提交里                                                               |
 | Receive              | 原等待原子记下接手与消费回执；对应 RecoveryRouting 的交付，不对应已执行                   | F 同时写消费回执、增加计数、推进检查点、移出待接手；先核接收代次再认回                                                                                           |
 | Park / ResumeAcquire | 继续检查点持久之后才释放名额；已答先就绪，取得名额后再运行                                | Tool 队列域的 held→parked 与 ready→held；两域分提交的细化由 Tool 的 [SuspendedSlots 模型](../../../tool/tool/verification/formal-mapping.md#suspendedslots) 检查 |
 | Continue             | 屏障、原终局、当前代次与授权一起核对；继续位置与一次推进同提交                            | 恢复段启动前，Tool 的 `prepareResume` 经启动协调器核当前资格、同一未消费检查点与旧执行排除                                                                       |
@@ -39,9 +39,11 @@ Tool 来源的 Ask 用 local 的 WaitOwner，经 Tool 的决策方端口 `ToolDe
 | 模型动作                                           | 实际提交                                                                                                                                                          |
 | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | RegistrationProtocol `Register`                    | Tool 调用域先提交挂起、检查点、等待开启与登记任务；登记任务调用本组的 prepare 与 `registerRequest`，回包未知时按原操作查询；认回后 Tool 提交 `attachRegistration` |
-| HumanDecision `Commit`                             | 本组 `submitReply` 的一笔提交：决定、收件箱与批次判定、按来源冻结的守卫、Identity 保留                                                                            |
+| HumanDecision `Commit`                             | 本组 `submitReply` 的一笔提交：这一张卡的决定与收件箱项、按来源冻结的守卫、Identity 保留；不做批次判定                                                            |
 | HumanDecision `Terminal`                           | Tool 调用域提交终局并关闭等待，同一笔提交生成失效任务；失效任务调用 `invalidateWait`                                                                              |
 | HumanDecision `Consume`、RecoveryRouting `Deliver` | Tool 经 `bindReceiver`、`readInbox`、`consumeDecision` 接手，再提交 `acceptDecision` 固定 ResponseRecord；取消先在调用记录成立时，决定不被当作答案                |
+
+一批卡在哪里判：「是不是都答了」由 Tool 一侧的决策桥读整个请求现算，任一张卡还没有决定就答没有决定（`apps/harness-server/src/rows/tool-hitl/bridge.ts` 的 `decidedBatch`）；「是不是都接手了」由接手时的回执计数推出检查点，回执计数加一等于卡数时置为可继续，由下面的 `ReceiptCountExact` 守。两处都不在答复的那一笔提交里。
 
 ## local 的关系守护
 

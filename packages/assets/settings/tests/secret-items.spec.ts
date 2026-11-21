@@ -423,6 +423,7 @@ describe('createSettingsSecretItems: describe and items', () => {
         purpose: 'The key search sends to Exa.',
         appliesAt: 'Applies from the next read of the item.',
         clearEffect: 'search is unconfigured until a key is set again.',
+        group: { id: 'tool', title: 'Tool', description: 'Tool settings' },
         sensitivity: 'secret',
         presence: { kind: 'bound', life: 'active', configuredAt: null },
       },
@@ -433,6 +434,7 @@ describe('createSettingsSecretItems: describe and items', () => {
         purpose: 'The key search sends to Exa.',
         appliesAt: 'Applies from the next read of the item.',
         clearEffect: 'search is unconfigured until a key is set again.',
+        group: { id: 'tool', title: 'Tool', description: 'Tool settings' },
         sensitivity: 'ordinary',
       },
     ])

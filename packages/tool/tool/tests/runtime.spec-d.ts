@@ -28,6 +28,7 @@ import {
   type ToolLedgerQueues,
   type ToolLedgerRejections,
   type ToolLedgerFacts,
+  type ToolLedgerTimers,
   type ToolLedgerRecovery,
   type ToolLedgerStore,
   type ResultRecord,
@@ -79,6 +80,7 @@ it('createToolLedger takes the store, the guards, the clock and the ledger confi
         now: ToolInstant,
         limit: number,
       ): Reply<Readonly<{ reclaimed: number; removed: number }>>
+      timers: ToolLedgerTimers<P>
       finalPlanner: ToolFinalPlanner<P, ContentBlock>
       controls: ToolLedgerControls<P>
       commands: ToolCommands<P, ContentBlock>

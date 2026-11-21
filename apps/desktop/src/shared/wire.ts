@@ -11,15 +11,16 @@ import type {
   ObserveRequest,
   ProtocolKey,
 } from '@omne-harness/sdk/core'
-import type { LoginState } from '@omne-harness/client-assembly/cordis'
-import type { LoginCredentials, LoginResult, LogoutResult } from './host-bridge.ts'
+import type { LoginCredentials, LoginResult, LogoutResult } from './channel.ts'
 
 export const BRIDGE = {
   call: '/bridge/call',
   observe: '/bridge/observe',
+  unobserve: '/bridge/unobserve',
+  events: '/bridge/events',
   login: '/bridge/login',
   logout: '/bridge/logout',
-  loginState: '/bridge/login-state',
+  loginStanding: '/bridge/login-standing',
 } as const
 
 export const WIRE_LIMITS: JsonLimits = {
@@ -157,6 +158,55 @@ export function readObserveEvent(text: string): ObserveEvent {
   return { end: { kind: 'uncertain' } }
 }
 
+/** An observation put on a page's one event stream, under an identifier the page chose. */
+export type Attach = {
+  readonly page: string
+  readonly id: string
+  readonly request: ObserveMessage
+}
+
+export function writeAttach(page: string, id: string, request: string): string {
+  return writeJsonText(object({ page: string(page), id: string(id), request: string(request) }))
+}
+
+export function readAttach(text: string): Attach | undefined {
+  const value = read(text)
+  const page = textOf(member(value, 'page'))
+  const id = textOf(member(value, 'id'))
+  const request = readObserve(textOf(member(value, 'request')) ?? '')
+  return page === undefined || id === undefined || request === undefined
+    ? undefined
+    : { page, id, request }
+}
+
+export type Detach = { readonly page: string; readonly id: string }
+
+export function writeDetach(page: string, id: string): string {
+  return writeJsonText(object({ page: string(page), id: string(id) }))
+}
+
+export function readDetach(text: string): Detach | undefined {
+  const value = read(text)
+  const page = textOf(member(value, 'page'))
+  const id = textOf(member(value, 'id'))
+  return page === undefined || id === undefined ? undefined : { page, id }
+}
+
+export function writePageEvent(id: string, event: ObserveEvent): string {
+  return writeJsonText(object({ id: string(id), event: string(writeObserveEvent(event)) }))
+}
+
+/** One event of one observation on the page's stream; `last` when it says how it ended. */
+export type PageEvent = { readonly id: string; readonly event: string; readonly last: boolean }
+
+export function readPageEvent(text: string): PageEvent | undefined {
+  const value = read(text)
+  const id = textOf(member(value, 'id'))
+  const event = textOf(member(value, 'event'))
+  if (id === undefined || event === undefined) return undefined
+  return { id, event, last: 'end' in readObserveEvent(event) }
+}
+
 export function writeCredentials(credentials: LoginCredentials): string {
   return writeJsonText(
     object({
@@ -183,12 +233,51 @@ export function readResult<R extends string>(text: string, allowed: readonly R[]
   return allowed.find(item => item === result)
 }
 
-const LOGIN_STATES: readonly LoginState[] = ['signed-out', 'signing-in', 'signed-in', 'signing-out']
+export type LoginStandingAnswer = Readonly<{
+  state: 'signed-in' | 'signed-out'
+  note?: 'expired' | 'unverified'
+}>
 
-export const writeLoginState = (state: LoginState): string =>
-  writeJsonText(object({ state: string(state) }))
+const STANDING_STATES = ['signed-in', 'signed-out'] as const
+const STANDING_NOTES = ['expired', 'unverified'] as const
 
-export function readLoginState(text: string): LoginState | undefined {
-  const state = textOf(member(read(text), 'state'))
-  return LOGIN_STATES.find(item => item === state)
+export const writeLoginStanding = (
+  standing: LoginStandingAnswer,
+  protocols: readonly ProtocolKey[],
+): string =>
+  writeJsonText(
+    object({
+      state: string(standing.state),
+      ...(standing.note === undefined ? {} : { note: string(standing.note) }),
+      protocols: { kind: 'array', items: protocols.map(protocolValue) },
+    }),
+  )
+
+export function readLoginStanding(text: string): LoginStandingAnswer | undefined {
+  const value = read(text)
+  const state = textOf(member(value, 'state'))
+  const found = STANDING_STATES.find(item => item === state)
+  if (found === undefined) return undefined
+  const note = textOf(member(value, 'note'))
+  const known = STANDING_NOTES.find(item => item === note)
+  return known === undefined ? { state: found } : { state: found, note: known }
+}
+
+export function readForwardingProtocols(text: string): readonly ProtocolKey[] | null {
+  const list = member(read(text), 'protocols')
+  if (list?.kind !== 'array') return null
+  return list.items.flatMap(item => {
+    const key = protocolOf(item)
+    return key === undefined ? [] : [key]
+  })
+}
+
+export function missingAtForwarding(
+  page: readonly ProtocolKey[],
+  forwarding: readonly ProtocolKey[] | null,
+): readonly ProtocolKey[] {
+  if (forwarding === null) return page
+  return page.filter(
+    key => !forwarding.some(known => known.name === key.name && known.major === key.major),
+  )
 }

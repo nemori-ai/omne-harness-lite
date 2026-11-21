@@ -37,6 +37,7 @@ export type ChangeInput = Start &
     targetRoot: string
     expectedTargetRoot: string
     targetSegments: readonly string[]
+    targetRooted: boolean
     targetNamed: string
     replace: boolean
   }>
@@ -60,6 +61,7 @@ export type CopyInput = Start &
     targetRoot: string
     expectedTargetRoot: string
     targetSegments: readonly string[]
+    targetRooted: boolean
     targetNamed: string
     replace: boolean
     temporary: string

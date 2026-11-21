@@ -1,3 +1,5 @@
+import { historyCaller } from './history-caller.ts'
+import { jointCommandOf, joinsSession, type JointState } from '../joint-command.ts'
 import { sessionCommitCommands } from '@omne-harness/session-storage-sql/participants'
 import { createHash, randomUUID } from 'node:crypto'
 import type {
@@ -5,7 +7,6 @@ import type {
   AgentJournal,
   AgentOperationId,
   AgentReceivedProvider,
-  CallerCommit,
   CommandReceipt,
   DurableEvidence,
   ExecutionMutation,
@@ -19,12 +20,10 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
+  cancellationDriveOf,
   commandDigest,
-  deriveDriveOperation,
-  deriveSessionOperation,
   judgeCompletion,
   mutationAccessRequest,
-  type ConsumptionId,
   type InputId,
   type SessionAccessCheck,
   type SessionCommand,
@@ -35,7 +34,6 @@ import {
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import {
-  EXECUTION_BATCH_MAX_FACTS,
   SESSION_HISTORY_ROOT_HANDLER,
   SESSION_READ_PROTOCOL,
   decodeExecutionRecordReply,
@@ -51,8 +49,6 @@ import {
   sessionCommandFacts,
   type ExecutionAdmissionRecord,
   type ExecutionBlobRecord,
-  type ExecutionBoundaryRecord,
-  type ExecutionFactRecord,
   type SessionCheck,
 } from '@omne-harness/session-storage-sql/participants'
 import type {
@@ -71,75 +67,84 @@ import {
 } from '../journal-commit.ts'
 import {
   BATCH_OVERHEAD_BYTES,
-  FACT_MAX_BYTES,
-  batchBytes,
-  contentPath,
   emptySessionView,
-  fold,
   receiptOf as batchReceiptOf,
-  type BatchEnvelope,
   type ExecutionView,
   type ParticipationKind,
   type PublishedBatch,
   type RequestView,
   type SessionJournalView,
 } from '../journal/index.ts'
+import { adoptedIn } from './adopted-in.ts'
 import {
   participationAccessFailure,
   participationFailure,
-  type ParticipationMethod,
+  participationMethodOf,
 } from '../participation-mapping.ts'
-import { canonical } from '../testing/canonical.ts'
-import {
-  HistoryFailure,
-  captureEventOriginal,
-  normalizeAgentEvent,
-  normalizedResult,
-} from '../testing/history.ts'
+import { HistoryFailure, normalizedResult } from '../testing/history.ts'
 import {
   DEFAULT_EVENT_SCHEMA,
   DEFAULT_REPLY_ADMISSION_RULE,
   createJournal,
-  operationText,
   outrunParticipation,
   type JointDecision,
   type JournalWrite,
   type MemoryAgentJournalOptions,
   type MemoryExecution,
 } from '../testing/journal.ts'
-import { JOURNAL_OWNER, revisionOf } from '../testing/journal-values.ts'
-import { controlEventEvidence } from '../testing/control.ts'
+import { JOURNAL_OWNER, operationText, revisionOf } from '../testing/journal-values.ts'
 import {
   createCell,
   operationSemantic,
   type CommonRoot,
   type JournalCell,
 } from '../testing/root.ts'
+import { blobRowDigest, factDigestOf } from './journal-batch.ts'
+import { ContentRefs, keepNamed, releaseBlocks } from './content-refs.ts'
+import { fetchNamed } from './block-read.ts'
 import {
-  blobRowDigest,
-  coreBlobRows,
-  factDigestOf,
-  type DerivedFact,
-  type EventProjection,
-} from './journal-batch.ts'
+  ANSWER_FAMILY,
+  NeedItems,
+  answerRef,
+  itemText,
+  type ItemRef,
+} from '../testing/closed-items.ts'
 import {
-  projectExecution,
-  projectRecords,
-  type ProjectedRecords,
-  type ProjectionContext,
-} from '../testing/journal-records.ts'
+  restoreRecords,
+  heldOrigins,
+  fetchClosed,
+  closesOpen,
+  foldFull,
+  lendFetched,
+  readOpenView,
+  recordsView,
+  unlend,
+  unsettled,
+  type FullViews,
+} from './item-read.ts'
+import { EVENT_PAGE, eventsAfter, newTurns, turn, type Turns } from './event-stream.ts'
+import { SharedMap } from '../journal/shared-map.ts'
+import { boundariesOf, captureFresh, projectionOf, type Fault } from './event-projection.ts'
 import {
-  readBatches,
+  headsOf,
+  JOURNAL_PROVIDER,
+  preparePublication,
+  unavailable,
+  type Prepared,
+} from './journal-publication.ts'
+import { projectRecords, type ProjectionContext } from '../testing/journal-records.ts'
+import {
   readBlob,
-  readColdStart,
   readEvents,
+  readOpenExecutions,
+  readTouched,
   readOperation,
   readOutput,
   readerOf,
-  type ReadBatch,
   type Reader,
 } from './journal-read.ts'
 import { attemptOfAuthority, attemptOfGrant } from './attempt-grant.ts'
+import { createModelTelling, type StepOpening } from './model-telling.ts'
 
 export type SessionLogJournalOptions<P> = Readonly<{
   storage: SqlStorage
@@ -150,9 +155,8 @@ export type SessionLogJournalOptions<P> = Readonly<{
   hostRecords?: MemoryAgentJournalOptions<P>['hostRecords']
   fault?: Fault
   report?: (report: JournalPublicationReport) => void
-}>
-
-type Fault = (diagnostic: string) => void
+}> &
+  StepOpening<P>
 
 export type JournalPublicationReport = Readonly<{
   tenant: string
@@ -232,16 +236,25 @@ type Book<P> = {
   queue: Promise<void>
   users: number
   readonly held: Map<string, Held>
+  // How many open items name each block of blobs and parsed: a block no open item names leaves both.
+  readonly refs: ContentRefs
+  // Closed items this call read back by original key (null: the store holds none), by itemText.
+  readonly fetched: Map<string, unknown>
+  readonly lentBlocks: Map<string, string>
+  readonly full: FullViews
+  origins: CommonRoot['agent']['callOrigins']
+  readonly turns: Turns
 }
 
 const PARTICIPANTS = ['message', 'context-transition', 'custody', 'processed'] as const
-const ROUNDS = 4
+const LOST_RACES = 4
 const READS: ReadonlySet<string> = new Set([
   'load',
   'readCancellationInstallation',
   'inputs',
   'readReplyAdmissions',
   'query',
+  'inputAcceptance',
   'output.read',
   'materials.read',
   'materials.describe',
@@ -253,40 +266,13 @@ const READS: ReadonlySet<string> = new Set([
   'toolTargets.forExecution',
   'toolTargets.resolve',
 ])
-const OWNER = 'session-log-journal'
+const OWNER = JOURNAL_PROVIDER
 const BLOBS_WITH_BATCH_BYTES = 256 * 1024
-
-const unavailable = (diagnostic: string): Failure => ({
-  kind: 'unavailable',
-  owner: OWNER,
-  diagnostic,
-})
+const unread = <T>(answer: Outcome<T, Failure> | undefined, what: string): Outcome<T, Failure> =>
+  answer ?? fail(unavailable(`the Journal core holds no ${what} read`))
 
 type OpenInput<P> = Parameters<AgentJournal<P>['open']>[0]
 type AttachInput<P> = Parameters<AgentJournal<P>['attach']>[0]
-
-function historyCaller<P>(input: ExecutionMutation<P>, method: JournalWrite): CallerCommit {
-  if (method === 'recordResult')
-    return (input as Parameters<AgentJournal<P>['recordResult']>[0]).transfer
-  if (method !== 'commit') return { kind: 'none' }
-  const commit = input as Parameters<AgentJournal<P>['commit']>[0]
-  if (commit.caller.kind !== 'none') return commit.caller
-  const handoff = commit.handoff
-  if (handoff?.kind !== 'resolve') return commit.caller
-  const { request, decision, record } = handoff.outcome
-  if (
-    request.kind !== 'execution' ||
-    request.source.kind !== 'model-reply' ||
-    decision.kind !== 'prepared'
-  )
-    return commit.caller
-  return {
-    kind: 'message',
-    message: decision.message,
-    source: record,
-    admission: decision.admission,
-  }
-}
 
 function storageOperation(execution: string, operation: string): string {
   return `aop_${createHash('sha256')
@@ -306,11 +292,11 @@ const ROUTE_ONLY: ReadonlySet<string> = new Set(['preserve'])
 
 function writtenOf(method: string, input: object): Written {
   const value = input as { execution?: unknown; operation?: unknown }
+  const own = !ROUTE_ONLY.has(method)
   return {
     method,
-    execution:
-      typeof value.execution === 'string' && !ROUTE_ONLY.has(method) ? value.execution : null,
-    operation: typeof value.operation === 'string' ? value.operation : null,
+    execution: own && typeof value.execution === 'string' ? value.execution : null,
+    operation: own && typeof value.operation === 'string' ? value.operation : null,
     digest: `sha256:${operationSemantic(input as ExecutionMutation<unknown>)}`,
   }
 }
@@ -320,120 +306,6 @@ function changedExecutions(before: CommonRoot, after: CommonRoot): MemoryExecuti
   for (const [key, value] of after.agent.executions)
     if (before.agent.executions.get(key) !== value) out.push(value)
   return out
-}
-
-function receiptOf(answer: Outcome<unknown, Failure>): CommandReceipt | null {
-  if (!('ok' in answer) || typeof answer.ok !== 'object' || answer.ok === null) return null
-  const value = answer.ok as Record<string, unknown>
-  const receipt = 'receipt' in value ? value['receipt'] : value
-  return typeof receipt === 'object' &&
-    receipt !== null &&
-    'evidence' in receipt &&
-    'revision' in receipt
-    ? (receipt as CommandReceipt)
-    : null
-}
-
-export function readOrNull<T>(what: string, fault: Fault | undefined, read: () => T): T | null {
-  try {
-    return read()
-  } catch (error) {
-    if (error instanceof HistoryFailure) return null
-    if (error instanceof TypeError) {
-      fault?.(`${what} read past a ${error.name}: ${error.message}`)
-      return null
-    }
-    throw error
-  }
-}
-
-function consequencesOf(
-  root: CommonRoot,
-  execution: MemoryExecution,
-  event: MemoryExecution['events'][number],
-  fault: Fault | undefined,
-): readonly SessionLogConsequence[] | null {
-  return readOrNull(`the consequences of ${execution.id}/${event.sequence}`, fault, () =>
-    normalizeAgentEvent(root, execution, event),
-  )
-}
-
-function deferredOf(
-  root: CommonRoot,
-  execution: MemoryExecution,
-  event: MemoryExecution['events'][number],
-  fault: Fault | undefined,
-): SessionControlEvidence | null {
-  if (event.body.kind !== 'control') return null
-  return readOrNull(`the control evidence of ${execution.id}/${event.sequence}`, fault, () =>
-    controlEventEvidence(root, execution, event),
-  )
-}
-
-function placeholderHead(execution: MemoryExecution): DurableEvidence {
-  return {
-    owner: OWNER,
-    record: `${execution.id}/head`,
-    revision: String(execution.revision),
-    digest: 'unknown',
-  }
-}
-
-const projected = (value: unknown): JsonValue =>
-  value === null || value === undefined ? null : (JSON.parse(JSON.stringify(value)) as JsonValue)
-
-function projectionOf(
-  root: CommonRoot,
-  execution: MemoryExecution,
-  event: MemoryExecution['events'][number],
-  fault: Fault | undefined,
-): EventProjection {
-  const consequences = consequencesOf(root, execution, event, fault)
-  const control = consequences === null ? deferredOf(root, execution, event, fault) : null
-  return {
-    sequence: event.sequence,
-    source: event.cause,
-    kinds: control !== null ? ['deferred'] : (consequences?.map(item => item.kind) ?? []),
-    consequences: projected(consequences),
-    control: projected(control),
-    ...(event.body.kind === 'input-taken' ? { batch: projected(event.body.batch) } : {}),
-  }
-}
-
-function boundariesOf(
-  changed: readonly MemoryExecution[],
-  receipt: CommandReceipt | null,
-): ExecutionBoundaryRecord[] {
-  return changed.map(execution => {
-    const head = receipt?.execution === execution.id ? receipt.evidence : null
-    const last = execution.events.at(-1)
-    return {
-      execution: execution.id,
-      revision: String(execution.revision),
-      receipt: head ?? placeholderHead(execution),
-      emittedThrough: String(execution.events.length),
-      ended:
-        last !== undefined && last.body.kind === 'ended'
-          ? { sequence: last.sequence, source: last.cause }
-          : null,
-    }
-  })
-}
-
-function captureFresh(
-  root: CommonRoot,
-  execution: string,
-  receipt: CommandReceipt,
-  fault: Fault | undefined,
-): void {
-  const found = [...root.agent.executions.values()].find(item => item.id === execution)
-  if (found === undefined) return
-  const old = root.agent.indexedEvents.get(execution) ?? 0
-  for (const event of found.events.slice(old))
-    readOrNull(`the original of ${execution}/${event.sequence}`, fault, () =>
-      captureEventOriginal(root, found, event, receipt),
-    )
-  root.agent.indexedEvents.set(execution, found.events.length)
 }
 
 export function materialSessionOf(
@@ -464,7 +336,7 @@ export type InterpretableEvent = Readonly<{
 
 export type ExecutionInterpretation = Readonly<{
   revision: string
-  head: DurableEvidence | null
+  head: DurableEvidence
   emittedThrough: string
   events: readonly InterpretableEvent[]
 }>
@@ -502,7 +374,7 @@ export type JournalStateSource = Readonly<{
 
 type Resolved = Readonly<{ domain: DomainRef; tenant: string; read: Reader }>
 
-async function resolvedOf(
+export async function resolvedOf(
   options: JournalStateSource,
   tenant: TenantId,
 ): Promise<Resolved | Readonly<{ kind: 'unavailable'; diagnostic: string }>> {
@@ -532,12 +404,11 @@ export async function readExecutionInterpretation(
   )
   if (read.kind === 'absent') return { kind: 'read', execution: null }
   if (read.kind === 'unavailable') return read
-  const receipt = read.receipt as DurableEvidence | null
   return {
     kind: 'read',
     execution: {
       revision: read.revision,
-      head: receipt === null || receipt.digest === 'unknown' ? null : receipt,
+      head: read.receipt as unknown as DurableEvidence,
       emittedThrough: read.emittedThrough,
       events: read.events.map(event => ({
         sequence: event.sequence,
@@ -549,183 +420,32 @@ export async function readExecutionInterpretation(
   }
 }
 
-async function fetchBlobClosure(
-  read: Reader,
-  tenant: string,
-  digests: Iterable<string>,
-  into: Map<string, string>,
-): Promise<string | null> {
-  for (const digest of digests) {
-    if (into.has(digest)) continue
-    const payload = await readBlob(read, tenant, digest)
-    if (typeof payload !== 'string') return digest
-    into.set(digest, payload)
-  }
-  return null
-}
-
-export type ExecutionRecordsRead =
-  | Readonly<{ kind: 'read'; execution: MemoryExecution | null }>
-  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
-
-const HEX_DIGEST = /^[0-9a-f]{64}$/
-
-function refsIn(value: unknown, into = new Set<string>()): Set<string> {
-  if (value === null || typeof value !== 'object') return into
-  if (value instanceof Map) {
-    for (const member of value.values()) refsIn(member, into)
-    return into
-  }
-  if (Array.isArray(value)) {
-    for (const item of value) refsIn(item, into)
-    return into
-  }
-  const record = value as Record<string, unknown>
-  if (
-    typeof record['digest'] === 'string' &&
-    HEX_DIGEST.test(record['digest']) &&
-    typeof record['size'] === 'number'
-  )
-    into.add(record['digest'])
-  for (const member of Object.values(record)) refsIn(member, into)
-  return into
-}
-
-function listedDigests(payload: string): string[] {
-  const value = JSON.parse(payload) as unknown
-  if (!Array.isArray(value)) return []
-  return value.flatMap(item =>
-    Array.isArray(item) && typeof item[1] === 'string' && HEX_DIGEST.test(item[1]) ? [item[1]] : [],
-  )
-}
-
-async function fetchNamed(
-  read: Reader,
-  tenant: string,
-  executions: Iterable<ExecutionView>,
-  into: Map<string, string>,
-): Promise<string | null> {
-  const named = new Set<string>()
-  const lists: string[] = []
-  const cursors: string[] = []
-  for (const execution of executions) {
-    for (const ref of refsIn(execution)) named.add(blobRowDigest(ref))
-    for (const list of execution.finish.lists.values()) lists.push(list.issued.listed.digest)
-    for (const candidate of execution.finish.candidates) cursors.push(candidate.cursor.digest)
-  }
-  const missing = await fetchBlobClosure(read, tenant, named, into)
-  if (missing !== null) return missing
-  const items = new Set<string>()
-  for (const digest of lists) {
-    const payload = into.get(blobRowDigest(digest))
-    if (payload === undefined) continue
-    for (const item of listedDigests(payload)) items.add(blobRowDigest(item))
-  }
-  // A candidate keeps the cursor of the step it was established on; after later steps only that cursor block names the member blocks of that step.
-  for (const digest of cursors) {
-    const payload = into.get(blobRowDigest(digest))
-    if (payload === undefined) continue
-    for (const ref of refsIn(JSON.parse(payload) as unknown)) items.add(blobRowDigest(ref))
-  }
-  return fetchBlobClosure(read, tenant, items, into)
-}
-
-type RecordsFold = {
-  head: number
-  view: SessionJournalView
-  blobs: Map<string, string>
-  parsed: Map<string, unknown>
-  executions: Set<string>
-}
-
-const recordsFolds = new WeakMap<SqlStorage, Map<string, RecordsFold>>()
-const RECORDS_FOLDS = 256
-const RECORDS_FOLD_TEXT = 16 * 1024 * 1024
-
-export function dropFoldsOver<Fold extends { blobs: ReadonlyMap<string, string> }>(
-  folds: Map<string, Fold>,
-  used: Fold,
-  limit: number,
+// The views of these executions as the store holds them open, in place of what the book held.
+function adopt<P>(
+  book: Book<P>,
+  found: Readonly<{ views: readonly ExecutionView[]; full: readonly ExecutionView[] }>,
+  published: number,
 ): void {
-  const textOf = (fold: Fold) => {
-    let text = 0
-    for (const payload of fold.blobs.values()) text += payload.length
-    return text
+  const executions = new SharedMap(book.view.executions)
+  for (const view of found.views) {
+    executions.set(view.execution, view)
+    book.full.delete(view.execution)
+    for (const key of book.origins.keys())
+      if (key.startsWith(`${view.execution}\0`)) book.origins.delete(key)
   }
-  let total = 0
-  for (const fold of folds.values()) total += textOf(fold)
-  for (const [key, fold] of folds) {
-    if (total <= limit) break
-    if (fold === used) continue
-    total -= textOf(fold)
-    folds.delete(key)
-  }
+  for (const view of found.full) book.full.set(view.execution, view)
+  book.view = { head: Math.max(book.view.head, published), executions }
+  book.published = Math.max(book.published ?? 0, published)
+  book.copy = null
+  turn(book.turns)
 }
 
-function recordsFoldOf(storage: SqlStorage, key: string): RecordsFold {
-  let folds = recordsFolds.get(storage)
-  if (folds === undefined) {
-    folds = new Map()
-    recordsFolds.set(storage, folds)
-  }
-  let found = folds.get(key)
-  if (found !== undefined) {
-    folds.delete(key)
-    folds.set(key, found)
-    return found
-  }
-  found = {
-    head: 0,
-    view: emptySessionView(),
-    blobs: new Map(),
-    parsed: new Map(),
-    executions: new Set(),
-  }
-  folds.set(key, found)
-  while (folds.size > RECORDS_FOLDS) {
-    const oldest = folds.keys().next().value
-    if (oldest === undefined) break
-    folds.delete(oldest)
-  }
-  return found
-}
-
-export async function readExecutionRecords(
-  options: JournalStateSource,
-  target: Readonly<{ tenant: TenantId; session: SessionId; execution: string }>,
-): Promise<ExecutionRecordsRead> {
-  const resolved = await resolvedOf(options, target.tenant)
-  if ('kind' in resolved) return resolved
-  const scope = { tenant: resolved.tenant, session: target.session }
-  const kept = recordsFoldOf(options.storage, JSON.stringify([resolved.tenant, target.session]))
-  const known = kept.executions.has(target.execution)
-  const own = await readBatches(resolved.read, scope, known ? kept.head : 0, target.execution)
-  if (own.kind === 'unavailable') return own
-  const head = Math.max(kept.head, own.published)
-  const batches = [...own.batches]
-    .filter(batch => batch.pub <= head)
-    .sort((left, right) => left.pub - right.pub)
-  for (const batch of batches) if (batch.batch !== null) kept.view = fold(kept.view, batch.batch)
-  kept.view = { ...kept.view, head: Math.max(kept.view.head, head) }
-  kept.head = head
-  kept.executions.add(target.execution)
-  const found = kept.view.executions.get(target.execution as AgentExecutionId)
-  if (found === undefined || found.opened === null) return { kind: 'read', execution: null }
-  const missing = await fetchNamed(resolved.read, resolved.tenant, [found], kept.blobs)
-  if (missing !== null)
-    return { kind: 'unavailable', diagnostic: `the content block ${missing} is not readable` }
-  try {
-    const execution = projectExecution(
-      found,
-      projectionContext(target.tenant, resolved.tenant, target.session, kept.blobs, kept.parsed),
-    ) as MemoryExecution
-    return { kind: 'read', execution }
-  } catch (error) {
-    return { kind: 'unavailable', diagnostic: `the Agent records do not decode: ${String(error)}` }
-  } finally {
-    const folds = recordsFolds.get(options.storage)
-    if (folds !== undefined) dropFoldsOver(folds, kept, RECORDS_FOLD_TEXT)
-  }
+async function fetchBlobs<P>(book: Book<P>, read: Reader): Promise<Failure | null> {
+  const views = recordsView(book.view, book.full).executions.values()
+  const missing = await fetchNamed(read, book.tenantText, views, book.blobs)
+  return missing === null
+    ? null
+    : unavailable(`the content block ${missing} of the Agent records is not readable`)
 }
 
 function projectionContext(
@@ -748,6 +468,168 @@ function projectionContext(
   }
 }
 
+function diagnosticOf(error: unknown): string {
+  if (error instanceof HistoryFailure && error.failure.kind === 'unavailable')
+    return error.failure.diagnostic
+  return error instanceof Error ? error.message : 'original result'
+}
+
+function jointState<P>(
+  book: Readonly<{ scratch: Scratch | null }>,
+  cell: JournalCell<P>,
+  input: ExecutionMutation<P>,
+  method: JournalWrite,
+): JointState {
+  const root = cell.state()
+  const execution = [...root.agent.executions.values()].find(item => item.id === input.execution)
+  return {
+    accepted: execution?.inputs.filter(() => true),
+    snapshot: book.scratch?.snapshot,
+    resultOf(caller) {
+      if (execution === undefined) return fail({ kind: 'denied', action: method })
+      try {
+        return succeed(normalizedResult(root, execution, caller.consumption, caller.result).result)
+      } catch (error) {
+        return fail(unavailable(diagnosticOf(error)))
+      }
+    },
+  }
+}
+
+// The batch a write publishes, prepared against what the book has published.
+function publicationOf<P>(
+  book: Book<P>,
+  write: Readonly<{
+    before: CommonRoot
+    after: CommonRoot
+    own: MemoryExecution | undefined
+    appended: readonly PublishedBatch[]
+    written: Written
+    scratch: Scratch
+  }>,
+  fault: Fault | undefined,
+) {
+  const { before, after, own, appended, written, scratch } = write
+  return preparePublication({
+    closedBefore: before.agent.closed,
+    view: book.view,
+    published: book.published ?? 0,
+    stored: row => book.blobs.has(row),
+    after,
+    own,
+    appended,
+    method: written.method,
+    kinds: kindsOf(scratch),
+    project: (owner, event) => projectionOf(after, owner, event, fault),
+  })
+}
+
+function kindsOf(scratch: Scratch): ParticipationKind[] {
+  const kinds: ParticipationKind[] = []
+  for (const command of scratch.commands)
+    switch (command.kind) {
+      case 'recordMessage':
+        kinds.push('deliveries' in command.input.value ? 'delivered' : 'message')
+        break
+      case 'commitDerived':
+        kinds.push('context-transition')
+        break
+      case 'preserveResult':
+        kinds.push('custody')
+        break
+      case 'completeConsumption':
+        kinds.push('processed')
+        break
+      default:
+        break
+    }
+  return kinds
+}
+
+type Settled<T> =
+  | Readonly<{ kind: 'answer'; value: Outcome<T, Failure> }>
+  | Readonly<{ kind: 'again' }>
+  | Readonly<{ kind: 'fetch'; refs: readonly ItemRef[] }>
+
+type Published<P, T> = Readonly<{
+  book: Book<P>
+  copy: Copy<P>
+  after: CommonRoot
+  prepared: Prepared
+  execution: string
+  written: Written
+  prior: ExecutionRevision | null
+  scratch: Scratch
+  answer: Outcome<T, Failure>
+}>
+type Settling<P, T> = Published<P, T> &
+  Readonly<{
+    agentOperation: AgentOperationId | null
+  }>
+function nameless<T>(what: string): Settled<T> {
+  return {
+    kind: 'answer',
+    value: fail(unavailable(`${what} of a write without an Agent operation`)),
+  }
+}
+
+// The store already holds the operation: read back what it answered, so the next round recognizes
+// it; once read, the same digest runs again and another one conflicts.
+function recalled<P, T>(job: Settling<P, T>, digest: string): Settled<T> {
+  if (job.agentOperation !== null && job.written.execution !== null) {
+    const ref = answerRef(job.written.execution as AgentExecutionId, job.agentOperation)
+    if (!job.book.fetched.has(itemText(ref))) return { kind: 'fetch', refs: [ref] }
+  }
+  return conflicting(job, digest)
+}
+
+function conflicting<P, T>(job: Settling<P, T>, digest: string): Settled<T> {
+  if (digest === job.written.digest) return { kind: 'again' }
+  return job.agentOperation === null
+    ? nameless('a conflict')
+    : { kind: 'answer', value: fail({ kind: 'conflict', operation: job.agentOperation }) }
+}
+
+function settleRecordStop<P, T>(
+  job: Settling<P, T>,
+  reply: ReturnType<typeof decodeExecutionRecordReply>,
+): Settled<T> {
+  switch (reply.kind) {
+    case 'revision-conflict':
+      return { kind: 'again' }
+    case 'operation-conflict':
+      return recalled(job, reply.digest)
+    // The store holds an item this write opens, or not the open one it changes: closed work.
+    case 'item-conflict': {
+      const ref: ItemRef = {
+        execution: reply.execution as AgentExecutionId,
+        family: reply.family,
+        item: reply.item,
+      }
+      if (!job.book.fetched.has(itemText(ref))) return { kind: 'fetch', refs: [ref] }
+      return job.agentOperation === null
+        ? nameless('an item conflict')
+        : { kind: 'answer', value: fail({ kind: 'conflict', operation: job.agentOperation }) }
+    }
+    default:
+      return {
+        kind: 'answer',
+        value: fail(
+          unavailable(
+            `the Agent records were not saved: ${reply.kind}${'diagnostic' in reply ? ` (${reply.diagnostic})` : 'reason' in reply ? ` (${reply.reason})` : ''}`,
+          ),
+        ),
+      }
+  }
+}
+
+function finishChanged<P, T>(job: Settling<P, T>): Settled<T> {
+  if (job.prior === null)
+    return { kind: 'answer', value: fail(unavailable('a finish check without its execution')) }
+  const changed: FinishResult = { kind: 'changed', revision: job.prior }
+  return { kind: 'answer', value: succeed(changed) as Outcome<T, Failure> }
+}
+
 export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>) {
   const books = new Map<string, Book<P>>()
   const counts = publishedCountsOf(options.storage)
@@ -756,6 +638,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     return false
   }
   const generations: GenerationMemory = new Map()
+  const telling = createModelTelling<P, Book<P>>({ ...options, generations, read: snapshotOf })
 
   function bookOf(tenant: TenantId, session: SessionId): Book<P> | null {
     const text = tenantCodec.encode(tenant)
@@ -778,6 +661,12 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         queue: Promise.resolve(),
         users: 0,
         held: new Map(),
+        refs: new ContentRefs(),
+        fetched: new Map(),
+        lentBlocks: new Map(),
+        origins: new SharedMap(),
+        full: new Map(),
+        turns: newTurns(),
       }
       books.set(key, book)
     }
@@ -800,6 +689,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         resting.blobs.clear()
         resting.parsed.clear()
         resting.loaded.clear()
+        resting.full.clear()
       }
       resting = null
     }
@@ -930,88 +820,14 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     method: JournalWrite,
     receipt: CommandReceipt,
   ): Outcome<SessionCommand, Failure> | undefined {
-    const caller = historyCaller(input, method)
-    if (caller.kind === 'none') return undefined
-    const operation = deriveSessionOperation({
-      kind: 'participation',
-      execution: input.execution,
-      operation: input.operation,
-      joint: caller.kind,
-    })
-    const common = { tenant: book.tenant, session: book.session, operation }
-    const participation = {
-      execution: input.execution,
-      operation: input.operation,
-      joint: caller.kind,
-      written: receipt.revision,
-      handover: receipt.evidence,
-    }
-    switch (caller.kind) {
-      case 'message':
-        return succeed({
-          kind: 'recordMessage',
-          input: {
-            ...common,
-            participation,
-            value: {
-              message: caller.message,
-              source: caller.source,
-              admission: caller.admission,
-              consumption: null,
-            },
-          },
-        })
-      case 'context-transition':
-        if (caller.value.message.role !== 'compaction')
-          return fail({ kind: 'invalid', field: 'caller.value.message', reason: 'not compaction' })
-        return succeed({
-          kind: 'commitDerived',
-          input: {
-            ...common,
-            participation,
-            value: { kind: 'compaction', message: caller.value.message },
-            judgment: caller.admission,
-          },
-        })
-      case 'custody':
-      case 'processed': {
-        const root = cell.state()
-        const execution = [...root.agent.executions.values()].find(
-          item => item.id === input.execution,
-        )
-        if (execution === undefined) return fail({ kind: 'denied', action: method })
-        let result
-        try {
-          result = normalizedResult(root, execution, caller.consumption, caller.result).result
-        } catch (error) {
-          return fail(
-            unavailable(
-              error instanceof HistoryFailure && error.failure.kind === 'unavailable'
-                ? error.failure.diagnostic
-                : error instanceof Error
-                  ? error.message
-                  : 'original result',
-            ),
-          )
-        }
-        const consumption = String(caller.consumption) as ConsumptionId
-        return succeed(
-          caller.kind === 'custody'
-            ? {
-                kind: 'preserveResult',
-                input: { ...common, participation, consumption, result, custody: caller.retained },
-              }
-            : {
-                kind: 'completeConsumption',
-                input: {
-                  ...common,
-                  participation,
-                  completion: { consumption, result, completion: caller.completion },
-                },
-              },
-        )
-      }
-    }
+    return jointCommandOf(
+      book,
+      input,
+      method,
+      receipt,
+      historyCaller(input, method),
+      jointState(book, cell, input, method),
+    )
   }
 
   async function qualify(
@@ -1080,44 +896,15 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       case 'terminal':
         return fact(judged.terminal.evidence, { kind: 'changed' })
       case 'cancelled': {
-        const cancels = snapshot.controls.filter(
-          item => item.intent.kind === 'control' && item.intent.value.kind === 'cancel-run',
-        )
-        const own = cancels.length === 1 ? cancels[0] : undefined
-        const matches =
-          own !== undefined &&
-          deriveDriveOperation({ kind: 'control', execution, control: own.operation }) === control
+        const matches = cancellationDriveOf(judged.terminal, execution) === control
         return fact(judged.terminal.evidence, { kind: matches ? 'ready' : 'changed' })
       }
     }
   }
 
-  function restore(book: Book<P>, cell: JournalCell<P>, records: ProjectedRecords): void {
-    cell.mutate(() => {
-      const root = cell.state()
-      const into = <K, V>(target: Map<K, V>, source: ReadonlyMap<K, V>) => {
-        for (const [key, value] of source) target.set(key, value)
-      }
-      root.agent.view = book.view
-      root.agent.log = []
-      for (const [digest, value] of book.parsed) root.agent.blobs.set(digest, value)
-      into(root.agent.executions, records.executions)
-      into(root.agent.operations, records.operations)
-      into(root.agent.eventReceipts, records.fragments.eventReceipts)
-      into(root.agent.pendingEvents, records.fragments.pendingEvents)
-      into(root.agent.callOrigins, records.fragments.callOrigins)
-      into(root.agent.human, records.fragments.human)
-      into(root.agent.indexedEvents, records.fragments.indexedEvents)
-      for (const name of Object.keys(records.receiving) as (keyof CommonRoot['receiving'])[])
-        into(
-          root.receiving[name] as Map<unknown, unknown>,
-          records.receiving[name] as Map<unknown, unknown>,
-        )
-      cell.touch()
-    })
-  }
-
   function build(book: Book<P>): Copy<P> {
+    const records = recordsView(book.view, book.full)
+    keepNamed(book.refs, records, book)
     const cell: JournalCell<P> = createCell<P>(book.tenant, book.session, {
       authorize: () => undefined,
       advances(execution, authority): boolean {
@@ -1140,11 +927,11 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         return undefined
       },
     })
-    restore(
+    restoreRecords(
       book,
       cell,
       projectRecords(
-        book.view,
+        records,
         projectionContext(book.tenant, book.tenantText, book.session, book.blobs, book.parsed),
       ),
     )
@@ -1152,7 +939,13 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     const core = createJournal<P>(cell, {
       participants: PARTICIPANTS,
       grant: () => true,
-      participates: (input, method) => historyCaller(input, method).kind !== 'none',
+      participates: (input, method) =>
+        joinsSession(
+          input,
+          method,
+          historyCaller(input, method),
+          jointState(book, cell, input, method),
+        ),
       qualifyParticipation: (input, method, receipt) => qualify(book, cell, input, method, receipt),
       terminalParticipant: input => terminalParticipant(book, cell, input.execution, input.control),
       ...(options.cancellation === undefined ? {} : { cancellation: options.cancellation }),
@@ -1237,35 +1030,16 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     return decodeSessionHistoryRoot(output.output) ?? unreadable
   }
 
-  function foldRead(book: Book<P>, batches: readonly ReadBatch[], published: number): void {
-    for (const batch of batches) if (batch.batch !== null) book.view = fold(book.view, batch.batch)
-    book.view = { ...book.view, head: Math.max(book.view.head, published) }
-    book.published = published
-    book.copy = null
-  }
-
-  function foldExecution(book: Book<P>, batches: readonly ReadBatch[]): void {
-    let side = emptySessionView()
-    for (const batch of batches) if (batch.batch !== null) side = fold(side, batch.batch)
-    book.view = {
-      head: book.view.head,
-      executions: new Map([...book.view.executions, ...side.executions]),
-      ops: new Map([...side.ops, ...book.view.ops]),
-      excluded: new Map([...side.excluded, ...book.view.excluded]),
-    }
-    book.copy = null
-  }
-
   async function loadExecution(
     book: Book<P>,
     domain: DomainRef,
     execution: string,
   ): Promise<Outcome<Copy<P>, Failure>> {
     const read = readerOf(options.storage, domain)
-    const found = await readBatches(read, scopeOf(book), 0, execution)
+    const found = await readOpenView(read, scopeOf(book), [execution], book.published ?? 0)
     if (found.kind === 'unavailable') return fail(unavailable(found.diagnostic))
     book.loaded.add(execution)
-    if (found.batches.length > 0) foldExecution(book, found.batches)
+    if (found.views.length > 0) adopt(book, found, found.published)
     if (book.copy !== null) return succeed(book.copy)
     const missing = await fetchBlobs(book, read)
     if (missing !== null) return fail(missing)
@@ -1276,18 +1050,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       return fail(unavailable(`the Agent records do not decode: ${String(error)}`))
     }
     return succeed(book.copy)
-  }
-
-  async function fetchBlobs(book: Book<P>, read: Reader): Promise<Failure | null> {
-    const missing = await fetchNamed(
-      read,
-      book.tenantText,
-      book.view.executions.values(),
-      book.blobs,
-    )
-    return missing === null
-      ? null
-      : unavailable(`the content block ${missing} of the Agent records is not readable`)
   }
 
   async function sync(book: Book<P>, domain: DomainRef): Promise<Outcome<Copy<P>, Failure>> {
@@ -1303,16 +1065,31 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       counts.confirm(book.key, published)
     }
     const read = readerOf(options.storage, domain)
+    // Cold: the open items of the session. Another writer published: the open items of the
+    // executions its batches touched, read again.
     if (book.published === null) {
-      const cold = await readColdStart(read, scopeOf(book))
-      if (cold.kind === 'unavailable') return fail(unavailable(cold.diagnostic))
-      foldRead(book, cold.batches, cold.published)
-      for (const execution of cold.executions) book.loaded.add(execution)
-    } else if (book.published < published) {
-      const found = await readBatches(read, scopeOf(book), book.published)
+      const open = await readOpenExecutions(read, scopeOf(book))
+      if (open.kind === 'unavailable') return fail(unavailable(open.diagnostic))
+      const found = await readOpenView(read, scopeOf(book), open.executions, open.published)
       if (found.kind === 'unavailable') return fail(unavailable(found.diagnostic))
-      foldRead(book, found.batches, found.published)
-    } else if (!excluded && book.copy !== null) return succeed(book.copy)
+      adopt(book, found, Math.min(found.published, open.published))
+      for (const execution of open.executions) book.loaded.add(execution)
+    } else if (book.published < published) {
+      const touched = await readTouched(read, scopeOf(book), book.published)
+      if (touched.kind === 'unavailable') return fail(unavailable(touched.diagnostic))
+      const executions = [...touched.executions].filter(item => book.loaded.has(item))
+      const found = await readOpenView(read, scopeOf(book), executions, touched.published)
+      if (found.kind === 'unavailable') return fail(unavailable(found.diagnostic))
+      adopt(book, found, Math.min(found.published, touched.published))
+    }
+    // Every execution that finishes is held in full.
+    const owed = unsettled(book.view.executions.values(), book.full)
+    if (!excluded && book.copy !== null && owed.length === 0) return succeed(book.copy)
+    if (owed.length > 0) {
+      const found = await readOpenView(read, scopeOf(book), owed, book.published ?? 0)
+      if (found.kind === 'unavailable') return fail(unavailable(found.diagnostic))
+      adopt(book, found, Math.min(found.published, book.published ?? 0))
+    }
     const missing = await fetchBlobs(book, read)
     if (missing !== null) return fail(missing)
     try {
@@ -1325,7 +1102,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
   }
 
   async function readAdopted(
-    scope: Readonly<{ tenant: TenantId; session: SessionId }>,
+    scope: Readonly<{ tenant: TenantId; session: SessionId; reference?: string | undefined }>,
   ): Promise<AdoptedRead> {
     const book = bookOf(scope.tenant, scope.session)
     if (book === null) return { kind: 'unavailable', diagnostic: 'the tenant is not minted' }
@@ -1344,17 +1121,8 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
           diagnostic:
             synced.failure.kind === 'unavailable' ? synced.failure.diagnostic : synced.failure.kind,
         }
-      let latest: Readonly<{ execution: string; request: RequestView }> | null = null
-      for (const execution of book.view.executions.values())
-        if (
-          execution.adopted !== null &&
-          (latest === null || execution.adopted.pub > latest.request.pub)
-        )
-          latest = { execution: execution.execution, request: execution.adopted }
+      const latest = adoptedIn(book.view.executions.values(), scope.reference)
       if (latest === null) return { kind: 'value', value: null }
-      let order = 0
-      for (const execution of book.view.executions.values())
-        for (const request of execution.requests) if (request.pub <= latest.request.pub) order += 1
       const digest = blobRowDigest(latest.request.record.digest)
       let payload = book.blobs.get(digest)
       if (payload === undefined) {
@@ -1368,7 +1136,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         return {
           kind: 'value',
           value: {
-            order: String(order),
+            order: String(latest.request.pub),
             execution: latest.execution,
             reference: String(latest.request.reference),
             fixed: latest.request.fixed,
@@ -1384,21 +1152,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         }
       }
     })
-  }
-
-  type Settled<T> =
-    | Readonly<{ kind: 'answer'; value: Outcome<T, Failure> }>
-    | Readonly<{ kind: 'again' }>
-
-  function participationOf(method: string): ParticipationMethod | null {
-    return method === 'open' ||
-      method === 'attach' ||
-      method === 'submit' ||
-      method === 'tryFinish' ||
-      method === 'commit' ||
-      method === 'recordResult'
-      ? method
-      : null
   }
 
   function hold(
@@ -1430,11 +1183,11 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
   function admissionsOf(
     written: Written,
     own: MemoryExecution | undefined,
-    receipt: CommandReceipt | null,
+    accepted: DurableEvidence | undefined,
     scratch: Scratch,
   ): ExecutionAdmissionRecord[] {
     if ((written.method !== 'open' && written.method !== 'submit') || own === undefined) return []
-    if (receipt === null) return []
+    if (accepted === undefined) return []
     const check = scratch.checks[0]
     const input =
       check?.kind === 'open'
@@ -1454,119 +1207,12 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         input,
         execution: own.id,
         operation: written.operation ?? '',
-        accepted: receipt.evidence,
-        grant: check?.kind === 'open' ? check.grant : receipt.evidence,
+        accepted,
+        grant: check?.kind === 'open' ? check.grant : accepted,
         attachment: attachment.authority.executionAttachment,
         ...(original === undefined ? {} : { attempt: original.attempt }),
       },
     ]
-  }
-
-  type Prepared = Readonly<{
-    envelope: BatchEnvelope
-    derived: readonly DerivedFact[]
-    records: readonly ExecutionFactRecord[]
-    blobs: readonly ExecutionBlobRecord[]
-    batchBytes: number
-  }>
-
-  function kindsOf(scratch: Scratch): ParticipationKind[] {
-    const kinds: ParticipationKind[] = []
-    for (const command of scratch.commands)
-      switch (command.kind) {
-        case 'recordMessage':
-          kinds.push('message')
-          break
-        case 'commitDerived':
-          kinds.push('context-transition')
-          break
-        case 'preserveResult':
-          kinds.push('custody')
-          break
-        case 'completeConsumption':
-          kinds.push('processed')
-          break
-        default:
-          break
-      }
-    return kinds
-  }
-
-  function prepare(
-    book: Book<P>,
-    after: CommonRoot,
-    own: MemoryExecution | undefined,
-    appended: readonly PublishedBatch[],
-    written: Written,
-    scratch: Scratch,
-  ): Outcome<Prepared, Failure> {
-    const blobs = new Map<string, ExecutionBlobRecord>()
-    coreBlobRows(after.agent.blobs, row => book.blobs.has(row), blobs)
-    const execution = appended[0]!.execution
-    const events = new Map(
-      (after.agent.view.executions.get(execution)?.events ?? []).map(
-        event => [`${String(event.pub)}/${String(event.ord)}`, event] as const,
-      ),
-    )
-    const derived: DerivedFact[] = []
-    for (const batch of appended)
-      for (const [index, fact] of batch.facts.entries()) {
-        const folded = events.get(`${String(batch.pub)}/${String(index + 1)}`)
-        if (folded === undefined) {
-          derived.push({ fact, event: null })
-          continue
-        }
-        const event = own?.events[folded.eseq - 1]
-        if (own === undefined || event === undefined || event.body.kind !== folded.kind) {
-          const first = [...events.values()][0]?.eseq ?? folded.eseq
-          const appended = (own?.events ?? []).slice(first - 1).map(item => item.body.kind)
-          const projected = [...events.values()].map(item => item.kind)
-          return fail(
-            unavailable(
-              `the facts of ${written.method} do not name the events it appended (fact ${fact.kind} at ${String(folded.eseq)}; the facts project [${projected.join(', ')}], the write appended [${appended.join(', ')}])`,
-            ),
-          )
-        }
-        derived.push({ fact, event: projectionOf(after, own, event, options.fault) })
-      }
-    for (const [index, item] of derived.entries()) {
-      const found = contentPath(item.fact)
-      if (found !== null)
-        return fail({
-          kind: 'invalid',
-          field: `facts[${String(index)}].${found}`,
-          reason: 'content',
-        })
-      if (Buffer.byteLength(canonical(item.fact), 'utf8') > FACT_MAX_BYTES)
-        return fail({ kind: 'invalid', field: `facts[${String(index)}]`, reason: 'oversize' })
-    }
-    const envelope: BatchEnvelope = { ...appended.at(-1)!.envelope, kinds: kindsOf(scratch) }
-    const records: ExecutionFactRecord[] = [
-      { execution, kind: 'batch', body: envelope as unknown as JsonValue },
-      ...derived.map(item => ({
-        execution,
-        kind: item.fact.kind,
-        body: item.fact as unknown as JsonValue,
-        ...(item.event === null ? {} : { event: item.event }),
-      })),
-    ]
-    if (records.length > EXECUTION_BATCH_MAX_FACTS)
-      return fail(
-        unavailable(
-          `the batch of ${written.method} holds ${String(records.length)} facts, more than ${String(EXECUTION_BATCH_MAX_FACTS)}`,
-        ),
-      )
-    return succeed({
-      envelope,
-      derived,
-      records,
-      blobs: [...blobs.values()],
-      batchBytes: batchBytes({
-        execution: execution as AgentExecutionId,
-        envelope,
-        facts: derived.map(item => item.fact),
-      }),
-    })
   }
 
   async function storeBlobsFirst(
@@ -1647,13 +1293,15 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       own === undefined
         ? undefined
         : [...before.agent.executions.values()].find(item => item.id === own.id)
-    const receipt = receiptOf(answer)
     const appended = after.agent.log.filter(batch => batch.pub > book.view.head)
     if (appended.length === 0)
       return {
         kind: 'answer',
         value: fail(unavailable(`a ${written.method} changed the Agent records without a batch`)),
       }
+    const told = await telling.beforeStep(book, domain, input, scratch, appended)
+    if (told !== null) return told
+    const heads = headsOf(mintOf(book), after.agent.view, appended)
     const execution = appended[0]!.execution
     const operation = storageOperation(
       execution,
@@ -1661,10 +1309,15 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     )
     let prepared: Prepared
     try {
-      const made = prepare(book, after, own, appended, written, scratch)
+      const made = publicationOf(
+        book,
+        { before, after, own, appended, written, scratch },
+        options.fault,
+      )
       if ('failure' in made) return { kind: 'answer', value: made }
       prepared = made.ok
     } catch (error) {
+      if (error instanceof NeedItems) throw error
       return {
         kind: 'answer',
         value: fail(unavailable(`the Agent records are not durable data: ${String(error)}`)),
@@ -1689,8 +1342,9 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         digest: written.digest,
         facts: prepared.records,
         blobs: blobs.ok,
-        boundaries: boundariesOf(changed, receipt),
-        admissions: admissionsOf(written, own, receipt, scratch),
+        items: prepared.items,
+        boundaries: boundariesOf(changed, heads),
+        admissions: admissionsOf(written, own, own && heads.get(own.id), scratch),
       }),
       ...scratch.checks.map(check => sessionCheckFacts(check)),
       ...scratch.commands.map(command => sessionCommandFacts(command, [])),
@@ -1730,6 +1384,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
           : null,
       journal: { published: book.published === null ? null : String(book.published) },
     })
+    await telling.afterCompaction(book, domain, input, scratch, outcome)
     return settled
   }
 
@@ -1777,37 +1432,8 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     } catch {}
   }
 
-  type Published<T> = Readonly<{
-    book: Book<P>
-    copy: Copy<P>
-    after: CommonRoot
-    prepared: Prepared
-    execution: string
-    written: Written
-    prior: ExecutionRevision | null
-    scratch: Scratch
-    answer: Outcome<T, Failure>
-  }>
-  type Settling<T> = Published<T> &
-    Readonly<{
-      agentOperation: AgentOperationId | null
-    }>
-  function nameless<T>(what: string): Settled<T> {
-    return {
-      kind: 'answer',
-      value: fail(unavailable(`${what} of a write without an Agent operation`)),
-    }
-  }
-
-  function conflicting<T>(job: Settling<T>, digest: string): Settled<T> {
-    if (digest === job.written.digest) return { kind: 'again' }
-    return job.agentOperation === null
-      ? nameless('a conflict')
-      : { kind: 'answer', value: fail({ kind: 'conflict', operation: job.agentOperation }) }
-  }
-
   function settleCommitted<T>(
-    job: Settling<T>,
+    job: Settling<P, T>,
     receipt: Extract<Awaited<ReturnType<typeof commitJournal>>, { kind: 'committed' }>,
   ): Settled<T> {
     const entry = receipt.receipt.responses.find(item => item.participant === 'execution-record')
@@ -1817,29 +1443,47 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         kind: 'answer',
         value: fail(unavailable('a committed receipt without the Agent records')),
       }
-    if (receipt.recalled) return conflicting(job, reply.digest)
+    if (receipt.recalled) return recalled(job, reply.digest)
     const { book, prepared } = job
     const pub = Number(reply.published)
-    const batch: PublishedBatch = {
-      execution: job.execution as AgentExecutionId,
-      envelope: prepared.envelope,
-      facts: prepared.derived.map(item => item.fact),
-      pub,
-    }
-    book.view = fold(book.view, batch)
-    book.view = { ...book.view, head: Math.max(book.view.head, pub) }
+    // The publication is conditional on the head this write read, so it lands where it was folded.
+    if (pub !== prepared.pub)
+      throw new TypeError(
+        `the batch folded at ${String(prepared.pub)} was published at ${String(pub)}`,
+      )
+    book.view = { ...prepared.view, head: Math.max(prepared.view.head, pub) }
+    const execution = job.written.execution as AgentExecutionId
+    const { dropped } = foldFull(book.full, execution, prepared, pub)
     for (const blob of prepared.blobs) book.blobs.set(blob.digest, blob.payload)
+    const released = releaseBlocks(book.refs, prepared.changes, book)
     book.published = pub
     counts.confirm(book.key, pub)
     job.copy.cell.mutate(() => {
       const root = job.copy.cell.state()
       root.agent.view = book.view
       root.agent.log = []
+      // The store holds what this write answered: the core keeps only the open operations.
+      for (const [text, body] of root.agent.closed) {
+        const [execution, family, operation] = JSON.parse(text) as [string, string, string]
+        if (family === ANSWER_FAMILY && body !== null)
+          root.agent.operations.delete(
+            operationText(
+              book.tenantText,
+              execution as AgentExecutionId,
+              operation as AgentOperationId,
+            ),
+          )
+      }
+      root.agent.closed.clear()
       job.copy.cell.touch()
       for (const blob of prepared.blobs)
         root.agent.blobs.set(factDigestOf(blob.digest), JSON.parse(blob.payload) as unknown)
+      for (const digest of released) root.agent.blobs.delete(digest)
     })
-    book.copy = job.copy
+    book.origins = heldOrigins(job.copy.cell.state().agent.callOrigins, book.view)
+    // Records project the open view: once an open item closes or finishing ends, they are rebuilt.
+    book.copy = dropped || closesOpen(prepared.changes) ? null : job.copy
+    turn(book.turns)
     for (const at of book.held.keys()) {
       const record = job.after.agent.operations.get(at)
       if (record !== undefined && record.kind !== 'pending') book.held.delete(at)
@@ -1847,40 +1491,12 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     return { kind: 'answer', value: job.answer }
   }
 
-  function settleRecordStop<T>(
-    job: Settling<T>,
-    reply: ReturnType<typeof decodeExecutionRecordReply>,
-  ): Settled<T> {
-    switch (reply.kind) {
-      case 'revision-conflict':
-        return { kind: 'again' }
-      case 'operation-conflict':
-        return conflicting(job, reply.digest)
-      default:
-        return {
-          kind: 'answer',
-          value: fail(
-            unavailable(
-              `the Agent records were not saved: ${reply.kind}${'diagnostic' in reply ? ` (${reply.diagnostic})` : ''}`,
-            ),
-          ),
-        }
-    }
-  }
-
-  function finishChanged<T>(job: Settling<T>): Settled<T> {
-    if (job.prior === null)
-      return { kind: 'answer', value: fail(unavailable('a finish check without its execution')) }
-    const changed: FinishResult = { kind: 'changed', revision: job.prior }
-    return { kind: 'answer', value: succeed(changed) as Outcome<T, Failure> }
-  }
-
   function settleSessionStop<T>(
-    job: Settling<T>,
+    job: Settling<P, T>,
     stop: Parameters<typeof decodeSessionReply>[0],
   ): Settled<T> {
     const reply = decodeSessionReply(stop)
-    const method = participationOf(job.written.method)
+    const method = participationMethodOf(job.written.method)
     switch (reply.kind) {
       case 'stopped': {
         if (method === null || job.agentOperation === null)
@@ -1909,13 +1525,13 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
   }
 
   function settle<T>(
-    published: Published<T>,
+    published: Published<P, T>,
     operation: string,
     outcome: Awaited<ReturnType<typeof commitJournal>>,
   ): Settled<T> {
     const { book, after, written } = published
     const agentOperation = written.operation as AgentOperationId | null
-    const job: Settling<T> = { ...published, agentOperation }
+    const job: Settling<P, T> = { ...published, agentOperation }
     counts.doubt(book.key)
     switch (outcome.kind) {
       case 'committed':
@@ -1953,10 +1569,16 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     call: (core: Copy<P>['core']) => Promise<Outcome<T, Failure>>,
   ): Promise<Outcome<T, Failure>> {
     return serial(book, async () => {
+      // What an earlier call read back held at its head only: "none" may have changed since.
+      if (book.copy !== null) unlend(book.copy.cell, book, digest => book.refs.has(digest))
+      else {
+        book.fetched.clear()
+        book.lentBlocks.clear()
+      }
       const domain = await domainOf(book)
       if ('failure' in domain) return domain
       const named = (input as { execution?: unknown }).execution
-      for (let round = 0; round < ROUNDS; round += 1) {
+      for (let lost = 0; lost < LOST_RACES;) {
         let synced = await sync(book, domain.ok)
         if ('failure' in synced) return synced
         if (
@@ -1974,28 +1596,38 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         book.scratch = scratch
         const attempts = scratch.snapshot?.historyIndex?.attempts
         if (attempts !== undefined) copy.cell.mutate(() => copy.cell.adoptAttemptRecords(attempts))
+        lendFetched(book, copy.cell)
         const before = copy.cell.current()
-        let answer: Outcome<T, Failure>
+        let settled: Settled<T>
         try {
-          answer = await call(copy.core)
+          const answer = await call(copy.core)
+          book.scratch = null
+          const after = copy.cell.current()
+          if (after === before) return answer
+          settled = await publish(
+            book,
+            domain.ok,
+            copy,
+            before,
+            after,
+            writtenOf(method, input),
+            input,
+            scratch,
+            answer,
+          )
+        } catch (error) {
+          // The round needs closed items the call has not read: read them, run again. Not a lost race.
+          if (!(error instanceof NeedItems)) throw error
+          settled = { kind: 'fetch', refs: error.refs }
         } finally {
           book.scratch = null
         }
-        const after = copy.cell.current()
-        if (after === before) return answer
-        const written = writtenOf(method, input)
-        const settled = await publish(
-          book,
-          domain.ok,
-          copy,
-          before,
-          after,
-          written,
-          input,
-          scratch,
-          answer,
-        )
         if (settled.kind === 'answer') return settled.value
+        if (settled.kind === 'again') lost += 1
+        else {
+          const unread = await fetchClosed(readerOf(options.storage, domain.ok), book, settled.refs)
+          if (unread !== null) return fail(unavailable(unread))
+        }
       }
       return fail(unavailable('the Agent records of the session kept changing'))
     })
@@ -2055,25 +1687,22 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       recordTerminalObservation: input =>
         run(input, 'recordTerminalObservation', core => core.port.recordTerminalObservation(input)),
       readCancellationInstallation: input =>
-        run(
-          input,
-          'readCancellationInstallation',
-          async core =>
-            (await core.port.readCancellationInstallation?.(input)) ??
-            fail(unavailable('the Journal core holds no cancellation installation read')),
+        run(input, 'readCancellationInstallation', async core =>
+          unread(
+            await core.port.readCancellationInstallation?.(input),
+            'cancellation installation',
+          ),
         ),
       load: input => run(input, 'load', core => core.port.load(input)),
       inputs: input => run(input, 'inputs', core => core.port.inputs(input)),
       readReplyAdmissions: input =>
         run(input, 'readReplyAdmissions', core => core.port.readReplyAdmissions(input)),
       readFinish: input =>
-        run(
-          input,
-          'readFinish',
-          async core =>
-            (await core.port.readFinish?.(input)) ??
-            fail(unavailable('the Journal core holds no finish read')),
+        run(input, 'readFinish', async core =>
+          unread(await core.port.readFinish?.(input), 'finish'),
         ),
+      inputAcceptance: input =>
+        run(input, 'inputAcceptance', core => core.port.inputAcceptance(input)),
       query: async input => {
         const answer = await run(input, 'query', core => core.port.query(input))
         return book === null ? answer : queryCold(book, input, answer)
@@ -2085,23 +1714,14 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
             yield fail<Failure>(refused('output.events'))
             return
           }
-          const copy = await serial(book, async () => {
-            const domain = await domainOf(book)
-            if ('failure' in domain) return domain
-            const synced = await sync(book, domain.ok)
-            if ('ok' in synced) book.users += 1
-            return synced
-          })
-          if ('failure' in copy) {
-            yield copy
-            return
-          }
-          try {
-            yield* copy.ok.core.port.output.events(input)
-          } finally {
-            book.users -= 1
-            rest(book)
-          }
+          const read = (after: string | null) =>
+            run(input, 'output.read', async core => {
+              const page = await core.port.output.read({ ...input, after, limit: EVENT_PAGE })
+              if ('failure' in page) return page
+              const ended = book.view.executions.get(input.execution)?.finish.ended ?? null
+              return succeed({ page: page.ok, ended: ended !== null })
+            })
+          yield* eventsAfter(read, input.after, book.turns, input.signal)
         },
       },
     }

@@ -4,28 +4,28 @@ export {
   standardSchema,
   compactionPolicySchema,
   representationPolicyConfigSchema,
-  planProgressSchema,
-  compactionPlanSchema,
   coverageSchema,
 } from './schema.js'
 export type { ToolCommandSelection, ToolRoute, ToolDeclarationSet } from './declare-tools.js'
 export { declareTools } from './declare-tools.js'
-export type { ConversionIndex, RepresentationResult } from './representation.js'
-export { chooseRepresentations } from './representation.js'
-export type { ProjectedMessage, ProjectedHistory, HumanProjection } from './projection.js'
-export { project, projectForHuman } from './projection.js'
-export type { CompactionSettingsValue, WindowUsageValue } from './blocks.js'
+export type {
+  BlockPosition,
+  NativeCapability,
+  NativeRequirement,
+  RepresentationResult,
+} from './representation.js'
 export {
-  windowRatio,
-  compactionSettingsSchema,
-  windowUsageSchema,
-  compactionSettingsBlock,
-  windowUsageBlock,
-} from './blocks.js'
+  chooseRepresentations,
+  modalityOfBlock,
+  nativeRequirement,
+  unmetBy,
+} from './representation.js'
+export type { ProjectedMessage, ProjectedHistory, HumanProjection } from './projection.js'
+export { project, projectForHuman, projectMessageForModel } from './projection.js'
+export type { CompactionSettingsValue } from './blocks.js'
+export { compactionSettingsSchema, compactionSettingsBlock } from './blocks.js'
 export type { SystemPromptResult } from './prompt.js'
 export { assembleSystemPrompt } from './prompt.js'
-export type { Placement, PlacementInput } from './placement.js'
-export { SNAPSHOT_ANCHOR_RULE, placeContext } from './placement.js'
 export type {
   Access,
   Adoption,
@@ -33,7 +33,6 @@ export type {
   RequestContextRef,
   CandidateRef,
   PositionRef,
-  PlanId,
   EpochId,
   BatchRef,
   PassageRef,
@@ -41,8 +40,6 @@ export type {
   SourceGeneration,
   GroupToken,
   CommitOrder,
-  AccountingGeneration,
-  RecoveryGrantRef,
   PrincipalKey,
   HistorySequence,
   ContextTarget,
@@ -53,7 +50,6 @@ export {
   REQUEST_CONTEXT_REF_MAX_LENGTH,
   decodeCandidateRef,
   decodePositionRef,
-  decodePlanId,
   decodeEpochId,
   decodeBatchRef,
   decodePassageRef,
@@ -61,8 +57,6 @@ export {
   decodeSourceGeneration,
   decodeGroupToken,
   decodeCommitOrder,
-  decodeAccountingGeneration,
-  decodeRecoveryGrantRef,
   decodePrincipalKey,
   decodeHistorySequence,
   compareHistorySequence,
@@ -71,12 +65,7 @@ export type { AssemblyPolicies, AssemblyOperations } from './ports.js'
 export type { PreparedInputKey } from './values.js'
 export type { AssemblyOperationsInput } from './operations.js'
 export { createAssemblyOperations } from './operations.js'
-export type {
-  AssemblyReuse,
-  CachedAssemblyMaterial,
-  ContentControl,
-  SnapshotIdentity,
-} from './reuse.js'
+export type { AssemblyReuse, CachedAssemblyMaterial, ContentControl } from './reuse.js'
 export type {
   SourceRead,
   SourceGroupValue,
@@ -97,35 +86,15 @@ export type {
 } from './sources.js'
 export type { HistoryResolution, HistoryEvidenceResolver } from './history-resolution.js'
 export type {
-  AccountingOrigin,
-  ReceivedAccountFact,
-  ContextAccountingInput,
-  AccountReceipt,
-  ContextAccountingInbox,
-  SystemRecoveryAccess,
-  AccountReplay,
-  RecoveryResult,
-  ContextRecovery,
-  AccountingSourceAuthority,
-  RecoveryAuthority,
-  AccountingLimits,
-  AccountingOptions,
-} from './accounting.js'
-export type {
   HistoryRow,
   HistoryPage,
   HistoryReadResult,
   CompactionContextResult,
   HistorySource,
-  ConversionIndexResult,
-  ConversionResultSource,
-  RetainBudget,
   CompactionPolicy,
-  CompactionPlanDraft,
   CompactionPolicyPort,
   RepresentationPolicyConfig,
   RepresentationPolicyPort,
-  RetentionMeasurement,
 } from './ports.js'
 export type { BudgetInput } from './budget.js'
 export { judgeBudget } from './budget.js'
@@ -146,13 +115,10 @@ export type {
   TenantModelCall,
   SourcedMessage,
   ContinuationBasis,
+  ContinuationPrefix,
   AdoptedRequestFact,
-  CompactionBasis,
   HistoryEvidence,
   NewInputBatch,
-  BlockMaterial,
-  SnapshotMaterial,
-  ContextReadGroup,
   AssemblyContext,
   PromptContributionBase,
   PromptSection,
@@ -167,32 +133,23 @@ export type {
   TransitionEvidence,
   Layer,
   PrefixBreakReason,
-  LayerAnchor,
-  SnapshotAnchor,
   Coverage,
   BudgetBreach,
   FitVerdict,
   RepresentationChoice,
-  SnapshotReminder,
-  TailFacts,
+  RepresentationOption,
+  RepresentationSource,
   RequestLayers,
   RequestCandidate,
-  CompactionPlan,
-  PlanProgress,
-  SummaryMaterial,
-  StepRequest,
-  StepInput,
-  ContextTransition,
   AssemblyFailure,
   InvalidReason,
   UnavailableOwner,
   AssemblyUnknown,
   AssemblyOutcome,
   AssemblyResult,
-  PlanResult,
-  StepResult,
 } from './values.js'
 export { LAYER_ORDER, PREFIX_BREAK_REASONS, callIdentity } from './values.js'
-export type { DeriveInput } from './values.js'
 export type { FixedRequestRecord, FixedRequestRecordRejection } from './fixed-request.js'
-export { encodeFixedRequestRecord, decodeFixedRequestRecord, forecastOf } from './fixed-request.js'
+export { encodeFixedRequestRecord, decodeFixedRequestRecord } from './fixed-request.js'
+
+export { measureCandidate } from './measurement.js'

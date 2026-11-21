@@ -2,17 +2,18 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { ClockReading, IdentityClock } from '@omne-harness/identity'
 import { IdentityClockService, identityClockKey } from '@omne-harness/identity/cordis'
 import { parseInstant } from '@omne-harness/utc-instant'
-import type { EntryObjectModule } from '../types.ts'
-import { readSystemInstant } from './session-clock.ts'
+import type { EntryObjectModule, EntryTime } from '../types.ts'
+import { readInstant } from './session-clock.ts'
+import { timeOf } from './time.ts'
 
-export function createIdentityClock(): IdentityClock {
+export function createIdentityClock(time: EntryTime): IdentityClock {
   const now = (): Promise<ClockReading> => {
-    const reading = readSystemInstant()
+    const reading = readInstant(time.source)
     if (!reading.ok)
       return Promise.resolve(
         Object.freeze({
           kind: 'unavailable' as const,
-          diagnostic: `system-clock:${reading.failure.kind}`,
+          diagnostic: `${time.protocol}:${reading.failure.kind}`,
         }),
       )
     const parsed = parseInstant(reading.text)
@@ -21,7 +22,7 @@ export function createIdentityClock(): IdentityClock {
         ? Object.freeze({ kind: 'read' as const, instant: parsed.value })
         : Object.freeze({
             kind: 'unavailable' as const,
-            diagnostic: `system-clock:${parsed.failure.kind}`,
+            diagnostic: `${time.protocol}:${parsed.failure.kind}`,
           }),
     )
   }
@@ -39,7 +40,7 @@ class EntryIdentityClock extends IdentityClockService {
 export const identityClock: EntryObjectModule = {
   name: identityClockKey,
   implementation: 'real',
-  install(scope) {
-    new EntryIdentityClock(scope, createIdentityClock())
+  install(scope, env) {
+    new EntryIdentityClock(scope, createIdentityClock(timeOf(env)))
   },
 }

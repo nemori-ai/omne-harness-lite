@@ -22,9 +22,13 @@ import type {
 import type {
   PreparationRecord,
   StartProgress,
+  ToolInstant,
   ToolTask,
 } from '@omne-harness/tool-contract/provider'
+import { timerSchedules } from './ledger-timers.ts'
+import { executionResultOf, unstartedReleaseBasis } from './ledger-ending.ts'
 import { invalid } from './boundary.ts'
+import { commonOf, resumePlanningBody, type StateBody, type CommonState } from './ledger-state.ts'
 import { mintEvidence, digestOf, sameFactValue } from './evidence.ts'
 import {
   operationRecord,
@@ -272,8 +276,8 @@ export function releaseBasisOf(snapshot: Snapshot): ReleaseBasis | null {
   if (record === null) return null
   if (record.startRejection !== null)
     return { kind: 'pre-start-rejection', exclusion: record.startRejection.exclusion }
-  const rejected = ledgerRejectedResult(snapshot)
-  if (rejected !== null) return { kind: 'ledger-rejected', result: rejected }
+  const unstarted = unstartedReleaseBasis(snapshot)
+  if (unstarted !== null) return unstarted
   if (record.state.phase === 'settled' && record.state.execution.kind === 'suspended')
     return suspendedExclusionOf(snapshot, record.state.execution.checkpoint)
   if (record.state.phase === 'settled' && record.state.execution.kind === 'lost')
@@ -284,7 +288,7 @@ export function releaseBasisOf(snapshot: Snapshot): ReleaseBasis | null {
     record.start === null
   )
     return null
-  const result = snapshot.results.get(record.state.result)
+  const result = executionResultOf(snapshot, record.state)
   if (result === undefined || result.custody.kind !== 'execution') return null
   const proof = record.state.execution.evidence
   const saved = [...snapshot.facts.values()].find(
@@ -297,20 +301,11 @@ export function releaseBasisOf(snapshot: Snapshot): ReleaseBasis | null {
     digestOf(record.execution) !== digestOf(record.start.execution) ||
     digestOf(result.custody.final) !== digestOf(proof) ||
     !sameFactValue(result.custody.finalValue, saved.value) ||
-    digestOf(result.terminal) !== digestOf(saved.fact.terminal) ||
+    digestOf(result.actual ?? result.terminal) !== digestOf(saved.fact.terminal) ||
     digestOf(result.effect) !== digestOf(saved.fact.effect)
   )
     return null
   return { kind: 'physical-end', proof }
-}
-
-function ledgerRejectedResult(snapshot: Snapshot): DurableEvidence | null {
-  const record = snapshot.call
-  if (record === null || record.start !== null || record.state.phase !== 'settled') return null
-  const result = snapshot.results.get(record.state.result)
-  if (result === undefined) return null
-  const settled = snapshot.operations.get(result.settledBy)
-  return settled?.receipt.kind === 'ledger-rejected' ? result.source : null
 }
 
 function suspendedExclusionOf(
@@ -366,42 +361,6 @@ export function dropSuspensionContent(snapshot: Snapshot): LedgerWrite[] {
   if (snapshot.waitRequest !== null) writes.push({ kind: 'delete', key: WAIT_REQUEST_KEY })
   if (snapshot.checkpointState !== null) writes.push({ kind: 'delete', key: CHECKPOINT_STATE_KEY })
   return writes
-}
-
-export type CommonState = Pick<
-  ToolState,
-  | 'call'
-  | 'revision'
-  | 'foreground'
-  | 'effect'
-  | 'execution'
-  | 'timing'
-  | 'queue'
-  | 'controls'
-  | 'delivery'
-  | 'supplements'
->
-
-export type StateBody = ToolState extends infer S
-  ? S extends ToolState
-    ? Omit<S, 'source'>
-    : never
-  : never
-
-export function commonOf(state: ToolState): CommonState {
-  const { call, revision, foreground, effect, execution, timing, queue, controls, delivery } = state
-  return {
-    call,
-    revision,
-    foreground,
-    effect,
-    execution,
-    timing,
-    queue,
-    controls,
-    delivery,
-    supplements: state.supplements,
-  }
 }
 
 export function nextState(record: CallRecord, body: StateBody, revision: ToolRevision): ToolState {
@@ -549,17 +508,10 @@ function decideResumePrepared(
   record: CallRecord,
   mint: Mint,
 ): Decision<ToolState> {
-  const current = record.state
-  if (current.phase !== 'suspended') return reply(wrongPhase(current.phase))
+  const body = resumePlanningBody(record.state, record.start)
+  if (body === null) return reply(wrongPhase(record.state.phase))
   if (record.preparations.at(-1)?.operation !== command.preparation.operation)
     return reply(invalid('preparation', 'not-the-current-preparation'))
-  const body: StateBody = {
-    ...commonOf(current),
-    phase: 'suspended',
-    checkpoint: current.checkpoint,
-    relation: 'foreground',
-    wait: current.wait,
-  }
   const state = nextState(record, body, mint.revision)
   const environment = { preparation: command.preparation.operation, resources: command.resources }
   return {
@@ -865,6 +817,7 @@ export type RecordStartCommand = WriteCommand &
     outcome: StartProgress
     segment: ClockSegment | null
     execution: ToolExecutionRef
+    startedAt?: ToolInstant | null
   }>
 
 function startingCall(
@@ -951,9 +904,18 @@ function started(
   return {
     kind: 'commit',
     writes: [
-      put({ kind: 'call', call: { ...record, state, execution: command.execution } }),
+      put({
+        kind: 'call',
+        call: {
+          ...record,
+          state,
+          execution: command.execution,
+          startedAt: command.startedAt ?? null,
+        },
+      }),
       put(operationRecord(command, { kind: 'record-start', state }, mint)),
       ...deleteTasks(snapshot, ['start']),
+      ...timerSchedules(record.request, timing, command.startedAt ?? null),
       put({
         kind: 'task',
         task: {

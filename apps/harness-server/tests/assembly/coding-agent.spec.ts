@@ -39,7 +39,7 @@ async function adoptionsFace() {
 }
 
 describe('the coding entry of the release mapping', () => {
-  it('is a legal definition: five release tools resident, the model attribute, ten ordered sections, no extension', async () => {
+  it('is a legal definition: the release tools resident, the model attribute, eleven ordered sections, no extension', async () => {
     const table = await buildTable(config)
     expect(table.mappings.byName('coding')?.candidate).toEqual(entry.candidate)
     const judged = await judgeAgentDefinition(entry.definition)
@@ -49,8 +49,17 @@ describe('the coding entry of the release mapping', () => {
       { capability: { category: 'Tool', name: 'Shell' }, resident: true },
       { capability: { category: 'Tool', name: 'Tools' }, resident: true },
       { capability: { category: 'Tool', name: 'TodoItems' }, resident: true },
+      { capability: { category: 'Tool', name: 'BkgToolCalls' }, resident: true },
       { capability: { category: 'Tool', name: 'Ask' }, resident: true },
       { capability: { category: 'Tool', name: 'Web' }, resident: true },
+      { capability: { category: 'Tool', name: 'Calendar' }, resident: true },
+      { capability: { category: 'Tool', name: 'Schedules' }, resident: true },
+      { capability: { category: 'Tool', name: 'Notifications' }, resident: true },
+      { capability: { category: 'Tool', name: 'Sessions' }, resident: true },
+      { capability: { category: 'Tool', name: 'Agents' }, resident: true },
+      { capability: { category: 'Tool', name: 'SwitchWorkspace' }, resident: true },
+      { capability: { category: 'Tool', name: 'Screen' }, resident: true },
+      { capability: { category: 'Tool', name: 'Skills' }, resident: true },
     ])
     expect(configured.attributes).toEqual([{ item: 'model' }])
     expect(instructions.map(section => section.id)).toEqual([
@@ -59,6 +68,7 @@ describe('the coding entry of the release mapping', () => {
       'autonomy',
       'method',
       'tools',
+      'agents',
       'reporting',
       'safety',
       'git',
@@ -67,6 +77,10 @@ describe('the coding entry of the release mapping', () => {
     ])
     expect(entry.extensions).toEqual([])
     expect(entry.requiredIdentities).toEqual([])
+  })
+
+  it('says nothing of a tool a row brings: the tool describes itself, and the prompt holds without the row', () => {
+    for (const section of instructions) expect(section.text).not.toMatch(/SwitchWorkspace/u)
   })
 
   it('the adoption digest is the content digest of the definition, prompt included', () => {
@@ -102,15 +116,17 @@ describe('the coding entry of the release mapping', () => {
       expect(mapping.initialModelSelection?.name, mapping.name).toBeTruthy()
   })
 
-  it('the prompt names no model vendor, the six resident tools, and carries the guardrails and the state words', () => {
+  it('the prompt names no model vendor, the resident tools, and carries the guardrails and the state words', () => {
     for (const forbidden of ['Claude', 'Anthropic', 'OpenAI', 'GPT', 'Gemini', 'Codex'])
       expect(fullText, forbidden).not.toContain(forbidden)
     for (const word of ['Verified', 'Partly verified', 'Not verified', 'Failed'])
       expect(fullText).toContain(word)
     for (const word of ['已验证', '部分验证', '未验证', '失败']) expect(fullText).toContain(word)
     expect(fullText).toContain(
-      'You have six resident tools: Files, Shell, Tools, TodoItems, Ask and Web.',
+      'You have thirteen resident command tools: Files, Shell, Tools, TodoItems, BkgToolCalls, Ask, Web, Calendar, Schedules, Notifications, Sessions, Agents and Skills.',
     )
+    expect(fullText).toContain('## BkgToolCalls')
+    expect(fullText).toContain('Do not poll: you are woken when a background call ends.')
     expect(fullText).toContain('## Web')
     expect(fullText).toContain('exa.apiKey')
     expect(fullText).toContain('external data')

@@ -7,14 +7,23 @@ import {
 import type { AgentReceivedRecords } from '@omne-harness/agent-contract'
 import { agentReceivedRecordsKey } from '@omne-harness/agent-cordis-contract/cordis'
 import type { Adoption, ModelFailure } from '@omne-harness/model-contract'
-import type { ModelMaterializationEvidenceReader } from '@omne-harness/model-host-local'
+import type {
+  ModelMaterializationEvidenceReader,
+  ModelReceiveEvidenceReader,
+} from '@omne-harness/model-host-local'
+import { verifyRetryDecision } from '@omne-harness/model'
+import { COST_LOOKUP_OWNER } from '@omne-harness/model-host-local'
 import type { ModelCommandsEvidence, ModelInitialExecution } from '@omne-harness/model/commands'
 import { fail } from '@omne-harness/operation-result'
+import { DEFAULT_COMPACTION_CONSUMER } from '@omne-harness/context-compaction'
+import type { CompactionModelEvidence } from './compaction-evidence.ts'
 
 export type EvidenceSources = Readonly<{
   initial(): ModelInitialExecution<unknown> | undefined
   reader(): ModelMaterializationEvidenceReader | undefined
+  receive(): ModelReceiveEvidenceReader | undefined
   custody(): AgentCustodyEvidence<unknown> | undefined
+  compaction?(): Pick<CompactionModelEvidence, 'verify'> | undefined
 }>
 
 export function agentCustodyOf(ctx: Context): AgentCustodyEvidence<unknown> | undefined {
@@ -37,10 +46,22 @@ export function createModelEvidence(
     materialization: given =>
       sources.reader()?.prove(given) ??
       unavailable('model-materialization', 'reader-not-installed'),
-    receive: () => unavailable('model-receive-evidence', 'receive-window-unproven'),
-    lateFact: () => unavailable('model-late-fact-evidence', 'no-supplier-record-source'),
-    retry: () => unavailable('model-retry-policy', 'not-configured'),
+    receive: given =>
+      sources.receive()?.prove(given) ??
+      unavailable('model-receive-evidence', 'receive-window-unproven'),
+    lateFact: given =>
+      given.source.owner === COST_LOOKUP_OWNER &&
+      given.upstreamRequest !== null &&
+      given.source.record === given.upstreamRequest
+        ? { ok: given.source }
+        : unavailable('model-late-fact-evidence', 'no-supplier-record-source'),
+    retry: given => verifyRetryDecision(given),
     handoff: given => {
+      if (given.consumer.owner === DEFAULT_COMPACTION_CONSUMER)
+        return (
+          sources.compaction?.()?.verify(given) ??
+          unavailable('compaction-evidence', 'provider-not-attached')
+        )
       if (given.consumer.owner !== AGENT_CONSUMER_OWNER)
         return unavailable('consumer-evidence', 'owner-not-wired')
       return (

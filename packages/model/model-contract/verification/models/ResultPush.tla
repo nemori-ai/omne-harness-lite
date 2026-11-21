@@ -7,7 +7,12 @@
 (* owner's evidence adapter must confirm; cleanup and the share release    *)
 (* follow the ACK; late accounts are reserved before they are accepted and *)
 (* pushed after the result is saved; every push happens inside one wakeup  *)
-(* and a wakeup does a bounded amount of work.                              *)
+(* and a wakeup does a bounded amount of work. The process can crash, a    *)
+(* bounded number of times: the push ledger in memory is gone, while the   *)
+(* receiver's saved fact and the ACK, cleanup and share in the Model store *)
+(* stay; the next start scans the store and wakes the call again. A        *)
+(* receiver's definite refusal ends custody as abandoned, and an abandoned *)
+(* result is cleaned and its share released like an acknowledged one.     *)
 (*                                                                          *)
 (* The owners of the rules are packages/model/model-contract/SPEC.md        *)
 (* ("结果推送与保存", "ACK 的前提与效果", "清理范围与读写保护",              *)
@@ -22,20 +27,21 @@ CONSTANTS
   MaxRedeliveries, \* redeliveries after an unknown outcome inside one wakeup
   MaxAccounts,     \* late accounts the environment offers in all
   MaxPending,      \* late accounts accepted and not yet saved (the reservation bound)
-  RefusalsInPlay,  \* TRUE: the receiver may refuse (denied) or answer a foreign receipt
+  RefusalsInPlay,  \* TRUE: the receiver may refuse (denied)
+  MaxCrashes,      \* how many times the process may crash
   Bugs             \* the deliberate faults of a negative control; {} in every positive control
 
 BugNames == {"ack-without-saved", "ack-without-adapter", "release-before-ack",
              "foreign-receipt-saved", "refusal-overwrites-unknown", "repush-saved",
              "retry-on-unavailable", "accept-without-reservation",
              "reservation-never-released", "keep-body", "accounts-before-saved",
-             "waiting-not-due"}
+             "waiting-not-due", "unknown-abandons", "scan-forgets", "release-before-abandon"}
 ASSUME Bugs \subseteq BugNames
 ASSUME MaxRedeliveries \in 0..2 /\ MaxAccounts \in 0..3 /\ MaxPending \in 1..3
-ASSUME RefusalsInPlay \in BOOLEAN
+ASSUME RefusalsInPlay \in BOOLEAN /\ MaxCrashes \in 0..2
 
 Accounts == 1..MaxAccounts
-Standings == {"pending", "waiting", "unknown", "saved", "failed"}
+Standings == {"pending", "waiting", "unknown", "saved", "refused"}
 Due == {"pending", "waiting", "unknown"}
 Open == {"pending", "waiting", "unknown"} \* accepted and not yet saved: holds a reservation
 
@@ -53,10 +59,15 @@ VARIABLES
   share,         \* "held" | "released": the call's capacity in the Commands
   body,          \* "kept" | "dropped": the frozen payload in the ledger
   acct,          \* Accounts -> [standing ("none" before acceptance), attempts, saved (receiver)]
-  reservations   \* late-account reservations held
+  reservations,  \* late-account reservations held
+  abandon,       \* "none" | "refusal" | "unknown": custody ended as abandoned, with its ground
+  alive,         \* the process runs
+  wakeable,      \* wakeups of this call come: the settle, then the scan of each start
+  crashes
 
 vars == <<phase, registered, result, receiverSaved, ack, ackTried, adapterOk, confirmed,
-          cleanup, cleanTried, share, body, acct, reservations>>
+          cleanup, cleanTried, share, body, acct, reservations, abandon, alive, wakeable, crashes>>
+Process == <<abandon, alive, wakeable, crashes>>
 
 Bug(b) == b \in Bugs
 Limit == 1 + MaxRedeliveries
@@ -73,6 +84,7 @@ Init ==
   /\ share = "held" /\ body = "kept"
   /\ acct = [i \in Accounts |-> [standing |-> "none", attempts |-> 0, saved |-> FALSE]]
   /\ reservations = 0
+  /\ abandon = "none" /\ alive = TRUE /\ wakeable = TRUE /\ crashes = 0
 
 (* --- what a push answer may replace (`replaces` of runtime.ts) ----------- *)
 
@@ -86,7 +98,7 @@ Conclude(held, next) == IF Replaces(held.standing, next) THEN next ELSE held.sta
 (* --- wakeups: settle, a late account, a registration, a successor -------- *)
 
 Wake ==
-  /\ phase = "idle"
+  /\ phase = "idle" /\ alive /\ wakeable
   /\ phase' = "working"
   /\ result' = [result EXCEPT !.attempts = 0]
   /\ acct' = [i \in Accounts |-> [acct[i] EXCEPT !.attempts = 0]]
@@ -96,7 +108,7 @@ Wake ==
 
 \* A delivery is pushed in this wakeup once, and again after an unknown outcome up to the bound.
 Pushable(held) ==
-  /\ registered
+  /\ registered /\ abandon = "none"
   /\ held.standing \in Due \/ (held.standing = "saved" /\ Bug("repush-saved"))
   /\ ~(held.standing = "waiting" /\ Bug("waiting-not-due"))
   /\ \/ held.attempts = 0
@@ -124,17 +136,22 @@ PushResultUnknown == \E savedNow \in BOOLEAN :
 \* unavailable, backpressured, cancelled-before-accept: wait for the next wakeup.
 PushResultWaiting == ~receiverSaved /\ PushResultAs("waiting", "none", FALSE)
 \* denied, invalid, conflict: the delivery fails and is not pushed again by itself.
-PushResultRefused == RefusalsInPlay /\ PushResultAs("failed", "none", FALSE)
-\* a receipt with another key or another owner is not saved: receipt-mismatch.
+\* A receiver that saved the key recognises it when the push comes again after a crash forgot
+\* the ledger; while the ledger still says unknown, a refusal does not replace it.
+PushResultRefused ==
+  /\ RefusalsInPlay /\ (~receiverSaved \/ result.standing = "unknown")
+  /\ PushResultAs("refused", "none", FALSE)
+\* a receipt with another key or another owner proves neither a save nor a refusal: the outcome
+\* is unknown, and the same key is pushed again (receipt-mismatch is only reported).
 PushResultForeign ==
-  /\ RefusalsInPlay /\ ~receiverSaved
+  /\ ~receiverSaved
   /\ IF Bug("foreign-receipt-saved") THEN PushResultAs("saved", "foreign", FALSE)
-     ELSE PushResultAs("failed", "none", FALSE)
+     ELSE PushResultAs("unknown", "none", FALSE)
 
 (* --- the producer's own ACK through the retained handoff ------------------ *)
 
 AckPossible ==
-  /\ phase = "working" /\ ~ackTried
+  /\ phase = "working" /\ ~ackTried /\ abandon = "none"
   /\ ack \in {"none", "unknown"}
   /\ result.standing = "saved" \/ (result.standing = "unknown" /\ Bug("ack-without-saved"))
 
@@ -164,7 +181,21 @@ AckUnknown ==
 
 CleanPossible ==
   /\ phase = "working" /\ ~cleanTried /\ cleanup = "pending"
-  /\ ack = "acknowledged" \/ (result.standing = "saved" /\ Bug("release-before-ack"))
+  /\ \/ ack = "acknowledged" \/ abandon /= "none"
+     \/ result.standing = "saved" /\ Bug("release-before-ack")
+     \/ result.standing = "refused" /\ Bug("release-before-abandon")
+
+(* --- abandonment: only a definite refusal ends custody this way ----------- *)
+
+AbandonPossible ==
+  /\ phase = "working" /\ abandon = "none" /\ ack = "none"
+  /\ result.standing = "refused" \/ (result.standing = "unknown" /\ Bug("unknown-abandons"))
+
+Abandon ==
+  /\ AbandonPossible
+  /\ abandon' = IF result.standing = "refused" THEN "refusal" ELSE "unknown"
+  /\ UNCHANGED <<phase, registered, result, receiverSaved, ack, ackTried, adapterOk, confirmed,
+                 cleanup, cleanTried, share, body, acct, reservations, alive, wakeable, crashes>>
 
 CleanOk ==
   /\ CleanPossible
@@ -217,6 +248,7 @@ PushAccountWaiting(i) == ~acct[i].saved /\ PushAccountAs(i, "waiting", FALSE)
 WorkLeft ==
   \/ Pushable(result)
   \/ AckPossible
+  \/ AbandonPossible
   \/ CleanPossible
   \/ \E i \in Accounts : AccountPushable(i)
 
@@ -243,7 +275,29 @@ AdapterGoesAway == /\ adapterOk /\ phase = "idle" /\ adapterOk' = FALSE
                                   confirmed, cleanup, cleanTried, share, body, acct,
                                   reservations>>
 
-Next ==
+(* --- the process: a crash forgets the ledger, a start scans the store ------- *)
+
+Crash ==
+  /\ crashes < MaxCrashes /\ alive /\ share = "held"
+  /\ crashes' = crashes + 1 /\ alive' = FALSE /\ wakeable' = FALSE /\ phase' = "idle"
+  /\ result' = [standing |-> "pending", attempts |-> 0, receipt |-> "none"]
+  /\ acct' = [i \in Accounts |->
+                IF acct[i].standing \in Open
+                  THEN [acct[i] EXCEPT !.standing = "pending", !.attempts = 0]
+                  ELSE [acct[i] EXCEPT !.attempts = 0]]
+  /\ ackTried' = FALSE /\ cleanTried' = FALSE
+  /\ UNCHANGED <<registered, receiverSaved, ack, adapterOk, confirmed, cleanup, share, body,
+                 reservations, abandon>>
+
+Restart ==
+  /\ ~alive /\ alive' = TRUE /\ wakeable' = ~Bug("scan-forgets")
+  /\ UNCHANGED <<phase, registered, result, receiverSaved, ack, ackTried, adapterOk, confirmed,
+                 cleanup, cleanTried, share, body, acct, reservations, abandon, crashes>>
+
+\* The steps of one process leave the abandonment and the process bookkeeping as they are.
+InProcess(A) == A /\ UNCHANGED Process
+
+Steps ==
   \/ Wake \/ EndWake
   \/ PushResultSaved \/ PushResultUnknown \/ PushResultWaiting \/ PushResultRefused
   \/ PushResultForeign
@@ -253,17 +307,20 @@ Next ==
   \/ \E i \in Accounts : PushAccountSaved(i) \/ PushAccountUnknown(i) \/ PushAccountWaiting(i)
   \/ Register \/ Unregister \/ AdapterComesBack \/ AdapterGoesAway
 
+Next == InProcess(Steps) \/ Abandon \/ Crash \/ Restart
+
 Spec == Init /\ [][Next]_vars
 
 \* The premises of the progress claim: wakeups keep coming (the recovery scan or the
 \* successor), the receiver and the adapter come back and eventually answer well, the cleanup
 \* eventually succeeds, and the push finishes the work of each wakeup.
 Fairness ==
-  /\ WF_vars(Wake) /\ WF_vars(EndWake)
-  /\ WF_vars(Register) /\ WF_vars(AdapterComesBack)
-  /\ SF_vars(PushResultSaved) /\ SF_vars(AckConfirm) /\ SF_vars(CleanOk)
-  /\ \A i \in Accounts : SF_vars(PushAccountSaved(i))
-  /\ WF_vars(AcceptAccount) \* the environment keeps offering late accounts
+  /\ WF_vars(InProcess(Wake)) /\ WF_vars(InProcess(EndWake)) /\ WF_vars(Abandon) /\ WF_vars(Restart)
+  /\ WF_vars(InProcess(Register)) /\ WF_vars(InProcess(AdapterComesBack))
+  /\ SF_vars(InProcess(PushResultSaved)) /\ SF_vars(InProcess(AckConfirm))
+  /\ SF_vars(InProcess(CleanOk))
+  /\ \A i \in Accounts : SF_vars(InProcess(PushAccountSaved(i)))
+  /\ WF_vars(InProcess(AcceptAccount)) \* the environment keeps offering late accounts
 
 \* The receiver and the adapter, once back, stay: flapping forever is outside the premise.
 LiveNext == Next /\ ~AdapterGoesAway /\ ~Unregister
@@ -281,28 +338,44 @@ TypeOK ==
   /\ body \in {"kept", "dropped"}
   /\ \A i \in Accounts : acct[i].standing \in Standings \cup {"none"}
   /\ reservations \in 0..MaxPending
+  /\ abandon \in {"none", "refusal", "unknown"}
 
-\* P2. An ACK is only ever attempted for a saved result.
-AckNeedsSaved == ack /= "none" => result.standing = "saved"
+\* P2. An ACK is only ever attempted for a result the receiver saved; the ledger may forget it in
+\* a crash, the receiver's fact stays.
+AckNeedsSaved == ack /= "none" => receiverSaved
 
 \* P2. acknowledged means the owner's evidence adapter confirmed the custody evidence.
 AckNeedsAdapter == ack = "acknowledged" => confirmed
 
-\* P2. Cleanup and the share release follow the ACK, never `saved` alone.
-ReleaseNeedsAck == (cleanup = "released" \/ share = "released") => ack = "acknowledged"
+\* P2. Cleanup and the share release follow the end of custody, the ACK or the abandonment,
+\* never `saved` or a refusal alone.
+ReleaseNeedsCustodyEnd ==
+  (cleanup = "released" \/ share = "released") => (ack = "acknowledged" \/ abandon /= "none")
+
+\* P2. Custody ends one way: acknowledged or abandoned, never both.
+AckOrAbandon == ~(ack /= "none" /\ abandon /= "none")
+
+\* P2. Abandonment rests on a definite refusal, never on an unknown outcome.
+AbandonNeedsRefusal == abandon /= "unknown"
+
+\* P2. A result the receiver saved is never abandoned.
+SavedNotAbandoned == receiverSaved => abandon = "none"
 
 \* P2. saved only with the receiver's own receipt for the frozen key and owner.
 SavedReceiptMatches == result.standing = "saved" => result.receipt = "own"
 
-\* P2. A receiver that saved is never forgotten: the delivery stays unknown or becomes saved.
-SavedReceiverNotLost == receiverSaved => result.standing \in {"unknown", "saved"}
+\* P2. A receiver that saved is never forgotten: the delivery stays unknown or becomes saved,
+\* or, after a crash forgot the ledger, it is owed again.
+SavedReceiverNotLost == receiverSaved => result.standing \in {"pending", "unknown", "saved"}
 
-\* P2 (action). unknown gives way only to saved; saved is final with its receipt.
+\* P2 (action). Within one process, unknown gives way only to saved and saved is final with its
+\* receipt; a crash forgets the ledger and nothing else.
 UnknownOnlyToSavedStep ==
-  result.standing = "unknown" => result'.standing \in {"unknown", "saved"}
+  (result.standing = "unknown" /\ crashes' = crashes) => result'.standing \in {"unknown", "saved"}
 UnknownOnlyToSaved == [][UnknownOnlyToSavedStep]_vars
 SavedIsFinalStep ==
-  result.standing = "saved" => result'.standing = "saved" /\ result'.receipt = result.receipt
+  (result.standing = "saved" /\ crashes' = crashes)
+    => result'.standing = "saved" /\ result'.receipt = result.receipt
 SavedIsFinal == [][SavedIsFinalStep]_vars
 
 \* P3. One wakeup pushes a delivery at most 1 + MaxRedeliveries times: no hot loop.
@@ -321,7 +394,7 @@ BodyDroppedAfterRelease == cleanup = "released" => body = "dropped"
 \* P2. Accounts go out only after the result is saved.
 AccountsAfterResultSaved ==
   \A i \in Accounts : acct[i].standing \in {"waiting", "unknown", "saved"}
-                      => result.standing = "saved"
+                      => receiverSaved
 
 \* P2 (progress). Under the premises of LiveSpec every call reaches the release of its share,
 \* and every accepted late account is saved.

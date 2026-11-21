@@ -8,6 +8,7 @@ import {
   operationId,
   ordinaryInput,
   sessionId,
+  testingIntakeGuards,
 } from '@omne-harness/session-contract/testing'
 import { sessionCommandFacts } from '../src/participants.ts'
 import { sessionStorageMaterials } from '../src/materials.ts'
@@ -59,11 +60,12 @@ const viewCommit = (a: App, command: SessionCommand, bound: string) =>
     .bind({
       request: mutationAccessRequest(a.access(TENANT_A), command),
       evidence: evidence(bound),
+      subject: { kind: 'member' },
     })
     .commit({ access: a.access(TENANT_A), command, guards: [] })
 
 function directCommit(a: App, command: SessionCommand, extra: Readonly<Record<string, unknown>>) {
-  const base = sessionCommandFacts(command, [])
+  const base = sessionCommandFacts(command, testingIntakeGuards(command))
   return a.provider.storage.commit({
     identity: {
       scope: { kind: 'tenant', tenant: textOf(TENANT_A) },
@@ -94,11 +96,18 @@ describe('the migration of the evidence table', () => {
       'session/006-permission-current',
       'session/007-scope-index',
       'session/008-session-list',
+      'session/009-compaction-index',
+      'session/010-session-archive',
+      'session/011-authorization-context',
+      'session/012-call-left',
+      'session/014-session-fork',
+      'session/013-session-standing',
       'execution-record/002-preadmission',
       'execution-record/003-admission-attempt',
       'execution-record/004-state-parts',
       'execution-record/005-fact-body',
       'execution-record/006-fact-blob',
+      'execution-record/007-item',
     ])
     const found = migrations.find(item => item.id === '003-operation-evidence')
     expect(found?.requires).toEqual([{ owner: 'session', id: '002-execution-index' }])

@@ -25,8 +25,6 @@ export {
   type AgentTelemetryBase,
 } from './telemetry.ts'
 export type {
-  AgentModelRetrying,
-  AgentModelRetryingReceiver,
   AgentRunEndedFailed,
   AgentRunEndedFailedReceiver,
   AgentRunFailed,
@@ -57,6 +55,11 @@ export type {
 
 export { createAgentCustodyEvidence } from './custody-evidence.ts'
 export type { AgentCustodyEvidence, AgentCustodyQuestion } from './custody-evidence.ts'
+export { createAgentCompactionCustodyEvidence } from './compaction-custody.ts'
+export type {
+  AgentCompactionCustodyEvidence,
+  AgentCompactionCustodyQuestion,
+} from './compaction-custody.ts'
 
 export { createAgentToolReceiver } from './tool-receiving.ts'
 export type { AgentToolReceiver } from './tool-receiving.ts'

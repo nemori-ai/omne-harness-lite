@@ -19,6 +19,7 @@ import {
   type LocalToolRuntimeInput,
 } from '@omne-harness/tool-host-local/cordis'
 import { admitMaintainer } from '../../entry/execution-authorities.ts'
+import { workspaceInstancesKey } from '@omne-harness/workspace-cordis-contract/cordis'
 import { releaseOf } from '../../entry/tool-release.ts'
 import { isReleaseToolsRequest } from '../../entry/tool-forward-requests.ts'
 import { toolTargetPolicyOf } from '../authorization/tool-target-policy.ts'
@@ -39,7 +40,7 @@ import {
   type ToolRuntimeHolder,
 } from './holder.ts'
 import { runScopeGrants } from './scope.ts'
-import { toolHitlHolder } from '../tool-hitl/holder.ts'
+import { releaseToolDecisions } from './decision-routes.ts'
 
 const OWNER = '@omne-harness/harness-server'
 
@@ -113,11 +114,12 @@ function inputFor(
   const recoveryAccess = createRecoveryAccess()
   admitMaintainer(root, recoveryAccess)
   const environment = createReleaseEnvironment(holder, identity, {
-    filesRoot: config.filesRoot,
+    workspaces: () => root.get(workspaceInstancesKey, false),
     commitAttempts: config.configuration.ledgerCommitAttempts,
     schemaProvider: () => holder.schemaProvider,
     warn: text => root.logger('tool-runtime').warn(text),
   })
+  const decisions = releaseToolDecisions(root)
   const input: LocalToolRuntimeInput = {
     store,
     bodySchemas: {
@@ -148,7 +150,7 @@ function inputFor(
     configuration: { ...config.configuration, readResultArguments: TOOL_READ_ARGUMENTS },
     bindings: () => root.get(toolBindingsKey) as ReturnType<LocalToolRuntimeInput['bindings']>,
     catalog: () => root.get(toolCatalogKey),
-    decisions: () => toolHitlHolder(root).bridge ?? undefined,
+    decisions: () => decisions,
     environment: environment.input,
     capacity: config.capacity,
     observersPerCall: config.observersPerCall,

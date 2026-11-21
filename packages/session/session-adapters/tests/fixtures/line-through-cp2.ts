@@ -36,6 +36,8 @@ import {
   memoryOtherAccess,
   operationId,
   ordinaryInput,
+  testingDerivedInputs,
+  testingInputSources,
 } from '@omne-harness/session-contract/testing'
 import {
   SessionAccessCheckService,
@@ -188,9 +190,15 @@ export async function openCp2(root: string) {
     },
     accessCheck: {
       check: request =>
-        Promise.resolve({ kind: 'allowed', evidence: evidence(`session/${request.operation}`) }),
+        Promise.resolve({
+          kind: 'allowed',
+          evidence: evidence(`session/${request.operation}`),
+          subject: { kind: 'member' },
+        }),
     },
     cursorSigning: createFixedSessionCursorSigning(),
+    sources: testingInputSources(),
+    derived: testingDerivedInputs(),
     combination,
   })
 
@@ -228,7 +236,7 @@ export async function openCp2(root: string) {
 
   async function handoff(): Promise<MessageHandoff<string>> {
     if (ctx.get(agentMessageHandoffKey) === undefined) {
-      const work = { readWork: port.readWork }
+      const work = { readWork: port.readWork, readCurrentScope: port.readCurrentScope }
       class Session extends SessionService<unknown> {
         get work(): SessionFaces<unknown>['work'] {
           return work as unknown as SessionFaces<unknown>['work']

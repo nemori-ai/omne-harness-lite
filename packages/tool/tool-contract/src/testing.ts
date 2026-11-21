@@ -1,3 +1,4 @@
+export { testingCallLabel } from './testing-label.ts'
 export { ordinaryReturnFixture, structuredReturnFixture } from './testing-returns.ts'
 export {
   NotApplicable,
@@ -111,3 +112,4 @@ export {
   toolEnvironmentAllocationConformance,
   type ToolEnvironmentAllocationFixture,
 } from './testing-environment-allocation.ts'
+export { checkReleaseDescription } from './testing-release-detail.ts'
