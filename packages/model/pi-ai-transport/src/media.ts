@@ -20,15 +20,28 @@ export function sameReference(left: ContentReference, right: ContentReference): 
   return left.storage === right.storage && left.key === right.key && left.digest === right.digest
 }
 
-/** What a model that takes these image types takes of a referenced image; null for anything else. */
+export type AcceptedMedia = Readonly<{
+  prefix: 'image/' | 'audio/'
+  mediaTypes: readonly string[]
+  maxBytes: number | undefined
+}>
+
+/** What a model takes of a referenced medium, by the kind its media type names; null for anything else. */
+export function acceptedLimits(accepted: readonly AcceptedMedia[]): PiFamilyBinding['mediaLimits'] {
+  return reference => {
+    const kind = accepted.find(each => reference.mediaType.startsWith(each.prefix))
+    if (kind === undefined) return null
+    const maxBytes = kind.maxBytes ?? Number.MAX_SAFE_INTEGER
+    return { mediaTypes: kind.mediaTypes, maxBytes, image: null }
+  }
+}
+
 export function imageLimits(
   image: Readonly<{ mediaTypes: readonly string[] }> | null,
   maxBytes: number | undefined,
 ): PiFamilyBinding['mediaLimits'] {
-  return reference =>
-    image === null || !reference.mediaType.startsWith('image/')
-      ? null
-      : { mediaTypes: image.mediaTypes, maxBytes: maxBytes ?? Number.MAX_SAFE_INTEGER, image: null }
+  const accepted = image === null ? [] : [{ prefix: 'image/' as const, ...image, maxBytes }]
+  return acceptedLimits(accepted)
 }
 
 type Seen = Readonly<{ path: string; reference: ContentReference }>
@@ -106,20 +119,20 @@ export async function gatherMedia(
 }
 
 type Referring = Extract<ContentBlock, { ref: ContentReference }>
-export type ReferredImage = Readonly<{ mime: string | null; data: string }>
+export type ReferredMedium = Readonly<{ mime: string | null; data: string }>
 export type MediaView = Readonly<{
-  image(block: Referring): ReferredImage | null
+  read(block: Referring): ReferredMedium | null
   facts: MediaMeasurementFact[]
   pending: ContentReference[]
 }>
 
-/** The images of a request being sent: the bytes that were read for it at this materialization. */
+/** The media of a request being sent: the bytes that were read for it at this materialization. */
 export function mediaRead(media: readonly PiMaterializedMedia[]): MediaView {
   const facts: MediaMeasurementFact[] = []
   return {
     facts,
     pending: [],
-    image(block) {
+    read(block) {
       const read = media.find(each => sameReference(each.reference, block.ref))
       if (read === undefined) return null
       facts.push(read.measurement)
@@ -128,25 +141,37 @@ export function mediaRead(media: readonly PiMaterializedMedia[]): MediaView {
   }
 }
 
-/** The images of a request being planned: nothing is read, the block's own facts stand for it. */
+function plannedFact(block: Referring): MediaMeasurementFact | null {
+  const { ref, facts: measured } = block
+  const head = { reference: ref, bytes: ref.bytes, mediaType: ref.mediaType }
+  if (measured?.kind === 'image')
+    return {
+      ...head,
+      kind: 'image',
+      widthPixels: String(measured.widthPixels),
+      heightPixels: String(measured.heightPixels),
+    }
+  if (measured?.kind === 'voice')
+    return {
+      ...head,
+      kind: 'voice',
+      durationMs: String(measured.durationMs),
+      sampleRate: String(measured.sampleRate),
+      channels: String(measured.channels),
+    }
+  return null
+}
+
 export function mediaPending(): MediaView {
   const facts: MediaMeasurementFact[] = []
   const pending: ContentReference[] = []
   return {
     facts,
     pending,
-    image(block) {
-      const { ref, facts: measured } = block
-      if (!pending.some(each => sameReference(each, ref))) pending.push(ref)
-      if (measured?.kind === 'image')
-        facts.push({
-          reference: ref,
-          bytes: ref.bytes,
-          mediaType: ref.mediaType,
-          kind: 'image',
-          widthPixels: String(measured.widthPixels),
-          heightPixels: String(measured.heightPixels),
-        })
+    read(block) {
+      if (!pending.some(each => sameReference(each, block.ref))) pending.push(block.ref)
+      const fact = plannedFact(block)
+      if (fact !== null) facts.push(fact)
       return { mime: null, data: '' }
     },
   }
@@ -158,7 +183,7 @@ function referredImage(
   view: MediaView,
 ): Readonly<{ mime: string; data: string }> | null {
   if (block.kind !== 'image' || mediaTypes === undefined) return null
-  const found = view.image(block)
+  const found = view.read(block)
   if (found === null) return null
   const [first] = mediaTypes
   const planned = mediaTypes.includes(block.ref.mediaType) ? block.ref.mediaType : first
@@ -175,4 +200,17 @@ export function sentImage(
   if ('ref' in block) return referredImage(block, mediaTypes, view)
   if (block.kind !== 'image' || !(mediaTypes?.includes(block.mediaType) ?? false)) return null
   return { mime: block.mediaType, data: block.inline }
+}
+
+/** The speech a voice block sends by reference, with the wire's name for its format; null when it cannot. */
+export function sentVoice(
+  block: ContentBlock,
+  formats: Readonly<Record<string, string>> | undefined,
+  view: MediaView,
+): Readonly<{ format: string; data: string }> | null {
+  if (block.kind !== 'voice' || !('ref' in block) || formats === undefined) return null
+  const found = view.read(block)
+  if (found === null) return null
+  const format = formats[found.mime ?? block.ref.mediaType]
+  return format === undefined ? null : { format, data: found.data }
 }

@@ -264,6 +264,33 @@ export function pictureRead(
   return { reference, mime, bytes, measurement }
 }
 
+export const SPEECH = {
+  storage: 'tests',
+  key: 'speech-1',
+  mediaType: 'audio/wav',
+  bytes: '4',
+  digest: 'e'.repeat(64),
+}
+/** A voice block that refers to its bytes, measured as the intake leaves it. */
+export function speechBlock(id: string, ref = SPEECH): unknown {
+  const facts = { kind: 'voice', durationMs: 1500, sampleRate: 16000, channels: 1 }
+  return { kind: 'voice', id, visibility: SHOWN, ref, transcript: null, facts }
+}
+export const SPEECH_BYTES = new Uint8Array([0x52, 0x49, 0x46, 0x46])
+/** What a media source read for a voice reference. */
+export function speechRead(reference = SPEECH, mime = reference.mediaType) {
+  const measurement = {
+    reference,
+    bytes: String(SPEECH_BYTES.byteLength),
+    mediaType: mime,
+    kind: 'voice' as const,
+    durationMs: '1500',
+    sampleRate: '16000',
+    channels: '1',
+  }
+  return { reference, mime, bytes: SPEECH_BYTES, measurement }
+}
+
 export function thinkingBlock(id: string, text: string): unknown {
   return { kind: 'thinking', id, visibility: SHOWN, text }
 }

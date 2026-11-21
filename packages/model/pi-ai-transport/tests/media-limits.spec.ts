@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { imageLimits } from '../src/media.ts'
+import { acceptedLimits, imageLimits } from '../src/media.ts'
 
 const reference = (mediaType: string) => ({
   storage: 'tests',
@@ -33,5 +33,26 @@ describe('the limits a binding gives for a reference', () => {
     expect(limits(reference('application/pdf'))).toBeNull()
     expect(limits(reference('imagery/png'))).toBeNull()
     expect(imageLimits(null, 4_194_304)(reference('image/png'))).toBeNull()
+  })
+})
+
+describe('the limits of a binding that takes images and voice', () => {
+  it('each reference gets the types and the byte limit of its own kind; anything else gets none', () => {
+    const limits = acceptedLimits([
+      { prefix: 'image/', mediaTypes: ['image/png'], maxBytes: 4_194_304 },
+      { prefix: 'audio/', mediaTypes: ['audio/wav'], maxBytes: undefined },
+    ])
+    expect(limits(reference('image/png'))).toEqual({
+      mediaTypes: ['image/png'],
+      maxBytes: 4_194_304,
+      image: null,
+    })
+    expect(limits(reference('audio/mpeg'))).toEqual({
+      mediaTypes: ['audio/wav'],
+      maxBytes: Number.MAX_SAFE_INTEGER,
+      image: null,
+    })
+    expect(limits(reference('application/pdf'))).toBeNull()
+    expect(acceptedLimits([])(reference('audio/wav'))).toBeNull()
   })
 })

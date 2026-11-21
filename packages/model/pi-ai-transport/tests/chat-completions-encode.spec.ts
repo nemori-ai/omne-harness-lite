@@ -26,6 +26,10 @@ import {
   pictureBlock,
   pictureRead,
   resultBlock,
+  SPEECH,
+  SPEECH_BYTES,
+  speechBlock,
+  speechRead,
   stateBlock,
   supplierOf,
   testHooks,
@@ -438,6 +442,55 @@ describe('encode: tool calls and results', () => {
           failure: { kind: 'unsupported', field: '/messages/0/blocks/0' },
         })
       }
+    })
+  })
+
+  describe('a voice by reference', () => {
+    const plain = testRecord()
+    const record = testRecord({
+      wire: { ...plain.wire, voice: { formats: { 'audio/wav': 'wav' } } },
+    })
+    const encodeWith = (parts: RequestParts, media: Media, at = record) =>
+      bind(at, engineProbe()).encode(inputOf(fixedRequest(at, parts), [], media))
+    const heard = {
+      type: 'input_audio',
+      input_audio: { data: Buffer.from(SPEECH_BYTES).toString('base64'), format: 'wav' },
+    }
+
+    it('is written as input_audio from the bytes read for it, named by the format of the record', () => {
+      const outcome = encodeWith(
+        { messages: [message('u1', 'user', [textBlock('b1', 'hear this'), speechBlock('b2')])] },
+        [speechRead()],
+      )
+      expect(messagesOf(outcome)).toEqual([
+        { role: 'user', content: [{ type: 'text', text: 'hear this' }, heard] },
+      ])
+      if (!('ok' in outcome)) throw new Error('encode failed')
+      expect(outcome.ok.representation).toMatchObject({
+        kind: 'materialized',
+        media: [speechRead().measurement],
+      })
+    })
+
+    it('is unsupported when the record takes no voice, when what was read has no format there, and in a tool result', () => {
+      const messages = [message('u1', 'user', [speechBlock('b1')])]
+      const field = '/messages/0/blocks/0'
+      expect(encodeWith({ messages }, [speechRead()], plain)).toMatchObject({
+        failure: { kind: 'unsupported', field },
+      })
+      const mpeg = { ...SPEECH, mediaType: 'audio/mpeg' }
+      expect(
+        encodeWith({ messages: [message('u1', 'user', [speechBlock('b1', mpeg)])] }, [
+          speechRead(mpeg),
+        ]),
+      ).toMatchObject({ failure: { kind: 'unsupported', field } })
+      const inResult = [
+        message('a1', 'assistant', [callBlock('c1', 'call_a')]),
+        message('t1', 'tool', [resultBlock('r1', 'call_a'), speechBlock('b1')]),
+      ]
+      expect(encodeWith({ messages: inResult }, [speechRead()])).toMatchObject({
+        failure: { kind: 'unsupported', field: '/messages/1/blocks/1' },
+      })
     })
   })
 

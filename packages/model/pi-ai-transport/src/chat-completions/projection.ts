@@ -1,7 +1,7 @@
 // Derived from pi 1.0.0, commit a13d35a742c6ef8462812a28fbe1d8c8b7431c32 (convertMessages,
 // convertTools, addCacheControlToTextContent; the source file is named in provenance.json).
 // Copyright (c) 2025 Mario Zechner. MIT: ../../LICENSE.pi. See provenance.json.
-import { sentImage, type MediaView } from '../media.ts'
+import { sentImage, sentVoice, type MediaView } from '../media.ts'
 import { createHash } from 'node:crypto'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
@@ -39,6 +39,11 @@ type WireRole = ProjectedTurn['role']
 type WirePart =
   | Readonly<{ type: 'text'; text: string }>
   | Readonly<{ type: 'image'; url: string; detail: string }>
+  | Readonly<{ type: 'audio'; data: string; format: string }>
+
+/** What a place in a request may carry besides words: a message of the person takes both media. */
+type Senses = Readonly<{ image: WireProfile['image']; voice?: WireProfile['voice'] }>
+const WORDS_ONLY: Senses = { image: null }
 
 export type WireMessage = Readonly<{
   role: WireRole
@@ -113,12 +118,17 @@ function invalid(field: string, reason: string): Outcome<never, TransportFailure
 function contentPart(
   block: ContentBlock,
   path: string,
-  image: WireProfile['image'],
+  senses: Senses,
   adapter: Adoption,
   media: MediaView,
 ): Outcome<WirePart | null, TransportFailure> {
   if (!block.visibility.toModel) return { ok: null }
   if (block.kind === 'text') return { ok: { type: 'text', text: block.text } }
+  if (block.kind === 'voice') {
+    const heard = sentVoice(block, senses.voice?.formats, media)
+    return heard === null ? unsupported(path, adapter) : { ok: { type: 'audio', ...heard } }
+  }
+  const { image } = senses
   const sent = sentImage(block, image?.mediaTypes, media)
   if (sent === null || image === null) return unsupported(path, adapter)
   return {
@@ -253,7 +263,7 @@ function instructionMessage(input: ProjectionInput): Outcome<WireMessage | null,
   for (const [index, block] of input.system.entries()) {
     const path = `/system/${index}`
     if (block.visibility.toModel && block.kind !== 'text') return unsupported(path, input.adapter)
-    const part = contentPart(block, path, null, input.adapter, input.media)
+    const part = contentPart(block, path, WORDS_ONLY, input.adapter, input.media)
     if (!('ok' in part)) return part
     if (part.ok === null) continue
     parts.push(part.ok)
@@ -275,7 +285,7 @@ function contentMessage(
     const part = contentPart(
       block,
       `${path}/blocks/${index}`,
-      input.record.wire.image,
+      input.record.wire,
       input.adapter,
       input.media,
     )
@@ -352,7 +362,7 @@ function assistantMessage(
       case 'tool_call_incomplete':
         return invalid(at, 'incomplete-tool-call')
       case 'text': {
-        const part = contentPart(block, at, null, input.adapter, input.media)
+        const part = contentPart(block, at, WORDS_ONLY, input.adapter, input.media)
         if (!('ok' in part)) return part
         if (part.ok !== null) {
           parts.push(part.ok)
@@ -361,7 +371,7 @@ function assistantMessage(
         continue
       }
       default: {
-        const part = contentPart(block, at, null, input.adapter, input.media)
+        const part = contentPart(block, at, WORDS_ONLY, input.adapter, input.media)
         if (!('ok' in part)) return part
         continue
       }
@@ -428,7 +438,7 @@ function toolMessage(
     const part = contentPart(
       block,
       `${path}/blocks/${offset + 1}`,
-      input.record.wire.image,
+      { image: input.record.wire.image },
       input.adapter,
       input.media,
     )
@@ -524,6 +534,12 @@ function partJson(part: WirePart, cache: JsonValue | undefined): JsonValue {
       return object({
         type: text('image_url'),
         image_url: object({ url: text(part.url), detail: text(part.detail) }),
+        cache_control: cache,
+      })
+    case 'audio':
+      return object({
+        type: text('input_audio'),
+        input_audio: object({ data: text(part.data), format: text(part.format) }),
         cache_control: cache,
       })
     default: {

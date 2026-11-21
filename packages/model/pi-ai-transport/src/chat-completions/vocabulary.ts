@@ -55,6 +55,8 @@ export type WireProfile = Readonly<{
     mediaTypes: readonly string[]
     detail: 'low' | 'high' | 'auto'
   }> | null
+  /** Speech by reference: each media type taken and the name of its format in `input_audio`. */
+  voice?: Readonly<{ formats: Readonly<Record<string, string>> }>
   fixed: readonly GatewayParam[]
   usageTail: Readonly<{ maxFrames: number }>
   toolNames: Readonly<{ rule: 'underscore/1'; maxLength: number }>
