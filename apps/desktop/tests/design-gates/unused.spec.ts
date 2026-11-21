@@ -38,14 +38,6 @@ const PAGE_SKELETON: Allowance = {
 
 const UNUSED_ON_PURPOSE: ReadonlyMap<string, Allowance> = new Map<string, Allowance>([
   ['DirectorySearch', PAGE_SKELETON],
-  ['ListReadingDirectory', PAGE_SKELETON],
-  ['ListReadingMain', PAGE_SKELETON],
-  ['ListReadingPage', PAGE_SKELETON],
-  ['ListReadingRow', PAGE_SKELETON],
-  ['ListReadingWorkspace', PAGE_SKELETON],
-  ['ReadingDocument', PAGE_SKELETON],
-  ['ReadingState', PAGE_SKELETON],
-  ['ReadingToolbar', PAGE_SKELETON],
   ['SettingRow', PAGE_SKELETON],
 ])
 

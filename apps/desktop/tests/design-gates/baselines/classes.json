@@ -18,9 +18,6 @@
     "packages/frontend/ui-kit/src/charts/simple.tsx | .omne-share-unknown": 1,
     "packages/frontend/ui-kit/src/controls/select.tsx | .choice-menu-check": 1,
     "packages/frontend/ui-kit/src/controls/select.tsx | .choice-menu-row": 1,
-    "packages/schedule/schedule-ui/src/view/activation.tsx | .schedule-activation": 1,
-    "packages/schedule/schedule-ui/src/view/schedule-detail.tsx | .schedule-detail": 1,
-    "packages/schedule/schedule-ui/src/view/schedule-page.tsx | .schedule-page": 1,
-    "packages/schedule/schedule-ui/src/view/schedule-page.tsx | .schedule-row": 1
+    "packages/schedule/schedule-ui/src/view/activation.tsx | .schedule-activation": 1
   }
 }
