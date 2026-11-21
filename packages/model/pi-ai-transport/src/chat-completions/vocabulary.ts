@@ -1,3 +1,4 @@
+import type { FileWire } from '../media.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { JsonLimits, JsonValue } from '@omne-harness/json-text'
 import type {
@@ -57,6 +58,7 @@ export type WireProfile = Readonly<{
   }> | null
   /** Speech by reference: each media type taken and the name of its format in `input_audio`. */
   voice?: Readonly<{ formats: Readonly<Record<string, string>> }>
+  file?: FileWire
   fixed: readonly GatewayParam[]
   usageTail: Readonly<{ maxFrames: number }>
   toolNames: Readonly<{ rule: 'underscore/1'; maxLength: number }>

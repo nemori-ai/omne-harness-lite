@@ -7,6 +7,8 @@ import type {
   ModelMediaLimits,
 } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
+import type { JsonValue } from '@omne-harness/json-text'
+import { list, object, text } from './chat-completions/json.ts'
 import type { PiFamilyBinding, PiMaterializedMedia } from './family.ts'
 
 /** Reads one medium for the send it was made for: the access is already bound into it. */
@@ -21,12 +23,22 @@ export function sameReference(left: ContentReference, right: ContentReference): 
 }
 
 export type AcceptedMedia = Readonly<{
-  prefix: 'image/' | 'audio/'
+  prefix: string
   mediaTypes: readonly string[]
   maxBytes: number | undefined
 }>
+export type FileWire = Readonly<{ mediaTypes: readonly string[]; maxBytes: number }>
+type MediaWire = Readonly<{
+  image: Readonly<{ mediaTypes: readonly string[] }> | null
+  voice?: Readonly<{ formats: Readonly<Record<string, string>> }>
+  file?: FileWire
+}>
+const WORDS: AcceptedMedia = {
+  prefix: 'text/plain',
+  mediaTypes: ['text/plain'],
+  maxBytes: undefined,
+}
 
-/** What a model takes of a referenced medium, by the kind its media type names; null for anything else. */
 export function acceptedLimits(accepted: readonly AcceptedMedia[]): PiFamilyBinding['mediaLimits'] {
   return reference => {
     const kind = accepted.find(each => reference.mediaType.startsWith(each.prefix))
@@ -36,12 +48,24 @@ export function acceptedLimits(accepted: readonly AcceptedMedia[]): PiFamilyBind
   }
 }
 
-export function imageLimits(
-  image: Readonly<{ mediaTypes: readonly string[] }> | null,
-  maxBytes: number | undefined,
+/** Images, speech and files as the wire of a record takes them; words kept apart are always taken. */
+export function wireLimits(
+  wire: MediaWire,
+  bytes: Readonly<{ image?: number | undefined; voice?: number | undefined }>,
 ): PiFamilyBinding['mediaLimits'] {
-  const accepted = image === null ? [] : [{ prefix: 'image/' as const, ...image, maxBytes }]
-  return acceptedLimits(accepted)
+  const { image, voice, file } = wire
+  return acceptedLimits([
+    ...(image === null ? [] : [{ prefix: 'image/', ...image, maxBytes: bytes.image }]),
+    ...(voice === undefined
+      ? []
+      : [{ prefix: 'audio/', mediaTypes: Object.keys(voice.formats), maxBytes: bytes.voice }]),
+    ...(file?.mediaTypes.map(type => ({
+      prefix: type,
+      mediaTypes: [type],
+      maxBytes: file.maxBytes,
+    })) ?? []),
+    WORDS,
+  ])
 }
 
 type Seen = Readonly<{ path: string; reference: ContentReference }>
@@ -124,14 +148,15 @@ export type MediaView = Readonly<{
   read(block: Referring): ReferredMedium | null
   facts: MediaMeasurementFact[]
   pending: ContentReference[]
+  files: ContentReference[]
 }>
 
-/** The media of a request being sent: the bytes that were read for it at this materialization. */
 export function mediaRead(media: readonly PiMaterializedMedia[]): MediaView {
   const facts: MediaMeasurementFact[] = []
   return {
     facts,
     pending: [],
+    files: [],
     read(block) {
       const read = media.find(each => sameReference(each.reference, block.ref))
       if (read === undefined) return null
@@ -168,6 +193,7 @@ export function mediaPending(): MediaView {
   return {
     facts,
     pending,
+    files: [],
     read(block) {
       if (!pending.some(each => sameReference(each, block.ref))) pending.push(block.ref)
       const fact = plannedFact(block)
@@ -202,7 +228,6 @@ export function sentImage(
   return { mime: block.mediaType, data: block.inline }
 }
 
-/** The speech of a voice block, sent by reference with the wire's name for its format; null when it cannot. */
 export function sentVoice(
   block: ContentBlock,
   formats: Readonly<Record<string, string>> | undefined,
@@ -213,4 +238,39 @@ export function sentVoice(
   if (found === null) return null
   const format = formats[found.mime ?? block.ref.mediaType]
   return format === undefined ? null : { format, data: found.data }
+}
+
+const EXTENSIONS: Readonly<Record<string, string>> = { 'application/pdf': 'pdf' }
+
+export function sentFile(
+  block: ContentBlock,
+  file: FileWire | undefined,
+  view: MediaView,
+): Readonly<{ mime: string; data: string; filename: string }> | null {
+  if (block.kind !== 'file' || !('ref' in block) || file === undefined) return null
+  const found = view.read(block)
+  if (found === null) return null
+  const mime = found.mime ?? block.ref.mediaType
+  if (!file.mediaTypes.includes(mime)) return null
+  view.files.push(block.ref)
+  const extension = EXTENSIONS[mime]
+  return {
+    mime,
+    data: found.data,
+    filename: extension === undefined ? block.id : `${block.id}.${extension}`,
+  }
+}
+
+/** Words a medium was made into and kept apart, read back as words; null for anything else. */
+export function sentWords(block: ContentBlock, view: MediaView): string | null {
+  if (block.kind !== 'file' || !('ref' in block) || block.ref.mediaType !== WORDS.prefix)
+    return null
+  const found = view.read(block)
+  return found === null ? null : Buffer.from(found.data, 'base64').toString('utf8')
+}
+
+/** The gateway parses a file the model reads natively only when told so (MD-46). */
+export function nativeParsing(view: MediaView): JsonValue | undefined {
+  if (view.files.length === 0) return undefined
+  return list([object({ id: text('file-parser'), pdf: object({ engine: text('native') }) })])
 }

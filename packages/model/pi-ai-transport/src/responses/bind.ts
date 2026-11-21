@@ -1,4 +1,4 @@
-import { imageLimits } from '../media.ts'
+import { wireLimits } from '../media.ts'
 import type { Adoption, FixedModelRequest, Supplier } from '@omne-harness/model-contract'
 import type { RouteAccounting } from '../config.ts'
 import type { PiFamilyBinding } from '../family.ts'
@@ -105,7 +105,7 @@ export function bindResponses(input: ResponsesBindingInput): PiFamilyBinding {
   return Object.freeze({
     supplier,
     adoption,
-    mediaLimits: imageLimits(record.wire.image, input.imageBytes),
+    mediaLimits: wireLimits(record.wire, { image: input.imageBytes }),
     counting: meter.instance.basis,
     rules: Object.freeze({
       plan: (planInput: Parameters<typeof planResponses>[1]) => planResponses(context, planInput),

@@ -1,7 +1,7 @@
 // Derived from pi 1.0.0, commit a13d35a742c6ef8462812a28fbe1d8c8b7431c32 (convertMessages,
 // convertTools, addCacheControlToTextContent; the source file is named in provenance.json).
 // Copyright (c) 2025 Mario Zechner. MIT: ../../LICENSE.pi. See provenance.json.
-import { sentImage, sentVoice, type MediaView } from '../media.ts'
+import { sentFile, sentImage, sentVoice, sentWords, type MediaView } from '../media.ts'
 import { createHash } from 'node:crypto'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
@@ -40,9 +40,14 @@ type WirePart =
   | Readonly<{ type: 'text'; text: string }>
   | Readonly<{ type: 'image'; url: string; detail: string }>
   | Readonly<{ type: 'audio'; data: string; format: string }>
+  | Readonly<{ type: 'file'; filename: string; url: string }>
 
 /** What a place in a request may carry besides words: a message of the person takes both media. */
-type Senses = Readonly<{ image: WireProfile['image']; voice?: WireProfile['voice'] }>
+type Senses = Readonly<{
+  image: WireProfile['image']
+  voice?: WireProfile['voice']
+  file?: WireProfile['file']
+}>
 const WORDS_ONLY: Senses = { image: null }
 
 export type WireMessage = Readonly<{
@@ -127,6 +132,15 @@ function contentPart(
   if (block.kind === 'voice') {
     const heard = sentVoice(block, senses.voice?.formats, media)
     return heard === null ? unsupported(path, adapter) : { ok: { type: 'audio', ...heard } }
+  }
+  if (block.kind === 'file') {
+    const words = sentWords(block, media)
+    if (words !== null) return { ok: { type: 'text', text: words } }
+    const sent = sentFile(block, senses.file, media)
+    if (sent === null) return unsupported(path, adapter)
+    return {
+      ok: { type: 'file', filename: sent.filename, url: `data:${sent.mime};base64,${sent.data}` },
+    }
   }
   const { image } = senses
   const sent = sentImage(block, image?.mediaTypes, media)
@@ -544,6 +558,12 @@ function partJson(part: WirePart, cache: JsonValue | undefined): JsonValue {
       return object({
         type: text('input_audio'),
         input_audio: object({ data: text(part.data), format: text(part.format) }),
+        cache_control: cache,
+      })
+    case 'file':
+      return object({
+        type: text('file'),
+        file: object({ filename: text(part.filename), file_data: text(part.url) }),
         cache_control: cache,
       })
     default: {

@@ -1,3 +1,4 @@
+import type { FileWire } from '../media.ts'
 import type { ProfileReplay } from '@omne-harness/model-contract'
 import type { PiModelRecordHead } from '../family-table.ts'
 import type {
@@ -11,6 +12,7 @@ import type {
 export type MessagesWire = Readonly<{
   cache: Readonly<{ kind: 'none' }> | Readonly<{ kind: 'last-message'; ttl: '5m' | '1h' }>
   image: Readonly<{ mediaTypes: readonly string[] }> | null
+  file?: FileWire
   thinking: Readonly<{ display: 'summarized' | null }>
   toolNames: Readonly<{ rule: 'underscore/1'; maxLength: number }>
 }>

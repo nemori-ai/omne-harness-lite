@@ -41,6 +41,14 @@ import {
   declarationOf,
   type EngineProbe,
   type RequestParts,
+  DOCUMENT_BYTES,
+  documentBlock,
+  documentRead,
+  NATIVE_PARSING,
+  PDF_WIRE,
+  WORDS_TEXT,
+  wordsBlock,
+  wordsRead,
 } from './support/chat-record.ts'
 
 function bind(
@@ -1083,5 +1091,62 @@ describe('bindChatCompletions', () => {
     ])
     const acquired = await families.acquire(supplierOf(record), new AbortController().signal)
     expect('ok' in acquired && acquired.ok.adoption).toEqual(supplierOf(record).adoption)
+  })
+})
+
+describe('encode: a file by reference, and words kept apart (chat-completions)', () => {
+  const plain = testRecord()
+  const taking = testRecord({ wire: { ...testRecord().wire, file: PDF_WIRE } })
+  const sent = (
+    record: typeof plain,
+    parts: RequestParts,
+    media: Parameters<PiFamilyBinding['encode']>[0]['media'],
+  ) => {
+    const request: FixedModelRequest = fixedRequest(record, parts)
+    const outcome = bind(record).encode({
+      request,
+      media,
+      declaration: request.declarations[0],
+      resent: [],
+    })
+    return outcome
+  }
+  const parsed = (outcome: ReturnType<typeof sent>) => {
+    if (!('ok' in outcome)) throw new Error(`encode failed: ${JSON.stringify(outcome.failure)}`)
+    return JSON.parse(writeJsonText(outcome.ok.body)) as Record<string, unknown>
+  }
+  const DATA = Buffer.from(DOCUMENT_BYTES).toString('base64')
+  const partsOf = (body: Record<string, unknown>) =>
+    (body['messages'] as { content?: unknown }[]).flatMap(each =>
+      Array.isArray(each.content) ? (each.content as unknown[]) : [],
+    )
+
+  it('a PDF the record takes goes as its own file part, and the request asks the gateway to parse it natively', () => {
+    const messages = [message('u1', 'user', [textBlock('t1', 'read this'), documentBlock('d1')])]
+    const body = parsed(sent(taking, { messages }, [documentRead()]))
+    expect(partsOf(body)).toContainEqual({
+      type: 'file',
+      file: { filename: 'd1.pdf', file_data: `data:application/pdf;base64,${DATA}` },
+    })
+    expect(body.plugins).toEqual(NATIVE_PARSING)
+  })
+
+  it('a file the record does not take is unsupported; a request without a file asks for no parsing', () => {
+    const messages = [message('u1', 'user', [documentBlock('d1')])]
+    expect(sent(plain, { messages }, [documentRead()])).toMatchObject({
+      failure: { kind: 'unsupported', field: '/messages/0/blocks/0' },
+    })
+    const words = [message('u1', 'user', [textBlock('t1', 'hello')])]
+    expect(parsed(sent(taking, { messages: words }, [])).plugins).toBeUndefined()
+  })
+
+  it('words kept apart are read back and written as words on any record, with no file and no parsing', () => {
+    const messages = [
+      message('u1', 'user', [textBlock('t1', 'what does it say?'), wordsBlock('w1')]),
+    ]
+    const body = parsed(sent(plain, { messages }, [wordsRead()]))
+    expect(partsOf(body)).toContainEqual({ type: 'text', text: WORDS_TEXT })
+    expect(body.plugins).toBeUndefined()
+    expect(sent(plain, { messages }, [])).toMatchObject({ failure: { kind: 'unsupported' } })
   })
 })
