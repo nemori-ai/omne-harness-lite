@@ -20,8 +20,8 @@
       "R9": 1
     },
     "packages/assets/assets-ui/src/view/setting-row.tsx | 设置": {
-      "commit": 2,
-      "R9": 1
+      "R9": 1,
+      "commit": 2
     },
     "packages/calendar/calendar-ui/src/view/calendar-page.tsx | 查": {
       "commit": 1
@@ -83,29 +83,8 @@
     "packages/schedule/schedule-ui/src/view/schedule-page.tsx | 更多": {
       "R8": 1
     },
-    "packages/session/session-ui/src/view/archive.tsx | 撤销归档": {
-      "R6b": 1
-    },
-    "packages/session/session-ui/src/view/archive.tsx | 更多": {
-      "R6b": 1
-    },
-    "packages/session/session-ui/src/view/background-pane.tsx | 停止": {
-      "R6b": 1
-    },
     "packages/session/session-ui/src/view/background-pane.tsx | 后台有 {view.calls.length} 项在跑": {
       "name": 1
-    },
-    "packages/session/session-ui/src/view/composer-action-slot.tsx | {LABEL[face]}": {
-      "R6b": 1
-    },
-    "packages/session/session-ui/src/view/conversation-page.tsx | 再确认一次": {
-      "R6b": 1
-    },
-    "packages/session/session-ui/src/view/history-search.tsx | 接着搜": {
-      "R6b": 1
-    },
-    "packages/session/session-ui/src/view/history-search.tsx | 更多": {
-      "R6b": 1
     },
     "packages/session/session-ui/src/view/model-selection.tsx | {shown}": {
       "value": 1
@@ -113,14 +92,8 @@
     "packages/session/session-ui/src/view/session-list-panel.tsx | 新建会话": {
       "primary": 1
     },
-    "packages/session/session-ui/src/view/session-list-panel.tsx | 更多": {
-      "R6b": 1
-    },
     "packages/session/session-ui/src/view/side-frame.tsx | {seat} {name}": {
       "name": 1
-    },
-    "packages/session/session-ui/src/view/side-panel.tsx | 收起侧边区": {
-      "R6b": 1
     },
     "packages/usage/usage-ui/src/view/panel.tsx | 上移": {
       "R10": 1

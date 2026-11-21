@@ -1,11 +1,12 @@
 import {
   Ago,
-  Button,
   Disclosure,
   DropdownMenuItem,
   EmptyState,
+  IconButton,
   InlineNotice,
   Input,
+  UndoIcon,
   useAgeClock,
   useArrival,
 } from '@omne-harness/ui-kit'
@@ -19,6 +20,7 @@ import {
 } from '../model/archive.ts'
 import { sessionName } from '../model/session-list.ts'
 import type { SessionWorkspaces } from '../model/session-workspaces.ts'
+import { ReadOnEnd } from './read-on-end.tsx'
 import { useSession } from './use-session.ts'
 
 type Props = Readonly<{ store: ArchiveStore; workspaces: SessionWorkspaces; tenant: string }>
@@ -72,9 +74,9 @@ function ArchivedRow({
           <span>{archivedByText(item)}</span>
         </span>
       </span>
-      <Button variant="ghost" size="compact" onClick={onUnarchive}>
-        撤销归档
-      </Button>
+      <IconButton label="撤销归档" size="icon-compact" onClick={onUnarchive}>
+        <UndoIcon aria-hidden="true" />
+      </IconButton>
     </li>
   )
 }
@@ -134,16 +136,12 @@ function ArchivedList({
         <ArchivedRows rows={sessions} said={said} onUnarchive={onUnarchive} />
       ) : null}
       {sessions.length === 0 ? <EmptyState title="没有已归档的会话。" /> : null}
-      {completeness === 'partial' || next !== null ? (
+      {completeness === 'partial' ? (
         <div className="omne-archived-end">
-          {completeness === 'partial' ? <p className="omne-archived-note">列表可能不全</p> : null}
-          {next === null ? null : (
-            <Button variant="ghost" size="compact" className="text-xs" onClick={onMore}>
-              更多
-            </Button>
-          )}
+          <p className="omne-archived-note">列表可能不全</p>
         </div>
       ) : null}
+      <ReadOnEnd page={next === null ? null : view.page} read={onMore} />
     </>
   )
 }

@@ -1,15 +1,16 @@
 import {
   Ago,
-  Button,
   Checkbox,
   Disclosure,
   EmptyState,
   GlideMenu,
+  IconButton,
   InlineNotice,
   Input,
   LoadingState,
   PageColumn,
   PageHeader,
+  RetryIcon,
   Segmented,
   useAgeClock,
 } from '@omne-harness/ui-kit'
@@ -21,12 +22,15 @@ import {
   type HistorySearchStore,
   type SearchAsk,
   type SearchHit,
-  type SearchIncomplete,
+  type SearchView,
 } from '../model/history-search.ts'
 import { sessionName, shownBy } from '../model/session-list.ts'
 import type { SessionWorkspaces } from '../model/session-workspaces.ts'
+import { ReadOnEnd } from './read-on-end.tsx'
 import { useSession } from './use-session.ts'
 import type { SessionDriver } from '../model/session-driver.ts'
+
+type Listed = Extract<SearchView, { kind: 'listed' }>
 
 type Props = Readonly<{
   store: HistorySearchStore
@@ -89,25 +93,16 @@ function HitRow({
   )
 }
 
-/** The end of a page: a page not through says why, never "nothing found". */
-function ListedEnd({
-  incomplete,
-  found,
-  more,
-}: {
-  incomplete: SearchIncomplete | null
-  found: boolean
-  more: (() => void) | null
-}) {
+/** The end of a page: one not through says why, never "nothing found", and 接着搜; one through reads on by itself. */
+function ListedEnd({ listed, more }: { listed: Listed; more: () => void }) {
+  const { incomplete, next } = listed
   if (incomplete === null)
     return (
       <>
-        {found ? null : <EmptyState title="没有找到。" hint="可以换几个词，或改用正则。" />}
-        {more === null ? null : (
-          <Button variant="ghost" size="compact" className="omne-search-more" onClick={more}>
-            更多
-          </Button>
+        {listed.hits.length > 0 ? null : (
+          <EmptyState title="没有找到。" hint="可以换几个词，或改用正则。" />
         )}
+        <ReadOnEnd page={next === null ? null : listed} read={more} />
       </>
     )
   const index = indexText(incomplete)
@@ -119,10 +114,10 @@ function ListedEnd({
           {index}
         </Disclosure>
       )}
-      {more === null ? null : (
-        <Button variant="ghost" size="compact" onClick={more}>
-          接着搜
-        </Button>
+      {next === null ? null : (
+        <IconButton label="接着搜" size="icon-compact" onClick={more}>
+          <RetryIcon aria-hidden="true" />
+        </IconButton>
       )}
     </div>
   )
@@ -146,7 +141,6 @@ export function HistorySearchPage({ store, tenant, nameOf, onOpen }: Props) {
   const hits = view.kind === 'idle' ? [] : view.hits
   const now = useAgeClock(hits.length > 0)
   const listed = view.kind === 'listed' ? view : null
-  const more = listed !== null && listed.next !== null ? () => void store.more(tenant) : null
   return (
     <PageColumn className="omne-search">
       <PageHeader title="搜索" />
@@ -208,9 +202,7 @@ export function HistorySearchPage({ store, tenant, nameOf, onOpen }: Props) {
           </ul>
         </GlideMenu>
       )}
-      {listed === null ? null : (
-        <ListedEnd incomplete={listed.incomplete} found={hits.length > 0} more={more} />
-      )}
+      {listed === null ? null : <ListedEnd listed={listed} more={() => void store.more(tenant)} />}
     </PageColumn>
   )
 }

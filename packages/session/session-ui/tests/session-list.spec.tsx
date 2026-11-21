@@ -3,10 +3,11 @@ import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
 import type { Context } from '@deepseek-ai/cordis'
 import { formatInstant } from '@omne-harness/ui-kit'
 import { parseInstant, type Instant } from '@omne-harness/utc-instant'
-import { afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { sessionModelChoicesKey, type ModelChoiceHolder } from '../src/cordis.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
 import { listed, listPage } from './fixtures/frames.ts'
+import { stubInView } from './fixtures/in-view.ts'
 import { mountModule } from './fixtures/shell.tsx'
 
 const TENANT =
@@ -203,7 +204,7 @@ describe('会话列表的加载、空与读不到', () => {
     expect(within(list()).queryByRole('button', { name: '重试' })).toBeNull()
   })
 
-  it('末尾「列表可能不全」与「更多」是说明字号', async () => {
+  it('末尾「列表可能不全」是说明字号', async () => {
     const fake = createFakeClient()
     await mountModule(fake.client, TENANT)
     ;(await fake.next('list-sessions')).answer(
@@ -212,8 +213,68 @@ describe('会话列表的加载、空与读不到', () => {
     await settle()
     const end = list().querySelector('.omne-sessions-end')!
     expect(end.querySelector('.omne-sessions-note')?.textContent).toBe('列表可能不全')
-    expect(within(end as HTMLElement).getByRole('button', { name: '更多' }).className).toContain(
-      'text-xs',
+  })
+})
+
+describe('会话列表的末尾：进了视野就接着读，不放「更多」', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  const reads = (fake: ReturnType<typeof createFakeClient>) =>
+    fake.calls.filter(call => call.operation === 'list-sessions').length
+
+  it('末尾进了视野就读下一页；读着时不重读；读完了不再读', async () => {
+    const view = stubInView()
+    const fake = createFakeClient()
+    await mountModule(fake.client, TENANT)
+    ;(await fake.next('list-sessions')).answer(listPage([listed('ses_a', '甲')], 'cur-2'))
+    await settle()
+    expect(within(list()).queryByRole('button', { name: '更多' })).toBeNull()
+    expect(list().textContent).not.toContain('更多')
+    expect(reads(fake)).toBe(1)
+    act(() => view.enter())
+    const second = await fake.next('list-sessions')
+    expect(second.body).toEqual({ tenant: expect.anything(), cursor: 'cur-2' })
+    act(() => view.enter())
+    await settle()
+    expect(reads(fake)).toBe(2)
+    second.answer(listPage([listed('ses_b', '乙')], 'cur-3'))
+    await settle()
+    act(() => view.enter())
+    const third = await fake.next('list-sessions')
+    expect(third.body).toEqual({ tenant: expect.anything(), cursor: 'cur-3' })
+    third.answer(listPage([listed('ses_c', '丙')]))
+    await settle()
+    expect(
+      [...list().querySelectorAll('.omne-session-item-title')].map(node => node.textContent),
+    ).toEqual(['甲', '乙', '丙'])
+    expect(view.watched()).toEqual([])
+    act(() => view.enter())
+    await settle()
+    expect(reads(fake)).toBe(3)
+  })
+
+  it('读不到：照现有的说法，行内通知带「重试」，不另加钮，末尾也不再自己读', async () => {
+    const view = stubInView()
+    const fake = createFakeClient()
+    await mountModule(fake.client, TENANT)
+    ;(await fake.next('list-sessions')).answer(
+      listPage([listed('ses_a', '甲')], 'cur-2', 'partial'),
     )
+    await settle()
+    act(() => view.enter())
+    ;(await fake.next('list-sessions')).answer({ outcome: 'basis-unavailable' })
+    await settle()
+    const notice = list().querySelector('[data-inline-notice]')
+    expect(notice?.textContent).toContain('会话列表暂时读不到。')
+    expect(list().querySelector('.omne-sessions-note')?.textContent).toBe('列表可能不全')
+    expect(
+      within(list())
+        .getAllByRole('button')
+        .map(button => button.textContent),
+    ).toEqual(['甲', '重试'])
+    expect(view.watched()).toEqual([])
+    act(() => view.enter())
+    await settle()
+    expect(reads(fake)).toBe(2)
   })
 })

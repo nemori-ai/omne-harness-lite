@@ -24,6 +24,7 @@ import {
 import { createInFlight } from '../model/session-machine.ts'
 import type { SessionWorkspaces } from '../model/session-workspaces.ts'
 import { useNewSessionModel } from './model-selection.tsx'
+import { ReadOnEnd } from './read-on-end.tsx'
 import { useSession } from './use-session.ts'
 
 export type SessionListPanelProps = Readonly<{
@@ -198,22 +199,16 @@ function ListEnd({
   readonly driver: SessionDriver
 }) {
   const partial = shown?.completeness === 'partial'
-  const more = list.kind === 'read' && list.page.next !== null
-  if (!partial && !more) return null
+  const page = list.kind === 'read' && list.page.next !== null ? list.page : null
   return (
-    <div className="omne-sessions-end">
-      {partial ? <p className="omne-sessions-note">列表可能不全</p> : null}
-      {more ? (
-        <Button
-          variant="ghost"
-          size="compact"
-          className="text-xs"
-          onClick={() => driver.loadMoreSessions()}
-        >
-          更多
-        </Button>
+    <>
+      {partial ? (
+        <div className="omne-sessions-end">
+          <p className="omne-sessions-note">列表可能不全</p>
+        </div>
       ) : null}
-    </div>
+      <ReadOnEnd page={page} read={() => driver.loadMoreSessions()} />
+    </>
   )
 }
 
