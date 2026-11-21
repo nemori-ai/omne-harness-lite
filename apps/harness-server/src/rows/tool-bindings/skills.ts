@@ -4,6 +4,12 @@ import { capabilityId } from '@omne-harness/assets'
 import type { PrincipalVerifier } from '@omne-harness/identity'
 import { access as accessOf, type Access } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import type {
+  SessionAccess,
+  SessionFailure,
+  SessionId,
+  WorkSnapshot,
+} from '@omne-harness/session-contract'
 import {
   isSkillName,
   type CatalogEntry,
@@ -24,6 +30,7 @@ import {
   type SkillsPage,
   type SkillsText,
 } from '@omne-harness/tool-definitions'
+import { sessionWorkReaderOf } from '../../entry/tool-requests.ts'
 import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
 import { verifySessionWork } from '../tool-runtime/session-work.ts'
 
@@ -34,6 +41,9 @@ const PAGE_BYTES = 65_536
 
 export type SkillsBindingPorts = Readonly<{
   verifier(): PrincipalVerifier | undefined
+  readWork(
+    access: SessionAccess<unknown>,
+  ): Promise<Outcome<WorkSnapshot, SessionFailure>> | undefined
   catalog(): SkillCatalog<unknown, unknown> | undefined
   access(): SkillAccess<unknown, unknown> | undefined
 }>
@@ -112,12 +122,33 @@ function textOf(read: ReadResult): Outcome<SkillsText, SkillsFailure> {
   })
 }
 
+/** A call's scope: the key of the turn it is made in, once its session has stood at a workspace. */
+export function turnScopeOf(snapshot: WorkSnapshot): Readonly<{ key: string }> | null {
+  const stood =
+    snapshot.creation.workspace !== null ||
+    (snapshot.changes ?? []).some(change => change.kind === 'workspace' && change.value !== null)
+  return stood && snapshot.run.kind === 'active' ? { key: snapshot.run.run } : null
+}
+
+type Caller = Readonly<{ access: Access<unknown>; scope: Readonly<{ key: string }> | null }>
+
 export function createBoundSkills(parent: Parent, ports: SkillsBindingPorts): SkillsAccess {
-  async function who(): Promise<Outcome<Access<unknown>, SkillsFailure>> {
+  async function who(): Promise<Outcome<Caller, SkillsFailure>> {
     const verified = await verifySessionWork(ports.verifier(), parent.principal, parent.tenant)
     if (verified.kind === 'denied') return NOT_FOUND
     if (verified.kind === 'unavailable') return unavailable(verified.diagnostic)
-    return succeed(accessOf(verified.principal, parent.tenant))
+    const session = verified.session as SessionId
+    const { principal, tenant } = parent
+    let read: Awaited<ReturnType<SkillsBindingPorts['readWork']>>
+    try {
+      read = await ports.readWork({ principal, tenant, session })
+    } catch {
+      read = undefined
+    }
+    if (read === undefined || 'failure' in read)
+      return unavailable('the session cannot be read now')
+    const access = accessOf(verified.principal, parent.tenant)
+    return succeed({ access, scope: turnScopeOf(read.ok) })
   }
   async function skillAccess(skill: string) {
     if (!isSkillName(skill))
@@ -129,7 +160,7 @@ export function createBoundSkills(parent: Parent, ports: SkillsBindingPorts): Sk
     if (!('ok' in caller)) return caller
     const service = ports.access()
     if (service === undefined) return unavailable('the Skill reader is not available')
-    return succeed({ caller: caller.ok, capability: id.id, service })
+    return succeed({ ...caller.ok, capability: id.id, service })
   }
   const range = (offset: number, maxBytes: number) => ({
     start: offset,
@@ -143,17 +174,18 @@ export function createBoundSkills(parent: Parent, ports: SkillsBindingPorts): Sk
       if (!('ok' in caller)) return caller
       const catalog = ports.catalog()
       if (catalog === undefined) return unavailable('the Skill catalog is not available')
-      const found = await catalog.search(caller.ok, null, { text: input.query })
+      const { access, scope } = caller.ok
+      const found = await catalog.search(access, scope, { text: input.query })
       if (!('ok' in found)) return unavailable('the Skill store cannot be read now')
       return pageOf(input.query, cursor, input.limit, found.ok)
     },
     async read(input, signal) {
       const target = await skillAccess(input.skill)
       if (!('ok' in target)) return target
-      const { caller, capability, service } = target.ok
+      const { access, scope, capability, service } = target.ok
       const read = await service.read(
-        caller,
-        null,
+        access,
+        scope,
         { capability, part: { kind: 'body' } },
         { range: range(input.offset, input.maxBytes), signal },
       )
@@ -162,8 +194,8 @@ export function createBoundSkills(parent: Parent, ports: SkillsBindingPorts): Sk
     async list(input, signal) {
       const target = await skillAccess(input.skill)
       if (!('ok' in target)) return target
-      const { caller, capability, service } = target.ok
-      const listed = await service.list(caller, null, capability, { signal })
+      const { access, scope, capability, service } = target.ok
+      const listed = await service.list(access, scope, capability, { signal })
       if (!('ok' in listed)) return fail(readFailure(listed.failure))
       return succeed({
         files: listed.ok.resources.map(entry => ({
@@ -177,10 +209,10 @@ export function createBoundSkills(parent: Parent, ports: SkillsBindingPorts): Sk
     async readFile(input, signal) {
       const target = await skillAccess(input.skill)
       if (!('ok' in target)) return target
-      const { caller, capability, service } = target.ok
+      const { access, scope, capability, service } = target.ok
       const read = await service.read(
-        caller,
-        null,
+        access,
+        scope,
         { capability, part: { kind: 'resource', path: input.path } },
         { range: range(input.offset, input.maxBytes), signal },
       )
@@ -198,6 +230,7 @@ export function bindReleaseSkills(
     scope,
     createBoundSkills(parent, {
       verifier: () => toolRuntimeHolder(ctx).verifier(),
+      readWork: sessionWorkReaderOf(ctx),
       catalog: () => ctx.get(skillCatalogKey),
       access: () => ctx.get(skillAccessKey),
     }),

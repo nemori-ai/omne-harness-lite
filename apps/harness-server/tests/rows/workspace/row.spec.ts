@@ -42,7 +42,7 @@ const acting = (for_: TenantId) =>
   )
 
 describe('the workspace row', () => {
-  it('declares the four services of the provider and needs only the storage before it starts', () => {
+  it('declares the five services of the provider and needs only the storage before it starts', () => {
     expect(rowDeclarationOf(workspaceRow)).toMatchObject({
       row: 'workspace',
       implementation: 'real',
@@ -52,6 +52,7 @@ describe('the workspace row', () => {
           'workspaceGovernance',
           'workspaceInstances',
           'workspaceCatalog',
+          'workspaceSources',
           'workspaceTypes',
         ],
         injects: ['storage'],

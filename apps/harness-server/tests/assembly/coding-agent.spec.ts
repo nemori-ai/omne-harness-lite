@@ -79,6 +79,10 @@ describe('the coding entry of the release mapping', () => {
     expect(entry.requiredIdentities).toEqual([])
   })
 
+  it('says nothing of a tool a row brings: the tool describes itself, and the prompt holds without the row', () => {
+    for (const section of instructions) expect(section.text).not.toMatch(/SwitchWorkspace/u)
+  })
+
   it('the adoption digest is the content digest of the definition, prompt included', () => {
     expect(entry.candidate.digest).toBe(contentDigest(entry.definition))
   })
@@ -120,9 +124,6 @@ describe('the coding entry of the release mapping', () => {
     for (const word of ['已验证', '部分验证', '未验证', '失败']) expect(fullText).toContain(word)
     expect(fullText).toContain(
       'You have thirteen resident command tools: Files, Shell, Tools, TodoItems, BkgToolCalls, Ask, Web, Calendar, Schedules, Notifications, Sessions, Agents and Skills.',
-    )
-    expect(fullText).toContain(
-      'call SwitchWorkspace. It is a resident tool that is not a command tool',
     )
     expect(fullText).toContain('## BkgToolCalls')
     expect(fullText).toContain('Do not poll: you are woken when a background call ends.')

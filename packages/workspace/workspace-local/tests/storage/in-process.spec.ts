@@ -4,7 +4,8 @@ import participant from '../../src/storage/participant.ts'
 import reader from '../../src/storage/read.ts'
 import migration from '../../src/storage/migration.ts'
 import sources from '../../src/storage/migration-sources.ts'
-import { select, sqlTxn } from '../../src/storage/facts.ts'
+import { sqlTxn } from '../../src/storage/facts.ts'
+import { select } from '../../src/storage/sql-port.ts'
 import { createInProcessStore, portOf } from './in-process.ts'
 
 describe('the participant and the read handler conform to the repository contract', () => {

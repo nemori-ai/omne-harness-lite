@@ -1094,6 +1094,78 @@
       "source": "packages/workspace/SPEC.md"
     },
     {
+      "id": "packages/workspace/workspace-asset-source",
+      "paths": ["packages/workspace/workspace-asset-source/src/**"],
+      "layer": "unknown",
+      "domains": ["workspace"],
+      "status": "candidate",
+      "source": "packages/workspace/SPEC.md"
+    },
+    {
+      "id": "packages/assets/assets",
+      "paths": ["packages/assets/assets/src/**"],
+      "layer": "unknown",
+      "domains": ["assets"],
+      "status": "candidate",
+      "source": "packages/assets/SPEC.md"
+    },
+    {
+      "id": "packages/assets/assets-cordis-contract",
+      "paths": ["packages/assets/assets-cordis-contract/src/**"],
+      "layer": "unknown",
+      "domains": ["assets"],
+      "status": "candidate",
+      "source": "packages/assets/SPEC.md"
+    },
+    {
+      "id": "packages/assets/assets-local",
+      "paths": ["packages/assets/assets-local/src/**"],
+      "layer": "unknown",
+      "domains": ["assets"],
+      "status": "candidate",
+      "source": "packages/assets/SPEC.md"
+    },
+    {
+      "id": "packages/mcp/mcp-ui",
+      "paths": ["packages/mcp/mcp-ui/src/**"],
+      "layer": "unknown",
+      "domains": ["mcp"],
+      "status": "candidate",
+      "source": "packages/mcp/SPEC.md"
+    },
+    {
+      "id": "packages/agent/agent",
+      "paths": ["packages/agent/agent/src/**"],
+      "layer": "unknown",
+      "domains": ["agent"],
+      "status": "candidate",
+      "source": "packages/agent/SPEC.md"
+    },
+    {
+      "id": "packages/model/model",
+      "paths": ["packages/model/model/src/**"],
+      "layer": "unknown",
+      "domains": ["model"],
+      "status": "candidate",
+      "source": "packages/model/SPEC.md"
+    },
+    {
+      "id": "packages/model/model-host-local",
+      "paths": ["packages/model/model-host-local/src/**"],
+      "layer": "unknown",
+      "domains": ["model"],
+      "status": "candidate",
+      "source": "packages/model/SPEC.md"
+    },
+    {
+      "id": "packages/model/model-storage-sql",
+      "paths": ["packages/model/model-storage-sql/src/**"],
+      "layer": "unknown",
+      "domains": ["model"],
+      "status": "candidate",
+      "source": "packages/model/SPEC.md"
+    },
+    {
       "id": "packages/media/media-contract",
       "paths": ["packages/media/media-contract/src/**"],
       "layer": "contract",
@@ -1707,6 +1779,68 @@
         "packages/workspace/workspace-tools"
       ],
       "source": "packages/workspace/SPEC.md"
+    },
+    {
+      "id": "DIR-WORKSPACE-ASSETS",
+      "from": [
+        "packages/workspace/workspace-contract",
+        "packages/workspace/workspace",
+        "packages/workspace/workspace-filesystem",
+        "packages/workspace/workspace-git",
+        "packages/workspace/workspace-cordis-contract",
+        "packages/workspace/workspace-local",
+        "packages/workspace/workspace-protocol",
+        "packages/workspace/workspace-access",
+        "packages/workspace/workspace-tools"
+      ],
+      "to": [
+        "packages/assets/assets",
+        "packages/assets/assets-cordis-contract",
+        "packages/assets/assets-local",
+        "packages/assets/assets-access",
+        "packages/assets/assets-protocol",
+        "packages/assets/assets-ui"
+      ],
+      "source": "packages/workspace/SPEC.md#来源采用记录与交给求值"
+    },
+    {
+      "id": "DIR-WORKSPACE-CATEGORIES",
+      "from": [
+        "packages/workspace/workspace-contract",
+        "packages/workspace/workspace",
+        "packages/workspace/workspace-filesystem",
+        "packages/workspace/workspace-git",
+        "packages/workspace/workspace-cordis-contract",
+        "packages/workspace/workspace-local",
+        "packages/workspace/workspace-protocol",
+        "packages/workspace/workspace-access",
+        "packages/workspace/workspace-tools",
+        "packages/workspace/workspace-asset-source"
+      ],
+      "to": [
+        "packages/skills/skill-contract",
+        "packages/skills/skill-cordis-contract",
+        "packages/skills/skill-host-local",
+        "packages/skills/skill",
+        "packages/mcp/mcp-contract",
+        "packages/mcp/mcp-cordis-contract",
+        "packages/mcp/mcp-host-local",
+        "packages/mcp/mcp",
+        "packages/mcp/mcp-ui",
+        "packages/agent/agent-contract",
+        "packages/agent/agent-cordis-contract",
+        "packages/agent/agent-host-local",
+        "packages/agent/agent",
+        "packages/model/model-contract",
+        "packages/model/model-cordis-contract",
+        "packages/model/model-host-local",
+        "packages/model/model",
+        "packages/model/model-access",
+        "packages/model/model-protocol",
+        "packages/model/model-storage-sql",
+        "packages/model/model-ui"
+      ],
+      "source": "packages/workspace/SPEC.md#来源采用记录与交给求值"
     },
     {
       "id": "DIR-WORKSPACE-TYPES",
