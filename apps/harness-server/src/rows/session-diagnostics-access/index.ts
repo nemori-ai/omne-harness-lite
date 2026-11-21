@@ -3,7 +3,6 @@ import type { Principal } from '@omne-harness/access-cordis-contract'
 import { accessRegistryKey } from '@omne-harness/access-cordis-contract/cordis'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
 import { modelDiagnosticsKey, modelRuntimeKey } from '@omne-harness/model-cordis-contract/cordis'
-import { decodeFixedRequestRecord } from '@omne-harness/request-context-contract'
 import type { SessionId } from '@omne-harness/session-contract'
 import { sessionAdoptedRequestsKey, sessionKey } from '@omne-harness/session-cordis-contract/cordis'
 import type {
@@ -63,23 +62,14 @@ function modelRequests(ctx: Context): ModelRequestReader<Principal> {
   return {
     async readChoices({ principal, tenant, session, reference }) {
       const requests = present(ctx.get(sessionAdoptedRequestsKey), 'sessionAdoptedRequests')
-      const read = await requests.readAdoptedRequest({
+      const read = await requests.readRequestChoices({
         access: { principal, tenant },
         session: session as SessionId,
         reference,
       })
       if (read.kind !== 'value') return { failure: { reason: read.kind } }
       if (read.value === null) return { failure: { reason: 'not-recorded' } }
-      const record = decodeFixedRequestRecord(read.value.record)
-      if ('failure' in record) return { failure: { reason: 'unsupported' } }
-      return {
-        ok: record.ok.coverage.representations.map(({ message, block, choice, mediaType }) => ({
-          message,
-          block,
-          choice,
-          mediaType,
-        })),
-      }
+      return { ok: read.value }
     },
   }
 }

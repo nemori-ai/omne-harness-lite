@@ -58,18 +58,12 @@ export const SESSION_INPUT_HANDLER = 'session.input'
 export const SESSION_EXECUTION_HANDLER = 'session.execution'
 export const SESSION_ENTRY_MESSAGE_HANDLER = 'session.entry-message'
 export const SESSION_COMPACTION_INPUT_CHECK_HANDLER = 'session.compaction-input-check'
-export const EXECUTION_RECORD_HANDLERS = {
-  facts: 'execution-record.facts',
-  openExecutions: 'execution-record.open-executions',
-  events: 'execution-record.events',
-  operation: 'execution-record.operation',
-  blob: 'execution-record.blob',
-  blobs: 'execution-record.blobs',
-  openItems: 'execution-record.open-items',
-  items: 'execution-record.items',
-  preadmission: 'execution-record.preadmission',
-  retired: 'execution-record.retired',
-} as const
+export {
+  EXECUTION_RECORD_HANDLERS,
+  decodeExecutionRequestChoices,
+  decodeExecutionSessionAdoption,
+  type ExecutionSessionAdoption,
+} from './execution-reads.ts'
 
 export type ExecutionRecordRetiredRead = Readonly<{ tenant: string; generation: string }>
 export type ExecutionRecordRetired = Readonly<{
@@ -234,6 +228,8 @@ export type ExecutionRecordWrite = Readonly<{
   boundaries: readonly ExecutionBoundaryRecord[]
   admissions: readonly ExecutionAdmissionRecord[]
   settledBy: string | null
+  choices?: readonly Readonly<{ reference: string; payload: readonly JsonValue[] }>[]
+  retain?: Readonly<{ reference: string; pub: string; digest: string; adoption: JsonValue }>
 }>
 
 export function executionRecordFacts(write: ExecutionRecordWrite): FactCommandV2 {

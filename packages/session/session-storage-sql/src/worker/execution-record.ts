@@ -14,6 +14,7 @@ import { packText } from '@omne-harness/sql-contract/worker'
 import { big, oneRow, text, type Executor, type Row } from './support.ts'
 import { storeSharedBlob } from './shared-blobs.ts'
 import { storeExecutionBlock } from './execution-blocks.ts'
+import { parseAdoption, writeAdoption, type AdoptionWrite } from './adoption.ts'
 
 const PROTOCOL = '1'
 
@@ -76,6 +77,7 @@ type Write = Readonly<{
   boundaries: readonly Boundary[]
   admissions: readonly Admission[]
   settledBy: string | null
+  adoption: AdoptionWrite
 }>
 
 const INTEGER = /^(0|[1-9][0-9]{0,17})$/
@@ -281,7 +283,20 @@ function parseWrite(raw: JsonValue | undefined): Write | string {
   if (twice !== undefined) return `the item ${twice} is written twice`
   const settledBy = raw['settledBy'] ?? null
   if (settledBy !== null && !isText(settledBy)) return 'the settling writer generation'
-  return { ...head, facts, blobs, items, contents, discards, boundaries, admissions, settledBy }
+  const adoption = parseAdoption(raw, settledBy !== null)
+  if (typeof adoption === 'string') return adoption
+  return {
+    ...head,
+    facts,
+    blobs,
+    items,
+    contents,
+    discards,
+    boundaries,
+    admissions,
+    settledBy,
+    adoption,
+  }
 }
 
 const json = (value: JsonValue): string => JSON.stringify(value)
@@ -480,6 +495,8 @@ function publish(port: Executor, write: Write): ParticipantReply {
     session,
     next,
   ])
+  const broken = writeAdoption(port, { tenant, session, execution }, write.adoption)
+  if (broken !== null) return { kind: 'failed', diagnostic: broken }
   if (write.settledBy !== null) reclaim(port, tenant, execution, next, write.settledBy)
   return { kind: 'participated', response: { published: String(next), digest: write.digest } }
 }

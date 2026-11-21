@@ -188,3 +188,24 @@ export const BLOCK_MIGRATION = Object.freeze({
   owner: 'execution-record',
   id: '008-block',
 })
+
+// What a session reads of its adopted requests after their executions settle: the latest adoption
+// with its record block, one row per session, and the representation choices of each model call.
+export const ADOPTION_SCHEMA: readonly string[] = [
+  `CREATE TABLE er_session_adoption (
+    tenant TEXT NOT NULL, session TEXT NOT NULL, reference TEXT NOT NULL, pub INTEGER NOT NULL,
+    execution TEXT NOT NULL, digest TEXT NOT NULL, media TEXT NOT NULL, size INTEGER NOT NULL,
+    payload BLOB NOT NULL, adoption TEXT NOT NULL,
+    CHECK (pub > 0),
+    PRIMARY KEY (tenant, session)) STRICT, WITHOUT ROWID`,
+  `CREATE TABLE er_request_choice (
+    tenant TEXT NOT NULL, session TEXT NOT NULL, reference TEXT NOT NULL, payload TEXT NOT NULL,
+    PRIMARY KEY (tenant, session, reference)) STRICT, WITHOUT ROWID`,
+]
+
+export const ADOPTION_TABLES: readonly string[] = ['er_session_adoption', 'er_request_choice']
+
+export const ADOPTION_MIGRATION = Object.freeze({
+  owner: 'execution-record',
+  id: '009-adoption',
+})

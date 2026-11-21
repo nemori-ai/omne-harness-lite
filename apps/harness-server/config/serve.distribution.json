@@ -319,7 +319,7 @@
       "id": "session-handoff",
       "plugin": "sessionHandoffRow",
       "config": {
-        "combinationVersion": "session-composite/20"
+        "combinationVersion": "session-composite/21"
       }
     },
     {
@@ -331,7 +331,7 @@
       "id": "agent-journal",
       "plugin": "agentJournalRow",
       "config": {
-        "combinationVersion": "session-composite/20"
+        "combinationVersion": "session-composite/21"
       }
     },
     {

@@ -52,7 +52,6 @@ import {
 import type {
   DomainRef,
   FactCommandV2,
-  JsonValue,
   SqlStorage,
   TenantDomainLookup,
 } from '@omne-harness/sql-contract'
@@ -69,10 +68,16 @@ import {
   type ParticipationKind,
   settled as settledView,
   type PublishedBatch,
-  type RequestView,
   type SessionJournalView,
 } from '../journal/index.ts'
-import { adoptedIn } from './adopted-in.ts'
+import {
+  readAdoptedIn,
+  readChoices,
+  type AdoptedRead,
+  type ChoicesRead,
+  type Unread,
+} from './adopted-in.ts'
+import { adoptionRows } from './adoption-rows.ts'
 import {
   participationAccessFailure,
   participationFailure,
@@ -96,7 +101,7 @@ import {
   type CommonRoot,
   type JournalCell,
 } from '../testing/root.ts'
-import { blobRowDigest, factDigestOf } from './journal-batch.ts'
+import { factDigestOf } from './journal-batch.ts'
 import { ContentRefs, keepNamed, settleBlocks } from './content-refs.ts'
 import {
   ANSWER_FAMILY,
@@ -130,7 +135,6 @@ import {
 } from './journal-publication.ts'
 import { projectRecords, type ProjectionContext } from '../testing/journal-records.ts'
 import {
-  readBlob,
   readOpenExecutions,
   readTouched,
   readOperation,
@@ -186,20 +190,6 @@ export type SessionLogJournalProvider<P> = AgentReceivedProvider<P, ContentBlock
   targets: ModelReceptionTargets<P>
   toolTargets: ToolReceptionTargets<P>
 }
-
-export type AdoptedPart = Readonly<{
-  order: string
-  execution: string
-  reference: string
-  fixed: DurableEvidence
-  coverage: DurableEvidence | null
-  schema: RequestView['schema']
-  record: JsonValue
-}>
-
-export type AdoptedRead =
-  | Readonly<{ kind: 'value'; value: AdoptedPart | null }>
-  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
 type Scratch = {
   checks: SessionCheck[]
@@ -652,7 +642,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
 
   const sweep = createTenantSweep({ ...options, generations })
   type TenantAt = Pick<Book<P>, 'tenant' | 'tenantText'>
-  const unreadOf = (failure: Failure): AdoptedRead => ({
+  const unreadOf = (failure: Failure): Unread => ({
     kind: 'unavailable',
     diagnostic: failure.kind === 'unavailable' ? failure.diagnostic : failure.kind,
   })
@@ -1055,41 +1045,28 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       if ('failure' in domain) return unreadOf(domain.failure)
       const synced = await sync(book, domain.ok)
       if ('failure' in synced) return unreadOf(synced.failure)
-      const latest = adoptedIn(book.view.executions.values(), scope.reference)
-      if (latest === null) return { kind: 'value', value: null }
-      const digest = blobRowDigest(latest.request.record.digest)
-      let payload = book.blobs.get(digest)
-      if (payload === undefined) {
-        const read = await readBlob(
-          readerOf(options.storage, domain.ok),
-          book.tenantText,
-          latest.execution,
-          digest,
-        )
-        if (typeof read !== 'string')
-          return { kind: 'unavailable', diagnostic: `the record block ${digest} is not readable` }
-        book.blobs.set(digest, read)
-        payload = read
-      }
-      try {
-        return {
-          kind: 'value',
-          value: {
-            order: String(latest.request.pub),
-            execution: latest.execution,
-            reference: String(latest.request.reference),
-            fixed: latest.request.fixed,
-            coverage: latest.request.coverage,
-            schema: latest.request.schema,
-            record: JSON.parse(payload) as JsonValue,
-          },
-        }
-      } catch (error) {
-        return {
-          kind: 'unavailable',
-          diagnostic: `the record block does not decode: ${String(error)}`,
-        }
-      }
+      return readAdoptedIn({
+        executions: book.view.executions.values(),
+        reference: scope.reference,
+        read: readerOf(options.storage, domain.ok),
+        scope: scopeOf(book),
+        blobs: book.blobs,
+      })
+    })
+  }
+
+  async function readRequestChoices(
+    scope: Readonly<{ tenant: TenantId; session: SessionId; reference: string }>,
+  ): Promise<ChoicesRead> {
+    const text = tenantCodec.encode(scope.tenant)
+    if (!text.ok) return { kind: 'unavailable', diagnostic: 'the tenant is not minted' }
+    const domain = await domainOf({ tenant: scope.tenant, tenantText: text.value })
+    if ('failure' in domain) return unreadOf(domain.failure)
+    const { session, reference } = scope
+    return readChoices(readerOf(options.storage, domain.ok), {
+      tenant: text.value,
+      session,
+      reference,
     })
   }
 
@@ -1271,6 +1248,8 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     const blobs = await storeBlobsFirst(book, domain, execution, prepared.blobs)
     if ('failure' in blobs) return { kind: 'answer', value: blobs }
     const settles = settledView(prepared.view.executions.get(execution as AgentExecutionId))
+    const adoption = adoptionRows(after, prepared, execution, settles)
+    if ('failure' in adoption) return { kind: 'answer', value: adoption }
     const commands = sessionCommitCommands([
       executionRecordFacts({
         tenant: book.tenant,
@@ -1287,6 +1266,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         boundaries: boundariesOf(changed, heads),
         admissions: admissionsOf(written, own, own && heads.get(own.id), scratch),
         settledBy: settles ? sweep.generation : null,
+        ...adoption.ok,
       }),
       ...scratch.checks.map(check => sessionCheckFacts(check)),
       ...scratch.commands.map(command => sessionCommandFacts(command, [])),
@@ -1686,5 +1666,11 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     }
   }
 
-  return { forSession, readAdopted, openTenant: domainOf, durability: 'storage' as const }
+  return {
+    forSession,
+    readAdopted,
+    readRequestChoices,
+    openTenant: domainOf,
+    durability: 'storage' as const,
+  }
 }

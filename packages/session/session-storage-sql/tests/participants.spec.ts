@@ -107,6 +107,8 @@ describe('the ./participants entry', () => {
       'decodeExecutionRecordOperation',
       'decodeExecutionRecordReply',
       'decodeExecutionRecordRetired',
+      'decodeExecutionRequestChoices',
+      'decodeExecutionSessionAdoption',
       'decodeExecutionSweepReply',
       'decodePreadmissionRecord',
       'decodePreadmissionReply',
