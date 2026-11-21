@@ -7,9 +7,19 @@ import {
   tenantCodec,
   type TenantId,
 } from '@omne-harness/legal-identity'
-import { createMedia } from '@omne-harness/media'
-import type { ContentReference, ImageCodec } from '@omne-harness/media-contract'
-import { createMemoryByteStore, createMemoryMediaIndex } from '@omne-harness/media-contract/testing'
+import { createEngineRegistry, createMedia } from '@omne-harness/media'
+import type {
+  ContentReference,
+  ConverterDefinitions,
+  EngineInput,
+  EngineOutput,
+  ImageCodec,
+} from '@omne-harness/media-contract'
+import {
+  createMemoryByteStore,
+  createMemoryMediaIndex,
+  createScriptedEngine,
+} from '@omne-harness/media-contract/testing'
 
 function id<T>(
   codec: { parse(text: string): { ok: true; value: T } | { ok: false } },
@@ -53,9 +63,62 @@ export function ok<T>(reply: { ok: T } | { failure: unknown }): T {
   return reply.ok
 }
 
+/** A WAV of a few samples; `seed` makes each one another medium. */
+export function wav(seed = 1): Uint8Array {
+  const bytes = new Uint8Array(44 + 8)
+  const view = new DataView(bytes.buffer)
+  const tag = (at: number, text: string) => bytes.set(new TextEncoder().encode(text), at)
+  tag(0, 'RIFF')
+  view.setUint32(4, 36 + 8, true)
+  tag(8, 'WAVE')
+  tag(12, 'fmt ')
+  view.setUint32(16, 16, true)
+  view.setUint16(20, 1, true)
+  view.setUint16(22, 1, true)
+  view.setUint32(24, 8000, true)
+  view.setUint32(28, 8000, true)
+  view.setUint16(32, 1, true)
+  view.setUint16(34, 8, true)
+  tag(36, 'data')
+  view.setUint32(40, 8, true)
+  view.setUint16(44, seed)
+  return bytes
+}
+
+export const VOICE = { name: 'voice', revision: '1' }
+export const ENGINE = { name: 'voice.fixture', revision: '1' }
+
+/** Speech has a definition in force whose engine answers as the test says; nothing else has one. */
+function conversion(answer: ((input: EngineInput) => Promise<EngineOutput>) | undefined) {
+  const engines = createEngineRegistry()
+  if (answer !== undefined)
+    engines.contribute(
+      createScriptedEngine(answer, { name: ENGINE.name, accepts: ['audio/*'] }).engine,
+    )
+  const definitions: ConverterDefinitions = {
+    resolve: async ({ mediaType }) =>
+      succeed(
+        answer !== undefined && mediaType.startsWith('audio/')
+          ? {
+              kind: 'resolved',
+              definition: VOICE,
+              engine: ENGINE.name,
+              parameters: {},
+              egress: { kind: 'in-process' },
+            }
+          : { kind: 'none' },
+      ),
+  }
+  return { engines, definitions }
+}
+
 /** The custody of media over ports in memory, and what a test needs to bring media into it. */
-export function world(fit: ImageCodec['fit'] = async () => fail({ kind: 'cannot-fit' })) {
+export function world(
+  fit: ImageCodec['fit'] = async () => fail({ kind: 'cannot-fit' }),
+  answer?: (input: EngineInput) => Promise<EngineOutput>,
+) {
   const index = createMemoryMediaIndex()
+  const { engines, definitions } = conversion(answer)
   let keys = 0
   const media = createMedia({
     stores: [createMemoryByteStore()],
@@ -64,8 +127,8 @@ export function world(fit: ImageCodec['fit'] = async () => fail({ kind: 'cannot-
     image: { probe, fit },
     clock: { now: () => '2026-10-19T00:00:00.000Z' },
     timer: { after: () => () => undefined },
-    definitions: () => null,
-    engines: () => null,
+    definitions: () => definitions,
+    engines: () => engines,
     newKey: () => (keys++).toString(16).padStart(32, '0'),
     config: {
       maxBytes: { image: 64, voice: 64, file: 64 },
@@ -76,16 +139,25 @@ export function world(fit: ImageCodec['fit'] = async () => fail({ kind: 'cannot-
       conversion: { timeoutMs: 5_000, queueLimit: 1, inlineTextBytes: 16 },
     },
   })
-  const begin = async (tenant: TenantId, upload: string, bytes: Uint8Array) => {
-    const mediaType = 'image/png'
+  const begin = async (
+    tenant: TenantId,
+    upload: string,
+    bytes: Uint8Array,
+    mediaType = 'image/png',
+  ) => {
     ok(await media.uploads.begin({ tenant, upload, mediaType, bytes: bytes.byteLength }))
     ok(await media.uploads.append({ tenant, upload, sequence: 0, part: bytes }))
   }
   return {
     media,
     begin,
-    async staged(tenant: TenantId, upload: string, bytes: Uint8Array): Promise<ContentReference> {
-      await begin(tenant, upload, bytes)
+    async staged(
+      tenant: TenantId,
+      upload: string,
+      bytes: Uint8Array,
+      mediaType = 'image/png',
+    ): Promise<ContentReference> {
+      await begin(tenant, upload, bytes, mediaType)
       const digest = `sha256:${createHash('sha256').update(bytes).digest('hex')}`
       return ok(await media.uploads.commit({ tenant, upload, digest })).ref
     },

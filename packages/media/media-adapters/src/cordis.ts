@@ -17,7 +17,7 @@ export const mediaIntakePlugin = {
   name: 'media-intake',
   inject: [mediaKey, sessionBeforeIntakeKey],
   apply(ctx: Context) {
-    ctx.sessionBeforeIntake.register(createReferencesProcessor(() => ctx.get(mediaKey)?.custody))
+    ctx.sessionBeforeIntake.register(createReferencesProcessor(() => ctx.get(mediaKey)))
   },
 }
 

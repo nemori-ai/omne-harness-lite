@@ -21,7 +21,9 @@ class Media extends MediaService {
     },
   }
   readonly reads = {} as MediaService['reads']
-  readonly representations = {} as MediaService['representations']
+  readonly representations = {
+    read: async () => ({ ok: { kind: 'not-needed' } }),
+  } as Pick<MediaService['representations'], 'read'> as MediaService['representations']
   readonly custody = {
     hold: async input => {
       holds.push(input.ref)
