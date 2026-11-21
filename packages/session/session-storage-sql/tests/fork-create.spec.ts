@@ -333,6 +333,24 @@ describe('a create with a source is judged against what the source shows', () =>
     )
   })
 
+  it('answers the point before its latest assistant message through the face, and the create takes it', async () => {
+    const a = await source(2)
+    expect(await a.port.history.readForkPoint(a.access(TENANT_A, 'session-1'))).toEqual({
+      ok: { kind: 'none' },
+    })
+    seedRows(a, 'session-1', 1, 'assistant')
+    const read = await a.port.history.readForkPoint(a.access(TENANT_A, 'session-1'))
+    const whole = await wholeOf(a, 'session-1')
+    expect(read).toEqual({ ok: { kind: 'point', point: { ...whole, upper: '2' } } })
+    if (!('ok' in read) || read.ok.kind !== 'point') throw new Error(JSON.stringify(read))
+    ok(await a.create(TENANT_A, 'child-1', childOf('session-1', read.ok.point)), 'fork')
+    expect((await rowsOf(a, 'child-1')).rows).toHaveLength(2)
+    a.denyOperation('history.readModelView')
+    expect(await a.port.history.readForkPoint(a.access(TENANT_A, 'session-1'))).toEqual({
+      failure: { kind: 'denied', action: 'history.readModelView' },
+    })
+  })
+
   it('forks from the epoch of the point after the source left it for a new one', async () => {
     const a = await source(2)
     seedRows(a, 'session-1', 1, 'assistant')
