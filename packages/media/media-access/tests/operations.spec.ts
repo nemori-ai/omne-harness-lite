@@ -52,6 +52,19 @@ const OPERATIONS = {
     commits: false,
     input: { tenant: ALICE.tenant, ref },
   },
+  'prepare-media': {
+    body: { tenant: ALICE.tenant, ref },
+    method: 'ensure',
+    commits: true,
+    input: {
+      access: {
+        tenant: ALICE.tenant,
+        principal: { account: ALICE.account, tenant: ALICE.tenantText },
+      },
+      ref,
+      signal,
+    },
+  },
 } as const
 type Name = keyof typeof OPERATIONS
 const NAMES = Object.keys(OPERATIONS) as Name[]
@@ -150,6 +163,13 @@ describe('every operation of media/v1', () => {
 const uploading = { kind: 'uploading', ticket: { upload: 'up-1', nextSequence: 2, partBytes: 8 } }
 const committed = { kind: 'committed', committed: { ref, facts } }
 const page = { part, next: 11, mediaType: 'image/png', bytes: 11, facts }
+const converted = {
+  outcome: 'converted',
+  definition: { name: 'voice', revision: '1' },
+  engine: { name: 'voice.transcribe', revision: '1' },
+  text: 'hello',
+  others: [],
+}
 
 describe('what the domain answers becomes an outcome of the protocol', () => {
   it.each([
@@ -266,9 +286,22 @@ describe('what the domain answers becomes an outcome of the protocol', () => {
     ],
     ['read-media-page', { failure: { kind: 'too-large' } }, { outcome: 'limited', body: {} }],
     [
-      'describe-media',
-      { ok: { state: 'held', facts } },
-      { outcome: 'succeeded', body: { state: 'held', facts } },
+      'prepare-media',
+      { ok: { kind: 'failed', reason: 'engine-unavailable' } },
+      {
+        outcome: 'succeeded',
+        body: { preprocess: { kind: 'failed', reason: 'engine-unavailable' } },
+      },
+    ],
+    [
+      'prepare-media',
+      { ok: { kind: 'done', representation: converted } },
+      { outcome: 'succeeded', body: { preprocess: { kind: 'done', representation: converted } } },
+    ],
+    [
+      'prepare-media',
+      { failure: { kind: 'invalid-reference' } },
+      { outcome: 'not-found', body: {} },
     ],
     [
       'describe-media',
@@ -277,6 +310,18 @@ describe('what the domain answers becomes an outcome of the protocol', () => {
     ],
   ] as const)('%s: %j', async (name, reply, answer) => {
     expect(await call(answering(name, reply), name)).toEqual(answer)
+  })
+
+  it('describe-media adds where the preprocessing of the medium stands, read after its state', async () => {
+    const world = answering('describe-media', { ok: { state: 'held', facts } })
+    world.answer('read', { ok: { kind: 'running' } })
+    expect(await call(world, 'describe-media')).toEqual({
+      outcome: 'succeeded',
+      body: { state: 'held', facts, preprocess: { kind: 'running' } },
+    })
+    expect(world.calls.map(each => each.method)).toEqual(['describe', 'read'])
+    world.answer('read', { failure: { kind: 'invalid-reference' } })
+    expect(await call(world, 'describe-media')).toEqual({ outcome: 'not-found', body: {} })
   })
 
   it('read-media-page hands the target for display on when the body has one', async () => {
@@ -291,5 +336,76 @@ describe('what the domain answers becomes an outcome of the protocol', () => {
       'tenant is not a minted TenantId',
     )
     expect(world.calls).toEqual([])
+  })
+})
+
+describe('observe-media', () => {
+  const open = { tenant: ALICE.tenant, ref }
+  const observe = (world: World) =>
+    world.contribution.observations['observe-media']!(
+      { principal: loginIdentity(ALICE), messageId: 'm-2', signal } as never,
+      open as never,
+    )
+  async function* states(...items: unknown[]) {
+    for (const item of items) {
+      await new Promise(resolve => setImmediate(resolve))
+      yield item
+    }
+  }
+
+  it('is denied, or unavailable, before it watches anything', async () => {
+    const denied = createWorld()
+    denied.refuseTargets('denied')
+    expect(await observe(denied)).toEqual({ outcome: 'denied' })
+    const absent = createWorld()
+    absent.removeFace()
+    expect(await observe(absent)).toEqual({ outcome: 'basis-unavailable' })
+    expect([...denied.calls, ...absent.calls]).toEqual([])
+  })
+
+  it('watches the medium of the opening, says only that it changed, and ends when the watch ends', async () => {
+    const world = createWorld()
+    world.watch(() => states({ kind: 'running' }, { kind: 'not-needed' }))
+    const opened = await observe(world)
+    if (opened.outcome !== 'succeeded') throw new Error(opened.outcome)
+    const frames: unknown[] = []
+    let end: unknown
+    for (;;) {
+      const next = await opened.frames.next()
+      if (next.done === true) {
+        end = next.value
+        break
+      }
+      frames.push(next.value)
+    }
+    expect(frames.length).toBeGreaterThanOrEqual(1)
+    expect(new Set(frames.map(frame => JSON.stringify(frame)))).toEqual(
+      new Set(['{"kind":"changed"}']),
+    )
+    expect(end).toBe('unavailable')
+    expect(world.calls[0]).toMatchObject({ method: 'watch', input: { tenant: ALICE.tenant, ref } })
+  })
+
+  it('asks again before each frame, and stops the watch when the frames are left', async () => {
+    const world = createWorld()
+    let stop: AbortSignal | undefined
+    world.watch(input => {
+      stop = (input as { signal: AbortSignal }).signal
+      return states({ kind: 'running' })
+    })
+    const opened = await observe(world)
+    if (opened.outcome !== 'succeeded') throw new Error(opened.outcome)
+    expect(await opened.frames.next()).toEqual({ done: false, value: { kind: 'changed' } })
+    await opened.frames.return('unavailable')
+    expect(stop?.aborted).toBe(true)
+    const refused = createWorld()
+    refused.watch(() => states({ kind: 'running' }, { kind: 'running' }))
+    const again = await observe(refused)
+    if (again.outcome !== 'succeeded') throw new Error(again.outcome)
+    await again.frames.next()
+    refused.refuseTargets('denied')
+    let last = await again.frames.next()
+    while (last.done !== true) last = await again.frames.next()
+    expect(last.value).toBe('denied')
   })
 })

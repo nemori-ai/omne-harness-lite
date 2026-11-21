@@ -35,6 +35,7 @@ type Answer = unknown | (() => never)
 export function createWorld() {
   let refusal: 'denied' | 'basis-unavailable' | 'throw' | undefined
   let present = true
+  let watched: (input: unknown) => AsyncIterable<unknown> = async function* () {}
   const answers = new Map<string, Answer>()
   const calls: DomainCall[] = []
   const asked: { account: string; tenant: string }[] = []
@@ -54,6 +55,14 @@ export function createWorld() {
     },
     custody: { describe: method('describe') },
     reads: { page: method('page') },
+    representations: {
+      read: method('read'),
+      ensure: method('ensure'),
+      watch: (input: unknown) => {
+        calls.push({ method: 'watch', input })
+        return watched(input)
+      },
+    },
   } as unknown as Media
   const principals: TargetTenantPrincipals = {
     async actingFor(login, target) {
@@ -73,6 +82,9 @@ export function createWorld() {
     },
     answer(name: string, next: Answer): void {
       answers.set(name, next)
+    },
+    watch(next: (input: unknown) => AsyncIterable<unknown>): void {
+      watched = next
     },
     calls,
     asked,
