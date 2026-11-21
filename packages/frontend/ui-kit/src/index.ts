@@ -54,7 +54,6 @@ export {
   SheetTrigger,
 } from './controls/sheet.tsx'
 export { Switch } from './controls/switch.tsx'
-export { Table, TableBody, TableCell, TableRow } from './controls/table.tsx'
 export { Textarea } from './controls/textarea.tsx'
 export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './controls/tooltip.tsx'
 

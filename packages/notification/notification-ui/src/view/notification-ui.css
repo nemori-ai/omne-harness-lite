@@ -19,6 +19,10 @@
   font-size: var(--omne-text-ui);
 }
 
+.notification-scope {
+  display: flex;
+}
+
 .notification-section {
   display: grid;
   gap: var(--omne-space-inline);

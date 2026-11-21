@@ -8,7 +8,6 @@
     "packages/frontend/ui-kit/src/controls/select.tsx | class min-w-[8rem]": 1,
     "packages/frontend/ui-kit/src/controls/switch.tsx | class h-[1.15rem]": 1,
     "packages/frontend/ui-kit/src/controls/switch.tsx | class translate-x-[calc(100%-2px)]": 1,
-    "packages/frontend/ui-kit/src/controls/table.tsx | class translate-y-[2px]": 1,
     "packages/frontend/ui-kit/src/controls/tooltip.tsx | class rounded-[2px]": 1,
     "packages/frontend/ui-kit/src/controls/tooltip.tsx | class translate-y-[calc(-50%_-_2px)]": 1,
     "packages/frontend/ui-kit/src/motion/motion.ts | script 4px": 1,

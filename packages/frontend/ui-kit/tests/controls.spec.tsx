@@ -31,10 +31,6 @@ import {
   SheetTitle,
   SheetTrigger,
   Switch,
-  Table,
-  TableBody,
-  TableCell,
-  TableRow,
   Textarea,
   Tooltip,
   TooltipContent,
@@ -198,21 +194,6 @@ it('Segmented marks the chosen segment and reports another choice', () => {
   expect(screen.getByRole('button', { name: '网格' }).getAttribute('aria-pressed')).toBe('false')
   fireEvent.click(screen.getByRole('button', { name: '网格' }))
   expect(onValueChange).toHaveBeenCalledWith('grid')
-})
-
-it('Table renders rows and cells as table elements', () => {
-  render(
-    <Table>
-      <TableBody>
-        <TableRow>
-          <TableCell>名称</TableCell>
-          <TableCell>值</TableCell>
-        </TableRow>
-      </TableBody>
-    </Table>,
-  )
-  expect(screen.getByRole('table')).toBeTruthy()
-  expect(screen.getAllByRole('cell').map(cell => cell.textContent)).toEqual(['名称', '值'])
 })
 
 it('Tooltip shows its text when its trigger takes focus and names it as a tooltip', async () => {
@@ -380,13 +361,6 @@ it.each(['light', 'dark'] as const)('every control renders under the %s theme', 
         onValueChange={() => undefined}
         options={[{ value: 'a', label: '甲段' }]}
       />
-      <Table>
-        <TableBody>
-          <TableRow>
-            <TableCell>格</TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
       <Select>
         <SelectTrigger aria-label="选择器">
           <SelectValue placeholder="选" />
@@ -403,6 +377,5 @@ it.each(['light', 'dark'] as const)('every control renders under the %s theme', 
   expect(screen.getByRole('checkbox', { name: '勾选' })).toBeTruthy()
   expect(screen.getByRole('switch', { name: '开关' })).toBeTruthy()
   expect(screen.getByRole('radio', { name: '甲' })).toBeTruthy()
-  expect(screen.getByRole('table')).toBeTruthy()
   expect(screen.getByRole('combobox', { name: '选择器' })).toBeTruthy()
 })
