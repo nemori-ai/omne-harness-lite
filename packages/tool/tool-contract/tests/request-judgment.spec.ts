@@ -411,7 +411,9 @@ describe('request judgment', () => {
       const invoke = judgeToolInvokeRequest({ ...invokeRequest(), directory })
       if ('failure' in invoke) throw new Error(JSON.stringify(invoke.failure))
       expect(invoke.ok.directory).toEqual(directory)
+      expect(toolInvokeRequestOf(fixed.ok).directory).toEqual(directory)
     }
+    expect('directory' in toolInvokeRequestOf(request())).toBe(false)
     const rebuilt = judgeFixedToolRequest({
       ...request(),
       directory: {

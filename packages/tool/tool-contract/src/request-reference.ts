@@ -17,6 +17,7 @@ function callFieldsOf(request: ToolCallFields): ToolCallFields {
     settings: request.settings,
     context: request.context,
     workspace: request.workspace,
+    ...(request.directory === undefined ? {} : { directory: request.directory }),
     requesterScope: request.requesterScope,
     resources: request.resources,
     scope: request.scope,
