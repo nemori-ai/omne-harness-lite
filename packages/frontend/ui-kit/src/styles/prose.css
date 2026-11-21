@@ -1,6 +1,6 @@
 .omne-prose {
   width: 100%;
-  max-width: 70ch;
+  max-width: var(--omne-measure-reading);
   min-width: 0;
   overflow-wrap: anywhere;
   text-autospace: normal;
