@@ -264,10 +264,10 @@
 
 ### 发布前验证
 
-- `pnpm run verify:build [--no-build]` 构建 test 与 release 两档，对每个包核对：文件与它的模块清单记的哈希一致；本档排除的模块不在清单里，本档该有的在；文本标记——发行档的主进程包有拒绝远程调试的那句与关掉 DevTools，没有 `desktopBuildProfile` 与开发宿主，测试档反过来，两档都没有没替换的档名与运行时的 `NODE_ENV` 分支。另在临时目录构建一份 dev 档作阳性对照。加一项调试能力，就把它放进 `PROFILE_ENTRIES` 或加一个标记。
+- `pnpm run verify:build [--no-build]` 构建 test 与 release 两档，对每个包核对两样。模块清单：每个包旁边记着它的档、包名、文件哈希、完整的依赖图（被摇掉的模块也在内）与实际产出代码的模块，记录的档、包或哈希对不上就要求重新构建；本档排除的模块不在任何一个包的依赖图里，导入它的包换成了空实现；本档该有的，导入它的包实际产出了它的代码，并且没有空实现。文本：别的档的标记不在本档任何一个包里，本档的标记至少在一个包里，按整词找——发行档有拒绝远程调试的那句与关掉 DevTools，没有 `desktopBuildProfile` 与开发宿主，测试档反过来；两档都没有没替换的档名与运行时的 `NODE_ENV` 分支；发行档里出现的 `OMNE_*` 名字只许是发行档读的那几个（`RELEASE_OMNE_ENV`），新加的调试变量因此进不了发行档。测试档是文本标记的阳性对照，另在临时目录构建一份 dev 档作模块清单的阳性对照。加一项调试能力，就把它放进 `PROFILE_ENTRIES` 或加一个标记。
 - `pnpm run verify:release [--no-build] [--distribution] [--allow-no-sandbox]` 是唯一自动起发行档的地方，缺省先依次跑 `build`、`build:test`、`package:test` 与 `package`（Windows 上带 `--distribution` 时是 `dist`），两档各构建一次、打的就是第 2 项核对的那份，再从外面做五项，每项一行 pass、fail 或 skipped 带理由：
   1. fuses：从二进制读回，是发行档那一列。
-  2. 包内容：最终的 app.asar 恰好是 `dist/release` 的文件，逐字节相同、包内记的完整性对得上；package.json 从主进程包进；旁边没有解开的目录；macOS 上 Info.plist 记的 asar 完整性是它的头；`dist/release` 过 verify:build，包里的包带着该有的标记。
+  2. 包内容：最终的 app.asar 恰好是 `dist/release` 的文件，逐字节相同、包内记的完整性对得上；package.json 从主进程包进；旁边没有解开的目录；macOS 上 Info.plist 记的 asar 完整性是它的头；`dist/release` 与作对照的 `dist/test` 过 verify:build，包里实际发出去的包的文字也过发行档的文本核对。
   3. 拒绝远程调试：带两种开关各起一次，都以 97 退出、主进程只打一行拒绝、端口不接受连接、管道不答、不留进程；测试档同样起一次作阳性对照，它必须答，否则这一项失败。
   4. 启动冒烟：在新的用户数据目录上起，30 秒内报 release 档并打出主窗口就绪行；从外面请它退出（SIGTERM，Windows 上不带 `/F` 的 taskkill）要以 0 退出、它建出的进程全部离开、看得到主进程、渲染进程与它自己的 utility 进程；只写进给它的目录，安装的应用的用户数据目录前后不变；Windows 上新目录要有一次存下密钥与一次核对，别处一行都不能有。macOS 锁屏时跳过。
   5. 签名与公证：本地未签名的包跳过；`--distribution` 时 macOS 要 Developer ID 签名、公证并装订、Gatekeeper 接受，Windows 要应用与 `out/release` 里的 NSIS 安装包两者的 Authenticode 都有效，安装包还要与它的回执对得上。Linux 没有这一项。

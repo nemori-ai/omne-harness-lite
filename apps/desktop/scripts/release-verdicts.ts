@@ -221,7 +221,7 @@ export function judgeRefusal(
   const lines = mainLogLines(outcome.stdout)
   const refusals = lines.filter(line => line['msg'] === REMOTE_DEBUGGING_REFUSED_MESSAGE)
   const fail = (reason: string) => ({ ok: false, reason })
-  if (endpoint.listened) return fail('the remote debugging port answered /json/version')
+  if (endpoint.listened) return fail('the remote debugging port accepted a TCP connection')
   if (endpoint.answered === true) return fail('the remote debugging pipe answered a command')
   if (outcome.timedOut || outcome.signal !== null || outcome.code !== REMOTE_DEBUGGING_EXIT_CODE)
     return fail(

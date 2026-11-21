@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { builtinModules } from 'node:module'
-import { join, relative, resolve, sep } from 'node:path'
+import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 import type { InlineConfig, Plugin } from 'vite'
 import {
   BUILD_COMMANDS,
@@ -10,6 +10,7 @@ import {
   type BuildProfile,
   bundleDir,
   emptyEntries,
+  isBuildProfile,
 } from './build-profile.ts'
 
 export const desktopDir = resolve(import.meta.dirname, '..')
@@ -18,30 +19,50 @@ const EXTERNAL = ['electron', ...builtinModules.flatMap(name => [name, `node:${n
 
 export const modulesRecordName = (bundle: string): string => `${bundle}.modules.json`
 
-export type BundleModules = Readonly<{ bundle: string; sha256: string; modules: string[] }>
+export type BundleModules = Readonly<{
+  profile: BuildProfile
+  bundle: string
+  /** SHA-256 of the bundle file this record was written for. */
+  sha256: string
+  /** The whole module graph, tree-shaken modules included: what proves a module absent. */
+  modules: string[]
+  /** The modules that rendered code into the bundle: what proves a module present. */
+  renderedModules: string[]
+}>
 
 export const sha256 = (data: Buffer | string): string =>
   createHash('sha256').update(data).digest('hex')
 
-/** A module id as apps/desktop-relative POSIX path; ids outside the checkout keep their package path. */
-export function moduleName(id: string, directory: string = desktopDir): string {
-  const clean = id.replace(/^\0/, '').split('?')[0]!
-  const inside = relative(directory, clean)
-  return inside.split(sep).join('/')
+/** A module id as records hold it: a file's path from `directory` without its query, anything else as is. */
+export function moduleName(id: string, directory: string): string {
+  const file = id.split('?')[0]!
+  if (id.startsWith('\0') || !isAbsolute(file)) return id
+  return relative(directory, file).split(sep).join('/')
 }
 
-/** Writes each bundle's module list and hash beside it, for scripts/verify-build.ts. */
-function recordModules(outDir: string): Plugin {
+/** Writes each bundle's module lists and hash beside it, for scripts/verify-build.ts. */
+function recordModules(profile: BuildProfile, outDir: string): Plugin {
+  // Module ids are real paths: a checkout reached through a link would otherwise name none of them.
+  const root = realpathSync(desktopDir)
+  let modules: string[] = []
   return {
     name: 'omne-record-bundle-modules',
+    generateBundle() {
+      modules = Array.from(this.getModuleIds(), id => moduleName(id, root)).toSorted()
+    },
     writeBundle(_options, bundle) {
       for (const chunk of Object.values(bundle)) {
-        if (chunk.type !== 'chunk') continue
+        if (chunk.type !== 'chunk' || !chunk.isEntry) continue
         const file = join(outDir, chunk.fileName)
         const record: BundleModules = {
+          profile,
           bundle: chunk.fileName,
           sha256: sha256(readFileSync(file)),
-          modules: chunk.moduleIds.map(id => moduleName(id)).sort(),
+          modules,
+          renderedModules: Object.entries(chunk.modules)
+            .filter(([, module]) => module.renderedLength > 0)
+            .map(([id]) => moduleName(id, root))
+            .toSorted(),
         }
         writeFileSync(modulesRecordName(file), `${JSON.stringify(record, null, 2)}\n`)
       }
@@ -51,18 +72,19 @@ function recordModules(outDir: string): Plugin {
 
 /** Puts each module the profile leaves out by its empty implementation, decided at resolution. */
 function replaceExcluded(profile: BuildProfile): Plugin {
+  const root = realpathSync(desktopDir)
   const swaps = new Map(
-    emptyEntries(profile).map(entry => [
-      resolve(desktopDir, entry.module),
-      resolve(desktopDir, entry.empty),
-    ]),
+    emptyEntries(profile).map(entry => [resolve(root, entry.module), resolve(root, entry.empty)]),
   )
   return {
     name: 'omne-profile-entries',
     enforce: 'pre',
     async resolveId(source, importer, options) {
       const resolved = await this.resolve(source, importer, { ...options, skipSelf: true })
-      const swap = resolved === null ? undefined : swaps.get(resolved.id)
+      const swap =
+        resolved === null
+          ? undefined
+          : swaps.get(existsSync(resolved.id) ? realpathSync(resolved.id) : resolved.id)
       return swap === undefined ? resolved : { id: swap }
     },
   }
@@ -86,7 +108,7 @@ export function bundleConfig(
       OMNE_BUILD_PROFILE: JSON.stringify(profile),
       ...(production ? { 'process.env.NODE_ENV': JSON.stringify('production') } : {}),
     },
-    plugins: [replaceExcluded(profile), recordModules(outDir)],
+    plugins: [replaceExcluded(profile), recordModules(profile, outDir)],
     ssr: { noExternal: true },
     build: {
       ssr: true,
@@ -117,16 +139,54 @@ export function pageConfig(profile: BuildProfile, watch = false): InlineConfig {
   }
 }
 
-/** Reads a bundle's module record; throws, naming the build to run, when it is missing. */
+const strings = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every(item => typeof item === 'string')
+
+/**
+ * Reads the record of one bundle of one profile. Throws, naming the build to run, when the bundle or
+ * its record is missing, or when the record was written for another profile, another bundle, or other
+ * contents than the file on disk (a stale or foreign bundle).
+ */
 export function readBundleModules(
   profile: BuildProfile,
   bundle: Bundle,
   directory = resolve(desktopDir, bundleDir(profile)),
 ): BundleModules {
-  const file = resolve(directory, modulesRecordName(bundle))
+  const file = resolve(directory, bundle)
+  const recordFile = resolve(directory, modulesRecordName(bundle))
+  const rebuild = `run \`${BUILD_COMMANDS[profile]}\` first`
+  for (const path of [file, recordFile])
+    if (!existsSync(path)) throw new Error(`${path} is missing: ${rebuild}`)
+  let record: unknown
   try {
-    return JSON.parse(readFileSync(file, 'utf8')) as BundleModules
+    record = JSON.parse(readFileSync(recordFile, 'utf8'))
   } catch {
-    throw new Error(`${file} is missing: run \`${BUILD_COMMANDS[profile]}\` first`)
+    throw new Error(`${recordFile} is not a bundle module record: ${rebuild}`)
   }
+  const field = (name: string): unknown =>
+    typeof record === 'object' && record !== null ? Reflect.get(record, name) : undefined
+  const [recorded, recordedBundle, digest, modules, renderedModules] = [
+    field('profile'),
+    field('bundle'),
+    field('sha256'),
+    field('modules'),
+    field('renderedModules'),
+  ]
+  if (
+    !isBuildProfile(recorded) ||
+    typeof recordedBundle !== 'string' ||
+    typeof digest !== 'string' ||
+    !strings(modules) ||
+    !strings(renderedModules)
+  )
+    throw new Error(`${recordFile} is not a bundle module record: ${rebuild}`)
+  if (recorded !== profile || recordedBundle !== bundle)
+    throw new Error(
+      `${recordFile} describes ${recordedBundle} of the ${recorded} profile: ${rebuild}`,
+    )
+  if (digest !== sha256(readFileSync(file)))
+    throw new Error(
+      `${recordFile} is stale: it was not written for the ${file} on disk; ${rebuild}`,
+    )
+  return { profile, bundle, sha256: digest, modules, renderedModules }
 }

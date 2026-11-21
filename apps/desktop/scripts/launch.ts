@@ -8,7 +8,8 @@ import { dirname, join, resolve } from 'node:path'
 import type { Readable } from 'node:stream'
 import { StringDecoder } from 'node:string_decoder'
 import { reportedBuildProfile } from '../src/startup-signals.ts'
-import { BUILD_COMMANDS, BUNDLES, bundleDir, PACKAGE_COMMANDS } from './build-profile.ts'
+import { pathToFuseFile } from '@electron/fuses'
+import { bundleDir, PACKAGE_COMMANDS, requireBuilt } from './build-profile.ts'
 import { checkPackagedFuses, describeFuses } from './fuses.ts'
 import { packagedBinary } from './packaged-path.ts'
 import { powershellOutput } from './powershell.ts'
@@ -224,6 +225,7 @@ export function launchSpec(
   return { target, profile, command, processDir, args: [app, ...switches], cwd: desktopDir }
 }
 
+/** Fuse read-backs of this process, per fuse file as it was on disk, so repeated launches read it once. */
 const fuseChecks = new Map<string, Promise<void>>()
 
 /** Rejects, naming the command to run, unless what `spec` starts exists and is the test profile. */
@@ -231,7 +233,10 @@ export async function checkLaunchInputs(spec: LaunchSpec): Promise<void> {
   if (spec.target === 'packaged') {
     if (!existsSync(spec.command))
       throw new Error(`${spec.command} is missing: run \`${PACKAGE_COMMANDS.test}\` first`)
-    const key = `${spec.command}\0${statSync(spec.command).mtimeMs}`
+    // The fuse wire lives in the Electron Framework on macOS: a repack changes it, not the executable.
+    const fuseFile = pathToFuseFile(spec.command)
+    const { size, mtimeMs } = statSync(fuseFile)
+    const key = `${fuseFile}\0${size}\0${mtimeMs}`
     let check = fuseChecks.get(key)
     if (check === undefined) {
       check = checkPackagedFuses(spec.command, 'test').then(readings => {
@@ -243,12 +248,8 @@ export async function checkLaunchInputs(spec: LaunchSpec): Promise<void> {
     }
     return check
   }
-  if (spec.profile === 'dev') return
-  for (const bundle of BUNDLES) {
-    const file = join(desktopDir, bundleDir('test'), bundle)
-    if (!existsSync(file))
-      throw new Error(`${file} is missing: run \`${BUILD_COMMANDS.test}\` first`)
-  }
+  // The manifest too: Electron starts the directory by its package.json.
+  if (spec.profile !== 'dev') requireBuilt(spec.profile, desktopDir)
 }
 
 /** Resolves once the app on `stdout` reports `expected`; rejects on another profile, an end, or time. */

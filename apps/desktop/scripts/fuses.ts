@@ -112,8 +112,11 @@ export default async function afterPack(context: AfterPackContext): Promise<void
   const temporarySlice = context.appOutDir.endsWith(`-universal-${Arch[context.arch]}-temp`)
   await flipFuses(binary, {
     version: FuseVersion.V1,
-    // Flipping breaks the ad-hoc signature an arm64 Mac binary needs to start at all.
-    resetAdHocDarwinSignature: context.electronPlatformName === 'darwin' && !temporarySlice,
+    // Flipping breaks the ad-hoc signature an arm64 Mac binary needs to start at all; x64 needs none.
+    resetAdHocDarwinSignature:
+      context.electronPlatformName === 'darwin' &&
+      !temporarySlice &&
+      (context.arch === Arch.arm64 || context.arch === Arch.universal),
     strictlyRequireAllFuses: true,
     ...Object.fromEntries(FUSE_NAMES.map(name => [FuseV1Options[name], fuses[name]])),
   } as Parameters<typeof flipFuses>[1])

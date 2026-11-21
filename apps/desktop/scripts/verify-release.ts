@@ -6,9 +6,9 @@ import { homedir } from 'node:os'
 import { dirname, join, relative, resolve } from 'node:path'
 import { COOKIE_KEY_WRITER_FAILED_FILE, MAIN_WINDOW_READY_MESSAGE } from '../src/startup-signals.ts'
 import { asarFile, asarHeaderHash, readAsar, sha256 } from './asar.ts'
-import { BUNDLES, bundleDir, PACKAGE_COMMANDS } from './build-profile.ts'
+import { BUNDLES, type Bundle, bundleDir, PACKAGE_COMMANDS } from './build-profile.ts'
 import { desktopDir } from './bundle-build.ts'
-import { bundleProblems } from './bundle-checks.ts'
+import { checkBundleTexts } from './bundle-checks.ts'
 import { checkPackagedFuses, describeFuses } from './fuses.ts'
 import {
   checkLaunchInputs,
@@ -71,7 +71,7 @@ import {
   summarize,
 } from './release-verdicts.ts'
 import { SCREEN_LOCKED_REASON, screenLock } from './session-state.ts'
-import { profileProblems } from './verify-build.ts'
+import { checkBuiltBundles } from './verify-build.ts'
 
 const READY_TIMEOUT_MS = 30_000
 const REFUSAL_TIMEOUT_MS = 15_000
@@ -226,20 +226,23 @@ function checkContents(pkg: Package): CheckResult {
   const plist = plistIntegrity(pkg, asarHeaderHash(asar))
   if (plist.problem !== undefined) problems.push(plist.problem)
   if (plist.finding !== undefined) findings.push(plist.finding)
-  const built = profileProblems('release', resolve(desktopDir, bundleDir('release')))
-  problems.push(...built.map(problem => `verify:build: ${problem}`))
-  for (const bundle of BUNDLES) {
-    const code = file(bundle)
-    const record = { bundle, sha256: sha256(code), modules: [] }
-    const text = bundleProblems('release', bundle, record, code.toString('utf8'), record.sha256)
-    problems.push(
-      ...text
-        .filter(problem => !problem.includes('misses src/'))
-        .map(problem => `as shipped: ${problem}`),
-    )
+  try {
+    const built = checkBuiltBundles()
+    problems.push(...built.map(problem => `verify:build: ${problem}`))
+    if (built.length === 0)
+      findings.push(
+        'verify:build passes on them (module lists and text, with the test bundles as control)',
+      )
+  } catch (failure) {
+    problems.push(`verify:build cannot check the built bundles: ${describe(failure)}`)
   }
-  if (built.length === 0)
-    findings.push('verify:build passes on dist/release, and the shipped bundles carry its markers')
+  // The shipped text itself, whatever the build on disk says.
+  const shipped = Object.fromEntries(
+    BUNDLES.map(bundle => [bundle, file(bundle).toString('utf8')]),
+  ) as Record<Bundle, string>
+  const text = checkBundleTexts('release', shipped)
+  problems.push(...text.problems.map(problem => `as shipped: ${problem}`))
+  if (text.problems.length === 0) findings.push('their shipped text has the release markers only')
   return problems.length > 0
     ? report(2, 'package contents', 'fail', problems.join('; '))
     : report(2, 'package contents', 'pass', findings.join('; '))
@@ -553,12 +556,22 @@ async function checkSigning(pkg: Package, distribution: boolean): Promise<CheckR
   }
 }
 
+/** Runs `pnpm <args>` in apps/desktop with the package manager that runs this script. */
 function pnpm(args: string[]): void {
-  const ran = spawnSync('pnpm', args, {
-    cwd: desktopDir,
-    stdio: ['ignore', 'inherit', 'inherit'],
-    env: releaseEnv(),
-  })
+  const manager = process.env['npm_execpath']
+  if (manager === undefined || manager === '')
+    throw new Error('building needs pnpm: run `pnpm run verify:release`, or pass --no-build')
+  // On Windows pnpm is a .cmd shim that cannot be spawned without a shell; its script can.
+  const script = /\.(?:cjs|mjs|js)$/i.test(manager)
+  const ran = spawnSync(
+    script ? process.execPath : manager,
+    [...(script ? [manager] : []), ...args],
+    {
+      cwd: desktopDir,
+      stdio: ['ignore', 'inherit', 'inherit'],
+      env: releaseEnv(),
+    },
+  )
   if (ran.error) throw ran.error
   if (ran.status !== 0) throw new Error(`pnpm ${args.join(' ')} failed`)
 }
