@@ -1,4 +1,17 @@
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@omne-harness/ui-kit'
+import {
+  Button,
+  DisclosureIcon,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@omne-harness/ui-kit'
 import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
 import type { ModelChoice, ModelSelectionStore } from '../model/model-selection.ts'
 
@@ -112,19 +125,42 @@ export function useNewSessionModel(
     return { model: undefined, picker: null }
   const offered = listing.choices.some(choice => choice.route === picked && choice.selectable)
   const model = offered && picked !== null ? picked : undefined
+  const shown = model ?? '默认模型'
+  // A quiet dropdown beside 新建会话: its face is the value, so it never takes a line of its own.
   const picker = (
-    <ModelSelect
-      label="新会话的模型"
-      value={model ?? DEFAULT}
-      shown={model ?? '默认模型'}
-      choices={listing.choices}
-      lead={
-        <SelectItem className={OPTION} value={DEFAULT}>
-          默认模型
-        </SelectItem>
-      }
-      onValueChange={value => pick(value === DEFAULT ? null : value)}
-    />
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="compact"
+          className="omne-sessions-model"
+          aria-label={`新会话的模型：${shown}`}
+        >
+          <span className="omne-sessions-model-value">{shown}</span>
+          <DisclosureIcon aria-hidden="true" className="rotate-90" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuRadioGroup
+          value={model ?? DEFAULT}
+          onValueChange={value => pick(value === DEFAULT ? null : value)}
+        >
+          <DropdownMenuRadioItem value={DEFAULT}>默认模型</DropdownMenuRadioItem>
+          {listing.choices.map(choice => (
+            <DropdownMenuRadioItem
+              key={choice.route}
+              value={choice.route}
+              disabled={!choice.selectable}
+            >
+              {choice.route}
+              {choice.note === null ? null : (
+                <span className="omne-sessions-model-note">（{choice.note}）</span>
+              )}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
   return { model, picker }
 }

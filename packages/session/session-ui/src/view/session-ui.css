@@ -4,45 +4,63 @@
   gap: var(--omne-space-inline);
   min-width: 0;
 }
+/* 新建会话 and the model of a new session share one line (design 5.1). */
+.omne-sessions-top {
+  display: flex;
+  align-items: center;
+  gap: var(--omne-space-inline);
+  min-width: 0;
+}
+.omne-sessions-model {
+  flex: 0 1 auto;
+  min-width: 0;
+  color: var(--omne-ink-muted);
+}
+.omne-sessions-model-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.omne-sessions-model-note {
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+}
 .omne-sessions {
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
-.omne-session-items {
+.omne-session-items,
+.omne-archived-rows,
+.omne-search-hits {
   display: flex;
   flex-direction: column;
   margin: 0;
   padding: 0;
   list-style: none;
 }
+/* A row of the list: the title, then the age of its last activity (directory.css in the source). The glide menu
+   draws the hover and the selected ground behind it. */
 .omne-session-item {
-  position: relative;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 2px;
   width: 100%;
+  min-width: 0;
   padding: var(--omne-row-padding);
   border: 0;
   border-radius: var(--omne-radius-control);
   background: transparent;
   color: var(--omne-ink-primary);
   text-align: left;
-  cursor: pointer;
-}
-.omne-session-item:hover {
-  background: var(--omne-hover);
-}
-.omne-session-item[aria-current='true'] {
-  background: var(--omne-surface-panel-soft);
 }
 .omne-session-item:disabled {
-  cursor: default;
   opacity: 0.6;
 }
-.omne-session-item-title {
+.omne-session-item-title,
+.omne-archived-title {
   display: block;
+  min-width: 0;
   overflow: hidden;
   font-size: var(--omne-text-ui);
   font-weight: var(--omne-weight-strong);
@@ -50,21 +68,58 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.omne-session-item-meta {
+.omne-session-item-meta,
+.omne-archived-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 12px;
-  color: var(--omne-ink-muted);
-  font-size: var(--omne-text-caption);
-}
-.omne-session-item-meta time {
+  gap: var(--omne-space-inline);
   color: var(--omne-ink-faint);
+  font-size: var(--omne-text-caption);
+  line-height: var(--omne-leading-wrapped);
+}
+.omne-session-item-meta time,
+.omne-archived-meta time,
+.omne-search-hit-meta time {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.omne-sessions-note {
-  margin: var(--omne-space-inline) 0 0;
+.omne-sessions-end,
+.omne-archived-end {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--omne-space-inline);
+  padding-inline: var(--omne-space-inline);
+}
+.omne-sessions-note,
+.omne-archived-note {
+  margin: 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+}
+/* The archived sessions open in place under their row; a row cannot be opened, so it has no pointer and no hover. */
+.omne-archived {
+  min-width: 0;
+}
+.omne-archived-find {
+  margin-bottom: var(--omne-space-inline);
+}
+.omne-archived-row {
+  display: flex;
+  align-items: center;
+  gap: var(--omne-space-inline);
+  min-width: 0;
+  padding: var(--omne-row-padding);
+}
+.omne-archived-text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+.omne-archived-receipt {
+  padding-inline: var(--omne-space-inline);
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-caption);
 }
@@ -460,74 +515,89 @@
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-caption);
 }
+/* The search over the history is a single-column page (design 5.5). */
 .omne-search {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  height: 100%;
-  padding: 16px;
+  gap: var(--omne-space-block);
+  min-height: 0;
   overflow-y: auto;
 }
 .omne-search-form {
   display: flex;
+  flex-direction: column;
+  gap: var(--omne-space-inline);
+}
+.omne-search-query {
+  display: flex;
+  align-items: center;
+  gap: var(--omne-space-inline);
+}
+.omne-search-query [data-slot='input'] {
+  flex: 1 1 auto;
+}
+.omne-search-options {
+  display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 12px;
-}
-.omne-search-form [data-slot='input'] {
-  flex: 1 1 240px;
+  gap: var(--omne-space-inline) var(--omne-space-block);
 }
 .omne-search-option {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--omne-space-inline);
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-caption);
 }
-.omne-search-note {
-  color: var(--omne-ink-muted);
-  font-size: var(--omne-text-caption);
-}
-.omne-search-hits {
+/* A hit: who said it, in which session and when, in weak ink; then the snippet in the reading face. */
+.omne-search-hit {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.omne-search-hit-open {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  gap: var(--spacing);
   width: 100%;
-  padding: 8px 10px;
+  min-width: 0;
+  padding: var(--omne-row-padding);
   border: 0;
-  border-radius: var(--omne-radius-window);
+  border-radius: var(--omne-radius-control);
   background: transparent;
+  color: var(--omne-ink-primary);
   text-align: left;
-  cursor: pointer;
-}
-.omne-search-hit-open:hover,
-.omne-search-hit-open:focus-visible {
-  background: var(--omne-surface-overlay);
 }
 .omne-search-hit-meta {
+  color: var(--omne-ink-faint);
+  font-size: var(--omne-text-caption);
+  line-height: var(--omne-leading-wrapped);
+}
+.omne-search-hit-text {
+  font-family: var(--omne-font-reading);
+  font-size: var(--omne-text-body);
+  line-height: var(--omne-leading-reading);
+  letter-spacing: var(--omne-reading-tracking);
+  overflow-wrap: anywhere;
+}
+.omne-search-hit-text mark {
+  border-radius: var(--omne-radius-chip);
+  background: var(--omne-accent-tint);
+  color: inherit;
+}
+.omne-search-end {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing);
+}
+.omne-search-note {
+  margin: 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+  line-height: var(--omne-leading-wrapped);
+}
+.omne-search-detail {
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-caption);
 }
-.omne-search-hit-text {
-  overflow-wrap: anywhere;
-  font-size: var(--omne-text-body);
-  line-height: var(--omne-leading-reading);
-}
-.omne-search-hit-text mark {
-  border-radius: 2px;
-  background: color-mix(in srgb, var(--omne-accent) 18%, transparent);
-  color: inherit;
+.omne-search-more {
+  align-self: flex-start;
 }
 .omne-transcript-row[data-found='true'] {
   border-radius: var(--omne-radius-window);

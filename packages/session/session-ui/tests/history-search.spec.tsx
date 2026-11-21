@@ -1,12 +1,14 @@
 // @vitest-environment happy-dom
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { readTenantText } from '@omne-harness/public-contract'
+import { parseInstant } from '@omne-harness/utc-instant'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { EntryFocus, rowFor } from '../src/model/entry-focus.ts'
 import {
   HistorySearchStore,
   contentOf,
   incompleteText,
+  indexText,
   refusalText,
   type SearchAsk,
   type SearchHit,
@@ -83,8 +85,10 @@ describe('what a search asks for', () => {
     )
     const progress = { indexed: 4, total: 16 }
     expect(incompleteText({ reason: 'rebuilding', behind: 12, progress })).toBe(
-      '还没搜完：索引正在建，还有 12 个会话没读完，索引建到 4/16。',
+      '还没搜完：索引正在建，还有 12 个会话没读完。',
     )
+    expect(indexText({ reason: 'rebuilding', behind: 12, progress })).toBe('索引建到 4/16')
+    expect(indexText({ reason: 'budget', behind: 0, progress: null })).toBeNull()
     const invalid = (field: string, reason: string) =>
       ({ outcome: 'invalid', body: { field, reason } }) as never
     expect(refusalText(invalid('query', 'pattern-invalid'))).toBe('这条正则写得不对。')
@@ -187,52 +191,122 @@ describe('the search page', () => {
     const onOpen = vi.fn()
     const nameOf = (session: string) => (session === 'ses_a' ? '甲' : null)
     render(<HistorySearchPage store={store} tenant={TENANT} nameOf={nameOf} onOpen={onOpen} />)
+    const box = () => screen.getByLabelText('要找的词或正则') as HTMLInputElement
     const ask = async (text: string) => {
-      fireEvent.change(screen.getByLabelText('要找的词或正则'), { target: { value: text } })
-      fireEvent.click(screen.getByRole('button', { name: '搜' }))
+      fireEvent.change(box(), { target: { value: text } })
+      fireEvent.submit(box().form!)
       await settle()
     }
-    return { search, onOpen, ask }
+    return { search, onOpen, ask, box }
   }
 
-  it('lists the hits newest first as they came, with who said it, where, and the match marked', async () => {
+  it('is a single-column page named 搜索, with a large field and no button to search', () => {
+    shown([])
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('搜索')
+    const column = screen.getByRole('heading', { level: 1 }).closest('.page-column')
+    expect(column?.querySelector('.page-header')).not.toBeNull()
+    expect(column?.contains(screen.getByLabelText('要找的词或正则'))).toBe(true)
+    expect(screen.getByLabelText('要找的词或正则').className).toContain(
+      'h-(--omne-control-height-large)',
+    )
+    expect(screen.queryByRole('button', { name: '搜' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^搜/u })).toBeNull()
+  })
+
+  it('puts the words-or-pattern switch right beside the field and the two switches on the line below', () => {
+    shown([])
+    const field = screen.getByLabelText('要找的词或正则')
+    const modes = screen.getByRole('group', { name: '按词还是按正则' })
+    expect(field.nextElementSibling).toBe(modes)
+    const options = screen
+      .getByRole('checkbox', { name: '只看我说的' })
+      .closest('.omne-search-options')
+    expect(options).not.toBeNull()
+    expect(options?.contains(screen.getByRole('checkbox', { name: '区分大小写' }))).toBe(true)
+    expect(options?.contains(field)).toBe(false)
+  })
+
+  it('searches on Enter: the form has one text field and no submit button, so Enter submits it', async () => {
+    const { search, box } = shown([found([])])
+    const form = box().form!
+    // HTML implicit submission: with no submit button, Enter submits a form that has exactly one such field.
+    const blocking = [...form.querySelectorAll('input')].filter(input =>
+      ['text', 'search', 'url', 'tel', 'email', 'password', 'number'].includes(input.type),
+    )
+    expect(blocking).toEqual([box()])
+    expect(form.querySelectorAll('button[type="submit"], input[type="submit"]')).toHaveLength(0)
+    fireEvent.change(box(), { target: { value: '受理' } })
+    fireEvent.submit(form)
+    await settle()
+    expect(search).toHaveBeenCalledTimes(1)
+  })
+
+  it('lists the hits newest first as glide rows: who said it, where and when in weak ink, then the snippet', async () => {
+    const at = parseInstant(new Date(Date.now() - 3 * 60_000).toISOString())
+    if (!at.ok) throw new Error('fixture instant')
     const tool = hit('5', { session: 'ses_unknown_session', kind: 'message.tool' })
-    const { ask, onOpen } = shown([found([hit('9'), tool])])
+    const { ask, onOpen } = shown([found([hit('9', { at: at.value }), tool])])
     await ask('受理')
     const rows = screen.getAllByRole('listitem')
-    expect(rows.map(row => row.textContent)).toEqual([
-      '我甲关于受理的设计',
-      '工具结果ses_unkn关于受理的设计',
+    const metas = rows.map(row => row.querySelector('.omne-search-hit-meta')?.textContent)
+    expect(metas).toEqual(['我 · 甲 · 3 分钟前', '工具结果 · ses_unkn'])
+    expect(rows.map(row => row.querySelector('.omne-search-hit-text')?.textContent)).toEqual([
+      '关于受理的设计',
+      '关于受理的设计',
     ])
     expect(rows[0]!.querySelector('mark')?.textContent).toBe('受理')
-    fireEvent.click(rows[1]!.querySelector('button')!)
+    const opens = rows.map(row => row.querySelector('button')!)
+    expect(opens.every(open => open.hasAttribute('data-glide-row'))).toBe(true)
+    expect(opens[0]!.closest('[data-glide-menu]')).not.toBeNull()
+    fireEvent.click(opens[1]!)
     expect(onOpen).toHaveBeenCalledWith(tool)
   })
 
-  it('says when nothing was found, and never says so of a search that is not through', async () => {
+  it('says it is searching, and when nothing was found says how to search another way', async () => {
+    const fake = createFakeClient()
+    const store = new HistorySearchStore(fake.client)
+    render(
+      <HistorySearchPage store={store} tenant={TENANT} nameOf={() => null} onOpen={() => {}} />,
+    )
+    const box = screen.getByLabelText('要找的词或正则') as HTMLInputElement
+    fireEvent.change(box, { target: { value: '没有的词' } })
+    fireEvent.submit(box.form!)
+    const asked = await fake.next('search-history')
+    await settle()
+    expect(screen.getByRole('status').textContent).toBe('正在搜……')
+    asked.answer(found([]))
+    await settle()
+    expect(screen.queryByText('正在搜……')).toBeNull()
+    expect(screen.getByText('没有找到。')).toBeTruthy()
+    expect(screen.getByText('可以换几个词，或改用正则。')).toBeTruthy()
+  })
+
+  it('never says nothing was found of a search that is not through: why first, the index in 详情, then 接着搜', async () => {
     const incomplete = { reason: 'rebuilding', behind: 2, progress: { indexed: 1, total: 3 } }
     const { ask, search } = shown([
-      found([]),
       found([], { next: 'c-2', complete: false, incomplete }),
       found([hit('3')]),
     ])
-    await ask('没有的词')
-    expect(screen.getByText('没有找到。')).toBeTruthy()
     await ask('受理')
     expect(screen.queryByText('没有找到。')).toBeNull()
-    expect(screen.getByRole('status').textContent).toBe(
-      '还没搜完：索引正在建，还有 2 个会话没读完，索引建到 1/3。',
+    const end = document.querySelector('.omne-search-end') as HTMLElement
+    expect(end.querySelector('.omne-search-note')?.textContent).toBe(
+      '还没搜完：索引正在建，还有 2 个会话没读完。',
     )
-    fireEvent.click(screen.getByRole('button', { name: '接着搜' }))
+    const detail = within(end).getByRole('button', { name: '详情' })
+    expect(detail.getAttribute('aria-expanded')).toBe('false')
+    expect(end.textContent).toContain('索引建到 1/3')
+    fireEvent.click(within(end).getByRole('button', { name: '接着搜' }))
     await settle()
-    expect(search.mock.calls[2]![0]).toMatchObject({ cursor: 'c-2' })
+    expect(search.mock.calls[1]![0]).toMatchObject({ cursor: 'c-2' })
     expect(screen.getAllByRole('listitem')).toHaveLength(1)
-    expect(screen.queryByRole('status')).toBeNull()
+    expect(document.querySelector('.omne-search-end')).toBeNull()
   })
 
-  it('asks by pattern, for the person only and with case when the switches say so', async () => {
+  it('asks by pattern, for the person only and with case when the switches say so; more when through', async () => {
     const { ask, search } = shown([found([]), found([], { next: 'c', complete: true })])
     fireEvent.click(screen.getByRole('button', { name: '正则' }))
+    expect(screen.getByLabelText('要找的词或正则').getAttribute('placeholder')).toBe('一条正则')
     fireEvent.click(screen.getByRole('checkbox', { name: '只看我说的' }))
     fireEvent.click(screen.getByRole('checkbox', { name: '区分大小写' }))
     await ask('a+b')
@@ -242,20 +316,20 @@ describe('the search page', () => {
     })
     await ask('a+b')
     expect(screen.getByRole('button', { name: '更多' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: '接着搜' })).toBeNull()
   })
 
   it('keeps every change of the form when two of them come in one task', async () => {
-    const { search } = shown([found([])])
-    const box = screen.getByLabelText('要找的词或正则') as HTMLInputElement
+    const { search, box } = shown([found([])])
     const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!
     // No render between the three: each handler must build on the state as it is, not as it was drawn.
     await act(async () => {
       screen.getByRole('button', { name: '正则' }).click()
       screen.getByRole('checkbox', { name: '只看我说的' }).click()
-      setValue.call(box, 'a+b')
-      box.dispatchEvent(new Event('input', { bubbles: true }))
+      setValue.call(box(), 'a+b')
+      box().dispatchEvent(new Event('input', { bubbles: true }))
     })
-    fireEvent.click(screen.getByRole('button', { name: '搜' }))
+    fireEvent.submit(box().form!)
     await settle()
     expect(search.mock.calls[0]![0]).toMatchObject({
       content: { kind: 'regex', pattern: 'a+b' },
@@ -263,12 +337,15 @@ describe('the search page', () => {
     })
   })
 
-  it('shows a refusal as an alert, in words', async () => {
+  it('writes a refusal under the field, in words and in a neutral voice', async () => {
     const { ask } = shown([
       { outcome: 'invalid', body: { field: 'query', reason: 'pattern-invalid' } },
     ])
     await ask('(')
-    expect(screen.getByRole('alert').textContent).toBe('这条正则写得不对。')
+    const notice = screen.getByText('这条正则写得不对。').closest('[data-inline-notice]')
+    expect(notice?.getAttribute('data-tone')).toBe('neutral')
+    expect(notice?.closest('form')).toBe(screen.getByLabelText('要找的词或正则').closest('form'))
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 })
 
@@ -292,8 +369,9 @@ describe('the row a hit is shown at', () => {
     const { shell } = await mountModule(fake.client, TENANT)
     ;(await fake.next('list-sessions')).answer(listPage([listed('ses_a', '甲')]))
     await settle()
-    fireEvent.change(screen.getByLabelText('要找的词或正则'), { target: { value: '结果' } })
-    fireEvent.click(screen.getByRole('button', { name: '搜' }))
+    const box = screen.getByLabelText('要找的词或正则') as HTMLInputElement
+    fireEvent.change(box, { target: { value: '结果' } })
+    fireEvent.submit(box.form!)
     // The hit is a tool result: it is drawn inside the reply before it, so that reply is shown.
     ;(await fake.next('search-history')).answer(
       found([

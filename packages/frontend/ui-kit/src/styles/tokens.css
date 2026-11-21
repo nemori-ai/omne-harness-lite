@@ -366,6 +366,7 @@
   --omne-accent: var(--kami-accent);
   --omne-accent-hover: var(--kami-accent-hover);
   --omne-accent-press: var(--kami-accent-press);
+  --omne-accent-tint: var(--kami-accent-tint);
   --omne-accent-ink: var(--kami-on-accent);
   --omne-accent-disabled: var(--kami-hover-2);
   --omne-accent-ink-disabled: var(--kami-ink-3);

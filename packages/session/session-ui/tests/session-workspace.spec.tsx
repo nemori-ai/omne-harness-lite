@@ -4,7 +4,7 @@ import { parseInstant } from '@omne-harness/utc-instant'
 import { afterEach, expect, it } from 'vitest'
 import { createFakeClient } from './fixtures/fake-client.ts'
 import { mountModule } from './fixtures/shell.tsx'
-import { formatMoment } from '../src/view/moment.ts'
+import { formatInstant, formatRelative } from '@omne-harness/ui-kit'
 import {
   assistantEntry,
   deltaTree,
@@ -224,7 +224,7 @@ it('回复增长时，已提交的那几条在 DOM 里一点不变', async () =>
   expect(mutations).toEqual([])
 })
 
-it('列表项有最近活动时刻时显示它，机读的值是那个 UTC 时刻', async () => {
+it('列表项有最近活动时刻时写成相对时间，机读的值是那个 UTC 时刻，精确的时刻在提示里', async () => {
   const fake = createFakeClient()
   await mountModule(fake.client, TENANT)
   const at = parseInstant('2026-11-13T07:00:00Z')
@@ -235,7 +235,8 @@ it('列表项有最近活动时刻时显示它，机读的值是那个 UTC 时�
   await settle()
   const time = screen.getByRole('navigation', { name: '会话列表' }).querySelector('time')
   expect(time?.getAttribute('datetime')).toBe('2026-11-13T07:00:00Z')
-  expect(time?.textContent).toBe(formatMoment(at.value))
+  expect(time?.textContent).toBe(formatRelative('2026-11-13T07:00:00Z', Date.now()))
+  expect(time?.getAttribute('title')).toBe(formatInstant('2026-11-13T07:00:00Z'))
 })
 
 it('列表项：无标题写「未命名的会话」与标识前 8 位，无时刻不显示，已冻结标出；更多接在后面', async () => {
