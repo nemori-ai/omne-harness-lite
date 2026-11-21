@@ -119,6 +119,8 @@ export type ChatCompletionsRecord = PiModelRecordHead &
       declaration: ProfileReplay
       formats: Readonly<{ produces: string; accepts: readonly string[] }>
     }>
+    /** What the model refuses that the parameter table does not say; absent, it refuses none of it. */
+    accepts?: Readonly<{ forcedToolChoice: boolean }>
   }>
 
 export type ChatCompletionsLimits = Readonly<{

@@ -494,6 +494,20 @@ describe('encode: tool calls and results', () => {
     })
   })
 
+  it('a record that refuses a forced tool choice answers unsupported for required and for one named tool; auto and none still go', () => {
+    const refusing = testRecord({ accepts: { forcedToolChoice: false } })
+    const tools = [tool('lookup')]
+    for (const toolChoice of ['required', { name: 'lookup' }] as const)
+      expect(encode(refusing, { tools, toolChoice })).toMatchObject({
+        failure: { kind: 'unsupported', field: 'toolChoice' },
+      })
+    for (const toolChoice of ['auto', 'none'] as const)
+      expect(body(encode(refusing, { tools, toolChoice }))['tool_choice']).toBe(toolChoice)
+    expect(body(encode(testRecord(), { tools, toolChoice: 'required' }))['tool_choice']).toBe(
+      'required',
+    )
+  })
+
   it('refuses a call without a result, and a result without a call, as invalid', () => {
     const record = testRecord()
     expect(

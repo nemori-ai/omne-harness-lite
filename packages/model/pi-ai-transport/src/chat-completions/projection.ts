@@ -230,7 +230,7 @@ export function project(input: ProjectionInput): Outcome<Projection, TransportFa
     tools.push(wired.ok)
     declared.push(gateway)
   }
-  const toolChoice = toolChoiceOf(input.toolChoice, input.tools, names)
+  const toolChoice = toolChoiceOf(input.toolChoice, input.tools, names, input)
   if (!('ok' in toolChoice)) return toolChoice
 
   return {
@@ -494,6 +494,7 @@ function toolChoiceOf(
   choice: FixedModelRequest['toolChoice'],
   tools: readonly ToolDeclaration[],
   names: ToolNames,
+  input: Pick<ProjectionInput, 'record' | 'adapter'>,
 ): Outcome<
   Readonly<{ json: JsonValue | undefined; choice: FixedModelRequest['toolChoice'] }>,
   TransportFailure
@@ -502,7 +503,10 @@ function toolChoiceOf(
     return choice === 'none' || choice === 'auto'
       ? { ok: { json: undefined, choice } }
       : invalid('toolChoice', 'no-tools')
-  if (typeof choice === 'string') return { ok: { json: text(choice), choice } }
+  if (choice === 'auto' || choice === 'none') return { ok: { json: text(choice), choice } }
+  if (input.record.accepts?.forcedToolChoice === false)
+    return unsupported('toolChoice', input.adapter)
+  if (choice === 'required') return { ok: { json: text(choice), choice } }
   if (!tools.some(tool => tool.name === choice.name)) return invalid('toolChoice', 'unknown-tool')
   const name = names.wire(choice.name)
   return {
