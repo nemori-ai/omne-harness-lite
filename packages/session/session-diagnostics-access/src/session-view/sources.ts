@@ -63,6 +63,7 @@ const GAP_OF: Readonly<Record<Exclude<OwnerFailure['kind'], 'invalid'>, SourceGa
   unavailable: 'unavailable',
   unsupported: 'unsupported',
   'not-settled': 'not-recorded',
+  reclaimed: 'not-recorded',
   'not-found': 'not-found',
   conflict: 'unavailable',
   'commit-unknown': 'unavailable',
