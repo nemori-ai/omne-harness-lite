@@ -2,6 +2,7 @@ export {
   CONVERSATION_PAGE,
   SESSION_LIST,
   sessionClientService,
+  sessionBlockReadsKey,
   sessionComposerIntakeKey,
   sessionModelChoicesKey,
   sessionUiModule,
@@ -38,3 +39,10 @@ export {
   type SessionDraftSubject,
   type SessionSubject,
 } from './points.ts'
+export { sessionReadsSourceKey, sessionReadsUiModule } from './reads-module.ts'
+export type {
+  BlockRead,
+  BlockReadsHolder,
+  BlockReadsSource,
+  ReadsOfBlocks,
+} from './model/block-reads.ts'

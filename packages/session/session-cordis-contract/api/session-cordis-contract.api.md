@@ -543,6 +543,7 @@ export interface SessionAdoptedRequests<P> {
     readAdoptedRequest(input: Readonly<{
         access: Access<P>;
         session: SessionId;
+        reference?: string;
     }>): Promise<SessionAdoptedRequestRead>;
 }
 ```

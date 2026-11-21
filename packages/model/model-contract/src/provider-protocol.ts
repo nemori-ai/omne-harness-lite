@@ -122,10 +122,16 @@ export type IndependentModelFact =
   | TransportFact
   | Readonly<{ kind: 'not-started'; reason: 'cancelled' }>
   | Readonly<{ kind: 'not-started'; reason: 'rejected'; failure: TransportFailure }>
+export type MaterializedMedium = Readonly<{
+  reference: ContentReference
+  mediaType: string
+  bytes: string
+}>
 export type MaterializationReceipt = Readonly<{
   supplier: Adoption
   representation: Adoption
   payloadDigest: string
+  media?: readonly MaterializedMedium[]
   replayFormat?: string
   /** The prefix the request was encoded on; present with a replay format. */
   replayPrefix?: string

@@ -50,6 +50,7 @@ export type * from './call-surface.ts'
 export type * from './dispatch-facts.ts'
 export type {
   MaterializationReceipt,
+  MaterializedMedium,
   RetryDecision,
   RetryPosition,
   RetryResolution,

@@ -638,6 +638,11 @@
               "pending": false
             },
             {
+              "name": "MaterializedMedium",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "RetryDecision",
               "kind": "type",
               "pending": false

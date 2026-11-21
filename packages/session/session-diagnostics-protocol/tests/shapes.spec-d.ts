@@ -42,6 +42,15 @@ test('the page carries runs, next, exhausted, scannedThrough, basis and gaps', (
   >()
 })
 
+test('each model call says, for each block, which form of it the model read', () => {
+  type Read = Page['runs'][number]['modelCalls'][number]['reads'][number]
+  expectTypeOf<Read>().toEqualTypeOf<{
+    readonly message: string
+    readonly block: string
+    readonly read: 'original' | 'fitted' | 'derived' | 'transcript'
+  }>()
+})
+
 test('an invalid result has an empty body', () => {
   expectTypeOf<ValueOf<Operation['outcomes']['invalid']>>().toExtend<
     Readonly<Record<string, never>>

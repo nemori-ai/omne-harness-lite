@@ -241,6 +241,18 @@ describe('independent execution through the public entry', () => {
         ...(read % 2 === 1 ? { replayCarried: true as const } : {}),
       }),
     ],
+    [
+      'encoded media',
+      (read: number) => ({
+        media: [
+          {
+            reference: { storage: 's', key: 'k', mediaType: 'image/png', bytes: '9', digest: 'd' },
+            mediaType: 'image/png',
+            bytes: String(read % 2 === 1 ? 9 : 4),
+          },
+        ],
+      }),
+    ],
   ] as const)(
     'rejects a receipt whose %s changes between two reads, and starts on a stable one',
     async (_, marks) => {

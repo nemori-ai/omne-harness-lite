@@ -492,14 +492,18 @@ type Options = Readonly<{
   run?: string | null
   from?: string | null
   perPage?: number
+  choices?: false
 }>
+
+const noChoices = { readChoices: async () => succeed([]) }
 
 async function project(options: Options) {
   const history = historyOf(options.entries, options.perPage)
   const result = await projectSessionDiagnostics({
     access,
     history,
-    ports: options.ports,
+    ports:
+      options.choices === false ? options.ports : { modelRequests: noChoices, ...options.ports },
     kinds: options.kinds ?? ALL_KINDS,
     limits: { maxRuns: options.maxRuns ?? 10, maxCallsPerRun: options.maxCallsPerRun ?? 10 },
     run: options.run ?? null,
@@ -591,6 +595,7 @@ describe('the Run skeleton and the call branches', () => {
           },
         ],
         coverage: 'complete-through-snapshot',
+        reads: [],
         facts: [],
       },
     ])
@@ -1688,6 +1693,298 @@ describe('the account of each dispatch', () => {
     })
     expect(page.runs[0]!.modelCalls.map(call => call.dispatches)).toEqual([[], []])
     expect(model.calls.dispatched).toEqual([])
+  })
+})
+
+describe('what the model read of each block', () => {
+  const ref = (key: string) => ({
+    storage: 'media',
+    key,
+    mediaType: 'image/png',
+    bytes: '4000',
+    digest: `sha256:${key}`,
+  })
+  const uploaded = entry('e0', 'message.user', {
+    message: {
+      id: 'msg-1',
+      role: 'user',
+      blocks: [
+        ...['b1', 'b2', 'b3'].map(id => ({ kind: 'image', id, ref: ref(id) })),
+        { kind: 'voice', id: 'b4', ref: { ...ref('b4'), mediaType: 'audio/wav' } },
+        { kind: 'image', id: 'inline', mediaType: 'image/png', inline: 'AAAA' },
+        { kind: 'text', id: 't1', text: 'SECRET-USER-TEXT' },
+      ],
+    },
+  })
+  const oneCall = [uploaded, started('e1', 'r1'), bound('e2', 'model', 'm1')]
+  const choice = (
+    block: string,
+    kind: 'original' | 'derived' | 'transcript',
+    mediaType: string | null = 'image/png',
+    message = 'msg-1',
+  ) => ({ message, block, choice: kind, mediaType })
+  const sentRecord = (
+    dispatch: string,
+    terminal: 'completed' | 'failed' | null,
+    media: readonly unknown[] | null,
+  ): DispatchRecord =>
+    ({
+      ...dispatchRecord(dispatch, null),
+      terminal:
+        terminal === null
+          ? null
+          : terminal === 'completed'
+            ? { kind: 'completed', reason: 'stop' }
+            : { kind: 'failed', failure: { kind: 'unavailable' } },
+      materialization:
+        media === null
+          ? null
+          : {
+              receipt: {
+                supplier: adoption,
+                representation: adoption,
+                payloadDigest: 'a'.repeat(64),
+                ...(media.length === 0 ? {} : { media }),
+              },
+              source: evidence('materialized'),
+            },
+    }) as never
+  function requestsOf(answer: Outcome<readonly unknown[], { reason: string }> | 'throw') {
+    const asked: unknown[] = []
+    return {
+      asked,
+      modelRequests: {
+        readChoices: async (input: Record<string, unknown>) => {
+          const { principal: _principal, ...rest } = input
+          asked.push(rest)
+          if (answer === 'throw') throw new Error('request store lost')
+          return answer
+        },
+      } as never,
+    }
+  }
+  async function readsWith(
+    records: DispatchRecords[string],
+    answer: Parameters<typeof requestsOf>[0],
+    options: Readonly<{ attempts?: readonly string[]; kinds?: readonly string[] }> = {},
+  ) {
+    const model = modelDouble(
+      { m1: settledCall('c1') },
+      { c1: attemptsPage(options.attempts ?? ['d1', 'd2']) },
+      { c1: records },
+    )
+    const requests = requestsOf(answer)
+    const page = await project({
+      entries: oneCall,
+      ports: { ...model, ...requests },
+      ...(options.kinds === undefined ? {} : { kinds: options.kinds }),
+    })
+    return { page, asked: requests.asked, call: page.runs[0]!.modelCalls[0]! }
+  }
+
+  it('reads original, a smaller version, another form and a transcript, from the choices, the history and the receipt of the last completed dispatch', async () => {
+    const fitted = { reference: ref('b2'), mediaType: 'image/webp', bytes: '900' }
+    const { call, asked, page } = await readsWith(
+      succeed([
+        sentRecord('d1', 'completed', [
+          { reference: ref('b1'), mediaType: 'image/png', bytes: '4000' },
+          fitted,
+        ]),
+        sentRecord('d2', 'failed', null),
+      ]),
+      succeed([
+        choice('b1', 'original'),
+        choice('b2', 'original'),
+        choice('b3', 'derived'),
+        choice('b4', 'transcript', 'audio/wav'),
+        choice('t1', 'original', null),
+        choice('inline', 'original'),
+      ]),
+    )
+    expect(call.reads).toEqual([
+      { message: 'msg-1', block: 'b1', read: 'original' },
+      { message: 'msg-1', block: 'b2', read: 'fitted' },
+      { message: 'msg-1', block: 'b3', read: 'derived' },
+      { message: 'msg-1', block: 'b4', read: 'transcript' },
+    ])
+    expect(asked).toEqual([{ tenant, session: access.session, reference: 'm1' }])
+    expect(page.history.begins.at(-1)).toEqual({
+      kinds: ALL_KINDS.filter(kind => kind.startsWith('message.')),
+      from: null,
+      direction: 'backward',
+    })
+    expect(page.gaps).toEqual([])
+  })
+
+  it.each([
+    ['a smaller byte count', { mediaType: 'image/png', bytes: '3999' }, 'fitted'],
+    ['another media type', { mediaType: 'image/jpeg', bytes: '4000' }, 'fitted'],
+    ['the same type and byte count', { mediaType: 'image/png', bytes: '4000' }, 'original'],
+  ] as const)(
+    'takes the last dispatch when none completed: %s is %s',
+    async (_name, sent, read) => {
+      const { call } = await readsWith(
+        succeed([
+          sentRecord('d1', 'failed', [{ reference: ref('b1'), mediaType: 'x/y', bytes: '1' }]),
+          sentRecord('d2', null, [{ reference: ref('b1'), ...sent }]),
+        ]),
+        succeed([choice('b1', 'original')]),
+      )
+      expect(call.reads).toEqual([{ message: 'msg-1', block: 'b1', read }])
+    },
+  )
+
+  it('matches the receipt by storage, key and digest of the reference in the history', async () => {
+    const { call } = await readsWith(
+      succeed([
+        sentRecord('d1', 'completed', [
+          { reference: { ...ref('b1'), digest: 'sha256:other' }, mediaType: 'x/y', bytes: '1' },
+        ]),
+      ]),
+      succeed([choice('b1', 'original')]),
+    )
+    expect(call.reads).toEqual([{ message: 'msg-1', block: 'b1', read: 'original' }])
+  })
+
+  it('reads original when the receipt names no such medium or the dispatch was not materialized', async () => {
+    const named = await readsWith(
+      succeed([sentRecord('d1', 'completed', [])]),
+      succeed([choice('b1', 'original')]),
+    )
+    expect(named.call.reads).toEqual([{ message: 'msg-1', block: 'b1', read: 'original' }])
+    const none = await readsWith(
+      succeed([sentRecord('d1', null, null)]),
+      succeed([choice('b1', 'original')]),
+    )
+    expect(none.call.reads).toEqual([{ message: 'msg-1', block: 'b1', read: 'original' }])
+    const unlisted = await readsWith(succeed([]), succeed([choice('b1', 'original')]), {
+      attempts: [],
+    })
+    expect(unlisted.call.reads).toEqual([{ message: 'msg-1', block: 'b1', read: 'original' }])
+  })
+
+  it('reads the history only for original media, and not at all when no block needs it', async () => {
+    const { call, page } = await readsWith(
+      succeed([sentRecord('d1', 'completed', [])]),
+      succeed([choice('b3', 'derived'), choice('t1', 'original', null)]),
+    )
+    expect(call.reads).toEqual([{ message: 'msg-1', block: 'b3', read: 'derived' }])
+    expect(page.history.begins).toHaveLength(1)
+  })
+
+  it.each([
+    ['a block the history does not have', [choice('b9', 'original')], 'not-found'],
+    [
+      'a message the history does not have',
+      [choice('b1', 'original', 'image/png', 'msg-2')],
+      'not-found',
+    ],
+  ] as const)(
+    'writes no reads and a Session gap of the call for %s',
+    async (_name, choices, reason) => {
+      const { call, page } = await readsWith(
+        succeed([sentRecord('d1', 'completed', [])]),
+        succeed([choice('b3', 'derived'), ...choices]),
+      )
+      expect(call.reads).toEqual([])
+      expect(page.gaps).toEqual([{ source: 'session', subject: 'm1', reason }])
+    },
+  )
+
+  it('writes no reads and a not-disclosed gap when the deployment discloses no message kind', async () => {
+    const kinds = ALL_KINDS.filter(kind => !kind.startsWith('message.'))
+    const { call, page } = await readsWith(
+      succeed([sentRecord('d1', 'completed', [])]),
+      succeed([choice('b1', 'original')]),
+      { kinds },
+    )
+    expect(call.reads).toEqual([])
+    expect(page.gaps).toContainEqual({ source: 'session', subject: 'm1', reason: 'not-disclosed' })
+    expect(page.history.begins).toHaveLength(1)
+  })
+
+  it.each([
+    ['refused', fail({ kind: 'denied', action: 'history' }), 'denied'],
+    ['failing', fail({ kind: 'unavailable', diagnostic: 'down' }), 'unavailable'],
+    ['throwing', 'throw', 'unavailable'],
+  ] as const)(
+    'writes no reads and a Session gap when the read of the history for the blocks is %s',
+    async (_name, refusal, reason) => {
+      const history = historyOf(oneCall)
+      const scanRuns = history.begin.bind(history)
+      const failing: typeof history = {
+        ...history,
+        async begin(input) {
+          if (!input.kinds.every(kind => kind.startsWith('message.'))) return scanRuns(input)
+          if (refusal === 'throw') throw new Error('history lost')
+          return refusal as never
+        },
+      }
+      const model = modelDouble(
+        { m1: settledCall('c1') },
+        { c1: attemptsPage(['d1']) },
+        { c1: succeed([sentRecord('d1', 'completed', [])]) },
+      )
+      const result = await projectSessionDiagnostics({
+        access,
+        history: failing,
+        ports: { ...model, ...requestsOf(succeed([choice('b1', 'original')])) },
+        kinds: ALL_KINDS,
+        limits: { maxRuns: 10, maxCallsPerRun: 10 },
+        run: null,
+        pageBytes: 4096,
+        from: null,
+      })
+      if (result.kind !== 'page') throw new Error('expected a page')
+      expect(result.page.runs[0]!.modelCalls[0]!.reads).toEqual([])
+      expect(result.page.gaps).toEqual([{ source: 'session', subject: 'm1', reason }])
+    },
+  )
+
+  it.each([
+    ['refused', fail({ reason: 'denied' }), 'denied'],
+    ['not recorded', fail({ reason: 'not-recorded' }), 'not-recorded'],
+    ['throwing', 'throw', 'unavailable'],
+  ] as const)(
+    'writes no reads and a gap of the call when the choices read is %s',
+    async (_name, answer, reason) => {
+      const { call, page } = await readsWith(succeed([sentRecord('d1', 'completed', [])]), answer)
+      expect(call.reads).toEqual([])
+      expect(page.gaps).toEqual([{ source: 'agent', subject: 'm1', reason }])
+    },
+  )
+
+  it('writes no reads and an unsupported gap when the deployment serves no choices', async () => {
+    const model = modelDouble({ m1: settledCall('c1') }, { c1: attemptsPage([]) })
+    const page = await project({
+      entries: oneCall,
+      ports: { ...model },
+      choices: false,
+    })
+    expect(page.runs[0]!.modelCalls[0]!.reads).toEqual([])
+    expect(page.gaps).toEqual([{ source: 'agent', subject: 'm1', reason: 'unsupported' }])
+  })
+
+  it('writes no reads when an original block is read but the dispatches are not known, keeping their gap', async () => {
+    const { call, page } = await readsWith(
+      fail({ kind: 'denied', action: 'dispatches' }),
+      succeed([choice('b4', 'transcript', 'audio/wav'), choice('b2', 'original')]),
+    )
+    expect(call.reads).toEqual([])
+    expect(page.gaps).toEqual([{ source: 'model', subject: 'm1', reason: 'denied' }])
+    const known = await readsWith(
+      fail({ kind: 'denied', action: 'dispatches' }),
+      succeed([choice('b4', 'transcript', 'audio/wav'), choice('inline', 'original')]),
+    )
+    expect(known.call.reads).toEqual([{ message: 'msg-1', block: 'b4', read: 'transcript' }])
+  })
+
+  it('reads no choices for a call Model did not accept or could not say', async () => {
+    const requests = requestsOf(succeed([choice('b1', 'original')]))
+    const model = modelDouble({ m1: succeed({ kind: 'not-accepted', operation: 'op' } as never) })
+    const page = await project({ entries: oneCall, ports: { ...model, ...requests } })
+    expect(page.runs[0]!.modelCalls[0]!.reads).toEqual([])
+    expect(requests.asked).toEqual([])
   })
 })
 

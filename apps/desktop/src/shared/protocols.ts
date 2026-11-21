@@ -7,6 +7,7 @@ import { modelProtocol } from '@omne-harness/model-protocol'
 import { notificationProtocol } from '@omne-harness/notification-protocol'
 import type { ProtocolContract } from '@omne-harness/public-contract'
 import { scheduleProtocol } from '@omne-harness/schedule-protocol'
+import { sessionDiagnosticsProtocol } from '@omne-harness/session-diagnostics-protocol'
 import { sessionProtocol } from '@omne-harness/session-protocol'
 import { toolProtocol } from '@omne-harness/tool-protocol'
 import { usageProtocol } from '@omne-harness/usage-protocol'
@@ -15,6 +16,7 @@ import { workspaceProtocol } from '@omne-harness/workspace-protocol'
 export const domainProtocols: readonly ProtocolContract[] = [
   identityProtocol,
   sessionProtocol,
+  sessionDiagnosticsProtocol,
   assetsProtocol,
   humanInterventionProtocol,
   toolProtocol,

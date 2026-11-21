@@ -63,6 +63,12 @@ const run = {
         },
       ],
       coverage: 'expired-prefix',
+      reads: [
+        { message: 'msg-1', block: 'b-1', read: 'original' },
+        { message: 'msg-1', block: 'b-2', read: 'fitted' },
+        { message: 'msg-2', block: 'b-1', read: 'derived' },
+        { message: 'msg-2', block: 'b-2', read: 'transcript' },
+      ],
       facts: counted,
     },
     {
@@ -71,6 +77,7 @@ const run = {
       call: unknownValue,
       dispatches: [],
       coverage: 'unknown',
+      reads: [],
       facts: [],
     },
   ],
@@ -253,6 +260,27 @@ describe('read-session-diagnostics outcome bodies', () => {
       { ...page, gaps: [{ source: 'agent', subject: 's', reason: 'gone' }] },
     ],
     ['with another entry class', { ...page, runs: [{ ...run, entry: 'batch' }] }],
+    [
+      'with a model call that does not say what each block was read as',
+      {
+        ...page,
+        runs: [{ ...run, modelCalls: [{ ...run.modelCalls[1], reads: undefined }] }],
+      },
+    ],
+    [
+      'with a block read as something other than the four',
+      {
+        ...page,
+        runs: [
+          {
+            ...run,
+            modelCalls: [
+              { ...run.modelCalls[1], reads: [{ message: 'm', block: 'b', read: 'resized' }] },
+            ],
+          },
+        ],
+      },
+    ],
     [
       'with an unknown that cannot say not-disclosed',
       {

@@ -24,7 +24,10 @@ import type {
 } from '../view-types.ts'
 import type { HistoryEntry } from '@omne-harness/session-contract'
 import type { DiagnosticPage, ToolLookup } from '@omne-harness/tool-contract'
-import type { CallAccount, SourceAnswer } from './sources.ts'
+import type { BlockAnswer } from './blocks.ts'
+import { member, textAt } from './json-tree.ts'
+import { readsOf } from './reads.ts'
+import type { CallAccount, RequestBlockChoice, SourceAnswer } from './sources.ts'
 
 export const PROJECTED_KINDS: readonly string[] = Object.freeze([
   'run.started',
@@ -53,17 +56,6 @@ const CALL_KINDS = ['model', 'tool'] as const
 const REFUSALS = ['denied', 'invalid', 'unsupported', 'capacity'] as const
 const FIT_REASONS = ['fixed', 'protected-floor', 'after-compaction'] as const
 const RELEASE_REASONS = ['ended', 'bounded', 'cancelled', 'released', 'superseded'] as const
-
-function member(value: JsonValue | undefined, key: string): JsonValue | undefined {
-  return value?.kind === 'object'
-    ? value.entries.find(entry => entry.key === key)?.value
-    : undefined
-}
-
-function textAt(value: JsonValue | undefined, ...path: readonly string[]): string | undefined {
-  const found = path.reduce<JsonValue | undefined>(member, value)
-  return found?.kind === 'string' ? found.value : undefined
-}
 
 function oneOf<T extends string>(value: string | undefined, set: readonly T[]): T | undefined {
   return set.find(item => item === value)
@@ -278,6 +270,7 @@ export type ModelAnswers = Readonly<{
   lookup: SourceAnswer<Lookup>
   attempts: SourceAnswer<ModelDiagnosticsPage> | null
   dispatches: SourceAnswer<readonly DispatchRecord[]> | null
+  choices: SourceAnswer<readonly RequestBlockChoice[]> | null
 }>
 export type ToolAnswers = Readonly<{
   lookup: SourceAnswer<ToolLookup>
@@ -288,6 +281,7 @@ export type RunAnswers = Readonly<{
   finish: SourceAnswer<FinishIntent | null> | null
   models: ReadonlyMap<string, ModelAnswers>
   tools: ReadonlyMap<string, ToolAnswers>
+  blocks: BlockAnswer | null
 }>
 export type Projected<T> = Readonly<{ value: T; gaps: readonly SessionDiagnosticGap[] }>
 
@@ -483,22 +477,26 @@ function modelCallOf(
   call: CallRegistration,
   answers: ModelAnswers | undefined,
   facts: readonly SessionFactCount[],
+  blocks: BlockAnswer | null,
 ): Projected<SessionModelCallDiagnostic> {
   const reference = call.reference ?? call.position
   const base = { reference, purpose: call.purpose, facts } as const
   const lookup = answers?.lookup ?? { kind: 'gap', reason: 'not-recorded' }
+  const none = { dispatches: [], coverage: 'unknown', reads: [] } as const
   if (lookup.kind === 'gap')
     return {
-      value: { ...base, call: unknown(lookup.reason), dispatches: [], coverage: 'unknown' },
+      value: { ...base, call: unknown(lookup.reason), ...none },
       gaps: [{ source: 'model', subject: reference, reason: lookup.reason }],
     }
   if (lookup.value.kind === 'not-accepted')
     return {
-      value: { ...base, call: unknown('not-accepted'), dispatches: [], coverage: 'unknown' },
+      value: { ...base, call: unknown('not-accepted'), ...none },
       gaps: [{ source: 'model', subject: reference, reason: 'not-accepted' }],
     }
   const { state } = lookup.value
-  const attempts = attemptsOf(reference, answers ?? { attempts: null, dispatches: null })
+  const given = answers ?? { attempts: null, dispatches: null, choices: null }
+  const attempts = attemptsOf(reference, given)
+  const reads = readsOf(reference, given, blocks)
   return {
     value: {
       ...base,
@@ -509,8 +507,9 @@ function modelCallOf(
         ...(state.attempts === undefined ? {} : { progress: progressOf(state.attempts) }),
       },
       ...attempts.value,
+      reads: reads.value,
     },
-    gaps: attempts.gaps,
+    gaps: [...attempts.gaps, ...reads.gaps],
   }
 }
 
@@ -669,7 +668,7 @@ export function projectRun(
   for (const call of calls) {
     const own = facts.byCall.get(call.position) ?? []
     if (call.kind === 'model') {
-      const one = modelCallOf(call, answers.models.get(call.position), own)
+      const one = modelCallOf(call, answers.models.get(call.position), own, answers.blocks)
       modelCalls.push(one.value)
       gaps.push(...one.gaps)
     } else {

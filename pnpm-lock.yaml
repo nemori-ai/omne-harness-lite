@@ -536,6 +536,9 @@ importers:
       '@omne-harness/sdk':
         specifier: workspace:*
         version: link:../../packages/access/sdk
+      '@omne-harness/session-diagnostics-protocol':
+        specifier: workspace:*
+        version: link:../../packages/session/session-diagnostics-protocol
       '@omne-harness/session-protocol':
         specifier: workspace:*
         version: link:../../packages/session/session-protocol
@@ -5640,6 +5643,9 @@ importers:
       '@omne-harness/sdk':
         specifier: workspace:*
         version: link:../../access/sdk
+      '@omne-harness/session-diagnostics-protocol':
+        specifier: workspace:*
+        version: link:../session-diagnostics-protocol
       '@omne-harness/session-protocol':
         specifier: workspace:*
         version: link:../session-protocol

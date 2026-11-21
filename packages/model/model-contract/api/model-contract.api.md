@@ -48,6 +48,7 @@
 - `MODEL_IDENTITY_PREFIXES` · `identity-values.d.ts`
 - `MODEL_REFERENCE_MAX_LENGTH` · `reference.d.ts`
 - `MaterializationReceipt` · `provider-protocol.d.ts`
+- `MaterializedMedium` · `provider-protocol.d.ts`
 - `Measurement` · `profile.d.ts`
 - `MediaMeasurementFact` · `profile.d.ts`
 - `MeterRepresentation` · `profile.d.ts`
@@ -1314,7 +1315,7 @@ export { encodeModelOutputV1, decodeModelOutputV1, projectModelOutputV1, } from 
 export type { ModelOutputV1, ModelOutputV1Snapshot, ModelOutputV1Delta, ModelOutputV1Failure, } from './model-output-v1.ts';
 export type * from './call-surface.ts';
 export type * from './dispatch-facts.ts';
-export type { MaterializationReceipt, RetryDecision, RetryPosition, RetryResolution, TransportFailure, } from './provider-protocol.ts';
+export type { MaterializationReceipt, MaterializedMedium, RetryDecision, RetryPosition, RetryResolution, TransportFailure, } from './provider-protocol.ts';
 export type { AnchorMiss, AssembledModelInput, BudgetCheck, CalibrationReport, ContextLimits, ForeignThinking, LimitMetric, Measurement, MediaMeasurementFact, MeterRepresentation, ModalityRequirement, ModelInputMeter, ModelLimit, ModelModality, ModelProfile, ModelProfileDefinition, ParameterAdoption, ProfileIdentity, ProfileReplay, ProfileResolution, ProfileScope, ProfileSupplier, ReplayDeclaration, RequestBudget, TokenLimit, UpstreamLimit, } from './profile.ts';
 export { isNativeFileType, profileCovers } from './profile.ts';
 export type { ModelCountingBasis, TokenizerDefinition } from './tokenizer.ts';
@@ -2159,10 +2160,16 @@ export type IndependentModelFact = TransportFact | Readonly<{
     reason: 'rejected';
     failure: TransportFailure;
 }>;
+export type MaterializedMedium = Readonly<{
+    reference: ContentReference;
+    mediaType: string;
+    bytes: string;
+}>;
 export type MaterializationReceipt = Readonly<{
     supplier: Adoption;
     representation: Adoption;
     payloadDigest: string;
+    media?: readonly MaterializedMedium[];
     replayFormat?: string;
     replayPrefix?: string;
     replayCarried?: true;

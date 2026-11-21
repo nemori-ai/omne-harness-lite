@@ -267,6 +267,13 @@ export const SESSION_POLICY = Object.freeze({
     member('SS:654，SCC reader「含 epoch 视图读取 readModelView」，DA4 §4.1'),
     deny(NO_SYSTEM_READ),
   ),
+  'history.readAdoptedRequest': row(
+    member(
+      '#1450 C36，设计稿 I-9：诊断页逐块说明模型读的是哪一份；记录只有引用、摘要与表示的选择，不含内容；登录的人本就能读这个会话的历史（history.begin）',
+    ),
+    member('SS:654，SCC reader「含 epoch 视图读取 readModelView」，DA4 §4.1'),
+    deny(NO_SYSTEM_READ),
+  ),
   'history.readCompactionContext': row(
     deny(`压缩判断窗口不是用户的阅读面，${NO_SOURCE}`),
     member('SS「压缩采用与有效历史」，SCC reader，DA4 §4.1；当前模型视图、配对与未结工作'),

@@ -25,6 +25,7 @@ export type SessionReadAccessOperation =
   | 'history.since'
   | 'history.readModelView'
   | 'history.readCompactionContext'
+  | 'history.readAdoptedRequest'
 
 type SessionMutationAccess<P> = {
   readonly [K in MutationName]: Readonly<{
