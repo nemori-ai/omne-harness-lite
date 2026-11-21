@@ -23,7 +23,6 @@
     "packages/frontend/ui-kit/src/patterns/ai/trace.tsx | class ml-[5px]": 1,
     "packages/frontend/ui-kit/src/patterns/loading-state.css | css line-height: 1": 1,
     "packages/identity/identity-ui/src/view/identity-ui.css | css gap 14px": 1,
-    "packages/notification/notification-ui/src/view/notification-ui.css | css box-shadow 2px": 1,
     "packages/schedule/schedule-ui/src/view/schedule-ui.css | css gap 0.75rem": 1,
     "packages/schedule/schedule-ui/src/view/schedule-ui.css | css gap 1.5rem": 1,
     "packages/schedule/schedule-ui/src/view/schedule-ui.css | css margin-block 0.5rem": 1,

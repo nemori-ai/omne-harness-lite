@@ -1,6 +1,7 @@
 import type { TenantId } from '@omne-harness/public-contract'
 import {
   EmptyState,
+  GlideMenu,
   InlineNotice,
   LoadingState,
   PageColumn,
@@ -11,7 +12,14 @@ import {
 import type { JSX, ReactNode } from 'react'
 import type { InboxDriver } from '../model/inbox-driver.ts'
 import type { InboxHub } from '../model/inbox-hub.ts'
-import { keyOf, sectionsOf, type Entry, type Filter, type State } from '../model/inbox-machine.ts'
+import {
+  keyOf,
+  labelOf,
+  sectionsOf,
+  type Entry,
+  type Filter,
+  type State,
+} from '../model/inbox-machine.ts'
 import { EntryRow } from './entry-row.tsx'
 import { useInbox, useTenant } from './use-inbox.ts'
 
@@ -55,7 +63,7 @@ function Inbox({ hub, tenant, sections, focus }: InboxProps): JSX.Element {
     <PageColumn className="notification-page">
       <PageHeader
         title="通知"
-        description="来源发给你的事件。办完或划掉之后不再提醒，随时可以恢复。"
+        description="来源发给你的事件。"
         actions={
           <Segmented
             label="显示哪些通知"
@@ -65,9 +73,11 @@ function Inbox({ hub, tenant, sections, focus }: InboxProps): JSX.Element {
           />
         }
       />
-      <LiveLine state={state} />
-      <Body state={state} driver={driver} focus={focus} />
-      {sections}
+      <div className="notification-column">
+        <LiveLine state={state} />
+        <Body state={state} driver={driver} focus={focus} />
+        {sections}
+      </div>
     </PageColumn>
   )
 }
@@ -103,17 +113,20 @@ function Section({
       <h3 className="notification-section-title">
         {title}（{entries.length}）
       </h3>
-      <ul className="notification-list">
-        {entries.map(entry => (
-          <EntryRow
-            key={keyOf(entry)}
-            entry={entry}
-            state={state}
-            driver={driver}
-            focused={keyOf(entry) === focus}
-          />
-        ))}
-      </ul>
+      <GlideMenu>
+        <ul className="notification-list">
+          {entries.map(entry => (
+            <EntryRow
+              key={keyOf(entry)}
+              entry={entry}
+              source={labelOf(state, entry.source)}
+              state={state}
+              driver={driver}
+              focused={keyOf(entry) === focus}
+            />
+          ))}
+        </ul>
+      </GlideMenu>
     </section>
   )
 }

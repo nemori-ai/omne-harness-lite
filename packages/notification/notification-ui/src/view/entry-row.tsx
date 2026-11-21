@@ -3,15 +3,19 @@ import {
   Button,
   CloseIcon,
   DoneIcon,
+  FactList,
+  FactRow,
   IconButton,
   InlineNotice,
   LoadingIndicator,
   LoadingState,
+  RetryIcon,
   UndoIcon,
+  useSettleCue,
   type Icon,
 } from '@omne-harness/ui-kit'
 import { encodeInstant } from '@omne-harness/utc-instant'
-import { useEffect, useRef, type JSX } from 'react'
+import { useEffect, useRef, useState, type JSX } from 'react'
 import type { InboxDriver } from '../model/inbox-driver.ts'
 import {
   isOpen,
@@ -84,72 +88,104 @@ function causeText(cause: Cause): string {
   }
 }
 
-function Detail({ opened }: { readonly opened: Opened }): JSX.Element {
+function Detail({
+  opened,
+  driver,
+}: {
+  readonly opened: Opened
+  readonly driver: InboxDriver
+}): JSX.Element {
   const { view } = opened
   if (view === 'reading') return <LoadingState label="正在读取……" />
   if (view === 'gone')
     return (
-      <InlineNotice tone="caution" role="status">
+      <InlineNotice tone="neutral" role="status">
         <p>这一条已经不在收件箱里了。</p>
       </InlineNotice>
     )
   if (view === 'unavailable')
     return (
-      <InlineNotice tone="caution" role="status">
+      <InlineNotice
+        tone="caution"
+        role="status"
+        action={{ label: '重试', icon: RetryIcon, onClick: () => driver.reread() }}
+      >
         <p>正文现在读不出，稍后再试。</p>
       </InlineNotice>
     )
   return (
     <div className="notification-detail">
-      {view.subject === null ? null : <p className="notification-meta">对象：{view.subject}</p>}
+      <FactList>
+        {view.subject === null ? null : <FactRow term="对象">{view.subject}</FactRow>}
+        <FactRow term="类型">
+          <code className="notification-code">{view.type}</code>
+        </FactRow>
+        {view.locator === null ? null : (
+          <FactRow term="去处">
+            {view.locator.kind} <code className="notification-code">{view.locator.ref}</code>
+          </FactRow>
+        )}
+        <FactRow term="缘由">{causeText(view.cause)}</FactRow>
+      </FactList>
       {view.body === '' ? (
-        <p className="notification-meta">这一条没有正文。</p>
+        <p className="notification-quiet">这一条没有正文。</p>
       ) : (
         <p className="notification-body">{view.body}</p>
       )}
-      {view.locator === null ? null : (
-        <p className="notification-meta">
-          去处：{view.locator.kind} {view.locator.ref}
-        </p>
-      )}
-      <p className="notification-meta">缘由：{causeText(view.cause)}</p>
     </div>
   )
 }
 
 export type EntryRowProps = Readonly<{
   entry: Entry
+  /** The source's name for people, from the catalogue; without one the row names no source. */
+  source: string | undefined
   state: State
   driver: InboxDriver
   focused?: boolean
 }>
 
-export function EntryRow({ entry, state, driver, focused = false }: EntryRowProps): JSX.Element {
+export function EntryRow({
+  entry,
+  source,
+  state,
+  driver,
+  focused = false,
+}: EntryRowProps): JSX.Element {
   const row = useRef<HTMLLIElement>(null)
+  // Found after the first paint, so the row a person was brought to settles once even when it mounts focused.
+  const [found, setFound] = useState(false)
+  useEffect(() => setFound(focused), [focused])
   useEffect(() => {
-    if (focused) row.current?.scrollIntoView({ block: 'nearest' })
-  }, [focused])
+    if (found) row.current?.scrollIntoView({ block: 'nearest' })
+  }, [found])
+  useSettleCue(row, found, { disabled: !found })
   const key = keyOf(entry)
   const marking = state.marking[key]
   const notice = state.notices[key]
   const opened = state.opened?.key === key ? state.opened : null
   const label = stateOf(entry)
   return (
-    <li ref={row} className="notification-row" data-focused={focused ? '' : undefined}>
-      <div className="notification-line">
-        {isFresh(entry) ? <span className="notification-dot" aria-hidden="true" /> : null}
-        <Button
-          variant="link"
-          className="notification-title"
-          aria-expanded={opened !== null}
-          onClick={() => (opened === null ? driver.open(key) : driver.close())}
-        >
-          {entry.title}
-        </Button>
-        <span className="notification-meta">
-          {entry.source} · {entry.type} · <Ago at={encodeInstant(entry.acceptedAt)} />
-          {label === null ? null : ` · ${label}`}
+    <li ref={row} className="notification-row">
+      <div className="notification-head" data-glide-row="">
+        <span className="notification-mark">
+          {isFresh(entry) ? <span className="notification-dot" aria-hidden="true" /> : null}
         </span>
+        <div className="notification-copy">
+          <Button
+            variant="ghost"
+            className="notification-title"
+            aria-expanded={opened !== null}
+            onClick={() => (opened === null ? driver.open(key) : driver.close())}
+          >
+            {entry.title}
+          </Button>
+          <p className="notification-meta">
+            {source === undefined ? null : `${source} · `}
+            <Ago at={encodeInstant(entry.acceptedAt)} />
+            {label === null ? null : ` · ${label}`}
+          </p>
+        </div>
         <span className="notification-actions">
           {actionsOf(entry).map(([operation, name, Glyph]) => (
             <IconButton
@@ -168,12 +204,16 @@ export function EntryRow({ entry, state, driver, focused = false }: EntryRowProp
           ))}
         </span>
       </div>
-      {notice === undefined ? null : (
-        <InlineNotice tone={notice === 'denied' ? 'danger' : 'caution'} role="status">
-          <p>{NOTICE[notice]}</p>
-        </InlineNotice>
+      {notice === undefined && opened === null ? null : (
+        <div className="notification-more">
+          {notice === undefined ? null : (
+            <InlineNotice tone={notice === 'denied' ? 'danger' : 'caution'} role="status">
+              <p>{NOTICE[notice]}</p>
+            </InlineNotice>
+          )}
+          {opened === null ? null : <Detail opened={opened} driver={driver} />}
+        </div>
       )}
-      {opened === null ? null : <Detail opened={opened} />}
     </li>
   )
 }
