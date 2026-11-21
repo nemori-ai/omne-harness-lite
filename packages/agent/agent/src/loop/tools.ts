@@ -253,6 +253,7 @@ export async function preserveAllowedRequest<P>(
     identity: `${execution}/${action.id}/request`,
     consumer: request.consumer,
     value: toolRequestMaterial(request),
+    readers: 'until-release',
   })
   if ('failure' in stored) return stored
   return succeed({

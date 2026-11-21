@@ -371,6 +371,7 @@ export type MaterialDescription = Readonly<{
   size: number
   kind: Material<ContentBlock>['kind']
 }>
+export type MaterialReaders = 'after-release' | 'until-release'
 export interface AgentMaterials<P, B extends ContentBlock> {
   preserve(
     input: Access<P> &
@@ -379,6 +380,7 @@ export interface AgentMaterials<P, B extends ContentBlock> {
         identity: string
         consumer: ConsumerRef
         value: Material<B>
+        readers?: MaterialReaders
       }>,
   ): Reply<DurableEvidence>
   read(input: Access<P> & Readonly<{ source: DurableEvidence }>): Reply<Material<B>>

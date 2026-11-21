@@ -70,6 +70,7 @@ async function setup() {
         association: 'associated',
         purpose: 'action',
         reference: reference(who, name),
+        acceptance: 'accepted',
         position: consumer,
         action: ok(decodeActionId(name)),
         consumption: consumption(name),

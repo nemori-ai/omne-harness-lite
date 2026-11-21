@@ -212,6 +212,7 @@
 - `LoopFacts` · `evaluation.d.ts`
 - `Material` · `passages.d.ts`
 - `MaterialDescription` · `passages.d.ts`
+- `MaterialReaders` · `passages.d.ts`
 - `MessageHandoff` · `passages.d.ts`
 - `MessageSource` · `passages.d.ts`
 - `MigrationRecord` · `finishing.d.ts`
@@ -290,6 +291,7 @@
 - `TerminalObservation` · `execution.d.ts`
 - `TerminalParticipantFact` · `finishing.d.ts`
 - `TerminalParticipantFacts` · `finishing.d.ts`
+- `ToolAcceptance` · `evaluation.d.ts`
 - `ToolAssociationRecord` · `finishing.d.ts`
 - `ToolIntentKey` · `finishing.d.ts`
 - `ToolReceptionTarget` · `receiving.d.ts`
@@ -864,7 +866,7 @@ export type Failure = Readonly<{
     owner: string;
     diagnostic: string;
 }> | Readonly<{
-    kind: 'stale-advance' | 'not-ready' | 'terminal' | 'busy' | 'changed' | 'unsupported';
+    kind: 'stale-advance' | 'not-ready' | 'terminal' | 'busy' | 'changed' | 'unsupported' | 'reclaimed';
 }> | Readonly<{
     kind: 'commit-unknown';
     operation: AgentOperationId;
@@ -874,6 +876,7 @@ export type Failure = Readonly<{
 }>;
 export type Reply<A> = Promise<Outcome<A, Failure>>;
 export type ModelPurpose = 'main' | 'extension';
+export type ToolAcceptance = 'accepted' | 'unknown';
 type PendingCommon = Readonly<{
     action: ActionId;
     consumption: ConsumptionId;
@@ -892,9 +895,11 @@ export type PendingCall = PendingCommon & (Readonly<{
 }> & (Readonly<{
     association: 'intent';
     reference?: never;
+    acceptance?: never;
 }> | Readonly<{
     association: 'associated';
     reference: T.ToolInvocationRef;
+    acceptance: ToolAcceptance;
 }>)));
 export type ActionJudgment = Readonly<{
     kind: 'pending';
@@ -3423,12 +3428,14 @@ export type MaterialDescription = Readonly<{
     size: number;
     kind: Material<ContentBlock>['kind'];
 }>;
+export type MaterialReaders = 'after-release' | 'until-release';
 export interface AgentMaterials<P, B extends ContentBlock> {
     preserve(input: Access<P> & Readonly<{
         execution: AgentExecutionId;
         identity: string;
         consumer: ConsumerRef;
         value: Material<B>;
+        readers?: MaterialReaders;
     }>): Reply<DurableEvidence>;
     read(input: Access<P> & Readonly<{
         source: DurableEvidence;

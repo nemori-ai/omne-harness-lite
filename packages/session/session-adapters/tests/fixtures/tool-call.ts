@@ -30,6 +30,7 @@ export function toolCall(tenant: TenantId, name = 'tool') {
     purpose: 'action',
     association: 'associated',
     reference,
+    acceptance: 'unknown',
     action,
     consumption: entry.consumption,
     position: entry.consumer,

@@ -135,6 +135,19 @@ export function held(view: ExecutionView, kind: HoldKind, id: string): boolean {
 const intentHeld = (item: IntentView, view: ExecutionView): boolean =>
   held(view, 'action', item.action)
 
+export const materialHeld = (item: MaterialView, view: ExecutionView, key: string): boolean =>
+  held(view, 'material', materialHold(key)) || item.pub > view.holdsJudged
+
+export const materialReleased = (item: MaterialView, view: ExecutionView, key: string): boolean =>
+  item.readers === 'until-release' && !materialHeld(item, view, key)
+
+export const releasedMaterials = (view: ExecutionView): ReadonlySet<string> =>
+  new Set(
+    [...view.materials]
+      .filter(([key, item]) => materialReleased(item, view, key))
+      .map(([key]) => key),
+  )
+
 export function callHeld(consumption: string, view: ExecutionView): boolean {
   if (held(view, 'consumption', consumption)) return true
   for (const intent of view.intents.values())
@@ -270,8 +283,7 @@ export const ITEM_FAMILIES: readonly ItemFamily[] = [
   {
     family: 'material',
     holder: table(at('materials')),
-    open: (item: MaterialView, view: ExecutionView, key: string) =>
-      held(view, 'material', materialHold(key)) || item.pub > view.holdsJudged,
+    open: materialHeld,
   },
   { family: 'op', holder: table(at('ops')), open: closedAtBirth, apart: true },
   {

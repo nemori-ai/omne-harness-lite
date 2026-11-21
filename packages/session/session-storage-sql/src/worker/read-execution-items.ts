@@ -1,5 +1,13 @@
 import type { JsonValue } from '@omne-harness/sql-contract'
-import { isItemKey, itemBytes, itemOutput, itemScope, type ItemKey } from './item-rows.ts'
+import {
+  ITEM_COLUMNS,
+  ITEM_FROM,
+  isItemKey,
+  itemBytes,
+  itemOutput,
+  itemScope,
+  type ItemKey,
+} from './item-rows.ts'
 import { handler, oneRow, PAGE_BYTES, PAGE_ROWS, type Executor } from './support.ts'
 
 const isKeyList = (keys: unknown): keys is readonly ItemKey[] =>
@@ -26,7 +34,7 @@ function readPage(
     const key = keys[index]!
     const row = oneRow(
       port,
-      'SELECT family, item, open, pub, body FROM er_item WHERE tenant = ? AND execution = ? AND family = ? AND item = ? LIMIT 1',
+      `SELECT ${ITEM_COLUMNS} FROM ${ITEM_FROM} WHERE i.tenant = ? AND i.execution = ? AND i.family = ? AND i.item = ? LIMIT 1`,
       [tenant, execution, key.family, key.item],
     )
     if (row === undefined) continue

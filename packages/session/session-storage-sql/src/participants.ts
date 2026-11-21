@@ -169,6 +169,10 @@ export type ExecutionItemRecord = Readonly<{
   body: JsonValue
 }>
 
+export type ExecutionItemKeyRecord = Readonly<{ execution?: string; family: string; item: string }>
+
+export type ExecutionItemContentRecord = ExecutionItemKeyRecord & Readonly<{ payload: string }>
+
 export type ExecutionAdmissionRecord = Readonly<{
   input: string
   execution: string
@@ -191,12 +195,20 @@ export type ExecutionRecordWrite = Readonly<{
   facts: readonly ExecutionFactRecord[]
   blobs: readonly ExecutionBlobRecord[]
   items: readonly ExecutionItemRecord[]
+  contents?: readonly ExecutionItemContentRecord[]
+  discards?: readonly ExecutionItemKeyRecord[]
   boundaries: readonly ExecutionBoundaryRecord[]
   admissions: readonly ExecutionAdmissionRecord[]
 }>
 
+const keyFields = ({ execution, family, item }: ExecutionItemKeyRecord) => ({
+  ...(execution === undefined ? {} : { execution }),
+  family,
+  item,
+})
+
 export function executionRecordFacts(write: ExecutionRecordWrite): FactCommandV2 {
-  const { facts, blobs, items, ...rest } = write
+  const { facts, blobs, items, contents = [], discards = [], ...rest } = write
   const encoded = encodeValue(rest) as Readonly<Record<string, JsonValue>>
   return {
     participant: EXECUTION_RECORD_PARTICIPANT,
@@ -232,6 +244,15 @@ export function executionRecordFacts(write: ExecutionRecordWrite): FactCommandV2
           open,
           body,
         })),
+        ...(contents.length === 0
+          ? {}
+          : {
+              contents: contents.map(content => ({
+                ...keyFields(content),
+                payload: content.payload,
+              })),
+            }),
+        ...(discards.length === 0 ? {} : { discards: discards.map(keyFields) }),
       },
     },
   }
@@ -582,6 +603,7 @@ export type ExecutionItem = Readonly<{
   open: boolean
   pub: string
   body: JsonValue
+  content?: string
 }>
 
 function itemKeyOf(value: JsonValue): ExecutionItemKey | null {
@@ -594,12 +616,20 @@ function itemKeyOf(value: JsonValue): ExecutionItemKey | null {
 function itemOf(value: JsonValue): ExecutionItem | null {
   const item = recordOf(value)
   const key = itemKeyOf(value)
+  const content = item?.['content']
   return item !== null &&
     key !== null &&
     typeof item['open'] === 'boolean' &&
     typeof item['pub'] === 'string' &&
-    'body' in item
-    ? { ...key, open: item['open'], pub: item['pub'], body: item['body'] ?? null }
+    'body' in item &&
+    (content === undefined || typeof content === 'string')
+    ? {
+        ...key,
+        open: item['open'],
+        pub: item['pub'],
+        body: item['body'] ?? null,
+        ...(content === undefined ? {} : { content }),
+      }
     : null
 }
 

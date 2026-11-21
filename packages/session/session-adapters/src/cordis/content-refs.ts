@@ -1,5 +1,11 @@
 import { isTable } from '../journal/shared-map.ts'
-import { viewItems, type ItemChange, type SessionJournalView } from '../journal/index.ts'
+import {
+  releasedMaterials,
+  viewItems,
+  type ExecutionView,
+  type ItemChange,
+  type SessionJournalView,
+} from '../journal/index.ts'
 import { blobRowDigest, factDigestOf } from './journal-batch.ts'
 
 const HEX_DIGEST = /^[0-9a-f]{64}$/
@@ -20,6 +26,13 @@ export function refsIn(value: unknown, into = new Set<string>()): Set<string> {
     into.add(record['digest'])
   for (const member of Object.values(record)) refsIn(member, into)
   return into
+}
+
+export function recordRefs(view: ExecutionView, into = new Set<string>()): Set<string> {
+  const released = releasedMaterials(view)
+  if (released.size === 0) return refsIn(view, into)
+  const kept = [...view.materials].filter(([key]) => !released.has(key)).map(([, item]) => item)
+  return refsIn({ ...view, materials: kept }, into)
 }
 
 export function listedDigests(payload: string): string[] {
@@ -61,9 +74,12 @@ export class ContentRefs {
 
   reset(view: SessionJournalView, payloadOf: (digest: string) => string | undefined): void {
     this.#count.clear()
-    for (const execution of view.executions.values())
+    for (const execution of view.executions.values()) {
+      const released = releasedMaterials(execution)
       for (const item of viewItems(execution))
-        if (item.open) this.#add(itemRefs(item.family, item.body, payloadOf))
+        if (item.open && !(item.family === 'material' && released.has(item.item)))
+          this.#add(itemRefs(item.family, item.body, payloadOf))
+    }
   }
 
   // Applies one publication; answers the blocks no open item names anymore.
@@ -92,7 +108,16 @@ export class ContentRefs {
   }
 }
 
-export type BlockCaches = Readonly<{ blobs: Map<string, string>; parsed: Map<string, unknown> }>
+export type BlockCaches = Readonly<{
+  blobs: Map<string, string>
+  parsed: Map<string, unknown>
+  owned: Set<string>
+}>
+
+const forget = (caches: BlockCaches, row: string): void => {
+  caches.blobs.delete(row)
+  caches.owned.delete(row)
+}
 
 // After a publication: counts its item changes and drops from the caches the blocks no open item names.
 export function releaseBlocks(
@@ -102,7 +127,7 @@ export function releaseBlocks(
 ): string[] {
   const released = refs.apply(changes, digest => caches.blobs.get(blobRowDigest(digest)))
   for (const digest of released) {
-    caches.blobs.delete(blobRowDigest(digest))
+    forget(caches, blobRowDigest(digest))
     caches.parsed.delete(digest)
   }
   return released
@@ -111,6 +136,6 @@ export function releaseBlocks(
 // Before a rebuild: counts the view and keeps in the caches only the blocks its open items name.
 export function keepNamed(refs: ContentRefs, view: SessionJournalView, caches: BlockCaches): void {
   refs.reset(view, digest => caches.blobs.get(blobRowDigest(digest)))
-  for (const row of caches.blobs.keys()) if (!refs.has(factDigestOf(row))) caches.blobs.delete(row)
+  for (const row of caches.blobs.keys()) if (!refs.has(factDigestOf(row))) forget(caches, row)
   for (const digest of caches.parsed.keys()) if (!refs.has(digest)) caches.parsed.delete(digest)
 }

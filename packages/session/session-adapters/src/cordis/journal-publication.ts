@@ -4,6 +4,8 @@ import {
   EXECUTION_BATCH_MAX_FACTS,
   type ExecutionBlobRecord,
   type ExecutionFactRecord,
+  type ExecutionItemContentRecord,
+  type ExecutionItemKeyRecord,
   type ExecutionItemRecord,
 } from '@omne-harness/session-storage-sql/participants'
 import type { JsonValue } from '@omne-harness/sql-contract'
@@ -13,8 +15,12 @@ import {
   batchBytes,
   contentPath,
   foldItems,
+  materialHeld,
   receiptOf,
   type BatchEnvelope,
+  type ExecutionView,
+  type FactBody,
+  type FactOf,
   type ItemChange,
   type EventView,
   type Mint,
@@ -27,7 +33,14 @@ import type { MemoryExecution } from '../testing/journal.ts'
 import type { CommonRoot } from '../testing/root.ts'
 import { ANSWER_FAMILY } from '../testing/closed-items.ts'
 import { ASSOCIATION_FAMILY, ENTRY_FAMILY, ORIGIN_FAMILY } from '../testing/closed-rows.ts'
-import { coreBlobRows, type DerivedFact, type EventProjection } from './journal-batch.ts'
+import { refsIn } from './content-refs.ts'
+import {
+  blobRef,
+  blobRowDigest,
+  coreBlobRows,
+  type DerivedFact,
+  type EventProjection,
+} from './journal-batch.ts'
 
 export const JOURNAL_PROVIDER = 'session-log-journal'
 
@@ -56,6 +69,7 @@ export type PublicationInput = Readonly<{
   // The core's closed items before the write: read back, so not published again unless changed.
   closedBefore: ReadonlyMap<string, unknown>
   stored: (row: string) => boolean
+  owned: (row: string) => boolean
   after: CommonRoot
   own: MemoryExecution | undefined
   appended: readonly PublishedBatch[]
@@ -75,6 +89,8 @@ export type Prepared = Readonly<{
   view: SessionJournalView
   items: readonly ExecutionItemRecord[]
   changes: readonly ItemChange[]
+  contents: readonly ExecutionItemContentRecord[]
+  discards: readonly ExecutionItemKeyRecord[]
 }>
 
 const BORN_CLOSED: ReadonlySet<string> = new Set([
@@ -105,13 +121,62 @@ function answersOf(
   return succeed(out)
 }
 
+const ownedBy = (fact: FactBody): fact is FactOf<'material.preserved'> =>
+  fact.kind === 'material.preserved' && fact.readers === 'until-release'
+
+function ownedContents(
+  execution: string,
+  facts: readonly FactBody[],
+  blobs: ReadonlyMap<string, unknown>,
+): Readonly<{
+  contents: ExecutionItemContentRecord[]
+  only: ReadonlySet<string>
+  shared: ReadonlySet<string>
+}> {
+  const owned = facts.filter(ownedBy)
+  const shared = new Set<string>()
+  for (const fact of facts) if (!ownedBy(fact)) refsIn(fact, shared)
+  const contents = owned.map(fact => {
+    const value = blobs.get(fact.value.digest)
+    if (value === undefined)
+      throw new TypeError(`the core holds no content of the material ${fact.source.record}`)
+    const payload = canonical(value)
+    if (blobRef(payload).digest !== blobRowDigest(fact.value.digest))
+      throw new TypeError(`the material ${fact.source.record} does not hash to its digest`)
+    return { execution, family: 'material', item: canonical(fact.source), payload }
+  })
+  const only = new Set(owned.map(fact => fact.value.digest).filter(digest => !shared.has(digest)))
+  return { contents, only, shared }
+}
+
+function discardsOf(
+  execution: string,
+  before: ExecutionView | undefined,
+  after: ExecutionView | undefined,
+): ExecutionItemKeyRecord[] {
+  if (before === undefined) return []
+  const out: ExecutionItemKeyRecord[] = []
+  for (const [key, item] of before.materials) {
+    if (item.readers !== 'until-release' || !materialHeld(item, before, key)) continue
+    const now = after?.materials.get(key)
+    if (after === undefined || now === undefined || !materialHeld(now, after, key))
+      out.push({ execution, family: 'material', item: key })
+  }
+  return out
+}
+
 // One write's batch: envelope, facts with projections, new blocks, the view and items after it.
 export function preparePublication(input: PublicationInput): Outcome<Prepared, Failure> {
   const { after, own, appended, method, kinds, project } = input
-  const blobs = new Map<string, ExecutionBlobRecord>()
-  coreBlobRows(after.agent.blobs, after.agent.blobs.written(), input.stored, blobs)
   const execution = appended[0]!.execution
   const facts = appended.flatMap(batch => batch.facts)
+  const { contents, only, shared } = ownedContents(execution, facts, after.agent.blobs)
+  const blobs = new Map<string, ExecutionBlobRecord>()
+  const written = [
+    ...[...after.agent.blobs.written()].filter(digest => !only.has(digest)),
+    ...[...shared].filter(digest => input.owned(blobRowDigest(digest))),
+  ]
+  coreBlobRows(after.agent.blobs, written, input.stored, blobs)
   const envelope: BatchEnvelope = { ...appended.at(-1)!.envelope, kinds: [...kinds] }
   const pub = input.published + 1
   const landed = foldItems(input.view, {
@@ -194,6 +259,12 @@ export function preparePublication(input: PublicationInput): Outcome<Prepared, F
       ...answers.ok,
     ],
     changes: landed.changes,
+    contents,
+    discards: discardsOf(
+      execution,
+      input.view.executions.get(execution as AgentExecutionId),
+      landed.view.executions.get(execution as AgentExecutionId),
+    ),
     batchBytes: batchBytes({
       execution: execution as AgentExecutionId,
       envelope,

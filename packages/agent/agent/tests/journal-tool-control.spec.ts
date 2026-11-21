@@ -53,6 +53,7 @@ const associated = {
   purpose: 'action',
   association: 'associated',
   reference: invocation,
+  acceptance: 'accepted',
 } as const satisfies PendingCall
 const model = {
   ...common,

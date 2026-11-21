@@ -46,6 +46,8 @@ type Item = Readonly<{
   open: boolean
   body: string
 }>
+type ItemKey = Readonly<{ execution: string; family: string; item: string }>
+type Content = ItemKey & Readonly<{ payload: string }>
 type Admission = Readonly<{
   input: string
   execution: string
@@ -67,6 +69,8 @@ type Write = Readonly<{
   facts: readonly Fact[]
   blobs: readonly Blob[]
   items: readonly Item[]
+  contents: readonly Content[]
+  discards: readonly ItemKey[]
   boundaries: readonly Boundary[]
   admissions: readonly Admission[]
 }>
@@ -165,6 +169,25 @@ function parseItem(execution: string): (item: Json) => Item | null {
   }
 }
 
+function parseItemKey(execution: string): (item: Json) => ItemKey | null {
+  return raw => {
+    const owner = raw['execution'] ?? execution
+    const { family, item } = raw
+    return isText(owner) && isText(family) && typeof item === 'string'
+      ? { execution: owner, family, item }
+      : null
+  }
+}
+
+function parseContent(execution: string): (item: Json) => Content | null {
+  const key = parseItemKey(execution)
+  return raw => {
+    const found = key(raw)
+    const { payload } = raw
+    return found !== null && typeof payload === 'string' ? { ...found, payload } : null
+  }
+}
+
 function parseAdmission(item: Json): Admission | null {
   const { input, execution, operation, attachment, attempt } = item
   const named = attempt === undefined || attempt === null || isText(attempt)
@@ -228,11 +251,15 @@ function parseWrite(raw: JsonValue | undefined): Write | string {
   const facts = listOf(raw['facts'], parseFact(head.execution))
   const blobs = listOf(raw['blobs'] ?? [], parseBlob)
   const items = listOf(raw['items'] ?? [], parseItem(head.execution))
+  const contents = listOf(raw['contents'] ?? [], parseContent(head.execution))
+  const discards = listOf(raw['discards'] ?? [], parseItemKey(head.execution))
   const boundaries = listOf(raw['boundaries'], parseBoundary)
   const admissions = listOf(raw['admissions'], parseAdmission)
   if (facts === null) return 'a fact'
   if (blobs === null) return 'a blob'
   if (items === null) return brokenItem(raw['items'], head.execution)
+  if (contents === null) return 'an item content'
+  if (discards === null) return 'an item content discard'
   if (boundaries === null) return 'a boundary'
   if (admissions === null) return 'an admission'
   if (facts.length === 0) return 'no fact'
@@ -244,7 +271,7 @@ function parseWrite(raw: JsonValue | undefined): Write | string {
   const keys = items.map(item => JSON.stringify([item.execution, item.family, item.item]))
   const twice = keys.find((key, at) => keys.indexOf(key) !== at)
   if (twice !== undefined) return `the item ${twice} is written twice`
-  return { ...head, facts, blobs, items, boundaries, admissions }
+  return { ...head, facts, blobs, items, contents, discards, boundaries, admissions }
 }
 
 const json = (value: JsonValue): string => JSON.stringify(value)
@@ -320,6 +347,21 @@ function writeItems(port: Executor, write: Write, pub: bigint): void {
 
 function storeBlobs(port: Executor, tenant: string, blobs: readonly Blob[]): void {
   for (const blob of blobs) storeSharedBlob(port, tenant, blob)
+}
+
+function writeContents(port: Executor, write: Write): void {
+  for (const content of write.contents)
+    port.execute(
+      'INSERT INTO er_item_content (tenant, execution, family, item, payload) VALUES (?, ?, ?, ?, ?)',
+      [write.tenant, content.execution, content.family, content.item, packText(content.payload)],
+    )
+  for (const key of write.discards)
+    port.execute(`DELETE FROM er_item_content WHERE ${ITEM_KEY}`, [
+      write.tenant,
+      key.execution,
+      key.family,
+      key.item,
+    ])
 }
 
 function writeIndex(port: Executor, write: Write): void {
@@ -408,6 +450,7 @@ function publish(port: Executor, write: Write): ParticipantReply {
   const next = published + 1n
   appendBatch(port, write, next)
   writeItems(port, write, next)
+  writeContents(port, write)
   storeBlobs(port, tenant, write.blobs)
   port.execute(
     'INSERT INTO er_operation (tenant, operation, session, execution, digest, published) VALUES (?, ?, ?, ?, ?, ?)',

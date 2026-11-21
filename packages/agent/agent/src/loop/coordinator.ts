@@ -1804,7 +1804,8 @@ function coordinate<P>(
     unacceptedToolActions.delete(action.id)
     if (result.kind === 'association-unknown') return succeed({ batch: next, progressed: false })
     if (result.kind === 'accepted') heldTools.add(action.id)
-    return associate(next, action, pending, result.reference)
+    const acceptance = result.kind === 'accepted' ? 'accepted' : 'unknown'
+    return associate(next, action, pending, result.reference, acceptance)
   }
 
   async function associate(
@@ -1812,6 +1813,7 @@ function coordinate<P>(
     action: Action,
     pending: PendingCall,
     reference: AssociatedToolCall['reference'],
+    acceptance: AssociatedToolCall['acceptance'],
   ): Promise<Outcome<Sent, Failure>> {
     const associated: PendingCall = {
       ...pending,
@@ -1819,6 +1821,7 @@ function coordinate<P>(
       purpose: 'action',
       association: 'associated',
       reference,
+      acceptance,
     }
     const next = replaceSlot(replaceAction(batch, { ...action, call: associated }), {
       kind: 'dispatched',

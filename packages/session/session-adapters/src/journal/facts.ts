@@ -20,6 +20,7 @@ import type {
   HandoffReference,
   InputBatch,
   InputId,
+  MaterialReaders,
   ModelReplyAdmission,
   PassageId,
   PendingCall,
@@ -348,6 +349,7 @@ export type FactBody =
       source: DurableEvidence
       value: Ref
       consumer: ConsumerRef
+      readers: MaterialReaders
     }>
   | Readonly<{
       kind: 'op.excluded'

@@ -47,6 +47,9 @@ export { advances, fold, foldAll, foldItems } from './fold.ts'
 export {
   callHeld,
   finishing,
+  materialHeld,
+  materialReleased,
+  releasedMaterials,
   sourceOpen,
   itemChanges,
   viewItems,

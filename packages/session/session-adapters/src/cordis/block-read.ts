@@ -1,5 +1,5 @@
 import type { ExecutionView } from '../journal/index.ts'
-import { listedDigests, refsIn } from './content-refs.ts'
+import { listedDigests, recordRefs, refsIn } from './content-refs.ts'
 import { blobRowDigest } from './journal-batch.ts'
 import { readBlob, type Reader } from './journal-read.ts'
 
@@ -30,7 +30,7 @@ export async function fetchNamed(
   const lists: string[] = []
   const cursors: string[] = []
   for (const execution of executions) {
-    for (const ref of refsIn(execution)) named.add(blobRowDigest(ref))
+    for (const ref of recordRefs(execution)) named.add(blobRowDigest(ref))
     for (const list of execution.finish.lists.values()) lists.push(list.issued.listed.digest)
     for (const candidate of execution.finish.candidates) cursors.push(candidate.cursor.digest)
   }

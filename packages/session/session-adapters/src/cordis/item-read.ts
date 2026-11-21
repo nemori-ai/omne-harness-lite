@@ -21,7 +21,7 @@ import type { Prepared } from './journal-publication.ts'
 import { READ_ATTEMPTS, type Reader } from './journal-read.ts'
 import { refsIn } from './content-refs.ts'
 import { fetchBlobClosure } from './block-read.ts'
-import { blobRowDigest, factDigestOf } from './journal-batch.ts'
+import { blobRef, blobRowDigest, factDigestOf } from './journal-batch.ts'
 import { itemText, underText, type ItemRef } from '../testing/closed-items.ts'
 import type { CommonRoot, JournalCell } from '../testing/root.ts'
 import type { ProjectedRecords } from '../testing/journal-records.ts'
@@ -34,6 +34,16 @@ export type ItemsRead =
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
 const unread = (diagnostic: string): ItemsRead => ({ kind: 'unavailable', diagnostic })
+
+export function contentsOf(items: readonly ExecutionItem[], into: Map<string, string>): void {
+  for (const { content } of items)
+    if (content !== undefined) into.set(blobRef(content).digest, content)
+}
+
+const released = (item: ExecutionItem): boolean =>
+  item.family === 'material' &&
+  (item.body as Readonly<{ readers?: unknown }> | null)?.readers === 'until-release' &&
+  item.content === undefined
 
 // The open items of one execution (named families or all; `under`: a key prefix), at one head.
 export async function readOpenItems(
@@ -178,7 +188,10 @@ export async function fetchClosed(
     if (typeof items === 'string') return items
     for (const item of items)
       lender.fetched.set(itemText({ execution, family: item.family, item: item.item }), item.body)
-    const rows = items.flatMap(item => [...refsIn(item.body)].map(blobRowDigest))
+    contentsOf(items, lender.lentBlocks)
+    const rows = items
+      .filter(item => !released(item))
+      .flatMap(item => [...refsIn(item.body)].map(blobRowDigest))
     const missing = await fetchBlobClosure(read, lender.tenantText, rows, lender.lentBlocks)
     if (missing !== null) return `the content block ${missing} of a closed item is not readable`
   }
@@ -261,6 +274,7 @@ export type OpenViewRead =
       published: number
       views: readonly ExecutionView[]
       full: readonly ExecutionView[]
+      contents: ReadonlyMap<string, string>
     }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
@@ -274,6 +288,7 @@ export async function readOpenView(
   for (let attempt = 0; attempt < READ_ATTEMPTS; attempt += 1) {
     const views: ExecutionView[] = []
     const full: ExecutionView[] = []
+    const contents = new Map<string, string>()
     let head: number | null = null
     let moved = false
     for (const execution of executions) {
@@ -292,6 +307,7 @@ export async function readOpenView(
         break
       }
       head = found.published
+      contentsOf(found.items, contents)
       views.push(
         viewOfItems(
           id,
@@ -300,7 +316,7 @@ export async function readOpenView(
       )
       if (finishes) full.push(viewOfItems(id, found.items))
     }
-    if (!moved) return { kind: 'read', published: head ?? published, views, full }
+    if (!moved) return { kind: 'read', published: head ?? published, views, full, contents }
   }
   return {
     kind: 'unavailable',

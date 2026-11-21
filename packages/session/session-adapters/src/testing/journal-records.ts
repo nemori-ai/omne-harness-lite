@@ -25,6 +25,7 @@ import {
   checkpointOf,
   custodiesUnder,
   handoffKey,
+  materialReleased,
   type CustodyView,
   receivedBy,
   receivedViews,
@@ -694,20 +695,22 @@ export function projectReceiving(
         },
       })
     }
-    for (const material of view.materials.values())
+    for (const [key, material] of view.materials) {
+      if (materialReleased(material, view, key)) continue
       items.push({
         pub: material.pub,
         ord: 1,
         apply: () => {
-          const key = canonical(material.source)
           if (state.materials.has(key)) return
           state.materials.set(key, {
             tenant: tenantText,
             execution: execution.id,
             value: blob(context.blobs, material.value),
+            readers: material.readers,
           })
         },
       })
+    }
   }
   items.sort((left, right) => left.pub - right.pub || left.ord - right.ord)
   for (const item of items) item.apply()

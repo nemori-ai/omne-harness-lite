@@ -161,9 +161,13 @@ export const ITEM_SCHEMA: readonly string[] = [
     CHECK (open IN (0, 1) AND pub > 0),
     PRIMARY KEY (tenant, execution, family, item)) STRICT, WITHOUT ROWID`,
   'CREATE INDEX er_item_open ON er_item (tenant, execution, family, item) WHERE open = 1',
+  `CREATE TABLE er_item_content (
+    tenant TEXT NOT NULL, execution TEXT NOT NULL, family TEXT NOT NULL, item TEXT NOT NULL,
+    payload BLOB NOT NULL,
+    PRIMARY KEY (tenant, execution, family, item)) STRICT, WITHOUT ROWID`,
 ]
 
-export const ITEM_TABLES: readonly string[] = ['er_item']
+export const ITEM_TABLES: readonly string[] = ['er_item', 'er_item_content']
 
 export const ITEM_MIGRATION = Object.freeze({
   owner: 'execution-record',
