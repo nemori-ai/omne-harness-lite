@@ -41,8 +41,6 @@
     "packages/session/session-ui/src/view/background-pane.tsx | .omne-background-hint": 1,
     "packages/session/session-ui/src/view/background-pane.tsx | .omne-background-notice": 1,
     "packages/session/session-ui/src/view/background-pane.tsx | .omne-background-pane": 1,
-    "packages/session/session-ui/src/view/parts.tsx | .omne-card": 1,
-    "packages/session/session-ui/src/view/parts.tsx | .omne-note": 1,
     "packages/session/session-ui/src/view/session-work.tsx | .omne-session-work-part": 1,
     "packages/session/session-ui/src/view/waiting-notice.tsx | .omne-waiting": 1,
     "packages/tool/tool-ui/src/view/call-output.tsx | .omne-call-output": 1,

@@ -1,116 +1,168 @@
-import { Disclosure, Prose, StatusPill } from '@omne-harness/ui-kit'
-import { memo, type ReactNode } from 'react'
+import {
+  CodeSurface,
+  CommandsIcon,
+  DisclosureContent,
+  FactList,
+  FactRow,
+  ProcessIcon,
+  Prose,
+  StateWord,
+  TraceHeader,
+  type Icon,
+} from '@omne-harness/ui-kit'
+import { memo, useId, useState, type ReactNode } from 'react'
 import type { Item, Part } from '../model/conversation.ts'
-import type { Plain } from '../model/plain.ts'
+import { isRecord, type Plain } from '../model/plain.ts'
 
-function Expandable({
-  title,
-  badge,
+type ToolCallPart = Extract<Part, { kind: 'tool-call' }>
+
+/** A process line (`TraceRow` family): icon, name, state word, unfolding in place; quiet, the figure speaks. */
+function ProcessLine({
+  icon,
+  name,
+  word,
+  live = false,
+  light = false,
   children,
 }: {
-  readonly title: ReactNode
-  readonly badge?: string | undefined
+  readonly icon?: Icon
+  readonly name: ReactNode
+  readonly word?: ReactNode
+  readonly live?: boolean
+  readonly light?: boolean
   readonly children: ReactNode
 }) {
+  const [open, setOpen] = useState(false)
+  const region = useId()
   return (
-    <Disclosure
-      className="omne-card"
-      label={
-        <>
-          {title}
-          {badge === undefined ? null : <StatusPill tone="neutral">{badge}</StatusPill>}
-        </>
-      }
-    >
-      {children}
-    </Disclosure>
+    <div className="omne-process" data-weight={light ? 'light' : undefined}>
+      <TraceHeader
+        state={live ? 'live' : 'settled'}
+        quiet
+        announce={false}
+        {...(icon === undefined ? {} : { icon })}
+        label={
+          <span className="omne-process-label">
+            {name}
+            {word}
+          </span>
+        }
+        expanded={open}
+        controls={region}
+        onToggle={() => setOpen(!open)}
+      />
+      <div id={region}>
+        <DisclosureContent open={open}>
+          <div className="omne-process-body">{children}</div>
+        </DisclosureContent>
+      </div>
+    </div>
   )
 }
 
-function entriesOf(value: Plain): readonly (readonly [string, Plain])[] | null {
-  if (Array.isArray(value))
-    return (value as readonly Plain[]).map((item, at) => [String(at), item] as const)
-  if (typeof value === 'object' && value !== null) return Object.entries(value)
-  return null
-}
+const isEmptyObject = (value: Plain): boolean => isRecord(value) && Object.keys(value).length === 0
 
-function ValueView({ name, value }: { readonly name: string; readonly value: Plain }) {
-  const entries = entriesOf(value)
-  if (entries === null) return <span className="omne-argument-value">{String(value)}</span>
+const summary = (value: Plain): string =>
+  JSON.stringify(value, function (this: unknown, key: string, item: Plain) {
+    return key !== '' && !Array.isArray(this) && isEmptyObject(item) ? undefined : item
+  })
+
+function Arguments({ value }: { readonly value: Plain }) {
+  if (value === null || isEmptyObject(value)) return null
+  if (!isRecord(value)) return <CodeSurface name="参数" text={summary(value)} />
+  const rows = Object.entries(value).filter(([, item]) => !isEmptyObject(item))
+  if (rows.length === 0) return null
   return (
-    <ul className="omne-arguments" aria-label={name}>
-      {entries.map(([key, item]) => (
-        <li key={key}>
-          <span className="omne-argument-name">{key}</span>
-          <ValueView name={key} value={item} />
-        </li>
-      ))}
-    </ul>
+    <FactList aria-label="参数">
+      {rows.map(([name, item]) => {
+        const nested = typeof item === 'object' && item !== null
+        const text = nested ? summary(item) : String(item)
+        return (
+          <FactRow key={name} term={<code className="omne-process-term">{name}</code>}>
+            <span
+              className="omne-process-value"
+              data-nested={nested || undefined}
+              title={nested ? text : undefined}
+            >
+              {text}
+            </span>
+          </FactRow>
+        )
+      })}
+    </FactList>
   )
 }
 
-const TOOL_STATE: Readonly<Record<string, string>> = {
-  incomplete: '参数没有生成完',
-  unparsed: '参数解析不了',
-  generating: '参数生成中',
+const RAW_NOTE: Readonly<Record<ToolCallPart['state'], string | null>> = {
+  complete: null,
+  generating: '还在生成',
+  incomplete: '没有生成完',
+  unparsed: '解析不了',
 }
 
-function resultBadge(part: Extract<Part, { kind: 'tool-call' }>): string {
-  if (part.result !== null) return '有结果'
-  return part.ended ? '没有结果' : '等待结果'
-}
-
-function ToolCall({ part }: { readonly part: Extract<Part, { kind: 'tool-call' }> }) {
-  const badge = TOOL_STATE[part.state] ?? resultBadge(part)
+function Result({ parts }: { readonly parts: readonly Part[] }) {
+  const text = parts.flatMap(part => (part.kind === 'text' ? [part.text] : []))
+  const others = parts.filter(part => part.kind !== 'text')
   return (
-    <Expandable
-      title={
-        <>
-          工具 <code>{part.name ?? '（名字还没生成）'}</code>
-        </>
-      }
-      badge={badge}
+    <>
+      {text.length === 0 ? null : <CodeSurface name="结果" text={text.join('\n')} />}
+      <Parts parts={others} live={false} bubble={false} />
+    </>
+  )
+}
+
+/** A tool result carries no outcome, so the transcript knows of no failed call. */
+function toolWord(part: ToolCallPart): Readonly<{ word: ReactNode; live: boolean }> {
+  if (part.result !== null) return { word: <StateWord state="completed" />, live: false }
+  if (part.ended) return { word: <span className="omne-process-word">没有结果</span>, live: false }
+  return { word: <StateWord state="working" />, live: true }
+}
+
+function ToolCall({ part }: { readonly part: ToolCallPart }) {
+  const { word, live } = toolWord(part)
+  const note = RAW_NOTE[part.state]
+  return (
+    <ProcessLine
+      icon={CommandsIcon}
+      name={<code className="omne-process-name">{part.name ?? '（名字还没生成）'}</code>}
+      word={word}
+      live={live}
     >
-      <p className="omne-card-label">参数</p>
       {part.raw === null ? (
-        <ValueView name="参数" value={part.arguments} />
+        <Arguments value={part.arguments} />
       ) : (
-        <pre className="omne-pre">{part.raw}</pre>
-      )}
-      {part.result === null ? null : (
         <>
-          <p className="omne-card-label">结果</p>
-          <PartList parts={part.result.parts} live={false} />
+          <CodeSurface name="参数" text={part.raw} />
+          {note === null ? null : <p className="omne-process-note">{note}</p>}
         </>
       )}
-    </Expandable>
+      {part.result === null ? null : <Result parts={part.result.parts} />}
+    </ProcessLine>
   )
 }
 
-function PartView({ part, live }: { readonly part: Part; readonly live: boolean }) {
+function Reasoning({ text, live }: { readonly text: string; readonly live: boolean }) {
+  return (
+    <ProcessLine
+      icon={ProcessIcon}
+      name="推理"
+      word={<StateWord state={live ? 'thinking' : 'completed'} />}
+      live={live}
+    >
+      <div className="omne-process-reading">
+        <Prose text={text} isAnimating={live} />
+      </div>
+    </ProcessLine>
+  )
+}
+
+const inBubble = (part: Part): boolean =>
+  part.kind === 'text' || part.kind === 'media' || part.kind === 'unknown'
+
+function BubblePart({ part, live }: { readonly part: Part; readonly live: boolean }) {
   switch (part.kind) {
     case 'text':
       return <Prose text={part.text} isAnimating={live} />
-    case 'thinking':
-      return (
-        <Expandable title="推理" badge={live ? '进行中' : undefined}>
-          <Prose text={part.text} isAnimating={live} />
-        </Expandable>
-      )
-    case 'tool-call':
-      return <ToolCall part={part} />
-    case 'tool-result':
-      return (
-        <Expandable
-          title={
-            <>
-              工具结果 <code>{part.callId}</code>
-            </>
-          }
-        >
-          <PartList parts={part.result.parts} live={false} />
-        </Expandable>
-      )
     case 'media':
       return (
         <p className="omne-placeholder">
@@ -119,15 +171,75 @@ function PartView({ part, live }: { readonly part: Part; readonly live: boolean 
       )
     case 'unknown':
       return <p className="omne-placeholder">不认识的内容种类：{part.partKind}</p>
+    default:
+      return null
   }
 }
 
-function PartList({ parts, live }: { readonly parts: readonly Part[]; readonly live: boolean }) {
+function LinePart({ part, live }: { readonly part: Part; readonly live: boolean }) {
+  switch (part.kind) {
+    case 'thinking':
+      return <Reasoning text={part.text} live={live} />
+    case 'tool-call':
+      return <ToolCall part={part} />
+    case 'tool-result':
+      return (
+        <ProcessLine
+          icon={CommandsIcon}
+          name={
+            <span>
+              工具结果 <code className="omne-process-name">{part.callId}</code>
+            </span>
+          }
+        >
+          <Result parts={part.result.parts} />
+        </ProcessLine>
+      )
+    default:
+      return null
+  }
+}
+
+type Run = Readonly<{ key: string; words: readonly Part[] }> | Readonly<{ key: string; line: Part }>
+
+function runsOf(parts: readonly Part[]): readonly Run[] {
+  const runs: Run[] = []
+  let words: Part[] | null = null
+  for (const part of parts) {
+    if (!inBubble(part)) {
+      words = null
+      runs.push({ key: part.key, line: part })
+    } else if (words === null) {
+      words = [part]
+      runs.push({ key: part.key, words })
+    } else words.push(part)
+  }
+  return runs
+}
+
+function Parts({
+  parts,
+  live,
+  bubble,
+}: {
+  readonly parts: readonly Part[]
+  readonly live: boolean
+  readonly bubble: boolean
+}) {
+  const last = parts.at(-1)?.key
   return (
     <>
-      {parts.map(part => (
-        <PartView key={part.key} part={part} live={live} />
-      ))}
+      {runsOf(parts).map(run =>
+        'line' in run ? (
+          <LinePart key={run.key} part={run.line} live={live && run.key === last} />
+        ) : (
+          <div key={run.key} className={bubble ? 'omne-message-body' : 'omne-process-reading'}>
+            {run.words.map(part => (
+              <BubblePart key={part.key} part={part} live={live} />
+            ))}
+          </div>
+        ),
+      )}
     </>
   )
 }
@@ -154,18 +266,14 @@ export const ItemView = memo(function ItemView({
       return (
         <article className="omne-message" data-role={item.role} data-live={item.live}>
           <span className="omne-message-speaker">{SPEAKER[item.role]}</span>
-          <div className="omne-message-body">
-            <PartList parts={item.parts} live={item.live} />
-          </div>
+          <Parts parts={item.parts} live={item.live} bubble />
         </article>
       )
     case 'note':
       return (
-        <div className="omne-note">
-          <Expandable title={item.label}>
-            <PartList parts={item.parts} live={false} />
-          </Expandable>
-        </div>
+        <ProcessLine name={item.label} light>
+          <Parts parts={item.parts} live={false} bubble={false} />
+        </ProcessLine>
       )
     case 'marker':
       return (

@@ -421,7 +421,12 @@
   color: var(--omne-ink-muted);
 }
 
+/* A message: its words in bubbles, its reasoning and tool calls as process lines between them (C9: no card holds
+   another). */
 .omne-message {
+  display: flex;
+  flex-direction: column;
+  gap: var(--omne-space-inline);
   width: 100%;
   min-width: 0;
 }
@@ -502,34 +507,64 @@
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-caption);
 }
-.omne-pre {
-  margin: 0;
-  overflow-x: auto;
-  font-family: var(--omne-font-mono);
+/* A process line (run-line.tsx `RunLineRow` in the source): an icon, a name and a state word on one line, unfolding
+   in place under the name. The tool's name is mono; the lightest line (a reminder) has no icon and no word. */
+.omne-process {
+  min-width: 0;
+}
+.omne-process-label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--omne-space-inline);
+  min-width: 0;
+}
+.omne-process[data-weight='light'] .omne-process-label {
   font-size: var(--omne-text-caption);
+  font-weight: var(--omne-weight-regular);
+}
+.omne-process-name {
+  font-family: var(--omne-font-mono);
+  font-weight: var(--omne-weight-regular);
+}
+.omne-process-word {
+  color: var(--omne-ink-muted);
+  font-weight: var(--omne-weight-regular);
+}
+.omne-process-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--omne-space-inline);
+  min-width: 0;
+  padding: var(--spacing) 0 var(--omne-space-inline) calc(var(--spacing) * 5.5);
+}
+/* Reasoning and a reminder's words: the reading face in weak ink, no bubble. */
+.omne-process-reading {
+  min-width: 0;
+  color: var(--omne-ink-muted);
+  font-family: var(--omne-font-reading);
+  font-size: var(--omne-text-body);
+  line-height: var(--omne-leading-reading);
+  letter-spacing: var(--omne-reading-tracking);
+  overflow-wrap: anywhere;
+}
+.omne-process-term,
+.omne-process-value {
+  font-family: var(--omne-font-mono);
+}
+.omne-process-value {
   white-space: pre-wrap;
 }
-.omne-arguments {
+/* A nested value is one line; the whole of it is in the hint. */
+.omne-process-value[data-nested] {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.omne-process-note {
   margin: 0;
-  padding: 0 0 0 12px;
-  list-style: none;
-  font-size: var(--omne-text-caption);
-}
-.omne-arguments > li {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 8px;
-}
-.omne-arguments > li > .omne-arguments {
-  flex-basis: 100%;
-}
-.omne-argument-name {
   color: var(--omne-ink-muted);
-  font-family: var(--omne-font-mono);
-}
-.omne-argument-value {
-  font-family: var(--omne-font-mono);
-  overflow-wrap: anywhere;
+  font-size: var(--omne-text-caption);
 }
 /* The page's one raised sheet: the window radius, one hairline and the field's paper. Focus deepens the hairline and
    draws no ring. It never grows past its cap; inside it only the words scroll (conversation-patterns.css
@@ -586,11 +621,6 @@
   margin-left: auto;
 }
 .omne-live-status {
-  color: var(--omne-ink-muted);
-  font-size: var(--omne-text-caption);
-}
-.omne-card-label {
-  margin: 8px 0 4px;
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-caption);
 }
