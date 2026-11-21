@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   forkPointAfterRows,
+  forkPointText,
   judgeForkPoint,
   ownPositionAfter,
   parseForkPoint,
@@ -92,6 +93,32 @@ const CELLS: readonly Cell[] = [
     answer: 'boundary',
   },
   {
+    name: 'an upper bound with a number in it is refused',
+    point: { upper: '4x' },
+    answer: 'out-of-bounds',
+  },
+  {
+    name: 'an upper bound that ends in a number is refused',
+    point: { upper: 'x4' },
+    answer: 'out-of-bounds',
+  },
+  {
+    name: 'a position that starts as a number is refused',
+    point: { position: '40x' },
+    answer: 'out-of-bounds',
+  },
+  {
+    name: 'part of the view of an idle source is no boundary',
+    facts: { next: null, running: false },
+    answer: 'not-a-boundary',
+  },
+  {
+    name: 'the last row is no boundary while a row is said to follow it',
+    point: { upper: '6' },
+    facts: { next: 'user', running: false },
+    answer: 'not-a-boundary',
+  },
+  {
     name: 'a position that is no number is refused',
     point: { position: '' },
     answer: 'out-of-bounds',
@@ -127,6 +154,7 @@ describe('the position axis of a forked session goes on after the fork point (SF
       upper: '3',
       position: '44',
     })
+    expect(forkPointAfterRows('key/epoch:0', rows.slice(0, 2), '44')?.upper).toBe('1')
     expect(forkPointAfterRows('key/epoch:0', rows.slice(0, 1), '44')).toBeNull()
     expect(forkPointAfterRows('key/epoch:0', [{ seq: '1', role: 'assistant' }], '44')).toBeNull()
   })
@@ -134,9 +162,11 @@ describe('the position axis of a forked session goes on after the fork point (SF
 
 describe('a fork point travels as one text', () => {
   it('reads back the point it wrote and nothing else', () => {
-    const text = JSON.stringify([POINT.epoch, POINT.upper, POINT.position])
+    const text = forkPointText(POINT)
+    expect(text).toBe(JSON.stringify([POINT.epoch, POINT.upper, POINT.position]))
     expect(parseForkPoint(text)).toEqual(POINT)
-    for (const bad of ['', '[]', '["e","1"]', '["e",1,"2"]', '{"epoch":"e"}', 'null'])
-      expect(parseForkPoint(bad)).toBeNull()
+    const bad = ['', '[]', '["e","1"]', '["e","1","2","3"]', '[1,"1","2"]', '["e",1,"2"]']
+    for (const value of [...bad, '["e","1",2]', '{"epoch":"e"}', 'null'])
+      expect(parseForkPoint(value)).toBeNull()
   })
 })

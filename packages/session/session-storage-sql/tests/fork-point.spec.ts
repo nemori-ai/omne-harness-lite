@@ -105,6 +105,15 @@ it('names no point without an assistant message among the newest rows, and takes
   }
 })
 
+it('refuses a request that names no session', () => {
+  const s = scene(['user', 'assistant'])
+  try {
+    expect(() => readForkPoint.read({ tenant: 't' }, s.port as never)).toThrow('invalid input')
+  } finally {
+    s.db.close()
+  }
+})
+
 it('answers absent for a session the tenant has none of', () => {
   const s = scene(['user', 'assistant'])
   try {
