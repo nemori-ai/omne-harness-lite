@@ -37,7 +37,6 @@ export function createPdfTextEngine(): ConverterEngine {
   return {
     declaration: DECLARATION,
     async convert(input) {
-      if (input.signal.aborted) return CANCELLED
       const bytes = await bytesOf(input)
       const read = await extractText(bytes, { mergePages: true }).catch(() => undefined)
       if (input.signal.aborted) return CANCELLED

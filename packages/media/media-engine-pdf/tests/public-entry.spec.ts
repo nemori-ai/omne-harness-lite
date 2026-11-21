@@ -49,6 +49,7 @@ describe('the engine pdf.extract-text', () => {
     expect(declaration).toMatchObject({ name: 'pdf.extract-text', egress: { kind: 'in-process' } })
     expect(engineAccepts(declaration, 'application/pdf')).toBe(true)
     expect(engineAccepts(declaration, 'image/png')).toBe(false)
+    expect(engineAccepts(declaration, 'application/zip')).toBe(false)
   })
 
   it.each(engineConformanceCases)('passes the conformance case: $name', async item => {
@@ -66,13 +67,15 @@ describe('the engine pdf.extract-text', () => {
   it('writes the radicals a font maps ideographs to as the ideographs, and leaves the rest as written', async () => {
     const output = await createPdfTextEngine().convert(inputOf(sample('chinese.pdf')))
     if (output.kind !== 'converted') throw new Error(JSON.stringify(output))
-    expect(output.text).toContain('第一、二项通过，第十项待议。')
-    expect(output.text).toContain('口令：蓝色长颈鹿四一七二')
+    expect(output.text).toBe('会议纪要\n第一、二项通过，第十项待议。\n口令：蓝色长颈鹿四一七二')
     expect(output.text).not.toMatch(/[\u2E80-\u2FDF]/u)
   })
 
-  it('says a PDF with no text layer, and a file that is no PDF, cannot be converted', async () => {
+  it('says a PDF with no text layer, on one page or on two, and a file that is no PDF, cannot be converted', async () => {
     const engine = createPdfTextEngine()
+    expect(await engine.convert(inputOf(sample('no-text-two-pages.pdf')))).toEqual({
+      kind: 'inconvertible',
+    })
     expect(await engine.convert(inputOf(sample('no-text.pdf')))).toEqual({ kind: 'inconvertible' })
     expect(await engine.convert(inputOf(sample('broken.pdf')))).toEqual({ kind: 'inconvertible' })
   })

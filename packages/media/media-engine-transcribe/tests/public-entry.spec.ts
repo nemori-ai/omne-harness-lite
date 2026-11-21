@@ -5,7 +5,12 @@ import { declarationProblem, engineAccepts, type EngineInput } from '@omne-harne
 import { engineConformanceCases } from '@omne-harness/media-contract/testing'
 import { createTranscribeEngine, type TranscribeKey } from '@omne-harness/media-engine-transcribe'
 
-type Seen = Readonly<{ path: string; authorization: string | undefined; body: unknown }>
+type Seen = Readonly<{
+  path: string
+  authorization: string | undefined
+  contentType: string | undefined
+  body: unknown
+}>
 type Answer = (seen: Seen, response: ServerResponse) => void
 
 const servers: ReturnType<typeof createServer>[] = []
@@ -28,6 +33,7 @@ async function service(answer: Answer) {
       const one = {
         path: request.url ?? '',
         authorization: request.headers.authorization,
+        contentType: request.headers['content-type'],
         body: text === '' ? null : (JSON.parse(text) as unknown),
       }
       seen.push(one)
@@ -121,6 +127,7 @@ describe('the engine voice.transcribe', () => {
       {
         path: '/api/v1/audio/transcriptions',
         authorization: 'Bearer sk-test-0123',
+        contentType: 'application/json',
         body: {
           model: 'openai/whisper-large-v3-turbo',
           input_audio: { data: Buffer.from(bytes).toString('base64'), format: 'wav' },
@@ -134,9 +141,14 @@ describe('the engine voice.transcribe', () => {
     const { seen, endpoint } = await service(json(200, { text: 'x' }))
     const engine = createTranscribeEngine({ endpoint, key: keyed })
     const formats = [
-      ['audio/mpeg', 'mp3'],
-      ['audio/mp4', 'm4a'],
+      ['audio/wav', 'wav'],
       ['audio/x-wav', 'wav'],
+      ['audio/mpeg', 'mp3'],
+      ['audio/flac', 'flac'],
+      ['audio/ogg', 'ogg'],
+      ['audio/webm', 'webm'],
+      ['audio/mp4', 'm4a'],
+      ['audio/aac', 'aac'],
     ] as const
     for (const [mediaType] of formats)
       await engine.convert({ ...inputOf(), media: { ...inputOf().media, mediaType } })
@@ -146,6 +158,48 @@ describe('the engine voice.transcribe', () => {
         input_audio: { data: Buffer.from(wav()).toString('base64'), format },
       })),
     )
+  })
+
+  it('gives no language that is not text, and declares the two parameters it takes', async () => {
+    const { seen, endpoint } = await service(json(200, { text: 'x' }))
+    const engine = createTranscribeEngine({ endpoint, key: keyed })
+    await engine.convert(inputOf(wav(), { language: 7 }))
+    expect(seen[0]?.body).not.toHaveProperty('language')
+    expect(engine.declaration.parameters).toEqual({
+      type: 'object',
+      properties: { model: { type: 'string' }, language: { type: 'string' } },
+      additionalProperties: false,
+    })
+  })
+
+  it('is unavailable when finding the key fails', async () => {
+    const { seen, endpoint } = await service(json(200, { text: 'x' }))
+    const engine = createTranscribeEngine({
+      endpoint,
+      key: () => Promise.reject(new Error('vault')),
+    })
+    expect(await engine.convert(inputOf())).toEqual({ kind: 'failed', reason: 'unavailable' })
+    expect(seen).toEqual([])
+  })
+
+  it.each([
+    ['ECONNREFUSED', 'unavailable'],
+    ['ENOTFOUND', 'unavailable'],
+    ['EAI_AGAIN', 'unavailable'],
+    ['EHOSTUNREACH', 'unavailable'],
+    ['ENETUNREACH', 'unavailable'],
+    ['ECONNRESET', 'outcome-unknown'],
+    [undefined, 'outcome-unknown'],
+  ] as const)('answers a send that fails with %s as %s', async (code, reason) => {
+    const failing = (async () => {
+      throw new TypeError('fetch failed', code === undefined ? undefined : { cause: { code } })
+    }) as typeof fetch
+    const engine = createTranscribeEngine({
+      endpoint: 'https://transcribe.test/x',
+      key: keyed,
+      fetch: failing,
+    })
+    expect(await engine.convert(inputOf())).toEqual({ kind: 'failed', reason })
   })
 
   it('says speech with no words in it cannot be converted', async () => {
