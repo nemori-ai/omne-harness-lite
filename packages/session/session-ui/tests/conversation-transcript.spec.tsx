@@ -157,7 +157,7 @@ it('没有发出：气泡留着，下一行写原因，词用失败色，没有�
   expect(bubble?.querySelector('[data-slot="status-pill"], header')).toBeNull()
 })
 
-it('输入框的占位符照来源：平时「发消息给」加对话头上 Agent 的名字；有在等人答的调用时后面接会排队、不算回答', async () => {
+it('输入框的占位符照来源：平时「发消息给」加对话头上 Agent 的名字；有在等人答的调用时后面接会排队、不算回答；一轮在做时是来源忙时的那一句', async () => {
   const fake = createFakeClient()
   await opened(fake)
   const name = document.querySelector('.omne-session-figure-name')?.textContent
@@ -184,6 +184,9 @@ it('输入框的占位符照来源：平时「发消息给」加对话头上 Age
   ;(await fake.next('read-waiting-calls')).answer({ outcome: 'succeeded', body: { calls: [] } })
   await settle()
   expect(composer().getAttribute('placeholder')).toBe(`发消息给${name}`)
+  await act(async () => fake.observations[0]!.push(stateFrame('run_2', '10')))
+  await settle()
+  expect(composer().getAttribute('placeholder')).toBe('写好下一句，现在即可排队')
 })
 
 it('从搜索跳来的那一行落定一次（不透明度 .6 到 1），不再找它时不动', () => {

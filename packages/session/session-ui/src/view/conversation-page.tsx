@@ -533,8 +533,12 @@ function InputNote({
   )
 }
 
-const placeholderOf = (waiting: number): string =>
-  `发消息给${AGENT_NAME}${waiting > 0 ? '，会排队，不算回答' : ''}`
+const placeholderOf = (waiting: number, busy: boolean): string =>
+  waiting > 0
+    ? `发消息给${AGENT_NAME}，会排队，不算回答`
+    : busy
+      ? '写好下一句，现在即可排队'
+      : `发消息给${AGENT_NAME}`
 
 function Composer({
   state,
@@ -568,7 +572,7 @@ function Composer({
     >
       <Textarea
         aria-label="输入消息"
-        placeholder={placeholderOf(waiting)}
+        placeholder={placeholderOf(waiting, state.run.kind !== 'idle')}
         rows={1}
         value={text}
         onChange={event => setText(event.target.value)}
