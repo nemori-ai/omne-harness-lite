@@ -20,19 +20,19 @@
 
 三方：字节存放、元数据、一个引用方。引用方先持有、后写自己的日志；它代表会话的受理（处理件在提交之前运行），也代表工具结果的提交。
 
-| 模型 | 设计里的操作 |
-| --- | --- |
-| `Begin` | 开始上传：先写下「上传中」的元数据行 |
-| `WritePart`、`Seal` | 字节存放端口的追加与封口；封口的答复之后字节耐久 |
-| `Commit` | 提交上传：一次元数据事务里进暂存，或并入同租户同摘要的活对象；之后才交出引用 |
-| `Abandon` | 放弃上传，或上传期满 |
-| `Expire` | 暂存期满 |
-| `SweepMark` | 到期清扫：一次带条件的元数据写（仍是暂存、仍已到期） |
-| `PurgeBytes`、`PurgeRow` | 删除：先删字节，后删行 |
-| `Hold` | 持有：一次带条件的元数据写，核租户与状态 |
-| `LogCommit` | 引用方把引用写进自己的事实 |
-| `Retry` | 持有之后、写日志之前请求丢失，同一条输入再来 |
-| `Crash` | 进程崩溃：行、字节、持有与日志都在；在途的请求与清扫读到的东西丢失 |
+| 模型 | 设计里的操作 | 源码位置（`packages/` 下） |
+| --- | --- | --- |
+| `Begin` | 开始上传：先写下「上传中」的元数据行 | `media/media/src/uploads.ts` 的 `begin`（`MediaIndex.insertUploading`） |
+| `WritePart`、`Seal` | 字节存放端口的追加与封口；封口的答复之后字节耐久 | `uploads.ts` 的 `append` 与 `sealedBytes`（`ByteStore.seal`）；本机存放在 `media/media-storage-local/src/index.ts` |
+| `Commit` | 提交上传：一次元数据事务里进暂存，或并入同租户同摘要的活对象；之后才交出引用 | `uploads.ts` 的 `commit` 调 `media/media/src/objects.ts` 的 `settle`（`MediaIndex.stageOrMerge`；SQL 在 `media/media-storage-sql/src/store.ts`） |
+| `Abandon` | 放弃上传，或上传期满 | `uploads.ts` 的 `abandon` 调 `objects.ts` 的 `discard`（先标删除，再删） |
+| `Expire` | 暂存期满 | 时钟条件，没有单独的代码：`settle` 写下 `expiresAt`，由下一行的清扫判 |
+| `SweepMark` | 到期清扫：一次带条件的元数据写（仍是暂存、仍已到期） | `media/media/src/custody.ts` 的 `sweep`（`MediaIndex.markDeletingIfExpired`） |
+| `PurgeBytes`、`PurgeRow` | 删除：先删字节，后删行 | `objects.ts` 的 `erase`：`ByteStore.remove` 之后 `MediaIndex.dropRow` |
+| `Hold` | 持有：一次带条件的元数据写，核租户与状态 | `custody.ts` 的 `hold`（`MediaIndex.holdIfLive`；SQL 在 `media/media-storage-sql/src/rows.ts` 的 `hold`） |
+| `LogCommit` | 引用方把引用写进自己的事实 | 会话：`media/media-adapters/src/index.ts` 的处理件先持有，Session 在 `session/session/src/command.ts` 里提交；工具结果：`media-adapters/src/cordis.ts` 提供的 `toolMediaStore` 经 `custody.ts` 的 `put` 带持有方存入 |
+| `Retry` | 持有之后、写日志之前请求丢失，同一条输入再来 | Session 凭 `session/session-contract/src/decide.ts` 的 `commandDigest` 认出同一条输入；对已持有的再持有是幂等的 |
+| `Crash` | 进程崩溃：行、字节、持有与日志都在；在途的请求与清扫读到的东西丢失 | 没有单独的代码：重启之后 `sweep` 经 `MediaIndex.listDeleting` 接着删标了删除的对象 |
 
 ## 配置预期
 
