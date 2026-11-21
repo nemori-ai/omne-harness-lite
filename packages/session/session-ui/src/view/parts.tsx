@@ -229,7 +229,6 @@ function Reasoning({ text, live }: { readonly text: string; readonly live: boole
 const inBubble = (part: Part): boolean =>
   part.kind === 'text' || part.kind === 'media' || part.kind === 'unknown'
 
-/** A block that is not words: the item of `session.block` draws it, else its kind and its words. */
 function MediaPart({ part }: { readonly part: Extract<Part, { kind: 'media' }> }) {
   const slot = useContext(BlockSlotContext)
   const placeholder = (

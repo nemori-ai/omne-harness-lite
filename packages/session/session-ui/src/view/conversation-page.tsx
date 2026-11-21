@@ -54,7 +54,6 @@ export type ConversationPageProps = Readonly<{
   dock: (session: string) => ReactNode
   side: (session: string) => ReactNode
   status?: (session: string) => ReactNode
-  /** The message being written: what it will carry, and what contributions put in the composer. */
   drafts: ComposerDraftStore
   attachments?: (session: string, draft: string) => ReactNode
   /** What draws a block of a message that is not words; `fallback` when nothing does. */
@@ -64,7 +63,6 @@ export type ConversationPageProps = Readonly<{
     fallback: ReactNode,
     revision: string | null,
   ) => ReactNode
-  /** The everyday choices on the open session, at the right of its heading: the model, the workspace and permissions. */
   heading?: (session: string) => ReactNode
   /** Verbs on the open session in its `⋯`, such as archiving it; each tells what came of it through `say`. */
   more?: (session: string, say: (text: string) => void) => ReactNode

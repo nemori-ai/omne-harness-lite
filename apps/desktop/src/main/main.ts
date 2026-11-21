@@ -57,9 +57,6 @@ function utilityWatch(): UtilityWatch & { set(state: UtilityState): void } {
   }
 }
 
-// The default View menu zooms the whole page on Command or Control with = - 0; the page takes
-// those keys for its size tiers, so the View menu keeps every standard item except the zoom roles
-// (and DevTools, which the release build turns off).
 function setAppMenu(): void {
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([

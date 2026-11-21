@@ -262,7 +262,12 @@ export function SessionListView({
   return (
     <nav className="omne-sessions" aria-label="会话列表">
       {sessions.length === 0 ? null : (
-        <Segmented value={relation} onValueChange={setRelation} options={RELATIONS} label="按关系看" />
+        <Segmented
+          value={relation}
+          onValueChange={setRelation}
+          options={RELATIONS}
+          label="按关系看"
+        />
       )}
       {rows.length === 0 ? null : (
         <GlideMenu>

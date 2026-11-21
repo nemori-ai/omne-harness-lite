@@ -86,6 +86,21 @@ function blockDrawer(shell: ShellService, reads: BlockReads, scope: string | und
   )
 }
 
+const fragments = (entries: readonly Readonly<{ id: string; node: ReactNode }>[]) =>
+  entries.map(entry => <Fragment key={entry.id}>{entry.node}</Fragment>)
+
+// The composer reads how many calls wait for a person from what the session work last read; it asks nothing.
+function waitingCallsOf(held: SessionWorkStore) {
+  return {
+    subscribe: (tenant: string, session: string, listener: () => void) =>
+      held.subscribe(tenant, session, listener),
+    count: (tenant: string, session: string) => {
+      const calls = held.read(tenant, session).calls
+      return calls.kind === 'read' ? calls.items.length : 0
+    },
+  }
+}
+
 export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionProtocol>>>({
   name: 'session-ui',
   inject: [sessionClientService],
@@ -104,15 +119,7 @@ export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionPro
     const archive = new ArchiveStore(client)
     const modes = new PermissionModeStore(client)
     const held = new SessionWorkStore(client)
-    // The composer reads how many calls wait for a person from what the session work last read; it asks nothing.
-    const waitingCalls = {
-      subscribe: (tenant: string, session: string, listener: () => void) =>
-        held.subscribe(tenant, session, listener),
-      count: (tenant: string, session: string) => {
-        const calls = held.read(tenant, session).calls
-        return calls.kind === 'read' ? calls.items.length : 0
-      },
-    }
+    const waitingCalls = waitingCallsOf(held)
     const search = new HistorySearchStore(client)
     const focus = new EntryFocus()
     const figure = new SessionFigure(report => shell.figure(report))
@@ -191,21 +198,11 @@ export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionPro
               )
             }
             waitingCalls={waitingCalls}
-            dock={session =>
-              sessionDock.slot(shell, { session }, entries =>
-                entries.map(entry => <Fragment key={entry.id}>{entry.node}</Fragment>),
-              )
-            }
-            status={session =>
-              sessionStatus.slot(shell, { session }, entries =>
-                entries.map(entry => <Fragment key={entry.id}>{entry.node}</Fragment>),
-              )
-            }
+            dock={session => sessionDock.slot(shell, { session }, fragments)}
+            status={session => sessionStatus.slot(shell, { session }, fragments)}
             drafts={drafts}
             attachments={(session, draft) =>
-              sessionComposerAttachments.slot(shell, { session, draft }, entries =>
-                entries.map(entry => <Fragment key={entry.id}>{entry.node}</Fragment>),
-              )
+              sessionComposerAttachments.slot(shell, { session, draft }, fragments)
             }
             block={blockDrawer(shell, reads, scope)}
             side={session =>
@@ -218,11 +215,7 @@ export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionPro
                     store={background}
                     tenant={scope}
                     session={session}
-                    detail={call =>
-                      sessionCallDetail.slot(shell, { session, call }, details =>
-                        details.map(entry => <Fragment key={entry.id}>{entry.node}</Fragment>),
-                      )
-                    }
+                    detail={call => sessionCallDetail.slot(shell, { session, call }, fragments)}
                   />
                 ),
               )

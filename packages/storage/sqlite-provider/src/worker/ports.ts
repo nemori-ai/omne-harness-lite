@@ -96,7 +96,9 @@ export function migrationDecision(
       case C.SQLITE_RECURSIVE:
         return true
       case C.SQLITE_READ:
-        return arg1 !== null && (read.has(arg1) || INTERNAL_TABLES.has(arg1) || arg1 === QUICK_CHECK)
+        return (
+          arg1 !== null && (read.has(arg1) || INTERNAL_TABLES.has(arg1) || arg1 === QUICK_CHECK)
+        )
       case C.SQLITE_CREATE_TABLE:
       case C.SQLITE_DROP_TABLE:
       case C.SQLITE_INSERT:

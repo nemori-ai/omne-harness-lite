@@ -129,7 +129,7 @@ describe('ADD COLUMN in a migration', () => {
   it('allows the quick check SQLite runs when a STRICT owned table gains a checked column', () => {
     const { gateway, db } = gatewayOf(['t_a'])
     try {
-      gateway.execute("alter table t_a add column w text check(w is null or length(w) > 0)", [])
+      gateway.execute('alter table t_a add column w text check(w is null or length(w) > 0)', [])
       expect(gateway.violated).toBe(false)
       expect(db.prepare('select v, w from t_a').all()).toEqual([{ v: 'kept', w: null }])
     } finally {
