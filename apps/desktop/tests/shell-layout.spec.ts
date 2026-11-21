@@ -37,6 +37,11 @@ describe('外壳的版式：侧栏底部（OD-22）', () => {
 })
 
 describe('外壳的版式：窄条', () => {
+  it('侧栏区的项在窄条里站在列的中线上，别的圆的圆心都在那里', () => {
+    expect(value('.shell-sidebar-item[data-rail]', 'display')).toBe('flex')
+    expect(value('.shell-sidebar-item[data-rail]', 'justify-content')).toBe('center')
+  })
+
   it('「外观」在窄条里是和导航行一样宽的圆', () => {
     expect(value(`${RAIL} .shell-appearance`, 'width')).toBe('var(--omne-nav-row-height)')
     expect(value(`${RAIL} .shell-appearance`, 'height')).toBe('var(--omne-nav-row-height)')

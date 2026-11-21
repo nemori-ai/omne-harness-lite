@@ -318,6 +318,12 @@ body,
   height: var(--omne-nav-row-height);
 }
 
+/* A rail item stands on the column's middle line, where every other circle's centre is. */
+.shell-sidebar-item[data-rail] {
+  display: flex;
+  justify-content: center;
+}
+
 .shell-menu {
   width: var(--omne-control-height-touch);
   height: var(--omne-control-height-touch);

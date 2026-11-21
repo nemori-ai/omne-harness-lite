@@ -48,6 +48,9 @@
   white-space: nowrap;
 }
 
+/* On the rail the account is a circle as wide as the column, like every other circle there. */
 .identity-account-rail {
+  width: var(--omne-nav-row-height);
+  height: var(--omne-nav-row-height);
   border-radius: var(--omne-radius-pill);
 }
