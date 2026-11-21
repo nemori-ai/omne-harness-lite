@@ -7,6 +7,7 @@ import { cssRules, normalise, valueOf } from './design-gates/css-text.ts'
 const RULES = cssRules(readFileSync(new URL('../src/page/styles.css', import.meta.url), 'utf8'))
 
 const RAIL = ".shell-navigation-content[data-expanded='false']"
+const NARROW = normalise('@media (max-width: 767px)')
 
 /** The value of `property` in the one rule with this selector, inside these at-rules. */
 function value(selector: string, property: string, context: readonly string[] = []): string {
@@ -45,5 +46,13 @@ describe('外壳的版式：窄条', () => {
   it('「外观」在窄条里是和导航行一样宽的圆', () => {
     expect(value(`${RAIL} .shell-appearance`, 'width')).toBe('var(--omne-nav-row-height)')
     expect(value(`${RAIL} .shell-appearance`, 'height')).toBe('var(--omne-nav-row-height)')
+  })
+})
+
+describe('外壳的版式：窄窗口（OD-19）', () => {
+  it('窄于 768 时侧栏是页面角上并排的家与抽屉的开关', () => {
+    expect(value('.shell-sidebar', 'position', [NARROW])).toBe('fixed')
+    expect(value('.shell-sidebar', 'flex-direction', [NARROW])).toBe('row')
+    expect(value('.shell-sidebar', 'width', [NARROW])).toBe('auto')
   })
 })

@@ -4,6 +4,7 @@ import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
 import type { PageItem, SidebarItem } from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import { bindRegionKeys } from '../src/page/shell/keys.ts'
+import { activeSeat } from '../src/page/shell/seats.ts'
 import { SHEET_LABEL } from '../src/page/shell/sidebar.tsx'
 import { bindSizeKeys } from '../src/page/shell/size.ts'
 import { WINDOW_CHROME_ATTRIBUTE, markWindowChrome } from '../src/page/shell/window-chrome.ts'
@@ -378,6 +379,43 @@ describe('外壳：窄窗口的抽屉', () => {
     expect(place.querySelector('[data-figure-seat]')).toBeNull()
     fireEvent.animationEnd(sheet)
     expect(place.querySelector('[data-figure-seat="home"]')).not.toBeNull()
+  })
+
+  it('抽屉关着时，家站在页面上抽屉的开关旁边，形坐在那里；抽屉进来停稳了，家是抽屉里的那一个；抽屉一走，回到页面上的家', async () => {
+    windowWidth(false)
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      const side = this.dataset['figureSeat'] === undefined ? 0 : 32
+      return { left: 0, top: 0, width: side, height: side, right: side, bottom: side } as DOMRect
+    })
+    vi.spyOn(Element.prototype, 'getAnimations').mockImplementation(function (this: Element) {
+      return this.matches('[data-slot="sheet-content"]')
+        ? [{ playState: 'running' } as unknown as Animation]
+        : []
+    })
+    await setup({ login: 'signed-in', modules: [PAGES] })
+    const corner = document.querySelector<HTMLElement>('.shell-sidebar[data-width="sheet"]')!
+    const toggle = within(corner).getByRole('button', { name: SHEET_LABEL })
+    const onPage = within(corner).getByRole('link', { name: 'omne' })
+    expect([...corner.children]).toEqual([onPage, toggle])
+    const pageSeat = () => onPage.querySelector('[data-figure-seat="home"]')
+    expect(pageSeat()).not.toBeNull()
+    expect(activeSeat()).toBe(pageSeat())
+    fireEvent.click(toggle)
+    const sheet = await screen.findByRole('dialog')
+    expect(activeSeat()).toBe(pageSeat())
+    fireEvent.animationEnd(sheet)
+    const inSheet = within(sheet).getByRole('link', { name: 'omne' })
+    expect(pageSeat()).toBeNull()
+    expect(activeSeat()).toBe(inSheet.querySelector('[data-figure-seat="home"]'))
+    fireEvent.keyDown(sheet, { key: 'Escape' })
+    await act(async () => {
+      await settle()
+    })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(activeSeat()).toBe(pageSeat())
+    expect(pageSeat()).not.toBeNull()
   })
 
   it('抽屉里点当前的那一页也关上', async () => {

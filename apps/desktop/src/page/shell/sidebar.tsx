@@ -6,6 +6,7 @@ import {
   useSyncExternalStore,
   type MouseEvent,
   type ReactNode,
+  type RefCallback,
   type RefObject,
 } from 'react'
 import type { PageItem, SidebarItem } from '@omne-harness/shell-contract'
@@ -391,12 +392,12 @@ export function Sidebar(
 
 export const SHEET_LABEL = '展开或收起导航'
 
-function useArrived(open: boolean): [RefObject<HTMLDivElement | null>, boolean] {
-  const inside = useRef<HTMLDivElement>(null)
+function useArrived(open: boolean): [RefCallback<HTMLDivElement>, boolean] {
+  const [inside, setInside] = useState<HTMLDivElement | null>(null)
   const [arrived, setArrived] = useState(false)
   useLayoutEffect(() => {
     setArrived(false)
-    const sheet = inside.current?.closest<HTMLElement>('[data-slot="sheet-content"]')
+    const sheet = inside?.closest<HTMLElement>('[data-slot="sheet-content"]')
     if (!open || sheet == null) return undefined
     if (!sheet.getAnimations().some(animation => animation.playState === 'running')) {
       setArrived(true)
@@ -411,21 +412,26 @@ function useArrived(open: boolean): [RefObject<HTMLDivElement | null>, boolean] 
       sheet.removeEventListener('animationend', landed)
       sheet.removeEventListener('animationcancel', landed)
     }
-  }, [open])
-  return [inside, open && arrived]
+  }, [open, inside])
+  return [setInside, open && arrived]
 }
 
-function SheetNavigation(props: SidebarProps & { open: boolean; choose: (id: string) => void }) {
-  const [inside, arrived] = useArrived(props.open)
+function SheetNavigation(
+  props: SidebarProps & {
+    inside: RefCallback<HTMLDivElement>
+    seat: boolean
+    choose: (id: string) => void
+  },
+) {
   return (
-    <div ref={inside} className="shell-sheet-navigation">
+    <div ref={props.inside} className="shell-sheet-navigation">
       <div className="shell-brand-row">
         <Home
           appName={props.appName}
           selected={homeSelected(props)}
           page={props.homePage}
           choose={props.choose}
-          seat={arrived}
+          seat={props.seat}
         />
       </div>
       <SidebarBody {...props} expanded choose={props.choose} />
@@ -433,11 +439,12 @@ function SheetNavigation(props: SidebarProps & { open: boolean; choose: (id: str
   )
 }
 
-/** Below 768 a sheet from the right; the page behind it is inert, and its home is a seat once it has come in. */
+/** Below 768 a sheet over an inert page; the home beside its toggle is the seat until the sheet's own has come in. */
 export function NarrowNavigation(props: SidebarProps & { covering: (open: boolean) => void }) {
   const [openedOn, setOpenedOn] = useState<{ readonly page: string | undefined } | null>(null)
   if (openedOn !== null && openedOn.page !== props.shown) setOpenedOn(null)
   const open = openedOn !== null
+  const [inside, arrived] = useArrived(open)
   const { covering, ...navigation } = props
   useEffect(() => {
     covering(open)
@@ -455,6 +462,13 @@ export function NarrowNavigation(props: SidebarProps & { covering: (open: boolea
       tabIndex={-1}
       data-width="sheet"
     >
+      <Home
+        appName={navigation.appName}
+        selected={homeSelected(navigation)}
+        page={navigation.homePage}
+        choose={navigation.state.page.choose}
+        seat={!arrived}
+      />
       <Sheet
         open={open}
         onOpenChange={opening => setOpenedOn(opening ? { page: navigation.shown } : null)}
@@ -471,7 +485,7 @@ export function NarrowNavigation(props: SidebarProps & { covering: (open: boolea
           aria-describedby={undefined}
         >
           <SheetTitle className="sr-only">{navigation.appName}</SheetTitle>
-          <SheetNavigation {...navigation} open={open} choose={choose} />
+          <SheetNavigation {...navigation} inside={inside} seat={arrived} choose={choose} />
         </SheetContent>
       </Sheet>
     </aside>

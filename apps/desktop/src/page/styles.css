@@ -460,6 +460,7 @@ body,
   }
 }
 
+/* Below 768 the sidebar is the home and the sheet's toggle side by side in the page's top corner (OD-19). */
 @media (max-width: 767px) {
   .app-shell {
     display: block;
@@ -469,10 +470,14 @@ body,
     top: calc(var(--omne-window-inset) + var(--omne-space-inline));
     right: var(--omne-space-inline);
     z-index: 35;
-    width: var(--omne-control-height-touch);
+    flex-direction: row;
+    align-items: center;
+    gap: var(--omne-space-inline);
+    width: auto;
     height: var(--omne-control-height-touch);
     padding: 0;
     background: transparent;
+    overflow: visible;
   }
 }
 
