@@ -489,6 +489,8 @@ const TABLE: Readonly<Record<string, Entry>> = {
     provides: ['mediaConverterDefinitions'],
     injects: ['tenantAssets', 'assetCategories'],
   },
+  'media-engine-transcribe': { injects: ['mediaEngines', 'settingsSecretCustody'] },
+  'media-engine-pdf': { injects: ['mediaEngines'] },
   'workspace-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'tool-access': { injects: ['accessRegistry', 'principalIssuer'] },
 }

@@ -48,6 +48,8 @@
 | `media-model-source` | `@omne-harness/media-adapters` 的 `./cordis` 插件 `MediaModelSourcePlugin`：媒体对 Model 读媒体端口的适配。发出一次模型请求时，按这次发出的访问身份的租户、请求里的引用与型号的限额向 `media` 要字节：原件在限额内交原件，超过时交限额内的版本；做不出答超限，引用无效或字节读不到答材料不可用，媒体答不可用就答不可用。媒体每次读时现取。这一行不在时，带媒体引用的请求答依据不可用，纯文字的请求照常 | `modelMediaSource` | `media` | 无 | 无 |
 | `media-tool-store` | `@omne-harness/media-adapters` 的 `./cordis` 插件 `MediaToolStorePlugin`：媒体对 Tool「存产出」端口的适配。工具的一次调用交来媒体类型与字节时，用 `media` 的保管一步存入并持有，持有方是这次调用，租户是这次调用的；媒体拒绝、不可用或结果不知道各照实答。媒体每次存时现取。这一行不在时，结果带非文字模态的命令在原位不可用（原因 `products-unstorable`），别的命令照常 | `toolMediaStore` | `media` | 无 | 无 |
 | `media-converters` | 应用成员的行：向资产登记类别 `converter`（`@omne-harness/media-adapters` 的 `./cordis` 插件 `converterCategoryPlugin`，数据型、可新建），并提供转换件定义的端口：按资产的 `collectCandidates` 与 `evaluate` 对具体媒体类型的名字、再对模态的名字求值，层是发行版自带的官方层（只有 `converter` 这一类，语音与 PDF 两份，不进资产页的列出）与这个租户的本机资产；胜出的那一份读不到正文或判不过，答依据不可用，不退到别的层。租户的资产每次调用现取 | `mediaConverterDefinitions` | `tenantAssets`、`assetCategories` | 无 | 无 |
+| `media-engine-transcribe` | 应用成员的行：向 `mediaEngines` 登记 `@omne-harness/media-engine-transcribe` 的引擎 `voice.transcribe`（语音转文字，经 OpenRouter 的转写接口，数据去向远端）。密钥是这次转换的租户在 OpenRouter 这个发行供应商上配的凭据，没配就用部署的，每次转换现取（`src/assets/provider-keys.ts`）；行卸载时登记撤回 | 无公开服务 | `mediaEngines`、`settingsSecretCustody` | 无 | `endpoint`：转写接口的地址，缺省 OpenRouter |
+| `media-engine-pdf` | 应用成员的行：向 `mediaEngines` 登记 `@omne-harness/media-engine-pdf` 的引擎 `pdf.extract-text`（本机用 `unpdf` 提文字层，部首区的字按 Unicode 换成统一表意字）；行卸载时登记撤回 | 无公开服务 | `mediaEngines` | 无 | 无 |
 | `workspace` | 应用成员的工作区组合：`@omne-harness/workspace-local` 的 `./cordis` 插件 `createWorkspaceLocalPlugin`，一个提供者服务全部租户。工作区的事实不属于任何一个租户，存在系统作用域的事务域 `system.workspace` 里，隔离靠仓储的每个入口按租户过滤；第一次用到时在那里登记工作区的存储组合，摘要从存储目录现算。本应用在这一行接上工作区留的端口：成员资格与动作准入用身份域适配（操作与目标由工作区命名，拥有者 `@omne-harness/workspace`）；身份域的服务不在时答依据不可用。来源面读两个来源根用文件系统成员的读文件端口，版本的摘要取资产的算法（由适配成员 `@omne-harness/workspace-asset-source` 交来）。行体向登记面 `workspace.types` 贡献文件系统型与拓展它的 Git 型 | `workspaceGovernance`、`workspaceInstances`、`workspaceCatalog`、`workspaceSources`、`workspaceTypes` | `storage` | `principalVerifier`、`tenantStanding`（受信；每次调用现取）；`composition`，行体承载，停止时撤下提供者，不删事实 | 节点名 `node`：由运维层给，发行层不写数值；缺失或为空时这一行不启动 |
 | `usage` | 用量的查询服务与来源登记表：`@omne-harness/usage` 的 `./cordis` 插件 `UsageSourcesProvider` 与 `createUsagePlugin`。上限由本行显式给出：向来源每页至多 200 笔，一次查询至多读 2000 页、至多 1000 个时间桶。去掉这一行，核心照常，用量的查询不在 | `usage`、`usageSources` | 无 | `usageSessionScope`（范围是会话时按查询现取；缺席时答依据不可用，依据是会话范围） | 无 |
 | `usage-adapters` | `@omne-harness/usage-adapters` 的 `./cordis` 插件 `createUsageAdaptersPlugin`：装上时向 `usageSources` 登记模型与工具两个来源、提供会话范围，卸下时撤回自己那两份。会话范围读会话日志的 Run 开始与压缩消息，答出 Agent 拥有者下的执行与压缩提供者拥有者下的压缩任务；两个拥有者名由本行显式给出（`@omne-harness/agent`、`@omne-harness/context-compaction`） | `usageSessionScope` | `usageSources` | `modelDispatchFacts`、`toolAccounts`、`session`（以 `reader` 调用方）。取不到时那一个来源或会话范围答依据不可用 | 无 |
@@ -198,6 +200,9 @@ flowchart LR
   tenant-assets -->|tenantAssets| media-converters
   asset-categories -->|assetCategories| media-converters
   media-converters -. mediaConverterDefinitions .-> media
+  media -->|mediaEngines| media-engine-transcribe
+  secret-custody -->|settingsSecretCustody| media-engine-transcribe
+  media -->|mediaEngines| media-engine-pdf
   session-before-intake -->|sessionBeforeIntake| media-intake
   session-before-intake -. sessionBeforeIntake .-> session-provider
   session-input-sources -. sessionInputSources .-> session-provider
@@ -372,7 +377,7 @@ flowchart LR
 | Tool 原调用资格 | `toolInvocationQualification` | tool-records 行提供，governance 按调用读取。复用原 invocation 来源；不包含目标准入，不授予执行许可。 |
 | 当前 Tool 权限依据 | `currentToolPermission` | governance 行提供，authorization 按调用读取；原 Session 工作主体及租户资格核验先于租户懒安装。只读当前依据，不发执行许可。 |
 | 治理装配权威 | `governanceDirectoryPrincipals`、`governanceInstallationPrincipals`、`standingReservations`、`standingDestinationResolver` | 目录与安装主体的独立窄签发能力归入口，只给 governance；保留端口归 identity；结算 resolver 归 governance，identity 按调用读取 |
-| 秘密保管 | `settingsSecretCustody` | `secret-custody` 行；`settings` 行 `inject`，`tool-bindings` 行按调用读取（Web 附着） |
+| 秘密保管 | `settingsSecretCustody` | `secret-custody` 行；`settings` 行 `inject`，`tool-bindings` 行按调用读取（Web 附着），`media-engine-transcribe` 行 `inject`（转写的密钥） |
 | 秘密设置项 | `settingsSecretItems` | `settings` 行；`assets-access` 行按调用读取，与 `tenantSettings` 并成 `assets/v1` 的设置端口 |
 | 租户层设置读写面 | `tenantSettings` | `governance` 行；不受信，`assets-access` 行按调用读取 |
 | 租户的本机资产 | `tenantAssets` | `tenant-assets` 行；`governance`、`skills`、`media-converters` 三行注入，按调用里的租户取 |
@@ -391,7 +396,7 @@ flowchart LR
 <a id="settings-secret-custody"></a>`settingsSecretCustody` 是本应用自己定义的第二个服务键，服务定义在 `apps/harness-server/src/rows/secret-custody/index.ts`：
 
 - 拥有者是 `secret-custody` 行，它是唯一的提供者。形状是 Settings 的 `SecretCustodyManagement & SecretCustodyUse`：按（范围、目标、用途）绑定、解绑、查看、列出与取用。读面不返回值；使用面只经本键进入受信消费方（I-6）。
-- `settings` 行 `inject` 它，在它之上建秘密项入口；`tool-bindings` 行按调用读它，Web 附着以 `createLocalToolCredentials` 的三个端口解析行事租户的 Web 设置 `exa.apiKey`：租户层与官方层读管理面的 `describe`，组织层恒未配置，使用时经使用面 `use` 取值。`model-credential` 行 `inject` 它，Model 凭据端口经读面判读每一层、经使用面取选定层的秘密。
+- `settings` 行 `inject` 它，在它之上建秘密项入口；`tool-bindings` 行按调用读它，Web 附着以 `createLocalToolCredentials` 的三个端口解析行事租户的 Web 设置 `exa.apiKey`：租户层与官方层读管理面的 `describe`，组织层恒未配置，使用时经使用面 `use` 取值。`model-credential` 行 `inject` 它，Model 凭据端口经读面判读每一层、经使用面取选定层的秘密。`media-engine-transcribe` 行 `inject` 它，每次转写经使用面先取这次转换的租户在 OpenRouter 上的凭据，没配再取部署的；只取 OpenRouter 这一个发行供应商的那一项，不经读面，不列出。
 - 不放进 settings 或 settings-local：两个包都没有 Cordis 入口，提供者和消费者都是本应用的行。本应用以外的成员需要这个键时，按 [IC-4](../cordis-integration-conventions.md#ic-4) 移到届时拥有它的成员的 `./cordis`，键名与形状不变。
 
 <a id="settings-secret-items"></a>`settingsSecretItems` 是本应用自己定义的第三个服务键，服务定义在 `apps/harness-server/src/rows/settings/index.ts`：
@@ -444,6 +449,7 @@ flowchart LR
 | `session-handoff` | `storage`、`tenantDomainLookup`、`sessionWorkPrincipals` |
 | `session-conditions` | `storage`、`tenantDomainLookup`、`definitionMappings` |
 | `model-credential` | `settingsSecretCustody` |
+| `media-engine-transcribe` | `settingsSecretCustody` |
 | `secret-custody` | `settingsSecretCustody` |
 | `settings` | `settingsSecretCustody`、`settingsSecretItems`、`principalVerifier`、`tenantStanding` |
 | `model-host` | `tenantDomainScannerPrincipal` |

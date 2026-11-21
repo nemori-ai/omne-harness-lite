@@ -81,7 +81,7 @@ describe('converter definitions are assets (C27)', () => {
   })
 
   it(
-    "the category is listed; the release's two are in force for every tenant; a tenant's own replaces it for that tenant and what it uploads next; disabled, the release's one is back",
+    "the category is listed; the release's two are in force for every tenant; a tenant's own replaces it for that tenant and what it uploads next; disabled, the release's one is back (the tree has no OpenRouter key, so the release's speech engine answers unavailable)",
     { tags: ['slow'], timeout: 240_000 },
     async () => {
       const exitCode = await onReleaseTree({ script: toolCallsThenText(() => []) }, async tree => {
@@ -133,7 +133,6 @@ describe('converter definitions are assets (C27)', () => {
             },
             { name, accepts: ['audio/*'] },
           ).engine
-        engines.register(engineNamed('voice.transcribe'))
         engines.register(engineNamed('voice.mine'))
         const { client } = mediaClientOf(tree.port, tree.home)
         const take = async (upload: string, seed: number) =>
@@ -152,11 +151,8 @@ describe('converter definitions are assets (C27)', () => {
           })
 
         const before = await take('voice-1', 1)
-        expect(await ready(before)).toMatchObject({
-          ok: {
-            kind: 'done',
-            representation: { definition: { name: 'voice', revision: VOICE!.version } },
-          },
+        expect(await ready(before)).toEqual({
+          ok: { kind: 'failed', reason: 'engine-unavailable' },
         })
 
         const made = await assets['create-asset']({
@@ -181,7 +177,7 @@ describe('converter definitions are assets (C27)', () => {
             representation: { definition: { name: 'voice', revision: version } },
           },
         })
-        expect(heard).toEqual(['voice.transcribe', 'voice.mine'])
+        expect(heard).toEqual(['voice.mine'])
 
         const disabled = await assets['set-asset-enabled']({
           tenant: tenantOf(text),

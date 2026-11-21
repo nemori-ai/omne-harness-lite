@@ -26,6 +26,8 @@
     "media-model-source",
     "media-tool-store",
     "media-converters",
+    "media-engine-transcribe",
+    "media-engine-pdf",
     "workspace",
     "usage",
     "usage-adapters",
@@ -340,6 +342,12 @@
     },
     {
       "row": "model-credential",
+      "names": [
+        "settingsSecretCustody"
+      ]
+    },
+    {
+      "row": "media-engine-transcribe",
       "names": [
         "settingsSecretCustody"
       ]

@@ -29,6 +29,7 @@ catalog:
   image-size: 2.0.4
   immutable: 5.1.9
   sharp: 0.35.3
+  unpdf: 2.2.1
   node-screenshots: 0.2.8
   diff: 9.0.0
   node-pty: 1.1.0

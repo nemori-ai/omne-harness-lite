@@ -1,0 +1,36 @@
+{
+  "name": "@omne-harness/media-engine-pdf",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The converter engine pdf.extract-text: the text layer of a PDF, NFKC-normalized, by unpdf in process",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "dependencies": {
+    "@omne-harness/media-contract": "workspace:*",
+    "unpdf": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

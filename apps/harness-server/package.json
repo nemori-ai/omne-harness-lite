@@ -91,6 +91,8 @@
     "@omne-harness/media-adapters": "workspace:*",
     "@omne-harness/media-contract": "workspace:*",
     "@omne-harness/media-cordis-contract": "workspace:*",
+    "@omne-harness/media-engine-pdf": "workspace:*",
+    "@omne-harness/media-engine-transcribe": "workspace:*",
     "@omne-harness/media-image": "workspace:*",
     "@omne-harness/media-storage-local": "workspace:*",
     "@omne-harness/media-storage-sql": "workspace:*",

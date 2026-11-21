@@ -226,6 +226,16 @@
       "config": {}
     },
     {
+      "id": "media-engine-transcribe",
+      "plugin": "mediaEngineTranscribeRow",
+      "config": {}
+    },
+    {
+      "id": "media-engine-pdf",
+      "plugin": "mediaEnginePdfRow",
+      "config": {}
+    },
+    {
       "id": "workspace",
       "plugin": "workspaceRow",
       "config": {}

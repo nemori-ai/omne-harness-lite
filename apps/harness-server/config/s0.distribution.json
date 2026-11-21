@@ -126,6 +126,16 @@
       "config": {}
     },
     {
+      "id": "media-engine-transcribe",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "media-engine-pdf",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "workspace",
       "plugin": "stubPlugin",
       "config": {}
