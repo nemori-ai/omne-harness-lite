@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   readBodyText,
   type AssetLayer,
+  type JsonValue,
   type AssetLayerSource,
   type Candidate,
   type LayerInput,
@@ -17,7 +18,7 @@ const LIMITS = {
   maxStringLength: 512,
   maxNumberLength: 20,
 }
-function read(body: unknown): unknown {
+function read(body: unknown): JsonValue {
   const text = readBodyText(JSON.stringify(body), LIMITS)
   if (text.kind !== 'ok') throw new Error(text.kind)
   return text.value
@@ -25,7 +26,7 @@ function read(body: unknown): unknown {
 const bodyOf = (kind: string, engine: string) =>
   read({ kind, engine, parameters: { language: 'en' }, egress: { kind: 'in-process' } })
 
-type Held = Readonly<{ version: string; body: unknown; disabled?: boolean }>
+type Held = Readonly<{ version: string; body: JsonValue; disabled?: boolean }>
 /** One layer: per asset name what it holds, or that it cannot be read. */
 type Layer = Readonly<Record<string, Held>> | 'unreadable'
 

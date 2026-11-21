@@ -479,6 +479,10 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'media-intake': { injects: ['media', 'sessionBeforeIntake'] },
   'media-model-source': { provides: ['modelMediaSource'], injects: ['media'] },
   'media-tool-store': { provides: ['toolMediaStore'], injects: ['media'] },
+  'media-converters': {
+    provides: ['mediaConverterDefinitions'],
+    injects: ['tenantAssets', 'assetCategories'],
+  },
   'workspace-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'tool-access': { injects: ['accessRegistry', 'principalIssuer'] },
 }

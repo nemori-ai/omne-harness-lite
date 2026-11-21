@@ -221,6 +221,11 @@
       "config": {}
     },
     {
+      "id": "media-converters",
+      "plugin": "mediaConvertersRow",
+      "config": {}
+    },
+    {
       "id": "workspace",
       "plugin": "workspaceRow",
       "config": {}

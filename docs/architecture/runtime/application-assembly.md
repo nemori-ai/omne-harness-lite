@@ -47,6 +47,7 @@
 | `media-intake` | `@omne-harness/media-adapters` 的 `./cordis` 插件 `mediaIntakePlugin`：媒体对 Session 受理的适配。向 `session.before-intake` 登记处理件 `media.references`：对输入里每个带内容引用的块先持有，再补上媒体事实；引用无效就拦下并点名那一块，媒体答不可用就答不可用。这一行不在时，带内容引用的输入不被受理 | 无公开服务 | `media`、`sessionBeforeIntake` | 无 | 无 |
 | `media-model-source` | `@omne-harness/media-adapters` 的 `./cordis` 插件 `MediaModelSourcePlugin`：媒体对 Model 读媒体端口的适配。发出一次模型请求时，按这次发出的访问身份的租户、请求里的引用与型号的限额向 `media` 要字节：原件在限额内交原件，超过时交限额内的版本；做不出答超限，引用无效或字节读不到答材料不可用，媒体答不可用就答不可用。媒体每次读时现取。这一行不在时，带媒体引用的请求答依据不可用，纯文字的请求照常 | `modelMediaSource` | `media` | 无 | 无 |
 | `media-tool-store` | `@omne-harness/media-adapters` 的 `./cordis` 插件 `MediaToolStorePlugin`：媒体对 Tool「存产出」端口的适配。工具的一次调用交来媒体类型与字节时，用 `media` 的保管一步存入并持有，持有方是这次调用，租户是这次调用的；媒体拒绝、不可用或结果不知道各照实答。媒体每次存时现取。这一行不在时，结果带非文字模态的命令在原位不可用（原因 `products-unstorable`），别的命令照常 | `toolMediaStore` | `media` | 无 | 无 |
+| `media-converters` | 应用成员的行：向资产登记类别 `converter`（`@omne-harness/media-adapters` 的 `./cordis` 插件 `converterCategoryPlugin`，数据型、可新建），并提供转换件定义的端口：按资产的 `collectCandidates` 与 `evaluate` 对具体媒体类型的名字、再对模态的名字求值，层是发行版自带的官方层（只有 `converter` 这一类，语音与 PDF 两份，不进资产页的列出）与这个租户的本机资产；胜出的那一份读不到正文或判不过，答依据不可用，不退到别的层。租户的资产每次调用现取 | `mediaConverterDefinitions` | `tenantAssets`、`assetCategories` | 无 | 无 |
 | `workspace` | 应用成员的工作区组合：`@omne-harness/workspace-local` 的 `./cordis` 插件 `createWorkspaceLocalPlugin`，一个提供者服务全部租户。工作区的事实不属于任何一个租户，存在系统作用域的事务域 `system.workspace` 里，隔离靠仓储的每个入口按租户过滤；第一次用到时在那里登记工作区的存储组合，摘要从存储目录现算。本应用在这一行接上工作区留的端口：成员资格与动作准入用身份域适配（操作与目标由工作区命名，拥有者 `@omne-harness/workspace`）；身份域的服务不在时答依据不可用。行体向登记面 `workspace.types` 贡献文件系统型与拓展它的 Git 型 | `workspaceGovernance`、`workspaceInstances`、`workspaceCatalog`、`workspaceTypes` | `storage` | `principalVerifier`、`tenantStanding`（受信；每次调用现取）；`composition`，行体承载，停止时撤下提供者，不删事实 | 节点名 `node`：由运维层给，发行层不写数值；缺失或为空时这一行不启动 |
 | `usage` | 用量的查询服务与来源登记表：`@omne-harness/usage` 的 `./cordis` 插件 `UsageSourcesProvider` 与 `createUsagePlugin`。上限由本行显式给出：向来源每页至多 200 笔，一次查询至多读 2000 页、至多 1000 个时间桶。去掉这一行，核心照常，用量的查询不在 | `usage`、`usageSources` | 无 | `usageSessionScope`（范围是会话时按查询现取；缺席时答依据不可用，依据是会话范围） | 无 |
 | `usage-adapters` | `@omne-harness/usage-adapters` 的 `./cordis` 插件 `createUsageAdaptersPlugin`：装上时向 `usageSources` 登记模型与工具两个来源、提供会话范围，卸下时撤回自己那两份。会话范围读会话日志的 Run 开始与压缩消息，答出 Agent 拥有者下的执行与压缩提供者拥有者下的压缩任务；两个拥有者名由本行显式给出（`@omne-harness/agent`、`@omne-harness/context-compaction`） | `usageSessionScope` | `usageSources` | `modelDispatchFacts`、`toolAccounts`、`session`（以 `reader` 调用方）。取不到时那一个来源或会话范围答依据不可用 | 无 |
@@ -194,6 +195,9 @@ flowchart LR
   media -->|media| media-tool-store
   media-tool-store -. toolMediaStore .-> tool-environments
   media-tool-store -. toolMediaStore .-> tool-bindings
+  tenant-assets -->|tenantAssets| media-converters
+  asset-categories -->|assetCategories| media-converters
+  media-converters -. mediaConverterDefinitions .-> media
   session-before-intake -->|sessionBeforeIntake| media-intake
   session-before-intake -. sessionBeforeIntake .-> session-provider
   session-input-sources -. sessionInputSources .-> session-provider
@@ -371,7 +375,7 @@ flowchart LR
 | 秘密保管 | `settingsSecretCustody` | `secret-custody` 行；`settings` 行 `inject`，`tool-bindings` 行按调用读取（Web 附着） |
 | 秘密设置项 | `settingsSecretItems` | `settings` 行；`assets-access` 行按调用读取，与 `tenantSettings` 并成 `assets/v1` 的设置端口 |
 | 租户层设置读写面 | `tenantSettings` | `governance` 行；不受信，`assets-access` 行按调用读取 |
-| 租户的本机资产 | `tenantAssets` | `tenant-assets` 行；`governance` 行与 `skills` 行注入，按调用里的租户取 |
+| 租户的本机资产 | `tenantAssets` | `tenant-assets` 行；`governance`、`skills`、`media-converters` 三行注入，按调用里的租户取 |
 | 接收记录读面 | `agentReceivedRecords` | `agent-journal` 行；`model-records` 与 `context-compaction` 行用于各自服务的 Agent 消费者 ACK 核验 |
 | 压缩服务的模型处理证明 | `compactionModelEvidence` | `context-compaction` 行提供；`model-records` 按调用读取，核对原模型调用、消费者与结果在压缩服务中的处理事实 |
 | identity 读口 | `principalVerifier`、`tenantStanding`、`identityGovernance` | 核验器：装配入口；资格读口与治理端口：`identity` 行。`settings` 行按调用读核验器与资格读口做设置管理的准入。四个领域的接入行（`session-access`、`assets-access`、`human-intervention-access`、`session-diagnostics-access`）按调用读资格读口：为目标租户换主体之前，这个租户的成员资格要当前有效。`server-entry` 行不读它：入口管道给 `acting-tenant` 的操作换主体只核账号对得上，成员与资格由主体到达的服务判。入口对象只经 `env.readTrusted` 读取；Tool 运行时组与 Tool 请求来源不在可见表里，由入口对象 `toolClock` 交给 Tool 共享状态的逐次读法读取 |

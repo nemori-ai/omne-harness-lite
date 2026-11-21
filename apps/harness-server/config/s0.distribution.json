@@ -121,6 +121,11 @@
       "config": {}
     },
     {
+      "id": "media-converters",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "workspace",
       "plugin": "stubPlugin",
       "config": {}

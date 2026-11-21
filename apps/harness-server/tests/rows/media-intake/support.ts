@@ -22,17 +22,18 @@ export const picture = (id: string, ref: Reference, extra: object = {}) => ({
   ...extra,
 })
 
-/** Takes a whole picture in through media/v1 and answers its reference. */
+/** Takes a whole medium in through media/v1, a picture unless told, and answers its reference. */
 export async function uploaded(
   client: MediaClient,
   tenant: Send['tenant'],
   upload: string,
   bytes: Uint8Array,
+  mediaType = 'image/png',
 ): Promise<Reference> {
   const begun = await client['begin-upload']({
     tenant,
     upload,
-    mediaType: 'image/png',
+    mediaType,
     bytes: bytes.byteLength,
   })
   if (begun.outcome !== 'succeeded' || begun.body.status.kind !== 'uploading')
@@ -48,7 +49,7 @@ export async function uploaded(
   return committed.body.ref
 }
 
-function treeOf(value: unknown): JsonValue {
+export function treeOf(value: unknown): JsonValue {
   if (value === null) return { kind: 'null' }
   if (typeof value === 'string') return { kind: 'string', value }
   if (typeof value === 'boolean') return { kind: 'boolean', value }

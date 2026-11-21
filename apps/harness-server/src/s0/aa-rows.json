@@ -25,6 +25,7 @@
     "media-intake",
     "media-model-source",
     "media-tool-store",
+    "media-converters",
     "workspace",
     "usage",
     "usage-adapters",

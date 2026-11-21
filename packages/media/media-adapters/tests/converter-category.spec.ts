@@ -1,5 +1,5 @@
 import { Context } from '@deepseek-ai/cordis'
-import { readBodyText } from '@omne-harness/assets'
+import { readBodyText, type JsonValue } from '@omne-harness/assets'
 import { assetCategoriesPlugin } from '@omne-harness/assets-cordis-contract/cordis'
 import {
   CONVERTER_CATEGORY,
@@ -18,7 +18,7 @@ const LIMITS = {
   maxNumberLength: 20,
 }
 /** A body as the assets hand it to a judgment: read from text and frozen. */
-function read(body: unknown): unknown {
+function read(body: unknown): JsonValue {
   const text = readBodyText(JSON.stringify(body), LIMITS)
   if (text.kind !== 'ok') throw new Error(text.kind)
   return text.value
@@ -87,8 +87,12 @@ describe('the body of a converter definition', () => {
     expect(parseConverterBody(read(SOUND), 'image')).toEqual({ failure: 'kind-mismatch' })
   })
 
-  it('refuses an object that was not read from text', () => {
-    expect(parseConverterBody(SOUND, 'voice')).toEqual({ failure: 'not-an-object' })
+  it('judges only a body the assets read: an object literal is refused', () => {
+    const literal = { kind: 'object', entries: [] }
+    expect(converterBodyContract().judge(literal, { capabilityName: 'voice' })).toEqual({
+      ok: false,
+      rejected: 'not-an-object',
+    })
   })
 
   it('judges a sound body and declares nothing else', () => {

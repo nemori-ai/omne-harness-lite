@@ -18,6 +18,7 @@ const MEDIA_ROWS = [
   'media-intake',
   'media-model-source',
   'media-tool-store',
+  'media-converters',
   'media-access',
 ]
 

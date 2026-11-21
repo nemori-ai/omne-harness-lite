@@ -4,6 +4,7 @@ import {
   evaluate,
   type AssetLayerSource,
   type Candidate,
+  type JsonValue,
 } from '@omne-harness/assets'
 import {
   definitionNamesOf,
@@ -17,7 +18,7 @@ import { CONVERTER_CATEGORY, parseConverterBody } from './converter-category.ts'
 export type ConverterLayers = Readonly<{
   sources: readonly AssetLayerSource[]
   /** The body of the version a candidate selects; undefined when it cannot be read. */
-  body(candidate: Candidate): Promise<unknown>
+  body(candidate: Candidate): Promise<JsonValue | undefined>
 }>
 
 type Resolve = ConverterDefinitions['resolve']

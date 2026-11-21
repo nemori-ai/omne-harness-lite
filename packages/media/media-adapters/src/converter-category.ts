@@ -55,12 +55,12 @@ const schema: JsonValue = schemaRead.value
 
 type Fields = ReadonlyMap<string, JsonValue>
 
-/** Reads a body the assets read from text; the engine named need not be there now. */
+/** Reads a body; the engine named need not be there now. */
 export function parseConverterBody(
-  body: unknown,
+  body: JsonValue,
   capabilityName?: string,
 ): Outcome<ConverterBody, ConverterBodyRejection> {
-  const fields = fieldsOf(readSnapshot(body))
+  const fields = fieldsOf(body)
   if (fields === undefined) return fail('not-an-object')
   const kind = textOf(fields.get('kind'))
   if (kind === undefined || !isDefinitionName(kind)) return fail('invalid-kind')
@@ -90,12 +90,15 @@ export function converterBodyContract(): BodyContract {
   }
 }
 
+/** The assets judge only a body they read themselves: an object literal is refused. */
 function judge(body: unknown, context?: { capabilityName?: string }): Judgment {
-  const parsed = parseConverterBody(body, context?.capabilityName)
+  const read = readSnapshot(body)
+  if (read === undefined) return refusal('not-an-object')
+  const parsed = parseConverterBody(read, context?.capabilityName)
   return 'ok' in parsed ? { ok: true } : refusal(parsed.failure)
 }
 
-function typed(body: unknown, capabilityName: string | undefined): ConverterBody {
+function typed(body: JsonValue, capabilityName: string | undefined): ConverterBody {
   const parsed = parseConverterBody(body, capabilityName)
   if (!('ok' in parsed)) throw new TypeError(`converter body failed judgment: ${parsed.failure}`)
   return parsed.ok
