@@ -57,33 +57,44 @@ function unready(state: Preprocess, block: Block['id']): Verdict | null {
 export function createReferencesProcessor<P>(
   media: () => IntakeMedia | undefined,
 ): IntakeProcessor<P> {
-  async function run({ effective, request, access }: Screening<P>): Promise<IntakeVerdict> {
+  type Referring = Extract<Block, { ref: unknown }>
+  type Taken = Readonly<{ block: Block }> | Readonly<{ verdict: IntakeVerdict }>
+  const stop = (verdict: IntakeVerdict): Taken => ({ verdict })
+
+  /** One block that refers to a medium: what goes into the input in its place, or why the input does not go. */
+  async function referred(block: Referring, { request, access }: Screening<P>): Promise<Taken> {
+    const face = media()
+    if (face === undefined)
+      return stop({ kind: 'unavailable', diagnostic: 'the custody of media is not there' })
+    const { tenant } = access
+    const read = await face.representations.read({ tenant, ref: block.ref })
+    if ('failure' in read) return stop({ kind: 'block', block: block.id, reason: NO_MEDIUM })
+    const refused = unready(read.ok, block.id)
+    if (refused !== null) return stop(refused)
     const holder = {
       owner: REFERENCES_PROCESSOR,
       work: access.session,
       position: request.input,
       purpose: 'input',
     }
+    const held = await face.custody.hold({ tenant, ref: block.ref, holder })
+    if ('failure' in held)
+      return stop(
+        held.failure.kind === 'invalid-reference'
+          ? { kind: 'block', block: block.id, reason: NO_MEDIUM }
+          : { kind: 'unavailable', diagnostic: `the hold answered ${held.failure.kind}` },
+      )
+    const done = read.ok.kind === 'done' ? written(read.ok.representation) : {}
+    return { block: { ...block, facts: held.ok.facts, ...done } as Block }
+  }
+
+  async function run(screening: Screening<P>): Promise<IntakeVerdict> {
+    const { effective } = screening
     const blocks: Block[] = []
     for (const block of effective.blocks) {
-      if (!('ref' in block)) {
-        blocks.push(block)
-        continue
-      }
-      const face = media()
-      if (face === undefined)
-        return { kind: 'unavailable', diagnostic: 'the custody of media is not there' }
-      const read = await face.representations.read({ tenant: access.tenant, ref: block.ref })
-      if ('failure' in read) return { kind: 'block', block: block.id, reason: NO_MEDIUM }
-      const refused = unready(read.ok, block.id)
-      if (refused !== null) return refused
-      const held = await face.custody.hold({ tenant: access.tenant, ref: block.ref, holder })
-      if ('ok' in held) {
-        const done = read.ok.kind === 'done' ? written(read.ok.representation) : {}
-        blocks.push({ ...block, facts: held.ok.facts, ...done } as Block)
-      } else if (held.failure.kind === 'invalid-reference')
-        return { kind: 'block', block: block.id, reason: NO_MEDIUM }
-      else return { kind: 'unavailable', diagnostic: `the hold answered ${held.failure.kind}` }
+      const taken: Taken = 'ref' in block ? await referred(block, screening) : { block }
+      if ('verdict' in taken) return taken.verdict
+      blocks.push(taken.block)
     }
     if (!blocks.some(block => 'ref' in block)) return { kind: 'pass' }
     // The same blocks in the same order, each of its own kind: still a message of its role.

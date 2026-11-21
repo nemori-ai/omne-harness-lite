@@ -148,6 +148,16 @@ describe('the processor media.references', () => {
     })
   })
 
+  it('a medium gone between reading its state and holding it is blocked by name', async () => {
+    const ref = await world().staged(T1, 'up-a', A)
+    const hold: Custody['hold'] = async () => ({ failure: { kind: 'invalid-reference' } })
+    expect(await processorOver({ hold }).run(screening('in-1', T1, image('b1', ref)))).toEqual({
+      kind: 'block',
+      block: 'b1',
+      reason: 'the content reference names no medium of this tenant that is ready',
+    })
+  })
+
   it('custody that is not there is unavailable for an input that refers to media', async () => {
     const ref = await world().staged(T1, 'up-a', A)
     expect(await processorOver(undefined).run(screening('in-1', T1, image('b1', ref)))).toEqual({

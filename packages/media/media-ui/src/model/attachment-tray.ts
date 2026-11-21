@@ -1,5 +1,5 @@
 import type { TenantId } from '@omne-harness/public-contract'
-import { prepareMedium, type Prepared } from './prepare.ts'
+import { prepareMedium, type Failed, type Ready } from './prepare.ts'
 import { uploadMedium, type MediaClient, type Reference } from './upload.ts'
 
 export type PickedFile = Readonly<{
@@ -26,8 +26,8 @@ export type AttachmentKind = 'image' | 'voice' | 'file'
 export type AttachmentState =
   | Readonly<{ kind: 'uploading'; sent: number }>
   | Readonly<{ kind: 'preparing'; ref: Reference }>
-  | (Readonly<{ kind: 'ready'; ref: Reference }> & Prepared)
-  | Readonly<{ kind: 'failed'; reason: string; ref?: Reference }>
+  | Ready
+  | Failed
 
 export type Attachment = Readonly<{
   id: string
@@ -159,11 +159,7 @@ export class AttachmentTray {
   async #prepare(id: string, ref: Reference): Promise<void> {
     this.#set(id, { kind: 'preparing', ref })
     const { client, tenant } = this.#deps
-    const prepared = await prepareMedium(client, tenant, ref)
-    this.#set(
-      id,
-      prepared.kind === 'failed' ? prepared : { kind: 'ready', ref, ...prepared.prepared },
-    )
+    this.#set(id, await prepareMedium(client, tenant, ref))
   }
 
   #changed(items: readonly Attachment[]): void {

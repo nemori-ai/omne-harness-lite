@@ -357,6 +357,31 @@ describe('附件的预处理', () => {
     expect(stuck.operations().filter(name => name === 'prepare-media')).toHaveLength(3)
   })
 
+  it('请求本身没有送到（抛出）也照原样再请一次', async () => {
+    const media = fakeMedia(2)
+    media.once('prepare-media', () => {
+      throw new Error('the link dropped')
+    })
+    const { tray } = trayOver(media)
+    tray.add([SPEECH])
+    await settled()
+    expect(tray.read()[0]?.state).toMatchObject({ kind: 'ready', outcome: 'none' })
+    expect(media.operations().filter(name => name === 'prepare-media')).toHaveLength(2)
+  })
+
+  it('服务端答还在转换（没有等到结果）：说备不好，可以重试', async () => {
+    const media = fakeMedia(2)
+    media.once('prepare-media', preparing({ kind: 'running' }))
+    const { tray } = trayOver(media)
+    tray.add([SPEECH])
+    await settled()
+    expect(tray.read()[0]?.state).toMatchObject({
+      kind: 'failed',
+      reason: '服务端现在备不好这份附件',
+      ref: { mediaType: 'audio/wav' },
+    })
+  })
+
   it('服务端说这份媒体不在了，就不能重试；重试一份不在的或没有失败的什么都不做', async () => {
     const media = fakeMedia(2)
     media.once('prepare-media', () => ({ outcome: 'not-found', body: {} }))

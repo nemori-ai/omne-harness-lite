@@ -7,9 +7,9 @@ export type Prepared = Readonly<{
   /** The words, when they came back in line; many words are kept apart and not shown. */
   text: string | null
 }>
-export type PrepareOutcome =
-  | Readonly<{ kind: 'prepared'; prepared: Prepared }>
-  | Readonly<{ kind: 'failed'; reason: string; ref?: Reference }>
+export type Ready = Readonly<{ kind: 'ready'; ref: Reference }> & Prepared
+export type Failed = Readonly<{ kind: 'failed'; reason: string; ref?: Reference }>
+export type PrepareOutcome = Ready | Failed
 
 const RECOVERIES = 2
 const WORDS: Readonly<Record<string, string>> = {
@@ -25,14 +25,13 @@ type Answer = Awaited<ReturnType<MediaClient['prepare-media']>>
 type Preprocess = Extract<Answer, { outcome: 'succeeded' }>['body']['preprocess']
 
 function settled(preprocess: Preprocess, ref: Reference): PrepareOutcome {
-  if (preprocess.kind === 'not-needed')
-    return { kind: 'prepared', prepared: { outcome: 'none', text: null } }
+  if (preprocess.kind === 'not-needed') return { kind: 'ready', ref, outcome: 'none', text: null }
   if (preprocess.kind === 'done') {
     const { representation } = preprocess
     if (representation.outcome === 'inconvertible')
-      return { kind: 'prepared', prepared: { outcome: 'inconvertible', text: null } }
+      return { kind: 'ready', ref, outcome: 'inconvertible', text: null }
     const text = typeof representation.text === 'string' ? representation.text : null
-    return { kind: 'prepared', prepared: { outcome: 'converted', text } }
+    return { kind: 'ready', ref, outcome: 'converted', text }
   }
   const reason = preprocess.kind === 'failed' ? WORDS[preprocess.reason] : undefined
   return { kind: 'failed', reason: reason ?? '服务端现在备不好这份附件', ref }

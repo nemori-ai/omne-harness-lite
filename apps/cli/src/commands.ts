@@ -1,12 +1,7 @@
 import { modelProtocol } from '@omne-harness/model-protocol'
 import { identityProtocol } from '@omne-harness/identity-protocol'
 import { encodeTenantText, type TenantId } from '@omne-harness/public-contract'
-import {
-  sessionProtocol,
-  userMessage,
-  type UserAttachment,
-  type SessionProtocol,
-} from '@omne-harness/session-protocol'
+import { sessionProtocol, userMessage, type SessionProtocol } from '@omne-harness/session-protocol'
 import type { BodyOf } from '@omne-harness/sdk/core'
 import type { CliOutput, CommandEnvironment, CommandSpec, ExitCode } from './cli-types.ts'
 import {
@@ -42,7 +37,7 @@ import { calendarCommand } from './calendar-command.ts'
 import { usageCommands } from './usage-command.ts'
 import { scheduleCommand } from './schedule-command.ts'
 import { notificationCommand } from './notification-command.ts'
-import { mediaCommand, prepareUpload, readUpload, sendUpload } from './media-command.ts'
+import { attachUploads, mediaCommand, readUpload } from './media-command.ts'
 import { workspaceCommand } from './workspace-command.ts'
 import { callsCommand } from './calls-command.ts'
 
@@ -333,11 +328,6 @@ type InputCommand = ExistingCommand<
   }
 >
 
-function attachmentKind(mediaType: string): 'image' | 'voice' | 'file' {
-  if (mediaType.startsWith('image/')) return 'image'
-  return mediaType.startsWith('audio/') ? 'voice' : 'file'
-}
-
 // An ordinary input and an urgent one share their body, their queue and their query (C27).
 const inputCommand = (name: 'send-input' | 'interrupt-input'): InputCommand => ({
   kind: 'existing',
@@ -389,23 +379,10 @@ const inputCommand = (name: 'send-input' | 'interrupt-input'): InputCommand => (
           if (!('file' in read)) return read
           files.push(read)
         }
-        const attachments: UserAttachment[] = []
-        for (const read of files) {
-          const { result, ref } = await sendUpload({ link, tenant, newId }, read, newId())
-          if (ref === null) {
-            refused = read.file
-            return result
-          }
-          const prepared = await prepareUpload({ link, tenant, newId }, ref)
-          if ('unready' in prepared)
-            return {
-              local: `the attachment ${read.file} is not ready (its preprocessing: ${prepared.unready}); the input was not sent`,
-            }
-          if ('result' in prepared) {
-            refused = read.file
-            return prepared.result
-          }
-          attachments.push({ kind: attachmentKind(read.mediaType), ref })
+        const attached = await attachUploads({ link, tenant, newId }, files)
+        if ('stop' in attached) {
+          refused = attached.refused
+          return attached.stop
         }
         if (model !== undefined) {
           const select = { tenant, session, controlId: `model:${acceptId}`, model }
@@ -413,6 +390,7 @@ const inputCommand = (name: 'send-input' | 'interrupt-input'): InputCommand => (
           unselected = selected?.kind !== 'response' || selected.outcome !== 'succeeded'
           if (unselected) return selected
         }
+        const { attachments } = attached
         const message = await userMessage({ inputId, text: parsed.text, attachments })
         return link.call(
           sessionProtocol,
