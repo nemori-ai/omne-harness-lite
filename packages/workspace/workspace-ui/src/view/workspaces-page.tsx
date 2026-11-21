@@ -9,6 +9,7 @@ import {
   LoadingState,
   PageColumn,
   PageHeader,
+  RetryIcon,
   Section,
   StateWord,
   Table,
@@ -171,14 +172,14 @@ function ToldLine({
 }: Readonly<{ told: Told; onAgain: (pending: Pending) => Promise<void> }>): JSX.Element {
   const { pending } = told
   return (
-    <p role="status">
+    <InlineNotice
+      tone="neutral"
+      {...(pending === null
+        ? {}
+        : { action: { label: '再查一次', onClick: () => void onAgain(pending), icon: RetryIcon } })}
+    >
       {told.text}
-      {pending === null ? null : (
-        <Button variant="outline" onClick={() => void onAgain(pending)}>
-          再查一次
-        </Button>
-      )}
-    </p>
+    </InlineNotice>
   )
 }
 
@@ -197,18 +198,17 @@ function WorkspaceList({
       <TableBody>
         {list.value.map(item => (
           <TableRow key={item.workspace}>
-            <TableCell>{item.workspace}</TableCell>
-            <TableCell>{item.type}</TableCell>
-            <TableCell>{standingText(item.standing)}</TableCell>
             <TableCell>
               <Button
-                variant="outline"
+                variant="link"
                 aria-label={`查看 ${item.workspace}`}
                 onClick={() => onShow(item.workspace)}
               >
-                查看
+                {item.workspace}
               </Button>
             </TableCell>
+            <TableCell>{item.type}</TableCell>
+            <TableCell>{standingText(item.standing)}</TableCell>
           </TableRow>
         ))}
       </TableBody>
