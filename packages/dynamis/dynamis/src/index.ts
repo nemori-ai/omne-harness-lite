@@ -1,4 +1,32 @@
 export {
+  distinct,
+  exactlyOne,
+  listed,
+  mostSpecific,
+  visible,
+  type Answer,
+  type Filtered,
+  type Item,
+  type Listing,
+  type Unavailable,
+} from './answer.ts'
+export {
+  ask,
+  candidates,
+  CATALOG,
+  catalogContract,
+  declare,
+  list,
+  report,
+  standingOf,
+  withdrawOf,
+  type Candidates,
+  type Contract,
+  type Effect,
+  type FieldKind,
+  type PointStanding,
+} from './catalog.ts'
+export {
   empty,
   install,
   placedBy,

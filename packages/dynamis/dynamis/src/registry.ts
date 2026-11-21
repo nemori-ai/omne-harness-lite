@@ -35,7 +35,10 @@ export type Installed =
 
 const POINT_NAME = /^[a-z][a-z0-9-]*\.[a-z][a-z0-9-]*$/
 
-const byText = (left: string, right: string): number => (left < right ? -1 : left > right ? 1 : 0)
+export const isPointName = (text: string): boolean => POINT_NAME.test(text)
+
+export const byText = (left: string, right: string): number =>
+  left < right ? -1 : left > right ? 1 : 0
 
 export function byScope(left: Scope, right: Scope): number {
   if (left.length !== right.length) return left.length - right.length
@@ -43,7 +46,7 @@ export function byScope(left: Scope, right: Scope): number {
   return at === -1 ? 0 : byText(left[at] as string, right[at] as string)
 }
 
-const byInstance = (left: Instance, right: Instance): number =>
+export const byInstance = (left: Instance, right: Instance): number =>
   byText(left.fiber, right.fiber) || left.generation - right.generation
 
 /** The one order of a registry: it reads only what each entry carries, never when it arrived. */
@@ -103,7 +106,7 @@ function instanceProblem(instance: Instance): string | null {
 }
 
 function entryProblem(entry: Entry): string | null {
-  if (!POINT_NAME.test(entry.point)) return `"${entry.point}" is not a point name <host>.<name>`
+  if (!isPointName(entry.point)) return `"${entry.point}" is not a point name <host>.<name>`
   if (entry.scope.some(part => part === ''))
     return `an entry of ${entry.point} has an empty scope part`
   if (!Number.isFinite(entry.rank))

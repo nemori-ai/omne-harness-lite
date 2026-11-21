@@ -1,4 +1,11 @@
-import type { Entry, Instance } from '../src/index.ts'
+import {
+  empty,
+  install,
+  type Contract,
+  type Entry,
+  type Instance,
+  type Registry,
+} from '../src/index.ts'
 
 export const inst = (fiber: string, generation = 1): Instance => ({ fiber, generation })
 
@@ -44,3 +51,37 @@ export function shuffled<T>(random: Random, from: readonly T[]): T[] {
   }
   return out
 }
+
+export function mustInstall(
+  registry: Registry,
+  instance: Instance,
+  entries: readonly Entry[],
+): Registry {
+  const outcome = install(registry, instance, entries)
+  if (outcome.kind !== 'installed') throw new Error(`refused: ${outcome.reason} ${outcome.detail}`)
+  return outcome.registry
+}
+
+/** A registry holding what each fiber puts, installed in the order given. */
+export function registryOf(...byFiber: readonly (readonly [string, readonly Entry[]])[]): Registry {
+  return byFiber.reduce(
+    (registry, [fiber, entries]) => mustInstall(registry, inst(fiber), entries),
+    empty,
+  )
+}
+
+export const contract = (name: string, over: Partial<Contract> = {}): Contract => ({
+  name,
+  tree: 'server',
+  arity: 'keyed-one',
+  keyFrom: null,
+  key: 'the name of an implementation',
+  gives: 'nothing',
+  item: { kind: 'data', fields: { label: 'string' } },
+  resolve: 'conflict',
+  onError: 'the answer is unavailable',
+  version: 1,
+  conformance: null,
+  summary: `the point ${name}`,
+  ...over,
+})

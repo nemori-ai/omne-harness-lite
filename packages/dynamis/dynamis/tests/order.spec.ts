@@ -1,14 +1,28 @@
 import { describe, expect, it } from 'vitest'
 import {
+  ask,
+  declare,
   empty,
   install,
   remove,
+  report,
   retire,
   type Entry,
   type Instance,
   type Registry,
 } from '../src/index.ts'
-import { below, entry, inst, pick, randomOf, shuffled, type Random } from './support.ts'
+import {
+  below,
+  contract,
+  entry,
+  inst,
+  mustInstall,
+  pick,
+  randomOf,
+  registryOf,
+  shuffled,
+  type Random,
+} from './support.ts'
 
 type Held = { standing: 'serving' | 'retiring'; entries: readonly Entry[] }
 type World = Map<string, Held>
@@ -106,5 +120,64 @@ describe('DY-1：登记表的值只由现在装着什么决定', () => {
         expect(rebuilt(world, shuffled(random, names)), `seed ${seed} step ${at}`).toEqual(sorted)
       }
     }
+  })
+})
+
+const permutations = <T>(items: readonly T[]): T[][] =>
+  items.length <= 1
+    ? [[...items]]
+    : items.flatMap((item, at) =>
+        permutations([...items.slice(0, at), ...items.slice(at + 1)]).map(rest => [item, ...rest]),
+      )
+
+describe('DY-4、DY-6：答案与回执也只由现在装着什么决定', () => {
+  const POINT = 'memory.stores'
+  const parts = (): readonly (readonly [string, readonly Entry[]])[] => [
+    ['host', [declare(contract(POINT))]],
+    ['good', [entry(POINT, 'graph', { digest: 'good' })]],
+    ['rival', [entry(POINT, 'graph', { digest: 'rival' })]],
+    ['sloppy', [entry(POINT, 'vector', { item: {}, digest: 'sloppy' })]],
+    ['late', [entry('later.point', 'k')]],
+  ]
+  const seen = (registry: Registry): string =>
+    JSON.stringify({
+      graph: ask(registry, POINT, 'graph'),
+      vector: ask(registry, POINT, 'vector'),
+      reports: parts().map(([fiber]) => report(registry, inst(fiber))),
+    })
+
+  it('五个 fiber 的 120 种装的先后：答案与回执只有一种', () => {
+    const views = new Set(permutations(parts()).map(order => seen(registryOf(...order))))
+    expect(views.size).toBe(1)
+    const registry = registryOf(...parts())
+    expect(ask(registry, POINT, 'graph').kind).toBe('conflict')
+    expect(ask(registry, POINT, 'vector')).toMatchObject({ kind: 'none' })
+    expect(report(registry, inst('sloppy'))[0]?.state).toBe('breach')
+  })
+
+  it('撞了之后任何一份走了，剩下的一份立刻生效，和它单独装上一样', () => {
+    for (const order of permutations(parts().slice(0, 3))) {
+      const both = registryOf(...order)
+      expect(ask(both, POINT, 'graph').kind).toBe('conflict')
+      expect(ask(remove(both, inst('good')), POINT, 'graph')).toEqual(
+        ask(
+          registryOf(...parts().filter(([fiber]) => fiber === 'host' || fiber === 'rival')),
+          POINT,
+          'graph',
+        ),
+      )
+      expect(ask(remove(both, inst('rival')), POINT, 'graph')).toMatchObject({
+        kind: 'one',
+        holders: [inst('good')],
+      })
+    }
+  })
+
+  it('宿主走了再回来，贡献方什么都没做，回执自己变回生效', () => {
+    const all = registryOf(...parts().slice(0, 2))
+    const hostless = remove(all, inst('host'))
+    expect(report(hostless, inst('good'))[0]?.state).toBe('point-absent')
+    const back = mustInstall(hostless, inst('host', 2), [declare(contract(POINT))])
+    expect(report(back, inst('good'))[0]?.state).toBe('effective')
   })
 })
