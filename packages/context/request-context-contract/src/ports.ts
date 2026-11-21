@@ -1,15 +1,14 @@
 import type * as M from '@omne-harness/model-contract'
 import type { CompactionContext, RecordEntryRef } from '@omne-harness/message'
-import type { ContentBlock, BlockId } from '@omne-harness/content-block'
-import type { Access, Adoption, ContextTarget } from './refs.js'
+import type { ContentBlock } from '@omne-harness/content-block'
+import type { Access, Adoption } from './refs.js'
 import type {
   AssemblyCall,
   AssemblyResult,
   HistoryCursor,
   HistoryEvidence,
   InvalidReason,
-  ConversionIndex,
-  RepresentationChoice,
+  RepresentationOption,
 } from './values.js'
 export type { HistoryRow } from './values.js'
 import type { HistoryRow } from './values.js'
@@ -49,18 +48,6 @@ export interface HistorySource<P> {
   ): Promise<CompactionContextResult>
 }
 
-export type ConversionIndexResult =
-  | Readonly<{ kind: 'index'; entries: ConversionIndex }>
-  | Readonly<{ kind: 'denied' }>
-  | PortInvalid
-  | Readonly<{ kind: 'unknown' }>
-  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
-export interface ConversionResultSource<P> {
-  read(
-    input: Readonly<{ access: Access<P>; target: ContextTarget; blocks: readonly BlockId[] }>,
-  ): Promise<ConversionIndexResult>
-}
-
 export type CompactionPolicy = Readonly<{
   triggerPercent: string | null
   headroomTokens: string | null
@@ -80,10 +67,10 @@ export interface RepresentationPolicyPort {
   choose(
     input: Readonly<{
       block: ContentBlock
-      conversion: M.ConversionResult | null
-      modalities: readonly M.ModelModality[]
+      /** The rows of the table this block can take with the model, in the order of the table. */
+      available: readonly RepresentationOption[]
     }>,
-  ): RepresentationChoice['choice'] | 'none'
+  ): RepresentationOption | 'none'
 }
 
 export type AssemblyPolicies = Readonly<{

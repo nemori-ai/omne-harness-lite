@@ -23,7 +23,6 @@ import {
   createScriptedTransport,
 } from '@omne-harness/model-contract/testing'
 import {
-  createAbsentConversionResults,
   createContextSourceRegistry,
   createDefaultCompactionPolicy,
   createDefaultRepresentationPolicy,
@@ -141,7 +140,6 @@ export async function agentContextReady(tenant: TenantId): Promise<AgentContextR
       assembly: target => registry.assembly(target),
     },
     preparation: f.preparation,
-    conversions: createAbsentConversionResults<string>(),
     model,
     tools: toolsSourceOf(absentToolLookup),
     compactionInputs: {

@@ -75,7 +75,14 @@ export const TEST_CONSTRUCTION = Object.freeze({
     argsPrefix: [],
     env: {},
   },
-  Files: { resultMaxBytes: 4096 },
+  Files: {
+    resultMaxBytes: 4096,
+    openMaxBytes: 65_536,
+    imageMaxWidth: 256,
+    imageMaxHeight: 256,
+    imageMaxDecodedBytes: 262_144,
+    imageConcurrency: 2,
+  },
   Tools: { resultMaxBytes: 4096, outputModalities: ['text'] },
   TodoItems: { resultMaxBytes: 1_048_576 },
   BkgToolCalls: { resultMaxBytes: 65_536 },
@@ -88,6 +95,14 @@ export const TEST_CONSTRUCTION = Object.freeze({
   Sessions: { resultMaxBytes: 4096 },
   Agents: { resultMaxBytes: 4096 },
   SwitchWorkspace: { resultMaxBytes: 4096 },
+  Screen: {
+    resultMaxBytes: 4096,
+    captureMaxLongSide: 2048,
+    imageMaxWidth: 4096,
+    imageMaxHeight: 4096,
+    imageMaxDecodedBytes: 67_108_864,
+    imageConcurrency: 2,
+  },
 })
 
 export function tree(value: unknown): JsonValue {

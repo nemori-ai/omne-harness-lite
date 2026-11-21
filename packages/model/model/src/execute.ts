@@ -13,6 +13,9 @@ import type {
 } from '@omne-harness/model-contract/provider'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { sameAdoption } from './adoption.ts'
+import { mediaRefusal } from './send/attempt.ts'
+
+type Sendable = Outcome<MaterializedTransport, TransportFailure>
 
 type Terminal = Extract<IndependentModelFact, { kind: 'ended' | 'not-started' }>
 
@@ -161,10 +164,12 @@ async function* execute(
       })
     }
 
-    const materialization = await preparation(
-      () => preparationResult.ok.materialize(signal),
-      'materialize',
-    )
+    const materialization = await preparation(async (): Promise<Sendable> => {
+      const outcome = await preparationResult.ok.materialize(signal)
+      if ('ok' in outcome) return outcome
+      const { failure } = outcome
+      return fail(failure.kind === 'media' ? mediaRefusal(failure).failure : failure)
+    }, 'materialize')
     if ('ok' in materialization) materialized = materialization.ok
     if (signal.aborted) {
       return fail({ kind: 'not-started', reason: 'cancelled' })

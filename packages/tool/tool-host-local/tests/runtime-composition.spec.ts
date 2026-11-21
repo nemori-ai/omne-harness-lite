@@ -89,6 +89,7 @@ function composition() {
             inputCompatible: true,
             outputCompatible: true,
             attachmentsReadable: true,
+            productsStorable: true,
           } as const),
         ),
     },

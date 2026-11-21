@@ -42,6 +42,8 @@ it('a login principal sets the Shell run permission to deny on the release tree 
         'Schedules/activate:auto',
         'Schedules/draft:auto',
         'Schedules/read:auto',
+        'Screen/observe:ask',
+        'Screen/read:auto',
         'Sessions/invoke:auto',
         'Shell/read:auto',
         'Shell/run:ask',

@@ -113,6 +113,13 @@
           ]
         },
         {
+          "title": "读媒体的服务定义",
+          "names": [
+            { "name": "ModelMediaSourceService", "kind": "class", "pending": false },
+            { "name": "modelMediaSourceKey", "kind": "value", "pending": false }
+          ]
+        },
+        {
           "title": "结果接收登记",
           "names": [
             { "name": "ModelResultReceiverTable", "kind": "type", "pending": false },
@@ -178,6 +185,7 @@
         "modelInstances",
         "modelConverterAuthority",
         "modelCredential",
+        "modelMediaSource",
         "modelStreamReferences",
         "modelStreamObservation",
         "modelPreparationResources"

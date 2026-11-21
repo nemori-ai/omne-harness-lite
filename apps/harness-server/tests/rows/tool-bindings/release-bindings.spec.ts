@@ -13,18 +13,23 @@ import {
   toolBindingsKey,
   toolCatalogKey,
 } from '@omne-harness/tool-cordis-contract/cordis'
-import { shellToolModule } from '@omne-harness/tool-definitions'
+import { filesToolModule, screenToolModule, shellToolModule } from '@omne-harness/tool-definitions'
 import { notificationsToolModule } from '@omne-harness/notification-tools'
 import { principalIssuer, sessionWorkIssuerOf } from '../../../src/entry/principals.ts'
 import { createToolReleaseEntries } from '../../../src/entry/tool-release.ts'
 import { governanceOf } from '../../../src/entry/tool-release-manifest.ts'
-import { createReleaseAvailability } from '../../../src/rows/tool-bindings/availability.ts'
+import {
+  createReleaseAvailability,
+  modelReadsOver,
+  type ModelReads,
+} from '../../../src/rows/tool-bindings/availability.ts'
 import {
   startAuthorityProxy,
   toolBindingsRow,
   bundleScope,
   bundleSettle,
 } from '../../../src/rows/tool-bindings/index.ts'
+import { recordHostOffers } from '../../../src/rows/execution-host/offers.ts'
 import { toolRuntimeHolder, type ToolRuntimeBundle } from '../../../src/rows/tool-runtime/holder.ts'
 import { StubService } from '../../../src/s0/stub-plugin.ts'
 import { fixtureEnv, fixtureTenant, got, okOf } from '../../entry/support.ts'
@@ -45,17 +50,49 @@ async function judged() {
     conversion: null,
     attachmentAccess: fixture.manifest.consumer.attachmentAccess,
   }
-  const availability = createReleaseAvailability(fixture.root)
+  const reads: { asked: unknown[]; answer: Awaited<ReturnType<ModelReads>> } = {
+    asked: [],
+    answer: 'taken',
+  }
+  const availability = createReleaseAvailability(fixture.root, async (access, modalities) => {
+    reads.asked.push({ session: access.session, modalities })
+    return reads.answer
+  })
+  const files = okOf(filesToolModule.createAuthor(tree(TEST_CONSTRUCTION.Files)), 'author')
+  const filesDefinition = okOf(
+    judgeToolDefinition(
+      deriveDefinition(governanceOf(entryOf(fixture.manifest, 'Files')), files.facts),
+    ),
+    'definition',
+  )
   const judge = (overrides: object = {}) =>
     availability.judge({
       principal,
       tenant,
       definition,
+      command: null,
       layer: { kind: 'official' },
       consumer,
       ...overrides,
     })
-  return { fixture, tenant, principal, definition, consumer, judge }
+  const store = () =>
+    fixture.root.plugin({
+      name: 'store',
+      apply: (ctx: Context) => void new StubService(ctx, 'toolMediaStore', 'media', {}),
+    })
+  const open = () => judge({ definition: filesDefinition, command: 'open' })
+  return {
+    fixture,
+    tenant,
+    principal,
+    definition,
+    consumer,
+    judge,
+    reads,
+    store,
+    open,
+    filesDefinition,
+  }
 }
 
 describe('tool-bindings: availability from verified sources only', () => {
@@ -71,6 +108,7 @@ describe('tool-bindings: availability from verified sources only', () => {
         inputCompatible: true,
         outputCompatible: true,
         attachmentsReadable: true,
+        productsStorable: true,
       }),
     )
   })
@@ -137,6 +175,84 @@ describe('tool-bindings: availability from verified sources only', () => {
     })
   })
 
+  it('a command that adds no modality is judged as the tool: neither the store nor the model is looked at', async () => {
+    const { judge, reads, filesDefinition } = await judged()
+    for (const command of ['read', null])
+      expect(await judge({ definition: filesDefinition, command })).toMatchObject({
+        ok: { qualification: 'allowed', outputCompatible: true, productsStorable: true },
+      })
+    expect(reads.asked).toEqual([])
+  })
+
+  it('a command that adds a picture, with no store of products: unstorable, and the model is not asked', async () => {
+    const { open, reads } = await judged()
+    expect(await open()).toMatchObject({
+      ok: { qualification: 'allowed', outputCompatible: true, productsStorable: false },
+    })
+    expect(reads.asked).toEqual([])
+  })
+
+  it('with the store there, it asks whether the model of this session takes what the command adds', async () => {
+    const { open, reads, store } = await judged()
+    await store()
+    expect(await open()).toMatchObject({ ok: { outputCompatible: true, productsStorable: true } })
+    expect(reads.asked).toEqual([{ session: 'ses-1', modalities: ['image'] }])
+    reads.answer = 'not-taken'
+    expect(await open()).toMatchObject({ ok: { outputCompatible: false, productsStorable: true } })
+  })
+
+  it('answers unavailable, not available, when what the model takes cannot be read', async () => {
+    const { open, reads, store } = await judged()
+    await store()
+    reads.answer = { unreadable: 'the saved model selection cannot be read' }
+    expect(await open()).toEqual({
+      failure: {
+        kind: 'unavailable',
+        dependency: 'tool-availability',
+        diagnostic: 'the saved model selection cannot be read',
+      },
+    })
+  })
+
+  it('the store leaving makes the command unstorable again, at the next question', async () => {
+    const { open, store } = await judged()
+    const installed = await store()
+    expect(await open()).toMatchObject({ ok: { productsStorable: true } })
+    await installed.dispose()
+    expect(await open()).toMatchObject({ ok: { productsStorable: false } })
+  })
+
+  it('Screen needs the host to offer the screen: its capability is there only while the host row offers it', async () => {
+    const { fixture, judge } = await judged()
+    const created = okOf(screenToolModule.createAuthor(tree(TEST_CONSTRUCTION.Screen)), 'author')
+    const definition = okOf(
+      judgeToolDefinition(
+        deriveDefinition(governanceOf(entryOf(fixture.manifest, 'Screen')), created.facts),
+      ),
+      'definition',
+    )
+    const capability = async () =>
+      okOf(await judge({ definition }), 'judge').dependencies.find(
+        dependency => dependency.name === 'screen.read',
+      )
+    expect(await capability()).toEqual({ name: 'screen.read', available: false })
+    const without = fixture.root.plugin({
+      name: 'host-without-screen',
+      apply: (ctx: Context) => recordHostOffers(ctx, ['files', 'command', 'terminal']),
+    })
+    await without
+    expect(await capability()).toEqual({ name: 'screen.read', available: false })
+    await without.dispose()
+    const host = fixture.root.plugin({
+      name: 'host-with-screen',
+      apply: (ctx: Context) => recordHostOffers(ctx, ['files', 'command', 'terminal', 'screen']),
+    })
+    await host
+    expect(await capability()).toEqual({ name: 'screen.read', available: true })
+    await host.dispose()
+    expect(await capability()).toEqual({ name: 'screen.read', available: false })
+  })
+
   it('answers unavailable for an unverified principal and for another tenant', async () => {
     const { judge, principal } = await judged()
     expect(await judge({ principal: { ...principal } })).toMatchObject({
@@ -161,6 +277,7 @@ describe('tool-bindings: availability from verified sources only', () => {
       principal,
       tenant,
       definition,
+      command: null,
       layer: { kind: 'official' },
       consumer,
     })
@@ -247,5 +364,69 @@ describe('tool-bindings: one plugin, one fiber, two services', () => {
     await fiber.dispose()
     expect(fixture.root.get(toolBindingsKey)).toBeUndefined()
     expect(fixture.root.get(toolCatalogKey)).toBeUndefined()
+  })
+})
+
+describe('what the model of a session takes, read from its saved selection and the profile of that route', () => {
+  const access = { principal: 'p', tenant: fixtureTenant('a'), session: 'ses-1' }
+  const selection = succeed({ selection: { name: 'vision' } })
+  const resolved = (reasons: readonly string[]) =>
+    succeed({ kind: 'resolved', selectable: reasons.length === 0, reasons })
+  const over = (readSelection: unknown, resolveProfile: unknown) =>
+    modelReadsOver({ readSelection, resolveProfile } as never)(access, ['image'])
+
+  it('asks the profile of the saved route for words and what the command adds', async () => {
+    const asked: unknown[] = []
+    const answer = await over(
+      async (input: unknown) => (asked.push(input), selection),
+      async (input: { route: string; required: { modalities: unknown } }) => {
+        asked.push({ route: input.route, modalities: input.required.modalities })
+        return resolved([])
+      },
+    )
+    expect(answer).toBe('taken')
+    expect(asked).toEqual([access, { route: 'vision', modalities: ['text', 'image'] }])
+  })
+
+  it.each([
+    ['the profile refuses for modality', ['modality'], 'not-taken'],
+    ['the profile refuses for modality among other reasons', ['locked', 'modality'], 'not-taken'],
+    ['the profile is refused for another reason only', ['locked'], 'taken'],
+  ])('%s', async (_, reasons, answer) => {
+    expect(
+      await over(
+        async () => selection,
+        async () => resolved(reasons),
+      ),
+    ).toBe(answer)
+  })
+
+  it.each([
+    ['the session service is not there', undefined, async () => resolved([])],
+    [
+      'the selection cannot be read',
+      async () => fail({ kind: 'unavailable' }),
+      async () => resolved([]),
+    ],
+    ['the profiles service is not there', async () => selection, undefined],
+    [
+      'the profile cannot be read',
+      async () => selection,
+      async () => fail({ kind: 'unavailable' }),
+    ],
+    [
+      'the route has no profile',
+      async () => selection,
+      async () => succeed({ kind: 'absent', reason: 'withdrawn' }),
+    ],
+    ['reading throws', async () => selection, async () => Promise.reject(new Error('down'))],
+  ])('is unreadable when %s', async (_, readSelection, resolveProfile) => {
+    const ports = {
+      readSelection: readSelection ?? (() => undefined),
+      resolveProfile: resolveProfile ?? (() => undefined),
+    }
+    expect(await over(ports.readSelection, ports.resolveProfile)).toEqual({
+      unreadable: expect.any(String),
+    })
   })
 })

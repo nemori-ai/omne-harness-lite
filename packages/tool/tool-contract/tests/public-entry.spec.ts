@@ -61,6 +61,7 @@ it('exports the provider protocol on the provider entry, and no name on both ent
     'actionPreview',
     'attachToolsCapability',
     'authorDecision',
+    'commandAddedModalities',
     'commandArguments',
     'commandExample',
     'commandGuide',

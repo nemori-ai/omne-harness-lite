@@ -11,7 +11,7 @@ import {
   createDefaultCompactionPolicy,
   createDefaultRepresentationPolicy,
 } from '@omne-harness/request-context'
-import { blockId, textPart } from './fixtures/messages.ts'
+import { blockId } from './fixtures/messages.ts'
 
 it('uses the selected model trigger without an operator override', () => {
   expect(DEFAULT_COMPACTION_POLICY).toEqual({ triggerPercent: null, headroomTokens: null })
@@ -51,14 +51,12 @@ describe('default representation policy', () => {
     mediaType: 'image/png',
     inline: 'AAAA',
   }
-  const converted = {
-    kind: 'converted' as const,
-    value: {
-      original: image,
-      converter: { owner: 'test', name: 'c', revision: '1', digest: 'd' },
-      derived: [textPart('a cat', 'd1')] as const,
-      transcript: 'a cat',
-    },
+  const pdf = {
+    kind: 'file' as const,
+    id: blockId('f1'),
+    visibility: { toModel: true, toHuman: true },
+    ref: { storage: 's', key: 'k', mediaType: 'application/pdf', bytes: '3', digest: 'd' },
+    transcript: null,
   }
   it('starts from original, then derived, then transcript for every modality', () => {
     expect(DEFAULT_REPRESENTATION_CONFIG.preferences).toEqual({
@@ -74,46 +72,41 @@ describe('default representation policy', () => {
         kind: 'passed',
       })
   })
-  it('takes the original when the model accepts it, the derived text when it does not', () => {
+  it('takes the first of its order that the block can take with the model', () => {
     const policy = createDefaultRepresentationPolicy()
-    expect(policy.choose({ block: image, conversion: null, modalities: ['text', 'image'] })).toBe(
-      'original',
-    )
-    expect(policy.choose({ block: image, conversion: converted, modalities: ['text'] })).toBe(
-      'derived',
-    )
+    const all = ['original', 'derived', 'transcript'] as const
+    expect(policy.choose({ block: image, available: all })).toBe('original')
+    expect(policy.choose({ block: image, available: ['derived', 'transcript'] })).toBe('derived')
+    expect(policy.choose({ block: image, available: ['transcript'] })).toBe('transcript')
   })
-  it('follows the configured preference order', () => {
+  it('follows the configured preference order, each modality its own', () => {
     const policy = createDefaultRepresentationPolicy({
       preferences: { image: ['transcript', 'original'] },
     })
-    expect(
-      policy.choose({ block: image, conversion: converted, modalities: ['text', 'image'] }),
-    ).toBe('transcript')
-    expect(policy.config.preferences.text).toEqual(['original', 'derived', 'transcript'])
-  })
-  it('answers none and does not invent a conversion when nothing is acceptable', () => {
-    const policy = createDefaultRepresentationPolicy()
-    expect(policy.choose({ block: image, conversion: null, modalities: ['text'] })).toBe('none')
-    expect(
-      policy.choose({
-        block: image,
-        conversion: { kind: 'unchanged', original: image, reason: 'no-converter' },
-        modalities: ['text'],
-      }),
-    ).toBe('none')
-  })
-  it('skips a derived form whose own blocks the model cannot take', () => {
-    const policy = createDefaultRepresentationPolicy({
-      preferences: { image: ['derived', 'transcript'] },
-    })
-    const withImage = {
-      ...converted,
-      value: { ...converted.value, derived: [{ ...image, id: blockId('d2') }] as const },
-    }
-    expect(policy.choose({ block: image, conversion: withImage, modalities: ['text'] })).toBe(
+    expect(policy.choose({ block: image, available: ['original', 'transcript'] })).toBe(
       'transcript',
     )
+    expect(policy.choose({ block: image, available: ['derived'] })).toBe('none')
+    expect(policy.config.preferences.text).toEqual(['original', 'derived', 'transcript'])
+  })
+  it('words and a voice follow their own orders too', () => {
+    const policy = createDefaultRepresentationPolicy({
+      preferences: { text: ['transcript', 'original'], voice: ['derived', 'original'] },
+    })
+    const said = { ...pdf, kind: 'voice' as const, ref: { ...pdf.ref, mediaType: 'audio/wav' } }
+    const csv = { ...pdf, ref: { ...pdf.ref, mediaType: 'text/csv' } }
+    expect(policy.choose({ block: said, available: ['original', 'derived'] })).toBe('derived')
+    expect(policy.choose({ block: csv, available: ['original', 'transcript'] })).toBe('transcript')
+    expect(policy.choose({ block: image, available: ['original', 'transcript'] })).toBe('original')
+  })
+  it('answers none when the block can take nothing with the model', () => {
+    const policy = createDefaultRepresentationPolicy()
+    expect(policy.choose({ block: image, available: [] })).toBe('none')
+  })
+  it('orders a file of no modality as original, other representation, words', () => {
+    const policy = createDefaultRepresentationPolicy({ preferences: { text: ['transcript'] } })
+    expect(policy.choose({ block: pdf, available: ['transcript', 'derived'] })).toBe('derived')
+    expect(policy.choose({ block: pdf, available: ['transcript', 'original'] })).toBe('original')
   })
   it('refuses a preference list that holds an unknown choice', () => {
     const preferences = { text: ['original', 'guess'] }

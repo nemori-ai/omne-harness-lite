@@ -9,6 +9,7 @@ import type {
 } from '@omne-harness/model-contract'
 import type {
   MaterializedTransport,
+  ModelMediaSource,
   ModelTransport,
   PreparedTransport,
   SendDemand,
@@ -37,7 +38,9 @@ import {
 
 export type RequestDisclosure = (request: FixedModelRequest) => TransportFailure | null
 
-export type PiSendResourcesConfig = Readonly<{
+export type CurrentMediaSource<P> = () => ModelMediaSource<P> | null
+
+export type PiSendResourcesConfig<P = unknown> = Readonly<{
   network: NetworkResources
   families: PiFamilyContributions
   routes: Readonly<Record<string, PiRoute>>
@@ -45,6 +48,7 @@ export type PiSendResourcesConfig = Readonly<{
   materialization: PiMaterializationOptions
   requestDisclosure?: RequestDisclosure
   onConnectRetry?: (retry: ConnectRetryReport) => void
+  media?: CurrentMediaSource<P>
 }>
 
 export type ConnectRetryReport = Readonly<{
@@ -83,18 +87,30 @@ const CLOSED: ModelFailure = Object.freeze({
 
 const EMPTY_SLOT: PiCredentialSlot = Object.freeze({ read: () => undefined })
 
-export function createPiSendResources<P>(config: PiSendResourcesConfig): PiSendResources<P> {
+type MediaRead = NonNullable<PiTransportConfig['media']>
+/** Reads for one send: its access is bound here, and the source is the one there at each read. */
+function mediaReadOf<P>(current: CurrentMediaSource<P>, demand: SendDemand<P>): MediaRead {
+  const { principal, tenant } = demand
+  return async (reference, limits, signal) => {
+    const source = current()
+    if (source === null)
+      return { failure: { kind: 'unavailable', diagnostic: 'media-source-absent' } }
+    return source.open({ principal, tenant, reference, limits }, signal)
+  }
+}
+
+export function createPiSendResources<P>(config: PiSendResourcesConfig<P>): PiSendResources<P> {
   return sendResourcesOver<P>({ config, createTransport: createPiTransport })
 }
 
 export function sendResourcesOver<P>(
   input: Readonly<{
-    config: PiSendResourcesConfig
+    config: PiSendResourcesConfig<P>
     createTransport: (config: PiTransportConfig) => PiTransport
   }>,
 ): PiSendResources<P> {
   const { config, createTransport } = input
-  const { onConnectRetry, requestDisclosure, ...transportBase } = config
+  const { onConnectRetry, requestDisclosure, media, ...transportBase } = config
   const proofs = materializationRecords(config.materialization)
   const receipts = receiveRecords({ execution: config.materialization.execution })
   // The probe checks the configuration once, so a bad route or limit fails the assembly, not the
@@ -118,6 +134,7 @@ export function sendResourcesOver<P>(
       ...transportBase,
       credential: { read: () => secrets },
       onResponseBody: () => received?.bodyClaimed(),
+      ...(media === undefined ? {} : { media: mediaReadOf(media, demand) }),
       ...(onConnectRetry === undefined
         ? {}
         : {

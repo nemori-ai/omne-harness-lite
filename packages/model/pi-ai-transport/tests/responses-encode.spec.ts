@@ -12,6 +12,9 @@ import {
   fixedRequest,
   imageBlock,
   message,
+  PICTURE_BYTES,
+  pictureBlock,
+  pictureRead,
   resultBlock,
   stateBlock,
   supplierOf,
@@ -168,16 +171,72 @@ describe('encode: what the projection leaves out or moves', () => {
     expect(writeJsonText(outcome.ok.body)).not.toContain('cipher')
   })
 
-  it('refuses media it was not given a way to send', () => {
+  describe('an image by reference', () => {
     const record = responsesRecord()
-    const request: FixedModelRequest = fixedRequest(record, { messages: [asked] })
-    const outcome = bind(record).encode({
-      request,
-      media: [{ id: 'img-1' } as never],
-      declaration: request.declarations[0],
-      resent: [],
+    const DATA = Buffer.from(PICTURE_BYTES).toString('base64')
+    const wire = { type: 'input_image', image_url: `data:image/png;base64,${DATA}` }
+    const encodeWith = (
+      parts: RequestParts,
+      media: Parameters<PiFamilyBinding['encode']>[0]['media'],
+    ) => {
+      const request: FixedModelRequest = fixedRequest(record, parts)
+      return bind(record).encode({
+        request,
+        media,
+        declaration: request.declarations[0],
+        resent: [],
+      })
+    }
+
+    it('of a user message is written as the bytes read for it, and its measure goes to the meter', () => {
+      const messages = [message('u1', 'user', [textBlock('t1', 'look'), pictureBlock('p1')])]
+      const outcome = encodeWith({ messages }, [pictureRead()])
+      expect((body(outcome).input as { content?: unknown }[]).at(-1)?.content).toEqual([
+        { type: 'input_text', text: 'look' },
+        wire,
+      ])
+      if (!('ok' in outcome)) throw new Error('encode failed')
+      expect(outcome.ok.representation.media).toEqual([pictureRead().measurement])
     })
-    expect(outcome).toMatchObject({ failure: { kind: 'unsupported', field: 'media' } })
+
+    it('of a tool result is sent in the user message after the results', () => {
+      const outcome = encodeWith(
+        {
+          messages: [
+            asked,
+            message('a1', 'assistant', [callBlock('c1', 'call-1', 'get_weather')]),
+            message('r1', 'tool', [resultBlock('x1', 'call-1'), pictureBlock('x2')]),
+          ],
+          tools: [tool('get_weather')],
+        },
+        [pictureRead()],
+      )
+      expect((body(outcome).input as unknown[]).slice(-2)).toMatchObject([
+        { type: 'function_call_output', call_id: 'call-1', output: '' },
+        { role: 'user', content: [wire] },
+      ])
+    })
+
+    it('is unsupported at its path when nothing was read for it; media nothing refers to change nothing', () => {
+      const messages = [message('u1', 'user', [pictureBlock('p1')])]
+      expect(encodeWith({ messages }, [])).toMatchObject({
+        failure: { kind: 'unsupported', field: '/messages/0/blocks/0' },
+      })
+      const plain = { messages: [asked] }
+      expect(encodeWith(plain, [pictureRead()])).toEqual(encodeWith(plain, []))
+    })
+
+    it('a record that takes no image sends none, inline or by reference', () => {
+      const blind = responsesRecord({ wire: { ...record.wire, image: null } })
+      const encodeBlind = (block: unknown, media: Parameters<typeof encodeWith>[1]) => {
+        const request = fixedRequest(blind, { messages: [message('u1', 'user', [block])] })
+        const [declaration] = request.declarations
+        return bind(blind).encode({ request, media, declaration, resent: [] })
+      }
+      const unsupported = { failure: { kind: 'unsupported', field: '/messages/0/blocks/0' } }
+      expect(encodeBlind(imageBlock('i1'), [])).toMatchObject(unsupported)
+      expect(encodeBlind(pictureBlock('p1'), [pictureRead()])).toMatchObject(unsupported)
+    })
   })
 })
 

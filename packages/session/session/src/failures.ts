@@ -13,6 +13,7 @@ export const OWNERS = Object.freeze({
   idle: 'sessionIdleInput',
   clock: 'sessionClock',
   admission: 'sessionAdmission',
+  sources: 'sessionInputSources',
 } as const)
 export type Owner = (typeof OWNERS)[keyof typeof OWNERS]
 

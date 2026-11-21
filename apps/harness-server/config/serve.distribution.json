@@ -101,6 +101,11 @@
               "tool": "SwitchWorkspace"
             },
             {
+              "id": "screen",
+              "effect": "allow",
+              "tool": "Screen"
+            },
+            {
               "id": "skills",
               "effect": "allow",
               "tool": "Skills"
@@ -118,6 +123,11 @@
     {
       "id": "session-input-sources",
       "plugin": "sessionInputSourcesRow",
+      "config": {}
+    },
+    {
+      "id": "session-before-intake",
+      "plugin": "sessionBeforeIntakeRow",
       "config": {}
     },
     {
@@ -171,6 +181,46 @@
       "config": {}
     },
     {
+      "id": "media-storage-sql",
+      "plugin": "mediaStorageSqlRow",
+      "config": {}
+    },
+    {
+      "id": "media-image",
+      "plugin": "mediaImageRow",
+      "config": {}
+    },
+    {
+      "id": "media",
+      "plugin": "mediaRow",
+      "config": {}
+    },
+    {
+      "id": "media-storage-local",
+      "plugin": "mediaStorageLocalRow",
+      "config": {}
+    },
+    {
+      "id": "media-sweep",
+      "plugin": "mediaSweepRow",
+      "config": {}
+    },
+    {
+      "id": "media-intake",
+      "plugin": "mediaIntakeRow",
+      "config": {}
+    },
+    {
+      "id": "media-model-source",
+      "plugin": "mediaModelSourceRow",
+      "config": {}
+    },
+    {
+      "id": "media-tool-store",
+      "plugin": "mediaToolStoreRow",
+      "config": {}
+    },
+    {
       "id": "workspace",
       "plugin": "workspaceRow",
       "config": {}
@@ -188,9 +238,7 @@
     {
       "id": "session-provider",
       "plugin": "sessionProviderRow",
-      "config": {
-        "admission": "none"
-      }
+      "config": {}
     },
     {
       "id": "session-ad02",
@@ -332,7 +380,7 @@
               "owner": "harness-server-release",
               "name": "coding",
               "revision": "1",
-              "digest": "sha256:ba71dac17c01bb4e6f8375b5973ded61dd8be167bd3c89619015125896d28d9e"
+              "digest": "sha256:5d3a0d3af14195a712fd3ea6497ecc1cff826cf18c1b9322e391faca97fa76a1"
             },
             "execution": {
               "owner": "harness-server-release",
@@ -460,6 +508,13 @@
                   "capability": {
                     "category": "Tool",
                     "name": "SwitchWorkspace"
+                  },
+                  "resident": true
+                },
+                {
+                  "capability": {
+                    "category": "Tool",
+                    "name": "Screen"
                   },
                   "resident": true
                 },
@@ -778,6 +833,11 @@
     {
       "id": "notification-access",
       "plugin": "notificationAccessRow",
+      "config": {}
+    },
+    {
+      "id": "media-access",
+      "plugin": "mediaAccessRow",
       "config": {}
     },
     {

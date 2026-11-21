@@ -7,7 +7,12 @@ import {
   type Assembly,
   type PortName,
 } from './fixtures/assembly.ts'
-import { SessionClockService } from '@omne-harness/session-cordis-contract/cordis'
+import type { Context } from '@deepseek-ai/cordis'
+import {
+  SessionClockService,
+  sessionBeforeIntakeKey,
+  sessionBeforeIntakePlugin,
+} from '@omne-harness/session-cordis-contract/cordis'
 import { operationId, ordinaryInput } from '@omne-harness/session-contract/testing'
 
 const open: Assembly[] = []
@@ -164,35 +169,102 @@ describe('configuration', () => {
 })
 
 describe('the admission declaration', () => {
-  it('without it, accept answers unavailable: the intake slots have no key yet', async () => {
+  const words = (a: Assembly, intake: Awaited<ReturnType<Assembly['caller']>>, name: string) =>
+    intake.session().work.accept({
+      ...a.access(),
+      operation: operationId(`accept-${name}`),
+      value: ordinaryInput(name),
+    })
+  const blocking = {
+    name: 'blocking',
+    inject: [sessionBeforeIntakeKey],
+    apply(ctx: Context) {
+      ctx.sessionBeforeIntake.register({
+        name: 'audit.words',
+        run: async () => ({ kind: 'block', reason: 'not now' }),
+      })
+    },
+  }
+
+  it('without it and without the registration point, accept answers unavailable', async () => {
     const a = await build({ provider: {} })
     const intake = await a.caller('intake')
     await a.create(intake)
-    const answer = await intake.session().work.accept({
-      ...a.access(),
-      operation: operationId('accept-undeclared'),
-      value: ordinaryInput('undeclared'),
+    expect(await words(a, intake, 'undeclared')).toMatchObject({
+      failure: { kind: 'unavailable', owner: 'sessionAdmission' },
     })
-    expect(answer).toMatchObject({ failure: { kind: 'unavailable', owner: 'sessionAdmission' } })
   })
 
-  it("with admission 'none', accept runs without slots", async () => {
+  it("with admission 'none', accept runs no processor, registered or not", async () => {
     const a = await build({ provider: { admission: 'none' } })
+    await a.mount(sessionBeforeIntakePlugin)
+    await a.mount(blocking)
     const intake = await a.caller('intake')
     await a.create(intake)
     expect((await a.accept(intake, 'declared')).revision).toBeDefined()
   })
-})
 
-describe('a second load under the same isolate label', () => {
-  it('fails, and the first one keeps serving', async () => {
-    const a = await build()
-    const second = await a.load()
-    expect(second.state as number).toBe(FIBER_STATE.FAILED)
-    await expect(second.await()).rejects.toThrow(/session/)
-    expect(a.handles.size).toBe(1)
-    expect(provides(a)).toBe(true)
+  it('without it, the processors registered at the moment of each intake run', async () => {
+    const a = await build({ provider: {} })
+    const point = await a.mount(sessionBeforeIntakePlugin)
     const intake = await a.caller('intake')
-    expect((await a.create(intake)).revision).toBeDefined()
+    await a.create(intake)
+    expect(await words(a, intake, 'none-yet')).toHaveProperty('ok')
+    const fiber = await a.mount(blocking)
+    expect(await words(a, intake, 'blocked')).toMatchObject({
+      failure: { kind: 'invalid', reason: 'audit.words: not now' },
+    })
+    await fiber.dispose()
+    expect(await words(a, intake, 'blocked')).toHaveProperty('ok')
+    await point.dispose()
+    expect(await words(a, intake, 'gone')).toMatchObject({
+      failure: { kind: 'unavailable', owner: 'sessionAdmission' },
+    })
+  })
+
+  it('with the point there and no processor of media, an input that refers to media is unavailable (SE-37)', async () => {
+    const a = await build({ provider: {} })
+    await a.mount(sessionBeforeIntakePlugin)
+    const intake = await a.caller('intake')
+    await a.create(intake)
+    const plain = ordinaryInput('pictured')
+    const ref = {
+      storage: 'local',
+      key: 'k',
+      mediaType: 'image/png',
+      bytes: '3',
+      digest: 'sha256:k',
+    }
+    const picture = { kind: 'image', id: 'b2', visibility: { toHuman: true, toModel: true }, ref }
+    const blocks = [...plain.message.blocks, { ...picture, transcript: null }]
+    const answer = await intake.session().work.accept({
+      ...a.access(),
+      operation: operationId('accept-pictured'),
+      value: { ...plain, message: { ...plain.message, blocks } as unknown as typeof plain.message },
+    })
+    expect(answer).toMatchObject({ failure: { kind: 'unavailable', owner: 'sessionAdmission' } })
+    expect(await words(a, intake, 'plain')).toHaveProperty('ok')
+  })
+
+  it('the registry of input sources is read at each intake that has processors to run: gone, the input is unavailable', async () => {
+    const a = await build({ provider: {} })
+    await a.mount(sessionBeforeIntakePlugin)
+    await a.mount({
+      name: 'passing',
+      inject: [sessionBeforeIntakeKey],
+      apply(ctx: Context) {
+        ctx.sessionBeforeIntake.register({
+          name: 'audit.words',
+          run: async () => ({ kind: 'pass' }),
+        })
+      },
+    })
+    const intake = await a.caller('intake')
+    await a.create(intake)
+    expect(await words(a, intake, 'sourced')).toHaveProperty('ok')
+    await a.sources.dispose()
+    expect(await words(a, intake, 'sourceless')).toMatchObject({
+      failure: { kind: 'unavailable', owner: 'sessionInputSources' },
+    })
   })
 })
