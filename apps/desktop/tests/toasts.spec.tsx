@@ -5,7 +5,7 @@ import type { Toast } from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import { FigureSeat } from '@omne-harness/ui-kit'
 import { createToldBoard } from '../src/page/shell/state.ts'
-import { toldText } from '../src/page/shell/told.tsx'
+import { toldLineCap, toldText } from '../src/page/shell/told.tsx'
 import { current, home, setup } from './support/shell-setup.tsx'
 
 type Rect = Readonly<{ left: number; top: number; width: number; height: number }>
@@ -26,6 +26,14 @@ const rect = ({ left, top, width, height }: Rect): DOMRect =>
 const HOME_SEAT: Rect = { left: 12, top: 36, width: 32, height: 32 }
 const HEADER_SEAT: Rect = { left: 600, top: 20, width: 32, height: 32 }
 const FOLD: Rect = { left: 228, top: 36, width: 32, height: 32 }
+/** The note's own box (ink.css at the middle size): its padding above and below, and one line of its words. */
+const NOTE_PADDING = { top: 8, bottom: 9 }
+const NOTE_LINE = 21
+/** The note's top: 20px above the figure's middle at home (the kit's `BESIDE.level`). */
+const NOTE_TOP = HOME_SEAT.top + HOME_SEAT.height / 2 - 20
+/** Where the first row of the navigation starts, and how many lines the words would need; each test may move them. */
+let firstRowTop = 400
+let wordsNeed = 6
 
 beforeEach(() => {
   Object.assign(Element.prototype, {
@@ -39,13 +47,26 @@ beforeEach(() => {
     if (seat === 'home') return rect(HOME_SEAT)
     if (seat === 'header') return rect(HEADER_SEAT)
     if (this.classList.contains('shell-fold')) return rect(FOLD)
+    if (this.classList.contains('shell-nav-link'))
+      return rect({ left: 8, top: firstRowTop, width: 240, height: 40 })
     return rect({ left: 0, top: 0, width: 0, height: 0 })
   })
+  vi.spyOn(Element.prototype, 'scrollHeight', 'get').mockImplementation(function (this: Element) {
+    return this.classList.contains('omne-told-note-words') ? wordsNeed * NOTE_LINE : 0
+  })
+  const style = document.createElement('style')
+  style.dataset['test'] = 'told-note'
+  style.textContent = `.omne-told-note { padding: ${NOTE_PADDING.top}px 14px ${NOTE_PADDING.bottom}px; }
+    .omne-told-note-words { line-height: ${NOTE_LINE}px; }`
+  document.head.append(style)
 })
 afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
   vi.useRealTimers()
+  document.head.querySelector('style[data-test="told-note"]')?.remove()
+  firstRowTop = 400
+  wordsNeed = 6
 })
 
 const pages = (seen: (string | undefined)[]) =>
@@ -235,6 +256,54 @@ describe('外壳：瞬时提示画成告知笺', () => {
     const wrapper = document.querySelector<HTMLElement>('.shell-told')!
     const start = HOME_SEAT.left + HOME_SEAT.width / 2 + 56 / 2 + 2
     expect(wrapper.style.maxWidth).toBe(`${FOLD.left - start}px`)
+  })
+})
+
+describe('告知笺的行数上限（OD-20）', () => {
+  const lines = () => note()?.style.getPropertyValue('--omne-told-lines')
+
+  it('给定空地算出能写的整行数：先去掉笺自己的上下内边距', () => {
+    const padding = NOTE_PADDING.top + NOTE_PADDING.bottom
+    expect(toldLineCap(padding + 4 * NOTE_LINE, NOTE_LINE, padding)).toBe(4)
+    expect(toldLineCap(padding + 4 * NOTE_LINE - 1, NOTE_LINE, padding)).toBe(3)
+    expect(toldLineCap(padding + 3 * NOTE_LINE, NOTE_LINE, padding)).toBe(3)
+  })
+
+  it('空地再小也不少于两行', () => {
+    const padding = NOTE_PADDING.top + NOTE_PADDING.bottom
+    expect(toldLineCap(padding + 2 * NOTE_LINE, NOTE_LINE, padding)).toBe(2)
+    expect(toldLineCap(padding + NOTE_LINE, NOTE_LINE, padding)).toBe(2)
+    expect(toldLineCap(0, NOTE_LINE, padding)).toBe(2)
+    expect(toldLineCap(-40, NOTE_LINE, padding)).toBe(2)
+  })
+
+  it('外壳按笺的上沿到导航第一行的空地给上限：要六行的字收在两行（其余是省略号），下沿不过第一行', async () => {
+    const padding = NOTE_PADDING.top + NOTE_PADDING.bottom
+    firstRowTop = NOTE_TOP + padding + 2 * NOTE_LINE + 10
+    const t = await signedIn()
+    act(() => t.m.shell.toast(toast('a')))
+    expect(lines()).toBe('2')
+    expect(NOTE_TOP + padding + Number(lines()) * NOTE_LINE).toBeLessThanOrEqual(firstRowTop)
+  })
+
+  it('空地够写三行时写三行；空地更大时仍照笺自己的规矩（最多三行）', async () => {
+    const padding = NOTE_PADDING.top + NOTE_PADDING.bottom
+    firstRowTop = NOTE_TOP + padding + 3 * NOTE_LINE
+    const t = await signedIn()
+    act(() => t.m.shell.toast(toast('a')))
+    expect(lines()).toBe('3')
+    cleanup()
+    firstRowTop = 400
+    const roomy = await signedIn()
+    act(() => roomy.m.shell.toast(toast('b')))
+    expect(lines()).toBe('3')
+  })
+
+  it('空地比两行还小：仍写两行，不写一行', async () => {
+    firstRowTop = NOTE_TOP + NOTE_LINE
+    const t = await signedIn()
+    act(() => t.m.shell.toast(toast('a')))
+    expect(lines()).toBe('2')
   })
 })
 

@@ -55,13 +55,16 @@ function useToldLines(id: string | undefined): {
 export function ToldNote({
   said,
   onOpen,
+  maxLines,
 }: {
   readonly said: Told | null
   readonly onOpen?: ((told: Told) => void) | undefined
+  readonly maxLines?: number | undefined
 }): React.JSX.Element | null {
   const { unfold, size, at } = useToldSpot(said)
   const telling = unfold.shown
-  const { words, lines } = useToldLines(telling?.id)
+  const { words, lines: own } = useToldLines(telling?.id)
+  const lines = maxLines === undefined ? own : Math.min(own, maxLines)
   if (telling === null || at === null) return null
   const open = (): void => onOpen?.(telling)
   return (
