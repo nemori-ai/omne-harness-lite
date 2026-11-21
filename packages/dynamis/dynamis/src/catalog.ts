@@ -27,6 +27,7 @@ const TREES = ['server', 'client'] as const
 const ARITIES = ['one', 'list', 'keyed-one', 'keyed-list'] as const
 const ITEM_KINDS = ['data', 'pure', 'effect'] as const
 const RESOLVES = ['conflict', 'most-specific'] as const
+const BINDINGS = ['build', 'run'] as const
 
 export type FieldKind = (typeof FIELD_KINDS)[number]
 
@@ -39,6 +40,7 @@ export type Contract = Readonly<{
   gives: string
   item: Readonly<{ kind: (typeof ITEM_KINDS)[number]; fields: Readonly<Record<string, FieldKind>> }>
   resolve: (typeof RESOLVES)[number]
+  binding: (typeof BINDINGS)[number]
   onError: string
   version: number
   conformance: string | null
@@ -54,6 +56,7 @@ export const catalogContract: Contract = Object.freeze({
   gives: 'nothing: a declaration is data',
   item: Object.freeze({ kind: 'data', fields: Object.freeze({ name: 'string', item: 'object' }) }),
   resolve: 'conflict',
+  binding: 'run',
   onError: 'a point whose declaration cannot be read answers unavailable',
   version: 1,
   conformance: null,
@@ -154,6 +157,7 @@ const CONTRACT_RULES: readonly (readonly [
   [contract => isText(contract['onError']), 'onError is not text'],
   [contract => isText(contract['summary']), 'summary is not text'],
   [contract => isOneOf(RESOLVES, contract['resolve']), 'the resolve rule is unknown'],
+  [contract => isOneOf(BINDINGS, contract['binding']), 'the binding time is unknown'],
   [
     contract => Number.isInteger(contract['version']) && (contract['version'] as number) >= 1,
     'the version is not a positive integer',
@@ -214,7 +218,7 @@ function reading(registry: Registry, point: string, asker: Scope): readonly Plac
 const unreadSource = (registry: Registry, point: string, asker: Scope): string | undefined =>
   registry.unread.find(unread => unread.point === point && visible(unread.scope, asker))?.source
 
-export function standingOf(registry: Registry, point: string, asker: Scope = []): PointStanding {
+export function standingOf(registry: Registry, point: string, asker: Scope): PointStanding {
   if (point === CATALOG) return { kind: 'declared', contract: catalogContract, holders: [] }
   const source = unreadSource(registry, CATALOG, asker)
   if (source !== undefined) return { kind: 'unreadable', source }
@@ -245,7 +249,7 @@ export function candidates<I = unknown>(
   registry: Registry,
   point: string,
   key: string | null,
-  asker: Scope = [],
+  asker: Scope,
 ): Candidates<I> {
   const declared = standingOf(registry, point, asker)
   if (declared.kind !== 'declared') return unavailableOf(declared, point)
@@ -266,7 +270,7 @@ export function ask<I = unknown>(
   registry: Registry,
   point: string,
   key: string,
-  asker: Scope = [],
+  asker: Scope,
 ): Answer<I> {
   const read = candidates<I>(registry, point, key, asker)
   if (read.kind !== 'read') return read
@@ -278,7 +282,7 @@ export function list<I = unknown>(
   registry: Registry,
   point: string,
   key: string | null,
-  asker: Scope = [],
+  asker: Scope,
 ): Listing<I> {
   const read = candidates<I>(registry, point, key, asker)
   return read.kind === 'read' ? listed(read.entries, read.filtered) : read

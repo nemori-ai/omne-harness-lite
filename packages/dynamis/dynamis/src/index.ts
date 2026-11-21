@@ -38,6 +38,7 @@ export {
   type Reference,
 } from './reference.ts'
 export {
+  deployment,
   empty,
   install,
   placedBy,
@@ -86,3 +87,4 @@ export {
   type Floor,
   type Stepped,
 } from './floor.ts'
+export { impact, type Change } from './impact.ts'

@@ -123,7 +123,11 @@ function pointNode(
 ): TreeNode {
   const path = join(parent, contract.name)
   const { unread } = sight.shown.get(contract.name) as Shown
-  const notes = [contract.arity, contract.tree === side ? '' : contract.tree]
+  const notes = [
+    contract.arity,
+    contract.tree === side ? '' : contract.tree,
+    contract.binding === 'build' ? 'build' : '',
+  ]
   if (unread !== null) notes.push(`unread: ${unread}`)
   const keyed = contract.arity.startsWith('keyed')
   const children =
@@ -219,7 +223,7 @@ function survey(registry: Registry, asker: Scope): { sight: Sight; problems: Pro
   return { sight, problems: problems.sort((left, right) => byText(left.point, right.point)) }
 }
 
-export function tree(registry: Registry, asker: Scope = []): Tree {
+export function tree(registry: Registry, asker: Scope): Tree {
   const { sight, problems } = survey(registry, asker)
   const children = [sideNode(sight, 'server'), sideNode(sight, 'client')]
   return { root: { kind: 'root', label: 'system', path: '', note: '', children }, problems }
