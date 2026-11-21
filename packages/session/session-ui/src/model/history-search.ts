@@ -49,9 +49,12 @@ const REASON: Readonly<Record<SearchIncomplete['reason'], string>> = {
 export function incompleteText(incomplete: SearchIncomplete): string {
   const parts = [REASON[incomplete.reason]]
   if (incomplete.behind > 0) parts.push(`还有 ${incomplete.behind} 个会话没读完`)
-  if (incomplete.progress !== null)
-    parts.push(`索引建到 ${incomplete.progress.indexed}/${incomplete.progress.total}`)
   return `还没搜完：${parts.join('，')}。`
+}
+
+export function indexText(incomplete: SearchIncomplete): string | null {
+  const { progress } = incomplete
+  return progress === null ? null : `索引建到 ${progress.indexed}/${progress.total}`
 }
 
 const QUERY_REASON: Readonly<Record<string, string>> = {

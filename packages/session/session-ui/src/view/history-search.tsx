@@ -1,15 +1,30 @@
-import { Button, Checkbox, Input, Segmented, StatusPill } from '@omne-harness/ui-kit'
+import {
+  Ago,
+  Button,
+  Checkbox,
+  Disclosure,
+  EmptyState,
+  GlideMenu,
+  InlineNotice,
+  Input,
+  LoadingState,
+  PageColumn,
+  PageHeader,
+  Segmented,
+  useAgeClock,
+} from '@omne-harness/ui-kit'
 import { encodeInstant } from '@omne-harness/utc-instant'
 import { useCallback, useState, useSyncExternalStore } from 'react'
 import {
   incompleteText,
+  indexText,
   type HistorySearchStore,
   type SearchAsk,
   type SearchHit,
+  type SearchIncomplete,
 } from '../model/history-search.ts'
 import { sessionName, shownBy } from '../model/session-list.ts'
 import type { SessionWorkspaces } from '../model/session-workspaces.ts'
-import { formatMoment } from './moment.ts'
 import { useSession } from './use-session.ts'
 import type { SessionDriver } from '../model/session-driver.ts'
 
@@ -37,21 +52,31 @@ const MODES = [
 function HitRow({
   hit,
   name,
+  now,
   onOpen,
 }: {
   hit: SearchHit
   name: string | null
+  now: number
   onOpen: () => void
 }) {
   const { before, match, after } = hit.snippet
   return (
-    <li className="omne-search-hit">
-      <button type="button" className="omne-search-hit-open" onClick={onOpen}>
+    <li>
+      <button
+        type="button"
+        className="omne-search-hit"
+        data-glide-row=""
+        data-control="row"
+        onClick={onOpen}
+      >
         <span className="omne-search-hit-meta">
-          <StatusPill tone="neutral">{KIND[hit.kind]}</StatusPill>
-          <span className="omne-search-hit-session">{name ?? hit.session.slice(0, 8)}</span>
+          {KIND[hit.kind]} · {name ?? hit.session.slice(0, 8)}
           {hit.at === null ? null : (
-            <time dateTime={encodeInstant(hit.at)}>{formatMoment(hit.at)}</time>
+            <>
+              {' · '}
+              <Ago at={encodeInstant(hit.at)} now={now} />
+            </>
           )}
         </span>
         <span className="omne-search-hit-text">
@@ -61,6 +86,45 @@ function HitRow({
         </span>
       </button>
     </li>
+  )
+}
+
+/** The end of a page: a page not through says why, never "nothing found". */
+function ListedEnd({
+  incomplete,
+  found,
+  more,
+}: {
+  incomplete: SearchIncomplete | null
+  found: boolean
+  more: (() => void) | null
+}) {
+  if (incomplete === null)
+    return (
+      <>
+        {found ? null : <EmptyState title="没有找到。" hint="可以换几个词，或改用正则。" />}
+        {more === null ? null : (
+          <Button variant="ghost" size="compact" className="omne-search-more" onClick={more}>
+            更多
+          </Button>
+        )}
+      </>
+    )
+  const index = indexText(incomplete)
+  return (
+    <div className="omne-search-end">
+      <p className="omne-search-note">{incompleteText(incomplete)}</p>
+      {index === null ? null : (
+        <Disclosure label="详情" className="omne-search-detail">
+          {index}
+        </Disclosure>
+      )}
+      {more === null ? null : (
+        <Button variant="ghost" size="compact" onClick={more}>
+          接着搜
+        </Button>
+      )}
+    </div>
   )
 }
 
@@ -80,8 +144,12 @@ export function HistorySearchPage({ store, tenant, nameOf, onOpen }: Props) {
   // Each change builds on the form as it is now: two of them may come before the next render.
   const change = (part: Partial<SearchAsk>) => setAsk(current => ({ ...current, ...part }))
   const hits = view.kind === 'idle' ? [] : view.hits
+  const now = useAgeClock(hits.length > 0)
+  const listed = view.kind === 'listed' ? view : null
+  const more = listed !== null && listed.next !== null ? () => void store.more(tenant) : null
   return (
-    <section className="omne-search" aria-label="搜历史">
+    <PageColumn className="omne-search">
+      <PageHeader title="搜索" />
       <form
         className="omne-search-form"
         onSubmit={event => {
@@ -89,67 +157,61 @@ export function HistorySearchPage({ store, tenant, nameOf, onOpen }: Props) {
           void store.search(tenant, ask)
         }}
       >
-        <Input
-          aria-label="要找的词或正则"
-          placeholder={ask.mode === 'regex' ? '一条正则' : '一个或几个词，用空格分开'}
-          value={ask.text}
-          maxLength={512}
-          onChange={event => change({ text: event.target.value })}
-        />
-        <Button type="submit" size="compact" disabled={view.kind === 'searching'}>
-          搜
-        </Button>
-        <Segmented
-          label="按词还是按正则"
-          options={MODES}
-          value={ask.mode}
-          onValueChange={mode => change({ mode })}
-        />
-        <label className="omne-search-option">
-          <Checkbox
-            checked={ask.onlyMine}
-            onCheckedChange={checked => change({ onlyMine: checked === true })}
+        <div className="omne-search-query">
+          <Input
+            className="h-(--omne-control-height-large)"
+            aria-label="要找的词或正则"
+            placeholder={ask.mode === 'regex' ? '一条正则' : '一个或几个词，用空格分开'}
+            enterKeyHint="search"
+            value={ask.text}
+            maxLength={512}
+            onChange={event => change({ text: event.target.value })}
           />
-          只看我说的
-        </label>
-        <label className="omne-search-option">
-          <Checkbox
-            checked={ask.caseSensitive}
-            onCheckedChange={checked => change({ caseSensitive: checked === true })}
+          <Segmented
+            label="按词还是按正则"
+            options={MODES}
+            value={ask.mode}
+            onValueChange={mode => change({ mode })}
           />
-          区分大小写
-        </label>
+        </div>
+        <div className="omne-search-options">
+          <label className="omne-search-option">
+            <Checkbox
+              checked={ask.onlyMine}
+              onCheckedChange={checked => change({ onlyMine: checked === true })}
+            />
+            只看我说的
+          </label>
+          <label className="omne-search-option">
+            <Checkbox
+              checked={ask.caseSensitive}
+              onCheckedChange={checked => change({ caseSensitive: checked === true })}
+            />
+            区分大小写
+          </label>
+        </div>
+        {view.kind === 'refused' ? <InlineNotice tone="neutral">{view.text}</InlineNotice> : null}
       </form>
-      {view.kind === 'refused' ? (
-        <p className="omne-search-note" role="alert">
-          {view.text}
-        </p>
-      ) : null}
-      {view.kind === 'searching' ? <p className="omne-search-note">正在搜……</p> : null}
-      <ul className="omne-search-hits">
-        {hits.map(hit => (
-          <HitRow
-            key={`${hit.session}#${hit.position}`}
-            hit={hit}
-            name={nameOf(hit.session)}
-            onOpen={() => onOpen(hit)}
-          />
-        ))}
-      </ul>
-      {view.kind === 'listed' && view.incomplete !== null ? (
-        <p className="omne-search-note" role="status">
-          {incompleteText(view.incomplete)}
-        </p>
-      ) : null}
-      {view.kind === 'listed' && view.incomplete === null && hits.length === 0 ? (
-        <p className="omne-search-note">没有找到。</p>
-      ) : null}
-      {view.kind === 'listed' && view.next !== null ? (
-        <Button variant="ghost" size="compact" onClick={() => void store.more(tenant)}>
-          {view.incomplete === null ? '更多' : '接着搜'}
-        </Button>
-      ) : null}
-    </section>
+      {view.kind === 'searching' ? <LoadingState label="正在搜……" /> : null}
+      {hits.length === 0 ? null : (
+        <GlideMenu>
+          <ul className="omne-search-hits">
+            {hits.map(hit => (
+              <HitRow
+                key={`${hit.session}#${hit.position}`}
+                hit={hit}
+                name={nameOf(hit.session)}
+                now={now}
+                onOpen={() => onOpen(hit)}
+              />
+            ))}
+          </ul>
+        </GlideMenu>
+      )}
+      {listed === null ? null : (
+        <ListedEnd incomplete={listed.incomplete} found={hits.length > 0} more={more} />
+      )}
+    </PageColumn>
   )
 }
 

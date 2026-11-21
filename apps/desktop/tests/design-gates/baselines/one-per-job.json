@@ -8,8 +8,6 @@
     "packages/session/session-ui/src/view/background-pane.tsx | bare loading text": 1,
     "packages/session/session-ui/src/view/background-pane.tsx | home-made empty state": 3,
     "packages/session/session-ui/src/view/conversation-page.tsx | home-made empty state": 2,
-    "packages/session/session-ui/src/view/history-search.tsx | error outside InlineNotice": 1,
-    "packages/session/session-ui/src/view/session-list-panel.tsx | bare loading text": 1,
     "packages/tool/tool-ui/src/view/call-output.tsx | bare loading text": 1,
     "packages/usage/usage-ui/src/view/panel.tsx | error outside InlineNotice": 1,
     "packages/usage/usage-ui/src/view/widgets.tsx | bare loading text": 1

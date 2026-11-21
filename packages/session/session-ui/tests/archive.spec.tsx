@@ -1,5 +1,7 @@
 // @vitest-environment happy-dom
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import './fixtures/dom.ts'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { parseInstant } from '@omne-harness/utc-instant'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   ArchiveStore,
@@ -122,6 +124,75 @@ describe('the archived list (C29)', () => {
     expect(loadList).toHaveBeenCalled()
     expect(screen.getByRole('status').textContent).toBe('已撤销归档')
     expect(screen.getByText('没有已归档的会话。')).toBeTruthy()
+  })
+
+  it('opens in place under its own row, not as an overlay, and reads the list when opened', async () => {
+    const { store, listed } = clientWith([page([item('a')])])
+    const { workspaces } = workspacesWith()
+    const { container } = render(
+      <ArchivedSessions store={store} workspaces={workspaces} tenant={TENANT} />,
+    )
+    const trigger = screen.getByRole('button', { name: '已归档' })
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+    expect(listed).not.toHaveBeenCalled()
+    await act(async () => fireEvent.click(trigger))
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
+    expect(listed).toHaveBeenCalledTimes(1)
+    const row = screen.getByText('title a').closest('li')!
+    expect(container.contains(row)).toBe(true)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.queryByRole('button', { name: '收起' })).toBeNull()
+  })
+
+  it('a row cannot be opened: no row control, no glide, and unarchive is its only action', async () => {
+    const archivedAt = parseInstant(new Date(Date.now() - 3 * 86_400_000).toISOString())
+    if (!archivedAt.ok) throw new Error('fixture instant')
+    const { store } = clientWith([page([item('a', { archivedAt: archivedAt.value })])])
+    const { workspaces } = workspacesWith()
+    render(<ArchivedSessions store={store} workspaces={workspaces} tenant={TENANT} />)
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '已归档' })))
+    const row = screen.getByText('title a').closest('li')!
+    expect(row.hasAttribute('data-glide-row')).toBe(false)
+    expect(row.hasAttribute('data-control')).toBe(false)
+    expect(row.closest('[data-glide-menu]')).toBeNull()
+    expect(
+      within(row)
+        .getAllByRole('button')
+        .map(button => button.textContent),
+    ).toEqual(['撤销归档'])
+    expect(row.querySelector('time')?.textContent).toBe('3 天前')
+  })
+
+  it('the receipt of an unarchive stands once where the row was', async () => {
+    const { store } = clientWith([
+      page([item('a'), item('b'), item('c')]),
+      page([item('a'), item('c')]),
+    ])
+    const { workspaces } = workspacesWith()
+    render(<ArchivedSessions store={store} workspaces={workspaces} tenant={TENANT} />)
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '已归档' })))
+    const rowOf = (session: string) => screen.getByText(`title ${session}`).closest('li')!
+    await act(async () =>
+      fireEvent.click(within(rowOf('b')).getByRole('button', { name: '撤销归档' })),
+    )
+    const receipts = screen.getAllByRole('status')
+    expect(receipts.map(node => node.textContent)).toEqual(['已撤销归档'])
+    expect(rowOf('a').nextElementSibling?.textContent).toBe('已撤销归档')
+    expect(rowOf('c').previousElementSibling?.textContent).toBe('已撤销归档')
+  })
+
+  it('says a list it cannot read and an empty list, both in a neutral voice', async () => {
+    const { store } = clientWith([{ outcome: 'basis-unavailable' }, page([])])
+    const { workspaces } = workspacesWith()
+    render(<ArchivedSessions store={store} workspaces={workspaces} tenant={TENANT} />)
+    const trigger = screen.getByRole('button', { name: '已归档' })
+    await act(async () => fireEvent.click(trigger))
+    const unreadable = screen.getByText('已归档的会话暂时读不到。').closest('[data-tone]')
+    expect(unreadable?.getAttribute('data-tone')).toBe('neutral')
+    await act(async () => fireEvent.click(trigger))
+    await act(async () => fireEvent.click(trigger))
+    expect(screen.getByText('没有已归档的会话。')).toBeTruthy()
+    expect(screen.queryByText('已归档的会话暂时读不到。')).toBeNull()
   })
 
   it('the archive action in the heading says what it withdrew and reads the session list again', async () => {

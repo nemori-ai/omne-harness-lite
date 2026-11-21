@@ -270,27 +270,59 @@ describe('the model of the next new session', () => {
     return <div>{picker}</div>
   }
 
+  const trigger = () => screen.getByRole('button', { name: /新会话的模型/u })
+  async function pick(option: string): Promise<void> {
+    fireEvent.pointerDown(trigger(), { button: 0, ctrlKey: false })
+    fireEvent.click(await screen.findByRole('menuitemradio', { name: new RegExp(option, 'u') }))
+    await settle()
+  }
+
   it('without a list there is no choice and no model is named', async () => {
     const { store } = storeWith([selection(GPT, '1')])
     const seen: (string | undefined)[] = []
     render(<Probe store={store} seen={seen} />)
     await settle()
-    expect(screen.queryByRole('combobox')).toBeNull()
+    expect(screen.queryByRole('button', { name: /新会话的模型/u })).toBeNull()
     expect(seen.at(-1)).toBeUndefined()
   })
 
-  it('starts at the default, and names the model a person picks', async () => {
+  it('is a quiet dropdown whose face is the value: it starts at the default and names the model a person picks', async () => {
     const { store } = storeWith([selection(GPT, '1')])
     store.attach(sourceOf(LISTED))
     const seen: (string | undefined)[] = []
     render(<Probe store={store} seen={seen} />)
     await settle()
-    expect(screen.getByRole('combobox', { name: '新会话的模型' }).textContent).toContain('默认模型')
+    expect(trigger().getAttribute('data-variant')).toBe('ghost')
+    expect(trigger().getAttribute('aria-haspopup')).toBe('menu')
+    expect(trigger().textContent).toBe('默认模型')
     expect(seen.at(-1)).toBeUndefined()
-    await choose('新会话的模型', 'claude-y')
+    await pick('claude-y')
     expect(seen.at(-1)).toBe(CLAUDE)
-    await choose('新会话的模型', '默认模型')
+    expect(trigger().textContent).toBe(CLAUDE)
+    await pick('默认模型')
     expect(seen.at(-1)).toBeUndefined()
+  })
+
+  it('offers every model; one that cannot be picked is disabled with its reason', async () => {
+    const { store } = storeWith([selection(GPT, '1')])
+    store.attach(sourceOf(LISTED))
+    render(<Probe store={store} seen={[]} />)
+    await settle()
+    fireEvent.pointerDown(trigger(), { button: 0, ctrlKey: false })
+    const items = await screen.findAllByRole('menuitemradio')
+    expect(items.map(item => item.textContent)).toEqual([
+      '默认模型',
+      GPT,
+      `${CLAUDE}（还没有配置凭据，选了也暂时调不了）`,
+      `${LOCKED}（不能选：被锁定）`,
+    ])
+    expect(items.map(item => item.getAttribute('aria-checked'))).toEqual([
+      'true',
+      'false',
+      'false',
+      'false',
+    ])
+    expect(items[3]!.getAttribute('aria-disabled')).toBe('true')
   })
 
   it('a picked model is not named once the list is gone or no longer offers it', async () => {
@@ -299,7 +331,7 @@ describe('the model of the next new session', () => {
     const seen: (string | undefined)[] = []
     render(<Probe store={store} seen={seen} />)
     await settle()
-    await choose('新会话的模型', 'claude-y')
+    await pick('claude-y')
     expect(seen.at(-1)).toBe(CLAUDE)
     act(() => detach())
     await settle()
@@ -319,7 +351,7 @@ describe('the model of the next new session', () => {
     const seen: (string | undefined)[] = []
     render(<Probe store={store} seen={seen} />)
     await settle()
-    await choose('新会话的模型', 'claude-y')
+    await pick('claude-y')
     expect(seen.at(-1)).toBe(CLAUDE)
     act(() => {
       store.attach(
@@ -331,6 +363,6 @@ describe('the model of the next new session', () => {
     })
     await settle()
     expect(seen.at(-1)).toBeUndefined()
-    expect(screen.getByRole('combobox', { name: '新会话的模型' }).textContent).toContain('默认模型')
+    expect(trigger().textContent).toBe('默认模型')
   })
 })

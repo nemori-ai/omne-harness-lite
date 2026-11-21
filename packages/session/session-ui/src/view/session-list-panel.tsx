@@ -1,5 +1,15 @@
-import { AddIcon, Button, StatusPill } from '@omne-harness/ui-kit'
-import { encodeInstant, type Instant } from '@omne-harness/utc-instant'
+import {
+  AddIcon,
+  Ago,
+  Button,
+  EmptyState,
+  GlideMenu,
+  InlineNotice,
+  LoadingState,
+  StatusPill,
+  useAgeClock,
+} from '@omne-harness/ui-kit'
+import { encodeInstant } from '@omne-harness/utc-instant'
 import { useSyncExternalStore } from 'react'
 import type { ModelSelectionStore } from '../model/model-selection.ts'
 import type { SessionDriver } from '../model/session-driver.ts'
@@ -7,13 +17,12 @@ import {
   sessionName,
   shownBy,
   type ListedSession,
+  type ListPage,
   type SessionList,
 } from '../model/session-list.ts'
 import { createInFlight } from '../model/session-machine.ts'
 import type { SessionWorkspaces } from '../model/session-workspaces.ts'
 import { useNewSessionModel } from './model-selection.tsx'
-import { formatMoment } from './moment.ts'
-import { NoticeLine } from './notice.tsx'
 import { useSession } from './use-session.ts'
 
 export type SessionListPanelProps = Readonly<{
@@ -46,19 +55,21 @@ function Panel({
   const current = state.kind === 'open' || state.kind === 'unavailable' ? state.session : null
   return (
     <div className="omne-session-sidebar">
-      <Button
-        variant="outline"
-        size="compact"
-        disabled={state.kind === 'creating'}
-        onClick={() => {
-          driver.createSession(model)
-          onShow()
-        }}
-      >
-        <AddIcon aria-hidden="true" />
-        新建会话
-      </Button>
-      {picker}
+      <div className="omne-sessions-top">
+        <Button
+          variant="outline"
+          size="compact"
+          disabled={state.kind === 'creating'}
+          onClick={() => {
+            driver.createSession(model)
+            onShow()
+          }}
+        >
+          <AddIcon aria-hidden="true" />
+          新建会话
+        </Button>
+        {picker}
+      </div>
       <SessionListView
         list={list}
         current={current}
@@ -73,57 +84,54 @@ function Panel({
   )
 }
 
+// A normal session says nothing: only these two ask for a word, and replying is the figure's to show.
 const LIFECYCLE: Readonly<Partial<Record<ListedSession['lifecycle'], string>>> = {
   initializing: '正在初始化',
   frozen: '已冻结',
-  archived: '已归档',
-}
-
-function Moment({ label, at }: { readonly label: string; readonly at: Instant | null }) {
-  if (at === null) return null
-  return (
-    <span>
-      {label} <time dateTime={encodeInstant(at)}>{formatMoment(at)}</time>
-    </span>
-  )
 }
 
 function SessionRow({
   item,
+  now,
   current,
   locked,
   onOpen,
 }: {
   readonly item: ListedSession
+  readonly now: number
   readonly current: boolean
   readonly locked: boolean
   readonly onOpen: () => void
 }) {
   const lifecycle = LIFECYCLE[item.lifecycle]
-  const dated = item.createdAt !== null || item.lastActivityAt !== null
+  const at = item.lastActivityAt
   return (
     <li>
       <button
         type="button"
         className="omne-session-item"
+        data-glide-row=""
+        data-control="row"
+        data-selected={current}
         aria-current={current ? 'true' : undefined}
         disabled={locked}
         onClick={onOpen}
       >
         <span className="omne-session-item-title">{sessionName(item)}</span>
-        {dated || lifecycle !== undefined ? (
+        {at === null && lifecycle === undefined ? null : (
           <span className="omne-session-item-meta">
-            <Moment label="最近活动" at={item.lastActivityAt} />
-            <Moment label="创建" at={item.createdAt} />
+            {at === null ? null : <Ago at={encodeInstant(at)} now={now} />}
             {lifecycle === undefined ? null : <StatusPill tone="neutral">{lifecycle}</StatusPill>}
           </span>
-        ) : null}
+        )}
       </button>
     </li>
   )
 }
 
-function ListFooter({
+// With rows on screen, reading the first page again after an activity draws nothing: only the first read and a read
+// the person asked for are loading states.
+function ListState({
   list,
   driver,
 }: {
@@ -134,22 +142,50 @@ function ListFooter({
     case 'unread':
       return null
     case 'reading':
-      return <p className="omne-sessions-note">正在读会话列表……</p>
+      return list.shown === null || list.cursor !== null ? (
+        <LoadingState label="正在读会话列表……" />
+      ) : null
     case 'failed':
       return (
-        <NoticeLine
-          notice={list.notice}
-          action={list.retry ? { label: '重试', onClick: () => driver.loadList() } : undefined}
-        />
+        <InlineNotice
+          tone={list.retry ? 'caution' : 'neutral'}
+          {...(list.retry ? { action: { label: '重试', onClick: () => driver.loadList() } } : {})}
+        >
+          {list.notice.text}
+        </InlineNotice>
       )
     case 'read':
-      if (list.page.sessions.length === 0) return <p className="omne-sessions-note">还没有会话。</p>
-      return list.page.next === null ? null : (
-        <Button variant="ghost" size="compact" onClick={() => driver.loadMoreSessions()}>
+      return list.page.sessions.length === 0 ? <EmptyState title="新的会话会出现在这里。" /> : null
+  }
+}
+
+function ListEnd({
+  list,
+  shown,
+  driver,
+}: {
+  readonly list: SessionList
+  readonly shown: ListPage | null
+  readonly driver: SessionDriver
+}) {
+  const partial = shown?.completeness === 'partial'
+  const more = list.kind === 'read' && list.page.next !== null
+  if (!partial && !more) return null
+  return (
+    <div className="omne-sessions-end">
+      {partial ? <p className="omne-sessions-note">列表可能不全</p> : null}
+      {more ? (
+        <Button
+          variant="ghost"
+          size="compact"
+          className="text-xs"
+          onClick={() => driver.loadMoreSessions()}
+        >
           更多
         </Button>
-      )
-  }
+      ) : null}
+    </div>
+  )
 }
 
 function SessionListView({
@@ -166,25 +202,29 @@ function SessionListView({
   readonly driver: SessionDriver
 }) {
   const shown = shownBy(list)
+  const rows = shown?.sessions ?? []
+  // One clock for the list, so every row's age is read against the same instant.
+  const now = useAgeClock(rows.length > 0)
   return (
     <nav className="omne-sessions" aria-label="会话列表">
-      {shown === null ? null : (
-        <ul className="omne-session-items">
-          {shown.sessions.map(item => (
-            <SessionRow
-              key={item.session}
-              item={item}
-              current={item.session === current}
-              locked={locked}
-              onOpen={() => onOpen(item.session)}
-            />
-          ))}
-        </ul>
+      {rows.length === 0 ? null : (
+        <GlideMenu>
+          <ul className="omne-session-items">
+            {rows.map(item => (
+              <SessionRow
+                key={item.session}
+                item={item}
+                now={now}
+                current={item.session === current}
+                locked={locked}
+                onOpen={() => onOpen(item.session)}
+              />
+            ))}
+          </ul>
+        </GlideMenu>
       )}
-      <ListFooter list={list} driver={driver} />
-      {shown?.completeness === 'partial' ? (
-        <p className="omne-sessions-note">列表可能不全</p>
-      ) : null}
+      <ListState list={list} driver={driver} />
+      <ListEnd list={list} shown={shown} driver={driver} />
     </nav>
   )
 }
