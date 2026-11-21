@@ -424,6 +424,12 @@ const HELPERS = `
     if (control?.getAttribute('aria-expanded') === 'true') control.click()
     await wait('the bubble folded away and the side undocked', () => bubble() === null && docked() === null)
   }
+  // Still, with the side folded as it shows now: the docked fold and the bubble are kept apart, so a scene that
+  // docked it at one size and closed the bubble at another leaves the docked one open.
+  const restFolded = async () => {
+    if (sideControl() !== undefined) await closeSide()
+    await rest()
+  }
   const reconnecting = () => [...document.querySelectorAll('.shell-reconnecting')].find(shown)
 `
 
@@ -695,7 +701,7 @@ const SCENES = [
     title: '在做的一轮：回复流到一半，形在写',
     act: `await fresh(); await say(${JSON.stringify(SLOW_ASK)}, '先读出旧文件里的每一项')`,
     each: `
-      await rest()
+      await restFolded()
       if (transcript().includes('删掉旧文件')) throw new Error('the held reply finished before the shot')
       // The end of the transcript in view: the deepest element that holds the last line streamed so far.
       const streamed = [...conversation().querySelectorAll('*')].findLast(item =>
@@ -712,7 +718,7 @@ const SCENES = [
     title: '长的工具输出：过程行展开着，几十行的结果在代码面里',
     act: `await openSession(${JSON.stringify(LONG_ASK)})`,
     each: `
-      await rest()
+      await restFolded()
       const line = await wait('the Shell call’s line', () =>
         [...conversation().querySelectorAll('[aria-expanded]')].find(item => item.textContent.includes('Shell')))
       if (line.getAttribute('aria-expanded') !== 'true') line.click()
@@ -726,7 +732,7 @@ const SCENES = [
     title: '一轮失败了：失败的那一轮与它下面的通知',
     act: `await openSession('请总结')`,
     each: `
-      await rest()
+      await restFolded()
       const retry = await wait('the failure’s retry', () => byText('section[data-page=conversation]:not([hidden]) button', '重试'))
       retry.scrollIntoView({ block: 'nearest' })
       await settle()`,
@@ -1029,7 +1035,7 @@ async function shootScene(walk, scene, done) {
   await pause(INK_DRY_MS)
   for (const combination of combinations(windows, scene)) {
     await apply(browser, combination)
-    await perform(walk, scene.each ?? (scene.specimen ? undefined : 'await rest()'))
+    await perform(walk, scene.each ?? (scene.specimen ? undefined : 'await restFolded()'))
     if (scene.each !== undefined) await pause(INK_DRY_MS)
     const suffix = combination.size === 'medium' ? '' : `-${combination.size}`
     const file = join(
