@@ -401,9 +401,9 @@ describe('the trusted Tool request source', () => {
       'unavailable: the workspace selected for this session cannot be used now (reason: not-permitted). Nothing ran, and no other directory was used in its place. Tell the user. The call works again when the workspace can be used or when the session selects another one.',
     ],
     [
-      'the working directory has no value, as after a rebuild until the next step begins',
+      'the session has no working directory, as a session made before it was recorded',
       null,
-      'unavailable: this session has no working directory in force now, because the server restarted during this step. Nothing ran. Make this call again in your next step.',
+      'unavailable: this session has no working directory to use, so file and command tools cannot run in it. Nothing ran. Tell the user: a session created now has one.',
     ],
   ])(
     'answers the call, so the step goes on, and prepares nothing when %s',

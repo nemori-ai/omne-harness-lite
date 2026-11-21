@@ -3,6 +3,7 @@ import type {
   Json,
   OperationKind,
   Relation,
+  SourcePackage,
   TypeName,
 } from '@omne-harness/workspace-contract'
 
@@ -33,6 +34,25 @@ export type OperationRecord = Readonly<{
   value: Json
 }>
 
+export type ReadingRecord = Readonly<{
+  workspace: string
+  tenant: string
+  revision: number
+  instance: InstanceId
+  packages: readonly SourcePackage[]
+}>
+
+/** A key a caller gave and the reading it points at; revision 0 is the empty reading. */
+export type AdoptionRecord = Readonly<{
+  workspace: string
+  tenant: string
+  key: string
+  instance: InstanceId
+  revision: number
+  fresh: boolean
+  reason: string | null
+}>
+
 /** One storage transaction. Synchronous: a script runs to completion in the storage worker. */
 export interface WorkspaceTxn {
   operation(tenant: string, operation: string): OperationRecord | null
@@ -50,6 +70,12 @@ export interface WorkspaceTxn {
   sourceRevision(workspace: string, tenant: string): number
   bumpSource(workspace: string, tenant: string): void
   bumpSources(workspace: string): void
+
+  latestReading(workspace: string, tenant: string): ReadingRecord | null
+  reading(workspace: string, tenant: string, revision: number): ReadingRecord | null
+  insertReading(record: ReadingRecord): void
+  adoption(tenant: string, key: string): AdoptionRecord | null
+  insertAdoption(record: AdoptionRecord): void
 
   instance(instance: string): InstanceRecord | null
   /** The active instance at this position, whatever workspace it belongs to. */

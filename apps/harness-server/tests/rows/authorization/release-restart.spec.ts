@@ -64,28 +64,28 @@ async function ranOnce(tree: ReleaseTree, session: string, label: string) {
   expect(startAcceptances(tree.storageRoot).filter(row => 'authorizations' in row)).toHaveLength(1)
 }
 
-// The working directory of a session has no value in a rebuilt process until a step begins. A Shell
-// call released there is answered unavailable; the model makes it again in its next step.
-const NO_DIRECTORY = 'unavailable: this session has no working directory in force now'
-type Turn = Readonly<{ role: string; content: unknown; tool_calls?: readonly unknown[] }>
-const echoAgain = toolCallsByRequest(body => {
-  const { messages } = JSON.parse(body) as { messages: readonly Turn[] }
-  const made = messages.filter(turn => (turn.tool_calls?.length ?? 0) > 0).length
-  const refused = messages.some(
-    turn => turn.role === 'tool' && JSON.stringify(turn.content).includes(NO_DIRECTORY),
-  )
-  if (made > 0 && !(made === 1 && refused)) return []
-  const script = { script: 'echo open-done' }
-  const call = JSON.stringify({ command: 'execute', intent: 'test call', params: script })
-  return [{ id: `call_open_${String(made)}`, tool: 'Shell', arguments: call }]
+// The working directory of a session is recovered from its log: a card answered after a restart
+// releases its call, which runs in the directory of the step that made it.
+const NO_DIRECTORY = 'no working directory'
+const echoOnce = toolCallsByRequest(body => {
+  const { messages } = JSON.parse(body) as {
+    messages: readonly Readonly<{ tool_calls?: unknown[] }>[]
+  }
+  if (messages.some(turn => (turn.tool_calls?.length ?? 0) > 0)) return []
+  const call = JSON.stringify({
+    command: 'execute',
+    intent: 'test call',
+    params: { script: 'echo open-done' },
+  })
+  return [{ id: 'call_open_0', tool: 'Shell', arguments: call }]
 })
 
 it(
-  'a release card left open over a restart is answered after it; the call is answered unavailable, and made again in the next step it runs once',
+  'a release card left open over a restart is answered after it, and its call runs once',
   { timeout: 300_000 },
   async () => {
     let session = ''
-    await onReleaseTreeRuns({ ...options, script: echoAgain }, [
+    await onReleaseTreeRuns({ ...options, script: echoOnce }, [
       async tree => {
         session = await tree.startSession('start: echo open')
         await pendingCard(tree, session, 'open, before the restart')
@@ -93,20 +93,14 @@ it(
       async tree => {
         const card = await pendingCard(tree, session, 'open, after the restart')
         await answerCard(tree, card, ['--option', 'allow-once'], 'reply-open')
-        const again = await pendingCard(tree, session, 'open, made again in the next step')
-        expect(again.ref.request.requestId).not.toBe(card.ref.request.requestId)
-        expect(toolCalls(tree.storageRoot).filter(row => row.tool === 'Shell')).toHaveLength(0)
-        await answerCard(tree, again, ['--option', 'allow-once'], 'reply-open-again')
         const entries = await pollUntil(
           'the Run of open to end after the restart',
           () => historyOf(tree, session),
           value => value.some(entry => entry.kind === 'run.terminal'),
         )
         const results = toolResults(entries).join('\n')
-        expect(results.split(NO_DIRECTORY)).toHaveLength(2)
+        expect(results).not.toContain(NO_DIRECTORY)
         expect(results).toContain('open-done')
-        // The first answer released nothing: its call was answered before it was admitted. The
-        // answer to the call made again released that call, and the Tool was handed it once.
         expect(entries.filter(entry => entry.kind === ONCE)).toHaveLength(1)
         expect(toolCalls(tree.storageRoot).filter(row => row.tool === 'Shell')).toHaveLength(1)
       },

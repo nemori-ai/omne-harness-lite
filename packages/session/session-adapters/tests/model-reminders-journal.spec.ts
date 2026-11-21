@@ -264,6 +264,78 @@ describe('the journal settles the working directory before a step, then tells th
     }
   })
 
+  it('commits a changed value into the session log before the step, then writes the step on it', async () => {
+    const s = await sqlScene('directory-commit')
+    try {
+      ok(await s.view.journal.open(s.openInput))
+      const { reminders, calls } = scripted()
+      const value = { state: 'default', directory: '/srv/default' } as const
+      const snapshots: unknown[] = []
+      const directory: StepDirectory<string> = {
+        refresh: async input => {
+          calls.push('refresh')
+          snapshots.push(input.snapshot)
+          // The block holds the value once its commit is in the snapshot the step is written on.
+          const held = (input.snapshot.contextRecords ?? []).some(
+            record => record.declaration.kind === 'context-step-commit',
+          )
+          return held ? { kind: 'refreshed' } : { kind: 'commit', value }
+        },
+      }
+      await takeInputs(s, journalOf(s, reminders, s.storage, directory))
+      const work = ok(await s.port.readWork(s.sessionAccess))
+      const commits = (work.contextRecords ?? []).filter(
+        record => record.declaration.kind === 'context-step-commit',
+      )
+      expect(commits).toHaveLength(1)
+      expect(commits[0]?.scope).toBe(work.contextScopes?.at(-1)?.scope)
+      // Committed first, then the step was written again on the revision the commit made.
+      expect(calls.slice(0, 3)).toEqual(['refresh', 'refresh', expect.stringMatching(/^prepare@/)])
+      expect(await modelView(s)).toContain('system_reminder')
+    } finally {
+      await s.close()
+    }
+  })
+
+  it('a step commit with an unknown answer fails the step, named, and the next write takes it back', async () => {
+    const s = await sqlScene('directory-commit-unknown')
+    try {
+      ok(await s.view.journal.open(s.openInput))
+      const { reminders, calls } = scripted()
+      const value = { state: 'default', directory: '/srv/default' } as const
+      const directory: StepDirectory<string> = {
+        refresh: async input =>
+          (input.snapshot.contextRecords ?? []).some(
+            record => record.declaration.kind === 'context-step-commit',
+          )
+            ? { kind: 'refreshed' }
+            : { kind: 'commit', value },
+      }
+      const lost: SqlStorage = {
+        ...s.storage,
+        commit: async (request, options) => {
+          const result = await s.storage.commit(request, options)
+          return JSON.stringify(request.commands).includes('context-step-commit')
+            ? { kind: 'unknown', identity: request.identity, diagnostic: 'lost reply' }
+            : result
+        },
+      } as SqlStorage
+      await expect(takeInputs(s, journalOf(s, reminders, lost, directory))).rejects.toThrow(
+        /the working directory step commit: lost reply/,
+      )
+      expect(calls).not.toContain('advance')
+      await takeInputs(s, journalOf(s, reminders, s.storage, directory))
+      const work = ok(await s.port.readWork(s.sessionAccess))
+      expect(
+        (work.contextRecords ?? []).filter(
+          record => record.declaration.kind === 'context-step-commit',
+        ),
+      ).toHaveLength(1)
+    } finally {
+      await s.close()
+    }
+  })
+
   it('a verification that cannot be done fails the step: nothing is told, no input is delivered', async () => {
     const s = await sqlScene('directory-fail')
     try {

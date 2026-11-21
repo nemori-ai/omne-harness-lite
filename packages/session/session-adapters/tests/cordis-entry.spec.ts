@@ -33,10 +33,10 @@ it('cordis entry exports the production plugins that have landed', async () => {
     'createSessionToolLogConsumptionPlugin',
     'createStepDirectory',
     'createToolCallControl',
-    'createWorkingDirectoryPublishers',
     'encodeContextRegistrationChange',
     'encodeContextStepCommit',
     'encodeInitialContextRegistration',
+    'heldBlock',
     'pendingLimitOf',
     'prepareContextRegistration',
     'sessionInquiryBinding',
@@ -55,6 +55,5 @@ it('cordis entry exports the production plugins that have landed', async () => {
     'workingDirectoryCallBinding',
     'workingDirectoryDescriptor',
     'workingDirectoryModelBinding',
-    'workingDirectoryProducer',
   ])
 })

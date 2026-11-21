@@ -34,6 +34,8 @@ export function world() {
     things,
     authority,
     store,
+    types,
+    minting: deps.minting,
     /** Withdraws the type that extends the base one, as an assembly that unloads it would. */
     withdrawVersioned: () => versioned.release(),
     governance: createGovernance(deps),

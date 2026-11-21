@@ -40,7 +40,7 @@ export function tree(value: unknown): JsonValue {
 const text = { type: 'string', minLength: 1, maxLength: 4096 }
 const DESCRIPTIONS = {
   directory:
-    'The absolute path of a directory: the root of an instance of a workspace you can use, or another working copy of the repository of the current workspace. Such a working copy is made an instance of the current workspace first.',
+    'The absolute path of a directory: the root of an instance of a workspace you can use, or another working copy of the repository of the current workspace. Such a working copy is made an instance of the current workspace first; create it beforehand, for example with git worktree add.',
   workspace: 'The id of a workspace you can use. It must have exactly one instance.',
   none: 'true: work in no workspace, in the default directory.',
 }

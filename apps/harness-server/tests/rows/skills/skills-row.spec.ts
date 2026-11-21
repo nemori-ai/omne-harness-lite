@@ -56,11 +56,13 @@ import {
   directoryReader,
   openSkillPublisher,
   publishSkill,
+  readWorkNowhere,
   SAMPLE_LINE,
   writeSampleSkill,
 } from '../../skills/support.ts'
 
 const ranking = { k1: 1.2, b: 0.75 }
+const NO_WORKSPACE = { sources: () => undefined, contractOf: () => undefined }
 const signal = new AbortController().signal
 const cleanups: (() => Promise<void> | void)[] = []
 
@@ -126,7 +128,7 @@ async function world() {
   const host = new TenantSkillsHost({
     async open(tenant, tenantRef) {
       const assets = await tenantAssets.open(tenantRef)
-      return assets === undefined ? undefined : tenantSkills(assets, tenant, ranking)
+      return assets === undefined ? undefined : tenantSkills(assets, tenant, ranking, NO_WORKSPACE)
     },
   })
   cleanups.push(() => host.close())
@@ -138,6 +140,7 @@ async function world() {
     const principal = okOf(sessionWorkIssuerOf(fixture.env)({ tenant, session }), 'principal')
     return createBoundSkills({ principal, tenant, request: {} as FixedToolRequest } as never, {
       verifier: () => fixture.root.get('principalVerifier'),
+      readWork: readWorkNowhere,
       catalog: () => routed.catalog,
       access: () => routed.access,
     })

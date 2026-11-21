@@ -1,4 +1,5 @@
 import {
+  adoptSources,
   associateInstance,
   changeRelation,
   destroyWorkspace,
@@ -18,6 +19,7 @@ const RUN: Record<ScriptName, (txn: WorkspaceTxn, command: never) => unknown> = 
   dissociate: dissociateInstance,
   govern: changeRelation,
   destroy: destroyWorkspace,
+  adopt: adoptSources,
 }
 
 export default {

@@ -65,7 +65,11 @@ function setup(options: Options = {}) {
   categories.contribute({ contract: directory, display })
   categories.contribute({ contract: { ...base, category: 'note' }, display })
   categories.contribute({
-    contract: { ...directory, category: 'tool' },
+    contract: {
+      ...directory,
+      category: 'tool',
+      layout: { ...directory.layout!, namespace: 'tools' },
+    },
     display,
     generalCreation: 'closed',
   })
