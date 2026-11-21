@@ -79,8 +79,7 @@
   line-height: var(--omne-leading-wrapped);
 }
 .omne-session-item-meta time,
-.omne-archived-meta time,
-.omne-search-hit-meta time {
+.omne-archived-meta time {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -857,28 +856,30 @@
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-caption);
 }
-/* The search over the history is a single-column page (design 5.5). */
+/* The search over the history is a single-column page whose one column is the list column of a list page
+   (list-reading.css in the source), on the reading measure in the middle: no reading pane, a hit opens its session. */
 .omne-search {
   display: flex;
   flex-direction: column;
-  gap: var(--omne-space-block);
   min-height: 0;
   overflow-y: auto;
 }
+.omne-search-column {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: var(--omne-measure-reading);
+  min-width: 0;
+  margin-inline: auto;
+}
+/* The search, then the filters, each 12 above what follows (.list-reading-search, .list-reading-filters). */
 .omne-search-form {
   display: flex;
   flex-direction: column;
-  gap: var(--omne-space-inline);
+  gap: calc(var(--spacing) * 3);
+  margin-bottom: calc(var(--spacing) * 3);
 }
-.omne-search-query {
-  display: flex;
-  align-items: center;
-  gap: var(--omne-space-inline);
-}
-.omne-search-query [data-slot='input'] {
-  flex: 1 1 auto;
-}
-.omne-search-options {
+.omne-search-ways {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -891,33 +892,20 @@
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-caption);
 }
-/* A hit: who said it, in which session and when, in weak ink; then the snippet in the reading face. */
-.omne-search-hit {
+/* A row fills the column, as in the list column, where the rows stand in a stretched column. */
+.omne-search-hits > li {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing);
-  width: 100%;
-  min-width: 0;
-  padding: var(--omne-row-padding);
-  border: 0;
-  border-radius: var(--omne-radius-control);
-  background: transparent;
-  color: var(--omne-ink-primary);
-  text-align: left;
 }
-.omne-search-hit-meta {
-  color: var(--omne-ink-faint);
-  font-size: var(--omne-text-caption);
-  line-height: var(--omne-leading-wrapped);
+/* What the list says when nothing matches stands where a row would, as in the list column. */
+.omne-search-column .empty-state {
+  padding: calc(var(--spacing) * 3.5) 0 var(--omne-space-section);
 }
-.omne-search-hit-text {
+.omne-search-snippet {
   font-family: var(--omne-font-reading);
-  font-size: var(--omne-text-body);
-  line-height: var(--omne-leading-reading);
   letter-spacing: var(--omne-reading-tracking);
-  overflow-wrap: anywhere;
 }
-.omne-search-hit-text mark {
+.omne-search-snippet mark {
   border-radius: var(--omne-radius-chip);
   background: var(--omne-accent-tint);
   color: inherit;
