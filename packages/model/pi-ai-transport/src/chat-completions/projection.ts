@@ -120,6 +120,22 @@ function invalid(field: string, reason: string): Outcome<never, TransportFailure
   return { failure: { kind: 'invalid', field, reason } }
 }
 
+function filePart(
+  block: ContentBlock,
+  path: string,
+  senses: Senses,
+  adapter: Adoption,
+  media: MediaView,
+): Outcome<WirePart, TransportFailure> {
+  const words = sentWords(block, media)
+  if (words !== null) return { ok: { type: 'text', text: words } }
+  const sent = sentFile(block, senses.file, media)
+  if (sent === null) return unsupported(path, adapter)
+  return {
+    ok: { type: 'file', filename: sent.filename, url: `data:${sent.mime};base64,${sent.data}` },
+  }
+}
+
 function contentPart(
   block: ContentBlock,
   path: string,
@@ -133,15 +149,7 @@ function contentPart(
     const heard = sentVoice(block, senses.voice?.formats, media)
     return heard === null ? unsupported(path, adapter) : { ok: { type: 'audio', ...heard } }
   }
-  if (block.kind === 'file') {
-    const words = sentWords(block, media)
-    if (words !== null) return { ok: { type: 'text', text: words } }
-    const sent = sentFile(block, senses.file, media)
-    if (sent === null) return unsupported(path, adapter)
-    return {
-      ok: { type: 'file', filename: sent.filename, url: `data:${sent.mime};base64,${sent.data}` },
-    }
-  }
+  if (block.kind === 'file') return filePart(block, path, senses, adapter, media)
   const { image } = senses
   const sent = sentImage(block, image?.mediaTypes, media)
   if (sent === null || image === null) return unsupported(path, adapter)
