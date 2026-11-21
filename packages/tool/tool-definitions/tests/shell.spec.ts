@@ -96,6 +96,66 @@ it('routes one-shot commands using explicit construction and per-call cwd/env', 
   expect(fixture.executions).toHaveLength(0)
 })
 
+it('starts a command and a new terminal in the working directory of the call, not of the construction', async () => {
+  const fixture = shellFixture()
+  const author = value(createShellAuthor(fixture.config))
+  const inBlog = { ...fixture.environment, directory: '/srv/blog' }
+  const inShop = { ...fixture.environment, directory: '/srv/shop' }
+  await run(author, 'execute', { script: 'pwd' }, inBlog)
+  await run(author, 'execute', { script: 'pwd' }, inShop)
+  await run(author, 'execute', { script: 'pwd', cwd: '/elsewhere' }, inShop)
+  expect(fixture.starts.map(start => start.cwd)).toEqual(['/srv/blog', '/srv/shop', '/elsewhere'])
+  await run(author, 'create_session', {}, inBlog)
+  await run(author, 'create_session', { cwd: '/elsewhere' }, inBlog)
+  expect(fixture.creates.map(create => create.cwd)).toEqual(['/srv/blog', '/elsewhere'])
+  expect(await run(author, 'info', {}, inShop)).toContain(' cwd="/srv/shop"\n')
+  expect(
+    createShellAuthor({
+      ...fixture.config,
+      entries: [
+        ...(fixture.config as { entries: readonly unknown[] }).entries,
+        { key: 'cwd', value: { kind: 'string', value: '/initial' } },
+      ],
+    } as never),
+  ).toEqual({ failure: { field: 'construction', reason: 'invalid-field:cwd' } })
+})
+
+it('starts nothing for a call that has no working directory unless the call names one', async () => {
+  const fixture = shellFixture()
+  const author = value(createShellAuthor(fixture.config))
+  const { directory: _directory, ...bare } = fixture.environment
+  const refused =
+    'rejected reason=unavailable this call has no working directory; pass cwd zero starts'
+  expect(await run(author, 'execute', { script: 'pwd' }, bare)).toBe(refused)
+  expect(await run(author, 'create_session', {}, bare)).toBe(refused)
+  expect([fixture.starts, fixture.creates]).toEqual([[], []])
+  expect(await run(author, 'info', {}, bare)).toContain(' cwd=null\n')
+  await run(author, 'execute', { script: 'pwd', cwd: '/given' }, bare)
+  expect(fixture.starts.map(start => start.cwd)).toEqual(['/given'])
+  // A terminal already has a directory of its own: the call needs none.
+  const made = await run(author, 'create_session', { cwd: '/given' }, bare)
+  const terminal = JSON.parse(made.slice(made.indexOf('terminal=') + 9).split('\n')[0]!)
+  expect(await run(author, 'execute', { terminal, script: 'pwd' }, bare)).toContain('/given')
+})
+
+it('creates a terminal with the merged environment and the geometry the call names, whole or not at all', async () => {
+  const fixture = shellFixture()
+  const author = value(createShellAuthor(fixture.config))
+  const sized = { env: { A: 'override' }, columns: 100, rows: 30 }
+  await run(author, 'create_session', sized, fixture.environment)
+  expect(fixture.creates.at(-1)).toMatchObject({
+    env: { A: 'override', BASE: 'yes' },
+    geometry: { columns: 100, rows: 30 },
+  })
+  await run(author, 'create_session', {}, fixture.environment)
+  expect(fixture.creates.at(-1)).toMatchObject({ env: { A: 'base', BASE: 'yes' } })
+  expect(fixture.creates.at(-1)).not.toHaveProperty('geometry')
+  expect(await run(author, 'create_session', { rows: 30 }, fixture.environment)).toBe(
+    'rejected reason=invalidInput columns and rows must be supplied together',
+  )
+  expect(fixture.creates).toHaveLength(2)
+})
+
 it('retains terminal cwd through the fixture and never falls back for invalid or closed references', async () => {
   const fixture = shellFixture()
   const author = value(createShellAuthor(fixture.config))

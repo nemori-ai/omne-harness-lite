@@ -10,6 +10,8 @@ import {
   fixedRequest,
   imageBlock,
   message,
+  pictureBlock,
+  pictureRead,
   profileOf,
   resultBlock,
   supplierOf,
@@ -286,7 +288,7 @@ describe('encode: the body around the conversation', () => {
     expect(JSON.stringify(encodeBody(record, { messages, replay: 'off' }))).not.toContain('sig')
   })
 
-  it('refuses media it is handed, and sends a request with nothing the model sees unmarked for the cache', () => {
+  it('sends a request with nothing the model sees unmarked for the cache; media nothing refers to change nothing', () => {
     const record = messagesRecord({
       wire: { ...messagesRecord().wire, cache: { kind: 'last-message', ttl: '5m' } },
     })
@@ -298,18 +300,46 @@ describe('encode: the body around the conversation', () => {
     const unmarked = binding.encode({ ...input, media: [] })
     if (!('ok' in unmarked)) throw new Error(JSON.stringify(unmarked.failure))
     expect(writeJsonText(unmarked.ok.body)).not.toContain('cache_control')
-    expect(
-      binding.encode({
-        ...input,
-        media: [
-          {
-            reference: {} as never,
-            mime: 'image/png',
-            bytes: new Uint8Array(),
-            measurement: {} as never,
-          },
-        ],
-      }),
-    ).toEqual({ failure: { kind: 'unsupported', field: 'media', adapter: adapterOf(record) } })
+    expect(binding.encode({ ...input, media: [pictureRead()] })).toEqual(unmarked)
+  })
+})
+
+describe('rules.plan: a request that refers to an image', () => {
+  it('is represented as pending: the references it waits for, and the measure the block carries', () => {
+    const record = messagesRecord()
+    const request = fixedRequest(record, {
+      messages: [message('u1', 'user', [textBlock('b1', 'look'), pictureBlock('b2')])],
+    })
+    const outcome = bind(record).rules.plan({
+      profile: profileOf(record),
+      supplier: request.suppliers[0],
+      assembled: assembledOf(request),
+    })
+    if (!('ok' in outcome)) throw new Error(JSON.stringify(outcome.failure))
+    expect(outcome.ok.representation).toMatchObject({
+      kind: 'pending-media',
+      references: [pictureRead().reference],
+      media: [pictureRead().measurement],
+    })
+    expect(outcome.ok.representation).not.toHaveProperty('requestBytes')
+  })
+
+  it('names a reference once however many blocks refer to it, and measures only what a block carries', () => {
+    const record = messagesRecord()
+    const { facts: _measure, ...unmeasured } = pictureBlock('b3') as { facts: unknown }
+    const request = fixedRequest(record, {
+      messages: [message('u1', 'user', [pictureBlock('b1'), pictureBlock('b2'), unmeasured])],
+    })
+    const outcome = bind(record).rules.plan({
+      profile: profileOf(record),
+      supplier: request.suppliers[0],
+      assembled: assembledOf(request),
+    })
+    if (!('ok' in outcome)) throw new Error(JSON.stringify(outcome.failure))
+    expect(outcome.ok.representation).toMatchObject({
+      kind: 'pending-media',
+      references: [pictureRead().reference],
+      media: [pictureRead().measurement, pictureRead().measurement],
+    })
   })
 })

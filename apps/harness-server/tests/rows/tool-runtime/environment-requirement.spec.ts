@@ -17,7 +17,7 @@ it.each(['Tools', 'TodoItems', 'Web'] as const)(
     try {
       const holder = toolRuntimeHolder(w.fixture.root)
       const environment = createReleaseEnvironment(holder, createReleaseToolIdentity(holder), {
-        filesRoot: '/unused',
+        workspaces: () => undefined,
         commitAttempts: 4,
         schemaProvider: () => null,
       })

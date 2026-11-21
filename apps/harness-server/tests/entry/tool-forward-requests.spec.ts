@@ -45,6 +45,17 @@ describe('trusted forwarding target preparation', () => {
       expect(target).not.toHaveProperty('environment')
       expect(target.batchDecision).toBeNull()
       expect(target).not.toHaveProperty('invocation')
+      // A parent pinned to no directory gives its target none: the member is absent.
+      expect(target).not.toHaveProperty('directory')
+      const directory = { path: '/srv/blog', workspace: null }
+      const pinned = { ...world.parent, request: { ...world.parent.request, directory } }
+      const inherited = await prepare(pinned, {
+        name: 'ToyEcho',
+        command: 'info',
+        arguments: tree({}),
+      })
+      if ('failure' in inherited) throw new Error(JSON.stringify(inherited))
+      expect(inherited.ok.directory).toEqual(directory)
     } finally {
       await world.close()
     }

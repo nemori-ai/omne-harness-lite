@@ -21,7 +21,6 @@ import {
   type ContextRegistration,
   type ContextSourceRegistry,
   type ContextTarget,
-  type ConversionResultSource,
   type HistoryEvidence,
   type TransitionEvidence,
   type PassageRef,
@@ -53,7 +52,6 @@ export type AgentRequestsOptions<P> = Readonly<{
   parts: ContextHolderParts<P>
   requestContext: Pick<ContextSourceRegistry<P>, 'register' | 'assembly'>
   preparation: M.ModelPreparationResources<P>
-  conversions: ConversionResultSource<P>
   model: ModelRequestPreparation<P>
   tools: ToolsSource<P>
   compactionInputs: CompactionInputStore<P>
@@ -105,7 +103,6 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
           groups: staging.sources(generation),
           adopted: parts.adopted,
           history: parts.history,
-          conversions: options.conversions,
           eligibility: parts.eligibility,
           preparation: options.preparation,
         },

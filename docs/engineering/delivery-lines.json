@@ -29,7 +29,10 @@
         "packages/common/content-block",
         "packages/common/modality",
         "packages/common/stream-arrival",
-        "packages/common/exchange-refs"
+        "packages/common/exchange-refs",
+        "packages/usage/usage-contract",
+        "packages/usage/usage-cordis-contract",
+        "packages/usage/usage-protocol"
       ]
     },
     {
@@ -60,6 +63,8 @@
         "packages/human-intervention/human-intervention-protocol",
         "packages/calendar/calendar-protocol",
         "packages/notification/notification-protocol",
+        "packages/media/media-protocol",
+        "packages/workspace/workspace-protocol",
         "packages/schedule/schedule-protocol"
       ]
     },

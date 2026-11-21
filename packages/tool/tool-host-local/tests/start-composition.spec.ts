@@ -432,6 +432,7 @@ describe('the local start coordinator under the runtime', () => {
       store: memory => ({
         durability: 'none',
         scanPending: input => memory.scanPending(input),
+        usage: query => memory.usage(query),
         readRecord: (domain, key) => memory.readRecord(domain, key),
         due: (tenant, now, limit) => memory.due(tenant, now, limit),
         definition: (tenant, adoption) => memory.definition(tenant, adoption),

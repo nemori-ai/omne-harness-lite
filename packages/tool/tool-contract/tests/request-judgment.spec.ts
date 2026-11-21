@@ -399,6 +399,68 @@ describe('request judgment', () => {
     })
   })
 
+  it('request judgment: the pinned directory is a path with the workspace instance it belongs to, or is left out', () => {
+    const workspace = testingWorkspace(WORKSPACE_TEXT)
+    const plain = { path: '/srv/default', workspace: null }
+    const attached = { path: '/srv/blog', workspace: { id: workspace, instance: 'wsi_blog' } }
+    for (const directory of [plain, attached]) {
+      const fixed = judgeFixedToolRequest({ ...request(), directory })
+      if ('failure' in fixed) throw new Error(JSON.stringify(fixed.failure))
+      expect(fixed.ok.directory).toEqual(directory)
+      expect(Object.isFrozen(fixed.ok.directory)).toBe(true)
+      const invoke = judgeToolInvokeRequest({ ...invokeRequest(), directory })
+      if ('failure' in invoke) throw new Error(JSON.stringify(invoke.failure))
+      expect(invoke.ok.directory).toEqual(directory)
+    }
+    const rebuilt = judgeFixedToolRequest({
+      ...request(),
+      directory: {
+        ...attached,
+        workspace: { id: { name: 'WorkspaceId', text: WORKSPACE_TEXT }, instance: 'wsi_blog' },
+      },
+    })
+    if ('failure' in rebuilt) throw new Error('a directory rebuilt from stored data was rejected')
+    const pinned = rebuilt.ok.directory?.workspace
+    expect(pinned !== null && pinned !== undefined && workspaceEquals(pinned.id, workspace)).toBe(
+      true,
+    )
+    // A request that names no directory has none; it is not null.
+    const without = judgeFixedToolRequest(request())
+    expect('ok' in without && 'directory' in without.ok).toBe(false)
+
+    const bad: [string, unknown, { field: string; reason: string }][] = [
+      ['null', null, { field: 'directory', reason: 'type' }],
+      ['a bare path', '/srv/blog', { field: 'directory', reason: 'type' }],
+      ['an empty path', { ...plain, path: '' }, { field: 'directory.path', reason: 'empty' }],
+      [
+        'no workspace member',
+        { path: '/srv/blog' },
+        { field: 'directory.workspace', reason: 'missing' },
+      ],
+      [
+        'a workspace without its instance',
+        { path: '/srv/blog', workspace: { id: workspace } },
+        { field: 'directory.workspace.instance', reason: 'missing' },
+      ],
+      [
+        'an instance without its workspace',
+        { path: '/srv/blog', workspace: { id: WORKSPACE_TEXT, instance: 'wsi_blog' } },
+        { field: 'directory.workspace.id', reason: 'type' },
+      ],
+      [
+        'an unknown member',
+        { ...plain, root: '/srv' },
+        { field: 'directory.root', reason: 'unknown-field' },
+      ],
+    ]
+    for (const [label, directory, expected] of bad) {
+      expect(rejection({ ...request(), directory }), label).toEqual(expected)
+      const invoke = judgeToolInvokeRequest({ ...invokeRequest(), directory })
+      if ('ok' in invoke) throw new Error(`${label} was accepted`)
+      expect(invoke.failure, label).toEqual(expected)
+    }
+  })
+
   it('request judgment: a scope is an owner, a key and the evidence of the grant', () => {
     const { scope } = request()
     expect(rejection({ ...request(), scope: { owner: scope.owner, key: scope.key } })).toEqual({

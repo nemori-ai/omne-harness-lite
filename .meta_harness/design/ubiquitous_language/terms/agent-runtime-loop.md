@@ -117,39 +117,73 @@
   都有耐久身份、归属边界、自己的日志，**只是在关系里扮演的角色不同**
 - **注意 ②**：**[`handoff` 派出去的 agent 落在这里](interaction-and-dispatch.md#ul-subagent--子-agent--subagent)**——
   它「有独立主会话身份」，所以它**不是**子 agent，它的会话是主会话
-- **注意 ③**：**只有主会话的 agent 之间适用
-  [通信规则二](interaction-and-dispatch.md#ul-inter-agent-communication--agent-间通信--inter-agent-communication)**
-  （独立主会话身份 ∧ **会话仍未被归档** ∧ 同租户）
+- **注意 ③**：**[agent 间通信](interaction-and-dispatch.md#ul-inter-agent-communication--agent-间通信--inter-agent-communication)不看是不是主会话**：
+  同租户、**会话仍未被归档**的都通
 
 ### UL-child-session · 子会话 · Child Session
 
 > **中**：**由某个会话的 agent 通过 `delegate` 或 `spawn` 创建出的
 > [子 agent](interaction-and-dispatch.md#ul-subagent--子-agent--subagent) 所在的那个会话。**
-> 它由**创建**这个动作确立，**不由历史确立**——`spawn` 不是 `fork`，
-> **它不继承父会话的日志**：`spawn` 交出去的是**派发那一刻组装出来的那份上下文的副本**，
-> 那份副本是**它自己日志里的起始输入记录**。
+> 它由**创建**这个动作确立。`delegate` 的子会话从一段交代开始，不带父会话的对话；
+> `spawn` 的子会话是从父会话[分叉](#ul-session-fork--会话分叉--session-fork)出来的：
+> 分叉点之前的对话按引用与父会话共享，之后它写自己的日志。
 >
 > **EN**: **The session of a subagent that some session's agent created via `delegate` or
-> `spawn`.** It is established by **the act of creation, not by history**: `spawn` is not
-> `fork`, and **it inherits none of the parent's session log** — what `spawn` hands over is
-> **a copy of the context assembled at the moment of dispatch**, which becomes **the opening
-> input entry in the child's own log**.
+> `spawn`.** It is established by the act of creation. The child session of a `delegate` starts
+> from an instruction and carries nothing of the conversation of the parent. The child session
+> of a `spawn` is [forked](#ul-session-fork--会话分叉--session-fork) from the parent: it shares
+> the conversation before the fork point with the parent by reference, and writes its own log
+> after it.
 
 - **形态**：变体（父：[会话](#ul-session--会话--session)）
 - **出处**：[现行词义](../index.md)（产品负责人 2026-09-21 直接裁决，定义由 PM 起草）
-- **别混 ①**：**不是 fork。**fork 复制或引用一段既有历史；它的历史**从那份副本这一条开始**，
-  **父的日志不被指向、不被拷贝**，**派发之后父那边发生的事它看不见**。
-  两个会话的**会话日志、投影与 runtime context 快照在存储上都不共享节点**（无指针引用）——
-  **但那是存储约束，不是访问约束**：跨会话取数据照常经工具能力与租户权限进行
+- **别混 ①**：**`spawn` 是分叉，`delegate` 不是。**`spawn` 的子会话按引用读父会话在分叉点之前的那段对话，
+  **不复制**；**派发之后父那边发生的事它看不见**。共享的只有这一段只追加、不会再变的前缀：
+  两个会话各有各的写入者，**runtime context 快照不共享**，父会话进行中的工作不带过来。
+  `delegate` 的子会话与父会话在存储上不共享任何东西
 - **别混 ②**：**「子会话」是会话，「[子 agent](interaction-and-dispatch.md#ul-subagent--子-agent--subagent)」是 agent。**
   前者是后者所在的那个会话
-- **注意 ①**：**嵌套层级不受约束**——子会话的 agent 可以再创建它自己的子会话
-- **注意 ②**：**通信拓扑是收窄的**：它的 agent **只能与自己的直接 parent、
-  或它自己再创建出的子会话的 agent** 通信；**兄弟之间、隔代之间都不可**。
-  其中**子 → 直接父**这一向是 [现行词义](../index.md) 放开的，
-  用途是**确认事实、澄清需求**这类子主动发起的求助
-- **注意 ③**：**它的会话不因交回[报告](interaction-and-dispatch.md#ul-dispatch-report--派发报告--dispatch-report)而终结**——
-  报告终结的是那次派发
+- **注意 ①**：**可以嵌套，层数至多 2**——主会话是第 0 层，子会话的 agent 可以再创建它自己的子会话，第 2 层的不能再创建
+- **注意 ②**：**它[无人值守](#ul-session-attendance--会话值守--session-attendance)**。通信不收窄：
+  同租户未归档的会话之间[都通](interaction-and-dispatch.md#ul-inter-agent-communication--agent-间通信--inter-agent-communication)
+
+### UL-session-attendance · 会话值守 · Session Attendance
+
+> **中**：**一个会话随创建固定的一项事实：它的另一头有没有人可以沟通、交互和接收通知。**
+> 两个取值：**有人值守**，**无人值守**。人建的主会话与 `handoff` 出的主会话有人值守；
+> 派发出的[子会话](#ul-child-session--子会话--child-session)与日程的作业会话无人值守。
+>
+> **EN**: **A fact fixed when a session is created: whether there is a person at the other end
+> to talk to, interact with and notify.** Two values: **attended** and **unattended**. Primary
+> sessions created by a person or by `handoff` are attended; dispatched child sessions and
+> scheduled job sessions are unattended.
+
+- **形态**：属性
+- **出处**：[会话与工作：管理主子关系和自动归档](../../product/sessions-and-work/design.md#管理主子关系和自动归档)（rev 12）
+- **别混**：**不是协作模式。**协作模式是人选的做法（要不要 agent 来问），能改；值守是事实（有没有人可问），不能改。
+  有人值守的会话选了 `auto-drive`，只关掉提问，仍然可以通知人；无人值守的会话什么模式都问不到人
+- **注意 ①**：**无人值守不放松权限**——需要人决定的动作被拒绝并说明没有人可以批准，不因此放行
+- **注意 ②**：装配按命令声明的[调用条件](reach-and-availability.md#ul-invocation-condition--调用条件--invocation-condition)决定给不给，**不按工具名**
+
+### UL-session-fork · 会话分叉 · Session Fork
+
+> **中**：**让一个新会话从另一个会话的某一刻接着往下走：分叉点之前的对话两个会话按引用共享，
+> 之后各写各的日志。**分叉点是来源会话的一次模型请求的输入边界。共享的那一段不复制，也不会再变；
+> 新会话只继承模型看到的对话，不继承来源进行中的工作。
+>
+> **EN**: **Starting a new session from a moment of another one: the two sessions share the
+> conversation before the fork point by reference, and each writes its own log after it.** The
+> fork point is the input boundary of one model request of the source session. The shared part is
+> not copied and does not change afterwards; the new session inherits the conversation the model
+> saw, and none of the work the source has in progress.
+
+- **形态**：过程
+- **出处**：[元能力：派发有三种模式](../../product/meta-capabilities/design.md#三种派发模式)（rev 16）
+- **别混 ①**：**不是复制。**复制得到两份互不相干的内容；分叉之后前缀仍只有来源名下的一份，
+  新会话读的是同一批记录
+- **别混 ②**：**不是共用一本日志。**一个会话仍然只有一个写入者；分叉之后来源写的，新会话看不见
+- **注意 ①**：现在只有 `spawn` 产生分叉，来源就是派发者的会话；人不能发起分叉，也不能从更早的一刻分叉
+- **注意 ②**：它留下的是新会话的一项随创建固定的事实：来源会话与分叉点。来源归档之后新会话照常读得到前缀
 
 ### UL-session-archival · 会话归档 · Session Archival
 
@@ -174,7 +208,7 @@
 - **自动触发**：默认关闭，租户显式开启；自身及归档会级联影响的子会话均无未结束 Run、活跃模型／工具执行及待处理任务，连续空闲达到租户配置的时限（产品不规定固定天数）；标记常驻的主会话豁免；开展新工作终止旧计时，撤销归档后重新计时，进程重启不重置。
 - **输入处置**：归档取消待处理任务并保留历史；归档期间拒绝新任务，迟到执行事实只留痕、不入队，撤销归档不自动恢复已取消任务。
 - **形态**：过程
-- **出处**：[会话与工作：插队、取消工作和归档有不同影响范围](../../product/sessions-and-work/design.md#插队取消工作和归档有不同影响范围) · [管理主子关系和自动归档](../../product/sessions-and-work/design.md#管理主子关系和自动归档)（rev 11）；冻结会话的归档与撤销见 [#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6315367596)
+- **出处**：[会话与工作：插队、取消工作和归档有不同影响范围](../../product/sessions-and-work/design.md#插队取消工作和归档有不同影响范围) · [管理主子关系和自动归档](../../product/sessions-and-work/design.md#管理主子关系和自动归档)（rev 12）；冻结会话的归档与撤销见 [#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6315367596)
 - **别混 ①**：**不是删除。**会话的身份与历史一直在，**归档只让它从眼前收起来**
 - **别混 ②**：**不是[会话级沙箱的销毁](grounding-and-isolation.md#ul-session-sandbox--会话级沙箱--session-scoped-sandbox)。**
   那挂的是**沙箱自己的最大连续存活时间**，[同一节明写「会话可以无限期存在」](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)——
@@ -207,7 +241,7 @@
 > undoing that archival returns it to frozen, not to dormant.
 
 - **形态**：状态
-- **出处**：[会话产品页 常驻工具无法保持形状时，会话冻结](../../product/sessions-and-work/design.md#frozen)（rev 11）；[#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6315367596)（PanQiWei 2026-10-21 裁定：冻结是独立的会话状态，不是归档）；判定条件见已采用的 [RFC-0012 会话常驻集合的规则](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R5b）
+- **出处**：[会话产品页 常驻工具无法保持形状时，会话冻结](../../product/sessions-and-work/design.md#frozen)（rev 12）；[#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6315367596)（PanQiWei 2026-10-21 裁定：冻结是独立的会话状态，不是归档）；判定条件见已采用的 [RFC-0012 会话常驻集合的规则](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R5b）
 - **别混 ①**：不是[会话归档](#ul-session-archival--会话归档--session-archival)。冻结不中断在途的运行；归档会中断未完成的工具执行与模型响应
 - **别混 ②**：不是休眠。休眠的会话可以开始新的运行，冻结的会话不能
 - **注意 ①**：只在采用点判定。「耐久地不可装载」要有耐久证据：实现包的摘要缺失，或装载被确定性拒绝。实现暂时缺席、状态未知或被撤权时，会话用[替换件](reach-and-availability.md#ul-stand-in--替换件--stand-in)，不冻结
@@ -255,7 +289,7 @@
 
 - **形态**：属性
 - **出处**：[PF-015 §4 会话运行模式](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#会话运行模式)（rev 21）；
-  它在[放行四步](../../product/meta-capabilities/design.md#动作放行与环境准入)（rev 13）里是第 ④ 步
+  它在[放行四步](../../product/meta-capabilities/design.md#动作放行与环境准入)（rev 16）里是第 ④ 步
 - **⚠️ 别混**：**`auto_permission` 决定「准不准」，执行环境那一维的 `auto_place` 决定「落在哪」**——
   两者会在同一次执行里一前一后出现。**两个名字特意分开取，就是为了不撞**
   （`auto_place` 是[执行环境权限](grounding-and-isolation.md#ul-execution-environment-permission--执行环境权限--execution-environment-permission)的一档，归 PF-005）。
@@ -602,7 +636,7 @@
 - **别混 ②**：**不是[拓展位置](#ul-loop-extension-point--loop-拓展点--loop-extension-point)上的否决**——产品暂不在消息成立前后另设拓展位置，准入不依附任何位置
 - **注意 ①**：产品页也称「消息入口」，指同一件事
 - **注意 ②**：**被拒收的模型回复不是一次模型调用失败**——原调用照常收场，不交给重试挂件。连续拒收没有次数上限，原「连续否决上限」已弃用，见[该词条](execution-and-outcome.md#ul-consecutive-veto-limit--连续否决上限--consecutive-veto-limit)
-- **注意 ③**：**非 Tool ref 来源的模态转换在接纳之前完成**：实现消息准入的提供者在接纳前调用[转换件](capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)，Agent 只看到接纳后的消息及其派生表示。这一归属已由项目负责人接受，见 [C-58](../conflicts.md#c-58模态转换件的执行时点)
+- **注意 ③**：**人发的媒体在上传完成之后、接纳之前已经转换**，工具产出的媒体只在需要时由采用结果的一方转换；[转换件](capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)归媒体，不站在任何拓展位置上。Agent 只看到已经带着[表示快照](record-and-context.md#ul-representation-snapshot--表示快照--representation-snapshot)的消息，见 [C-93](../conflicts.md#c-93转换件站不站在扩展位置上)
 
 ### UL-side-question · 旁路提问 · Side Question
 

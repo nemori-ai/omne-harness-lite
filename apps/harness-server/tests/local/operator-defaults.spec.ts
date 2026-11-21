@@ -230,6 +230,9 @@ describe('localOperatorLayer over the bundled distribution', () => {
     expect(configOf(layer, 'session-history-index')).toEqual({
       root: input('linux').locations.historyIndexRoot,
     })
+    expect(configOf(layer, 'media-storage-local')).toEqual({
+      root: input('linux').locations.mediaRoot,
+    })
     const without = localOperatorLayer({
       ...input('linux'),
       distribution: { rows: [{ id: 'session-handoff', config: { combinationVersion: 'v' } }] },
@@ -244,7 +247,10 @@ describe('localOperatorLayer over the bundled distribution', () => {
               'skills',
               'secret-custody',
               'notification',
+              'dispatch',
+              'workspace',
               'session-history-index',
+              'media-storage-local',
             ].includes(id),
         ),
     )
@@ -327,22 +333,42 @@ describe('localOperatorLayer over the bundled distribution', () => {
       .parse(configOf(layer, 'tool-records')).configuration.offloading.maxInlineUtf8Bytes
     const bounds = localBounds()
     expect(Object.keys(bounds).sort()).toEqual([
+      'Agents',
       'Ask',
       'BkgToolCalls',
       'Calendar',
       'Files',
       'Notifications',
       'Schedules',
+      'Screen',
       'Sessions',
       'Shell',
       'Skills',
+      'SwitchWorkspace',
       'TodoItems',
       'Tools',
       'Web',
     ])
-    for (const tool of ['Shell', 'Files', 'Web', 'TodoItems', 'Ask', 'Skills', 'Sessions'])
+    for (const tool of [
+      'Shell',
+      'Files',
+      'Web',
+      'TodoItems',
+      'Ask',
+      'Skills',
+      'Sessions',
+      'Agents',
+    ])
       expect(bounds[tool]?.resultMaxBytes, tool).toBeGreaterThan(inline)
-    for (const tool of ['Tools', 'BkgToolCalls', 'Calendar', 'Schedules', 'Notifications'])
+    for (const tool of [
+      'Tools',
+      'BkgToolCalls',
+      'Calendar',
+      'Schedules',
+      'Notifications',
+      'SwitchWorkspace',
+      'Screen',
+    ])
       expect(bounds[tool]?.resultMaxBytes, tool).toBeLessThanOrEqual(inline)
   })
 
@@ -358,18 +384,24 @@ describe('localOperatorLayer over the bundled distribution', () => {
     }
   })
 
-  it('puts the workspace under both tools and the execution host', () => {
+  it('gives the workspace as the default directory of sessions, and to no tool or provider', () => {
+    expect(configOf(layer, 'session-ad03')).toMatchObject({ defaultDirectory: '/work' })
     expect(configOf(layer, 'tool-host')).toMatchObject({
-      construction: {
-        Shell: { executable: '/bin/bash', argsPrefix: ['-c'], cwd: '/work' },
-        Files: { cwd: '/work' },
-      },
+      construction: { Shell: { executable: '/bin/bash', argsPrefix: ['-c'] } },
     })
-    expect(configOf(layer, 'tool-records')).toMatchObject({ filesRoot: '/work' })
-    expect(configOf(layer, 'execution-host')).toEqual({
-      filesRoot: '/work',
-      stateDirectory: '/h/state/host-files',
+    const construction = (configOf(layer, 'tool-host') as { construction: Record<string, object> })
+      .construction
+    expect(Object.keys(construction['Shell']!)).not.toContain('cwd')
+    expect(construction['Files']).toEqual({
+      resultMaxBytes: 1_048_576,
+      openMaxBytes: 20_971_520,
+      imageMaxWidth: 16384,
+      imageMaxHeight: 16384,
+      imageMaxDecodedBytes: 134_217_728,
+      imageConcurrency: 2,
     })
+    expect(configOf(layer, 'tool-records')).not.toHaveProperty('filesRoot')
+    expect(configOf(layer, 'execution-host')).toEqual({ stateDirectory: '/h/state/host-files' })
   })
 
   it('gives the telemetry row its seven budgets and leaves the implementation and the outlet to the release', () => {

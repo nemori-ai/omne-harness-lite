@@ -95,7 +95,7 @@ export {
 export { judgePreparationFact } from './judge-preparation.ts'
 export { judgeConsumerRef, judgeHandoff } from './judge-release.ts'
 export { judgeToolState } from './judge-state.ts'
-export { evaluateToolAvailability, presentTool } from './catalog.ts'
+export { commandAddedModalities, evaluateToolAvailability, presentTool } from './catalog.ts'
 export {
   TOOL_REFERENCE_MAX_LENGTH,
   decodeToolInvocationRef,
@@ -128,6 +128,8 @@ export type {
   ToolEmitReceipt,
   ToolExecutionContext,
   ToolExecutionScope,
+  ToolMediaProduct,
+  ToolMediaSink,
   ToolPrimitiveFailure,
   ToolProcessEmitter,
   ToolProcessReceiver,
@@ -172,6 +174,7 @@ export type {
   ToolExecutorBinding,
   ToolInstanceHost,
   ToolInstanceIdentities,
+  ToolMediaStore,
   ToolInvocationSourceIssuer,
   ToolInvocationSourceOutcome,
   ToolLiveExecution,
@@ -236,8 +239,11 @@ export type {
 } from './records.ts'
 export type { ToolStartAcceptance, ToolStartFence } from './records.ts'
 export type {
-  AccountScope,
   ToolAccounts,
+  ToolUsageFact,
+  ToolUsageOutcome,
+  ToolUsagePage,
+  ToolUsageQuery,
   ToolContentReader,
   ToolOffloader,
   ToolReads,

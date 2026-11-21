@@ -7,6 +7,7 @@
     "authorization",
     "session-storage",
     "session-input-sources",
+    "session-before-intake",
     "session-history-index",
     "session-search",
     "asset-categories",
@@ -16,6 +17,17 @@
     "schedule",
     "notification",
     "calendar-notification",
+    "media-storage-sql",
+    "media-image",
+    "media",
+    "media-storage-local",
+    "media-sweep",
+    "media-intake",
+    "media-model-source",
+    "media-tool-store",
+    "workspace",
+    "usage",
+    "usage-adapters",
     "session-provider",
     "session-ad02",
     "session-ad03",
@@ -69,6 +81,9 @@
     "runtime-context-tenant-scope",
     "session-intake-budget",
     "session-observation",
+    "dispatch",
+    "dispatch-session",
+    "dispatch-tool",
     "server-entry",
     "identity-access",
     "session-access",
@@ -78,8 +93,11 @@
     "calendar-access",
     "schedule-access",
     "notification-access",
+    "media-access",
+    "workspace-access",
     "tool-access",
-    "model-access"
+    "model-access",
+    "usage-access"
   ],
   "trusted": [
     {
@@ -154,6 +172,28 @@
       ]
     },
     {
+      "row": "media-storage-sql",
+      "names": [
+        "storage",
+        "tenantDomainLookup",
+        "tenantDomainRegistration"
+      ]
+    },
+    {
+      "row": "media-sweep",
+      "names": [
+        "tenantDomainScannerPrincipal"
+      ]
+    },
+    {
+      "row": "workspace",
+      "names": [
+        "storage",
+        "principalVerifier",
+        "tenantStanding"
+      ]
+    },
+    {
       "row": "authorization",
       "names": [
         "principalVerifier",
@@ -205,6 +245,7 @@
         "storage",
         "tenantDomainLookup",
         "sessionModesInstallation",
+        "sessionWorkingDirectory",
         "definitionMappings"
       ]
     },
@@ -257,11 +298,18 @@
       ]
     },
     {
+      "row": "agent-context",
+      "names": [
+        "sessionModesInstallation"
+      ]
+    },
+    {
       "row": "agent-journal",
       "names": [
         "storage",
         "tenantDomainLookup",
-        "agentReceivedRecords"
+        "agentReceivedRecords",
+        "sessionWorkingDirectory"
       ]
     },
     {
@@ -385,6 +433,30 @@
       ]
     },
     {
+      "row": "dispatch",
+      "names": [
+        "storage",
+        "tenantDomainLookup",
+        "tenantDomainRegistration",
+        "tenantDomainScannerPrincipal",
+        "dispatchPrincipal"
+      ]
+    },
+    {
+      "row": "dispatch-session",
+      "names": [
+        "definitionMappings",
+        "sessionModesInstallation",
+        "dispatchPrincipal"
+      ]
+    },
+    {
+      "row": "dispatch-tool",
+      "names": [
+        "dispatchPrincipal"
+      ]
+    },
+    {
       "row": "server-entry",
       "names": [
         "principalIssuer",
@@ -403,7 +475,8 @@
         "principalIssuer",
         "tenantStanding",
         "definitionMappings",
-        "sessionModesInstallation"
+        "sessionModesInstallation",
+        "sessionWorkPrincipals"
       ]
     },
     {
@@ -450,6 +523,20 @@
       ]
     },
     {
+      "row": "media-access",
+      "names": [
+        "principalIssuer",
+        "tenantStanding"
+      ]
+    },
+    {
+      "row": "workspace-access",
+      "names": [
+        "principalIssuer",
+        "tenantStanding"
+      ]
+    },
+    {
       "row": "tool-access",
       "names": [
         "principalIssuer",
@@ -458,6 +545,13 @@
     },
     {
       "row": "model-access",
+      "names": [
+        "principalIssuer",
+        "tenantStanding"
+      ]
+    },
+    {
+      "row": "usage-access",
       "names": [
         "principalIssuer",
         "tenantStanding"

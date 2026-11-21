@@ -93,12 +93,12 @@ describe('边界', () => {
     expect(offending('main', bad)).toEqual([])
   })
 
-  it('主进程里只有入口、窗口与 utility 进程的启动导入 electron，其余换成替身就能测', () => {
+  it('主进程里只有入口、拒绝远程调试、窗口与 utility 进程的启动导入 electron，其余换成替身就能测', () => {
     const using = files(join(SRC, 'main'))
       .filter(file => imports(file).includes('electron'))
       .map(file => relative(join(SRC, 'main'), file))
       .toSorted()
-    expect(using).toEqual(['main.ts', 'utility-process.ts', 'window.ts'])
+    expect(using).toEqual(['main.ts', 'remote-debugging.ts', 'utility-process.ts', 'window.ts'])
   })
 
   it('没有预加载脚本，不用进程间通信承载页面的请求；桌面应用不启动独立转发进程', () => {
@@ -124,7 +124,7 @@ describe('边界', () => {
     expect(naming).toEqual(['page/assembly.tsx'])
   })
 
-  it('装配文件列出十个界面模块', () => {
+  it('装配文件列出十二个界面模块', () => {
     const modules = imports(join(SRC, 'page', 'assembly.tsx'))
       .filter(specifier => specifier.endsWith('-ui/cordis'))
       .sort()
@@ -134,11 +134,13 @@ describe('边界', () => {
       '@omne-harness/human-intervention-ui/cordis',
       '@omne-harness/identity-ui/cordis',
       '@omne-harness/mcp-ui/cordis',
+      '@omne-harness/media-ui/cordis',
       '@omne-harness/model-ui/cordis',
       '@omne-harness/notification-ui/cordis',
       '@omne-harness/schedule-ui/cordis',
       '@omne-harness/session-ui/cordis',
       '@omne-harness/tool-ui/cordis',
+      '@omne-harness/usage-ui/cordis',
     ])
     expect(modules.every(specifier => DOMAIN_MEMBERS.has(memberOf(specifier)))).toBe(true)
   })

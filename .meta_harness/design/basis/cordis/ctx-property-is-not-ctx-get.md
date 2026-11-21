@@ -1,17 +1,17 @@
 ---
 id: ctx-property-is-not-ctx-get
 upstream: cordis
-version: 4.0.4
+version: 4.1.0
 kind: negative
 symbols:
-  - "reflect.ts: Context 代理的 get 处理器——插件里读 ctx.<名>，只沿本 fiber 链的 store（inject 了的、或祖先提供的）找，找不到就抛 cannot get property ... without inject"
-  - "reflect.ts: 不在插件运行期（根上下文）读 ctx.<名>，等于 ctx.reflect.get(名, false)"
+  - "reflect.ts: Context 代理的 get 处理器——插件里读 ctx.<名>，从定义处所在的 fiber 起沿 fiber 链向上，在各 fiber 的 committed（inject 时定下的快照）与它自己的 provisions 里找，找不到就抛 cannot get property ... without inject"
+  - "reflect.ts: 定义处不在插件运行期（根上下文）时读 ctx.<名>，等于 ctx.reflect.get(名, false)"
   - "reflect.ts: ctx.get(name, strict) 不看声明，直接读全局服务表"
 lines:
-  - "reflect.ts:136-171"
-  - "reflect.ts:233-243"
+  - "reflect.ts:144-184"
+  - "reflect.ts:247-257"
 probe: packages/assembly/kernel-basis/tests/ctx-property-is-not-ctx-get.spec.ts
-checked: 2026-11-15
+checked: 2026-11-20
 ---
 
 # 插件里读 `ctx.<键>` 不等于 `ctx.get(键)`：前者要先声明，后者直接读服务表
@@ -31,19 +31,19 @@ checked: 2026-11-15
 
 **想当然的理解**：`ctx.<键>` 是 `ctx.get(键)` 的简写，没 inject 也能取，取不到就是 `undefined`。
 
-**实际（4.0.4 取证）**：插件里没声明就读 `ctx.<键>` 抛错；声明了才取得到。
+**实际（4.1.0 取证）**：插件里没声明就读 `ctx.<键>` 抛错；声明了才取得到。
 
 ## 证据
 
 | symbol / 语义位置 | 读到了什么 | 怎样复核 |
 |---|---|---|
-| `reflect.ts` Context 代理的 `get` | 运行期沿 `fiber.store` 向上找；遇到本 fiber 声明了却不在场的抛 `in inactive context`；走到没有 `runtime` 的 fiber 或 isolate 标签变了即抛 `without inject` | 读源码 136–171 行 |
-| 同上，第 152 行 | `if (!ctx.fiber.runtime) return ctx.reflect.get(prop, false)` | 在根上下文读一个已提供的键 |
-| `reflect.ts` `get`／`_getImpl` | 按 isolate 键读 `this.store`，不查声明 | 读源码 233–243 行 |
+| `reflect.ts` Context 代理的 `get` | 运行期沿各 fiber 的 `committed` 与 `provisions` 向上找；遇到本 fiber 声明了却不在场的抛 `in inactive context`；走到没有 `runtime` 的 fiber 或 isolate 标签变了即抛 `without inject` | 读源码 144–184 行 |
+| 同上，第 162 行 | `if (!defSite.fiber.runtime) return ctx.reflect.get(prop, false)`：判的是定义处的 fiber | 在根上下文读一个已提供的键 |
+| `reflect.ts` `get`／`_getImpl` | 按 isolate 键读 `this.store`，不查声明 | 读源码 247–257 行 |
 
 ## 探针断言什么
 
-探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.0.4 核对：
+探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.1.0 核对：
 
 1. 一个插件提供 `probeKv`；另一个**没 inject** 的插件体里，`ctx.get('probeKv')` 取到实现，读 `ctx.probeKv` 抛错且消息含键名。
 2. `inject: ['probeKv']` 的插件体里，`ctx.probeKv` 取到同一个实现。

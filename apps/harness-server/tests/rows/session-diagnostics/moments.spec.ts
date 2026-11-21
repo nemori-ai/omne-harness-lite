@@ -14,13 +14,16 @@ import {
 import {
   answer504,
   createSession,
+  diagnosticsBodyOf,
   modelCallsOf,
   registerAndLogin,
   sendInput,
   startScenarioGateway,
+  until,
   untilRunEnded,
   type Cli,
   type GatewayReply,
+  type ScenarioAnswer,
   type ScenarioGateway,
 } from './support.ts'
 
@@ -28,6 +31,8 @@ const CREDENTIAL = 'carol-pw-MOMENTS-4b1d'
 const RUN_END_TIMEOUT_MS = 90_000
 const RETRIED_TEXT = 'the first connection is refused and the first answer is 504'
 const REQUEST_ID = 'gen-MOMENTS-REQUEST-0042'
+const STALLED_TEXT = 'the upstream writes a first part and then says nothing'
+const STALL_READ_TIMEOUT_MS = 30_000
 
 const sse = (events: readonly unknown[]): string =>
   `${events.map(event => `data: ${JSON.stringify(event)}\n\n`).join('')}data: [DONE]\n\n`
@@ -45,6 +50,21 @@ const answerText = (body: string): GatewayReply => ({
     },
     { choices: [{ delta: {}, finish_reason: 'stop' }] },
   ]),
+})
+
+const frames = (events: readonly unknown[]): string =>
+  events.map(event => `data: ${JSON.stringify(event)}\n\n`).join('')
+
+const stallAfterFirstPart = (body: string): ScenarioAnswer => ({
+  kind: 'stall',
+  body: frames([
+    {
+      model: (JSON.parse(body) as { model?: string }).model ?? 'unknown',
+      provider: 'OpenAI',
+      choices: [{ delta: { content: 'a first part' } }],
+    },
+  ]),
+  rest: `${frames([{ choices: [{ delta: {}, finish_reason: 'stop' }] }])}data: [DONE]\n\n`,
 })
 
 /** The answer to a cost lookup: the upstream has no cost for the request. */
@@ -87,6 +107,7 @@ describe('the moments and the connect retries of a dispatch, read over real proc
         retriedIndex = request.index
         return answer504
       }
+      if (request.body.includes(STALLED_TEXT)) return stallAfterFirstPart(request.body)
       return answerText(request.body)
     })
     const operatorPath = join(scratch.base, 'operator.json')
@@ -174,6 +195,35 @@ describe('the moments and the connect retries of a dispatch, read over real proc
         /timing: materialize \d+ ms, send to response \d+ ms, send to first content \d+ ms, execution \d+ ms/,
       )
       expect(text.stdout).toMatch(/moments: prepared \S+Z, sent \S+Z, response \S+Z/)
+    },
+  )
+
+  it(
+    'C4 (#1428): the upstream writes a first part and stalls: the response and first-content moments are read while the Run still runs',
+    { timeout: 180_000 },
+    async () => {
+      const session = await createSession(carol)
+      await sendInput(carol, session, STALLED_TEXT)
+      await until(() => gateway.stalled() === 1, 'the stalled answer', RUN_END_TIMEOUT_MS)
+      const deadline = Date.now() + STALL_READ_TIMEOUT_MS
+      let run: Record<string, unknown> | undefined
+      for (;;) {
+        const read = await carol(['read-session-diagnostics', '--session', session, '--json'])
+        run = diagnosticsBodyOf(read)?.runs[0]
+        const instants = run === undefined ? undefined : dispatchesOf(run)[0]?.instants
+        if (instants?.responseStarted.kind === 'known' && instants.firstContent.kind === 'known')
+          break
+        if (Date.now() > deadline)
+          throw new Error(`the stalled part was not saved: ${JSON.stringify(run)}`)
+        await new Promise(resolve => setTimeout(resolve, 250))
+      }
+      expect(run?.['terminal']).toBeNull()
+      expect(gateway.stalled()).toBe(1)
+      gateway.finishStalled()
+      const ended = await untilRunEnded(carol, session, RUN_END_TIMEOUT_MS)
+      expect(ended.run['terminal'], JSON.stringify(ended.run)).toMatchObject({
+        outcome: 'completed',
+      })
     },
   )
 })

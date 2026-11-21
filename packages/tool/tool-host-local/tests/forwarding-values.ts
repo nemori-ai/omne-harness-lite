@@ -87,6 +87,7 @@ export async function forwardingFixture(
   const store: ToolLedgerStore = {
     durability: options.durableDeclaration ? 'durable' : 'none',
     scanPending: input => memory.scanPending(input),
+    usage: query => memory.usage(query),
     read: memory.read,
     readRecord: memory.readRecord,
     due: memory.due,

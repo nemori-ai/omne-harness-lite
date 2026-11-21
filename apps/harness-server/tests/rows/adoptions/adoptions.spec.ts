@@ -246,7 +246,12 @@ describe('an unknown definition produces no business write', () => {
     if (!('ok' in value.known)) throw new Error('expected a resolution')
     expect(value.reservations).toEqual(['alpha'])
     expect(value.known.ok).toMatchObject({
-      definition: { category: 'AgentDefinition', name: 'alpha' },
+      definition: {
+        category: 'AgentDefinition',
+        type: 'master',
+        summary: 'Works on what the person asks for.',
+        name: 'alpha',
+      },
       extensions: [],
     })
     expect(value.known.ok.evaluator).toBe(agentEvaluator)
@@ -327,6 +332,8 @@ describe('the mapping is read once from the distribution and checked at the entr
         entryConfig('alpha', {
           definition: {
             category: 'AgentDefinition',
+            type: 'master',
+            summary: 'Works on what the person asks for.',
             name: 'alpha',
             references: 'none',
             attributes: [],
@@ -339,7 +346,14 @@ describe('the mapping is read once from the distribution and checked at the entr
       'a definition body of another name',
       mappingConfig(
         entryConfig('alpha', {
-          definition: { category: 'AgentDefinition', name: 'beta', references: [], attributes: [] },
+          definition: {
+            category: 'AgentDefinition',
+            type: 'master',
+            summary: 'Works on what the person asks for.',
+            name: 'beta',
+            references: [],
+            attributes: [],
+          },
         }),
       ),
       'mappings.0.definition.name',

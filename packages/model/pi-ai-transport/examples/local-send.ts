@@ -96,6 +96,7 @@ function exampleBinding(bound: Supplier): PiFamilyBinding {
     supplier: bound,
     endpoint: 'chat-completions',
     adoption: adoption('family'),
+    mediaLimits: () => null,
     counting,
     rules: { plan: () => ({ failure: refused }) },
     meter: {

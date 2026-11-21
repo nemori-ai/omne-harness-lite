@@ -204,7 +204,7 @@ const names = (check: Check<string>) => unique(list(check), name => name)
 
 const element: Check<unknown> = value => succeed(value)
 
-const modalities: Check<readonly Modality[]> = (value, at) => {
+export const modalities: Check<readonly Modality[]> = (value, at) => {
   const copied = list(element)(value, at)
   if ('failure' in copied) return copied
   const judged = judgeModalities(copied.ok)
@@ -274,9 +274,17 @@ export const commandRelease = record(
   { gate: nullable(gateId) },
   { detail: record({ kind: detailKind, schema: jsonObject }) },
 )
+export const commandModalities = nonEmpty(modalities)
+const conditionName: Check<string> = (value, at) => {
+  if (typeof value !== 'string') return reject(at, 'type')
+  return /^[a-z][a-z0-9-]{0,47}$/u.test(value) ? succeed(value) : reject(at, 'condition-name')
+}
+export const callConditions = nonEmpty(names(conditionName))
 const command = record(commandFields, {
   background: record({ unless: names(filled) }),
   release: commandRelease,
+  modalities: commandModalities,
+  conditions: callConditions,
 })
 
 // A command names only a gate its tool declares; a tool declaring none has no gate to name.
@@ -318,6 +326,7 @@ const functionShapeFields = {
   parameters: parameterContract,
   returns: returnDeclaration,
 }
+const functionShapeOptional = { conditions: callConditions }
 const commandsShapeFields = {
   kind: literal('commands'),
   encoding: literal(...COMMAND_CALL_ENCODINGS),
@@ -352,7 +361,10 @@ function flatCallable<
 }
 
 export const toolDefinition: Check<ToolDefinition> = variant('kind', {
-  function: record({ ...metadataFields, ...functionShapeFields }, metadataOptional),
+  function: record(
+    { ...metadataFields, ...functionShapeFields },
+    { ...metadataOptional, ...functionShapeOptional },
+  ),
   commands: refine(
     gatesNamed(
       flatCallable(
@@ -371,7 +383,7 @@ const implementationFacts: Check<ToolImplementationFacts> = refine(
   record({
     ...declarationFields,
     implements: variant('kind', {
-      function: record(functionShapeFields),
+      function: record(functionShapeFields, functionShapeOptional),
       commands: gatesNamed(flatCallable(record(commandsShapeFields, commandsShapeOptional))),
     }),
   }),

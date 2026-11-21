@@ -95,6 +95,7 @@ function windowStore(
   const racing: ToolLedgerStore = {
     durability: 'none',
     scanPending: input => memory.scanPending(input),
+    usage: query => memory.usage(query),
     readRecord: memory.readRecord,
     due: memory.due,
     definition: memory.definition,
@@ -171,6 +172,7 @@ describe('22 release: a released call never regains an entry', () => {
       store: memory => ({
         durability: 'none',
         scanPending: input => memory.scanPending(input),
+        usage: query => memory.usage(query),
         readRecord: memory.readRecord,
         due: memory.due,
         definition: memory.definition,

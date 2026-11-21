@@ -8,6 +8,7 @@ import {
   pollUntil,
   startAcceptances,
   toolCalls,
+  toolCallsByRequest,
   toolLedger,
   toolResults,
   type ReleaseTree,
@@ -97,12 +98,28 @@ async function ranOnce(tree: ReleaseTree, session: string, label: string) {
   expect(once).toHaveLength(1)
 }
 
+// The working directory of a session is recovered from its log: a card answered after a restart
+// releases its call, which runs in the directory of the step that made it.
+const NO_DIRECTORY = 'no working directory'
+const echoOnce = toolCallsByRequest(body => {
+  const { messages } = JSON.parse(body) as {
+    messages: readonly Readonly<{ tool_calls?: unknown[] }>[]
+  }
+  if (messages.some(turn => (turn.tool_calls?.length ?? 0) > 0)) return []
+  const call = JSON.stringify({
+    command: 'execute',
+    intent: 'test call',
+    params: { script: 'echo open-done' },
+  })
+  return [{ id: 'call_open_0', tool: 'Shell', arguments: call }]
+})
+
 it(
-  'a release card left open over a restart is answered after it, and the call runs once',
+  'a release card left open over a restart is answered after it, and its call runs once',
   { timeout: 300_000 },
   async () => {
     let session = ''
-    await onReleaseTreeRuns(options, [
+    await onReleaseTreeRuns({ ...options, script: echoOnce }, [
       async tree => {
         session = await tree.startSession('start: echo open')
         await pendingCard(tree, session, 'open, before the restart')
@@ -110,7 +127,16 @@ it(
       async tree => {
         const card = await pendingCard(tree, session, 'open, after the restart')
         await answerCard(tree, card, ['--option', 'allow-once'], 'reply-open')
-        await ranOnce(tree, session, 'open')
+        const entries = await pollUntil(
+          'the Run of open to end after the restart',
+          () => historyOf(tree, session),
+          value => value.some(entry => entry.kind === 'run.terminal'),
+        )
+        const results = toolResults(entries).join('\n')
+        expect(results).not.toContain(NO_DIRECTORY)
+        expect(results).toContain('open-done')
+        expect(entries.filter(entry => entry.kind === ONCE)).toHaveLength(1)
+        expect(toolCalls(tree.storageRoot).filter(row => row.tool === 'Shell')).toHaveLength(1)
       },
     ])
   },

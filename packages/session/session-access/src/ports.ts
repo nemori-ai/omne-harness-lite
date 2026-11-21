@@ -4,7 +4,7 @@ import type {
   LoginIdentity,
   Principal,
 } from '@omne-harness/access-cordis-contract'
-import type { TenantId } from '@omne-harness/legal-identity'
+import type { TenantId, WorkspaceId } from '@omne-harness/legal-identity'
 import type {
   Adoption,
   DurableEvidence,
@@ -16,6 +16,7 @@ import type {
   SessionId,
   SessionManagement,
   SessionWork,
+  WorkspaceAttachment,
 } from '@omne-harness/session-contract'
 import type { SessionProtocol } from '@omne-harness/session-protocol'
 import type { QueuedRequest } from './request-queue.ts'
@@ -63,13 +64,18 @@ export type SessionListPage = Readonly<{
   completeness: 'complete' | 'partial'
 }>
 
+type ArchivedBody = BodyOf<SessionProtocol['operations']['list-archived-sessions']>
+/** What both lists narrow by, as the protocol reads it: each one given, or null for any. */
+export type ListFilters = Readonly<{
+  [K in 'relation' | 'parent' | 'attendance' | 'definition']-?: Exclude<ArchivedBody[K], undefined>
+}>
 type ListingInput = Readonly<{
   principal: Principal
   tenant: TenantId
   after: string | null
   limit: number
+  filter: ListFilters
 }>
-type ArchivedBody = BodyOf<SessionProtocol['operations']['list-archived-sessions']>
 /** The archived list's filters as the protocol reads them; the times are instants, not text. */
 export type ArchiveFilters = Readonly<{
   [K in 'from' | 'to' | 'by' | 'titleContains']-?: Exclude<ArchivedBody[K], undefined>
@@ -157,11 +163,34 @@ export type ModelTargetCheck =
   | Readonly<{
       kind: 'refused'
       reason: 'unknown-name' | 'withdrawn' | 'excluded' | 'modality' | 'locked' | 'scope'
+      blocks?: readonly Readonly<{ message: string; block: string }>[]
     }>
   | Readonly<{ kind: 'unavailable' }>
 
 export interface ModelTargets {
   check(
-    input: Readonly<{ principal: Principal; tenant: TenantId; route: string }>,
+    input: Readonly<{ principal: Principal; tenant: TenantId; route: string; session?: SessionId }>,
   ): Promise<ModelTargetCheck>
+}
+
+/** Whether a tenant may attach an instance now: Workspace answers it, the release adapts. */
+export type WorkspaceTargetCheck =
+  | Readonly<{
+      kind: 'attachable'
+      directory: string
+      attachment: WorkspaceAttachment
+      basis: DurableEvidence
+    }>
+  | Readonly<{ kind: 'refused'; reason: 'not-permitted' | 'instance-unavailable' }>
+  | Readonly<{ kind: 'unavailable' }>
+
+export interface WorkspaceTargets {
+  check(
+    input: Readonly<{
+      principal: Principal
+      tenant: TenantId
+      workspace: WorkspaceId
+      instance: string
+    }>,
+  ): Promise<WorkspaceTargetCheck>
 }

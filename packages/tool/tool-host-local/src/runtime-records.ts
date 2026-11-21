@@ -1,8 +1,15 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { fail } from '@omne-harness/operation-result'
-import { createToolLedger, type ToolLedger, type ToolLedgerPorts } from '@omne-harness/tool'
-import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
 import {
+  createToolAccounts,
+  createToolLedger,
+  type ToolAccountsGuard,
+  type ToolLedger,
+  type ToolLedgerPorts,
+} from '@omne-harness/tool'
+import type { ToolAccounts, ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
+import {
+  ToolAccountsService,
   ToolCommandsService,
   ToolReadsService,
   ToolStartAuthorityService,
@@ -15,7 +22,13 @@ import type { RuntimeCompositionInput, RuntimeStages } from './runtime-compositi
 export type RuntimeRecords = Readonly<{
   ledger: ToolLedger<unknown, ToolMessageContentBlock>
   authority: ReturnType<typeof createLocalStartCoordinator<unknown>>
+  accounts: ToolAccounts<unknown>
 }>
+
+const NO_ACCOUNTS_GUARD: ToolAccountsGuard<unknown> = {
+  qualify: () =>
+    Promise.resolve({ kind: 'unavailable', diagnostic: 'this host has no usage reader policy' }),
+}
 
 export function createRuntimeRecords(
   input: RuntimeCompositionInput,
@@ -54,11 +67,12 @@ export function createRuntimeRecords(
     },
   }
   const ledger = createToolLedger(input.store, guards, input.clock, input.configuration, ports)
-  return { ledger, authority }
+  const accounts = createToolAccounts(input.store, input.access.accounts ?? NO_ACCOUNTS_GUARD)
+  return { ledger, authority, accounts }
 }
 
 export function publishRuntimeRecords(ctx: Context, records: RuntimeRecords): void {
-  const { ledger, authority } = records
+  const { ledger, authority, accounts } = records
   class Commands extends ToolCommandsService<unknown, ToolMessageContentBlock> {
     admit = ledger.commands.admit
     control = ledger.commands.control
@@ -120,8 +134,12 @@ export function publishRuntimeRecords(ctx: Context, records: RuntimeRecords): vo
   class Fence extends ToolStartFenceService<unknown> {
     invalidate = authority.invalidate
   }
+  class Accounts extends ToolAccountsService<unknown> {
+    list = accounts.list
+  }
   new Commands(ctx)
   new Reads(ctx)
   new Authority(ctx)
   new Fence(ctx)
+  new Accounts(ctx)
 }

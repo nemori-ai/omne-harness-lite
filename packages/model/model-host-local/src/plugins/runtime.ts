@@ -55,9 +55,7 @@ type Target = Readonly<{ tenant: TenantId; call: ModelCallId }>
 type ResultDelivery = Extract<ModelDelivery, { kind: 'result' }>
 type AccountDelivery = Extract<ModelDelivery, { kind: 'account' }>
 
-export type DeliveryFailure =
-  | Readonly<{ kind: 'rejected'; failure: ModelDeliveryFailure }>
-  | Readonly<{ kind: 'receipt-mismatch' }>
+export type DeliveryFailure = Readonly<{ kind: 'rejected'; failure: ModelDeliveryFailure }>
 
 export type DeliveryStanding =
   | Readonly<{ status: 'pending' }>
@@ -151,7 +149,7 @@ export type RuntimeEvent =
   | Readonly<{ kind: 'no-receiver' }>
   | Readonly<{ kind: 'push-waiting'; reason: string }>
   | Readonly<{ kind: 'push-unknown' }>
-  | Readonly<{ kind: 'push-failed'; failure: DeliveryFailure['kind'] }>
+  | Readonly<{ kind: 'push-failed'; failure: 'rejected' | 'receipt-mismatch' }>
   | Readonly<{ kind: 'freeze-failed'; step: string }>
   | Readonly<{ kind: 'ack-failed'; failure: ModelFailure['kind'] }>
   | Readonly<{ kind: 'abandon-failed'; failure: ModelFailure['kind'] }>
@@ -234,14 +232,20 @@ function replaces(standing: DeliveryStanding, next: DeliveryStanding): boolean {
   return true
 }
 
-function acceptReceipt(
+type PushAnswer =
+  | Readonly<{ saved: ModelSavedReceipt }>
+  | Readonly<{ failure: ModelDeliveryFailure; foreign: boolean }>
+
+/** A receipt for another key or owner proves neither a save nor a refusal: its outcome is unknown. */
+function answerOf(
   delivery: ModelDelivery,
-  receipt: ModelSavedReceipt,
-): DeliveryStanding & { status: 'saved' | 'failed' } {
-  return isDeepStrictEqual(receipt.key, delivery.key) &&
-    receipt.evidence.owner === delivery.consumer.owner
-    ? { status: 'saved', receipt: frozen(receipt) }
-    : { status: 'failed', failure: { kind: 'receipt-mismatch' } }
+  outcome: Awaited<ReturnType<ModelResultReceiver<unknown>['push']>>,
+): PushAnswer {
+  if (!('ok' in outcome)) return { failure: outcome.failure, foreign: false }
+  return isDeepStrictEqual(outcome.ok.key, delivery.key) &&
+    outcome.ok.evidence.owner === delivery.consumer.owner
+    ? { saved: frozen(outcome.ok) }
+    : { failure: { kind: 'outcome-unknown' }, foreign: true }
 }
 
 function dropBody(record: ResultPushRecord): ResultPushRecord {
@@ -574,14 +578,13 @@ function createResultPush(input: StageInput, options: ResultPushOptions): Runtim
       } catch {
         outcome = { failure: { kind: 'outcome-unknown' } }
       }
-      if ('ok' in outcome) {
-        const accepted = acceptReceipt(delivery, outcome.ok)
-        if (accepted.status === 'failed')
-          report({ kind: 'push-failed', failure: 'receipt-mismatch' })
-        conclude(accepted)
+      const answer = answerOf(delivery, outcome)
+      if ('saved' in answer) {
+        conclude({ status: 'saved', receipt: answer.saved })
         break
       }
-      const { failure } = outcome
+      if (answer.foreign) report({ kind: 'push-failed', failure: 'receipt-mismatch' })
+      const { failure } = answer
       if (failure.kind === 'outcome-unknown') {
         conclude({ status: 'unknown' })
         if (redeliveries >= limits.maxRedeliveries) {
@@ -878,7 +881,7 @@ export function reportRuntimeEvent(ctx: Context, event: RuntimeEvent): void {
       ctx.logger.warn('model result push: a delivery stays unknown after its redeliveries')
       return
     case 'push-failed':
-      ctx.logger.warn(`model result push: a delivery failed (${event.failure})`)
+      ctx.logger.warn(`model result push: a push failed (${event.failure})`)
       return
     case 'freeze-failed':
       ctx.logger.warn(`model result push: a delivery could not be frozen (${event.step})`)

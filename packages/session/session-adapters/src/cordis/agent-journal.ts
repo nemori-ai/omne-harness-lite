@@ -140,7 +140,7 @@ import {
   type Reader,
 } from './journal-read.ts'
 import { attemptOfAuthority, attemptOfGrant } from './attempt-grant.ts'
-import { createModelTelling, type ModelReminders } from './model-telling.ts'
+import { createModelTelling, type StepOpening } from './model-telling.ts'
 import { createTenantSweep, evict, forget, reclaimedCommit } from './settled-executions.ts'
 import { resolveDomain } from './journal-state.ts'
 
@@ -153,9 +153,9 @@ export type SessionLogJournalOptions<P> = Readonly<{
   hostRecords?: MemoryAgentJournalOptions<P>['hostRecords']
   fault?: Fault
   report?: (report: JournalPublicationReport) => void
-  reminders?: ModelReminders<P> | undefined
   published?: (tenant: TenantId, session: SessionId, execution: AgentExecutionId) => void
-}>
+}> &
+  StepOpening<P>
 
 export type JournalPublicationReport = Readonly<{
   tenant: string

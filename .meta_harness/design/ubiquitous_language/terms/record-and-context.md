@@ -296,15 +296,16 @@
 
 - **形态**：对象
 - **出处**：[PF-009 §4 消息的内容是一串块](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)（rev 9） ·
-  [模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 5）
+  [模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 6）
 - **别混**：**裸写「块」不作数**——那个词到处都是
 - **注意**：**为什么不能是一段文本**——一条消息里可能既有文字又有图；
   **模型的思考与它的回答是两回事，混在一起就再也分不开**；
   工具调用的参数是结构化的，**压成文本就要靠解析捞回来，而解析会错**
-- **注意**：**文件块是一个[附件](execution-and-outcome.md#ul-attachment--附件--attachment)的引用，不是文件内容**；
+- **注意**：**语音、图、文件块可以是引用式的：装的是指向一个[媒体对象](#ul-media-object--媒体对象--media-object)的引用，不是内容本身**；
   **视频没有自己的块类型，装在文件块里**，它的[模态](#ul-modality--模态--modality)由块的媒体类型决定
-- **注意**：块上可挂两样由[转换件](capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)产出的属性——
-  [派生表示](#ul-derived-rendering--派生表示--derived-rendering)与 [transcript](#ul-transcript--transcript--transcript)，都在落盘前写好、之后不变
+- **注意**：引用式的块上可挂由[转换件](capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)做出的
+  [派生表示](#ul-derived-rendering--派生表示--derived-rendering)与 [transcript](#ul-transcript--transcript--transcript)，记在块上的[表示快照](#ul-representation-snapshot--表示快照--representation-snapshot)里，进入会话日志之前写好、之后不变
+- **待裁决**：Common 规格把已封闭的内容块写成五种，工具调用与工具结果不算内容块，与本条的八类不一致，见 [C-90](../conflicts.md#c-90内容块是八类还是五种)
 
 ### UL-reasoning-state · 推理续接状态 · Reasoning State
 
@@ -318,7 +319,7 @@
 > The readable text of the same reasoning sits in a thinking block, apart from it.
 
 - **形态**：变体（父：[内容块](#ul-content-block--内容块--content-block)）
-- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 5）
+- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 6）
 - **别混**：**不是思考块**——思考块装可读的推理文字，可以给人看；推理续接状态装的是读不懂的状态，只给能消费它的模型
 - **注意**：哪些模型能消费它，看它所在回复的[推理回放范围](#ul-reasoning-replay-scope--推理回放范围--reasoning-replay-scope)；形状与受理规则归 [message 成员](../../../../packages/common/SPEC.md#消息)
 
@@ -333,7 +334,7 @@
 > states are carried again.
 
 - **形态**：过程
-- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 5）
+- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 6）
 - **别混**：**不是 Agent 接续时的[回放](agent-runtime-loop.md#ul-replay--回放--replay)**——那是把挂起中的拓展件按日志重跑到停处；推理回放只决定一次请求带上哪些推理状态。两者都可能简称「回放」，跨 topic 时写全名
 - **注意**：被上游拒绝时略去这次带上的全部推理状态再发一次；原消费者可以对一次请求关闭推理回放。精确规则归 [Model 规格的推理回放](../../../../packages/model/SPEC.md#推理回放)
 
@@ -349,42 +350,60 @@
 > same model at the same recipient.
 
 - **形态**：属性
-- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 5）
+- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 6）
 - **别混**：**不是[租户](subjects-and-ownership.md#ul-tenant--租户--tenant)或账户的范围**——它只说哪些模型认得这段状态，不授予任何访问资格；凭据换了账户，状态仍可能被上游拒绝
 - **注意**：消息上的键名是 `replay.scope`；档案上的声明归 [Model 规格](../../../../packages/model/SPEC.md#推理回放)
 
 ### UL-derived-rendering · 派生表示 · Derived Rendering
 
-> **中**：**[转换件](capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)从一个[内容块](#ul-content-block--内容块--content-block)产出、挂在那个原块上的一组别的[模态](#ul-modality--模态--modality)的内容块**——
-> 比如一张图的一段文字描述。**原块不动**，派生表示是它的属性，不是消息里另外的块；
-> **不能是文件块**；**在落盘之前写好，之后不变**。组装时按有效模型的模态取对应的一份，取不到再用 [transcript](#ul-transcript--transcript--transcript)。
+> **中**：**[转换件](capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)从一个[内容块](#ul-content-block--内容块--content-block)所指的原件做出、挂在那个原块上的一组别的[模态](#ul-modality--模态--modality)的内容块**——
+> 比如一张图的一段文字描述。**原块不动**，派生表示是它的属性，不是消息里另外的块；**不能是文件块**。
+> 人发的媒体在上传完成之后、消息接纳之前做出；工具产出的媒体只在当前有效模型原生读不了它时，由采用工具结果的一方在采用时做出，随结果记入历史。
+> **两种都在进入会话日志之前写好，之后不变。**一次转换转出来了，也可以没有派生表示、只有 [transcript](#ul-transcript--transcript--transcript)。
+> 组装时按有效模型的模态取对应的一份，取不到再用 transcript。
 >
-> **EN**: **A set of content blocks in other modalities, produced by a converter from one
-> content block and hanging on that original block** — a text description of an image, say.
-> **The original is untouched**; derived renderings are an attribute of it, not further blocks
-> in the message; **never a file block**; **written before persistence and never changed**.
-> At assembly the rendering matching the effective model's modality is taken; failing that,
-> the transcript.
+> **EN**: **A set of content blocks in other modalities that a converter makes from the original
+> that one content block references, and that hang on that original block** — a text description
+> of an image, say. **The original is untouched.** Derived renderings are an attribute of it, not
+> further blocks in the message, and **never a file block**. For media that a person sends, they are
+> made after the upload completes and before the message is accepted. For media that a tool
+> produces, they are made only when the current effective model cannot read it natively, by the
+> party that adopts the tool result, at adoption, and they go into the history with the result.
+> **In both cases they are written before the block enters the session log and never change.** A
+> successful conversion can yield a transcript and no derived rendering. At assembly the rendering
+> that matches the effective model's modality is taken. Failing that, the transcript is taken.
 
 - **形态**：属性
-- **出处**：[PF-013 §4 转换件](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#转换件)（rev 17）
-- **别混**：**不是[结果卸载](execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)的占位**——占位替换了原件，派生表示与原件并存
+- **出处**：[媒体：为它准备别的表示](../../product/media/design.md#为它准备别的表示) ·
+  [agent 拿到的图片](../../product/media/design.md#agent-拿到的图片)（rev 1） ·
+  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 6）
+- **别混**：**不是[结果卸载](execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)的占位**——占位替换了原件，派生表示与原件并存；**也不是[请求版本](#ul-request-version--请求版本--request-version)**——请求版本与原件同一种模态，仍算原件这一级
 - **注意**：**取哪一份不需要选择规则**——看模型收得下什么、直接取对应的那份
 
 ### UL-transcript · transcript · Transcript
 
-> **中**：**[转换件](capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)为一个[内容块](#ul-content-block--内容块--content-block)产出的那段纯文本，作最后兜底**：
+> **中**：**[转换件](capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)为一个[内容块](#ul-content-block--内容块--content-block)所指的原件做出的那段纯文本，作最后兜底**：
 > 哪一份[派生表示](#ul-derived-rendering--派生表示--derived-rendering)都取不到时，给模型看的就是它。
-> 它挂在原块上，**在落盘之前写好，之后不变**；**有它的块不再把任何模型挡在合法目标之外**。
+> **一次转换转出来了，就至少有它**；没有生效的转换件、或这份内容本身转不出时，没有它。
+> 人发的媒体在上传完成之后、消息接纳之前做出；工具产出的媒体只在当前有效模型原生读不了它时，由采用工具结果的一方在采用时做出。
+> 它挂在原块上，**在进入会话日志之前写好，之后不变**；**有它的块不再把任何模型挡在合法目标之外**。
 > 正文直接写 transcript，不另起中文名。
 >
-> **EN**: **The plain-text rendering a converter produces for one content block, as the
-> last-resort fallback**: when no derived rendering fits, this is what the model sees. It
-> hangs on the original block, **written before persistence and never changed**; **a block
-> that has one no longer keeps any model out of the legal-target set.**
+> **EN**: **The plain-text rendering that a converter makes for the original that one content
+> block references, as the last-resort fallback**: when no derived rendering fits, this is what
+> the model sees. **A successful conversion always yields one.** There is none when no converter is
+> in effect or when the content itself cannot be converted. For media that a person sends, it is
+> made after the upload completes and before the message is accepted. For media that a tool
+> produces, it is made only when the current effective model cannot read it natively, by the party
+> that adopts the tool result, at adoption. It hangs on the original block, **is written before the
+> block enters the session log and never changes**. **A block that has one no longer keeps any model
+> out of the legal-target set.**
 
 - **形态**：属性
-- **出处**：[PF-013 §4 转换件](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#转换件) · [§5.11](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#511-有-transcript-的块不再把任何模型挡在外面)（rev 17）
+- **出处**：[媒体：为它准备别的表示](../../product/media/design.md#为它准备别的表示) ·
+  [agent 拿到的图片](../../product/media/design.md#agent-拿到的图片)（rev 1） ·
+  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 6） ·
+  [PF-013 §5.11](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#511-有-transcript-的块不再把任何模型挡在外面)（rev 17）
 - **别混**：**不专指语音转写**——图、视频、文件的兜底文本都叫它
 - **弃用说法**：~~文本那一份~~ ~~块上的文本字段~~
 
@@ -394,63 +413,157 @@
 > 它写在两处，**两处必须对得上**：[模型档案](capabilities-and-composition.md#ul-model-profile--模型档案--model-profile)上写这个模型**收得下、给得出**哪几种；
 > [内容块](#ul-content-block--内容块--content-block)上写这一块**是**哪一种。
 > **差一点就是它、但不是它：块的类型。**思考与工具调用是文本的**用途**，不是形态；
-> **块上的模态由它的媒体类型决定**：文件块装的是附件的引用，装的是视频它就是视频模态，
-> 媒体类型不在四种之列的（比如一份 PDF）**不是一种模态**，任何模型都读得了。
+> **块上的模态由它的媒体类型决定**：文件块装的是视频，它就是视频模态；
+> 媒体类型不在四种之列的（比如一份 PDF）**不是一种模态**。档案另写明原生读得了哪些这样的文件类型，那也不是模态。
 >
 > **EN**: **The form a piece of content takes: text, image, voice or video — exactly
 > four.** It is written in two places that **must agree**: on a model profile, which kinds
 > the model **takes in and gives out**; on a content block, which kind **this block is**.
 > **Close but not it: the block type.** Thinking and tool calls are *uses* of text, not
-> forms; **a block's modality follows its media type**: a file block holds an attachment
-> reference, and if that attachment is a video the block's modality is video, while a media
-> type outside the four (a PDF, say) **is not a modality** and any model can read it.
+> forms. **A block's modality follows its media type**: if a file block holds a video, the
+> block's modality is video. A media type outside the four (a PDF, say) **is not a modality**.
+> A profile also lists the file types of this kind that the model reads natively, and those
+> are not modalities either.
 
 - **形态**：属性
-- **出处**：[PF-013 §4 模态](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#模态)（rev 17）
+- **出处**：[PF-013 §4 模态](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#模态)（rev 17） ·
+  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 6）
 - **⚠️ 别混**：**八类块 ≠ 四种模态**——块的类型归 [PF-009](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)，模态归 PF-013
-- **注意**：两处对不上时**挡在算合法目标那一刻**，不是挡在出门那一刻
+- **注意 ①**：两处对不上时**挡在算合法目标那一刻**，不是挡在出门那一刻
+- **注意 ②**：**视频是一种模态，不等于有模型能原生读它**——原生支持的目标是文字、图片与语音，视频的文件表示不构成原生视频理解的承诺
 
 ### UL-media-type · 媒体类型 · Media Type
 
 > **中**：**一个[内容块](#ul-content-block--内容块--content-block)所装内容的具体格式**——一段视频、一张 PNG 图、一份 PDF 各是一种。
-> **块是哪种[模态](#ul-modality--模态--modality)，看它的媒体类型**：文件块的媒体类型落在四种模态之一，它就是那一种；
-> 落在四种之外（一份文档、一个压缩包），它就**不属于任何一种模态**，装的只是[一个附件](execution-and-outcome.md#ul-attachment--附件--attachment)的引用，任何模型都读得了。
-> 它也是[模态转换件](capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)登记用的两种键之一。
+> **块是哪种[模态](#ul-modality--模态--modality)，看它的媒体类型**：落在四种模态之一，它就是那一种；
+> 落在四种之外（一份 PDF、一个压缩包），它就**不属于任何一种模态**。
+> **这样的文件，只有[档案](capabilities-and-composition.md#ul-model-profile--模型档案--model-profile)写明原生读得了这种文件类型的模型才拿到原件**；别的模型读它的[派生表示](#ul-derived-rendering--派生表示--derived-rendering)或 [transcript](#ul-transcript--transcript--transcript)，都没有就读不了它。只有一个引用，不算模型读懂了它。
+> 它也是[转换件定义](capabilities-and-composition.md#ul-converter-definition--转换件定义--converter-definition)名字的一种写法。
 >
 > **EN**: **The specific format of what a content block holds** — a video, a PNG image, a PDF
-> are each one. **A block's modality follows from its media type**: a file block whose media type
-> falls within one of the four modalities is that modality; one that falls outside them (a document,
-> an archive) **belongs to no modality** and holds only a reference to an attachment, which any model
-> can read. It is also one of the two kinds of key a modality converter registers under.
+> are each one. **A block's modality follows from its media type**: a media type within one of the
+> four modalities makes the block that modality. One outside them (a PDF, an archive) **belongs to
+> no modality**. **Such a file goes as the original only to a model whose profile lists that file
+> type as natively readable.** Other models read its derived rendering or its transcript, and
+> cannot read it when it has neither. A reference alone does not mean that the model understood the
+> file. A media type is also one way to write the name of a converter definition.
 
 - **形态**：属性
 - **出处**：[PF-009 §4 消息的内容是一串块](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)（rev 9） ·
-  [PF-013 §4 模态](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#模态) ·
-  [§4 转换件](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#转换件)（rev 17）
+  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 6） ·
+  [媒体：模型读哪一份](../../product/media/design.md#模型读哪一份)（rev 1）
 - **别混**：**不是块的类型**——块的类型是载体（八类），媒体类型是载体里那样东西的格式；**视频没有自己的块类型，靠媒体类型认出来**
-- **注意**：一个文件块**同时命中「模态」键与「媒体类型」键时，媒体类型那个键上的转换件来转**——更具体的压过更一般的
+- **注意**：一个文件**同时命中「模态」与「具体媒体类型」两份转换件定义时，具体媒体类型那一份生效**——更具体的压过更一般的
 
 ### UL-modality-projection · 模态投影 · Modality Projection
 
-> **中**：**这个会话的历史里，[标着给模型看](#ul-block-annotation--块标注--block-annotation)的块中，出现过哪几种「只有原件、没有 [transcript](#ul-transcript--transcript--transcript)」的[模态](#ul-modality--模态--modality)。**
+> **中**：**这个会话的历史里，[标着给模型看](#ul-block-annotation--块标注--block-annotation)的块中，出现过哪几种「只有原件、没有 [transcript](#ul-transcript--transcript--transcript)」的[模态](#ul-modality--模态--modality)，以及哪几种这样的、不属于任何模态的文件的[媒体类型](#ul-media-type--媒体类型--media-type)。**
 > **只给人看的块不算**。它从[会话日志](#ul-session-log--会话日志--session-log)派生，**重算一遍必得同一个答案**；
 > **只增不减**；是[合法目标集合](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#510-合法目标集合与展示列表是两件事)的一个输入，
 > **不是模型档案的属性**。
-> **它不是「历史里出现过哪几种模态」**——那是它的上界，差的正是只给人看的块，与[转换件](capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)转成了文本的那些。
+> **它不是「历史里出现过哪几种模态」**——那是它的上界，差的正是只给人看的块，与[转换件](capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)转出了 transcript 的那些。
 >
-> **EN**: **Which modalities have appeared, among the blocks in this session's history
-> marked for the model, with only their original and no transcript.** Blocks marked only
-> for people do not count. Derived from the session log — **recomputing yields the same
-> answer**; it **only grows**; it is one input to the legal-target set, **not a property
-> of any profile**. **Not "every modality that ever appeared"**: that is its upper bound,
-> and the gap is the people-only blocks plus what converters rendered to text.
+> **EN**: **Which modalities, and which media types of files outside every modality, have
+> appeared among the blocks in this session's history marked for the model, with only their
+> original and no transcript.** Blocks marked only for people do not count. Derived from the
+> session log — **recomputing yields the same answer**. It **only grows**. It is one input to the
+> legal-target set, **not a property of any profile**. **Not "every modality that ever appeared"**:
+> that is its upper bound, and the gap is the people-only blocks plus the blocks that a converter
+> gave a transcript.
 
 - **形态**：视图
 - **出处**：[PF-013 §4 模态投影](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#模态投影) ·
-  [§6.18](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#618-模态投影要答得快而且是增量维护出来的)（rev 17）
+  [§6.18](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#618-模态投影要答得快而且是增量维护出来的)（rev 17） ·
+  [模型调用：多模态内容及转换](../../product/model-invocation/design.md#多模态内容及转换)（rev 6）
 - **别混 ①**：**不是「这一次请求里带了哪些模态」**——那随压缩与筛选变；投影说的是整个会话曾经有过什么
 - **别混 ②**：**不是「当前模型收得下哪些模态」**——那是档案说的能力；投影说的是历史
 - **注意**：它是[会话要维护的一项状态，却不是 runtime context](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#55-哪些算-meta-runtime-context)——会话内三个角色都不消费它
+
+### UL-media-object · 媒体对象 · Media Object
+
+> **中**：**一份不可变的非文字内容：一张图片、一段语音或一个文件。**原件由媒体保管，永不改写。
+> 它恰好属于一个[租户](subjects-and-ownership.md#ul-tenant--租户--tenant)；上传的内容属于上传它的租户。别的租户读不到它、引用不了它，也无从知道它存在。
+> 会话日志与工具结果里只放指向它的引用，不放它的字节；**凭同一个引用取到的始终是当初那一份**。
+>
+> **EN**: **One immutable piece of non-text content: an image, a voice recording or a file.** Media
+> keeps the original and never rewrites it. It belongs to exactly one tenant. Uploaded content
+> belongs to the tenant that uploaded it. Other tenants cannot read it, cannot reference it and
+> cannot find out that it exists. The session log and tool results hold only a reference to it,
+> never its bytes. **The same reference always returns the same original.**
+
+- **形态**：对象
+- **出处**：[媒体：发出去](../../product/media/design.md#发出去) ·
+  [为它准备别的表示](../../product/media/design.md#为它准备别的表示) ·
+  [能力定义](../../product/media/design.md#能力定义)（rev 1）
+- **别混 ①**：**不是[附件](execution-and-outcome.md#ul-attachment--附件--attachment)**——附件在消息里只成为地址文本，不进媒体读取与模态约束；媒体对象经内容块里的引用交给模型读
+- **别混 ②**：**不是[内容块](#ul-content-block--内容块--content-block)**——块是消息里的一项，引用式的块指向一个媒体对象
+- **注意**：它的两个状态见[媒体暂存](#ul-media-staging--媒体暂存--media-staging)与[媒体持有](#ul-media-hold--媒体持有--media-hold)；字节存在哪里由部署决定，换存放的地方不改变已有的引用
+
+### UL-media-staging · 媒体暂存 · Media Staging
+
+> **中**：**[媒体对象](#ul-media-object--媒体对象--media-object)的一个状态：上传已经完成，还没有任何消息或工具结果引用它。**
+> 处在这个状态的媒体对象过一段时间自动清掉。一旦有引用方[持有](#ul-media-hold--媒体持有--media-hold)它，它就离开这个状态，不再到期。
+>
+> **EN**: **A state of a media object: the upload is complete, and no message or tool result
+> references the object yet.** An object in this state is removed automatically after a period.
+> When a referencing party holds it, the object leaves this state and no longer expires.
+
+- **形态**：状态
+- **出处**：[媒体：存在哪里](../../product/media/design.md#存在哪里) ·
+  [能力定义](../../product/media/design.md#能力定义)（rev 1）
+- **别混**：**不是[资产上传](capabilities-and-composition.md#ul-asset-upload--资产上传--asset-upload)**——那是目录型资产发布之前分段送到服务端的内容
+
+### UL-media-hold · 媒体持有 · Media Hold
+
+> **中**：**一个引用方对一个[媒体对象](#ul-media-object--媒体对象--media-object)的声明：它自己的事实里引用了这个对象。**
+> 被至少一个引用方持有的媒体对象不会到期清掉。持有挂在媒体对象上，记的是哪个引用方持有，自己没有身份。
+>
+> **EN**: **A declaration by a referencing party on a media object: the party's own facts reference
+> that object.** A media object that at least one party holds does not expire. A hold hangs on the
+> media object and records which party holds it. It has no identity of its own.
+
+- **形态**：属性
+- **出处**：[媒体：存在哪里](../../product/media/design.md#存在哪里) ·
+  [能力定义](../../product/media/design.md#能力定义)（rev 1）
+- **别混 ①**：**不是[资产持有](circulation-and-entitlement.md#ul-asset-holding--资产持有--asset-holding)**——那是一个范围与一份资产之间的关系，是配值资格的来源；媒体持有只决定这份内容留不留
+- **别混 ②**：**不改变归属**——媒体对象始终属于它的租户，谁持有它都一样
+- **注意 ①**：引用方先持有，再把引用写进自己的事实，见[媒体领域的协作](../../../../docs/domains/media/README.md#协作)
+- **注意 ②**：被持有的媒体什么时候可以删，产品未裁；裁定之前一直保留，见[媒体：回收](../../product/media/design.md#回收)
+
+### UL-representation-snapshot · 表示快照 · Representation Snapshot
+
+> **中**：**一个带内容引用的块进入会话日志时，写在这一块上的、这份媒体当时的表示**：有哪些[派生表示](#ul-derived-rendering--派生表示--derived-rendering)与 [transcript](#ul-transcript--transcript--transcript)，或者这份内容转不出。
+> 人发的随消息受理时写下；工具产出的随结果被采用时写下。**写下之后不变**：转换件后来换了、升级了，已有的消息不重做。
+> 请求只从会话日志读它，组装时不另外去问媒体。
+>
+> **EN**: **The representations that one piece of media had at the moment a block that references it
+> entered the session log, written on that block**: which derived renderings and transcript exist,
+> or that the content cannot be converted. For media that a person sends, it is written when the
+> message is accepted. For media that a tool produces, it is written when the result is adopted.
+> **It never changes after it is written.** A later change or upgrade of a converter does not redo
+> existing messages. A request reads it only from the session log and does not ask Media again at
+> assembly.
+
+- **形态**：属性
+- **出处**：[运行感知与一次模型请求 §6](../../product/runtime-context/design.md#6-一次模型请求采用合法完整输入)（rev 11） ·
+  [媒体：为它准备别的表示](../../product/media/design.md#为它准备别的表示)（rev 1）
+- **别混**：**不是[上下文快照提醒](#ul-context-snapshot-reminder--上下文快照提醒--context-snapshot-reminder)**——那是 runtime context 块的完整值，写成一条提醒
+- **注意**：它的形状归 [Common 规格的内容块](../../../../packages/common/SPEC.md#内容块)
+
+### UL-request-version · 请求版本 · Request Version
+
+> **中**：**同一种[模态](#ul-modality--模态--modality)下，为一个模型的限额从原件做出的一份适配版**，例如把超过模型大小限制的图片缩小。
+> 它仍算原件这一级，不算[派生表示](#ul-derived-rendering--派生表示--derived-rendering)。它可以从原件按同样的限额重新做出，不是另一份事实。
+>
+> **EN**: **A version adapted from the original for the limits of one model, in the same
+> modality**, for example a smaller copy of an image that is over the model's size limit. It still
+> counts as the original level, not as a derived rendering. It can be made again from the original
+> for the same limits, and it is not a separate fact.
+
+- **形态**：视图
+- **出处**：[媒体：模型读哪一份](../../product/media/design.md#模型读哪一份)（rev 1）
+- **别混**：**不是[资产版本](capabilities-and-composition.md#ul-asset-version--资产版本--asset-version)**——那是资产一次发布定下的内容
+- **注意**：消息上标出模型这一次读的是哪一份时，读请求版本标为「缩小的图」
 
 ### UL-block-annotation · 块标注 · Block Annotation
 
@@ -598,7 +711,7 @@
 > go and do it.**
 
 - **形态**：对象
-- **出处**：[元能力：`TodoItems()`](../../product/meta-capabilities/design.md#meta-todo)（rev 13）·
+- **出处**：[元能力：`TodoItems()`](../../product/meta-capabilities/design.md#meta-todo)（rev 16）·
   [PF-015 §5.6 第 13 项](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 21）
 - **别混**：**与「目标」不是一回事**——那是**跨会话**的东西，
   [元能力：明写它不装在这扇门后面，而设计链里还没有它的家](../../product/meta-capabilities/design.md#meta-todo)
@@ -720,7 +833,7 @@
 > **EN**: The **derived computation and fit guarantee** for the input of one model request. Every input is a fact someone else owns: the evidence for reading history, tool definitions and bindings, the model profile and its limits, prompt contributions, and current conditions. The output is one request candidate and one fit verdict. It owns no fact, sends no request, fixes no adoption and writes no history.
 
 - **形态**：总称
-- **出处**：[运行感知与一次模型请求 §6.1](../../product/runtime-context/design.md#61-request-context-的派生计算)（rev 10）
+- **出处**：[运行感知与一次模型请求 §6.1](../../product/runtime-context/design.md#61-request-context-的派生计算)（rev 11）
 - **别混 ①**：不是 [runtime context](scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context)——那是被读的块，这是读了之后算出请求的那一步。两者同在一个产品 topic，**正文里不再用「Context」泛指两者**
 - **别混 ②**：不是[上下文组装](#ul-context-assembly--上下文组装--context-assembly)这个过程本身——组装是它做的事之一；它还裁装不装得下、给覆盖证据
 - **注意**：中文名沿「运行时 context」的写法，`context` 不译
@@ -732,7 +845,7 @@
 > **EN**: The model input Request Context computes from one set of assembly inputs: system prompt, tool declarations, history projection, reminders and representation choices are in place, and coverage evidence travels with it. Its identity is the candidate id plus the input digest. Computing the same inputs again yields the same candidate. It lives until the coordinator fixes it as a request, a new candidate replaces it, or it is discarded.
 
 - **形态**：对象
-- **出处**：[运行感知与一次模型请求 §6.1](../../product/runtime-context/design.md#61-request-context-的派生计算)（rev 10）
+- **出处**：[运行感知与一次模型请求 §6.1](../../product/runtime-context/design.md#61-request-context-的派生计算)（rev 11）
 - **别混**：不是固定下来的最终请求。固定与记录归协调者；候选装得下才成立，装不下的不是候选
 
 ### UL-coverage-evidence · 覆盖证据 · Coverage Evidence
@@ -742,7 +855,7 @@
 > **EN**: The list given with a request candidate that records, item by item, which inputs and revisions this assembly used: the history range, the effective compaction records, the source of each prompt section, the profile and parameters, a digest of tool declarations, a digest of representation choices, a digest of the budget report, and why the prefix changed. It makes the history projection and what the model actually saw reconcilable.
 
 - **形态**：属性
-- **出处**：[运行感知与一次模型请求 §6.1](../../product/runtime-context/design.md#61-request-context-的派生计算)（rev 10）
+- **出处**：[运行感知与一次模型请求 §6.1](../../product/runtime-context/design.md#61-request-context-的派生计算)（rev 11）
 - **别混**：不是[压缩覆盖范围](#ul-compacted-range--压缩覆盖范围--compacted-range)。覆盖范围记一次压缩摘要了哪段历史；覆盖证据记一次组装读了哪些输入
 
 ### UL-fit-verdict · 装入裁定 · Fit Verdict
@@ -752,17 +865,29 @@
 > **EN**: The conclusion Request Context reaches after comparing a candidate input with the model's limits, one of four: fits, fixed part over the limit, needs compaction, or limit unknown. Limit unknown is **not a failure**. The candidate stands and the sender judges against real capability.
 
 - **形态**：状态
-- **出处**：[运行感知与一次模型请求 §6.1](../../product/runtime-context/design.md#61-request-context-的派生计算)（rev 10）
+- **出处**：[运行感知与一次模型请求 §6.1](../../product/runtime-context/design.md#61-request-context-的派生计算)（rev 11）
 - **注意**：阈值比较与取整在这里做；计量数字由模型侧报告
 
 ### UL-representation-choice · 表示决定 · Representation Choice
 
-> **中**：对候选里每个内容块，按实际收件模型的输入模态与转换结果做出的选择：用原件、用[派生表示](#ul-derived-rendering--派生表示--derived-rendering)、用 [transcript](#ul-transcript--transcript--transcript)，或标为延迟到发送期再加载。它带证据，随候选存在，不读字节。
+> **中**：对候选里每个内容块，按实际收件模型的能力做出的选择，依次试：用原件，用[派生表示](#ul-derived-rendering--派生表示--derived-rendering)，用 [transcript](#ul-transcript--transcript--transcript)。
+> 模型的能力是档案的输入模态加原生读得了的文件类型；原件可以是一份[请求版本](#ul-request-version--请求版本--request-version)。
+> 带内容引用的块有哪些表示，读自块上的[表示快照](#ul-representation-snapshot--表示快照--representation-snapshot)，组装时不另外去问媒体；工具消息里的这种块与别的消息里的一样选。
+> 三样都取不到时，这份候选不能用，并点名是哪一块，不跳过它。它带证据，随候选存在，不读字节。
 >
-> **EN**: The choice made for each content block in a candidate, from the receiving model's input modalities and the conversion results: use the original, use the derived rendering, use the transcript, or mark it deferred until send time. It carries evidence, lives with the candidate, and reads no bytes.
+> **EN**: The choice made for each content block in a candidate from the receiving model's
+> capability, tried in order: the original, a derived rendering, the transcript. The model's
+> capability is the profile's input modalities plus the file types it reads natively. The original
+> can be a request version. For a block that carries a content reference, the available
+> representations come from the representation snapshot on the block. Assembly does not ask Media
+> again. Such a block in a tool message is chosen like any other. When none of the three fits, the
+> candidate cannot be used, and the choice names the block instead of skipping it. The choice
+> carries evidence, lives with the candidate, and reads no bytes.
 
 - **形态**：属性
-- **出处**：[运行感知与一次模型请求 §6.1](../../product/runtime-context/design.md#61-request-context-的派生计算)（rev 10）
+- **出处**：[运行感知与一次模型请求 §6](../../product/runtime-context/design.md#6-一次模型请求采用合法完整输入) ·
+  [§6.1](../../product/runtime-context/design.md#61-request-context-的派生计算)（rev 11） ·
+  [媒体：模型读哪一份](../../product/media/design.md#模型读哪一份)（rev 1）
 - **别混**：不是[块标注](#ul-block-annotation--块标注--block-annotation)。标注说能不能给模型看；表示决定说给模型看哪一种表示
 
 ### UL-prompt-contribution · 提示词贡献 · Prompt Contribution
@@ -772,7 +897,7 @@
 > **EN**: One item a contributor registers into system-prompt assembly, of exactly two kinds: an **ordered section** (a text and its order) or a **variable** (the value of one template name). Its identity is the name plus the scope. A duplicate name at the same level is rejected, and a scoped contribution shadows a global one. It lives as long as its contributor. Facts that change per request do not go through it. They go through runtime context blocks.
 
 - **形态**：对象
-- **出处**：[运行感知与一次模型请求 §6.1](../../product/runtime-context/design.md#61-request-context-的派生计算)（rev 10）
+- **出处**：[运行感知与一次模型请求 §6.1](../../product/runtime-context/design.md#61-request-context-的派生计算)（rev 11）
 - **别混**：不是[提示词槽位](capabilities-and-composition.md#ul-prompt-slot--提示词槽位--prompt-slot)。槽位是提示词里一个恒定的位置；贡献是填进去的一条材料
 - **注意**：它是[拓展贡献](architecture-core-and-extension.md#ul-extension-contribution--拓展贡献--extension-contribution)的一种，放在系统提示词的组装这个拓展点里
 - **弃用**：~~「动态事实段」~~——那一类不存在，动态事实走块
@@ -784,7 +909,7 @@
 > **EN**: The reminder the scope holder writes into the session log: the complete values of every runtime context block the model may read. It is written when the model has not yet been told in the current stretch of history: before the first model request of the session, before the first model request after a compaction, and after the holder lost its record of what was already told. Its position does not change after it is written.
 
 - **形态**：视图
-- **出处**：[运行感知与一次模型请求 §5.1](../../product/runtime-context/design.md#51-快照与变化都写进历史)（rev 10）
+- **出处**：[运行感知与一次模型请求 §5.1](../../product/runtime-context/design.md#51-快照与变化都写进历史)（rev 11）
 - **别混**：不是变化提醒。快照说全部块的当前值；变化提醒由[变化材料](scope-and-resolution.md#ul-change-material--变化材料--change-material)生成，只说一块从什么变成什么。两者都追加进历史
 - **弃用**：~~「快照锚点」~~、~~「尾部易变提醒」~~——提醒只经会话日志到达模型，请求里没有历史之外的位置
 
@@ -813,7 +938,7 @@
 - **形态**：过程
 - **出处**：[PF-010 §5.6](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-010-context-management-and-assembly/design.md#56-压缩是一个闭包它的调子是三个联合目标)（rev 8） ·
   [运行感知与一次模型请求 §7](../../product/runtime-context/design.md#7-压缩保留历史与未完工作) ·
-  [RC-J07](../../product/runtime-context/design.md#rc-j07-长期工作接近窗口限制保留未完事项再继续)（rev 10）
+  [RC-J07](../../product/runtime-context/design.md#rc-j07-长期工作接近窗口限制保留未完事项再继续)（rev 11）
 - **⚠️ 注意 ①**：**它不回头去翻[块上那一位](#ul-block-annotation--块标注--block-annotation)。**
   那一位由产生这个块的人在落盘那一刻写下，**之后不再变**。
   压缩之后模型看到什么，由块标注和最近一条压缩记录共同算出，见[压缩记录](#ul-compaction-record--压缩记录--compaction-record)
@@ -844,7 +969,7 @@
 
 - **形态**：变体（父：[消息](#ul-message--消息--message)）
 - **出处**：[PF-009 §4 CompactionMessage](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-009-context-message-types/design.md#compactionmessage)（rev 9） ·
-  [运行感知与一次模型请求 §7](../../product/runtime-context/design.md#7-压缩保留历史与未完工作)（rev 10）
+  [运行感知与一次模型请求 §7](../../product/runtime-context/design.md#7-压缩保留历史与未完工作)（rev 11）
 - **⚠️ 注意**：**边界不是一条截断线。**覆盖范围之前仍要原样给模型看的消息，靠保留名单留下，
   所以模型看到的旧消息可能落在压缩记录之前。保留名单以**消息**为单位，在压缩时固定，之后不变
 - **弃用**：~~「排除名单」~~（现在用[保留名单](#ul-retained-set--保留名单--retained-set)表达同一次压缩的结果）
@@ -864,7 +989,7 @@
 > retained messages fall inside the new range.
 
 - **形态**：属性
-- **出处**：[运行感知与一次模型请求 §7](../../product/runtime-context/design.md#7-压缩保留历史与未完工作)（rev 10）
+- **出处**：[运行感知与一次模型请求 §7](../../product/runtime-context/design.md#7-压缩保留历史与未完工作)（rev 11）
 - **别混**：与 Request Context 覆盖证据里的 `coverage` 不是一回事。`coverage` 记一次组装读了哪些输入，覆盖范围记一次压缩摘要了哪段历史
 
 ### UL-retained-set · 保留名单 · Retained Set
@@ -881,7 +1006,7 @@
 
 - **形态**：属性
 - **出处**：[运行感知与一次模型请求 §7](../../product/runtime-context/design.md#7-压缩保留历史与未完工作) ·
-  [RC-J07](../../product/runtime-context/design.md#rc-j07-长期工作接近窗口限制保留未完事项再继续)（rev 10）
+  [RC-J07](../../product/runtime-context/design.md#rc-j07-长期工作接近窗口限制保留未完事项再继续)（rev 11）
 - **别混**：与[块标注](#ul-block-annotation--块标注--block-annotation)的「给模型看吗」不是一回事。块标注在块落盘时写下，之后不变；保留名单是压缩记录的属性，不改任何块的标注
 - **注意**：未结工作的消息（上一次模型请求之后新来的输入、悬着的东西的占位）是名单的下界：它们在覆盖范围内时必须进名单
 - **弃用**：~~「排除名单」~~
@@ -893,7 +1018,7 @@
 > **EN**: A provider-owned plan for one compaction, identified by that provider and defining its internal steps and bounds. It is not the service contract consumed by Agent. A provider need not use a plan.
 
 - **形态**：对象
-- **出处**：[运行感知与一次模型请求 §7.1](../../product/runtime-context/design.md#71-压缩计划与步骤)（rev 10）
+- **出处**：[运行感知与一次模型请求 §7.1](../../product/runtime-context/design.md#71-压缩计划与步骤)（rev 11）
 
 ### UL-compaction-plan-progress · 压缩计划进度 · Compaction Plan Progress
 
@@ -902,7 +1027,7 @@
 > **EN**: The execution position of a provider-owned compaction plan. The provider retains and recovers it. Agent does not have to store the service’s internal steps.
 
 - **形态**：属性
-- **出处**：[运行感知与一次模型请求 §7.1](../../product/runtime-context/design.md#71-压缩计划与步骤)（rev 10）
+- **出处**：[运行感知与一次模型请求 §7.1](../../product/runtime-context/design.md#71-压缩计划与步骤)（rev 11）
 
 ### UL-compaction-step-request · 压缩步请求 · Compaction Step Request
 
@@ -911,7 +1036,7 @@
 > **EN**: A request for an internal step of a provider-owned compaction plan, identified by the plan and step number. It is not a request for Agent to execute on behalf of the service.
 
 - **形态**：属性
-- **出处**：[运行感知与一次模型请求 §7.1](../../product/runtime-context/design.md#71-压缩计划与步骤)（rev 10）
+- **出处**：[运行感知与一次模型请求 §7.1](../../product/runtime-context/design.md#71-压缩计划与步骤)（rev 11）
 
 ### UL-pruning-step · 修剪步 · Pruning Step
 
@@ -920,7 +1045,7 @@
 > **EN**: An internal compaction step that shortens material for summarization without calling a model or changing the original history or model view. Only algorithms that use pruning have this step.
 
 - **形态**：状态
-- **出处**：[运行感知与一次模型请求 §7.1](../../product/runtime-context/design.md#71-压缩计划与步骤)（rev 10）
+- **出处**：[运行感知与一次模型请求 §7.1](../../product/runtime-context/design.md#71-压缩计划与步骤)（rev 11）
 
 ### UL-summary-step · 摘要步 · Summary Step
 
@@ -929,7 +1054,7 @@
 > **EN**: An internal compaction step that calls a model to produce a summary. The provider owns the call, result, cost, and recovery. Its result is not a main-loop reply.
 
 - **形态**：状态
-- **出处**：[运行感知与一次模型请求 §7.1](../../product/runtime-context/design.md#71-压缩计划与步骤)（rev 10）
+- **出处**：[运行感知与一次模型请求 §7.1](../../product/runtime-context/design.md#71-压缩计划与步骤)（rev 11）
 
 ### UL-business-calendar · 业务日历 · Business Calendar
 

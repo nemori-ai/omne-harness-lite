@@ -223,6 +223,15 @@ describe('the material table, split by command', () => {
         basis: evidence('the-profile-the-route-resolved-to'),
       },
     ],
+    [
+      'a workspace selection to the caller that verified the attachment with Workspace',
+      {
+        kind: 'workspace',
+        value: null,
+        workspaceAttachment: null,
+        basis: evidence('the-verification-of-the-attachment'),
+      },
+    ],
   ] as const)('leaves %s without adoption material', async (_, declaration) => {
     const { asked, prepare } = await assembled({ adoption: async () => succeed([]) })
     const change: SessionCommand = {

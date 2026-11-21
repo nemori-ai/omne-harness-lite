@@ -565,6 +565,13 @@ export type ToolCallLedger = Readonly<{
   released: boolean
 }>
 
+/** Every record of the Tool ledger as text: for a result a test must find, whatever session history shows. */
+export function toolLedgerText(storageRoot: string): string {
+  return ledgerRows(storageRoot)
+    .map(row => JSON.stringify(row.record))
+    .join('\n')
+}
+
 export function toolLedger(storageRoot: string): readonly ToolCallLedger[] {
   const rows = ledgerRows(storageRoot)
   const queued = new Set(
@@ -650,9 +657,12 @@ export type ReleaseTreeOptions = Readonly<{
   /** The operator's values for the settings release tools declare, by tool name and item id. */
   toolSettings?: Readonly<Record<string, Readonly<Record<string, unknown>>>>
   /** Rows left out of the release, together with the operator's values for them. */
-  withoutRows?: readonly string[]
+  /** The rows left out of every run, or of each run by its index. */
+  withoutRows?: readonly string[] | ((run: number) => readonly string[])
   /** Rows a test adds to the release, each with the row plugin that serves it. */
   addedRows?: readonly AddedRow[]
+  /** The screen backend the host row is given; absent: the one of the machine the test runs on. */
+  hostScreen?: NonNullable<Parameters<typeof runServe>[0]['hostScreen']>
 }>
 
 export type AddedRow = Readonly<{
@@ -661,6 +671,9 @@ export type AddedRow = Readonly<{
   config: unknown
   definition: Plugin.Object
 }>
+
+const rowsLeftOut = (left: ReleaseTreeOptions['withoutRows'], run: number): readonly string[] =>
+  typeof left === 'function' ? left(run) : (left ?? [])
 
 function withoutRows<T>(layered: T, key: 'rows' | 'ops', left: readonly string[] = []): T {
   const list = (layered as Record<string, readonly { id: string }[]>)[key] ?? []
@@ -697,7 +710,8 @@ export async function onReleaseTreeRuns(
     await options.beforeRun?.(run, dir.storageRoot)
     for (let attempt = 1; ; attempt += 1) {
       const state = { dir, port, home, modelRoute: gateway.url }
-      const outcome = await serveOnce(options, state, run === 0, body)
+      const left = rowsLeftOut(options.withoutRows, run)
+      const outcome = await serveOnce({ ...options, withoutRows: left }, state, run === 0, body)
       if (outcome !== PORT_TAKEN) return outcome
       if (attempt === PORT_ATTEMPTS)
         throw new Error(`port ${String(port)} was taken on ${String(PORT_ATTEMPTS)} starts`)
@@ -776,8 +790,9 @@ async function serveOnce(
       : object,
   )
   const finished = runServe({
+    ...(options.hostScreen === undefined ? {} : { hostScreen: options.hostScreen }),
     distribution: withAddedRows(
-      withoutRows(releaseDistribution(options), 'rows', options.withoutRows),
+      withoutRows(releaseDistribution(options), 'rows', rowsLeftOut(options.withoutRows, 0)),
       options.addedRows,
     ),
     operator: withoutRows(
@@ -804,7 +819,7 @@ async function serveOnce(
         options.toolSettings,
       ),
       'ops',
-      options.withoutRows,
+      rowsLeftOut(options.withoutRows, 0),
     ),
     plugins: {
       ...cordis,

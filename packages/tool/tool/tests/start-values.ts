@@ -694,6 +694,7 @@ export function losingCommits(
   return {
     durability: 'none',
     scanPending: input => memory.scanPending(input),
+    usage: query => memory.usage(query),
     readRecord: memory.readRecord,
     due: memory.due,
     definition: memory.definition,
@@ -721,6 +722,7 @@ export function landingAfterRead(
     store: {
       durability: 'none',
       scanPending: input => memory.scanPending(input),
+      usage: query => memory.usage(query),
       readRecord: memory.readRecord,
       due: memory.due,
       definition: memory.definition,

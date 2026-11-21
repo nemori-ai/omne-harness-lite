@@ -26,22 +26,25 @@ import type {
 import migration from '../../src/worker/migration.ts'
 import definitionMigration from '../../src/worker/migration-definitions.ts'
 import pendingMigration from '../../src/worker/migration-pending.ts'
+import usageMigration from '../../src/worker/migration-usage.ts'
 import participant from '../../src/worker/participant.ts'
 import readLedger from '../../src/worker/read-ledger.ts'
 import readBody from '../../src/worker/read-body.ts'
 import readDefinition from '../../src/worker/read-definition.ts'
 import readDue from '../../src/worker/read-due.ts'
 import readPending from '../../src/worker/read-pending.ts'
+import readUsage from '../../src/worker/read-usage.ts'
 import { READ_OUTPUT_BYTES } from '../../src/worker/schema.ts'
 
 const HANDLERS: readonly ReadHandlerModule[] = [
   readLedger,
   readPending,
+  readUsage,
   readBody,
   readDue,
   readDefinition,
 ]
-const MIGRATIONS = [migration, pendingMigration, definitionMigration] as const
+const MIGRATIONS = [migration, pendingMigration, definitionMigration, usageMigration] as const
 
 export type SqliteStorageOptions = Readonly<{
   directory: string

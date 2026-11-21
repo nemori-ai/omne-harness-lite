@@ -1245,7 +1245,7 @@ describe('the two operations that have no Agent entry', () => {
   })
 })
 
-describe('loading and stopping on real Cordis 4.0.4', () => {
+describe('loading and stopping on real Cordis 4.1.0', () => {
   it('provides sessionAgentDrive with all five dependencies and removes it when it stops', async () => {
     const f = await assembled()
     expect(sessionAgentDriveKey).toBe('sessionAgentDrive')

@@ -744,3 +744,24 @@ it.each([
   })
   expect(w.reads()).toBe(1)
 })
+
+it('denies an asking gate and says why when the session has nobody to ask', async () => {
+  const w = world()
+  w.current.evaluation.sources.tenant.rule.pick = 'ask'
+  const policy = { onAsk: 'deny', denial: 'nobody-to-ask' } as const
+  const check = createCurrentToolPermission({
+    ...w.ports,
+    inquiry: async () => ({ ...w.inquiry, inquiry: { ...w.inquiry.inquiry, policy } }),
+  })
+  expect(await check.check(w.input)).toMatchObject({
+    kind: 'deny',
+    category: 'rule',
+    reason: 'nobody-to-ask',
+    notice:
+      'This action needs the approval of a person, and no person can be asked here. Continue without it, or stop and report what you need.',
+  })
+  const refuse = { onAsk: 'deny' } as const
+  const never = { ...w.inquiry, inquiry: { ...w.inquiry.inquiry, policy: refuse } }
+  const plain = createCurrentToolPermission({ ...w.ports, inquiry: async () => never })
+  expect(await plain.check(w.input)).not.toHaveProperty('notice')
+})

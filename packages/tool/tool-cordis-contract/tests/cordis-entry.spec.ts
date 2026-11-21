@@ -30,6 +30,7 @@ const documentedPairs = {
   toolResidencyReaderKey: 'ToolResidencyReaderService',
   toolEnvironmentsKey: 'ToolEnvironmentService',
   toolDecisionsKey: 'ToolDecisionBridgeService',
+  toolMediaStoreKey: 'ToolMediaStoreService',
   toolInstancesKey: 'ToolInstancesService',
   toolPublicationAuthorityKey: 'ToolPublicationAuthorityService',
   toolInstanceHostKey: 'ToolInstanceHostService',
@@ -56,10 +57,10 @@ const serviceClasses = exported.filter(
 )
 
 describe('service keys', () => {
-  it('exports 22 unique keys, one per documented pair', () => {
+  it('exports 23 unique keys, one per documented pair', () => {
     const keys = keyConstants.map(([, value]) => value)
-    expect(keys).toHaveLength(22)
-    expect(new Set(keys).size).toBe(22)
+    expect(keys).toHaveLength(23)
+    expect(new Set(keys).size).toBe(23)
     expect(keyConstants.map(([name]) => name).sort()).toEqual(Object.keys(documentedPairs).sort())
   })
 
@@ -74,8 +75,8 @@ describe('service keys', () => {
   )
 
   it('has one service class per key, no more', () => {
-    expect(serviceClasses).toHaveLength(22)
-    expect(new Set(serviceClasses.map(([, type]) => type.provide)).size).toBe(22)
+    expect(serviceClasses).toHaveLength(23)
+    expect(new Set(serviceClasses.map(([, type]) => type.provide)).size).toBe(23)
   })
 
   it('names the two G7 keys of RFC-0012 as the docs/cordis.md table does', () => {
@@ -118,7 +119,7 @@ describe('cordis definition entry has no Tool implementation', () => {
   })
 })
 
-describe('under Cordis 4.0.4', () => {
+describe('under Cordis 4.1.0', () => {
   const allow: ToolPublicationAuthority<string> = { check: () => ({ ok: undefined }) }
 
   it('resolves a provider through the abstract definition key', async () => {

@@ -51,6 +51,7 @@ import {
 } from './ledger-wire.ts'
 import type { SqlToolLedgerStoreOptions, SqlToolStorageOptions } from './options.ts'
 import { requestOf, resolveTenant, tenantText } from './tenant.ts'
+import { usageReadOver } from './usage-store.ts'
 import type { LedgerFacts, PendingReadInput, PendingReadOutput } from './worker/facts.ts'
 import {
   DUE_READ_ENTRIES,
@@ -223,13 +224,17 @@ function ledgerCommitOver(options: SqlToolStorageOptions) {
 }
 
 export function createSqlToolLedgerStore(options: SqlToolLedgerStoreOptions): SqlToolLedgerStore {
-  return { ...storeOver(options, ledgerCommitOver(options)), scanPending: pendingScanOver(options) }
+  return {
+    ...storeOver(options, ledgerCommitOver(options)),
+    scanPending: pendingScanOver(options),
+    usage: usageReadOver(options),
+  }
 }
 
 function storeOver(
   options: SqlToolStorageOptions,
   commit: (input: LedgerCommitInput) => Promise<LedgerCommit>,
-): Omit<SqlToolLedgerStore, 'scanPending'> {
+): Omit<SqlToolLedgerStore, 'scanPending' | 'usage'> {
   const read = async (domain: LedgerDomain): Promise<LedgerRead> => {
     const answer = await readStored(options, domain, null)
     if (answer.kind !== 'read') return answer

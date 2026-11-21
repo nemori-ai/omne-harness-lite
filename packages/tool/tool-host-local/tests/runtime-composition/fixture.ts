@@ -149,6 +149,7 @@ export async function fixture(
     definition: memory.definition,
     commit: memory.commit,
     scanPending: memory.scanPending,
+    usage: memory.usage,
   }
   const clock = createLocalToolClock()
   const deliveries: ToolDelivery<ToolMessageContentBlock>[] = []
@@ -279,6 +280,7 @@ export async function fixture(
           inputCompatible: true,
           outputCompatible: true,
           attachmentsReadable: true,
+          productsStorable: true,
         }),
     },
   })

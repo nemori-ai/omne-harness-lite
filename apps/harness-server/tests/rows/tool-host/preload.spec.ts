@@ -44,15 +44,18 @@ describe('tool-host: the release authors are loaded by the registrant at start',
       const { names } = await loaded(true, TEST_CONSTRUCTION)
       await until(() => names().length === 10)
       expect(names()).toEqual([
+        'Agents',
         'Ask',
         'BkgToolCalls',
         'Calendar',
         'Files',
         'Notifications',
         'Schedules',
+        'Screen',
         'Sessions',
         'Shell',
         'Skills',
+        'SwitchWorkspace',
         'TodoItems',
         'Tools',
         'Web',
@@ -101,9 +104,9 @@ describe('tool-host: the release authors are loaded by the registrant at start',
         return { failure: { kind: 'unavailable', diagnostic: 'test' } }
       },
     })
-    expect(seen).toHaveLength(12)
+    expect(seen).toHaveLength(15)
     for (const access of seen) expect(access).toBe(registrant)
-    expect(results.map(result => result.outcome)).toEqual(Array(12).fill('unavailable'))
+    expect(results.map(result => result.outcome)).toEqual(Array(15).fill('unavailable'))
   })
 
   it('a throw while reading the release is kept in the start load: a warning, no rejection', async () => {

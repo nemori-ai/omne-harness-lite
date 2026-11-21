@@ -8,11 +8,19 @@ import { ArchiveStore } from './model/archive.ts'
 import { EntryFocus } from './model/entry-focus.ts'
 import { HistorySearchStore } from './model/history-search.ts'
 import { BackgroundCallsStore } from './model/background-calls.ts'
+import { ComposerDraftStore, type ComposerDrafts } from './model/composer-drafts.ts'
 import { ModelSelectionStore, type ModelChoiceHolder } from './model/model-selection.ts'
 import { PermissionModeStore } from './model/permission-mode.ts'
 import { SessionWorkStore } from './model/session-work.ts'
 import { SessionWorkspaces } from './model/session-workspaces.ts'
-import { sessionCallDetail, sessionDock, sessionSide } from './points.ts'
+import {
+  sessionBlock,
+  sessionCallDetail,
+  sessionComposerAttachments,
+  sessionDock,
+  sessionSide,
+  sessionStatus,
+} from './points.ts'
 import { ArchiveAction, ArchivedSessions } from './view/archive.tsx'
 import { BackgroundHint, SideWithBackground } from './view/background-pane.tsx'
 import { ConversationPage } from './view/conversation-page.tsx'
@@ -37,6 +45,9 @@ export const HISTORY_SEARCH_PAGE = 'history-search'
 /** Where a list of models is handed to the session interface; it works without one. */
 export const sessionModelChoicesKey = serviceKey<ModelChoiceHolder>('session.model-choices')
 
+/** Where a contribution to the composer gives back what the message being written carries. */
+export const sessionComposerIntakeKey = serviceKey<ComposerDrafts>('session.composer-intake')
+
 export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionProtocol>>>({
   name: 'session-ui',
   inject: [sessionClientService],
@@ -44,6 +55,8 @@ export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionPro
     const client = services[sessionClientService]!
     const models = new ModelSelectionStore(client)
     provide(sessionModelChoicesKey, models)
+    const drafts = new ComposerDraftStore()
+    provide(sessionComposerIntakeKey, drafts)
     const workspaces = new SessionWorkspaces({ client })
     const background = new BackgroundCallsStore(client)
     const archive = new ArchiveStore(client)
@@ -111,6 +124,24 @@ export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionPro
             dock={session =>
               sessionDock.slot(shell, { session }, entries =>
                 entries.map(entry => <Fragment key={entry.id}>{entry.node}</Fragment>),
+              )
+            }
+            status={session =>
+              sessionStatus.slot(shell, { session }, entries =>
+                entries.map(entry => <Fragment key={entry.id}>{entry.node}</Fragment>),
+              )
+            }
+            drafts={drafts}
+            attachments={(session, draft) =>
+              sessionComposerAttachments.slot(shell, { session, draft }, entries =>
+                entries.map(entry => <Fragment key={entry.id}>{entry.node}</Fragment>),
+              )
+            }
+            block={(session, source, fallback) =>
+              sessionBlock.slot(shell, { session, ...source }, entries =>
+                entries.length === 0
+                  ? fallback
+                  : entries.map(entry => <Fragment key={entry.id}>{entry.node}</Fragment>),
               )
             }
             side={session =>

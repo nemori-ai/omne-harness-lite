@@ -8,8 +8,15 @@ const ZERO = `sha256:${'0'.repeat(64)}`
 
 const PROBES = [
   {
-    Shell: { resultMaxBytes: 1, executable: 'probe', argsPrefix: [], cwd: 'probe', env: {} },
-    Files: { resultMaxBytes: 1, cwd: '/probe' },
+    Shell: { resultMaxBytes: 1, executable: 'probe', argsPrefix: [], env: {} },
+    Files: {
+      resultMaxBytes: 1,
+      openMaxBytes: 1,
+      imageMaxWidth: 1,
+      imageMaxHeight: 1,
+      imageMaxDecodedBytes: 1,
+      imageConcurrency: 1,
+    },
     Tools: { resultMaxBytes: 4096, outputModalities: ['text'] },
     TodoItems: { resultMaxBytes: 4096 },
     BkgToolCalls: { resultMaxBytes: 4096 },
@@ -20,16 +27,32 @@ const PROBES = [
     Schedules: { resultMaxBytes: 64 },
     Notifications: { resultMaxBytes: 64 },
     Sessions: { resultMaxBytes: 1024 },
+    Agents: { resultMaxBytes: 64 },
+    SwitchWorkspace: { resultMaxBytes: 16 },
+    Screen: {
+      resultMaxBytes: 1,
+      captureMaxLongSide: 1,
+      imageMaxWidth: 1,
+      imageMaxHeight: 1,
+      imageMaxDecodedBytes: 1,
+      imageConcurrency: 1,
+    },
   },
   {
     Shell: {
       resultMaxBytes: 65536,
       executable: 'other',
       argsPrefix: ['-c'],
-      cwd: 'elsewhere',
       env: { A: 'b' },
     },
-    Files: { resultMaxBytes: 65536, cwd: 'C:\\elsewhere' },
+    Files: {
+      resultMaxBytes: 65536,
+      openMaxBytes: 1048576,
+      imageMaxWidth: 4096,
+      imageMaxHeight: 4096,
+      imageMaxDecodedBytes: 67108864,
+      imageConcurrency: 4,
+    },
     Tools: { resultMaxBytes: 65536, outputModalities: ['text'] },
     TodoItems: { resultMaxBytes: 1048576 },
     BkgToolCalls: { resultMaxBytes: 1048576 },
@@ -40,6 +63,16 @@ const PROBES = [
     Schedules: { resultMaxBytes: 1048576 },
     Notifications: { resultMaxBytes: 1048576 },
     Sessions: { resultMaxBytes: 1048576 },
+    Agents: { resultMaxBytes: 1048576 },
+    SwitchWorkspace: { resultMaxBytes: 1048576 },
+    Screen: {
+      resultMaxBytes: 65536,
+      captureMaxLongSide: 2048,
+      imageMaxWidth: 4096,
+      imageMaxHeight: 4096,
+      imageMaxDecodedBytes: 67108864,
+      imageConcurrency: 4,
+    },
   },
 ]
 

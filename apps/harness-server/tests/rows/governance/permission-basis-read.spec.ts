@@ -85,6 +85,8 @@ it('reads the basis of a real Agent action without a commit, and reads none once
     entryConfig('alpha', {
       definition: {
         category: 'AgentDefinition',
+        type: 'master',
+        summary: 'Works on what the person asks for.',
         name: 'alpha',
         references: [],
         attributes: [],

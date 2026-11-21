@@ -171,6 +171,8 @@ export type RoutedInput =
       input: DurableEvidence
       destination: DurableEvidence
     }>
+/** An archive that follows the archive of the parent: the parent and the control of the parent it follows. */
+export type ArchiveCascade = Readonly<{ parent: SessionId; control: SessionOperationId }>
 export type Control =
   | Readonly<{ kind: 'cancel-run'; run: RunId; urgency: 'graceful' | 'force' }>
   | Readonly<{
@@ -181,7 +183,7 @@ export type Control =
       reason?: string | null
     }>
   | Readonly<{ kind: 'background-tool'; producer: Extract<ProducerRef, { kind: 'tool' }> }>
-  | Readonly<{ kind: 'archive' }>
+  | Readonly<{ kind: 'archive'; cascade?: ArchiveCascade }>
   | Readonly<{ kind: 'unarchive' }>
   | Readonly<{ kind: 'retry-run'; run: RunId }>
 export type ControlIntent =
@@ -275,6 +277,8 @@ export type SessionCreation = Readonly<{
   initialModelSelection?: import('./control-values.ts').SavedModelSelection
   residentAdoption?: ResidentAdoption
   initialization?: InitializationSources
+  relation?: Relation
+  attendance?: Attendance
 }>
 export type InitializationSource = Readonly<{
   item: string
@@ -363,9 +367,11 @@ export type DeclarationChange =
       basis: DurableEvidence
     }>
 export type Relation =
-  | Readonly<{ kind: 'main'; resident: boolean }>
+  | Readonly<{ kind: 'main' }>
   | Readonly<{ kind: 'child'; parent: SessionId; basis: DurableEvidence }>
   | Readonly<{ kind: 'handoff'; origin: SessionId; basis: DurableEvidence }>
+export type Attendance = 'attended' | 'unattended'
+export type SessionTree = Readonly<{ root: SessionId; depth: number }>
 export type ClockSample = Readonly<{ at: string; protocol: Adoption; source: DurableEvidence }>
 export type IdleCoverage = Readonly<{
   own: DurableEvidence
@@ -426,6 +432,9 @@ export type WorkSnapshot = Readonly<{
   executions?: readonly RunExecution[]
   residentKeys?: ResidentAdoption['keys']
   relation?: Relation
+  tree?: SessionTree
+  attendance?: Attendance
+  resident?: boolean
   children?: readonly SessionId[]
   autoArchive?: AutoArchivePolicy
   taken?: readonly InputId[]

@@ -1,10 +1,11 @@
 import type { CallAccount } from '@omne-harness/call-account'
 import type { CallOutput, ToolBodyReader, ToolOutputReadRequest } from './body-reads.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
-import type { OrganizationId, TenantId } from '@omne-harness/legal-identity'
 import type {
+  Access,
   Adoption,
   CallAccess,
+  ConsumerRef,
   DurableEvidence,
   Mutation,
   ToolCallId,
@@ -17,12 +18,14 @@ import type { ProcessBlock } from './operations.ts'
 import type { WaitRecord } from './records.ts'
 import type {
   Attachment,
+  InterruptionCause,
   OperationResolution,
   Reply,
   ResultPage,
   ToolLookup,
   ToolResult,
   ToolState,
+  ToolTerminal,
 } from './results.ts'
 
 export type RawOutput = Readonly<{
@@ -83,24 +86,38 @@ export interface ToolReads<P, B extends ContentBlock> {
     input: CallAccess<P> & Readonly<{ admission: ToolOperationId }> & ToolOutputReadRequest,
   ): Reply<CallOutput>
 }
-export type AccountScope =
-  | Readonly<{ kind: 'tenant'; tenant: TenantId }>
-  | Readonly<{ kind: 'organization'; organization: OrganizationId }>
+/** How an execution ended, as the usage of a call keeps it: the kind and its cause, no diagnostic. */
+export type ToolUsageOutcome =
+  | Readonly<{ kind: 'completed' }>
+  | Readonly<{ kind: 'failed'; cause: Extract<ToolTerminal, { kind: 'failed' }>['cause'] }>
+  | Readonly<{ kind: 'unavailable' }>
+  | Readonly<{ kind: 'interrupted'; cause: InterruptionCause }>
+  | Readonly<{ kind: 'no-response' }>
+/** One settled call as usage counts it; it has no argument, output or body and outlives the sweep. */
+export type ToolUsageFact = Readonly<{
+  call: ToolCallId
+  consumer: ConsumerRef
+  tool: string
+  start: string | null
+  outcome: ToolUsageOutcome
+  account: CallAccount
+}>
+export type ToolUsageQuery = Readonly<{
+  /** By the start, both ends included; null takes every dated call. */
+  range: Readonly<{ from: string; to: string }> | null
+  consumer: Readonly<{ owner: string; works: readonly string[] }> | null
+  order: 'ascending' | 'descending'
+  after: string | null
+  limit: number
+}>
+export type ToolUsagePage = Readonly<{
+  entries: readonly ToolUsageFact[]
+  /** Calls in the consumer scope that have no start and so are in no range. */
+  undated: number
+  next: string | null
+}>
 export interface ToolAccounts<P> {
-  list(
-    input: Readonly<{ principal: P; scope: AccountScope; after: string | null; limit: number }>,
-  ): Reply<
-    Readonly<{
-      entries: readonly Readonly<{
-        tenant: TenantId
-        call: ToolCallId
-        start: ToolOperationId | null
-        source: DurableEvidence
-        account: CallAccount
-      }>[]
-      next: string | null
-    }>
-  >
+  list(input: Access<P> & ToolUsageQuery): Reply<ToolUsagePage>
 }
 export interface ToolOffloader<P, B extends ContentBlock> {
   offload(

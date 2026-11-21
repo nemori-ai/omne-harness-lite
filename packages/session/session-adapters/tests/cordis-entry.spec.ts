@@ -31,10 +31,12 @@ it('cordis entry exports the production plugins that have landed', async () => {
     'createSessionModelLogConsumptionPlugin',
     'createSessionModesPlugin',
     'createSessionToolLogConsumptionPlugin',
+    'createStepDirectory',
     'createToolCallControl',
     'encodeContextRegistrationChange',
     'encodeContextStepCommit',
     'encodeInitialContextRegistration',
+    'heldBlock',
     'pendingLimitOf',
     'prepareContextRegistration',
     'sessionInquiryBinding',
@@ -49,5 +51,9 @@ it('cordis entry exports the production plugins that have landed', async () => {
     'sessionModesModelBinding',
     'sessionModesProducer',
     'sessionScopeEvidence',
+    'workingDirectoryBindings',
+    'workingDirectoryCallBinding',
+    'workingDirectoryDescriptor',
+    'workingDirectoryModelBinding',
   ])
 })

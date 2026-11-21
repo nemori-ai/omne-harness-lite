@@ -1,5 +1,13 @@
-import type { AgentDefinition, LoopExtensionDeclaration } from '@omne-harness/agent-contract'
-import { judgeAgentDefinition, judgeLoopExtensions } from '@omne-harness/agent-contract'
+import type {
+  AgentDefinition,
+  AgentDefinitionListing,
+  LoopExtensionDeclaration,
+} from '@omne-harness/agent-contract'
+import {
+  definitionListing,
+  judgeAgentDefinition,
+  judgeLoopExtensions,
+} from '@omne-harness/agent-contract'
 import {
   canonicalText,
   contentDigest,
@@ -16,6 +24,8 @@ export type AgentSide = Readonly<{
 
 export type MappingTable = Readonly<{
   mappings: DefinitionMappings
+  /** What the catalog says about each definition of the table, in the order of the table. */
+  listings: readonly AgentDefinitionListing[]
   agentSide(candidate: Adoption): AgentSide | undefined
 }>
 
@@ -38,6 +48,7 @@ function residentCapabilitiesOf(definition: AgentDefinition, at: string): readon
 
 export async function buildTable(config: AgentAdoptionsConfig): Promise<MappingTable> {
   const entries: DefinitionMappingEntry[] = []
+  const listings: AgentDefinitionListing[] = []
   const agentSides = new Map<string, AgentSide>()
   for (const [index, item] of config.mappings.entries()) {
     const at = `mappings.${index}`
@@ -64,6 +75,7 @@ export async function buildTable(config: AgentAdoptionsConfig): Promise<MappingT
         ...(residents.length === 0 ? {} : { residentCapabilities: residents }),
       }),
     )
+    listings.push(definitionListing(definition.value))
     agentSides.set(candidateKey(item.candidate), {
       definition: definition.value,
       extensions: extensions.value,
@@ -80,6 +92,7 @@ export async function buildTable(config: AgentAdoptionsConfig): Promise<MappingT
   })
   return Object.freeze({
     mappings,
+    listings: Object.freeze(listings),
     agentSide: (candidate: Adoption) => agentSides.get(candidateKey(candidate)),
   })
 }

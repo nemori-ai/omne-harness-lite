@@ -21,6 +21,8 @@ const LOGIN_DECLARATIONS = [
   'recovery-input',
 ] as const satisfies readonly Exclude<DeclarationKind, 'authorization-expression'>[]
 
+const SYSTEM_PARTS =
+  'packages/identity/SPEC.md「系统动作授权」：别的领域的系统部件在一个租户的分区里办自己已经成立的事，ID-56'
 const NOT_IN_MATRIX_A2 = '矩阵没有这一行，见候选第 7 节 A-2'
 
 export const SESSION_POLICY = Object.freeze({
@@ -53,7 +55,10 @@ export const SESSION_POLICY = Object.freeze({
       'SS:551 业务输入分支，DA4 §4.1、§4.7。`ordinary` 与 `card-decision` 分支拒绝：SS:551 对它们只列 intake',
       { kind: 'routed', kinds: ['business'] },
     ),
-    deny(OUTSIDE_MATRIX),
+    matrix('session-input', `${SYSTEM_PARTS}。只有 \`ordinary\` 分支`, {
+      kind: 'routed',
+      kinds: ['ordinary'],
+    }),
   ),
   startRun: row(
     deny(`${NO_SOURCE}。登录门由 Session 核对首条输入保存的 origin，不经主体（SS:554，R2-D198）`),
@@ -104,7 +109,7 @@ export const SESSION_POLICY = Object.freeze({
       'SW:211 J-SW01，PC:448、485 `create-session`，SS:607，DA4 §4.1「首次 create 使用本次登录请求的 identity-login 工作关系」',
     ),
     deny('DA4 §4.1：create 之前没有 Session 记录，`forSession` 答 denied，不签发 W'),
-    deny(OUTSIDE_MATRIX),
+    matrix('session-create', SYSTEM_PARTS),
   ),
   completeInitialization: row(
     deny(`用户不是初始化项的负责方，${NO_SOURCE}`),
@@ -117,12 +122,12 @@ export const SESSION_POLICY = Object.freeze({
       { kind: 'declaration', kinds: LOGIN_DECLARATIONS },
     ),
     member(
-      'packages/session/SPEC.md「权限配值与待办」：会话授权上下文的追加要专属的写资格。只有这个会话的这一轮能写，并且只凭卡上那一个答复（准入的适配在答复之后写，访问检查回读卡）。别的声明照 SW:129：Agent 不能直接写模式',
-      { kind: 'declaration', kinds: ['authorization-expression'] },
+      'packages/session/SPEC.md「权限配值与待办」：会话授权上下文的追加要专属的写资格。只有这个会话的这一轮能写，并且只凭卡上那一个答复（准入的适配在答复之后写，访问检查回读卡）。工作区的更换见 apps/harness-server/SPEC.md「SwitchWorkspace 的绑定」：这个会话的这一轮用切换工具提交，目标先由工作区核验，不取得会话租户本来没有的资格。别的声明照 SW:129：Agent 不能直接写模式',
+      { kind: 'declaration', kinds: ['authorization-expression', 'workspace'] },
     ),
     deny(OUTSIDE_MATRIX),
   ),
-  setRelation: row(
+  setResident: row(
     member(
       'R2-D204（P-1，qiwei.pan 裁定）：租户是（组织，账号），只有该账号的登录能取得代该租户行事的主体，「只有本人」由主体的签发保证，不需要具名资格。SW:187、SS:610 至 611',
     ),
@@ -202,7 +207,7 @@ export const SESSION_POLICY = Object.freeze({
   readInputFate: row(
     member('`session/v1` 的 `read-input-fate`，packages/session/SPEC.md「读取与投影」，SE-33'),
     deny(NO_SOURCE),
-    deny(NO_SYSTEM_READ),
+    matrix('input-fate', SYSTEM_PARTS),
   ),
   readBackgroundCalls: row(
     member('`session/v1` 的 `list-background-calls`，packages/session/SPEC.md「协议、接入与界面」'),

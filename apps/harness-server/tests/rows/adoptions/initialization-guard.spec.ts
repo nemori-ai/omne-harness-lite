@@ -250,7 +250,7 @@ describe('the create material is the initialization guard of Session', () => {
       await source.prepare(command, access),
     ])
     expect(value).toMatchObject([
-      { failure: { kind: 'unavailable', owner: 'session.modes' } },
+      { failure: { kind: 'unavailable', owner: 'session.context' } },
       { failure: { kind: 'unavailable', owner: 'sessionPrincipalBindings' } },
     ])
   })

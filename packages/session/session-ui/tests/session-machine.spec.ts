@@ -255,6 +255,7 @@ describe('发消息与认回', () => {
           acceptId: 'a1',
           inputId: 'i1',
           text: '你好',
+          attachments: [],
         },
       ])
     }

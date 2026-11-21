@@ -1,14 +1,15 @@
 import type * as M from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
-import type { BlockId } from '@omne-harness/content-block'
 import type {
-  ConversionResultSource,
   CompactionPolicyPort,
   RepresentationPolicyPort,
   CompactionPolicy,
   RepresentationPolicyConfig,
 } from '../ports.js'
 import { canonical, digest } from '../internal.js'
+import { modalityOfBlock } from '../representation.js'
+
+const FILE_ORDER = ['original', 'derived', 'transcript'] as const
 export type MeterScript = (
   input: Parameters<M.ModelInputMeter['measure']>[0],
 ) =>
@@ -107,32 +108,6 @@ export function createScriptedPreparationResources<P>(
     },
   }
 }
-export interface MemoryConversionResults<P> extends ConversionResultSource<P> {
-  readonly durability: 'none'
-  set(block: BlockId, result: M.ConversionResult): void
-}
-export function createMemoryConversionResults<P>(
-  initial: ReadonlyMap<BlockId, M.ConversionResult> = new Map(),
-): MemoryConversionResults<P> {
-  const entries = new Map(initial)
-  return {
-    durability: 'none',
-    set: (k, v) => {
-      entries.set(k, v)
-    },
-    async read({ blocks }) {
-      return {
-        kind: 'index',
-        entries: new Map(
-          blocks.flatMap(id => {
-            const value = entries.get(id)
-            return value === undefined ? [] : [[id, value] as const]
-          }),
-        ),
-      }
-    },
-  }
-}
 export const FIXTURE_COMPACTION_POLICY: CompactionPolicy = Object.freeze({
   triggerPercent: null,
   headroomTokens: null,
@@ -167,19 +142,11 @@ export function createScriptedRepresentationPolicy(
     durability: 'none',
     identity,
     config,
-    choose({ block, conversion, modalities }) {
-      const modality = block.kind === 'thinking' || block.kind === 'file' ? 'text' : block.kind
-      for (const choice of config.preferences[modality]) {
-        if (choice === 'original' && modalities.includes(modality)) return 'original'
-        if (choice === 'derived' && conversion?.kind === 'converted') return 'derived'
-        if (
-          choice === 'transcript' &&
-          conversion?.kind === 'converted' &&
-          modalities.includes('text')
-        )
-          return 'transcript'
-      }
-      return 'none'
+    choose({ block, available }) {
+      const modality = modalityOfBlock(block)
+      const known = modality === 'text' || modality === 'image' || modality === 'voice'
+      const order = known ? config.preferences[modality] : FILE_ORDER
+      return order.find(option => available.includes(option)) ?? 'none'
     },
   }
 }

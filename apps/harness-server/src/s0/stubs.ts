@@ -31,6 +31,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['tenantStanding', 'principalVerifier', 'identityClock', 'identityGovernance'],
   },
   'session-input-sources': { provides: ['sessionInputSources'] },
+  'session-before-intake': { provides: ['sessionBeforeIntake'] },
   'session-history-index': { provides: ['sessionHistoryIndex'], phase: 'composition' },
   'session-search': {
     provides: ['sessionSearch'],
@@ -50,6 +51,32 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: [],
     phase: 'composition',
   },
+  dispatch: {
+    provides: ['dispatching', 'dispatchReconciling'],
+    injects: [
+      'storage',
+      'tenantDomainLookup',
+      'tenantDomains',
+      'tenantDomainScannerPrincipal',
+      'dispatchPrincipal',
+    ],
+    phase: 'composition',
+  },
+  'dispatch-session': {
+    provides: [],
+    injects: [
+      'session',
+      'sessionInputSources',
+      'definitionMappings',
+      'sessionModesInstallation',
+      'dispatchPrincipal',
+    ],
+    phase: 'composition',
+  },
+  'dispatch-tool': { provides: [], injects: ['dispatchPrincipal'], phase: 'composition' },
+  usage: { provides: ['usage', 'usageSources'] },
+  'usage-adapters': { provides: ['usageSessionScope'], injects: ['usageSources'] },
+  'usage-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'session-intake-budget': {
     provides: [],
     injects: ['runtimeContextTenantBlocks', 'tenantIndependentSettings'],
@@ -116,6 +143,17 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['storage', 'tenantDomainLookup', 'tenantDomains', 'tenantDomainScannerPrincipal'],
     phase: 'composition',
   },
+  workspace: {
+    provides: [
+      'workspaceGovernance',
+      'workspaceInstances',
+      'workspaceCatalog',
+      'workspaceSources',
+      'workspaceTypes',
+    ],
+    injects: ['storage'],
+    phase: 'composition',
+  },
   'session-storage': {
     provides: [
       'sessionTransactions',
@@ -160,6 +198,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'sessionReplayFacts',
       'sessionScopeLookup',
       'sessionModesInstallation',
+      'sessionWorkingDirectory',
     ],
     injects: [
       'sessionWorkPrincipals',
@@ -255,7 +294,9 @@ const TABLE: Readonly<Record<string, Entry>> = {
     ],
     group: 'agent-journal',
   },
-  'agent-adoptions': { provides: ['agentAdoptions', 'definitionMappings'] },
+  'agent-adoptions': {
+    provides: ['agentAdoptions', 'definitionMappings', 'agentDefinitionCatalog'],
+  },
   'adoption-sources': {
     provides: ['sessionAdoptionSource'],
     injects: ['definitionMappings', 'sessionWorkPrincipals'],
@@ -327,7 +368,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
     group: 'model-records',
   },
   'tool-records': {
-    provides: ['toolCommands', 'toolReads', 'toolStartAuthority', 'toolStartFence'],
+    provides: ['toolAccounts', 'toolCommands', 'toolReads', 'toolStartAuthority', 'toolStartFence'],
     injects: [
       'storage',
       'tenantDomainLookup',
@@ -426,6 +467,16 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'model-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'schedule-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'notification-access': { injects: ['accessRegistry', 'principalIssuer'] },
+  'media-access': { injects: ['accessRegistry', 'principalIssuer'] },
+  'media-storage-sql': { provides: ['mediaIndex'], injects: ['storage', 'tenantDomainLookup'] },
+  'media-image': { provides: ['mediaImage'], injects: [] },
+  media: { provides: ['mediaStores', 'media'], injects: ['mediaIndex', 'mediaImage'] },
+  'media-storage-local': { injects: ['mediaStores'] },
+  'media-sweep': { injects: ['media', 'tenantDomains', 'tenantDomainScannerPrincipal'] },
+  'media-intake': { injects: ['media', 'sessionBeforeIntake'] },
+  'media-model-source': { provides: ['modelMediaSource'], injects: ['media'] },
+  'media-tool-store': { provides: ['toolMediaStore'], injects: ['media'] },
+  'workspace-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'tool-access': { injects: ['accessRegistry', 'principalIssuer'] },
 }
 

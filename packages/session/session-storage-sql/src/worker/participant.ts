@@ -19,19 +19,15 @@ import {
   controlAnswer,
   sessionIntakeLimits,
   type SessionIntakeLimits,
+  childRecorded,
   consumptionIdOf,
   decide,
   judgeIdle,
   reduce,
   type CommitReceipt,
-  type DurableEvidence,
   type GuardCommand,
   type HistoryEntry,
   type OperationRecord,
-  type ProducerRef,
-  type RunId,
-  type SessionCallLookup,
-  type SessionRunLookup,
   type SessionCommand,
   type SessionFailure,
   type WorkSnapshot,
@@ -43,9 +39,10 @@ import {
   type ParticipantPort,
   type ParticipantReply,
 } from '@omne-harness/sql-contract/worker'
-import { canonicalText, decodeValue, encodeValue, plainOf, sha256 } from '../codec.ts'
+import { decodeValue, encodeValue, plainOf } from '../codec.ts'
 import { runChecks } from './check.ts'
 import { maintainResidents } from './resident-index.ts'
+import { commandReads, journalOf } from './command-reads.ts'
 import { judgeEntries, type EntriesBatch } from './entries.ts'
 import { admittedInputs, writeInputs } from './input-rows.ts'
 import { LogGap, readHistory, type HistoryBasis, type SessionHistory } from './history-index.ts'
@@ -63,13 +60,10 @@ import {
   packed,
   readVersion,
   refusingMalformedEntries,
-  rowsOf,
   text,
   type Row,
 } from './support.ts'
 
-const OWNER = '@omne-harness/session-storage-sql'
-const MAX_INITIALIZATION_RECEIPTS = 1000
 export const PARTICIPANT_SNAPSHOT_SESSIONS = 256
 export const PARTICIPANT_SNAPSHOT_TEXT = 64 * 1024 * 1024
 
@@ -151,7 +145,6 @@ export class ParsedSnapshots {
 export const parsedSnapshots = new ParsedSnapshots()
 
 type Decision = ReturnType<typeof decide>
-type Reads = Parameters<typeof decide>[4]
 
 const isControl = (command: SessionCommand): boolean =>
   command.kind === 'cancelRun' || command.kind === 'stopCall'
@@ -203,41 +196,6 @@ const stopped = (failure: SessionFailure): ParticipantReply => ({
   kind: 'conflict',
   basis: { failure: encodeValue(failure) },
 })
-
-function mint(record: string, content: unknown): DurableEvidence {
-  return { owner: OWNER, record, revision: '1', digest: `sha256:${sha256(canonicalText(content))}` }
-}
-
-function runLookup(snapshot: WorkSnapshot, run: RunId): SessionRunLookup {
-  const history = snapshot.executions?.find(item => item.run === run)
-  const current =
-    snapshot.run.kind === 'terminal' && snapshot.run.terminal.run === run
-      ? snapshot.run.terminal
-      : null
-  const active = snapshot.run.kind === 'active' && snapshot.run.run === run
-  if (history === undefined && current === null && !active)
-    return { kind: 'absent' as const, run, covered: snapshot.revision }
-  return {
-    kind: 'bound' as const,
-    run,
-    bound: mint(`${snapshot.session}/run/${run}`, { run }),
-    terminal: current ?? history?.terminal ?? null,
-  }
-}
-
-function callLookup(snapshot: WorkSnapshot, producer: ProducerRef): SessionCallLookup {
-  return snapshot.consumptions.some(
-    item =>
-      item.binding.producer.kind === producer.kind && item.binding.producer.call === producer.call,
-  )
-    ? {
-        kind: 'bound' as const,
-        producer,
-        bound: mint(`${snapshot.session}/call/${producer.kind}/${producer.call}`, producer),
-        terminal: null,
-      }
-    : { kind: 'absent' as const, producer, covered: snapshot.revision }
-}
 
 export function resultOf(
   command: SessionCommand,
@@ -303,7 +261,7 @@ export function resultOf(
 function autoArchiveResult(snapshot: WorkSnapshot): string {
   const observation = snapshot.idle?.observation
   if (snapshot.autoArchive?.kind !== 'enabled') return 'disabled'
-  if (snapshot.relation?.kind === 'main' && snapshot.relation.resident) return 'exempt'
+  if (snapshot.resident === true) return 'exempt'
   if (observation === undefined) return 'not-due'
   return judgeIdle(snapshot, {
     observation,
@@ -359,21 +317,6 @@ export function maintainDerived(
       'INSERT OR IGNORE INTO sl_scope_idx (tenant, scope, session, generation) VALUES (?, ?, ?, ?)',
       [tenant, binding.scope, session, binding.generation],
     )
-}
-
-export function initializationReceipts(
-  port: ParticipantPort,
-  tenant: string,
-  session: string,
-  limit: number = MAX_INITIALIZATION_RECEIPTS,
-): CommitReceipt[] | null {
-  const rows = rowsOf(
-    port,
-    'SELECT receipt FROM sl_operation WHERE tenant = ? AND session = ? ORDER BY revision LIMIT ?',
-    [tenant, session, BigInt(limit + 1)],
-  )
-  if (rows.length > limit) return null
-  return rows.map(row => JSON.parse(packed(row['receipt'])) as CommitReceipt)
 }
 
 type Written = Readonly<{ kind: 'written'; epoch: string; bytes: number; batch: JsonValue }>
@@ -534,43 +477,49 @@ function commandStart(
 const isStart = (value: CommandStart | ParticipantReply): value is CommandStart =>
   !('kind' in value)
 
-function commandReads(
+/** The log of the parent takes its entry in the transaction that creates the child. */
+function withChildRecord(
   port: ParticipantPort,
-  command: SessionCommand,
-  start: CommandStart,
-): Reads | ParticipantReply {
-  const { tenant, session, previous } = start
-  const frozen =
-    previous === null
-      ? undefined
-      : oneRow(
-          port,
-          `SELECT o.receipt AS receipt FROM sl_entry e JOIN sl_operation o
-             ON o.tenant = e.tenant AND o.session = e.session AND o.revision = e.revision
-           WHERE e.tenant = ? AND e.session = ? AND e.kind = 'session.frozen' LIMIT 1`,
-          [tenant, session],
-        )
-  const receipts =
-    command.kind === 'completeInitialization' ? initializationReceipts(port, tenant, session) : []
-  if (receipts === null)
-    return definite('read-bound', 'the operation receipts of the session exceed the read bound')
-  return {
-    compaction: null,
-    ...(frozen === undefined
-      ? {}
-      : { frozenReceipt: JSON.parse(packed(frozen['receipt'])) as CommitReceipt }),
-    ...(command.kind === 'cancelRun' && previous !== null
-      ? { runs: [runLookup(previous, command.input.run)] }
-      : {}),
-    ...(command.kind === 'stopCall' && previous !== null
-      ? { calls: [callLookup(previous, command.input.producer)] }
-      : {}),
-    ...(command.kind === 'completeInitialization'
-      ? {
-          initializationReceipts: receipts,
-        }
-      : {}),
+  received: Received,
+  tenant: string,
+  settled: ParticipantReply,
+): ParticipantReply {
+  const { command } = received
+  const record = command.kind === 'create' ? childRecorded(command.input) : null
+  if (record === null) return settled
+  const session = record.parent
+  const journal = journalOf(port, { tenant, session }, parsedSnapshots.covering)
+  if (journal === null) return definite('missing-row', 'a child was created under no parent')
+  if ('kind' in journal) return journal
+  const { tail, seq, epoch, work: previous } = journal
+  const revision = String(tail + 1n)
+  const entries = assignPositions(port, { tenant, session }, revision, [record.entry])
+  const reduced = reduce(
+    previous,
+    { revision, entries } as never,
+    undefined,
+    callsLeft(port, { tenant, session }),
+  )
+  if (reduced.kind === 'quarantined')
+    return definite('quarantined', `reduce quarantined: ${reduced.diagnostic}`)
+  const batch: ChildRecordBatch = {
+    tenant,
+    session,
+    operation: record.operation,
+    digest: commandDigest(command),
+    journal: { tail, seq, epoch },
+    previous,
+    snapshot: reduced.snapshot,
+    entries,
+    left: reduced,
+    answer: null,
   }
+  const reply = publishSameLog(port, batch, received.at, receipt => ({
+    form: 'batch',
+    receipt,
+    result: receipt,
+  }))
+  return reply.kind === 'participated' ? settled : reply
 }
 
 function saveControlAnswer(
@@ -707,7 +656,8 @@ function publishCommand(
           entries,
           decided: batch.basis,
         })
-  return participated(result, false, work, committed)
+  const settled = participated(result, false, work, committed)
+  return withChildRecord(port, received, tenant, settled)
 }
 
 function positioned(port: ParticipantPort, start: CommandStart, batch: CommandBatch) {
@@ -774,7 +724,7 @@ function runCommand(
     return runCompactionCommand(port, command, received.evidence, received.at)
   const start = commandStart(command, port)
   if (!isStart(start)) return start
-  const reads = commandReads(port, command, start)
+  const reads = commandReads(port, command, start, parsedSnapshots.covering)
   if ('kind' in reads) return reads
   const basis = commandBasis(command, start.previous)
   const history = commandHistory(port, start, basis)
@@ -793,8 +743,13 @@ function runCommand(
   return settleDecision(port, received, start, decision, { prepared, history, basis })
 }
 
-type SameLogBatch = EntriesBatch | LogBatch
-type SameLogRecord = Readonly<{ form: 'entries' | 'log'; receipt: unknown; result: unknown }>
+type ChildRecordBatch = Omit<EntriesBatch, 'admitted' | 'answer'> & Readonly<{ answer: null }>
+type SameLogBatch = EntriesBatch | LogBatch | ChildRecordBatch
+type SameLogRecord = Readonly<{
+  form: 'entries' | 'log' | 'batch'
+  receipt: unknown
+  result: unknown
+}>
 
 function publishSameLog(
   port: ParticipantPort,

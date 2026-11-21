@@ -30,10 +30,13 @@ it('publishes exactly the inventoried runtime values', async () => {
     'encodeFixedRequestRecord',
     'judgeBudget',
     'measureCandidate',
+    'modalityOfBlock',
+    'nativeRequirement',
     'project',
     'projectForHuman',
     'projectMessageForModel',
     'representationPolicyConfigSchema',
     'standardSchema',
+    'unmetBy',
   ])
 })

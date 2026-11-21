@@ -285,7 +285,7 @@ it('refuses new acquisitions and invalidates leases once the Service unloads', a
   expect(ctx.get(executionEnvironmentKey)).toBeUndefined()
   await expect(acquired.lease.invalidated).resolves.toEqual({
     source: 'registry',
-    reason: 'registryClosed',
+    reason: 'providerRetired',
   })
   expect(await hostLease(ctx).catch((error: unknown) => error)).toBeInstanceOf(Error)
   expect(
@@ -587,11 +587,10 @@ it('resolves files and command on the one host provider once both declarations l
   expect(await placementOf(['command'])).toEqual({ kind: 'rejected', reason: 'missingFacility' })
 })
 
-it('accepts the command bounds, the files root and the state directory on the host files plugin', () => {
+it('accepts the command bounds and the state directory on the host files plugin, and no files root', () => {
   const validate = hostPlugin().Config['~standard'].validate
   const full = {
     drainBoundMs: 10,
-    filesRoot: '/srv/files',
     stateDirectory: '/srv/state',
     maxBufferedBytes: 1024,
     maxChunkBytes: 512,
@@ -602,9 +601,8 @@ it('accepts the command bounds, the files root and the state directory on the ho
   }
   expect(validate(full)).toEqual({ value: full })
   for (const refused of [
-    { filesRoot: 'relative/files' },
+    { filesRoot: '/srv/files' },
     { stateDirectory: '' },
-    { filesRoot: 7 },
     { maxBufferedBytes: 0 },
     { maxChunkBytes: 1.5 },
     { maxChunkBytes: 2048, maxBufferedBytes: 1024 },

@@ -82,6 +82,7 @@ function observed() {
   const store: ToolLedgerStore = {
     durability: 'none',
     scanPending: input => memory.scanPending(input),
+    usage: query => memory.usage(query),
     due: memory.due,
     definition: memory.definition,
     read: async (domain: LedgerDomain): Promise<LedgerRead> => {

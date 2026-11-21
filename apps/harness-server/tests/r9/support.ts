@@ -16,7 +16,12 @@ import { createSecretVault } from '@omne-harness/settings-local/secrets'
 import { providerCredentialKey, releaseProvider } from '../../src/assets/model-providers.ts'
 import { CURSOR_KEY_FILE } from '../../src/entry/cursor-signing.ts'
 import { COMBINATION_VERSION } from '../../src/rows/agent-journal/config.ts'
-import { LOCAL_TOKENIZERS, LOCAL_TOOL_RESULT_BYTES } from '../../src/local/operator-defaults.ts'
+import {
+  LOCAL_OPEN_LIMITS,
+  LOCAL_SCREEN_LIMITS,
+  LOCAL_TOKENIZERS,
+  LOCAL_TOOL_RESULT_BYTES,
+} from '../../src/local/operator-defaults.ts'
 import { providerConfig } from '../rows/storage/fixtures/tree.ts'
 import { DEFAULT_COMPACTION_BINDING } from '../../src/assembly/compaction-provider.ts'
 import { SEARCH_RANKING } from '../../src/entry/search-ranking.ts'
@@ -278,8 +283,8 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
   return {
     filesRoot,
     construction: {
-      Shell: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, ...shell, cwd: filesRoot, env },
-      Files: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES },
+      Shell: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, ...shell, env },
+      Files: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, ...LOCAL_OPEN_LIMITS },
       Tools: { resultMaxBytes: 65536, outputModalities: ['text'] },
       TodoItems: { resultMaxBytes: 1_048_576 },
       BkgToolCalls: { resultMaxBytes: 65_536 },
@@ -290,6 +295,9 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
       Schedules: { resultMaxBytes: 65_536 },
       Notifications: { resultMaxBytes: 65_536 },
       Sessions: { resultMaxBytes: 131_072 },
+      Agents: { resultMaxBytes: 1_048_576 },
+      SwitchWorkspace: { resultMaxBytes: 65_536 },
+      Screen: { resultMaxBytes: 65_536, ...LOCAL_SCREEN_LIMITS },
     },
     web: {
       search: {
@@ -301,7 +309,6 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
       fetch: { maxRedirects: 5, timeoutMs: 10_000, maxBodyBytes: 1_048_576 },
     },
     records: {
-      filesRoot,
       combinationVersion: COMBINATION_VERSION,
       configuration: {
         authorBufferBytes: 65536,
@@ -350,11 +357,14 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
       observerQueueFrames: 16,
       observerResidenceMs: 5000,
     },
-    host: { filesRoot, stateDirectory },
+    host: { stateDirectory },
   }
 }
 
 /** A whole policy, as an operator gives it: the release layer carries no numbers. */
+/** The registry is walked often, so a test does not wait long for a step a lost wake-up left. */
+export const DISPATCH_POLICY = { maxOpen: 3, reconcileIntervalMs: 1000 }
+
 export const NOTIFICATION_POLICY = {
   bodyLength: 4096,
   causalDepth: 3,
@@ -455,8 +465,15 @@ export function operatorLayer(options: {
         id: 'session-history-index',
         config: { root: join(dirname(options.storageRoot), 'history-index') },
       },
+      {
+        kind: 'replace',
+        id: 'media-storage-local',
+        config: { root: join(dirname(options.storageRoot), 'media') },
+      },
       { kind: 'replace', id: 'skills', config: { ranking: SEARCH_RANKING } },
       { kind: 'replace', id: 'notification', config: { policy: NOTIFICATION_POLICY } },
+      { kind: 'replace', id: 'dispatch', config: { policy: DISPATCH_POLICY } },
+      { kind: 'replace', id: 'workspace', config: { node: 'local' } },
       {
         kind: 'replace',
         id: 'request-context',
@@ -470,7 +487,11 @@ export function operatorLayer(options: {
       {
         kind: 'replace',
         id: 'session-ad03',
-        config: { scopeIndexEntries: 4096, pageBytes: 65536 },
+        config: {
+          scopeIndexEntries: 4096,
+          pageBytes: 65536,
+          defaultDirectory: tools.filesRoot,
+        },
       },
       {
         kind: 'replace',

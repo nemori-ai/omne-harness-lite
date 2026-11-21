@@ -21,6 +21,7 @@ import {
 } from '@omne-harness/tool-contract/provider'
 import { readToolRegistration } from '@omne-harness/tool-contract/binding'
 import { createToolsAuthor, filesToolModule } from '@omne-harness/tool-definitions'
+import { OPEN_LIMITS } from './fixtures/files.ts'
 import { value } from './run-author.ts'
 
 const limits = {
@@ -161,7 +162,9 @@ describe('Tools complete author', () => {
   })
 
   it('shows lawful resident metadata and returns the exact next cursor', async () => {
-    const files = value(filesToolModule.createAuthor(tree({ resultMaxBytes: 4096 })))
+    const files = value(
+      filesToolModule.createAuthor(tree({ resultMaxBytes: 4096, ...OPEN_LIMITS })),
+    )
     const definition = deriveDefinition(
       {
         asset: { name: 'Files', adoption: { ...adoption, name: 'Files' } },

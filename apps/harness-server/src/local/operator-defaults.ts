@@ -333,10 +333,23 @@ export function shellEnvironment(
 }
 
 export const LOCAL_TOOL_RESULT_BYTES = 1_048_576
+const LOCAL_IMAGE_BUDGET = Object.freeze({
+  imageMaxWidth: 16384,
+  imageMaxHeight: 16384,
+  imageMaxDecodedBytes: 128 * 1024 * 1024,
+  imageConcurrency: 2,
+})
+export const LOCAL_OPEN_LIMITS = Object.freeze({
+  openMaxBytes: 20 * 1024 * 1024,
+  ...LOCAL_IMAGE_BUDGET,
+})
+export const LOCAL_SCREEN_LIMITS = Object.freeze({
+  captureMaxLongSide: 2048,
+  ...LOCAL_IMAGE_BUDGET,
+})
 
-function toolRecords(workspace: string, combinationVersion: string) {
+function toolRecords(combinationVersion: string) {
   return {
-    filesRoot: workspace,
     combinationVersion,
     configuration: {
       authorBufferBytes: 65_536,
@@ -398,6 +411,10 @@ const AGENT_HOST = {
   instanceIdleMs: 60_000,
 } as const
 
+const LOCAL_NODE = 'local'
+
+const DISPATCH_POLICY = { maxOpen: 8, reconcileIntervalMs: 2_000 }
+
 /** A person gets every notification on the application's own surfaces. An agent has no destination until sessions take input from notifications. */
 const NOTIFICATION_POLICY = {
   bodyLength: 16_384,
@@ -449,7 +466,7 @@ export type LocalOperatorInput = Readonly<{
   distribution: unknown
   locations: Pick<
     ServerLocations,
-    'vaultFile' | 'storageRoot' | 'hostFilesDir' | 'assetsRoot' | 'historyIndexRoot'
+    'vaultFile' | 'storageRoot' | 'hostFilesDir' | 'assetsRoot' | 'historyIndexRoot' | 'mediaRoot'
   >
   settings: ServerSettings
   shutdownDeadlineMs: number
@@ -500,10 +517,9 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
             resultMaxBytes: LOCAL_TOOL_RESULT_BYTES,
             executable: settings.shell,
             argsPrefix: shellArguments(platform, settings.shell),
-            cwd: settings.workspace,
             env: shellEnvironment(platform, settings.shellEnvironment, locations.hostFilesDir),
           },
-          Files: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, cwd: settings.workspace },
+          Files: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, ...LOCAL_OPEN_LIMITS },
           Tools: { resultMaxBytes: 65_536, outputModalities: ['text'] },
           TodoItems: { resultMaxBytes: 1_048_576 },
           BkgToolCalls: { resultMaxBytes: 65_536 },
@@ -514,10 +530,13 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
           Schedules: { resultMaxBytes: 65_536 },
           Notifications: { resultMaxBytes: 65_536 },
           Sessions: { resultMaxBytes: 131_072 },
+          Agents: { resultMaxBytes: 1_048_576 },
+          SwitchWorkspace: { resultMaxBytes: 65_536 },
+          Screen: { resultMaxBytes: 65_536, ...LOCAL_SCREEN_LIMITS },
         },
       },
     ],
-    ['tool-records', toolRecords(settings.workspace, combinationVersion)],
+    ['tool-records', toolRecords(combinationVersion)],
     [
       'tool-body-sweep',
       {
@@ -551,15 +570,23 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
     ...(rows.has('tenant-assets')
       ? ([['tenant-assets', { packageRoot: locations.assetsRoot }]] as const)
       : []),
+    ...(rows.has('media-storage-local')
+      ? ([['media-storage-local', { root: locations.mediaRoot }]] as const)
+      : []),
     ...(rows.has('skills') ? ([['skills', { ranking: SEARCH_RANKING }]] as const) : []),
     ...(rows.has('notification')
       ? ([['notification', { policy: NOTIFICATION_POLICY }]] as const)
       : []),
-    ['execution-host', { filesRoot: settings.workspace, stateDirectory: locations.hostFilesDir }],
+    ...(rows.has('dispatch') ? ([['dispatch', { policy: DISPATCH_POLICY }]] as const) : []),
+    ...(rows.has('workspace') ? ([['workspace', { node: LOCAL_NODE }]] as const) : []),
+    ['execution-host', { stateDirectory: locations.hostFilesDir }],
     ['request-context', {}],
     ['agent-context', {}],
     ['agent-host', AGENT_HOST],
-    ['session-ad03', { scopeIndexEntries: 4096, pageBytes: 65_536 }],
+    [
+      'session-ad03',
+      { scopeIndexEntries: 4096, pageBytes: 65_536, defaultDirectory: settings.workspace },
+    ],
     ['session-ad04', { scopeIndexEntries: 4096, pageBytes: 65_536 }],
     [
       'session-access',

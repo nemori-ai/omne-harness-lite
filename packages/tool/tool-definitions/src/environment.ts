@@ -4,9 +4,11 @@ import type {
   Containment,
   FacilityRequest,
   FileSystemFacility,
+  ScreenFacility,
   TerminalFacility,
   TerminalRetention,
 } from '@omne-harness/execution-environment-contract'
+import type { ToolMediaSink } from '@omne-harness/tool-contract/provider'
 
 type BoundRequest<T> = Omit<T, keyof FacilityRequest<unknown> | 'named'>
 type BoundMethod<T> = T extends (request: infer R) => infer Answer
@@ -29,6 +31,10 @@ type Transfer = BoundRequest<Parameters<FileSystemFacility<unknown>['move']>[0]>
 type Batch = BoundRequest<Parameters<FileSystemFacility<unknown>['commitBatch']>[0]>
 
 export type FilesAuthorEnvironment = Readonly<{
+  /** The working directory of this call: relative paths resolve against it. Absent: it has none. */
+  directory?: string
+  /** Where a command hands over a product for the model to perceive. */
+  media: ToolMediaSink
   files: FileOperations & {
     move(
       request: Omit<Transfer, 'target'> & { readonly target: { readonly path: string } },
@@ -43,6 +49,8 @@ export type FilesAuthorEnvironment = Readonly<{
 }>
 
 export type ShellAuthorEnvironment = Readonly<{
+  /** The working directory of this call: where a command or a new terminal starts by default. */
+  directory?: string
   command: BoundCommand
   terminal: BoundTerminal
   facts: Readonly<{
@@ -51,4 +59,9 @@ export type ShellAuthorEnvironment = Readonly<{
     architecture: string
     facilities: readonly string[]
   }>
+}>
+
+export type ScreenAuthorEnvironment = Readonly<{
+  screen: BoundFacility<ScreenFacility<unknown>>
+  media: ToolMediaSink
 }>

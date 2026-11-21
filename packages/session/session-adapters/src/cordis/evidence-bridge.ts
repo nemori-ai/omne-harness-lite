@@ -124,12 +124,13 @@ function refusalOf(guard: GuardCommand, command: SessionCommand, tenant: string)
 }
 
 // What a person declares adopts nothing from the deployment; its qualification is checked at the
-// commit, and a model's target by Model before it.
+// commit, a model's target by Model before it, and a workspace's attachment by Workspace before it.
 const PERSON_DECLARATIONS: ReadonlySet<string> = new Set([
   'authorization-expression',
   'permission-assignment',
   'permission-mode',
   'model',
+  'workspace',
 ])
 
 export class SessionEvidenceBridgeProvider<P = unknown> extends SessionEvidenceBridgeService<P> {

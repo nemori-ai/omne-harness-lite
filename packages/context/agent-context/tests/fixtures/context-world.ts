@@ -46,7 +46,6 @@ import {
   createContextSourceRegistry,
   createDefaultCompactionPolicy,
   createDefaultRepresentationPolicy,
-  createAbsentConversionResults,
 } from '@omne-harness/request-context'
 import {
   decodeCommitOrder,
@@ -376,7 +375,6 @@ export async function createWorld(options: WorldOptions = {}) {
     parts,
     requestContext,
     preparation: f.preparation,
-    conversions: createAbsentConversionResults<string>(),
     model,
     tools: options.tools ?? toolsSourceOf(absentToolLookup),
     compactionInputs,

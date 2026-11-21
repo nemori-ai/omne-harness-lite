@@ -1,5 +1,6 @@
 import type { JsonValue } from '@omne-harness/json-text'
 import type { OrganizationId, TenantId, WorkspaceId } from '@omne-harness/legal-identity'
+import type { Modality } from '@omne-harness/modality'
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import type { SchemaRef } from '@omne-harness/schema-provider'
 import type { ToolDeclarations } from './authoring.ts'
@@ -88,9 +89,17 @@ export type ToolCommandDeclaration = Readonly<{
   returns: ToolReturnDeclaration
   background?: ToolCommandBackground
   release?: ToolCommandRelease
+  modalities?: readonly Modality[]
+  conditions?: ToolCallConditions
 }>
+export type ToolCallConditions = readonly string[]
 export type ToolImplementationShape =
-  | Readonly<{ kind: 'function'; parameters: ParameterContract; returns: ToolReturnDeclaration }>
+  | Readonly<{
+      kind: 'function'
+      parameters: ParameterContract
+      returns: ToolReturnDeclaration
+      conditions?: ToolCallConditions
+    }>
   | Readonly<{
       kind: 'commands'
       encoding: CommandCallEncoding
@@ -147,6 +156,11 @@ export type ToolInvocation = Readonly<{
   source: DurableEvidence
 }>
 export type ToolEnvironmentDeclaration = Readonly<{ adoption: Adoption; value: JsonValue }>
+/** Where a call works by default, with the workspace instance it belongs to when there is one. */
+export type ToolCallDirectory = Readonly<{
+  path: string
+  workspace: Readonly<{ id: WorkspaceId; instance: string }> | null
+}>
 export type ToolCallFields = Readonly<{
   command: string | null
   arguments: ToolArguments
@@ -155,6 +169,8 @@ export type ToolCallFields = Readonly<{
   settings: Adoption
   context: Adoption
   workspace: WorkspaceId | null
+  /** Given by the request source when the call is accepted; it does not change afterwards. */
+  directory?: ToolCallDirectory
   requesterScope: ScopeRef
   resources: readonly Adoption[]
   scope: ResourceScope

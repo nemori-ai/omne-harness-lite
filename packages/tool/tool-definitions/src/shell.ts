@@ -43,12 +43,6 @@ const constructionFields: readonly Field[] = [
     description: 'Arguments before the script, for example ["-c"].',
   },
   {
-    name: 'cwd',
-    kind: 'string',
-    required: true,
-    description: 'Explicit initial working directory.',
-  },
-  {
     name: 'env',
     kind: 'env',
     required: true,
@@ -143,8 +137,7 @@ export function createShellAuthor(
       'Sessions require session retention and a fresh authorized attachment for each call. Invalid or closed terminal references never fall back to one-shot execution. cwd and env execution overrides apply to one call. Only the current ProcessHandle receives stop on cancellation. unconfirmed does not mean stopped. Placement facts come from the injected environment. Facility discards and tool byte truncation are reported separately. A terminal completed means the foreground segment ended; it does not prove shell exit or business success. Process lifetime, one-shot execution: a process left running in the background by a one-shot command (for example cmd &) stays running after the call returns as a retained process; info lists retained processes; it runs until it exits, is stopped explicitly, or the execution environment closes its retention scope; a process is stopped when it cannot be retained; the residue line gives the reason. Intent: every execute call carries intent, one line that says why you run it; it decides nothing and names the call later, and a call without it is refused and does not run. Background execution: run_in_background=true runs a one-shot execute in the background: the call returns a placeholder at once and the outcome comes back later as a system reminder; a terminal execution cannot run in the background; a one-shot execute that runs longer than the backgroundAfterMs setting (one minute by default) moves to the background by itself and returns a placeholder; otherwise a one-shot command waits until the main process exits and output is quiet. Terminals: background tasks in a terminal live as long as the terminal; close_session stops every process in the terminal. Long-running services: a service that must run long and is not managed by this tool belongs to the host service manager (for example systemd-run --user); starting it is an external effect of the command itself.',
       (command, args, environment, execution) =>
         executeShell(command, args, environment, execution, config),
-      shellSettings,
-      SHELL_GATES,
+      { settings: shellSettings, gates: SHELL_GATES },
     ),
   )
 }
@@ -169,13 +162,65 @@ export const shellToolModule: ToolImplementationModule<
   executor: describedAdoption({
     owner: '@omne-harness/tool-definitions',
     name: 'Shell',
-    revision: '3',
+    revision: '4',
     returns: 'Published raw value, model body and system offloading policy.',
     changes:
-      'One declaration with the command in the call, the shell and start directory in the description and help by command name.',
+      'A command and a new terminal start in the working directory of the call, taken from its environment; the construction names no directory.',
     commands: shellCommands,
   }),
   createAuthor: createShellAuthor,
+}
+
+const NO_DIRECTORY =
+  'rejected reason=unavailable this call has no working directory; pass cwd zero starts'
+
+/** Where a command or a new terminal starts: the directory the call names, else that of the call. */
+const startDirectory = (args: Arguments, environment: ShellAuthorEnvironment): string | undefined =>
+  args.optionalText('cwd') ?? environment.directory
+const shownDirectory = (environment: ShellAuthorEnvironment): string =>
+  JSON.stringify(environment.directory ?? null)
+
+async function createTerminal(
+  args: Arguments,
+  environment: ShellAuthorEnvironment,
+  config: Arguments,
+): Promise<string> {
+  if (environment.terminal.retention === undefined)
+    return 'rejected reason=unavailable session retention unavailable zero starts'
+  if (args.has('columns') !== args.has('rows'))
+    return 'rejected reason=invalidInput columns and rows must be supplied together'
+  const cwd = startDirectory(args, environment)
+  if (cwd === undefined) return NO_DIRECTORY
+  return confirmation(
+    await environment.terminal.create({
+      retain: 'scope',
+      cwd,
+      env: { ...config.env('env'), ...args.env('env') },
+      ...(args.has('columns')
+        ? { geometry: { columns: args.number('columns', 0), rows: args.number('rows', 0) } }
+        : {}),
+    }),
+    value => `terminal=${JSON.stringify(value.terminal)}`,
+  )
+}
+
+/** A one-shot command. Null: nothing names a directory to start it in, so it does not start. */
+function startOnce(
+  args: Arguments,
+  environment: ShellAuthorEnvironment,
+  config: Arguments,
+  stdin: Readonly<{ stdin?: Uint8Array }>,
+) {
+  const cwd = startDirectory(args, environment)
+  if (cwd === undefined) return null
+  return environment.command.start({
+    executable: config.text('executable'),
+    args: [...config.strings('argsPrefix'), args.text('script')],
+    cwd,
+    env: { ...config.env('env'), ...args.env('env') },
+    outputMode: 'separate',
+    ...stdin,
+  })
 }
 
 async function executeShell(
@@ -189,24 +234,9 @@ async function executeShell(
   const terminal = args.terminal()
   switch (command) {
     case 'info':
-      return `done placement\nos=${JSON.stringify(environment.facts.os)} release=${JSON.stringify(environment.facts.release)} architecture=${JSON.stringify(environment.facts.architecture)} facilities=${JSON.stringify(environment.facts.facilities)}\nshell=${JSON.stringify([config.text('executable'), ...config.strings('argsPrefix')])} cwd=${JSON.stringify(config.text('cwd'))}\nprocess_containment=${environment.command.containment ?? 'undeclared'}\n${BACKGROUND_LINES}${await terminalLines(environment)}${await retainedProcessLines(environment)}`
-    case 'create_session': {
-      if (environment.terminal.retention === undefined)
-        return 'rejected reason=unavailable session retention unavailable zero starts'
-      if (args.has('columns') !== args.has('rows'))
-        return 'rejected reason=invalidInput columns and rows must be supplied together'
-      return confirmation(
-        await environment.terminal.create({
-          retain: 'scope',
-          cwd: args.optionalText('cwd') ?? config.text('cwd'),
-          env: { ...config.env('env'), ...args.env('env') },
-          ...(args.has('columns')
-            ? { geometry: { columns: args.number('columns', 0), rows: args.number('rows', 0) } }
-            : {}),
-        }),
-        value => `terminal=${JSON.stringify(value.terminal)}`,
-      )
-    }
+      return `done placement\nos=${JSON.stringify(environment.facts.os)} release=${JSON.stringify(environment.facts.release)} architecture=${JSON.stringify(environment.facts.architecture)} facilities=${JSON.stringify(environment.facts.facilities)}\nshell=${JSON.stringify([config.text('executable'), ...config.strings('argsPrefix')])} cwd=${shownDirectory(environment)}\nprocess_containment=${environment.command.containment ?? 'undeclared'}\n${BACKGROUND_LINES}${await terminalLines(environment)}${await retainedProcessLines(environment)}`
+    case 'create_session':
+      return createTerminal(args, environment, config)
     case 'close_session': {
       if (terminal === undefined) return 'rejected reason=invalidInput terminal required'
       const denied = await attachTerminal(environment, terminal)
@@ -267,14 +297,7 @@ async function executeScript(
   const stdin = input === undefined ? {} : { stdin: new TextEncoder().encode(input) }
   const started =
     terminal === undefined
-      ? await environment.command.start({
-          executable: config.text('executable'),
-          args: [...config.strings('argsPrefix'), args.text('script')],
-          cwd: args.optionalText('cwd') ?? config.text('cwd'),
-          env: { ...config.env('env'), ...args.env('env') },
-          outputMode: 'separate',
-          ...stdin,
-        })
+      ? await startOnce(args, environment, config, stdin)
       : await environment.terminal.execute({
           terminal,
           script: args.text('script'),
@@ -282,6 +305,7 @@ async function executeScript(
           ...(args.has('env') ? { env: args.env('env') } : {}),
           ...stdin,
         })
+  if (started === null) return NO_DIRECTORY
   if (started.kind !== 'done') return confirmation(started, () => '')
   const stage = new OutputStage({
     writer: execution.body,

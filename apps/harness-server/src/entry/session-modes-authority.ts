@@ -12,6 +12,9 @@ export type SessionModesAuthoritySources = Readonly<{
   sessionWork?: SessionWorkPrincipals<unknown>['forSession'] | undefined
 }>
 
+/** The blocks the Session adapters produce for a session scope, each by its own producer. */
+const PRODUCED = new Map<string, string>([['session.modes', sessionModesProducer.producer]])
+
 async function supplyPrincipal(
   sources: SessionModesAuthoritySources,
   owner: Extract<SessionScopeOwnership, { kind: 'bound' }>,
@@ -49,8 +52,7 @@ export async function decideSessionModesProducer(
     principal.work.owner !== SESSION_MODES_WORK.owner ||
     principal.work.work !== SESSION_MODES_WORK.work ||
     !tenantEquals(principal.tenant, action.tenant) ||
-    action.key !== 'session.modes' ||
-    action.producer.producer !== sessionModesProducer.producer
+    PRODUCED.get(action.key) !== action.producer.producer
   )
     return { kind: 'refused' }
   if (action.kind === 'register' || action.kind === 'invalidate-tenant')

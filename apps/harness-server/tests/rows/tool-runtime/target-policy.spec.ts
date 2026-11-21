@@ -24,6 +24,7 @@ it('applies target residency to new admissions while retaining custody of an exa
     const store: ToolLedgerStore = {
       durability: 'none',
       scanPending: () => Promise.resolve({ kind: 'page', calls: [], more: false }),
+      usage: () => Promise.resolve({ kind: 'page', facts: [], undated: 0, more: false }),
       due: async () => ({ kind: 'complete', entries: [] }),
       definition: async () => ({ kind: 'complete', definition: null }),
       readRecord: async () => {

@@ -80,7 +80,7 @@ afterEach(() => {
 })
 
 describe('serve: the release tree of doubles', () => {
-  it('the release tree of 77 real and 2 s0-double rows loads, accepts, stops on request and exits 0', async () => {
+  it('the release tree of 95 real and 2 s0-double rows loads, accepts, stops on request and exits 0', async () => {
     const base = realpathSync(mkdtempSync(join(tmpdir(), 'serve-release-')))
     try {
       const port = await freePort()
@@ -104,6 +104,7 @@ describe('serve: the release tree of doubles', () => {
         'authorization:real',
         'session-storage:real',
         'session-input-sources:real',
+        'session-before-intake:real',
         'session-history-index:real',
         'session-search:real',
         'asset-categories:real',
@@ -113,6 +114,17 @@ describe('serve: the release tree of doubles', () => {
         'schedule:real',
         'notification:real',
         'calendar-notification:real',
+        'media-storage-sql:real',
+        'media-image:real',
+        'media:real',
+        'media-storage-local:real',
+        'media-sweep:real',
+        'media-intake:real',
+        'media-model-source:real',
+        'media-tool-store:real',
+        'workspace:real',
+        'usage:real',
+        'usage-adapters:real',
         'session-provider:real',
         'session-ad02:real',
         'session-ad03:real',
@@ -164,6 +176,9 @@ describe('serve: the release tree of doubles', () => {
         'runtime-context-tenant-scope:real',
         'session-intake-budget:real',
         'session-observation:real',
+        'dispatch:real',
+        'dispatch-session:real',
+        'dispatch-tool:real',
         'server-entry:real',
         'identity-access:real',
         'session-access:real',
@@ -173,8 +188,11 @@ describe('serve: the release tree of doubles', () => {
         'calendar-access:real',
         'schedule-access:real',
         'notification-access:real',
+        'media-access:real',
+        'workspace-access:real',
         'tool-access:real',
         'model-access:real',
+        'usage-access:real',
       ])
       expect(run.of('row-state').every(r => r['state'] === 'ACTIVE')).toBe(true)
       expect(run.startup).toMatchObject({
@@ -182,9 +200,9 @@ describe('serve: the release tree of doubles', () => {
         scope: 'serving',
         accepting: true,
         outcome: 'ready',
-        enabledRows: 79,
+        enabledRows: 97,
         barrierCalls: 1,
-        implementations: { real: 77, 'contract-double': 0, 's0-double': 2 },
+        implementations: { real: 95, 'contract-double': 0, 's0-double': 2 },
       })
       expect(run.of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
       expect(run.stderr).toEqual(['serve: stop requested: test: startup seen'])

@@ -22,7 +22,8 @@ import {
   runtimeContextReaderEligibilityKey,
 } from '@omne-harness/runtime-context-cordis-contract/cordis'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
-import { suppliedContextBlocks } from '../../assembly/context-definitions.ts'
+import { sessionContextBlocks } from '../../assembly/context-definitions.ts'
+import { sessionWorkingDirectoryKey } from '../session-ad03/working-directory.ts'
 import { releaseCancellation } from '../../entry/cancellation-installation.ts'
 import { defineRow } from '../../row.ts'
 import { agentJournalCombination, combinationConfig, type CombinationConfig } from './config.ts'
@@ -70,8 +71,15 @@ export function createAgentJournalRow(input: SessionAgentJournalPluginInput = {}
   })
 }
 
-// The release tells the model the runtime context before each step.
+// Before each step the release settles the working directory, then tells the model the context.
 export const agentJournalRow = createAgentJournalRow({
   cancellation: releaseCancellation,
-  reminders: { descriptors: suppliedContextBlocks },
+  reminders: { descriptors: sessionContextBlocks },
+  workingDirectory: ctx => ({
+    refresh: async input =>
+      (await ctx.get(sessionWorkingDirectoryKey)?.refresh(input)) ?? {
+        kind: 'unavailable',
+        diagnostic: 'the working directory of the session has no publisher',
+      },
+  }),
 })

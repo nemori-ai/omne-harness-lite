@@ -67,7 +67,14 @@ async function fixture(
   const requests: CompactionRequest[] = []
   let ready: Extract<Preparation, { kind: 'ready' }> | null = null
   f.controls.adoptions.define(options().binding.definition, {
-    definition: { category: 'AgentDefinition', name: 'test', references: [], attributes: [] },
+    definition: {
+      category: 'AgentDefinition',
+      type: 'master',
+      summary: 'Works on what the person asks for.',
+      name: 'test',
+      references: [],
+      attributes: [],
+    },
     evaluator: agentEvaluator,
     extensions: [],
   })

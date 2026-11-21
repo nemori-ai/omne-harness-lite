@@ -135,6 +135,7 @@ describe('10 boundary and qualification', () => {
     const throwing: ToolLedgerStore = {
       durability: 'none',
       scanPending: () => Promise.reject(new Error(secret)),
+      usage: () => Promise.reject(new Error(secret)),
       readRecord: () => Promise.reject(new Error(secret)),
       due: () => Promise.reject(new Error(secret)),
       definition: () => Promise.reject(new Error(secret)),
@@ -608,6 +609,7 @@ describe('11 operation idempotency (P01)', () => {
     const racing: ToolLedgerStore = {
       durability: 'none',
       scanPending: input => memory.scanPending(input),
+      usage: query => memory.usage(query),
       readRecord: memory.readRecord,
       due: memory.due,
       definition: memory.definition,

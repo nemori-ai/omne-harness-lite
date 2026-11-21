@@ -18,6 +18,7 @@ import type {
   ModelCommands,
   ModelHostAuthority,
   ModelInstanceHost,
+  ModelMediaSource,
   ModelMessageConversion,
   ModelProfileMaintenance,
   ModelProfiles,
@@ -66,6 +67,24 @@ export abstract class ModelCredentialService<P = unknown>
   abstract readonly resolve: CredentialPort<P>['resolve']
 }
 export const modelCredentialKey = ModelCredentialService.provide
+
+/**
+ * The media seam of the send stage: read at each send, absent when no owner of media is installed.
+ * @owner packages/model/model-cordis-contract
+ */
+export abstract class ModelMediaSourceService<P = unknown>
+  extends Service
+  implements ModelMediaSource<P>
+{
+  static readonly provide = 'modelMediaSource'
+
+  constructor(ctx: CordisContext) {
+    super(ctx, ModelMediaSourceService.provide)
+  }
+
+  abstract readonly open: ModelMediaSource<P>['open']
+}
+export const modelMediaSourceKey = ModelMediaSourceService.provide
 
 /** @owner packages/model/model-cordis-contract */
 export abstract class ModelStreamReferencesService<P>
@@ -399,6 +418,7 @@ declare module '@deepseek-ai/cordis' {
     modelStreamReferences?: ModelStreamReferencesService<unknown>
     modelStreamObservation?: ModelStreamObservationService<unknown>
     modelCredential?: ModelCredentialService
+    modelMediaSource?: ModelMediaSourceService
   }
   interface Events {
     /**

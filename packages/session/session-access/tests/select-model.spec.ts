@@ -85,6 +85,33 @@ describe('select-model, row by row of T3', () => {
     },
   )
 
+  it('row 4: the blocks of the history the target cannot read are named, sixteen at most', async () => {
+    const world = createWorld()
+    const session = await created(world)
+    const blocks = Array.from({ length: 18 }, (_, n) => ({
+      message: `msg_${String(n)}`,
+      block: `blk_${String(n)}`,
+    }))
+    world.targets.answer({ kind: 'refused', reason: 'modality', blocks: blocks.slice(0, 2) })
+    expect(await select(world, session)).toEqual({
+      outcome: 'invalid',
+      body: { reason: 'modality', blocks: blocks.slice(0, 2) },
+    })
+    world.targets.answer({ kind: 'refused', reason: 'modality', blocks })
+    expect(await select(world, session, 'control-2')).toEqual({
+      outcome: 'invalid',
+      body: { reason: 'modality', blocks: blocks.slice(0, 16) },
+    })
+    expect(changes(world)).toEqual([])
+  })
+
+  it('the target is judged for the session it is selected in', async () => {
+    const world = createWorld()
+    const session = await created(world)
+    await select(world, session)
+    expect(world.targets.calls().at(-1)).toMatchObject({ route: MODEL, session })
+  })
+
   it('row 5: a selectable target without a credential is committed, and the answer says so', async () => {
     const world = createWorld()
     const session = await created(world)

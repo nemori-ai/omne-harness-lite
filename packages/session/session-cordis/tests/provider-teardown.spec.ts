@@ -97,13 +97,14 @@ describe('a provider change while a command is in flight', () => {
     const inflight = a.accept(intake, 'held-over-the-change')
     await gate.arrived
     const withdrawing = a.withdraw('sessionPrincipals')
-    const providing = a.provide('sessionPrincipals')
     await delay(150)
     expect(a.handles.size).toBe(0)
     expect(provides(a)).toBe(false)
+    await expect(a.provide('sessionPrincipals')).rejects.toThrow(/has been registered/)
 
     gate.release()
-    await Promise.all([withdrawing, providing])
+    await withdrawing
+    await a.provide('sessionPrincipals')
     await a.provider.await()
     expect((await inflight).revision).toBeDefined()
     expect(a.handles.size).toBe(1)

@@ -75,6 +75,7 @@ function controlAnswer<const T extends Fields, const R extends Rule>(controlled:
 }
 
 const empty = ruleCodec(object({}))
+const workspaceTarget = object({ workspace: { rule: text }, instance: { rule: text } })
 const limited = ruleCodec(
   object({
     resource: { rule: literal('pending-inputs', 'input-bytes') },
@@ -83,10 +84,16 @@ const limited = ruleCodec(
 )
 
 const instant = { kind: 'instant' } as const
+const relation = literal('main', 'child', 'handoff')
+const attendance = literal('attended', 'unattended')
 const page = {
   tenant: { rule: tenant },
   cursor: { rule: nullable(text) },
   limit: { rule: { kind: 'positive-integer' }, optional: true },
+  relation: { rule: nullable(relation), optional: true },
+  parent: { rule: nullable(session), optional: true },
+  attendance: { rule: nullable(attendance), optional: true },
+  definition: { rule: nullable(text), optional: true },
 } as const
 const listSessions = object(page)
 // The archived list narrows by archive time (from inclusive, to exclusive), by how, by title text.
@@ -98,12 +105,23 @@ const listArchivedSessions = object({
   titleContains: { rule: nullable(anyText), optional: true },
 })
 
+// What a session is to others. A server that does not know these yet leaves them out, so each is optional.
+const standing = {
+  relation: { rule: relation, optional: true },
+  parent: { rule: nullable(session), optional: true },
+  origin: { rule: nullable(session), optional: true },
+  root: { rule: session, optional: true },
+  depth: { rule: { kind: 'count' }, optional: true },
+  attendance: { rule: attendance, optional: true },
+  definition: { rule: text, optional: true },
+} as const
 const sessionItem = {
   session: { rule: session },
   createdAt: { rule: nullable(instant) },
   lastActivityAt: { rule: nullable(instant) },
   lifecycle: { rule: literal('initializing', 'dormant', 'active', 'frozen', 'archived') },
   title: { rule: nullable(anyText) },
+  ...standing,
 } as const
 const listOf = <const F extends Fields>(item: F) =>
   object({
@@ -349,6 +367,8 @@ const observeSessionFrame = {
 export type ObserveSessionOpen = RuleValue<typeof observeSessionOpen>
 export type ObserveSessionFrame = RuleValue<typeof observeSessionFrame>
 
+const blockPosition = object({ message: { rule: text }, block: { rule: text } })
+
 export const sessionProtocol = defineProtocol({
   name: 'session',
   major: 1,
@@ -362,6 +382,7 @@ export const sessionProtocol = defineProtocol({
           createCallId: { rule: text },
           definition: { rule: text, optional: true },
           model: { rule: text, optional: true },
+          workspace: { rule: workspaceTarget, optional: true },
           purpose: { rule: anyText },
         }),
       ),
@@ -659,7 +680,33 @@ export const sessionProtocol = defineProtocol({
             reason: {
               rule: literal('unknown-name', 'withdrawn', 'excluded', 'modality', 'locked', 'scope'),
             },
+            blocks: { rule: { kind: 'array', item: blockPosition, max: 16 }, optional: true },
           }),
+        ),
+        archived: empty,
+        frozen: empty,
+        'not-found': empty,
+        conflict: empty,
+      },
+      countsAsAccess: true,
+    },
+    'select-workspace': {
+      identity: 'login',
+      effect: 'commit',
+      limit: 'small',
+      body: ruleCodec(
+        object({
+          ...target,
+          controlId: { rule: text },
+          workspace: { rule: nullable(workspaceTarget) },
+        }),
+      ),
+      outcomes: {
+        succeeded: ruleCodec(
+          object({ controlId: { rule: text }, directory: { rule: nullable(text) } }),
+        ),
+        invalid: ruleCodec(
+          object({ reason: { rule: literal('not-permitted', 'instance-unavailable') } }),
         ),
         archived: empty,
         frozen: empty,

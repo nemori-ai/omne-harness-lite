@@ -38,6 +38,14 @@ describe('acquire', () => {
       const binding = acquired.ok
       expect(binding.supplier).toEqual(supplier)
       expect(binding.adoption).toEqual(recordAdoption(ANTHROPIC_OWNER, record))
+      const picture = { storage: 's', key: 'k', mediaType: 'image/tiff', bytes: '9', digest: 'd' }
+      expect(binding.mediaLimits(picture)).toEqual({
+        mediaTypes: record.wire.image?.mediaTypes,
+        maxBytes: 4_194_304,
+        image: null,
+      })
+      expect(binding.mediaLimits({ ...picture, mediaType: 'application/pdf' })).toBeNull()
+      expect(binding.mediaLimits({ ...picture, mediaType: 'audio/wav' })).toBeNull()
       expect(binding.counting).toBe(binding.meter.basis)
       expect(binding.counting.supplier.adoption).toEqual(supplier.adoption)
       expect(binding.counting.tokenization).toEqual({

@@ -26,7 +26,7 @@ export abstract class ShellService extends Service {
     const board = this.toasts()
     if (board === undefined) return
     const caller = this.ctx.fiber
-    if (caller.store === undefined) return
+    if (caller.committed === undefined) return
     if (!this.toastCallers.has(caller) && !this.bindToasts(caller, board)) return
     board.show(caller, toast)
   }

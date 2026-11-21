@@ -49,6 +49,7 @@ import {
 import { announcePublished } from './published-queue.ts'
 import { createSqlCompactionInputs } from './compaction-inputs-sql.ts'
 import { createModelReminders } from './model-reminders.ts'
+import type { StepDirectory } from './working-directory-step.ts'
 import type { DescriptorCatalog } from '@omne-harness/runtime-context-contract'
 import {
   runtimeContextKey,
@@ -581,6 +582,7 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
     cancellation?: SessionLogJournalOptions<unknown>['cancellation'],
     report?: SessionLogJournalOptions<unknown>['report'],
     descriptors?: DescriptorCatalog,
+    directory?: StepDirectory<unknown>,
   ) {
     super(ctx)
     const logger = ctx.logger(LOGGER)
@@ -606,6 +608,7 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
               descriptors,
             }),
           }),
+      ...(directory === undefined ? {} : { directory }),
       storage: ctx.storage,
       tenantDomainLookup: ctx.tenantDomainLookup,
       sessionAccessCheck: ctx.sessionAccessCheck,
@@ -659,16 +662,18 @@ export type SessionAgentJournalPluginInput = Readonly<{
   report?: SessionLogJournalOptions<unknown>['report']
   /** The blocks the model may be told; given, each step first tells the model the runtime context. */
   reminders?: Readonly<{ descriptors: DescriptorCatalog }>
+  /** Given, each step first makes the working directory of the session the one in force. */
+  workingDirectory?: (ctx: Context) => StepDirectory<unknown>
 }>
 
 export function createSessionAgentJournalPlugin(
   input: SessionAgentJournalPluginInput = {},
 ): typeof SessionLogAgentJournalProvider {
-  const { cancellation, report, reminders } = input
+  const { cancellation, report, reminders, workingDirectory } = input
   return class SessionLogAgentJournalPlugin extends SessionLogAgentJournalProvider {
     static override readonly inject = reminders === undefined ? JOURNAL_INJECT : REMINDING_INJECT
     constructor(ctx: Context, config: AgentJournalProviderConfig) {
-      super(ctx, config, cancellation, report, reminders?.descriptors)
+      super(ctx, config, cancellation, report, reminders?.descriptors, workingDirectory?.(ctx))
     }
   }
 }

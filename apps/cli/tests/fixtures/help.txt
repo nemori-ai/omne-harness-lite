@@ -7,54 +7,61 @@ Show help or version, or run a command.
 
 Commands
 
-  omne register --login-identifier <id>                                                                              Register and activate an account.
-  omne login --login-identifier <id>                                                                                 Issue a login and save it in the state directory.
-  omne create-session --definition <name> [--model <route>]                                                          Create a session.
-  omne send-input --session <id> --text <text> [--model <route>]                                                     Send a user message to a session.
-  omne interrupt-input --session <id> --text <text> [--model <route>]                                                Send an urgent user message: it releases what the run waits for, or is ordinary.
-  omne read-history --session <id>                                                                                   Read the whole history of a session.
-  omne search (--text <literal> | --words <words> | --regex <pattern>)                                               Search the history of all sessions of the tenant.
-  omne read-session-diagnostics --session <id>                                                                       Read the diagnostics of the runs of a session.
-  omne read-pending --session <id> [--after <position>] [--limit <n>]                                                List the inputs a session accepted that no run took yet, the oldest first.
-  omne read-waiting-calls --session <id>                                                                             List the calls of a session that wait for a person to answer a card.
-  omne read-input-fate --session <id> --input-id <id>                                                                Read where one input is now: pending, taken, answered, settled or refused.
-  omne cancel-run --session <id> --run <id>                                                                          Cancel a run.
-  omne stop-call --session <id> --producer-kind <kind> --call <id>                                                   Stop a model or tool call.
-  omne select-model --session <id> --model <route>                                                                   Select the model of a session: the next model request uses it.
-  omne read-model-selection --session <id>                                                                           Read the model a session stands at now.
-  omne list-models [--tenant <tenant>]                                                                               List the models of the tenant: which can be selected, and why one cannot.
-  omne archive-session --session <id>                                                                                Archive a session: its run ends and its background calls are withdrawn.
-  omne unarchive-session --session <id>                                                                              Take a session back from the archive.
-  omne read-permission-mode --session <id>                                                                           Read the permission mode of a session and the revision it stands at.
-  omne change-permission-mode --session <id> --mode <mode> --expected-revision <n>                                   Change the permission mode of a session (never, auto_permission or bypass-permissions) at the revision read.
-  omne list-archived-sessions [--since <instant>] [--before <instant>] [--by person|auto|parent] [--title <text>]    List the archived sessions, the latest archived first.
-  omne calls list|show|output|stop|background                                                                        List the background tool calls of a session, read one, or stop or background it.
-  omne list-cards                                                                                                    List the cards that wait for a person.
-  omne read-card --request <id> --card <id>                                                                          Read one card.
-  omne submit-reply --request <id> --card <id> --revision <name>                                                     Reply to a card with an option, a text or a decline.
-  omne create-organization --name <name> --governance-model-id <id>                                                  Create an organization.
-  omne query-create-organization --target-create-call-id <id> --name <name> --governance-model-id <id>               Ask what an earlier create-organization call did.
-  omne issue-member-invitation --invited-login-identifier <id>                                                       Invite an account to the organization of the acting tenant.
-  omne accept-member-invitation --invitation-id <id>                                                                 Accept an invitation.
-  omne reject-member-invitation --invitation-id <id>                                                                 Reject an invitation.
-  omne withdraw-member-invitation --invitation-id <id>                                                               Withdraw an invitation that this tenant issued.
-  omne query-invitation --invitation-id <id>                                                                         Read one invitation.
-  omne query-received-invitations                                                                                    List the invitations this account received.
-  omne query-issued-invitations                                                                                      List the invitations this tenant issued.
-  omne query-own-memberships                                                                                         List the memberships of this account.
-  omne query-organization-members --organization-id <id>                                                             List the members of an organization.
-  omne leave-organization                                                                                            Leave the organization of the acting tenant.
-  omne remove-member --organization-id <id> --account-id <id> --expected-role <role>                                 Remove a member from an organization.
-  omne change-member-role --organization-id <id> --account-id <id> --expected-role <role> --target-role <role>       Change the role of a member.
-  omne switch-current-tenant --tenant-id <tenant>                                                                    Switch the current tenant of this login.
-  omne query-current-tenant                                                                                          Read the current tenant of this login.
-  omne revoke-login                                                                                                  Revoke a login. Without --target-login, log out of this one.
-  omne query-own-valid-logins                                                                                        List the valid logins of this account.
-  omne calendar list|environment|health|day|count|shift|next|nth                                                     Ask a date question on the calendar your settings choose, or on one you name with --calendar and --version: list the calendars, read the one in effect, read the supply health, or classify, count, shift and list working days.
-  omne schedule list|show|history|agenda|preview|create|<action>                                                     Read, preview and create the schedules of the acting tenant, or change one by an action: rename, edit, revise, replace, promote, pause, resume, stop or discard.
-  omne notification send|sent|list|show|seen|done|dismiss|restore|sources                                            Post a notification to yourself and ask what became of it, list and read the inbox of the acting tenant, mark a notification seen, done, dismissed or restored, or list the sources.
-  omne setting list|set|show|unset [--independent]                                                                   List the asset settings of the acting tenant, or with --independent its independent settings (named <provider>/<definition>); set, show or unset one; set reads a secret from the prompt, or takes --value <JSON>.
-  omne asset categories|list|show|create|enable|disable|remove|watch                                                 Manage the assets of the acting tenant: list the categories, list one category, show one (<category>:<name>), create one from --data <JSON|@file> or --dir <directory>, enable, disable or remove one (remove needs --yes), and watch for changes; --resume <operation> recalls an uncertain outcome.
+  omne register --login-identifier <id>                                                                                   Register and activate an account.
+  omne login --login-identifier <id>                                                                                      Issue a login and save it in the state directory.
+  omne create-session --definition <name> [--model <route>] [--workspace <id> --instance <id>]                            Create a session, in a workspace when one is named.
+  omne send-input --session <id> [--text <text>] [--attach <file>]... [--model <route>]                                   Send a user message to a session: words, files (each --attach is uploaded first), or both.
+  omne interrupt-input --session <id> [--text <text>] [--attach <file>]... [--model <route>]                              Send an urgent user message: it releases what the run waits for, or is ordinary.
+  omne read-history --session <id>                                                                                        Read the whole history of a session.
+  omne search (--text <literal> | --words <words> | --regex <pattern>)                                                    Search the history of all sessions of the tenant.
+  omne read-session-diagnostics --session <id>                                                                            Read the diagnostics of the runs of a session.
+  omne read-pending --session <id> [--after <position>] [--limit <n>]                                                     List the inputs a session accepted that no run took yet, the oldest first.
+  omne read-waiting-calls --session <id>                                                                                  List the calls of a session that wait for a person to answer a card.
+  omne read-input-fate --session <id> --input-id <id>                                                                     Read where one input is now: pending, taken, answered, settled or refused.
+  omne cancel-run --session <id> --run <id>                                                                               Cancel a run.
+  omne stop-call --session <id> --producer-kind <kind> --call <id>                                                        Stop a model or tool call.
+  omne select-model --session <id> --model <route>                                                                        Select the model of a session: the next model request uses it.
+  omne select-workspace --session <id> (--workspace <id> --instance <id> | --none)                                        Select the workspace a session works in, or none: it is in force from the next step.
+  omne read-model-selection --session <id>                                                                                Read the model a session stands at now.
+  omne list-models [--tenant <tenant>]                                                                                    List the models of the tenant: which can be selected, and why one cannot.
+  omne archive-session --session <id>                                                                                     Archive a session: its run ends and its background calls are withdrawn.
+  omne unarchive-session --session <id>                                                                                   Take a session back from the archive.
+  omne read-permission-mode --session <id>                                                                                Read the permission mode of a session and the revision it stands at.
+  omne change-permission-mode --session <id> --mode <mode> --expected-revision <n>                                        Change the permission mode of a session (never, auto_permission or bypass-permissions) at the revision read.
+  omne list-sessions [--relation <kind>] [--parent <id>] [--attendance <who>] [--definition <name>]                       List the sessions that are not archived, each with its relation (main, child or handoff) and who attends it (attended or unattended).
+  omne list-archived-sessions [--since <instant>] [--before <instant>] [--by person|auto|parent] [--title <text>]         List the archived sessions, the latest archived first. It takes the filters of list-sessions too.
+  omne calls list|show|output|stop|background                                                                             List the background tool calls of a session, read one, or stop or background it.
+  omne list-cards                                                                                                         List the cards that wait for a person.
+  omne read-card --request <id> --card <id>                                                                               Read one card.
+  omne submit-reply --request <id> --card <id> --revision <name>                                                          Reply to a card with an option, a text or a decline.
+  omne create-organization --name <name> --governance-model-id <id>                                                       Create an organization.
+  omne query-create-organization --target-create-call-id <id> --name <name> --governance-model-id <id>                    Ask what an earlier create-organization call did.
+  omne issue-member-invitation --invited-login-identifier <id>                                                            Invite an account to the organization of the acting tenant.
+  omne accept-member-invitation --invitation-id <id>                                                                      Accept an invitation.
+  omne reject-member-invitation --invitation-id <id>                                                                      Reject an invitation.
+  omne withdraw-member-invitation --invitation-id <id>                                                                    Withdraw an invitation that this tenant issued.
+  omne query-invitation --invitation-id <id>                                                                              Read one invitation.
+  omne query-received-invitations                                                                                         List the invitations this account received.
+  omne query-issued-invitations                                                                                           List the invitations this tenant issued.
+  omne query-own-memberships                                                                                              List the memberships of this account.
+  omne query-organization-members --organization-id <id>                                                                  List the members of an organization.
+  omne leave-organization                                                                                                 Leave the organization of the acting tenant.
+  omne remove-member --organization-id <id> --account-id <id> --expected-role <role>                                      Remove a member from an organization.
+  omne change-member-role --organization-id <id> --account-id <id> --expected-role <role> --target-role <role>            Change the role of a member.
+  omne switch-current-tenant --tenant-id <tenant>                                                                         Switch the current tenant of this login.
+  omne query-current-tenant                                                                                               Read the current tenant of this login.
+  omne revoke-login                                                                                                       Revoke a login. Without --target-login, log out of this one.
+  omne query-own-valid-logins                                                                                             List the valid logins of this account.
+  omne calendar list|environment|health|day|count|shift|next|nth                                                          Ask a date question on the calendar your settings choose, or on one you name with --calendar and --version: list the calendars, read the one in effect, read the supply health, or classify, count, shift and list working days.
+  omne schedule list|show|history|agenda|preview|create|<action>                                                          Read, preview and create the schedules of the acting tenant, or change one by an action: rename, edit, revise, replace, promote, pause, resume, stop or discard.
+  omne notification send|sent|list|show|seen|done|dismiss|restore|sources                                                 Post a notification to yourself and ask what became of it, list and read the inbox of the acting tenant, mark a notification seen, done, dismissed or restored, or list the sources.
+  omne workspace register|list|show|associate|dissociate|grant|grant-admin|revoke-admin|remove|leave|destroy              Register a directory of the server as a workspace without touching what is in it (register <directory>, --type <type>), list your workspaces or show one (show <workspace>); make one more directory of the same resource an instance or end that (associate <workspace> <directory>, dissociate <workspace> <instance>); let another tenant take part or end that (grant, grant-admin, revoke-admin, remove <workspace> <tenant>), leave one, or destroy one with --yes: the directories stay. A commit takes --resume <operation>.
+  omne setting list|set|show|unset [--independent]                                                                        List the asset settings of the acting tenant, or with --independent its independent settings (named <provider>/<definition>); set, show or unset one; set reads a secret from the prompt, or takes --value <JSON>.
+  omne asset categories|list|show|create|enable|disable|remove|watch                                                      Manage the assets of the acting tenant: list the categories, list one category, show one (<category>:<name>), create one from --data <JSON|@file> or --dir <directory>, enable, disable or remove one (remove needs --yes), and watch for changes; --resume <operation> recalls an uncertain outcome.
+  omne media put|get|describe                                                                                             Put a file into the media of the acting tenant and print its content reference (put --file <path>, --media-type <type> when the name says none; --upload <name> goes on with an upload), read one back to a file (get --ref <JSON> --out <path>), or describe one (describe --ref <JSON>).
+  omne query-usage --since <instant> --before <instant> --zone <tz> [--session <id>] [--bucket <b>] [--group-by <d,d>]    Sum the usage and cost of a tenant or one session from --since up to --before: buckets none, hour, day, week or month in the IANA zone, split by up to two of source, model, provider, purpose and tool. --tenant names another tenant.
+  omne list-usage-records --since <instant> --before <instant> [--session <id>] [--after <cursor>] [--limit <n>]          List the usage records one by one, at most --limit (default 100) a page; each carries only numbers and names. --tenant names another tenant.
+  omne read-context-occupancy --session <id> [--tenant <tenant>]                                                          Read how much of the context window the latest main request of a session used, with its moment and model.
 
   --home <directory>    State directory. Overrides OMNE_HOME.
   OMNE_HOME             State directory when --home is absent.

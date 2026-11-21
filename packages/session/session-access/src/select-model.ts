@@ -4,6 +4,8 @@ import type { BackgroundCallPorts } from './background-calls.ts'
 import { controlOperation } from './derivation.ts'
 import type { ModelTargetCheck, ModelTargets } from './ports.ts'
 
+const NAMED_BLOCKS = 16
+
 export type SelectModelPorts = BackgroundCallPorts &
   Readonly<{ targets: () => ModelTargets | undefined }>
 
@@ -35,9 +37,14 @@ export async function selectModel(
     principal: access.principal,
     tenant: access.tenant,
     route: model,
+    session: access.session,
   })
   if (target.kind === 'unavailable') return UNAVAILABLE
-  if (target.kind === 'refused') return { outcome: 'invalid', body: { reason: target.reason } }
+  if (target.kind === 'refused') {
+    const { reason, blocks } = target
+    const named = blocks === undefined ? {} : { blocks: blocks.slice(0, NAMED_BLOCKS) }
+    return { outcome: 'invalid', body: { reason, ...named } }
+  }
   const result = await commitCall(() =>
     faces.management.change({
       ...access,

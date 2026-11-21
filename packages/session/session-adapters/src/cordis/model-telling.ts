@@ -22,6 +22,8 @@ import {
   reminderReadFailure,
 } from './model-reminder-commit.ts'
 import type { ModelReminders } from './model-reminders.ts'
+import { workingDirectoryCommand } from './working-directory-commit.ts'
+import type { StepDirectory } from './working-directory-step.ts'
 
 export type { ModelReminders } from './model-reminders.ts'
 
@@ -43,17 +45,24 @@ export type Told =
   | Readonly<{ kind: 'again' }>
   | Readonly<{ kind: 'answer'; value: Readonly<{ failure: Failure }> }>
 
-export type ModelTellingPorts<P, B extends Book> = Readonly<{
-  storage: SqlStorage
-  combination: JournalCombination
-  generations: GenerationMemory
+export type StepOpening<P> = Readonly<{
   reminders?: ModelReminders<P> | undefined
-  fault?: ((diagnostic: string) => void) | undefined
-  read(book: B, domain: DomainRef): Promise<Outcome<WorkSnapshot | null, Failure>>
+  directory?: StepDirectory<P> | undefined
 }>
 
-export function beginsStep(appended: readonly PublishedBatch[]): boolean {
-  return appended.some(batch => batch.facts.some(fact => fact.kind === 'step.begun'))
+export type ModelTellingPorts<P, B extends Book> = StepOpening<P> &
+  Readonly<{
+    storage: SqlStorage
+    combination: JournalCombination
+    generations: GenerationMemory
+    fault?: ((diagnostic: string) => void) | undefined
+    read(book: B, domain: DomainRef): Promise<Outcome<WorkSnapshot | null, Failure>>
+  }>
+
+function begunStep(appended: readonly PublishedBatch[]): string | null {
+  for (const batch of appended)
+    for (const fact of batch.facts) if (fact.kind === 'step.begun') return String(fact.step)
+  return null
 }
 
 const failed = (failure: Failure): Told => ({ kind: 'answer', value: { failure } })
@@ -61,7 +70,61 @@ const down = (diagnostic: string): Told =>
   failed({ kind: 'unavailable', owner: 'session-log-journal', diagnostic })
 
 export function createModelTelling<P, B extends Book>(ports: ModelTellingPorts<P, B>) {
-  const { reminders } = ports
+  const { reminders, directory } = ports
+
+  async function commit(book: B, domain: DomainRef, command: SessionCommand) {
+    const outcome = await commitJournal({
+      storage: ports.storage,
+      domain,
+      combination: ports.combination,
+      operation: command.input.operation,
+      recall: 'never',
+      commands: sessionCommitCommands([sessionCommandFacts(command, [])]),
+      generations: ports.generations,
+    })
+    await afterSessionCommit({
+      storage: ports.storage,
+      domain,
+      tenant: book.tenantText,
+      session: book.session,
+      answer:
+        outcome.kind === 'committed'
+          ? { receipt: outcome.receipt, recalled: outcome.recalled }
+          : null,
+      journal: { published: book.published === null ? null : String(book.published) },
+    })
+    return outcome
+  }
+
+  async function refresh(
+    book: B,
+    domain: DomainRef,
+    principal: P,
+    snapshot: WorkSnapshot | null,
+    step: string,
+  ): Promise<Told> {
+    if (directory === undefined) return null
+    if (snapshot === null) return down('no Session snapshot to take the working directory from')
+    const scope = openContextScope({ tenant: book.tenant, session: book.session, snapshot })
+    if (scope === null) return down('the session has no open context scope')
+    const { tenant, session } = book
+    const refreshed = await directory.refresh({ principal, tenant, session, scope, snapshot })
+    if (refreshed.kind === 'refreshed') return null
+    if (refreshed.kind === 'unavailable') return down(refreshed.diagnostic)
+    const command = workingDirectoryCommand({
+      tenant,
+      session,
+      scope,
+      step,
+      at: snapshot.revision,
+      value: refreshed.value,
+    })
+    const settled = reminderOutcome(
+      await commit(book, domain, command),
+      'the working directory step commit',
+    )
+    return typeof settled === 'string' ? { kind: 'again' } : failed(settled)
+  }
 
   async function tell(
     book: B,
@@ -93,27 +156,7 @@ export function createModelTelling<P, B extends Book>(ports: ModelTellingPorts<P
       viewRevision: prepared.ok.viewRevision,
       message,
     })
-    const outcome = await commitJournal({
-      storage: ports.storage,
-      domain,
-      combination: ports.combination,
-      operation: command.input.operation,
-      recall: 'never',
-      commands: sessionCommitCommands([sessionCommandFacts(command, [])]),
-      generations: ports.generations,
-    })
-    await afterSessionCommit({
-      storage: ports.storage,
-      domain,
-      tenant: book.tenantText,
-      session: book.session,
-      answer:
-        outcome.kind === 'committed'
-          ? { receipt: outcome.receipt, recalled: outcome.recalled }
-          : null,
-      journal: { published: book.published === null ? null : String(book.published) },
-    })
-    const settled = reminderOutcome(outcome)
+    const settled = reminderOutcome(await commit(book, domain, command))
     if (settled === 'told') prepared.ok.advance()
     return typeof settled === 'string' ? { kind: 'again' } : failed(settled)
   }
@@ -127,9 +170,11 @@ export function createModelTelling<P, B extends Book>(ports: ModelTellingPorts<P
       scratch: Scratch,
       appended: readonly PublishedBatch[],
     ): Promise<Told> {
-      return beginsStep(appended)
-        ? tell(book, domain, principalOf<P>(write), scratch.snapshot)
-        : null
+      const step = begunStep(appended)
+      if (step === null) return null
+      const principal = principalOf<P>(write)
+      const stale = await refresh(book, domain, principal, scratch.snapshot, step)
+      return stale ?? tell(book, domain, principal, scratch.snapshot)
     },
     /** The request after a compaction is prepared in the same step: tell it in full right away. */
     async afterCompaction(

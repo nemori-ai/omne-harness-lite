@@ -48,6 +48,8 @@ export type {
   ProducerRef,
   RecoveryTask,
   Relation,
+  Attendance,
+  SessionTree,
   ResidentTool,
   ResultConsumption,
   RoutedInput,
@@ -88,8 +90,11 @@ export type {
   SessionFailure,
   SessionHistory,
   ArchivedBy,
+  SessionListFilter,
   SessionListItem,
   SessionListPage,
+  SessionListRelation,
+  UnarchivedLifecycle,
   SessionManagement,
   SessionReconciliation,
   SessionWork,
@@ -193,7 +198,24 @@ export {
   type RouteJudgment,
   type RunStartJudgment,
 } from './judgments.ts'
-export { decide, commandDigest } from './decide.ts'
+export { decide, commandDigest, runIdOf } from './decide.ts'
+export {
+  RELATIONS_TO_REFERENCE,
+  relationToReference,
+  type DirectoryStanding,
+  type RelationToReference,
+} from './directory-relation.ts'
+export {
+  MAX_SESSION_DEPTH,
+  childRecorded,
+  judgeStanding,
+  relatedOf,
+  relatedSessionOf,
+  standingOf,
+  type ChildRecord,
+  type RelatedSession,
+} from './standing.ts'
+export { workspaceSelection, type WorkspaceSelection } from './workspace-selection.ts'
 export { cancellationDriveOf, runCancelledBy } from './decision-support.ts'
 export { batchEvidence } from './batch-evidence.ts'
 export {
@@ -422,3 +444,15 @@ export {
   type PendingPage,
   type WaitingCall,
 } from './intake-reads.ts'
+export {
+  createBeforeIntakeRegistry,
+  judgeIntakeBlocks,
+  originalContent,
+  screenInput,
+  type BeforeIntakeRegistry,
+  type IntakeBlockRefusal,
+  type IntakeProcessor,
+  type IntakeScreening,
+  type IntakeVerdict,
+  type Screened,
+} from './before-intake.ts'

@@ -159,6 +159,23 @@ function commitLedger(facts: LedgerFacts, port: ParticipantPort): ParticipantRep
           write.key,
         ])
         break
+      case 'usage':
+        port.execute(
+          `INSERT INTO tl_usage (tenant, call, started_at, consumer_owner, consumer_work, fact)
+           VALUES (?, ?, ?, ?, ?, ?)
+           ON CONFLICT (tenant, call) DO UPDATE SET started_at = excluded.started_at,
+             consumer_owner = excluded.consumer_owner, consumer_work = excluded.consumer_work,
+             fact = excluded.fact`,
+          [
+            facts.tenant,
+            write.call,
+            write.start,
+            write.owner,
+            write.work,
+            JSON.stringify(write.fact),
+          ],
+        )
+        break
       default: {
         const exhaustive: never = write
         return exhaustive

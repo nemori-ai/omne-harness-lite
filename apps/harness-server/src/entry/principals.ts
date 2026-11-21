@@ -20,7 +20,7 @@ import {
   SessionInternalPrincipalsService,
   sessionPrincipalsKey,
 } from '@omne-harness/session-cordis-contract/cordis'
-import { SESSION_MAINTAINER_COMPONENT } from '../rows/authorization/grants.ts'
+import { DISPATCH_COMPONENT, SESSION_MAINTAINER_COMPONENT } from '../rows/authorization/grants.ts'
 import { SESSION_WORK_OWNER } from '../rows/authorization/principals.ts'
 import { SESSION_WORK_COMPONENT } from '../rows/tool-runtime/session-work.ts'
 import type { EntryEnv, EntryObjectModule } from '../types.ts'
@@ -34,6 +34,7 @@ export const ENTRY_COMPONENTS = Object.freeze({
   sessionModes: 'sessionModesPrincipals',
   toolDecisions: 'toolDecisions',
   tenantScope: 'tenantScopePrincipals',
+  dispatch: DISPATCH_COMPONENT,
 })
 
 type EntryPrincipals = Readonly<{
@@ -47,6 +48,7 @@ type EntryPrincipals = Readonly<{
   sessionModesActor: SystemPrincipal
   toolDecisionsActor: SystemPrincipal
   tenantScopeActor: SystemPrincipal
+  dispatchActor: SystemPrincipal
 }>
 
 function issueSystem(issuer: PrincipalIssuer, component: string): SystemPrincipal {
@@ -71,6 +73,7 @@ function createEntryPrincipals(): EntryPrincipals {
     sessionModesActor: issueSystem(issuer, ENTRY_COMPONENTS.sessionModes),
     toolDecisionsActor: issueSystem(issuer, ENTRY_COMPONENTS.toolDecisions),
     tenantScopeActor: issueSystem(issuer, ENTRY_COMPONENTS.tenantScope),
+    dispatchActor: issueSystem(issuer, ENTRY_COMPONENTS.dispatch),
   })
 }
 
@@ -152,6 +155,11 @@ export function toolDecisionsIssuerOf(env: EntryEnv) {
     })
     return 'ok' in result ? result.ok : undefined
   }
+}
+
+/** The system principal dispatch works as: it holds the three purposes of a part of another domain. */
+export function dispatchPrincipalOf(env: EntryEnv): SystemPrincipal {
+  return principalsOf(env).dispatchActor
 }
 
 export type SessionWorkIssue = (

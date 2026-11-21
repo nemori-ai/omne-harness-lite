@@ -1,0 +1,365 @@
+import { describe, expect, it } from 'vitest'
+import {
+  CONFIG,
+  T1,
+  T2,
+  digestOf,
+  failureOf,
+  ok,
+  pdf,
+  png,
+  tenantText,
+  wav,
+  world,
+} from './world.ts'
+
+const IMAGE = png(4, 3, 7)
+
+describe('an upload session (T2)', () => {
+  it('begin refuses a size over the limit of the medium, and says the limit', async () => {
+    const w = world()
+    expect(
+      await w.media.uploads.begin({ tenant: T1, upload: 'big', mediaType: 'image/png', bytes: 65 }),
+    ).toEqual({ failure: { kind: 'too-large', limit: 64 } })
+    expect(failureOf(await w.media.uploads.status({ tenant: T1, upload: 'big' }))).toBe('not-found')
+  })
+
+  it('begin refuses a type it does not take, a bad upload name and a bad size', async () => {
+    const w = world()
+    const begin = (upload: string, mediaType: string, bytes: number) =>
+      w.media.uploads.begin({ tenant: T1, upload, mediaType, bytes })
+    expect(failureOf(await begin('a', 'video/mp4', 4))).toBe('unsupported-type')
+    expect(await begin('has space', 'image/png', 4)).toEqual({
+      failure: { kind: 'invalid', field: 'upload' },
+    })
+    for (const bytes of [0, -1, 1.5])
+      expect(await begin('a', 'image/png', bytes)).toEqual({
+        failure: { kind: 'invalid', field: 'bytes' },
+      })
+  })
+
+  it('an append past the next sequence is refused as a gap, with the next sequence', async () => {
+    const w = world()
+    ok(await w.media.uploads.begin({ tenant: T1, upload: 'u', mediaType: 'image/png', bytes: 11 }))
+    expect(
+      await w.media.uploads.append({
+        tenant: T1,
+        upload: 'u',
+        sequence: 1,
+        part: IMAGE.subarray(8),
+      }),
+    ).toEqual({ failure: { kind: 'gap', nextSequence: 0 } })
+  })
+
+  it('an append larger than a part is refused, with the size of a part', async () => {
+    const w = world()
+    ok(await w.media.uploads.begin({ tenant: T1, upload: 'u', mediaType: 'image/png', bytes: 11 }))
+    expect(
+      await w.media.uploads.append({ tenant: T1, upload: 'u', sequence: 0, part: IMAGE }),
+    ).toEqual({ failure: { kind: 'part-too-large', limit: 8 } })
+  })
+
+  it('after an append whose answer was lost, the status says where to go on', async () => {
+    const w = world()
+    await w.upload(T1, 'u', IMAGE)
+    expect(ok(await w.media.uploads.status({ tenant: T1, upload: 'u' }))).toEqual({
+      kind: 'uploading',
+      ticket: { upload: 'u', nextSequence: 2, partBytes: 8 },
+    })
+  })
+
+  it('a commit with a digest other than the one of the bytes is refused and the medium deleted', async () => {
+    const w = world()
+    await w.upload(T1, 'u', IMAGE)
+    expect(
+      failureOf(await w.media.uploads.commit({ tenant: T1, upload: 'u', digest: 'sha256:other' })),
+    ).toBe('digest-mismatch')
+    expect(await w.liveKeys()).toEqual([])
+    expect(ok(await w.index.listDeleting(tenantText(T1), 10))).toEqual([])
+    expect(failureOf(await w.media.uploads.status({ tenant: T1, upload: 'u' }))).toBe('not-found')
+  })
+
+  it('a commit whose answer was lost is committed again and recalls the same reference', async () => {
+    const w = world()
+    const first = await w.staged(T1, 'u', IMAGE)
+    const again = ok(
+      await w.media.uploads.commit({ tenant: T1, upload: 'u', digest: digestOf(IMAGE) }),
+    )
+    expect(again).toEqual(first)
+    expect(
+      failureOf(await w.media.uploads.commit({ tenant: T1, upload: 'u', digest: 'sha256:other' })),
+    ).toBe('digest-mismatch')
+    expect(ok(await w.media.uploads.status({ tenant: T1, upload: 'u' }))).toEqual({
+      kind: 'committed',
+      committed: first,
+    })
+  })
+
+  it('bytes that show another type than the one declared are refused and deleted', async () => {
+    const w = world()
+    const text = pdf('not a png')
+    await w.upload(T1, 'u', text, 'image/png')
+    expect(
+      failureOf(await w.media.uploads.commit({ tenant: T1, upload: 'u', digest: digestOf(text) })),
+    ).toBe('type-mismatch')
+    expect(await w.liveKeys()).toEqual([])
+  })
+
+  it('an image over the budget of the codec is refused and deleted', async () => {
+    const w = world()
+    const huge = png(201, 1)
+    await w.upload(T1, 'u', huge)
+    expect(
+      failureOf(await w.media.uploads.commit({ tenant: T1, upload: 'u', digest: digestOf(huge) })),
+    ).toBe('over-budget')
+    expect(await w.liveKeys()).toEqual([])
+  })
+
+  it('a file is staged with the facts of a file', async () => {
+    const w = world()
+    const text = pdf('a page')
+    expect((await w.staged(T1, 'doc', text, 'application/pdf')).facts).toEqual({ kind: 'file' })
+  })
+})
+
+describe('what an upload is found to be', () => {
+  const begin = (w: ReturnType<typeof world>, bytes: number, mediaType = 'image/png') =>
+    w.media.uploads.begin({ tenant: T1, upload: 'u', mediaType, bytes })
+
+  it('begin takes one byte and takes exactly the limit of the medium', async () => {
+    expect(ok(await begin(world(), 1)).kind).toBe('uploading')
+    expect(ok(await begin(world(), CONFIG.maxBytes.image)).kind).toBe('uploading')
+  })
+
+  it('a voice is staged with its duration, its sample rate and its channels', async () => {
+    const w = world()
+    const sound = wav(16)
+    expect((await w.staged(T1, 'voice', sound, 'audio/wav')).facts).toEqual({
+      kind: 'voice',
+      durationMs: 2,
+      sampleRate: 8000,
+      channels: 1,
+    })
+  })
+
+  it.each([
+    ['a file declared for the bytes of an image', png(4, 3), 'application/pdf'],
+    ['a voice with no sound in it', wav(16, false), 'audio/wav'],
+    ['an image that names its type and does not decode', png(4, 255), 'image/png'],
+  ])('%s is refused as another type than declared, and deleted', async (_, bytes, mediaType) => {
+    const w = world()
+    await w.upload(T1, 'u', bytes, mediaType)
+    expect(
+      await w.media.uploads.commit({ tenant: T1, upload: 'u', digest: digestOf(bytes) }),
+    ).toEqual({ failure: { kind: 'type-mismatch' } })
+    expect(await w.liveKeys()).toEqual([])
+    expect(failureOf(await w.media.uploads.status({ tenant: T1, upload: 'u' }))).toBe('not-found')
+  })
+
+  it('a tenant that is no tenant identity is a fault of the caller, not an answer', async () => {
+    const w = world()
+    await expect(
+      w.media.uploads.begin({
+        tenant: {} as never,
+        upload: 'u',
+        mediaType: 'image/png',
+        bytes: 11,
+      }),
+    ).rejects.toThrow('the tenant is not a tenant identity')
+  })
+})
+
+describe('the same bytes twice', () => {
+  it('of one tenant: the second upload gets the reference of the first, and one object stays', async () => {
+    const w = world()
+    const first = await w.staged(T1, 'one', IMAGE)
+    const second = await w.staged(T1, 'two', IMAGE)
+    expect(second).toEqual(first)
+    expect(await w.liveKeys()).toEqual([first.ref.key])
+    expect(ok(await w.index.listDeleting(tenantText(T1), 10))).toEqual([])
+    expect(ok(await w.media.uploads.status({ tenant: T1, upload: 'two' }))).toEqual({
+      kind: 'committed',
+      committed: first,
+    })
+  })
+
+  it('of one tenant, committed at the same moment: both get one reference (ME-6)', async () => {
+    const w = world()
+    await w.upload(T1, 'one', IMAGE)
+    await w.upload(T1, 'two', IMAGE)
+    const [a, b] = await Promise.all(
+      ['one', 'two'].map(upload =>
+        w.media.uploads.commit({ tenant: T1, upload, digest: digestOf(IMAGE) }),
+      ),
+    )
+    expect(ok(a!).ref).toEqual(ok(b!).ref)
+    expect(await w.liveKeys()).toEqual([ok(a!).ref.key])
+  })
+
+  it('of two tenants: each gets its own object, and neither reaches the other one (C9, ME-5)', async () => {
+    const w = world()
+    const mine = await w.staged(T1, 'same', IMAGE)
+    const theirs = await w.staged(T2, 'same', IMAGE)
+    expect(theirs.ref.key).not.toBe(mine.ref.key)
+    expect(theirs.ref.digest).toBe(mine.ref.digest)
+    expect(await w.liveKeys()).toHaveLength(2)
+    const asOther = { tenant: T2, ref: mine.ref }
+    expect(await w.media.variants.open({ ...asOther, target: null })).toEqual({
+      failure: { kind: 'invalid-reference' },
+    })
+    expect(await w.media.reads.page({ ...asOther, offset: 0, limit: 8, target: null })).toEqual({
+      failure: { kind: 'invalid-reference' },
+    })
+    expect(await w.media.custody.describe(asOther)).toEqual({
+      failure: { kind: 'invalid-reference' },
+    })
+    expect(
+      await w.media.custody.hold({
+        ...asOther,
+        holder: { owner: 's', work: 'w', position: '1', purpose: 'p' },
+      }),
+    ).toEqual({ failure: { kind: 'invalid-reference' } })
+    expect(ok(await w.index.readLive(mine.ref.key, tenantText(T1))).holderCount).toBe(0)
+    expect(failureOf(await w.media.uploads.status({ tenant: T2, upload: 'one' }))).toBe('not-found')
+  })
+})
+
+describe('a port that does not answer', () => {
+  it('an index that is unavailable makes the operation unavailable, not refused', async () => {
+    const w = world()
+    w.faults.index = 'unavailable'
+    expect(
+      await w.media.uploads.begin({ tenant: T1, upload: 'u', mediaType: 'image/png', bytes: 11 }),
+    ).toEqual({ failure: { kind: 'unavailable', dependency: 'index' } })
+    expect(await w.media.uploads.status({ tenant: T1, upload: 'u' })).toEqual({
+      failure: { kind: 'unavailable', dependency: 'index' },
+    })
+  })
+
+  it('an index that does not know whether its write took effect makes the outcome unknown', async () => {
+    const w = world()
+    w.faults.index = 'unknown'
+    expect(
+      await w.media.uploads.begin({ tenant: T1, upload: 'u', mediaType: 'image/png', bytes: 11 }),
+    ).toEqual({ failure: { kind: 'outcome-unknown' } })
+    w.faults.index = null
+    expect(failureOf(await w.media.uploads.status({ tenant: T1, upload: 'u' }))).toBe('not-found')
+  })
+  const begun = async () => {
+    const w = world()
+    ok(
+      await w.media.uploads.begin({
+        tenant: T1,
+        upload: 'u',
+        mediaType: 'image/png',
+        bytes: IMAGE.byteLength,
+      }),
+    )
+    const part = (sequence: number) =>
+      w.media.uploads.append({
+        tenant: T1,
+        upload: 'u',
+        sequence,
+        part: IMAGE.subarray(sequence * 8, sequence * 8 + 8),
+      })
+    const commit = () =>
+      w.media.uploads.commit({ tenant: T1, upload: 'u', digest: digestOf(IMAGE) })
+    return { w, part, commit }
+  }
+  const storeOff = { failure: { kind: 'unavailable', dependency: 'store' } }
+  const unknown = { failure: { kind: 'outcome-unknown' } }
+
+  it('a store that is off while a write begins: unavailable, and the same upload goes on once it is back', async () => {
+    const w = world()
+    const begin = () =>
+      w.media.uploads.begin({ tenant: T1, upload: 'u', mediaType: 'image/png', bytes: 11 })
+    w.faults.methods.set('begin', 'unavailable')
+    expect(await begin()).toEqual(storeOff)
+    w.faults.methods.clear()
+    expect(ok(await begin())).toMatchObject({ kind: 'uploading', ticket: { nextSequence: 0 } })
+  })
+
+  it('an index that cannot record the write of an upload: the answer says whether it may have', async () => {
+    for (const [fault, answer] of [
+      ['unavailable', { failure: { kind: 'unavailable', dependency: 'index' } }],
+      ['unknown', unknown],
+    ] as const) {
+      const w = world()
+      w.faults.methods.set('attachWrite', fault)
+      expect(
+        await w.media.uploads.begin({ tenant: T1, upload: 'u', mediaType: 'image/png', bytes: 11 }),
+      ).toEqual(answer)
+    }
+  })
+
+  it('an index that cannot be read after the row was written: unavailable', async () => {
+    const w = world()
+    w.faults.methods.set('readUpload', 'unavailable')
+    expect(
+      await w.media.uploads.begin({ tenant: T1, upload: 'u', mediaType: 'image/png', bytes: 11 }),
+    ).toEqual({ failure: { kind: 'unavailable', dependency: 'index' } })
+  })
+
+  it('a part for an upload whose write could not be opened: unavailable while the store is off', async () => {
+    const w = world()
+    w.faults.methods.set('begin', 'unavailable')
+    await w.media.uploads.begin({ tenant: T1, upload: 'u', mediaType: 'image/png', bytes: 11 })
+    const part = () =>
+      w.media.uploads.append({ tenant: T1, upload: 'u', sequence: 0, part: IMAGE.subarray(0, 8) })
+    expect(await part()).toEqual(storeOff)
+    w.faults.methods.clear()
+    expect(await part()).toEqual({ ok: { nextSequence: 1 } })
+  })
+
+  it('an abandon while the index is off: unavailable, not done', async () => {
+    const { w } = await begun()
+    w.faults.index = 'unavailable'
+    expect(await w.media.uploads.abandon({ tenant: T1, upload: 'u' })).toEqual({
+      failure: { kind: 'unavailable', dependency: 'index' },
+    })
+  })
+
+  it('a store that is off while a part is appended: unavailable, and the same part goes through once it is back', async () => {
+    const { w, part } = await begun()
+    w.faults.methods.set('append', 'unavailable')
+    expect(await part(0)).toEqual(storeOff)
+    w.faults.methods.clear()
+    expect(await part(0)).toEqual({ ok: { nextSequence: 1 } })
+  })
+
+  it('an index that does not know whether a part advanced: unknown, and the same part again is not taken twice', async () => {
+    const { w, part, commit } = await begun()
+    w.faults.methods.set('advance', 'unknown')
+    expect(await part(0)).toEqual(unknown)
+    w.faults.methods.set('advance', 'unavailable')
+    expect(await part(0)).toEqual({ failure: { kind: 'unavailable', dependency: 'index' } })
+    w.faults.methods.clear()
+    expect(await part(0)).toEqual({ ok: { nextSequence: 1 } })
+    expect(await part(1)).toEqual({ ok: { nextSequence: 2 } })
+    expect(ok(await commit()).ref.digest).toBe(digestOf(IMAGE))
+  })
+
+  it.each(['seal', 'open'])(
+    'a store whose %s is off while an upload is committed: unavailable, and the commit goes through once it is back',
+    async method => {
+      const { w, part, commit } = await begun()
+      ok(await part(0))
+      ok(await part(1))
+      w.faults.methods.set(method, 'unavailable')
+      expect(await commit()).toEqual(storeOff)
+      w.faults.methods.clear()
+      expect(ok(await commit()).ref.digest).toBe(digestOf(IMAGE))
+    },
+  )
+
+  it('an index that does not know whether the medium was staged: unknown, and the commit again answers the reference', async () => {
+    const { w, part, commit } = await begun()
+    ok(await part(0))
+    ok(await part(1))
+    w.faults.methods.set('stageOrMerge', 'unknown')
+    expect(await commit()).toEqual(unknown)
+    w.faults.methods.clear()
+    expect(ok(await commit()).ref.digest).toBe(digestOf(IMAGE))
+    expect(await w.liveKeys()).toHaveLength(1)
+  })
+})

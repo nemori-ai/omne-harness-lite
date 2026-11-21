@@ -11,8 +11,15 @@ type Trusted = Extract<Awaited<ReturnType<typeof loadProductionRelease>>, { kind
 
 // Definitions do not depend on construction values (the release script proves it); any legal one serves.
 const CONSTRUCTION: Readonly<Record<string, unknown>> = {
-  Shell: { resultMaxBytes: 1, executable: 'probe', argsPrefix: [], cwd: 'probe', env: {} },
-  Files: { resultMaxBytes: 1, cwd: '/probe' },
+  Shell: { resultMaxBytes: 1, executable: 'probe', argsPrefix: [], env: {} },
+  Files: {
+    resultMaxBytes: 1,
+    openMaxBytes: 1,
+    imageMaxWidth: 1,
+    imageMaxHeight: 1,
+    imageMaxDecodedBytes: 1,
+    imageConcurrency: 1,
+  },
   Tools: { resultMaxBytes: 4096, outputModalities: ['text'] },
   TodoItems: { resultMaxBytes: 4096 },
   BkgToolCalls: { resultMaxBytes: 4096 },
@@ -23,6 +30,16 @@ const CONSTRUCTION: Readonly<Record<string, unknown>> = {
   Schedules: { resultMaxBytes: 64 },
   Notifications: { resultMaxBytes: 64 },
   Sessions: { resultMaxBytes: 4096 },
+  Agents: { resultMaxBytes: 4096 },
+  SwitchWorkspace: { resultMaxBytes: 4096 },
+  Screen: {
+    resultMaxBytes: 4096,
+    captureMaxLongSide: 2048,
+    imageMaxWidth: 4096,
+    imageMaxHeight: 4096,
+    imageMaxDecodedBytes: 67_108_864,
+    imageConcurrency: 2,
+  },
 }
 
 function definitionOf(release: Trusted, entry: ToolReleaseManifest['entries'][number]) {

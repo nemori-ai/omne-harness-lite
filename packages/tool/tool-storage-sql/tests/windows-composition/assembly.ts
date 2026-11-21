@@ -211,7 +211,7 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
       TEMP: stateDirectory,
       TMP: stateDirectory,
     }
-    const authors = createAuthors(fixedRoot, executable, env, RESULT_MAX_BYTES)
+    const authors = createAuthors(executable, env, RESULT_MAX_BYTES)
     const sources = createLocalInvocationSource({
       store,
       authority: authority.sourceAuthority,
@@ -240,7 +240,6 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
     })
     const provider = createHostFilesProvider({
       domain,
-      filesRoot: fixedRoot,
       stateDirectory,
       drainBoundMs: 20_000,
       command: {
@@ -606,6 +605,7 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
             inputCompatible: true,
             outputCompatible: true,
             attachmentsReadable: true,
+            productsStorable: true,
           })
         },
       },
@@ -784,6 +784,8 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
           revision: '1',
         }),
         workspace: null,
+        // The files root of the placement and the default directory of the author are this one value.
+        directory: { path: fixedRoot, workspace: null },
         requesterScope: authority.scope,
         resources: [],
         scope: scopeGrant,

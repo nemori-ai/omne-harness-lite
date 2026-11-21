@@ -2,7 +2,7 @@
 id: PD-model-invocation
 title: 模型调用
 status: accepted
-revision: 5
+revision: 6
 relations:
   supersedes: []
   depends-on: []
@@ -11,7 +11,7 @@ relations:
 
 # 模型调用
 
-本 topic 的产品设计已正式接受。会话内工具名称与参数形状一致的约束依据 [#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6314971717)写回，产品负责人已于 2026-10-22 接受该写回，见[#618 的接受决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6335123860)。凭据挂在模型供应商资产的秘密设置项上、按整层选定的写法（rev 4）由产品负责人于 2026-11-10 接受。本域现有非 pi-ai 技术设计也已接受；pi-ai 相关细化仍为候选。精确技术范围由各技术拥有者正文维护。
+本 topic 的产品设计已正式接受。会话内工具名称与参数形状一致的约束依据 [#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6314971717)写回，产品负责人已于 2026-10-22 接受该写回，见[#618 的接受决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6335123860)。凭据挂在模型供应商资产的秘密设置项上、按整层选定的写法（rev 4）由产品负责人于 2026-11-10 接受。多模态的转换与转换件移交[媒体](../media/README.md)、档案写明原生读得了的文件类型的写法（rev 6）由产品负责人于 2026-11-20 确认。本域现有非 pi-ai 技术设计也已接受；pi-ai 相关细化仍为候选。精确技术范围由各技术拥有者正文维护。
 
 ## 阅读入口
 

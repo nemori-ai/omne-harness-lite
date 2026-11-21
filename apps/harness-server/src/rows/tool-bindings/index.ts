@@ -34,6 +34,8 @@ import { bindReleaseCalendar } from './calendar.ts'
 import { attachReleaseScheduleReads, bindReleaseSchedules } from './schedules.ts'
 import { bindReleaseNotifications } from './notifications.ts'
 import { bindReleaseSessions } from './sessions.ts'
+import { bindReleaseAgents } from './agents.ts'
+import { bindReleaseSwitchWorkspace } from './switch-workspace.ts'
 
 export const toolBindingsConfig = z
   .strictObject({ tools: toolsCapabilityConfig.optional(), web: webBindingConfig.optional() })
@@ -47,6 +49,8 @@ const DOMAIN_TOOLS = [
   ['Schedules', bindReleaseSchedules],
   ['Notifications', bindReleaseNotifications],
   ['Sessions', bindReleaseSessions],
+  ['Agents', bindReleaseAgents],
+  ['SwitchWorkspace', bindReleaseSwitchWorkspace],
 ] as const
 type Attachments = Readonly<{
   tools: ReturnType<typeof createReleaseToolsCapability> | null

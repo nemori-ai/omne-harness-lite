@@ -19,6 +19,14 @@ export type LedgerWriteFact =
   | Readonly<{ op: 'schedule'; key: string; dueAt: string }>
   | Readonly<{ op: 'unschedule'; key: string }>
   | Readonly<{ op: 'drop' }>
+  | Readonly<{
+      op: 'usage'
+      call: string
+      start: string | null
+      owner: string
+      work: string
+      fact: JsonValue
+    }>
 
 export type LedgerAssertionFact = Readonly<{ kind: DomainKind; name: string; revision: string }>
 
@@ -96,6 +104,22 @@ export type PendingReadOutput = Readonly<{ calls: readonly string[]; more: boole
 
 export const PENDING_READ_LIMIT = 1000
 
+export type UsageReadInput = Readonly<{
+  tenant: string
+  from: string | null
+  to: string | null
+  owner: string | null
+  works: readonly string[]
+  order: 'ascending' | 'descending'
+  afterStart: string | null
+  afterCall: string | null
+  limit: number
+}>
+
+export type UsageReadOutput = Readonly<{ undated: number; facts: readonly string[] }>
+
+export const USAGE_READ_LIMIT = 500
+
 export type BodyReadInput = BodyAddress & Readonly<{ first: number; count: number }>
 
 export type BodyReadOutput = Readonly<{
@@ -129,9 +153,22 @@ function fixedOf(value: JsonValue | undefined): FixedPart | null {
   return value['kind'] === 'given' && given !== undefined ? { kind: 'given', value: given } : null
 }
 
+function usageWriteOf(value: Readonly<Record<string, JsonValue>>): LedgerWriteFact | null {
+  const call = textOf(value, 'call')
+  const start = value['start'] === null ? null : textOf(value, 'start')
+  const owner = textOf(value, 'owner')
+  const work = textOf(value, 'work')
+  const fact = value['fact']
+  if (call === null || owner === null || work === null || fact === undefined) return null
+  return start === null && value['start'] !== null
+    ? null
+    : { op: 'usage', call, start, owner, work, fact }
+}
+
 function writeOf(value: JsonValue): LedgerWriteFact | null {
   if (!isObject(value)) return null
   if (value['op'] === 'drop') return { op: 'drop' }
+  if (value['op'] === 'usage') return usageWriteOf(value)
   const key = textOf(value, 'key')
   if (key === null) return null
   switch (value['op']) {
@@ -316,4 +353,39 @@ export function parseDueReadInput(value: JsonValue): DueReadInput | null {
   const now = textOf(value, 'now')
   const limit = countOf(value, 'limit')
   return tenant === null || now === null || limit === null ? null : { tenant, now, limit }
+}
+
+export function parseUsageInput(value: JsonValue): UsageReadInput | null {
+  if (!isObject(value)) return null
+  const nullable = (name: string): string | null | undefined =>
+    value[name] === null ? null : (textOf(value, name) ?? undefined)
+  const tenant = textOf(value, 'tenant')
+  const [from, to, owner, afterStart, afterCall] = [
+    'from',
+    'to',
+    'owner',
+    'afterStart',
+    'afterCall',
+  ].map(nullable)
+  const works = value['works']
+  const order = value['order']
+  const limit = countOf(value, 'limit')
+  if (
+    tenant === null ||
+    from === undefined ||
+    to === undefined ||
+    owner === undefined ||
+    afterStart === undefined ||
+    afterCall === undefined ||
+    (from === null) !== (to === null) ||
+    (afterStart === null) !== (afterCall === null) ||
+    !Array.isArray(works) ||
+    !works.every(work => typeof work === 'string') ||
+    (order !== 'ascending' && order !== 'descending') ||
+    limit === null ||
+    limit < 1 ||
+    limit > USAGE_READ_LIMIT
+  )
+    return null
+  return { tenant, from, to, owner, works, order, afterStart, afterCall, limit }
 }

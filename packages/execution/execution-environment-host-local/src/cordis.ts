@@ -8,6 +8,7 @@ import {
 import {
   commandFacility,
   filesFacility,
+  screenFacility,
   terminalFacility,
   type EnvironmentAuthority,
   type EnvironmentProvider,
@@ -18,6 +19,7 @@ import {
   type RecoveryAuthority,
 } from '@omne-harness/execution-environment-contract'
 import type { ScopeBindingSource } from '@omne-harness/runtime-context-contract'
+import { screenBackendFor, type ScreenBackend } from '@omne-harness/screen'
 import {
   ExecutionEnvironmentService,
   executionEnvironmentAuthorityKey,
@@ -29,6 +31,7 @@ import { commandOptionsIssue, type HostCommandOptions } from './host-command.ts'
 import { terminalSettings, type HostTerminalOptions } from './host-terminal.ts'
 import type { HostFilesDomain } from './host-domain.ts'
 import { createHostFilesProvider, type HostFilesProviderOptions } from './host-provider.ts'
+import { offeredScreen } from './host-screen.ts'
 
 type EmptyConfig = {
   readonly '~standard': {
@@ -56,7 +59,6 @@ const emptyConfig: EmptyConfig = {
 export type HostFilesConfig = Readonly<
   {
     drainBoundMs?: number
-    filesRoot?: string
     stateDirectory?: string
     terminal?: HostTerminalOptions
   } & HostCommandOptions
@@ -87,7 +89,7 @@ const commandFields = [
   'probeRetryMs',
 ] as const
 const residueNumberFields = ['retainedPerScope', 'retainedPollMs', 'retainedOutputBytes'] as const
-const pathFields = ['filesRoot', 'stateDirectory'] as const
+const pathFields = ['stateDirectory'] as const
 const numberFields = ['drainBoundMs', ...commandFields, ...residueNumberFields] as const
 const hostFields: readonly string[] = [...numberFields, ...pathFields, 'terminal', 'residuePolicy']
 const terminalFields = [
@@ -316,12 +318,27 @@ export const terminalFacilityPlugin = {
   },
 }
 
+export const screenFacilityPlugin = {
+  name: 'screenFacility',
+  Config: emptyConfig,
+  inject: { [executionEnvironmentKey]: { caller: 'provider' } },
+  apply(ctx: Context) {
+    ctx.executionEnvironment.registerFacility(screenFacility)
+  },
+}
+
+export type HostFilesExtras = Readonly<{ screen?: ScreenBackend }>
+
+/** The screen backend of the system this process runs on, if the host is to offer `screen`. */
+export const hostScreen = (platform: NodeJS.Platform = process.platform) =>
+  offeredScreen(() => screenBackendFor(platform))
+
 export function createHostFilesPlugin(domain: HostFilesDomain) {
   return {
     name: 'hostFiles',
     Config: hostFilesConfig,
     inject: { [executionEnvironmentKey]: { caller: 'provider' } },
-    apply(ctx: Context, config: HostFilesConfig = {}) {
+    apply(ctx: Context, config: HostFilesConfig = {}, extras: HostFilesExtras = {}) {
       const logger = ctx.logger('executionEnvironment.hostFiles')
       const options: HostFilesProviderOptions = {
         domain,
@@ -329,8 +346,8 @@ export function createHostFilesPlugin(domain: HostFilesDomain) {
         command: commandOptionsOf(config),
         ...(config.terminal === undefined ? {} : { terminal: config.terminal }),
         ...(config.drainBoundMs === undefined ? {} : { drainBoundMs: config.drainBoundMs }),
-        ...(config.filesRoot === undefined ? {} : { filesRoot: config.filesRoot }),
         ...(config.stateDirectory === undefined ? {} : { stateDirectory: config.stateDirectory }),
+        ...(extras.screen === undefined ? {} : { screen: extras.screen }),
       }
       return ctx.executionEnvironment.registerProvider(createHostFilesProvider(options))
     },

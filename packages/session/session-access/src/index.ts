@@ -17,9 +17,12 @@ export type {
   RunFailureReading,
   SessionAccessFaces,
   SessionAccessSettings,
+  ListFilters,
   SessionListEntry,
   SessionListing,
   SessionListPage,
   SessionPermissionModes,
   TargetTenantPrincipals,
+  WorkspaceTargetCheck,
+  WorkspaceTargets,
 } from './ports.ts'

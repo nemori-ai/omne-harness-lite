@@ -1,5 +1,6 @@
+import type { BodyContract, Candidate } from '@omne-harness/assets'
 import { tenantLayerSource, type AssetsLocal } from '@omne-harness/assets-local'
-import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
+import { tenantCodec, type Access, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { createSkillAccess, createSkillCatalog } from '@omne-harness/skill'
 import type { SkillAccess, SkillCatalog } from '@omne-harness/skill-contract'
@@ -8,13 +9,28 @@ import {
   createSkillDecisions,
   skillInputsFromAssets,
   type PackageDirectoryOf,
+  type PackageReaderOf,
+  type VersionBody,
 } from '@omne-harness/skill-host-local'
+import {
+  workspaceBody,
+  workspaceLayerSource,
+  workspaceReader,
+  type WorkspaceLayerInput,
+} from '@omne-harness/workspace-asset-source'
+import type { WorkspaceSources } from '@omne-harness/workspace-contract'
 import type { RankingParameters } from '@omne-harness/text-search'
 import { sessionWorkOf } from '../tool-runtime/session-work.ts'
 
 export type TenantSkills = Readonly<{
   catalog: SkillCatalog<unknown, unknown>
   access: SkillAccess<unknown, unknown>
+}>
+
+/** Where a turn's workspace layer comes from, looked up at each call. */
+export type WorkspaceSkillPorts = Readonly<{
+  sources(): WorkspaceSources<unknown> | undefined
+  contractOf(category: string): BodyContract | undefined
 }>
 
 export type TenantSkillsHostOptions = Readonly<{
@@ -38,12 +54,31 @@ export function directoryOf(assets: Pick<AssetsLocal, 'packages'>): PackageDirec
   }
 }
 
-export function tenantSkills(
-  assets: AssetsLocal,
-  tenant: TenantId,
-  ranking: RankingParameters,
-): TenantSkills {
-  const fromAssets = skillInputsFromAssets<unknown, unknown>({
+const ABSENT = Object.freeze({
+  kind: 'unavailable',
+  diagnostic: 'workspace sources absent',
+} as const)
+const ABSENT_SOURCES: Pick<WorkspaceSources<unknown>, 'adopted' | 'open'> = {
+  adopted: async () => ABSENT,
+  open: async () => ABSENT,
+}
+
+/** The key of the turn a call is made in; the workspace layer reads what that turn adopted. */
+function keyOf(scope: unknown): string | null {
+  const key = (scope as { key?: unknown } | null)?.key
+  return typeof key === 'string' ? key : null
+}
+
+const inWorkspace = (ref: string) => ref.startsWith('workspace/')
+
+type Layers = Readonly<{
+  sources: Parameters<typeof skillInputsFromAssets>[0]['sources']
+  body: VersionBody
+  readerOf: PackageReaderOf
+}>
+
+function tenantLayers(assets: AssetsLocal): Layers {
+  return {
     sources: [tenantLayerSource(assets)],
     async body(candidate) {
       const read = await assets.readVersion({
@@ -52,21 +87,72 @@ export function tenantSkills(
       })
       return read.kind === 'version' ? read.version.body : undefined
     },
-  })
+    readerOf: ({ ref, digest }) => assets.packages.reader({ assetRef: ref, version: digest }),
+  }
+}
+
+/** A turn's layers: the tenant's, and the workspace's as the turn adopted it. */
+function turnLayers(tenant: Layers, input: WorkspaceLayerInput<unknown>): Layers {
+  const body = workspaceBody(input)
+  const reader = workspaceReader(input)
+  return {
+    sources: [...tenant.sources, workspaceLayerSource(input)],
+    body: (candidate: Candidate) =>
+      inWorkspace(candidate.asset) ? body(candidate) : tenant.body(candidate),
+    readerOf: locator =>
+      inWorkspace(locator.ref)
+        ? reader({ assetRef: locator.ref, version: locator.digest })
+        : tenant.readerOf(locator),
+  }
+}
+
+export function tenantSkills(
+  assets: AssetsLocal,
+  tenant: TenantId,
+  ranking: RankingParameters,
+  workspace: WorkspaceSkillPorts,
+): TenantSkills {
+  const tenantLayer = tenantLayers(assets)
+  const layers = (access: Access<unknown>, scope: unknown): Layers => {
+    const key = keyOf(scope)
+    if (key === null) return tenantLayer
+    const sources = workspace.sources() ?? ABSENT_SOURCES
+    return turnLayers(tenantLayer, { sources, access, key, contractOf: workspace.contractOf })
+  }
+  const inputs = (access: Access<unknown>, scope: unknown) => {
+    const { sources, body } = layers(access, scope)
+    return skillInputsFromAssets<unknown, unknown>({ sources, body })
+  }
   const ownWork = (principal: unknown) => sessionWorkOf(principal, tenant) !== undefined
   const { resolution, readCheck } = createSkillDecisions<unknown, unknown>({
-    layers: fromAssets.layers,
-    identities: fromAssets.identities,
+    layers: (access, scope, capability) => inputs(access, scope).layers(access, scope, capability),
+    identities: (access, scope) => inputs(access, scope).identities(access, scope),
     eligible: async who => (ownWork(who.principal) ? 'yes' : 'no'),
     readable: async who => (ownWork(who.principal) ? GRANTED : REFUSED),
   })
-  const source = createContentStoreSource({
-    readerOf: ({ ref, digest }) => assets.packages.reader({ assetRef: ref, version: digest }),
-    directoryOf: directoryOf(assets),
-  })
+  const directory = directoryOf(assets)
+  const accessOver = (readerOf: PackageReaderOf) =>
+    createSkillAccess({
+      resolution,
+      readCheck,
+      source: createContentStoreSource({
+        readerOf,
+        directoryOf: locator =>
+          inWorkspace(locator.ref) ? Promise.resolve(succeed(null)) : directory(locator),
+      }),
+    })
+  const tenantAccess = accessOver(tenantLayer.readerOf)
+  // A turn's reads go through its own layers; a call that names no turn shares the tenant's.
+  const accessFor = (access: Access<unknown>, scope: unknown) =>
+    keyOf(scope) === null ? tenantAccess : accessOver(layers(access, scope).readerOf)
   return {
     catalog: createSkillCatalog({ resolution, readCheck }, { ranking }),
-    access: createSkillAccess({ resolution, readCheck, source }),
+    access: {
+      read: (access, scope, target, options) =>
+        accessFor(access, scope).read(access, scope, target, options),
+      list: (access, scope, capability, options) =>
+        accessFor(access, scope).list(access, scope, capability, options),
+    },
   }
 }
 

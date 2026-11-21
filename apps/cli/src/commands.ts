@@ -3,7 +3,8 @@ import { identityProtocol } from '@omne-harness/identity-protocol'
 import { encodeTenantText, type TenantId } from '@omne-harness/public-contract'
 import {
   sessionProtocol,
-  userTextMessage,
+  userMessage,
+  type UserAttachment,
   type SessionProtocol,
 } from '@omne-harness/session-protocol'
 import type { BodyOf } from '@omne-harness/sdk/core'
@@ -38,8 +39,11 @@ import { readSessionOwners, writeSessionOwners } from './session-owners.ts'
 import { assetCommand } from './asset-command.ts'
 import { settingCommand } from './setting-command.ts'
 import { calendarCommand } from './calendar-command.ts'
+import { usageCommands } from './usage-command.ts'
 import { scheduleCommand } from './schedule-command.ts'
 import { notificationCommand } from './notification-command.ts'
+import { mediaCommand, readUpload, sendUpload } from './media-command.ts'
+import { workspaceCommand } from './workspace-command.ts'
 import { callsCommand } from './calls-command.ts'
 
 async function runAccount(
@@ -112,8 +116,10 @@ interface SessionContext {
   readonly newId: () => string
 }
 
+type Stop = Readonly<{ usage: string }> | Readonly<{ local: string }>
+
 type Built = {
-  readonly send: (link: Link) => Promise<CallResult | undefined>
+  readonly send: (link: Link) => Promise<CallResult | Stop | undefined>
   readonly echo: RequestEcho
   readonly note?: () => string | null
 }
@@ -122,7 +128,12 @@ interface SessionCommandBase<Parsed> {
   readonly name: string
   readonly accepted: readonly string[]
   readonly required: readonly string[]
-  readonly parse: (values: Option) => Parsed | undefined
+  readonly switches?: readonly string[]
+  readonly repeatable?: readonly string[]
+  readonly parse: (
+    values: Option,
+    lists: ReadonlyMap<string, readonly string[]>,
+  ) => Parsed | undefined
 }
 
 interface CreatingCommand<Parsed> extends SessionCommandBase<Parsed> {
@@ -197,6 +208,15 @@ function recordCreated(
   return 1
 }
 
+const sent = (result: CallResult | Stop | undefined): result is CallResult =>
+  result !== undefined && 'kind' in result
+
+function stopped(name: string, stop: Stop | undefined, output: CliOutput): ExitCode {
+  if (stop === undefined) return usageError(output, unrecognized(name))
+  if ('usage' in stop) return usageError(output, `omne ${name}: ${stop.usage}\n`)
+  return localFailure(output, `omne ${name}: ${stop.local}\n`)
+}
+
 async function runSession<Parsed>(
   command: SessionCommand<Parsed>,
   args: readonly string[],
@@ -204,10 +224,11 @@ async function runSession<Parsed>(
   environment: CommandEnvironment,
 ): Promise<ExitCode> {
   const { name } = command
-  const read = readOptions(args, { accepted: command.accepted, required: command.required })
+  const { accepted, required, switches = [], repeatable = [] } = command
+  const read = readOptions(args, { accepted, required, switches, repeatable })
   if (read.kind === 'unrecognized') return usageError(output, unrecognized(name))
   if (read.kind === 'missing') return usageError(output, missingOption(name, read.option))
-  const parsed = command.parse(read.values)
+  const parsed = command.parse(read.values, read.lists)
   if (parsed === undefined) return usageError(output, unrecognized(name))
 
   const loaded = loadLogin(read.values, output, environment)
@@ -216,7 +237,7 @@ async function runSession<Parsed>(
   if ('exit' in prepared) return prepared.exit
   const { built, owners } = prepared
   const result = await built.send(loaded.link)
-  if (result === undefined) return usageError(output, unrecognized(name))
+  if (!sent(result)) return stopped(name, result, output)
   const code = report(name, result, built.echo, output)
   const note = built.note?.() ?? null
   if (note !== null) output.stderr(`omne ${name}: ${note}\n`)
@@ -228,23 +249,43 @@ async function runSession<Parsed>(
   return recordCreated(name, session, owners, loaded, output) ?? code
 }
 
+type WorkspaceTarget = Readonly<{ workspace: string; instance: string }>
+
+function workspaceOption(values: Option): WorkspaceTarget | null | undefined {
+  const workspace = values.get('--workspace')
+  const instance = values.get('--instance')
+  if (workspace === undefined && instance === undefined) return null
+  return workspace && instance ? { workspace, instance } : undefined
+}
+
 const createSession: CreatingCommand<{
   definition: string
   purpose: string
   model: string | undefined
+  workspace: WorkspaceTarget | null
   createCallId: string | undefined
 }> = {
   kind: 'creating',
   name: 'create-session',
-  accepted: ['--definition', '--purpose', '--model', '--create-call-id', serverOption],
+  accepted: [
+    '--definition',
+    '--purpose',
+    '--model',
+    '--workspace',
+    '--instance',
+    '--create-call-id',
+    serverOption,
+  ],
   required: ['--definition'],
   parse: values => {
     const model = values.get('--model')
-    if (model === '') return undefined
+    const workspace = workspaceOption(values)
+    if (model === '' || workspace === undefined) return undefined
     return {
       definition: values.get('--definition') ?? '',
       purpose: values.get('--purpose') ?? '',
       model,
+      workspace,
       createCallId: values.get('--create-call-id'),
     }
   },
@@ -261,6 +302,7 @@ const createSession: CreatingCommand<{
             definition: parsed.definition,
             purpose: parsed.purpose,
             ...(parsed.model === undefined ? {} : { model: parsed.model }),
+            ...(parsed.workspace === null ? {} : { workspace: parsed.workspace }),
           },
           messageId,
         ),
@@ -284,11 +326,17 @@ function targeted(values: Option): Targeted | undefined {
 type InputCommand = ExistingCommand<
   Omit<Targeted, 'controlId'> & {
     text: string
+    attach: readonly string[]
     model: string | undefined
     acceptId: string | undefined
     inputId: string | undefined
   }
 >
+
+function attachmentKind(mediaType: string): 'image' | 'voice' | 'file' {
+  if (mediaType.startsWith('image/')) return 'image'
+  return mediaType.startsWith('audio/') ? 'voice' : 'file'
+}
 
 // An ordinary input and an urgent one share their body, their queue and their query (C27).
 const inputCommand = (name: 'send-input' | 'interrupt-input'): InputCommand => ({
@@ -297,21 +345,27 @@ const inputCommand = (name: 'send-input' | 'interrupt-input'): InputCommand => (
   accepted: [
     '--session',
     '--text',
+    '--attach',
     '--model',
     '--tenant',
     '--accept-id',
     '--input-id',
     serverOption,
   ],
-  required: ['--session', '--text'],
-  parse: values => {
+  required: ['--session'],
+  repeatable: ['--attach'],
+  parse: (values, lists) => {
     const target = targeted(values)
     const model = values.get('--model')
+    const text = values.get('--text') ?? ''
+    const attach = lists.get('--attach') ?? []
     if (target === undefined || model === '') return undefined
+    if (text === '' && attach.length === 0) return undefined
     return {
       session: target.session,
       tenant: target.tenant,
-      text: values.get('--text') ?? '',
+      text,
+      attach,
       model,
       acceptId: values.get('--accept-id'),
       inputId: values.get('--input-id'),
@@ -324,16 +378,33 @@ const inputCommand = (name: 'send-input' | 'interrupt-input'): InputCommand => (
     const inputId = parsed.inputId ?? newId()
     const { session, model } = parsed
     let unselected = false
+    let refused: string | null = null
     return {
-      // A model is selected first, under a control identity the accept identity gives.
+      // Every file is read before anything is sent; then each is uploaded, a model is selected
+      // under a control identity the accept identity gives, and the message goes last.
       send: async link => {
+        const files = []
+        for (const file of parsed.attach) {
+          const read = await readUpload(file)
+          if (!('file' in read)) return read
+          files.push(read)
+        }
+        const attachments: UserAttachment[] = []
+        for (const read of files) {
+          const { result, ref } = await sendUpload({ link, tenant, newId }, read, newId())
+          if (ref === null) {
+            refused = read.file
+            return result
+          }
+          attachments.push({ kind: attachmentKind(read.mediaType), ref })
+        }
         if (model !== undefined) {
           const select = { tenant, session, controlId: `model:${acceptId}`, model }
           const selected = await link.call(sessionProtocol, 'select-model', select, newId())
           unselected = selected?.kind !== 'response' || selected.outcome !== 'succeeded'
           if (unselected) return selected
         }
-        const message = await userTextMessage(parsed.text, inputId)
+        const message = await userMessage({ inputId, text: parsed.text, attachments })
         return link.call(
           sessionProtocol,
           name,
@@ -342,7 +413,11 @@ const inputCommand = (name: 'send-input' | 'interrupt-input'): InputCommand => (
         )
       },
       echo: { messageId, acceptId, inputId, tenant: encodeTenantText(tenant) },
-      note: () => (unselected ? 'the model was not selected; the input was not sent' : null),
+      note: () => {
+        if (refused !== null)
+          return `the attachment ${refused} was not taken; the input was not sent`
+        return unselected ? 'the model was not selected; the input was not sent' : null
+      },
     }
   },
 })
@@ -538,42 +613,77 @@ type By = NonNullable<ArchivedFilters['by']>
 const BY = ['person', 'auto', 'parent'] as const
 const LIMIT = /^[1-9][0-9]*$/
 
-function archivedFilters(
-  values: Option,
-): (ArchivedFilters & { given: TenantId | undefined }) | undefined {
+type ListFilters = BodyOf<SessionProtocol['operations']['list-sessions']>
+const RELATIONS = ['main', 'child', 'handoff'] as const
+const ATTENDANCES = ['attended', 'unattended'] as const
+const RELATION_OPTIONS = ['--relation', '--parent', '--attendance', '--definition'] as const
+const PAGE_OPTIONS = ['--tenant', '--cursor', '--limit', ...RELATION_OPTIONS] as const
+
+const RELATION_USAGE =
+  '[--relation <kind>] [--parent <id>] [--attendance <who>] [--definition <name>]'
+
+const oneOf = <T extends string>(allowed: readonly T[], value: string | undefined) =>
+  value === undefined ? null : allowed.includes(value as T) ? (value as T) : undefined
+
+const present = <T extends object>(value: T) =>
+  Object.fromEntries(Object.entries(value).filter(([, member]) => member !== undefined)) as {
+    [K in keyof T]?: Exclude<T[K], undefined>
+  }
+
+/** What both lists read alike: the tenant, the page, and the relation filters that were given. */
+function listFilters(values: Option): (ListFilters & { given: TenantId | undefined }) | undefined {
   const given = tenantOption(values)
-  const from = instantOption(values, '--since')
-  const to = instantOption(values, '--before')
-  const by = values.get('--by') ?? null
   const limit = values.get('--limit')
-  if (given === null || from === undefined || to === undefined) return undefined
-  if (by !== null && !BY.includes(by as (typeof BY)[number])) return undefined
+  const relation = oneOf(RELATIONS, values.get('--relation'))
+  const attendance = oneOf(ATTENDANCES, values.get('--attendance'))
+  if (given === null || relation === undefined || attendance === undefined) return undefined
   if (limit !== undefined && !LIMIT.test(limit)) return undefined
   return {
     given,
     tenant: given as TenantId,
     cursor: values.get('--cursor') ?? null,
-    ...(limit === undefined ? {} : { limit: Number(limit) }),
-    from,
-    to,
-    by: by as By | null,
-    titleContains: values.get('--title') ?? null,
+    ...present({
+      limit: limit === undefined ? undefined : Number(limit),
+      relation: relation ?? undefined,
+      parent: values.get('--parent'),
+      attendance: attendance ?? undefined,
+      definition: values.get('--definition'),
+    }),
   }
+}
+
+function archivedFilters(
+  values: Option,
+): (ArchivedFilters & { given: TenantId | undefined }) | undefined {
+  const page = listFilters(values)
+  const from = instantOption(values, '--since')
+  const to = instantOption(values, '--before')
+  const by = values.get('--by') ?? null
+  if (page === undefined || from === undefined || to === undefined) return undefined
+  if (by !== null && !BY.includes(by as (typeof BY)[number])) return undefined
+  return { ...page, from, to, by: by as By | null, titleContains: values.get('--title') ?? null }
+}
+
+const listSessions: TenantCommand<NonNullable<ReturnType<typeof listFilters>>> = {
+  kind: 'tenant',
+  name: 'list-sessions',
+  accepted: [...PAGE_OPTIONS, serverOption],
+  required: [],
+  parse: listFilters,
+  tenant: parsed => parsed.given,
+  build: ({ given: _given, ...filters }, { tenant, newId }) => {
+    const messageId = newId()
+    return {
+      send: link => link.call(sessionProtocol, 'list-sessions', { ...filters, tenant }, messageId),
+      echo: { messageId, tenant: encodeTenantText(tenant) },
+    }
+  },
 }
 
 const listArchivedSessions: TenantCommand<NonNullable<ReturnType<typeof archivedFilters>>> = {
   kind: 'tenant',
   name: 'list-archived-sessions',
-  accepted: [
-    '--tenant',
-    '--cursor',
-    '--limit',
-    '--since',
-    '--before',
-    '--by',
-    '--title',
-    serverOption,
-  ],
+  accepted: [...PAGE_OPTIONS, '--since', '--before', '--by', '--title', serverOption],
   required: [],
   parse: archivedFilters,
   tenant: parsed => parsed.given,
@@ -648,6 +758,37 @@ const selectModel: ExistingCommand<Targeted & { model: string }> = {
   },
 }
 
+const selectWorkspace: ExistingCommand<Targeted & { workspace: WorkspaceTarget | null }> = {
+  kind: 'existing',
+  name: 'select-workspace',
+  accepted: ['--session', '--workspace', '--instance', '--tenant', '--control-id', serverOption],
+  required: ['--session'],
+  switches: ['--none'],
+  parse: values => {
+    const target = targeted(values)
+    const workspace = workspaceOption(values)
+    if (target === undefined || workspace === undefined) return undefined
+    if (values.has('--none') === (workspace !== null)) return undefined
+    return { ...target, workspace }
+  },
+  target: ({ session, tenant }) => ({ session, tenant }),
+  build: (parsed, { owner: tenant, newId }) => {
+    const messageId = newId()
+    const controlId = parsed.controlId ?? newId()
+    const { session, workspace } = parsed
+    return {
+      send: link =>
+        link.call(
+          sessionProtocol,
+          'select-workspace',
+          { tenant, session, controlId, workspace },
+          messageId,
+        ),
+      echo: { messageId, controlId, tenant: encodeTenantText(tenant) },
+    }
+  },
+}
+
 const readModelSelection: ExistingCommand<Targeted> = {
   kind: 'existing',
   name: 'read-model-selection',
@@ -704,19 +845,20 @@ export const productionCommands: readonly CommandSpec[] = [
   },
   {
     name: 'create-session',
-    usage: '--definition <name> [--model <route>]',
-    summary: 'Create a session.',
+    usage: '--definition <name> [--model <route>] [--workspace <id> --instance <id>]',
+    summary: 'Create a session, in a workspace when one is named.',
     run: (args, output, environment) => runSession(createSession, args, output, environment),
   },
   {
     name: 'send-input',
-    usage: '--session <id> --text <text> [--model <route>]',
-    summary: 'Send a user message to a session.',
+    usage: '--session <id> [--text <text>] [--attach <file>]... [--model <route>]',
+    summary:
+      'Send a user message to a session: words, files (each --attach is uploaded first), or both.',
     run: (args, output, environment) => runSession(sendInput, args, output, environment),
   },
   {
     name: 'interrupt-input',
-    usage: '--session <id> --text <text> [--model <route>]',
+    usage: '--session <id> [--text <text>] [--attach <file>]... [--model <route>]',
     summary: 'Send an urgent user message: it releases what the run waits for, or is ordinary.',
     run: (args, output, environment) => runSession(interruptInput, args, output, environment),
   },
@@ -775,6 +917,12 @@ export const productionCommands: readonly CommandSpec[] = [
     run: (args, output, environment) => runSession(selectModel, args, output, environment),
   },
   {
+    name: 'select-workspace',
+    usage: '--session <id> (--workspace <id> --instance <id> | --none)',
+    summary: 'Select the workspace a session works in, or none: it is in force from the next step.',
+    run: (args, output, environment) => runSession(selectWorkspace, args, output, environment),
+  },
+  {
     name: 'read-model-selection',
     usage: '--session <id>',
     summary: 'Read the model a session stands at now.',
@@ -814,9 +962,17 @@ export const productionCommands: readonly CommandSpec[] = [
     run: (args, output, environment) => runSession(changePermissionMode, args, output, environment),
   },
   {
+    name: 'list-sessions',
+    usage: RELATION_USAGE,
+    summary:
+      'List the sessions that are not archived, each with its relation (main, child or handoff) and who attends it (attended or unattended).',
+    run: (args, output, environment) => runSession(listSessions, args, output, environment),
+  },
+  {
     name: 'list-archived-sessions',
     usage: '[--since <instant>] [--before <instant>] [--by person|auto|parent] [--title <text>]',
-    summary: 'List the archived sessions, the latest archived first.',
+    summary:
+      'List the archived sessions, the latest archived first. It takes the filters of list-sessions too.',
     run: (args, output, environment) => runSession(listArchivedSessions, args, output, environment),
   },
   callsCommand,
@@ -825,6 +981,9 @@ export const productionCommands: readonly CommandSpec[] = [
   calendarCommand,
   scheduleCommand,
   notificationCommand,
+  workspaceCommand,
   settingCommand,
   assetCommand,
+  mediaCommand,
+  ...usageCommands,
 ]

@@ -96,6 +96,10 @@ const FAILED = 3
 
 const FACES = [agentJournalKey, agentJournalEntriesKey, agentMaterialsKey] as const
 
+function provides(fiber: Context['fiber'], key: string): boolean {
+  return [...fiber.provisions].some(provision => provision.name === key)
+}
+
 const other = memoryOtherAccess('intruder', 'route-other')
 const textOf = (tenant: SessionAccess<string>['tenant']) => {
   const encoded = tenantCodec.encode(tenant)
@@ -663,7 +667,7 @@ describe('agentReceivedCommits and agentModelReceptionTargets: the result receiv
     const s = await scene('recv-commit')
     const { plugin, journal, entries, received } = await assembled(s)
     for (const key of [agentReceivedCommitsKey, agentModelReceptionTargetsKey])
-      expect(plugin.store?.[key]?.fiber === plugin, key).toBe(true)
+      expect(provides(plugin, key), key).toBe(true)
     const draft = await waitingOnModel(s, journal(), 'recv-commit')
     const input = {
       ...s.access,
@@ -694,7 +698,7 @@ describe('agentReceivedCommits and agentModelReceptionTargets: the result receiv
   it('agentReceivedRecords answers the committed record, also from a new instance on the same storage', async () => {
     const s = await scene('recv-records')
     const first = await assembled(s)
-    expect(first.plugin.store?.[agentReceivedRecordsKey]?.fiber === first.plugin).toBe(true)
+    expect(provides(first.plugin, agentReceivedRecordsKey)).toBe(true)
     const draft = await waitingOnModel(s, first.journal(), 'recv-records')
     const input = {
       ...s.access,
@@ -838,7 +842,7 @@ describe('agentToolReceptionTargets: the Tool result receiver face', () => {
   it('answers the binding the committed associated Tool call made, also from a new instance', async () => {
     const s = await scene('tool-targets', { storage: 'real' })
     const first = await assembled(s)
-    expect(first.plugin.store?.[agentToolReceptionTargetsKey]?.fiber === first.plugin).toBe(true)
+    expect(provides(first.plugin, agentToolReceptionTargetsKey)).toBe(true)
     const { tool, instance: original } = await withToolCall(s, first.journal(), 'tool-targets')
     const query = {
       access: s.access,
@@ -960,7 +964,7 @@ describe('sessionAdoptedRequests: the a part of a session, from the same plugin 
   it('answers null before the first M0 and the saved request after it, checking history.readModelView on the session each call', async () => {
     const s = await scene('adopted-plugin')
     const { plugin, journal, adopted, wiring } = await assembled(s)
-    expect(plugin.store?.[sessionAdoptedRequestsKey]?.fiber === plugin).toBe(true)
+    expect(provides(plugin, sessionAdoptedRequestsKey)).toBe(true)
     const read = () => adopted().readAdoptedRequest({ access: s.access, session: s.access.session })
     const open = ok(await journal().open(s.openInput))
     expect(await read()).toEqual({ kind: 'value', value: null })
@@ -1025,7 +1029,7 @@ describe('agentJournalEntries and agentMaterials: the same provider as agentJour
   it('serves the three keys from its own fiber, removes the three together when it stops, and a held reference then answers unavailable', async () => {
     const s = await scene('faces-fiber')
     const { ctx, plugin, journal, entries, materials } = await assembled(s)
-    for (const key of FACES) expect(plugin.store?.[key]?.fiber === plugin, key).toBe(true)
+    for (const key of FACES) expect(provides(plugin, key), key).toBe(true)
     ok(await journal().open(s.openInput))
     const value = factsMaterial('kept')
     const source = ok(

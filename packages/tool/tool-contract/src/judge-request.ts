@@ -151,20 +151,27 @@ function requestRule(
   return commandRule(definition, request.command, at) ?? labelRule(definition, request, at)
 }
 
+const pinnedFields = {
+  directory: record({
+    path: filled,
+    workspace: nullable(record({ id: workspaceId, instance: filled })),
+  }),
+} as const
+
 const fixedToolRequest: Check<FixedToolRequest> = refine(
-  record({ ...callFields, availability, invocation }),
+  record({ ...callFields, availability, invocation }, pinnedFields),
   requestRule,
 )
 
 const toolCall: Check<Omit<FixedToolRequest, 'invocation'>> = refine(
-  record({ ...callFields, availability }),
+  record({ ...callFields, availability }, pinnedFields),
   requestRule,
 )
 
-const invokeToolRequest: Check<ToolInvokeRequest> = record({
-  ...callFields,
-  availability: availabilityReference,
-})
+const invokeToolRequest: Check<ToolInvokeRequest> = record(
+  { ...callFields, availability: availabilityReference },
+  pinnedFields,
+)
 
 export function judgeFixedToolRequest(
   value: unknown,

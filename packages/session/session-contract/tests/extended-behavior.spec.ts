@@ -587,12 +587,8 @@ describe('Session governance beyond the first path', () => {
     expect(await s.read()).toEqual(before)
     succeeded(
       await s.commit({
-        kind: 'setRelation',
-        input: {
-          ...s.base,
-          operation: operationId('resident'),
-          relation: { kind: 'main', resident: true },
-        },
+        kind: 'setResident',
+        input: { ...s.base, operation: operationId('resident'), resident: true },
       }),
       'resident',
     )

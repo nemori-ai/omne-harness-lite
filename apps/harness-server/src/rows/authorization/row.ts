@@ -33,6 +33,7 @@ import {
 } from './adapters.ts'
 import { grantClockOf, tightenMaintenanceGrants } from './grant-tightening.ts'
 import { releaseMaintenanceGrants } from './grants.ts'
+import { rowGrantInstalled } from './row-grants.ts'
 import {
   SystemActionAuthorizationService,
   systemActionAuthorizationKey,
@@ -113,7 +114,9 @@ const plugin: Plugin.Object = {
   Config: authorizationConfig,
   apply(ctx: Context, config: unknown) {
     const { actionRules, maintenanceGrants } = authorizationConfig.parse(config)
-    const grants = releaseMaintenanceGrants(tightenMaintenanceGrants(maintenanceGrants))
+    const grants = releaseMaintenanceGrants(tightenMaintenanceGrants(maintenanceGrants), holder =>
+      rowGrantInstalled(ctx, holder),
+    )
     let active = true
     ctx.effect(
       () => () => {

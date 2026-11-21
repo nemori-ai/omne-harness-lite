@@ -207,35 +207,6 @@ describe('step 4: material owners', () => {
     })
     expect(failureOf(answer)).toMatchObject({ kind: 'unavailable', owner: 'evidence' })
   })
-
-  it('accept of an ordinary input needs the slot list: absent is unavailable, a non-empty list is not orchestrated, empty runs no slot', async () => {
-    const h = await service({ admission: null })
-    await h.create()
-    const accept = (name: string) =>
-      h.faces('intake').work.accept({
-        ...h.access(),
-        operation: operationId(name),
-        value: ordinaryInput(name),
-      })
-    expect(failureOf(await accept('a'))).toMatchObject({
-      kind: 'unavailable',
-      owner: 'sessionAdmission',
-    })
-    h.setAdmission([
-      {
-        name: 'slot',
-        run: () => Promise.reject(new Error('not called')),
-      },
-    ])
-    expect(failureOf(await accept('b'))).toMatchObject({
-      kind: 'unavailable',
-      owner: 'sessionAdmission',
-    })
-    h.setAdmission([])
-    expect(await accept('c')).toHaveProperty('ok')
-    const snapshot = succeeded(await h.backend.transactions.readWork(h.access()), 'read')
-    expect(snapshot.pending).toHaveLength(1)
-  })
 })
 
 describe('step 5: the commit', () => {

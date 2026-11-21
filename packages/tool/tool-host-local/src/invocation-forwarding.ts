@@ -18,6 +18,7 @@ import {
   type ConsumerRef,
   type FixedToolRequest,
   type Reply,
+  type ToolCallFields,
   type ToolCallId,
   type ToolForwardIntent,
 } from '@omne-harness/tool-contract'
@@ -167,6 +168,21 @@ export function forwardIntentOfCall(call: CallParts): ToolForwardIntent | null {
   if (name?.kind !== 'string' || argumentsValue === undefined || command === undefined) return null
   return { name: name.value, command, arguments: normalizeJson(argumentsValue) }
 }
+const INHERITED = [
+  'scope',
+  'requesterScope',
+  'context',
+  'workspace',
+  'resources',
+  'limits',
+  'mode',
+] as const
+/** What a target takes from its parent as it is; the pinned directory too, absent or not. */
+const inheritedOf = (request: ToolCallFields) => [
+  ...INHERITED.map(key => request[key]),
+  request.directory ?? null,
+]
+
 function matchesTarget(
   parent: FixedToolRequest,
   intent: ToolForwardIntent,
@@ -189,9 +205,7 @@ function matchesTarget(
   )
     return false
   if (target.batchDecision !== null) return false
-  return (
-    ['scope', 'requesterScope', 'context', 'workspace', 'resources', 'limits', 'mode'] as const
-  ).every(key => same(parent[key], target[key]))
+  return same(inheritedOf(parent), inheritedOf(target))
 }
 
 const sameRequest = (left: FixedToolRequest, right: FixedToolRequest) =>

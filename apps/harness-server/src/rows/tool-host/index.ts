@@ -25,7 +25,6 @@ export const toolHostConfig = z
             resultMaxBytes: positive,
             executable: z.string().min(1),
             argsPrefix: z.array(z.string()),
-            cwd: z.string().min(1),
             env: z.record(z.string(), z.string()),
           })
           .optional(),
@@ -38,6 +37,8 @@ export const toolHostConfig = z
         Schedules: z.strictObject({ resultMaxBytes: positive }).optional(),
         Notifications: z.strictObject({ resultMaxBytes: positive }).optional(),
         Sessions: z.strictObject({ resultMaxBytes: positive }).optional(),
+        Agents: z.strictObject({ resultMaxBytes: positive }).optional(),
+        SwitchWorkspace: z.strictObject({ resultMaxBytes: positive }).optional(),
         Tools: z
           .strictObject({
             resultMaxBytes: positive,
@@ -45,7 +46,24 @@ export const toolHostConfig = z
           })
           .optional(),
         Files: z
-          .strictObject({ resultMaxBytes: positive, cwd: z.string().min(1).optional() })
+          .strictObject({
+            resultMaxBytes: positive,
+            openMaxBytes: positive,
+            imageMaxWidth: positive,
+            imageMaxHeight: positive,
+            imageMaxDecodedBytes: positive,
+            imageConcurrency: positive,
+          })
+          .optional(),
+        Screen: z
+          .strictObject({
+            resultMaxBytes: positive,
+            captureMaxLongSide: positive,
+            imageMaxWidth: positive,
+            imageMaxHeight: positive,
+            imageMaxDecodedBytes: positive,
+            imageConcurrency: positive,
+          })
           .optional(),
       })
       .optional(),

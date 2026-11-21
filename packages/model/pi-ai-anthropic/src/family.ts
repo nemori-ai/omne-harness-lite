@@ -58,6 +58,14 @@ function checkConfig(config: AnthropicFamilyConfig): void {
     throw new RangeError('config.margin.percent must be a non-negative decimal integer')
 }
 
+/** The byte limit of one image, as the profile of this record declares it. */
+function imageBytesOf(record: {
+  profile: { limits: readonly { metric: string; provided: string }[] }
+}) {
+  const limit = record.profile.limits.find(each => each.metric === 'image-bytes')
+  return limit === undefined ? {} : { imageBytes: Number(limit.provided) }
+}
+
 export function createAnthropicFamily(config: AnthropicFamilyConfig): PiFamily {
   checkConfig(config)
   return defineFamily<AnthropicRecord>({
@@ -76,6 +84,7 @@ export function createAnthropicFamily(config: AnthropicFamilyConfig): PiFamily {
             supplier,
             meter: createAnthropicMeter(record, tokenizer.ok.tokenizer, config.margin),
             limits: config.limits,
+            ...imageBytesOf(record),
             release: async () => {
               const released = await tokenizer.ok.release()
               if ('failure' in released) throw new Error(`tokenizer-${released.failure.kind}`)

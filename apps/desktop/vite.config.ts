@@ -7,7 +7,7 @@ export default defineConfig({
   base: '/',
   plugins: [react(), tailwindcss()],
   build: {
-    outDir: '../../dist/page',
+    outDir: '../../dist/release/page',
     emptyOutDir: true,
     modulePreload: { polyfill: false },
     assetsInlineLimit: 0,

@@ -106,7 +106,14 @@ async function ending(
   })
   opened.push(host)
   host.controls.adoptions.define(definitions.first, {
-    definition: { category: 'AgentDefinition', name: 'ending', references: [], attributes: [] },
+    definition: {
+      category: 'AgentDefinition',
+      type: 'master',
+      summary: 'Works on what the person asks for.',
+      name: 'ending',
+      references: [],
+      attributes: [],
+    },
     evaluator: agentEvaluator,
     extensions: [],
   })

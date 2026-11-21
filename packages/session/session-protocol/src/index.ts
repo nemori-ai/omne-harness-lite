@@ -4,4 +4,10 @@ export {
   type ObserveSessionOpen,
   type SessionProtocol,
 } from './session-protocol.ts'
-export { userMessageId, userTextMessage, type UserMessage } from './user-message.ts'
+export {
+  userMessage,
+  userMessageId,
+  userTextMessage,
+  type UserAttachment,
+  type UserMessage,
+} from './user-message.ts'

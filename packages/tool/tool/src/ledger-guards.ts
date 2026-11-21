@@ -49,6 +49,11 @@ export interface ToolAccessGuard<P> {
   ): Promise<AccessVerdict>
 }
 
+/** May this principal read the usage of the tenant's calls; the tenant-wide read names no call. */
+export interface ToolAccountsGuard<P> {
+  qualify(input: Readonly<{ principal: P; tenant: TenantId }>): Promise<AccessVerdict>
+}
+
 export type SourceVerdict =
   | Readonly<{ kind: 'trusted' }>
   | Readonly<{ kind: 'denied'; reason: string }>

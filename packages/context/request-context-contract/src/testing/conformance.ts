@@ -337,20 +337,11 @@ function representationPolicyCases(
   return [
     caseOf('text-original-decision', 'RQ11-7', async () => {
       const block = text('visible')
-      assert.equal(
-        subject.policy.choose({ block, conversion: null, modalities: ['text'] }),
-        'original',
-      )
+      assert.equal(subject.policy.choose({ block, available: ['original'] }), 'original')
     }),
     caseOf('unsupported-without-conversion', 'RQ11-7', async () => {
-      assert.equal(
-        subject.policy.choose({
-          block: { ...text(''), kind: 'image', mediaType: 'image/png', inline: 'bytes' },
-          conversion: null,
-          modalities: ['text'],
-        }),
-        'none',
-      )
+      const block = { ...text(''), kind: 'image', mediaType: 'image/png', inline: 'bytes' } as const
+      assert.equal(subject.policy.choose({ block, available: [] }), 'none')
     }),
   ]
 }

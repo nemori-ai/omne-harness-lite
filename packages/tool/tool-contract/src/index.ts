@@ -59,9 +59,11 @@ export type {
   ToolCallFields,
   ToolCommandBackground,
   ToolCommandDeclaration,
+  ToolCallConditions,
   ToolCommandRelease,
   ToolCommandReleaseDetail,
   ToolDefinition,
+  ToolCallDirectory,
   ToolEnvironmentDeclaration,
   ToolGate,
   ToolGateDefault,
@@ -214,3 +216,4 @@ export type {
   ToolsReadArguments,
 } from './tools-protocol.ts'
 export { returnSummary } from './return-description.ts'
+export { offeredDefinition, unmetConditions } from './conditions.ts'

@@ -101,14 +101,17 @@ const providerIdentity = record({
   generation: decodeString,
   version: decodeString,
 })
-const placement = record({
-  kind: literal('placement'),
-  requirement: decodeRequirement,
-  binding: decodeBinding,
-  provider: providerIdentity,
-  continuity: decodeContinuity,
-  quotaDomain: decodeNonEmpty,
-})
+const placement = record(
+  {
+    kind: literal('placement'),
+    requirement: decodeRequirement,
+    binding: decodeBinding,
+    provider: providerIdentity,
+    continuity: decodeContinuity,
+    quotaDomain: decodeNonEmpty,
+  },
+  { filesRoot: decodeNonEmpty },
+)
 const rejectReason = decodeLiteral([
   'notAuthorized',
   'noMatchingEnvironment',
@@ -458,7 +461,10 @@ function single<T>(decoder: Decoder<T>): Decoder<[T]> {
 export const resolvePlacementParamsSchema: OperationSchema<
   Parameters<ExecutionEnvironment<unknown>['resolvePlacement']>
 > = standardSchema(
-  pair(decodeAccess, record({ scope: decodeScope, requirement: decodeRequirement })),
+  pair(
+    decodeAccess,
+    record({ scope: decodeScope, requirement: decodeRequirement }, { filesRoot: decodeNonEmpty }),
+  ),
 )
 export const acquireParamsSchema: OperationSchema<
   Parameters<ExecutionEnvironment<unknown>['acquire']>

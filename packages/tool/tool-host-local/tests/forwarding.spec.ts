@@ -102,6 +102,13 @@ describe('trusted forwarding association', () => {
     expect(
       await f.source.forwarding.resolve({ ...valid, intent: { ...f.intent, name: 'other' } }),
     ).toMatchObject({ kind: 'rejected', failure: { kind: 'denied' } })
+    // A target works where its parent was pinned: it cannot name a directory its parent has not.
+    expect(
+      await f.source.forwarding.resolve({
+        ...valid,
+        target: { ...f.target, directory: { path: '/srv/elsewhere', workspace: null } },
+      }),
+    ).toMatchObject({ kind: 'rejected', failure: { kind: 'denied' } })
     expect((await f.source.forwarding.resolve(valid)).kind).toBe('bound')
     expect(
       await f.source.forwarding.resolve({ ...valid, intent: { ...f.intent, name: 'different' } }),

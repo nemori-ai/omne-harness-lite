@@ -47,7 +47,7 @@ import { classOf } from '../../model/principals.ts'
 import { classify, SESSION_WORK_OWNER } from './principals.ts'
 export { LOGIN_WORK_OWNER, SESSION_WORK_OWNER } from './principals.ts'
 export { createActionAdmission } from './action-admission.ts'
-export { createToolAccessGuard } from './tool-access.ts'
+export { createToolAccessGuard, createToolAccountsGuard } from './tool-access.ts'
 
 export type AccessPorts = Readonly<{
   admission: AdmissionCheck
@@ -200,7 +200,7 @@ const MUTATIONS = {
   create: true,
   completeInitialization: true,
   change: true,
-  setRelation: true,
+  setResident: true,
   configureAutoArchive: true,
   considerAutoArchive: true,
   recordIdle: true,
@@ -414,7 +414,10 @@ function planSession(input: SessionAccessRequest<unknown>): Plan {
         permit: null,
       }
     },
-    matrix: (purpose, principal) => sessionMatrixRequest(purpose, principal, target, tenant, facts),
+    matrix: (purpose, principal) =>
+      isPartPurpose(purpose)
+        ? sessionPartRequest(purpose, principal, target, tenant, facts)
+        : sessionMatrixRequest(purpose, principal, target, tenant, facts),
   })
   return qualifiedWrite(planned, target, who)
 }
@@ -429,6 +432,37 @@ function sessionResource(
       return { kind: 'tenant', key: tenantText(target.tenant) }
     default:
       return null
+  }
+}
+
+const SESSION_PART_OPERATIONS = {
+  'session-create': 'create',
+  'session-input': 'accept',
+  'input-fate': 'readInputFate',
+} as const
+
+type PartPurpose = keyof typeof SESSION_PART_OPERATIONS
+const isPartPurpose = (purpose: SystemPurpose): purpose is PartPurpose =>
+  Object.hasOwn(SESSION_PART_OPERATIONS, purpose)
+
+function sessionPartRequest(
+  purpose: PartPurpose,
+  principal: SystemPrincipal,
+  target: SessionAccessRequest<unknown>['target'],
+  tenant: TenantId | null,
+  facts: CommandFacts,
+): SystemActionRequest | null {
+  if (target.kind !== 'session' || tenant === null) return null
+  return {
+    principal,
+    scope: 'system',
+    operation: { owner: 'session', name: SESSION_PART_OPERATIONS[purpose] },
+    arguments: facts.arguments,
+    target: {
+      kind: 'tenant',
+      tenant,
+      resource: { owner: 'session', kind: 'session', key: target.session },
+    },
   }
 }
 

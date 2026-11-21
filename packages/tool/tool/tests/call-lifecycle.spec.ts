@@ -119,6 +119,18 @@ it('Sweep: nothing before the instant; at the instant the domain is dropped with
   })
   expect(read).toMatchObject({ kind: 'complete', revision: '0' })
   expect(await s.run(now + G)).toEqual({ reclaimed: 0, removed: 0 })
+  const usage = await f.harness.memory.usage({
+    tenant: f.access.tenant,
+    range: null,
+    consumer: null,
+    order: 'ascending',
+    after: null,
+    limit: 10,
+  })
+  expect(usage).toMatchObject({
+    kind: 'page',
+    facts: [{ call: f.access.call, account: { revision: '1', receipt: 'received' } }],
+  })
 })
 
 it('Sweep: the bytes of an offloaded body leave the body store before the domain is dropped', async () => {
@@ -322,6 +334,7 @@ it('Sweep: a domain the store cannot read stops the sweep', async () => {
     due: memory.due.bind(memory),
     definition: memory.definition.bind(memory),
     scanPending: memory.scanPending.bind(memory),
+    usage: memory.usage.bind(memory),
   }
   const sweep = createToolSweep(store, f.bodies, 4, {
     graceMs: G,

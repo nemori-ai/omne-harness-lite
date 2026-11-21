@@ -28,6 +28,9 @@ const affected = new Set([
 export type SessionPermissionModeReading =
   | Readonly<{ kind: 'read'; mode: Modes['permission']; revision: string }>
   | Readonly<{ kind: 'unavailable' }>
+export type SessionModesReading =
+  | Readonly<{ kind: 'read'; modes: Modes; revision: string }>
+  | Readonly<{ kind: 'unavailable' }>
 
 export function createSessionModesPlugin(input: SessionModesPluginInput) {
   let active:
@@ -41,14 +44,19 @@ export function createSessionModesPlugin(input: SessionModesPluginInput) {
     refresh(session: SessionId) {
       return active?.publisher.refresh(session) ?? Promise.resolve({ kind: 'unavailable' as const })
     },
-    /** The permission mode in force, computed as it is published, with its permission revision. */
-    async readPermissionMode(
-      access: SessionAccess<unknown>,
-    ): Promise<SessionPermissionModeReading> {
+    /** The modes in force, computed as they are published, with the permission revision. */
+    async readModes(access: SessionAccess<unknown>): Promise<SessionModesReading> {
       const observed = await active?.source.read(access)
       if (observed?.kind !== 'ready') return { kind: 'unavailable' }
       const { modes, basis } = observed.value
-      return { kind: 'read', mode: modes.permission, revision: basis.permissionRevision }
+      return { kind: 'read', modes, revision: basis.permissionRevision }
+    },
+    async readPermissionMode(
+      access: SessionAccess<unknown>,
+    ): Promise<SessionPermissionModeReading> {
+      const now = await this.readModes(access)
+      if (now.kind !== 'read') return now
+      return { kind: 'read', mode: now.modes.permission, revision: now.revision }
     },
     inject: {
       [sessionKey]: { caller: 'coordinator' as const },

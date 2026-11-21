@@ -29,6 +29,7 @@ import {
   type ToolDirectory,
   type ToolEnvironment,
   type ToolInstanceHost,
+  type ToolMediaStore,
   type ToolLoader,
   type ToolOffloader,
   type ToolReads,
@@ -299,6 +300,16 @@ export abstract class ToolDecisionBridgeService<P>
 }
 export const toolDecisionsKey = ToolDecisionBridgeService.provide
 
+/** @owner packages/tool/tool-cordis-contract */
+export abstract class ToolMediaStoreService<P> extends Service implements ToolMediaStore<P> {
+  static readonly provide = 'toolMediaStore'
+  constructor(ctx: Context) {
+    super(ctx, ToolMediaStoreService.provide)
+  }
+  abstract readonly put: ToolMediaStore<P>['put']
+}
+export const toolMediaStoreKey = ToolMediaStoreService.provide
+
 export type ToolPublication = Extract<
   Awaited<ReturnType<ToolInstanceHost<never>['publish']>>,
   { ok: unknown }
@@ -548,6 +559,7 @@ declare module '@deepseek-ai/cordis' {
     toolGenerations: ToolGenerationsService<unknown, unknown, ContentBlock>
     toolEnvironments: ToolEnvironmentService<unknown, unknown>
     toolDecisions: ToolDecisionBridgeService<unknown>
+    toolMediaStore: ToolMediaStoreService<unknown>
     toolInstances: ToolInstancesService<unknown>
     toolPublicationAuthority: ToolPublicationAuthorityService<unknown>
     toolInstanceHost: ToolInstanceHostService<unknown>

@@ -43,6 +43,8 @@ import type {
   ToolFinalEnvelope,
   ToolPlannedFinal,
   ToolCanonicalFingerprint,
+  ToolUsageFact,
+  ToolUsageQuery,
 } from '@omne-harness/tool-contract/provider'
 
 export type TenantId = Access<unknown>['tenant']
@@ -400,6 +402,7 @@ export function hostKey(key: string): string {
 
 export type LedgerWrite =
   | Readonly<{ kind: 'drop' }>
+  | Readonly<{ kind: 'usage'; fact: ToolUsageFact }>
   | Readonly<{ kind: 'put'; record: LedgerRecord }>
   | Readonly<{ kind: 'delete'; key: string }>
   | Readonly<{ kind: 'schedule'; key: string; dueAt: ToolInstant }>
@@ -454,6 +457,20 @@ export type LedgerDefinitionRead =
   | Readonly<{ kind: 'complete'; definition: ToolDefinition | null }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
+/** An admitted usage query: the range and the scope checked, the position opened from its cursor. */
+export type LedgerUsageQuery = Readonly<{
+  tenant: TenantId
+  range: Readonly<{ from: string; to: string }> | null
+  consumer: ToolUsageQuery['consumer']
+  order: ToolUsageQuery['order']
+  after: Readonly<{ start: string; call: ToolCallId }> | null
+  limit: number
+}>
+
+export type LedgerUsageRead =
+  | Readonly<{ kind: 'page'; facts: readonly ToolUsageFact[]; undated: number; more: boolean }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+
 export interface ToolLedgerStore {
   readonly durability: 'none' | 'durable'
   read(domain: LedgerDomain): Promise<LedgerRead>
@@ -462,4 +479,5 @@ export interface ToolLedgerStore {
   commit(input: LedgerCommitInput): Promise<LedgerCommit>
   due(tenant: TenantId, now: ToolInstant, limit: number): Promise<LedgerDueRead>
   scanPending(input: LedgerPendingScanInput): Promise<LedgerPendingScan>
+  usage(query: LedgerUsageQuery): Promise<LedgerUsageRead>
 }

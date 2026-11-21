@@ -50,6 +50,8 @@ const NOTIFICATIONS_GATE_OF: Readonly<Record<NotificationsCommandName, string>> 
 }
 
 const ENCODING = 'wrapped' as const
+/** A post is for the owner: it needs a person who attends the session. */
+const SEND_CONDITIONS = ['person-present'] as const
 const encoder = new TextEncoder()
 const utf8 = (text: string) => encoder.encode(text)
 
@@ -208,7 +210,12 @@ export function createNotificationsAuthor(
     })
   const operations: Record<
     string,
-    { summary: string; operation: Operation; release: Readonly<{ gate: string }> }
+    {
+      summary: string
+      operation: Operation
+      release: Readonly<{ gate: string }>
+      conditions?: readonly string[]
+    }
   > = {}
   for (const name of notificationsCommandNames) {
     const operation = operationOf(name, read.data.resultMaxBytes)
@@ -218,6 +225,7 @@ export function createNotificationsAuthor(
       summary: notificationsSummaries[name],
       operation: operation.ok,
       release: { gate: NOTIFICATIONS_GATE_OF[name] },
+      ...(name === 'send' ? { conditions: SEND_CONDITIONS } : {}),
     }
   }
   const author = defineCommandTool({

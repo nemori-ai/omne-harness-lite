@@ -88,6 +88,7 @@ function countingStore(store: ToolLedgerStore): ToolLedgerStore & { count: ReadC
     durability: store.durability,
     count,
     scanPending: input => store.scanPending(input),
+    usage: query => store.usage(query),
     due: (tenant, now, limit) => store.due(tenant, now, limit),
     definition: (tenant, adoption) => store.definition(tenant, adoption),
     read: async domain => {
