@@ -1,5 +1,13 @@
 import type { TenantId } from '@omne-harness/public-contract'
-import { AttachIcon, AudioIcon, Button, DeleteIcon } from '@omne-harness/ui-kit'
+import {
+  AttachIcon,
+  AudioIcon,
+  Button,
+  DeleteIcon,
+  IconButton,
+  Input,
+  RetryIcon,
+} from '@omne-harness/ui-kit'
 import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react'
 import {
   ACCEPTED_TYPES,
@@ -100,12 +108,6 @@ function useFormDrops(root: RefObject<HTMLElement | null>, tray: AttachmentTray 
 }
 
 const STILL: RecorderState = { kind: 'idle', problem: null }
-const LABEL: Readonly<Record<RecorderState['kind'], string>> = {
-  idle: '录音',
-  opening: '松开结束',
-  recording: '松开结束',
-  encoding: '在转成 WAV…',
-}
 const HOLD_KEYS = new Set([' ', 'Enter'])
 
 function useRecorder(tray: AttachmentTray | null, microphone: Microphone) {
@@ -132,11 +134,10 @@ function RecordButton({
   const release = () => void recorder?.release()
   return (
     <>
-      <Button
+      <IconButton
         type="button"
-        variant="ghost"
-        size="compact"
-        aria-label="按住录音"
+        size="icon-compact"
+        label="按住录音"
         aria-pressed={state.kind === 'opening' || state.kind === 'recording'}
         disabled={recorder === null || state.kind === 'encoding'}
         onPointerDown={press}
@@ -153,12 +154,9 @@ function RecordButton({
         }}
       >
         <AudioIcon />
-        {LABEL[state.kind]}
-      </Button>
+      </IconButton>
       {state.kind === 'idle' && state.problem !== null ? (
-        <span role="status" className="omne-media-recorder-problem">
-          {state.problem}
-        </span>
+        <span role="status">{state.problem}</span>
       ) : null}
     </>
   )
@@ -181,6 +179,7 @@ function Chip({ item, onRemove, onRetry }: ChipProps) {
           aria-label={`重试 ${item.name}`}
           onClick={onRetry}
         >
+          <RetryIcon />
           重试
         </Button>
       ) : null}
@@ -218,7 +217,7 @@ export function AttachmentTrayView(props: AttachmentTrayProps) {
           ))}
         </ul>
       )}
-      <input
+      <Input
         ref={input}
         type="file"
         hidden
@@ -230,16 +229,14 @@ export function AttachmentTrayView(props: AttachmentTrayProps) {
           event.target.value = ''
         }}
       />
-      <Button
+      <IconButton
         type="button"
-        variant="ghost"
-        size="compact"
-        aria-label="附加图片、语音或 PDF"
+        size="icon-compact"
+        label="附加图片、语音或 PDF"
         onClick={() => input.current?.click()}
       >
         <AttachIcon />
-        附件
-      </Button>
+      </IconButton>
       <RecordButton tray={tray} microphone={props.microphone} />
     </div>
   )

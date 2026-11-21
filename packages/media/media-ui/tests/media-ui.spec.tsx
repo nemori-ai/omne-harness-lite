@@ -217,7 +217,7 @@ describe('输入框的附件区', () => {
     const button = screen.getByRole('button', { name: '按住录音' })
     fireEvent.pointerDown(button)
     await settle()
-    expect(button.textContent).toContain('松开结束')
+    expect(button.getAttribute('aria-pressed')).toBe('true')
     fireEvent.pointerUp(button)
     await settle()
     expect(screen.getByText('录音 1.wav')).not.toBeNull()
