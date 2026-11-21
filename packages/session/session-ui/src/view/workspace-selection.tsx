@@ -146,25 +146,23 @@ export function WorkspaceAction({ store, tenant, session }: Props) {
       }
       menu={tell => (
         <>
-          <FoldedChoice
-            label="工作区"
-            value={valueOf(view.workspace)}
-            shown={shown}
-            options={
-              choices === null
-                ? null
-                : [
-                    { value: NONE, label: '不选工作区' },
-                    ...choices.map(choice => ({
-                      value: valueOf(choice),
-                      label: choice.label,
-                      note: choice.note,
-                      disabled: !choice.selectable,
-                    })),
-                  ]
-            }
-            onPick={picked => select(targetOf(choices ?? [], picked), tell)}
-          />
+          {choices === null ? null : (
+            <FoldedChoice
+              label="工作区"
+              value={valueOf(view.workspace)}
+              shown={shown}
+              options={[
+                { value: NONE, label: '不选工作区' },
+                ...choices.map(choice => ({
+                  value: valueOf(choice),
+                  label: choice.label,
+                  note: choice.note,
+                  disabled: !choice.selectable,
+                })),
+              ]}
+              onPick={picked => select(targetOf(choices, picked), tell)}
+            />
+          )}
           <DropdownMenuItem disabled title={place}>
             <span className="omne-session-workspace-place">{place}</span>
           </DropdownMenuItem>

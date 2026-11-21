@@ -29,6 +29,7 @@ vi.mock('@omne-harness/ui-kit', async importOriginal => {
 afterEach(() => {
   cleanup()
   seats.length = 0
+  vi.restoreAllMocks()
 })
 
 async function settle(): Promise<void> {
@@ -377,4 +378,45 @@ it('头部放不下：工作区最先收进「更多」，菜单里写当前的�
   await settle()
   expect(heading().querySelector('.omne-session-receipt')?.textContent).toBe('已换到 /srv/shop')
   expect(foldedItems(await openMore())).toEqual(['工作区shop'])
+})
+
+const menuItems = (menu: HTMLElement) =>
+  within(menu)
+    .getAllByRole('menuitem')
+    .map(item => item.textContent)
+
+it.each([
+  [
+    '没有工作区可选：只写工作目录，不写工作区',
+    {
+      outcome: 'succeeded',
+      body: {
+        workspace: null,
+        state: 'default',
+        directory: '/srv/default',
+        reason: null,
+        revision: '1',
+      },
+    },
+    '工作目录：/srv/default',
+  ],
+  ['工作目录读不到：写读不到', { outcome: 'unknown' }, '工作目录读不到：unknown'],
+] as const)('头部放不下、工作区收进「更多」时，%s', async (_, read, said) => {
+  layOut(1000)
+  const fake = createFakeClient()
+  await openLong(fake)
+  ;(await fake.next('read-workspace-selection')).answer(read)
+  ;(await fake.next('read-model-selection')).answer({
+    outcome: 'succeeded',
+    body: { model: 'openai/gpt-x', revision: '1' },
+  })
+  ;(await fake.next('read-permission-mode')).answer({
+    outcome: 'succeeded',
+    body: { mode: 'auto_permission', revision: '4' },
+  })
+  await settle()
+  expect(shownInBar()).toEqual(['模型', '权限处理'])
+  const items = menuItems(await openMore())
+  expect(items).toContain(said)
+  expect(items.filter(text => text?.startsWith('工作区') === true)).toEqual([])
 })
