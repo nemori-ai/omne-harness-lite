@@ -81,6 +81,16 @@ describe('the registry of converter engines (media.engines)', () => {
     expect(registry.borrow('voice.one')).toBeNull()
   })
 
+  it('withdrawing the old engine again does not take the name from the new one', async () => {
+    const registry = createEngineRegistry()
+    const old = registry.contribute(engineNamed('voice.one'))
+    await old.release()
+    const next = engineNamed('voice.one')
+    registry.contribute(next)
+    await old.release()
+    expect(registry.borrow('voice.one')?.engine).toBe(next)
+  })
+
   it('withdrawing one engine leaves the others and their leases alone', () => {
     const registry = createEngineRegistry()
     const one = registry.contribute(engineNamed('voice.one'))

@@ -8,13 +8,15 @@ import type {
   Preprocess,
 } from '@omne-harness/media-contract'
 import { createScriptedEngine } from '@omne-harness/media-contract/testing'
-import { T1, T2, failureOf, ok, png, wav, world, type World } from './world.ts'
+import { PNG, T1, T2, failureOf, ok, png, wav, world, type World } from './world.ts'
 
 const ENGINE = 'voice.fixture'
 const definitionOf = (revision: string) => ({ name: 'voice', revision })
 const CONVERTED: EngineOutput = { kind: 'converted', text: 'hello there', derived: [] }
 const live = () => new AbortController().signal
 const tick = () => new Promise(resolve => setImmediate(resolve))
+/** With the signature and two sizes it makes a stand-in picture of 65 bytes: one over the limit of the world. */
+const FILL = Array.from({ length: 55 }, () => 0)
 
 /** A tenant whose voice has a definition in force, and the engine it names, answering as the test says. */
 function converting(
@@ -25,17 +27,20 @@ function converting(
   const scripted = createScriptedEngine(answer, { name: ENGINE, ...declaration })
   const registration = w.engines.contribute(scripted.engine)
   const inForce = { revision: '1' }
+  const asked: unknown[] = []
   w.conversion.definitions = {
-    resolve: async () =>
-      succeed({
+    resolve: async input => {
+      asked.push(input)
+      return succeed({
         kind: 'resolved',
         definition: definitionOf(inForce.revision),
         engine: ENGINE,
         parameters: { language: 'en' },
         egress: { kind: 'in-process' },
-      }),
+      })
+    },
   }
-  return { ...scripted, registration, inForce }
+  return { ...scripted, registration, inForce, asked }
 }
 const voice = async (w: World, upload = 'up-1', samples = 8, tenant = T1) =>
   (await w.staged(tenant, upload, wav(samples), 'audio/wav')).ref
@@ -68,6 +73,7 @@ describe('making a representation ready, step by step', () => {
   it('step 1: no definition in force is not-needed; a definition that cannot be read is the basis unavailable', async () => {
     const w = world()
     const { calls } = converting(w)
+    const inForce = w.conversion.definitions
     const ref = await voice(w)
     w.conversion.definitions = { resolve: async () => succeed({ kind: 'none' }) }
     expect(ok(await ensure(w, ref))).toEqual({ kind: 'not-needed' })
@@ -79,14 +85,18 @@ describe('making a representation ready, step by step', () => {
     expect(ok(await ensure(w, ref))).toEqual(failed('basis-unavailable'))
     w.conversion.definitions = null
     expect(ok(await ensure(w, ref))).toEqual(failed('basis-unavailable'))
+    w.conversion.definitions = inForce
+    w.faults.methods.set('readLive', 'unavailable')
+    expect(ok(await ensure(w, ref))).toEqual(failed('basis-unavailable'))
     expect(calls).toHaveLength(0)
   })
 
   it('steps 4 to 6: the engine gets this one medium, its parameters and who asks; the outcome is kept with where it came from', async () => {
     const w = world()
-    const { calls } = converting(w)
+    const { calls, asked } = converting(w)
     const ref = await voice(w)
     const answer = ok(await ensure(w, ref))
+    expect(asked).toEqual([{ tenant: T1, mediaType: 'audio/wav' }])
     expect(answer).toEqual({
       kind: 'done',
       representation: {
@@ -184,6 +194,9 @@ describe('making a representation ready, step by step', () => {
     const small = converting(w, undefined, { maxBytes: 51 })
     expect(ok(await ensure(w, ref))).toEqual(failed('engine-unavailable'))
     expect([...pdfOnly.calls, ...small.calls]).toHaveLength(0)
+    await small.registration.release()
+    converting(w, undefined, { maxBytes: 52 })
+    expect(ok(await ensure(w, ref)).kind).toBe('done')
   })
 
   it('step 4: an engine runs as many at a time as it declares, some more wait, and beyond that it is unavailable', async () => {
@@ -241,6 +254,8 @@ describe('a conversion ends without its engine when it must', () => {
     alone.abort()
     expect(ok(await asked)).toEqual(failed('cancelled'))
     expect(signals[0]?.aborted).toBe(true)
+    await tick()
+    expect(await read(w, ref)).toEqual(failed('cancelled'))
 
     const leaving = new AbortController()
     const leaves = ensure(w, ref, leaving.signal)
@@ -272,10 +287,46 @@ describe('a conversion ends without its engine when it must', () => {
     await tick()
     leaving.abort()
     expect(ok(await second)).toEqual(failed('cancelled'))
+    await tick()
+    expect(await read(w, refs[1]!)).toEqual(failed('cancelled'))
     gate.resolve(CONVERTED)
     expect(ok(await first).kind).toBe('done')
     expect(ok(await third).kind).toBe('done')
     expect(calls).toHaveLength(2)
+  })
+
+  it('cancel: one who leaves the queue frees its place for the next to wait in', async () => {
+    const w = world()
+    const { gate, answer } = held()
+    converting(w, answer, { concurrency: 1 })
+    const refs = [await voice(w, 'a', 8), await voice(w, 'b', 9), await voice(w, 'c', 10)]
+    const first = ensure(w, refs[0]!)
+    const leaving = new AbortController()
+    const second = ensure(w, refs[1]!, leaving.signal)
+    await tick()
+    leaving.abort()
+    await second
+    const third = ensure(w, refs[2]!)
+    await tick()
+    gate.resolve(CONVERTED)
+    expect(ok(await first).kind).toBe('done')
+    expect(ok(await third).kind).toBe('done')
+  })
+
+  it('cancel: one who leaves while the original is read stops the conversion before the engine is asked', async () => {
+    const w = world()
+    const { calls } = converting(w)
+    const ref = await voice(w)
+    const leaving = new AbortController()
+    w.faults.hooks.set('open', async (real, ...args) => {
+      leaving.abort()
+      return real(...args)
+    })
+    expect(ok(await ensure(w, ref, leaving.signal))).toEqual(failed('cancelled'))
+    await tick()
+    w.faults.hooks.clear()
+    expect(await read(w, ref)).toEqual(failed('cancelled'))
+    expect(calls).toHaveLength(0)
   })
 
   it('an engine withdrawn while it converts: this once is unavailable, and the engine is gone when it gives the lease back', async () => {
@@ -289,6 +340,19 @@ describe('a conversion ends without its engine when it must', () => {
     expect(ok(await asked)).toEqual(failed('engine-unavailable'))
     await expect(gone).resolves.toBeUndefined()
     expect(await read(w, ref)).toEqual(failed('engine-unavailable'))
+  })
+
+  it('an engine withdrawn while a conversion waits for its turn is not asked for that one', async () => {
+    const w = world()
+    const { answer } = held()
+    const { registration, calls } = converting(w, answer, { concurrency: 1 })
+    const running = ensure(w, await voice(w, 'a', 8))
+    const waiting = ensure(w, await voice(w, 'b', 9))
+    await tick()
+    void registration.release()
+    expect(ok(await running)).toEqual(failed('engine-unavailable'))
+    expect(ok(await waiting)).toEqual(failed('engine-unavailable'))
+    expect(calls).toHaveLength(1)
   })
 
   it.each([
@@ -317,6 +381,16 @@ describe('a conversion ends without its engine when it must', () => {
 describe('step 6: what the engine hands back is checked, stored and kept', () => {
   it.each([
     ['no known kind', { kind: 'maybe' }],
+    ['no known kind, though shaped like a conversion', { kind: 'maybe', text: '', derived: [] }],
+    [
+      'a medium with no bytes',
+      { kind: 'converted', text: '', derived: [{ mediaType: 'image/png' }] },
+    ],
+    ['a medium that is nothing', { kind: 'converted', text: '', derived: [null] }],
+    [
+      'a medium of no type',
+      { kind: 'converted', text: '', derived: [{ bytes: new Uint8Array([1]) }] },
+    ],
     ['a failure of no known reason', { kind: 'failed', reason: 'tired' }],
     ['words that are no text', { kind: 'converted', text: 7, derived: [] }],
     ['no list of other media', { kind: 'converted', text: '' }],
@@ -341,7 +415,7 @@ describe('step 6: what the engine hands back is checked, stored and kept', () =>
       {
         kind: 'converted',
         text: '',
-        derived: [{ mediaType: 'image/png', bytes: new Uint8Array(65) }],
+        derived: [{ mediaType: 'image/png', bytes: new Uint8Array([...PNG, 4, 3, ...FILL]) }],
       },
     ],
   ])('%s is an invalid result: nothing is stored, nothing is kept', async (_, output) => {
@@ -377,6 +451,19 @@ describe('step 6: what the engine hands back is checked, stored and kept', () =>
     expect(Buffer.from(read.bytes).toString('utf8')).toBe(words)
   })
 
+  it('a medium of exactly the size limit is taken', async () => {
+    const w = world()
+    const atLimit = new Uint8Array([...PNG, 4, 3, ...FILL.slice(1)])
+    converting(w, async () => ({
+      kind: 'converted',
+      text: '',
+      derived: [{ mediaType: 'image/png', bytes: atLimit }],
+    }))
+    expect(ok(await ensure(w, await voice(w)))).toMatchObject({
+      representation: { others: [{ bytes: '64' }] },
+    })
+  })
+
   it('words within the line limit stay in line, to the byte', async () => {
     const w = world()
     converting(w, async () => ({ kind: 'converted', text: 'x'.repeat(16), derived: [] }))
@@ -408,18 +495,23 @@ describe('step 6: what the engine hands back is checked, stored and kept', () =>
     const ref = await voice(w)
     w.faults.methods.set('insertUploading', 'unavailable')
     expect(ok(await ensure(w, ref))).toEqual(failed('basis-unavailable'))
+    w.faults.methods.set('insertUploading', 'unknown')
+    expect(ok(await ensure(w, ref))).toEqual(failed('outcome-unknown'))
     w.faults.methods.clear()
     w.faults.methods.set('readRepresentation', 'unavailable')
     expect(ok(await ensure(w, ref))).toEqual(failed('basis-unavailable'))
     w.faults.methods.clear()
     w.withdrawStore()
     expect(ok(await ensure(w, ref))).toEqual(failed('basis-unavailable'))
-    expect(calls).toHaveLength(1)
+    expect(calls).toHaveLength(2)
+    w.returnStore()
+    w.faults.hooks.set('recordRepresentation', () => Promise.reject(new Error('boom')))
+    expect(ok(await ensure(w, ref))).toEqual(failed('outcome-unknown'))
   })
 
   it('an outcome another process kept first is the one answered', async () => {
     const w = world()
-    converting(w)
+    const { calls } = converting(w)
     const ref = await voice(w)
     const theirs = {
       definition: definitionOf('1'),
@@ -434,6 +526,29 @@ describe('step 6: what the engine hands back is checked, stored and kept', () =>
       return reads <= 2 ? succeed(null) : real(...args)
     })
     expect(ok(await ensure(w, ref))).toEqual({ kind: 'done', representation: theirs })
+    expect(calls).toHaveLength(1)
+  })
+
+  it('an outcome kept while this one was about to start is answered without the engine', async () => {
+    const w = world()
+    const { calls } = converting(w)
+    const ref = await voice(w)
+    const theirs = {
+      definition: definitionOf('1'),
+      engine: { name: 'voice.other', revision: '9' },
+      outcome: 'inconvertible' as const,
+    }
+    let reads = 0
+    w.faults.hooks.set('readRepresentation', async (real, ...args) => {
+      const [{ tenant }] = args as unknown as [{ tenant: string }]
+      if (++reads === 1) {
+        await w.index.recordRepresentation({ tenant, key: ref.key, representation: theirs })
+        return succeed(null)
+      }
+      return real(...args)
+    })
+    expect(ok(await ensure(w, ref))).toEqual({ kind: 'done', representation: theirs })
+    expect(calls).toHaveLength(0)
   })
 
   it('what was made for an original goes when the original is swept', async () => {

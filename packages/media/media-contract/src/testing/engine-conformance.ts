@@ -52,14 +52,10 @@ function bounded<T>(work: Promise<T>, what: string): Promise<T> {
   return Promise.race([work, late]).finally(() => clearTimeout(timer))
 }
 
-function known(output: EngineOutput): void {
-  const value = output as { kind?: unknown; text?: unknown; derived?: unknown; reason?: unknown }
-  if (value.kind === 'inconvertible') return
-  if (value.kind === 'failed') {
-    assert.ok(['unavailable', 'error', 'outcome-unknown'].includes(value.reason as string))
-    return
-  }
-  assert.equal(value.kind, 'converted')
+/** A converted answer is text and typed bytes; which kind an answer must be is the sample's to say. */
+function shaped(output: EngineOutput): void {
+  const value = output as { kind?: unknown; text?: unknown; derived?: unknown }
+  if (value.kind !== 'converted') return
   assert.equal(typeof value.text, 'string')
   assert.ok(Array.isArray(value.derived))
   for (const item of value.derived as { mediaType?: unknown; bytes?: unknown }[]) {
@@ -96,7 +92,7 @@ export const engineConformanceCases: readonly EngineConformanceCase[] = [
       within(create, async ({ engine, samples }) => {
         for (const sample of samples) {
           const output = await bounded(engine.convert(inputOf(sample, live()).input), 'no answer')
-          known(output)
+          shaped(output)
           assert.equal(output.kind, sample.expect)
         }
       }),

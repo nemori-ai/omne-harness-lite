@@ -34,7 +34,9 @@ export function createTurns(queueLimit: number) {
         resolve(leave)
       }
       const cancel = (): void => {
-        gate.waiting.splice(gate.waiting.indexOf(turn), 1)
+        const at = gate.waiting.indexOf(turn)
+        if (at < 0) return
+        gate.waiting.splice(at, 1)
         resolve('cancelled')
       }
       gate.waiting.push(turn)
@@ -51,7 +53,7 @@ export type Bounds = Readonly<{
   stop: AbortSignal
 }>
 
-/** One conversion that ends when its time is over, its engine leaves or nobody waits: the engine is not waited for. */
+/** One conversion that ends when its time is over, its engine leaves or nobody waits: the engine is not waited for. It is told through `stop`. */
 export function convertWithin(
   engine: ConverterEngine,
   input: Omit<EngineInput, 'signal'>,
@@ -60,7 +62,6 @@ export function convertWithin(
   const { withdrawn, stop } = bounds
   if (withdrawn.aborted) return Promise.resolve('withdrawn')
   if (stop.aborted) return Promise.resolve('cancelled')
-  const late = new AbortController()
   return new Promise<Converted>(resolve => {
     const end = (answer: Converted): void => {
       cancelTimer()
@@ -70,13 +71,10 @@ export function convertWithin(
     }
     const onWithdrawn = (): void => end('withdrawn')
     const onStop = (): void => end('cancelled')
-    const cancelTimer = bounds.timer.after(bounds.timeoutMs, () => {
-      late.abort()
-      end('timeout')
-    })
+    const cancelTimer = bounds.timer.after(bounds.timeoutMs, () => end('timeout'))
     withdrawn.addEventListener('abort', onWithdrawn, { once: true })
     stop.addEventListener('abort', onStop, { once: true })
-    const signal = AbortSignal.any([withdrawn, stop, late.signal])
+    const signal = AbortSignal.any([withdrawn, stop])
     void Promise.resolve()
       .then(() => engine.convert({ ...input, signal }))
       .then(end, () => end('threw'))

@@ -25,7 +25,6 @@ export function createEngineRegistry(): EngineRegistry {
   const registered = new Map<string, Entry>()
 
   function withdraw(entry: Entry): Promise<void> {
-    if (entry.withdrawn) return entry.gone.promise
     entry.withdrawn = true
     const { name } = entry.engine.declaration
     if (registered.get(name) === entry) registered.delete(name)

@@ -12,7 +12,11 @@ import { createConversion, done, failed, type Todo } from './conversion.ts'
 import { tenantText, type MediaDependencies } from './deps.ts'
 import type { Objects } from './objects.ts'
 
-type Flight = { readonly stop: AbortController; result: Promise<Preprocess>; waiters: number }
+type Flight = {
+  readonly stop: AbortController
+  readonly result: Promise<Preprocess>
+  waiters: number
+}
 
 const REMEMBERED = 1024
 /** Makes media ready for a model that cannot take them as they are. Only an outcome is kept. */
@@ -54,13 +58,9 @@ export function createRepresentations(deps: MediaDependencies, objects: Objects)
   }
 
   function start(access: EngineAccess, todo: Todo): Flight {
-    const flight: Flight = {
-      stop: new AbortController(),
-      waiters: 0,
-      result: Promise.resolve(failed('cancelled')),
-    }
-    flight.result = converting(access, todo, flight.stop.signal)
-      .catch(() => failed('engine-error'))
+    const stop = new AbortController()
+    const result = converting(access, todo, stop.signal)
+      .catch(() => failed('outcome-unknown'))
       .then(answer => {
         flights.delete(todo.key)
         lastFailure.delete(todo.key)
@@ -70,6 +70,7 @@ export function createRepresentations(deps: MediaDependencies, objects: Objects)
         changed(todo.row)
         return answer
       })
+    const flight: Flight = { stop, result, waiters: 0 }
     flights.set(todo.key, flight)
     changed(todo.row)
     return flight

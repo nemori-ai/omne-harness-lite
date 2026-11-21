@@ -20,25 +20,33 @@ const SAMPLES: EngineWorld['samples'] = [
 /** An engine that says how many bytes it was handed; no bytes at all cannot be converted. */
 const counting = () =>
   createScriptedEngine(async input => {
+    if (typeof input.access.tenant !== 'string' || input.signal.aborted)
+      return { kind: 'failed', reason: 'error' }
     let bytes = 0
     for await (const part of input.media.open()) bytes += part.byteLength
     return bytes === 0
       ? { kind: 'inconvertible' }
       : { kind: 'converted', text: `${String(bytes)} bytes`, derived: [] }
   })
+const CONVERTIBLE = SAMPLES.slice(0, 1)
 
-const worldOf =
-  (engine: () => ConverterEngine): (() => Promise<EngineWorld>) =>
-  async () => ({ engine: engine(), samples: SAMPLES })
-
-async function verdicts(engine: () => ConverterEngine) {
-  const outcomes = await Promise.allSettled(
-    engineConformanceCases.map(item => item.run(worldOf(engine))),
-  )
+/** The names of the cases an engine fails, over the samples given. */
+async function verdicts(engine: () => ConverterEngine, samples = SAMPLES, disposed = () => {}) {
+  const world = async (): Promise<EngineWorld> => ({
+    engine: engine(),
+    samples,
+    dispose: async () => disposed(),
+  })
+  const outcomes = await Promise.allSettled(engineConformanceCases.map(item => item.run(world)))
   return engineConformanceCases
     .filter((_, at) => outcomes[at]?.status === 'rejected')
     .map(item => item.name)
 }
+const answering = (output: unknown) => () =>
+  createScriptedEngine(async () => output as never).engine
+const worldOf =
+  (engine: () => ConverterEngine): (() => Promise<EngineWorld>) =>
+  async () => ({ engine: engine(), samples: SAMPLES })
 
 describe('the conformance suite of converter engines', () => {
   it.each(engineConformanceCases)('the scripted engine: $name', async item => {
@@ -80,13 +88,58 @@ describe('the conformance suite of converter engines', () => {
     expect(await verdicts(vague)).toContain('every answer is one of the three kinds')
   })
 
-  it('fails an engine whose converted answer is not text and typed bytes', async () => {
-    const loose = () =>
-      createScriptedEngine(
-        async () =>
-          ({ kind: 'converted', text: 7, derived: [{ mediaType: '', bytes: [] }] }) as never,
+  it.each([
+    ['words that are no text', { kind: 'converted', text: 7, derived: [] }],
+    ['no list of other media', { kind: 'converted', text: '', derived: null }],
+    [
+      'a medium of no type',
+      { kind: 'converted', text: '', derived: [{ mediaType: '', bytes: new Uint8Array(1) }] },
+    ],
+    [
+      'a medium whose bytes are no bytes',
+      { kind: 'converted', text: '', derived: [{ mediaType: 'image/png', bytes: [1] }] },
+    ],
+    ['a failure where a conversion was due', { kind: 'failed', reason: 'error' }],
+  ])('fails an engine that answers %s', async (_, output) => {
+    expect(await verdicts(answering(output), CONVERTIBLE)).toEqual([
+      'every answer is one of the three kinds',
+    ])
+  })
+
+  it('fails an engine that tells a medium that can be converted it cannot, cancelled or not', async () => {
+    expect(await verdicts(answering({ kind: 'inconvertible' }), CONVERTIBLE)).toEqual([
+      'every answer is one of the three kinds',
+      'a cancelled conversion ends',
+    ])
+  })
+
+  it('fails a world that gives no sample: an engine that converted nothing passed nothing', async () => {
+    expect(await verdicts(() => counting().engine, [])).toEqual([
+      'the declaration holds together',
+      'a cancelled conversion ends',
+    ])
+  })
+
+  it('fails an engine that, cancelled, says the medium cannot be converted: that would be kept as a fact', async () => {
+    const hasty = () =>
+      createScriptedEngine(async input =>
+        input.signal.aborted
+          ? { kind: 'inconvertible' }
+          : { kind: 'converted', text: 'words', derived: [] },
       ).engine
-    expect(await verdicts(loose)).toContain('every answer is one of the three kinds')
+    expect(await verdicts(hasty, CONVERTIBLE)).toEqual(['a cancelled conversion ends'])
+  })
+
+  it('gives every case a world of its own and disposes of it', async () => {
+    let disposed = 0
+    expect(
+      await verdicts(
+        () => counting().engine,
+        SAMPLES,
+        () => (disposed += 1),
+      ),
+    ).toEqual([])
+    expect(disposed).toBe(engineConformanceCases.length)
   })
 })
 
