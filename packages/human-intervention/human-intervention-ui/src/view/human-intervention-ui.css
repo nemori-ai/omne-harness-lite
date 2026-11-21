@@ -160,6 +160,13 @@
   color: var(--omne-ink-faint);
 }
 
+/* The source's facts keep two columns on a narrow window: a term stays on its value's line. */
+@media (max-width: 767px) {
+  :is(.hitl-facts, .hitl-detail-rows) .fact-list-row + .fact-list-row > dt {
+    margin-top: 0;
+  }
+}
+
 .hitl-call {
   font-family: var(--omne-font-mono);
   overflow-wrap: anywhere;
