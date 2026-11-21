@@ -33,16 +33,18 @@ type Entry = Readonly<Record<string, number>>
 const countOf = (entry: Entry | undefined): number =>
   Object.values(entry ?? {}).reduce((sum, count) => sum + count, 0)
 
-/** The entry with `count` buttons left: counts handed to a run go first, then the others. */
+/** The entry with `count` buttons left, kinds in their order: counts handed to a run go first, then the others. */
 function shrunk(entry: Entry, count: number): Entry {
   let surplus = countOf(entry) - count
-  const kinds = Object.keys(entry).sort((a, b) => Number(RUN.test(b)) - Number(RUN.test(a)))
-  const kept: Record<string, number> = {}
-  for (const kind of kinds) {
+  const cuts = new Map<string, number>()
+  for (const kind of Object.keys(entry).sort((a, b) => Number(RUN.test(b)) - Number(RUN.test(a)))) {
     const cut = Math.min(surplus, entry[kind] ?? 0)
     surplus -= cut
-    if ((entry[kind] ?? 0) - cut > 0) kept[kind] = (entry[kind] ?? 0) - cut
+    cuts.set(kind, cut)
   }
+  const kept: Record<string, number> = {}
+  for (const [kind, held] of Object.entries(entry))
+    if (held - (cuts.get(kind) ?? 0) > 0) kept[kind] = held - (cuts.get(kind) ?? 0)
   return kept
 }
 
@@ -177,6 +179,7 @@ describe('worded buttons gate', () => {
     expect(shrunk({ commit: 2, R9: 1 }, 2)).toEqual({ commit: 2 })
     expect(shrunk({ commit: 2, R9: 1 }, 1)).toEqual({ commit: 1 })
     expect(shrunk({ name: 1 }, 0)).toEqual({})
+    expect(Object.keys(shrunk({ commit: 2, R9: 2 }, 3))).toEqual(['commit', 'R9'])
   })
 
   it('reads text, choices, nested elements and expressions, and skips buttons that only draw a glyph', () => {

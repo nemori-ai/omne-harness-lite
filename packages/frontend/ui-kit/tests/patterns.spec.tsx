@@ -160,7 +160,11 @@ it('InlineNotice runs its action, dismisses, and shows its detail behind a discl
 })
 
 it('InlineNotice leads its action with the glyph it is given, and with none otherwise', () => {
-  render(<InlineNotice action={{ label: '重试', onClick: vi.fn(), icon: RetryIcon }}>没读到</InlineNotice>)
+  render(
+    <InlineNotice action={{ label: '重试', onClick: vi.fn(), icon: RetryIcon }}>
+      没读到
+    </InlineNotice>,
+  )
   const retry = screen.getByRole('button', { name: '重试' })
   expect(retry.querySelector('svg[data-icon="retry"]')?.getAttribute('aria-hidden')).toBe('true')
   cleanup()

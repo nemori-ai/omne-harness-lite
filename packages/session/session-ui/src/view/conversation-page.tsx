@@ -320,7 +320,7 @@ function Body({
               notice={state.notice}
               action={
                 state.confirm === 'unknown'
-                  ? { label: '再确认一次', onClick: () => driver.confirmCreate() }
+                  ? { label: '再确认一次', onClick: () => driver.confirmCreate(), icon: RetryIcon }
                   : undefined
               }
             />

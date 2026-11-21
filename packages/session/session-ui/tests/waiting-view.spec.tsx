@@ -55,6 +55,10 @@ it('一轮失败之后：失败的那一行下面写成因、没处理的条数�
   expect(block.previousElementSibling?.textContent).toBe('这一轮失败了')
   expect(block.textContent).toContain('模型没有给出有效的回复。')
   expect(block.textContent).toContain('还有 2 条消息没有处理')
+  // The recovery leads with the retry glyph, as the reference's failure notice does (A4).
+  expect(
+    screen.getByRole('button', { name: '重试' }).querySelector('svg[data-icon="retry"]'),
+  ).not.toBeNull()
 
   fireEvent.click(screen.getByRole('button', { name: '重试' }))
   const retry = await fake.next('retry-run')

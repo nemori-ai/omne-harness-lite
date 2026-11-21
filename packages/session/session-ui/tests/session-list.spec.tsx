@@ -196,6 +196,9 @@ describe('会话列表的加载、空与读不到', () => {
     const notice = () => list().querySelector('[data-inline-notice]')
     expect(notice()?.getAttribute('data-tone')).toBe('caution')
     expect(notice()?.textContent).toContain('会话列表暂时读不到。')
+    expect(
+      within(list()).getByRole('button', { name: '重试' }).querySelector('svg[data-icon="retry"]'),
+    ).not.toBeNull()
     fireEvent.click(within(list()).getByRole('button', { name: '重试' }))
     ;(await fake.next('list-sessions')).answer({ outcome: 'denied' })
     await settle()

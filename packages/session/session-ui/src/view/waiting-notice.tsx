@@ -1,4 +1,4 @@
-import { InlineNotice } from '@omne-harness/ui-kit'
+import { InlineNotice, RetryIcon } from '@omne-harness/ui-kit'
 import type { Item } from '../model/conversation.ts'
 import type { SessionDriver } from '../model/session-driver.ts'
 import { causeSentence, type Retry, type Waiting } from '../model/waiting.ts'
@@ -36,6 +36,7 @@ export function WaitingNotice({
               action: {
                 label: retry.kind === 'unknown' ? '再问一次' : '重试',
                 onClick: () => driver.retry(),
+                icon: RetryIcon,
               },
             }
           : {})}

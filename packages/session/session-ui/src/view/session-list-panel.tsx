@@ -9,6 +9,7 @@ import {
   StateWord,
   useAgeClock,
   type StateLabel,
+  RetryIcon,
 } from '@omne-harness/ui-kit'
 import { encodeInstant } from '@omne-harness/utc-instant'
 import { useCallback, useSyncExternalStore } from 'react'
@@ -179,7 +180,9 @@ function ListState({
       return (
         <InlineNotice
           tone={list.retry ? 'caution' : 'neutral'}
-          {...(list.retry ? { action: { label: '重试', onClick: () => driver.loadList() } } : {})}
+          {...(list.retry
+            ? { action: { label: '重试', onClick: () => driver.loadList(), icon: RetryIcon } }
+            : {})}
         >
           {list.notice.text}
         </InlineNotice>
