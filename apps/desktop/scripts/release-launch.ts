@@ -106,12 +106,7 @@ export const createdBy = (started: Launch): ProcessInfo[] =>
   )
 
 /** Who started what: enough to tell a launch's processes from everything else on the machine. */
-export type LaunchOwner = Readonly<{
-  root: LaunchRoot
-  preexisting: ReadonlySet<number>
-  /** Only for an executable no other launcher starts, as verify:release's packages. */
-  location?: ProcessLocation
-}>
+export type LaunchOwner = Pick<Launch, 'root' | 'preexisting' | 'location'>
 
 /** Kills the launch's processes other than its main one; helpers seen earlier are rechecked first. */
 function killHelpers(owner: LaunchOwner, known: readonly ProcessInfo[]): void {

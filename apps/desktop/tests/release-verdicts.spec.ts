@@ -188,7 +188,7 @@ describe('拒绝远程调试的那次启动', () => {
 })
 
 describe('进程归属', () => {
-  const ROOT = { pid: 100, spawnedAt: Date.parse('Fri Nov 20 12:00:00 2026') }
+  const ROOT = { pid: 100, spawnedAt: Date.parse('Fri Nov 20 12:00:00 2026'), userDataDir: '/t/u' }
   const LOCATION = { command: '/o/omne.app/Contents/MacOS/omne', processDir: '/o/omne.app' }
   const at = (seconds: number) => ROOT.spawnedAt + seconds * 1000
   const proc = (
@@ -199,7 +199,7 @@ describe('进程归属', () => {
     pgid = 1,
   ): ProcessInfo => ({ pid, ppid, pgid, command, startedAt })
 
-  it('只算启动建出的：之前就在的、启动前开始的、僵尸都不算；子孙、同组、同目录的算', () => {
+  it('只算启动建出的：之前就在的、启动前开始的、僵尸都不算；子孙、同组、同目录且用本次用户数据的算', () => {
     const listing = [
       proc(100, 1, '/o/omne.app/Contents/MacOS/omne', at(0), 100),
       proc(101, 100, '/o/omne.app/Contents/Frameworks/omne Helper (Renderer) --type=renderer'),
@@ -207,8 +207,16 @@ describe('进程归属', () => {
       proc(
         103,
         1,
-        '/o/omne.app/Contents/Frameworks/x --type=utility --utility-sub-type=node.mojom.NodeService',
+        '/o/omne.app/Contents/Frameworks/x --type=utility --utility-sub-type=node.mojom.NodeService --user-data-dir=/t/u',
       ),
+      proc(
+        105,
+        1,
+        '/o/omne.app/Contents/Frameworks/chrome_crashpad_handler --database=/t/u/Crashpad',
+      ),
+      // Another launcher's app from the same Electron, on its own user data (as `pnpm run dev`).
+      proc(106, 1, '/o/omne.app/Contents/Frameworks/x --type=renderer --user-data-dir=/t/u-dev'),
+      proc(107, 1, '/o/omne.app/Contents/MacOS/omne'),
       proc(200, 1, '/o/omne.app/Contents/MacOS/omne', at(-60)),
       proc(201, 1, 'unrelated'),
       { ...proc(104, 100, 'zombie'), zombie: true },
@@ -216,14 +224,15 @@ describe('进程归属', () => {
     const created = launchProcesses(listing, ROOT, new Set([200]), LOCATION, 'darwin').map(
       process => process.pid,
     )
-    expect(created).toEqual([100, 101, 102, 103])
-    // Without a location only descent and group count: 103 runs from the same place but is not ours.
-    const owned = launchProcesses(listing, ROOT, new Set([200]), undefined, 'darwin')
+    expect(created).toEqual([100, 101, 102, 103, 105])
+    // Without a directory of its own the launch has no path marker: only descent and group count.
+    const { userDataDir: _, ...unmarked } = ROOT
+    const owned = launchProcesses(listing, unmarked, new Set([200]), LOCATION, 'darwin')
     expect(owned.map(process => process.pid)).toEqual([100, 101, 102])
     const kinds = launchProcesses(listing, ROOT, new Set([200]), LOCATION, 'darwin')
     expect(missingKinds(kinds, 100)).toEqual([])
     const left = leftoverProcesses(
-      [listing[1]!, listing[4]!],
+      listing.filter(process => process.pid === 101 || process.pid === 200),
       kinds,
       ROOT,
       new Set([200]),

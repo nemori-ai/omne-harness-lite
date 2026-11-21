@@ -94,15 +94,32 @@ function createdByLaunch(
   return process.startedAt >= earliest
 }
 
+/** Whether `command` runs on the launch's own user data: its switch, or Crashpad's database in it. */
+function usesLaunchProfile(
+  command: string,
+  directory: string | undefined,
+  platform: NodeJS.Platform,
+): boolean {
+  if (directory === undefined) return false
+  // ps drops argv boundaries; include the whole known value and match the end of the switch.
+  const path = directory.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const child = platform === 'win32' ? '\\\\' : '/'
+  return new RegExp(
+    `(?:^|\\s)"?--(?:user-data-dir="?${path}|database="?${path}${child}Crashpad)"?(?:\\s|$)`,
+    platform === 'win32' ? 'i' : '',
+  ).test(command)
+}
+
 /**
- * The processes the launch at `root` created: its descendants, its group, or its executable. Without
- * `location`, never by executable: another launcher's app may run from the same Electron.
+ * The processes the launch at `root` created: its descendants, its group, or its executable running
+ * on the launch's own user data. The executable alone is not enough: another launcher's app (as
+ * `pnpm run dev`) may run from the same Electron.
  */
 export function launchProcesses(
   listing: readonly ProcessInfo[],
   root: LaunchRoot,
   preexisting: ReadonlySet<number>,
-  location: ProcessLocation | undefined,
+  location: ProcessLocation,
   platform: NodeJS.Platform,
 ): ProcessInfo[] {
   const created = listing.filter(process => createdByLaunch(process, root, preexisting, platform))
@@ -131,7 +148,8 @@ export function launchProcesses(
       process !== impostor &&
       (ours.has(process.pid) ||
         (process.pgid !== undefined && process.pgid === root.pid) ||
-        (location !== undefined && runsFrom(process, location, platform))),
+        (runsFrom(process, location, platform) &&
+          usesLaunchProfile(process.command, root.userDataDir, platform))),
   )
 }
 
@@ -141,7 +159,7 @@ export function leftoverProcesses(
   launched: readonly ProcessInfo[],
   root: LaunchRoot,
   preexisting: ReadonlySet<number>,
-  location: ProcessLocation | undefined,
+  location: ProcessLocation,
   platform: NodeJS.Platform,
 ): ProcessInfo[] {
   const seen = new Map(launched.map(process => [process.pid, process]))

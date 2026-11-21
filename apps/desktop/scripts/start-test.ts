@@ -79,11 +79,12 @@ child.once('close', (code, signal) => {
   process.exitCode = wrongBuild ? 1 : (code ?? 1)
   if (child.pid === undefined) return
   const owner: LaunchOwner = {
-    root: { pid: child.pid, spawnedAt, userDataDir },
+    // Only a directory this launcher created marks the app's processes as its own.
+    root: { pid: child.pid, spawnedAt, ...(temporary ? { userDataDir } : {}) },
     preexisting,
+    location: { command: spec!.command, processDir: spec!.processDir },
   }
-  // Its helpers may still use the directory: it goes only once they are confirmed gone. They are
-  // found by descent and process group, not by path: `pnpm run dev` runs the same Electron.
+  // Its helpers may still use the directory: it goes only once they are confirmed gone.
   void reapHelpers(owner, [], 3_000).then(
     killed => {
       if (killed.length > 0)
