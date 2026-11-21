@@ -3,7 +3,8 @@ import { identityProtocol } from '@omne-harness/identity-protocol'
 import { encodeTenantText, type TenantId } from '@omne-harness/public-contract'
 import {
   sessionProtocol,
-  userTextMessage,
+  userMessage,
+  type UserAttachment,
   type SessionProtocol,
 } from '@omne-harness/session-protocol'
 import type { BodyOf } from '@omne-harness/sdk/core'
@@ -41,6 +42,7 @@ import { calendarCommand } from './calendar-command.ts'
 import { usageCommands } from './usage-command.ts'
 import { scheduleCommand } from './schedule-command.ts'
 import { notificationCommand } from './notification-command.ts'
+import { mediaCommand, readUpload, sendUpload } from './media-command.ts'
 import { workspaceCommand } from './workspace-command.ts'
 import { callsCommand } from './calls-command.ts'
 
@@ -114,8 +116,10 @@ interface SessionContext {
   readonly newId: () => string
 }
 
+type Stop = Readonly<{ usage: string }> | Readonly<{ local: string }>
+
 type Built = {
-  readonly send: (link: Link) => Promise<CallResult | undefined>
+  readonly send: (link: Link) => Promise<CallResult | Stop | undefined>
   readonly echo: RequestEcho
   readonly note?: () => string | null
 }
@@ -125,7 +129,11 @@ interface SessionCommandBase<Parsed> {
   readonly accepted: readonly string[]
   readonly required: readonly string[]
   readonly switches?: readonly string[]
-  readonly parse: (values: Option) => Parsed | undefined
+  readonly repeatable?: readonly string[]
+  readonly parse: (
+    values: Option,
+    lists: ReadonlyMap<string, readonly string[]>,
+  ) => Parsed | undefined
 }
 
 interface CreatingCommand<Parsed> extends SessionCommandBase<Parsed> {
@@ -200,6 +208,15 @@ function recordCreated(
   return 1
 }
 
+const sent = (result: CallResult | Stop | undefined): result is CallResult =>
+  result !== undefined && 'kind' in result
+
+function stopped(name: string, stop: Stop | undefined, output: CliOutput): ExitCode {
+  if (stop === undefined) return usageError(output, unrecognized(name))
+  if ('usage' in stop) return usageError(output, `omne ${name}: ${stop.usage}\n`)
+  return localFailure(output, `omne ${name}: ${stop.local}\n`)
+}
+
 async function runSession<Parsed>(
   command: SessionCommand<Parsed>,
   args: readonly string[],
@@ -207,11 +224,11 @@ async function runSession<Parsed>(
   environment: CommandEnvironment,
 ): Promise<ExitCode> {
   const { name } = command
-  const { accepted, required, switches = [] } = command
-  const read = readOptions(args, { accepted, required, switches })
+  const { accepted, required, switches = [], repeatable = [] } = command
+  const read = readOptions(args, { accepted, required, switches, repeatable })
   if (read.kind === 'unrecognized') return usageError(output, unrecognized(name))
   if (read.kind === 'missing') return usageError(output, missingOption(name, read.option))
-  const parsed = command.parse(read.values)
+  const parsed = command.parse(read.values, read.lists)
   if (parsed === undefined) return usageError(output, unrecognized(name))
 
   const loaded = loadLogin(read.values, output, environment)
@@ -220,7 +237,7 @@ async function runSession<Parsed>(
   if ('exit' in prepared) return prepared.exit
   const { built, owners } = prepared
   const result = await built.send(loaded.link)
-  if (result === undefined) return usageError(output, unrecognized(name))
+  if (!sent(result)) return stopped(name, result, output)
   const code = report(name, result, built.echo, output)
   const note = built.note?.() ?? null
   if (note !== null) output.stderr(`omne ${name}: ${note}\n`)
@@ -309,11 +326,17 @@ function targeted(values: Option): Targeted | undefined {
 type InputCommand = ExistingCommand<
   Omit<Targeted, 'controlId'> & {
     text: string
+    attach: readonly string[]
     model: string | undefined
     acceptId: string | undefined
     inputId: string | undefined
   }
 >
+
+function attachmentKind(mediaType: string): 'image' | 'voice' | 'file' {
+  if (mediaType.startsWith('image/')) return 'image'
+  return mediaType.startsWith('audio/') ? 'voice' : 'file'
+}
 
 // An ordinary input and an urgent one share their body, their queue and their query (C27).
 const inputCommand = (name: 'send-input' | 'interrupt-input'): InputCommand => ({
@@ -322,21 +345,27 @@ const inputCommand = (name: 'send-input' | 'interrupt-input'): InputCommand => (
   accepted: [
     '--session',
     '--text',
+    '--attach',
     '--model',
     '--tenant',
     '--accept-id',
     '--input-id',
     serverOption,
   ],
-  required: ['--session', '--text'],
-  parse: values => {
+  required: ['--session'],
+  repeatable: ['--attach'],
+  parse: (values, lists) => {
     const target = targeted(values)
     const model = values.get('--model')
+    const text = values.get('--text') ?? ''
+    const attach = lists.get('--attach') ?? []
     if (target === undefined || model === '') return undefined
+    if (text === '' && attach.length === 0) return undefined
     return {
       session: target.session,
       tenant: target.tenant,
-      text: values.get('--text') ?? '',
+      text,
+      attach,
       model,
       acceptId: values.get('--accept-id'),
       inputId: values.get('--input-id'),
@@ -349,16 +378,33 @@ const inputCommand = (name: 'send-input' | 'interrupt-input'): InputCommand => (
     const inputId = parsed.inputId ?? newId()
     const { session, model } = parsed
     let unselected = false
+    let refused: string | null = null
     return {
-      // A model is selected first, under a control identity the accept identity gives.
+      // Every file is read before anything is sent; then each is uploaded, a model is selected
+      // under a control identity the accept identity gives, and the message goes last.
       send: async link => {
+        const files = []
+        for (const file of parsed.attach) {
+          const read = await readUpload(file)
+          if (!('file' in read)) return read
+          files.push(read)
+        }
+        const attachments: UserAttachment[] = []
+        for (const read of files) {
+          const { result, ref } = await sendUpload({ link, tenant, newId }, read, newId())
+          if (ref === null) {
+            refused = read.file
+            return result
+          }
+          attachments.push({ kind: attachmentKind(read.mediaType), ref })
+        }
         if (model !== undefined) {
           const select = { tenant, session, controlId: `model:${acceptId}`, model }
           const selected = await link.call(sessionProtocol, 'select-model', select, newId())
           unselected = selected?.kind !== 'response' || selected.outcome !== 'succeeded'
           if (unselected) return selected
         }
-        const message = await userTextMessage(parsed.text, inputId)
+        const message = await userMessage({ inputId, text: parsed.text, attachments })
         return link.call(
           sessionProtocol,
           name,
@@ -367,7 +413,11 @@ const inputCommand = (name: 'send-input' | 'interrupt-input'): InputCommand => (
         )
       },
       echo: { messageId, acceptId, inputId, tenant: encodeTenantText(tenant) },
-      note: () => (unselected ? 'the model was not selected; the input was not sent' : null),
+      note: () => {
+        if (refused !== null)
+          return `the attachment ${refused} was not taken; the input was not sent`
+        return unselected ? 'the model was not selected; the input was not sent' : null
+      },
     }
   },
 })
@@ -801,13 +851,14 @@ export const productionCommands: readonly CommandSpec[] = [
   },
   {
     name: 'send-input',
-    usage: '--session <id> --text <text> [--model <route>]',
-    summary: 'Send a user message to a session.',
+    usage: '--session <id> [--text <text>] [--attach <file>]... [--model <route>]',
+    summary:
+      'Send a user message to a session: words, files (each --attach is uploaded first), or both.',
     run: (args, output, environment) => runSession(sendInput, args, output, environment),
   },
   {
     name: 'interrupt-input',
-    usage: '--session <id> --text <text> [--model <route>]',
+    usage: '--session <id> [--text <text>] [--attach <file>]... [--model <route>]',
     summary: 'Send an urgent user message: it releases what the run waits for, or is ordinary.',
     run: (args, output, environment) => runSession(interruptInput, args, output, environment),
   },
@@ -933,5 +984,6 @@ export const productionCommands: readonly CommandSpec[] = [
   workspaceCommand,
   settingCommand,
   assetCommand,
+  mediaCommand,
   ...usageCommands,
 ]

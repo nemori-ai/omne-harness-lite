@@ -211,7 +211,7 @@
       },
       "packages/context/agent-context/src/requests.ts": {
         "count": 1,
-        "longest": 461
+        "longest": 460
       },
       "packages/context/request-context-contract/src/testing/history-source.ts": {
         "count": 1,
@@ -579,7 +579,7 @@
       },
       "packages/session/session/src/command.ts": {
         "count": 1,
-        "longest": 260
+        "longest": 239
       },
       "packages/session/session/src/control.ts": {
         "count": 1,
@@ -639,7 +639,7 @@
       },
       "packages/tool/tool-host-local/src/author-environment.ts": {
         "count": 1,
-        "longest": 199
+        "longest": 196
       },
       "packages/tool/tool-host-local/src/author-generations.ts": {
         "count": 1,
@@ -651,7 +651,7 @@
       },
       "packages/tool/tool-host-local/src/catalog.ts": {
         "count": 1,
-        "longest": 202
+        "longest": 193
       },
       "packages/tool/tool-host-local/src/control-subject-adapter.ts": {
         "count": 1,

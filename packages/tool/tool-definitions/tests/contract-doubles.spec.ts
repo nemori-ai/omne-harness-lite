@@ -32,6 +32,7 @@ it('consumes the existing memory files and scripted command through request-bind
   const memory = createMemoryFileSystem<string>({ files: { 'docs/note.txt': '中文\r\nold\r\n末' } })
   const fallback = filesFixture()
   const environment: FilesAuthorEnvironment = {
+    ...fallback.environment,
     files: {
       ...fallback.environment.files,
       read: args =>

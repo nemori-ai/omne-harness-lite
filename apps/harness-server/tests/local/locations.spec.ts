@@ -25,6 +25,7 @@ describe('Windows', () => {
       defaultWorkspace: 'C:\\Users\\a\\AppData\\Local\\omne\\state\\workspace',
       assetsRoot: 'C:\\Users\\a\\AppData\\Local\\omne\\state\\assets',
       historyIndexRoot: 'C:\\Users\\a\\AppData\\Local\\omne\\state\\history-index',
+      mediaRoot: 'C:\\Users\\a\\AppData\\Local\\omne\\state\\media',
     })
   })
 

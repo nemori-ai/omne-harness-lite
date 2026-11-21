@@ -76,7 +76,17 @@
               "pending": false
             },
             {
-              "name": "ConversionIndex",
+              "name": "BlockPosition",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "NativeCapability",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "NativeRequirement",
               "kind": "type",
               "pending": false
             },
@@ -87,6 +97,21 @@
             },
             {
               "name": "chooseRepresentations",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "modalityOfBlock",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "nativeRequirement",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "unmetBy",
               "kind": "value",
               "pending": false
             },
@@ -444,16 +469,6 @@
               "pending": false
             },
             {
-              "name": "ConversionIndexResult",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "ConversionResultSource",
-              "kind": "type",
-              "pending": false
-            },
-            {
               "name": "CompactionPolicy",
               "kind": "type",
               "pending": false
@@ -664,6 +679,16 @@
               "pending": false
             },
             {
+              "name": "RepresentationOption",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RepresentationSource",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "RequestLayers",
               "kind": "type",
               "pending": false
@@ -798,11 +823,6 @@
               "pending": false
             },
             {
-              "name": "createMemoryConversionResults",
-              "kind": "value",
-              "pending": false
-            },
-            {
               "name": "createScriptedCompactionPolicy",
               "kind": "value",
               "pending": false
@@ -829,11 +849,6 @@
             },
             {
               "name": "ScriptedInputMeter",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "MemoryConversionResults",
               "kind": "type",
               "pending": false
             },

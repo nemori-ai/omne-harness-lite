@@ -374,7 +374,7 @@ describe('measure', () => {
     })
   })
 
-  it('refuses a representation of another adoption or with media still pending', async () => {
+  it('refuses a representation of another adoption', async () => {
     const parts = { messages: [message('u1', 'user', [textBlock('b1', 'hi')])] }
     const other = await planAndMeasure(SOL, parts, value => ({
       ...value,
@@ -387,19 +387,31 @@ describe('measure', () => {
         adapter: componentAdoption(SOL, 'meter'),
       },
     })
-    const pending = await planAndMeasure(SOL, parts, value => ({
-      adoption: value.adoption,
-      tokenInput: value.tokenInput,
-      media: [],
-      kind: 'pending-media',
-      references: [reference],
-    }))
-    expect(pending.measured).toEqual({
-      failure: {
-        kind: 'unsupported',
-        field: 'representation.kind',
-        adapter: componentAdoption(SOL, 'meter'),
-      },
+  })
+
+  it('counts an image by reference from the facts on its block, and leaves its bytes to the read', async () => {
+    const referred = {
+      kind: 'image',
+      id: 'i1',
+      visibility: { toHuman: true, toModel: true },
+      ref: { ...reference, bytes: '9000000' },
+      transcript: null,
+      facts: { kind: 'image', widthPixels: 1024, heightPixels: 1024 },
+    }
+    const parts = { messages: [message('u1', 'user', [textBlock('b1', 'look'), referred])] }
+    const { measured, tokenInput } = await planAndMeasure(ASTRA, parts)
+    if (!('ok' in measured)) throw new Error(JSON.stringify(measured.failure))
+    expect(measured.ok).toMatchObject({
+      kind: 'deferred-media',
+      references: [{ ...reference, bytes: '9000000' }],
     })
+    const [input, image] = measured.ok.checks
+    expect(input?.measurement).toMatchObject({
+      kind: 'estimate',
+      amount: String(o200k.encode(sortedJsonText(tokenInput), [], []).length + 1229),
+    })
+    // What is sent is read later and may be a smaller version: its bytes are not checked here.
+    expect(image).toBeUndefined()
+    expect(measured.ok.checks.map(check => check.metric)).toEqual(['input-tokens'])
   })
 })

@@ -12,6 +12,7 @@ import type {
   SavedModelSelection,
   SessionAccess,
   SessionHistory,
+  SessionId,
   SessionManagement,
   SessionWork,
   WorkspaceAttachment,
@@ -161,12 +162,13 @@ export type ModelTargetCheck =
   | Readonly<{
       kind: 'refused'
       reason: 'unknown-name' | 'withdrawn' | 'excluded' | 'modality' | 'locked' | 'scope'
+      blocks?: readonly Readonly<{ message: string; block: string }>[]
     }>
   | Readonly<{ kind: 'unavailable' }>
 
 export interface ModelTargets {
   check(
-    input: Readonly<{ principal: Principal; tenant: TenantId; route: string }>,
+    input: Readonly<{ principal: Principal; tenant: TenantId; route: string; session?: SessionId }>,
   ): Promise<ModelTargetCheck>
 }
 

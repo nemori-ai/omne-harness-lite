@@ -367,6 +367,8 @@ const observeSessionFrame = {
 export type ObserveSessionOpen = RuleValue<typeof observeSessionOpen>
 export type ObserveSessionFrame = RuleValue<typeof observeSessionFrame>
 
+const blockPosition = object({ message: { rule: text }, block: { rule: text } })
+
 export const sessionProtocol = defineProtocol({
   name: 'session',
   major: 1,
@@ -678,6 +680,7 @@ export const sessionProtocol = defineProtocol({
             reason: {
               rule: literal('unknown-name', 'withdrawn', 'excluded', 'modality', 'locked', 'scope'),
             },
+            blocks: { rule: { kind: 'array', item: blockPosition, max: 16 }, optional: true },
           }),
         ),
         archived: empty,

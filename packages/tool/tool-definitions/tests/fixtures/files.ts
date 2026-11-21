@@ -3,16 +3,40 @@ import type {
   FileInformation,
   FacilityResult,
 } from '@omne-harness/execution-environment-contract'
+import type { JsonValue } from '@omne-harness/json-text'
+import { succeed, type Outcome } from '@omne-harness/operation-result'
+import type {
+  ToolMediaProduct,
+  ToolMediaSink,
+  ToolPrimitiveFailure,
+} from '@omne-harness/tool-contract/provider'
 import type { FilesAuthorEnvironment } from '@omne-harness/tool-definitions'
 
-export function filesFixture(initial: Record<string, string> = {}) {
+type Put = Parameters<ToolMediaSink['put']>[0]
+/** A product as the store would answer it: the reference names the bytes it was given. */
+export const productOf = (put: Put): ToolMediaProduct => ({
+  ref: {
+    storage: 'media',
+    key: `stored-${put.bytes.byteLength}`,
+    mediaType: put.mediaType,
+    bytes: String(put.bytes.byteLength),
+    digest: `sha256:${'d'.repeat(64)}`,
+  },
+  facts: { kind: 'image', widthPixels: 0, heightPixels: 0 },
+})
+
+export function filesFixture(initial: Record<string, string | Uint8Array> = {}) {
   const encoder = new TextEncoder()
   const files = new Map(
-    Object.entries(initial).map(([path, text]) => [
+    Object.entries(initial).map(([path, content]) => [
       path,
-      { bytes: encoder.encode(text), version: '1' },
+      { bytes: typeof content === 'string' ? encoder.encode(content) : content, version: '1' },
     ]),
   )
+  const puts: Put[] = []
+  const stored = {
+    answer: (put: Put): Outcome<ToolMediaProduct, ToolPrimitiveFailure> => succeed(productOf(put)),
+  }
   const writes: { path: string; expectedVersion?: string }[] = []
   const mkdirs: { path: string; parents: boolean }[] = []
   const batches: unknown[] = []
@@ -32,6 +56,12 @@ export function filesFixture(initial: Record<string, string> = {}) {
     modifiedMs: 123,
   })
   const environment: FilesAuthorEnvironment = {
+    media: {
+      put: async put => {
+        puts.push(put)
+        return stored.answer(put)
+      },
+    },
     files: {
       read: async ({ path, offsetBytes = 0, limitBytes }) => {
         const file = files.get(path)
@@ -114,10 +144,9 @@ export function filesFixture(initial: Record<string, string> = {}) {
     writes,
     mkdirs,
     batches,
-    config: {
-      kind: 'object',
-      entries: [{ key: 'resultMaxBytes', value: { kind: 'number', lexeme: '32768' } }],
-    } as const,
+    puts,
+    stored,
+    config: filesConstruction(),
     text: (path: string) =>
       new TextDecoder('utf-8', { ignoreBOM: true }).decode(files.get(path)?.bytes),
     set: (path: string, text: string) =>
@@ -125,5 +154,24 @@ export function filesFixture(initial: Record<string, string> = {}) {
     unknownBatch: () => {
       batchUnknown = true
     },
+  }
+}
+
+export const OPEN_LIMITS = {
+  openMaxBytes: 65_536,
+  imageMaxWidth: 64,
+  imageMaxHeight: 64,
+  imageMaxDecodedBytes: 64 * 64 * 4,
+  imageConcurrency: 1,
+}
+
+export function filesConstruction(overrides: Readonly<Record<string, number>> = {}): JsonValue {
+  const values = { resultMaxBytes: 32_768, ...OPEN_LIMITS, ...overrides }
+  return {
+    kind: 'object',
+    entries: Object.entries(values).map(([key, value]) => ({
+      key,
+      value: { kind: 'number', lexeme: String(value) },
+    })),
   }
 }

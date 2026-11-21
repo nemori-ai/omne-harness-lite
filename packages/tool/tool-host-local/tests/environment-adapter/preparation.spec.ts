@@ -9,7 +9,7 @@ import {
   type Placement,
   type ResourceLedger,
 } from '@omne-harness/execution-environment-contract'
-import { succeed } from '@omne-harness/operation-result'
+import { fail, succeed } from '@omne-harness/operation-result'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import type { ToolLedgerStore } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
@@ -24,6 +24,7 @@ import type { FileObjectNaming, ToolEnvironmentValue } from '../../src/author-en
 import {
   createLocalEnvironmentPlanResolver,
   createLocalExecutionEnvironment,
+  type LocalExecutionEnvironmentInput,
 } from '../../src/execution-environment.ts'
 import { createEnvironmentStateStore } from '../../src/environment-state.ts'
 import { createEnvironmentResourceLedger } from '../../src/environment-resource-ledger.ts'
@@ -136,8 +137,9 @@ function fixture(wrap: (memory: ToolLedgerStore) => ToolLedgerStore = memory => 
     })),
     recoverResources: async () => ({ kind: 'unknown', cause: 'provider' }),
   }
-  const build = () =>
+  const build = (media?: LocalExecutionEnvironmentInput<Principal>['media']) =>
     createLocalExecutionEnvironment({
+      ...(media === undefined ? {} : { media }),
       adoption: preparation.adoption,
       execution,
       store: ledgerStore,
@@ -236,6 +238,30 @@ it('confirms the original acquisition before acquire and exposes a bound command
   )
   expect(await env.release(await f.release())).toMatchObject({ ok: { kind: 'released' } })
   expect(f.releaseLease).toHaveBeenCalledTimes(1)
+})
+
+it('binds the store of products the host was given to the call being prepared, and none when it was given none', async () => {
+  const png = { mediaType: 'image/png', bytes: new Uint8Array([1]) }
+  const put = vi.fn(async () => fail({ kind: 'too-large' as const, reason: 'fixture' }))
+  const f = fixture()
+  const given = await f.build(() => ({ put })).prepare(f.prepare)
+  if ('failure' in given || given.ok.kind !== 'prepared') throw new Error('not prepared')
+  expect(await given.ok.environment.value.media.put(png)).toEqual({
+    failure: { kind: 'too-large', reason: 'fixture' },
+  })
+  expect(put).toHaveBeenCalledWith(
+    expect.objectContaining({
+      principal: principalA,
+      tenant: tenantA,
+      holder: expect.objectContaining({ work: f.preparation.call }),
+    }),
+  )
+  const bare = fixture()
+  const none = await bare.build().prepare(bare.prepare)
+  if ('failure' in none || none.ok.kind !== 'prepared') throw new Error('not prepared')
+  expect(await none.ok.environment.value.media.put(png)).toMatchObject({
+    failure: { kind: 'unavailable', operation: 'media.put' },
+  })
 })
 
 it('writes and reads exact bytes through the adapter and the published file facility double', async () => {

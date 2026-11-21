@@ -3,6 +3,7 @@ import type { ConnectRetryDiagnostic } from './diagnostics.ts'
 import type { PiFamilyContributions } from './family.ts'
 import { isPlainHttpsUrl } from './http.ts'
 import { isPositiveInteger, isTimerDuration, MAX_TIMER_MS } from './limits.ts'
+import type { PiMediaReader } from './media.ts'
 import { networkInternalsOf, type NetworkInternals, type NetworkResources } from './network.ts'
 
 export type RouteAccounting = Readonly<{ place: string; costUnit: string }>
@@ -45,6 +46,8 @@ export type PiTransportConfig = Readonly<{
   limits: PiTransportLimits
   onConnectRetry?: (event: ConnectRetryDiagnostic) => void
   onResponseBody?: () => void
+  /** Reads the media of this transport's requests; absent, a request that refers to media is unavailable. */
+  media?: PiMediaReader
 }>
 
 /** The route of one dispatch: the endpoint its engine speaks, with the accounting and auth. */
@@ -79,6 +82,7 @@ export function routeFor(
     : { url: found.url, endMarker: found.endMarker, accounting: route.accounting, auth: route.auth }
 }
 
+export type { PiMediaReader } from './media.ts'
 export type CheckedConfig = Readonly<{
   network: NetworkInternals
   families: PiFamilyContributions
@@ -87,6 +91,7 @@ export type CheckedConfig = Readonly<{
   limits: PiTransportLimits
   onConnectRetry?: ((event: ConnectRetryDiagnostic) => void) | undefined
   onResponseBody?: (() => void) | undefined
+  media?: PiMediaReader | undefined
 }>
 
 const JSON_LIMIT_NAMES = [
@@ -103,10 +108,9 @@ export function checkConfig(config: PiTransportConfig): CheckedConfig {
     throw new RangeError('families must have an acquire function')
   if (!isObject(config.credential) || typeof config.credential.read !== 'function')
     throw new RangeError('credential must have a read function')
-  if (config.onConnectRetry !== undefined && typeof config.onConnectRetry !== 'function')
-    throw new RangeError('onConnectRetry must be absent or a function')
-  if (config.onResponseBody !== undefined && typeof config.onResponseBody !== 'function')
-    throw new RangeError('onResponseBody must be absent or a function')
+  for (const name of ['onConnectRetry', 'onResponseBody', 'media'] as const)
+    if (config[name] !== undefined && typeof config[name] !== 'function')
+      throw new RangeError(`${name} must be absent or a function`)
   const network = networkInternalsOf(config.network)
   return {
     network,
@@ -116,6 +120,7 @@ export function checkConfig(config: PiTransportConfig): CheckedConfig {
     limits: checkLimits(config.limits),
     onConnectRetry: config.onConnectRetry,
     onResponseBody: config.onResponseBody,
+    media: config.media,
   }
 }
 

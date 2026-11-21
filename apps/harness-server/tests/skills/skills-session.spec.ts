@@ -152,6 +152,7 @@ describe('Skills in a real coding session', () => {
         'Files',
         'Notifications',
         'Schedules',
+        'Screen',
         'Sessions',
         'Shell',
         'Skills',

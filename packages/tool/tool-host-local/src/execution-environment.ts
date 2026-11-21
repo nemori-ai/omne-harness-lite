@@ -25,6 +25,7 @@ import type {
   ToolEnvironment,
 } from '@omne-harness/tool-contract/provider'
 import {
+  type AuthorEnvironmentInput,
   createAuthorEnvironment,
   type EnvironmentFacts,
   type FileObjectNaming,
@@ -148,9 +149,14 @@ export type LocalExecutionEnvironmentInput<P> = Readonly<{
   store: ToolLedgerStore
   plans: EnvironmentPlanResolver<P>
   naming: FileObjectNaming<P>
+  media?: AuthorEnvironmentInput<P>['media']
   cleanup: OriginalCleanup<P>
   storage?: Omit<EnvironmentStorageOptions, 'store'>
 }>
+const authorPorts = <P>(input: LocalExecutionEnvironmentInput<P>) => ({
+  naming: input.naming,
+  media: input.media ?? (() => undefined),
+})
 type Live<P> = {
   readonly plan: EnvironmentPlan<P>
   lease: EnvironmentLease | null
@@ -315,7 +321,7 @@ export function createLocalExecutionEnvironment<P>(
         access: request,
         origin: current.plan.acquire.origin,
         lease: current.lease,
-        naming: input.naming,
+        ...authorPorts(input),
         facts: current.plan.facts,
       })
       current.principal = request.principal

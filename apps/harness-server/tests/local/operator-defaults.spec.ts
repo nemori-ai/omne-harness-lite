@@ -230,6 +230,9 @@ describe('localOperatorLayer over the bundled distribution', () => {
     expect(configOf(layer, 'session-history-index')).toEqual({
       root: input('linux').locations.historyIndexRoot,
     })
+    expect(configOf(layer, 'media-storage-local')).toEqual({
+      root: input('linux').locations.mediaRoot,
+    })
     const without = localOperatorLayer({
       ...input('linux'),
       distribution: { rows: [{ id: 'session-handoff', config: { combinationVersion: 'v' } }] },
@@ -247,6 +250,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
               'dispatch',
               'workspace',
               'session-history-index',
+              'media-storage-local',
             ].includes(id),
         ),
     )
@@ -336,6 +340,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
       'Files',
       'Notifications',
       'Schedules',
+      'Screen',
       'Sessions',
       'Shell',
       'Skills',
@@ -362,6 +367,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
       'Schedules',
       'Notifications',
       'SwitchWorkspace',
+      'Screen',
     ])
       expect(bounds[tool]?.resultMaxBytes, tool).toBeLessThanOrEqual(inline)
   })
@@ -386,7 +392,14 @@ describe('localOperatorLayer over the bundled distribution', () => {
     const construction = (configOf(layer, 'tool-host') as { construction: Record<string, object> })
       .construction
     expect(Object.keys(construction['Shell']!)).not.toContain('cwd')
-    expect(construction['Files']).toEqual({ resultMaxBytes: 1_048_576 })
+    expect(construction['Files']).toEqual({
+      resultMaxBytes: 1_048_576,
+      openMaxBytes: 20_971_520,
+      imageMaxWidth: 16384,
+      imageMaxHeight: 16384,
+      imageMaxDecodedBytes: 134_217_728,
+      imageConcurrency: 2,
+    })
     expect(configOf(layer, 'tool-records')).not.toHaveProperty('filesRoot')
     expect(configOf(layer, 'execution-host')).toEqual({ stateDirectory: '/h/state/host-files' })
   })
