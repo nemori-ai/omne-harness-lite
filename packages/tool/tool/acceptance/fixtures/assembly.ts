@@ -363,6 +363,7 @@ export function assembly(scenario: 'S1' | 'S2' | 'S3') {
     sourceIssuer: source.issuer,
     catalog: {
       inspect: async () => succeed(availability),
+      inspectEach: async request => succeed(request.names.map(() => succeed(availability))),
       usage: async () =>
         fail({
           kind: 'unavailable',
