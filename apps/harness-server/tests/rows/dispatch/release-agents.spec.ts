@@ -96,15 +96,88 @@ const lateDispatch = (body: string) =>
       ]
     : []
 
+const WHOLE_TIME = ['--since', '2026-01-01T00:00:00Z', '--before', '2030-01-01T00:00:00Z']
+
+/** What a fork must not double: the words of the prefix are found in the source alone, each session is
+ * charged for the model calls it made itself, and the diagnostics of the forked session read as any other's. */
+async function forkLeavesOneCopy(
+  tree: ReleaseTree,
+  { parent, child }: Readonly<{ parent: string; child: string }>,
+  seen: Readonly<{ childRequests: number; parentRequests: number }>,
+): Promise<void> {
+  const tenant = savedTenant(tree.home)
+  const search = async () => {
+    const response = await fetch(
+      `http://127.0.0.1:${String(tree.port)}/api/session/v1/search-history`,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${savedLoginProof(tree.home)}`,
+          'omne-message-id': `m-search-${String(Math.random())}`,
+        },
+        body: JSON.stringify({
+          tenant,
+          content: { kind: 'literals', all: ['code word is HERON'], caseSensitive: true },
+          cursor: null,
+        }),
+      },
+    )
+    return (await response.json()) as {
+      outcome: string
+      body: { hits?: { session: string; position: string }[]; complete?: boolean }
+    }
+  }
+  const found = await pollUntil(
+    'the history index to cover both sessions',
+    search,
+    answer => answer.outcome === 'succeeded' && answer.body.complete === true,
+  )
+  const hits = found.body.hits ?? []
+  expect(hits.length).toBeGreaterThan(0)
+  expect(hits.map(hit => hit.session)).toEqual(hits.map(() => parent))
+  expect(new Set(hits.map(hit => hit.position)).size).toBe(hits.length)
+
+  type Usage = {
+    body: { total: { calls: number }; groups: { key: string[]; measures: { calls: number } }[] }
+  }
+  const usage = async (session: string | null) => {
+    const scope = session === null ? [] : ['--session', session]
+    const time = [...WHOLE_TIME, '--zone', 'UTC', '--tenant', tenant]
+    const answer = await tree.cli(['query-usage', ...time, ...scope, '--group-by', 'source'])
+    expect(answer.status, answer.stderr).toBe(0)
+    const { total, groups } = (JSON.parse(answer.stdout) as Usage).body
+    const model = groups.find(group => group.key[0] === 'model')?.measures.calls ?? 0
+    return { all: total.calls, model }
+  }
+  const [ofChild, ofParent, ofTenant] = [await usage(child), await usage(parent), await usage(null)]
+  expect(ofChild.model).toBe(seen.childRequests)
+  expect(ofParent.model).toBe(seen.parentRequests)
+  expect(ofTenant.model).toBe(seen.childRequests + seen.parentRequests)
+  expect(ofTenant.all).toBe(ofChild.all + ofParent.all)
+
+  const diagnostics = await tree.cli([
+    'read-session-diagnostics',
+    '--session',
+    child,
+    '--tenant',
+    tenant,
+  ])
+  expect(diagnostics.status, diagnostics.stderr).toBe(0)
+  expect(diagnostics.stdout).toContain('run')
+}
+
 describe('the Agents tool on the release tree', () => {
   it(
     'spawns an agent whose session is forked from the conversation as it was when the work was dispatched',
     { tags: ['slow'], timeout: 300_000 },
     async () => {
-      const seen = { child: '' }
+      const seen = { child: '', childRequests: 0, parentRequests: 0 }
       const spawn = (id: string, instruction: string) =>
         call(id, 'dispatch', { mode: 'spawn', agent: 'coding', instruction })
       const script = toolCallsByRequest(body => {
+        if (body.includes(DISPATCHED)) seen.childRequests += 1
+        else seen.parentRequests += 1
         if (body.includes(DISPATCHED)) {
           seen.child ||= body
           return answered(body.slice(body.indexOf(DISPATCHED)))
@@ -178,6 +251,8 @@ describe('the Agents tool on the release tree', () => {
         expect(seen.child).not.toContain('c_spawn')
         expect(seen.child).not.toContain('It starts from a copy of the conversation')
 
+        await forkLeavesOneCopy(tree, { parent, child: dispatch.session }, seen)
+
         const later = await tree.cli([
           'send-input',
           '--session',
@@ -189,6 +264,13 @@ describe('the Agents tool on the release tree', () => {
         await settled(tree, parent, 3)
         expect(JSON.stringify(await historyOf(tree, dispatch.session))).not.toContain('EGRET')
         expect(JSON.stringify(await historyOf(tree, parent))).not.toContain(dispatch.session + '/')
+
+        // Archiving the source takes its child with it, as for any child; the prefix stays readable.
+        const archived = await tree.cli(['archive-session', '--session', parent])
+        expect(archived.status, archived.stderr).toBe(0)
+        const after = await tree.cli([...read, '--inherited'])
+        expect(after.status, after.stderr).toBe(0)
+        expect(after.stdout).toContain('the code word is HERON')
       })
       expect(exitCode).toBe(0)
     },

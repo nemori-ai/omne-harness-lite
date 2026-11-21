@@ -125,6 +125,75 @@ describe('a history read can name the prefix of a forked session (C8)', () => {
     ).toMatchObject({ failure: { kind: 'invalid', field: 'pageBytes' } })
   })
 
+  it('keeps to the kinds asked for on every page, of the prefix and of its own', async () => {
+    const a = await chain()
+    const read = async (kinds: readonly string[]) => {
+      const first = await a.port.history.begin({
+        ...a.access(TENANT_A, 'child-1'),
+        kinds,
+        from: null,
+        direction: 'forward',
+        pageBytes: 10_000_000,
+        inherited: true,
+      })
+      if (!('ok' in first) || first.ok.next === null) throw new Error(JSON.stringify(first))
+      const cursor = first.ok.next
+      const second = await a.port.history.next({ ...a.access(TENANT_A, 'child-1'), cursor })
+      if (!('ok' in second)) throw new Error(JSON.stringify(second))
+      return [first.ok, second.ok] as const
+    }
+    const [told, own] = await read(['message.system_reminder'])
+    expect(told.entries).toHaveLength(2)
+    expect(told.interpreter).toMatchObject({ name: 'session-log' })
+    expect(told.upper).toBe((await pages(a, 'child-1', false)).at(-1)?.upper)
+    expect(own.entries.map(entry => entry.kind)).toEqual(['message.system_reminder'])
+    const [none, started] = await read(['run.started'])
+    expect(none).toMatchObject({ entries: [], from: sessionId('session-1'), exhausted: false })
+    expect(started.entries).toEqual([])
+    expect(started.from).toBeUndefined()
+  })
+
+  it('asks the access check for each page of the prefix, and gives none of it to a caller it refuses', async () => {
+    const a = await chain()
+    const ask = {
+      ...a.access(TENANT_A, 'child-1'),
+      kinds: [],
+      from: null,
+      direction: 'forward',
+      pageBytes: 1,
+      inherited: true,
+    } as const
+    const first = await a.port.history.begin(ask)
+    if (!('ok' in first) || first.ok.next === null) throw new Error(JSON.stringify(first))
+    a.denyOperation('history.begin')
+    expect(await a.port.history.begin(ask)).toEqual({
+      failure: { kind: 'denied', action: 'history.begin' },
+    })
+    a.denyOperation('history.next')
+    const next = { ...a.access(TENANT_A, 'child-1'), cursor: first.ok.next }
+    expect(await a.port.history.next(next)).toEqual({
+      failure: { kind: 'denied', action: 'history.next' },
+    })
+  })
+
+  it('takes a cursor of the prefix for the session it was given to only', async () => {
+    const a = await chain()
+    const first = await a.port.history.begin({
+      ...a.access(TENANT_A, 'grand-1'),
+      kinds: [],
+      from: null,
+      direction: 'forward',
+      pageBytes: 10_000_000,
+      inherited: true,
+    })
+    if (!('ok' in first) || first.ok.next === null) throw new Error(JSON.stringify(first))
+    const other = await a.port.history.next({
+      ...a.access(TENANT_A, 'child-1'),
+      cursor: first.ok.next,
+    })
+    expect(other).toMatchObject({ failure: { kind: 'invalid', field: 'cursor' } })
+  })
+
   it('has no basis when an entry behind the prefix cannot be read', async () => {
     const a = await chain()
     const [lost] = (await rowsOf(a, 'session-1')).rows
@@ -141,7 +210,12 @@ describe('a history read can name the prefix of a forked session (C8)', () => {
       pageBytes: 1000,
       inherited: true,
     })
-    expect(read).toMatchObject({ failure: { kind: 'unavailable' } })
+    expect(read).toMatchObject({
+      failure: {
+        kind: 'unavailable',
+        diagnostic: expect.stringContaining('the entries behind the prefix cannot be read'),
+      },
+    })
   })
 })
 
@@ -212,8 +286,13 @@ describe('the entries behind a prefix, read where each was written', () => {
       'epoch:0',
     ])
     row('c', 4, 40, 'user')
-    const read = (session: string, after: string, kinds: readonly string[] = []) => {
-      const input = { tenant: 't', session, after, pageBytes: 1_000_000, kinds: [...kinds] }
+    const read = (
+      session: string,
+      after: string,
+      kinds: readonly string[] = [],
+      pageBytes = 1e6,
+    ) => {
+      const input = { tenant: 't', session, after, pageBytes, kinds: [...kinds] }
       const out = readInheritedHistory.read(input as never, port as never)
       return (out.kind === 'read' ? out.output : out) as Record<string, unknown>
     }
@@ -233,9 +312,30 @@ describe('the entries behind a prefix, read where each was written', () => {
       const said = s.read('c', '0', ['message.user'])['entries'] as string[]
       expect(said).toHaveLength(1)
       expect(said[0]).toContain('"kind":"message.delivered"')
+      expect(s.read('c', '0')['interpreter']).toEqual(SCHEMA)
+      expect(s.read('c', '10')).toEqual({ kind: 'none' })
       expect(s.read('c', '3')).toEqual({ kind: 'none' })
       expect(s.read('r', '0')).toEqual({ kind: 'none' })
       expect(s.read('nobody', '0')).toEqual({ kind: 'absent' })
+    } finally {
+      s.db.close()
+    }
+  })
+
+  it('fills a page to its bytes and no further, the first entry always in', () => {
+    const s = scene()
+    try {
+      const bytesAt = (position: number) =>
+        Number(
+          s.port.execute('SELECT bytes FROM sl_entry WHERE session = ? AND position = ?', [
+            'r',
+            BigInt(position),
+          ]).rows[0]?.[0],
+        )
+      const two = bytesAt(10) + bytesAt(20)
+      expect(s.read('c', '0', [], 1)['entries'] as unknown[]).toHaveLength(1)
+      expect(s.read('c', '0', [], two)['entries'] as unknown[]).toHaveLength(2)
+      expect(s.read('c', '0', [], two - 1)['entries'] as unknown[]).toHaveLength(1)
     } finally {
       s.db.close()
     }
@@ -261,6 +361,8 @@ describe('the entries behind a prefix, read where each was written', () => {
       const good = { tenant: 't', session: 'c', after: '0', pageBytes: 10, kinds: [] }
       for (const change of [
         { after: 'x' },
+        { after: 'x1' },
+        { after: '1x' },
         { after: 1 },
         { kinds: 'all' },
         { pageBytes: 0 },
