@@ -1,0 +1,144 @@
+{
+  "gate": "worded-buttons",
+  "entries": {
+    "packages/assets/assets-ui/src/view/assets-page.tsx | {labelOf(category)}": {
+      "R9": 1
+    },
+    "packages/assets/assets-ui/src/view/category-page.tsx | {row.summary?.title ?? row.name}": {
+      "name": 1
+    },
+    "packages/assets/assets-ui/src/view/category-page.tsx | 收起/新建": {
+      "R9": 1
+    },
+    "packages/assets/assets-ui/src/view/category-page.tsx | 禁用/启用": {
+      "R9": 1
+    },
+    "packages/assets/assets-ui/src/view/create-form.tsx | 提交": {
+      "commit": 2
+    },
+    "packages/assets/assets-ui/src/view/setting-row.tsx | 清除": {
+      "R9": 1
+    },
+    "packages/assets/assets-ui/src/view/setting-row.tsx | 设置": {
+      "commit": 2,
+      "R9": 1
+    },
+    "packages/calendar/calendar-ui/src/view/calendar-page.tsx | 查": {
+      "commit": 1
+    },
+    "packages/calendar/calendar-ui/src/view/drawn.tsx | 重读": {
+      "R8": 1
+    },
+    "packages/human-intervention/human-intervention-ui/src/view/card-area.tsx | {at + 1} {mark.text}": {
+      "R7": 1
+    },
+    "packages/human-intervention/human-intervention-ui/src/view/card-area.tsx | ‹": {
+      "R7": 1
+    },
+    "packages/human-intervention/human-intervention-ui/src/view/card-area.tsx | ›": {
+      "R7": 1
+    },
+    "packages/human-intervention/human-intervention-ui/src/view/card-area.tsx | 另有 ${…} 张放行卡没答，可以先提交已答的": {
+      "name": 1
+    },
+    "packages/human-intervention/human-intervention-ui/src/view/card-area.tsx | 提交": {
+      "commit": 1
+    },
+    "packages/human-intervention/human-intervention-ui/src/view/card-area.tsx | 还差 ${…} 题": {
+      "name": 1
+    },
+    "packages/human-intervention/human-intervention-ui/src/view/card-view.tsx | 不回答这一题": {
+      "choice": 1
+    },
+    "packages/human-intervention/human-intervention-ui/src/view/decisions-page.tsx | 刷新": {
+      "R7": 1
+    },
+    "packages/human-intervention/human-intervention-ui/src/view/release-detail.tsx | 看工具的画法/看条目": {
+      "R7": 1
+    },
+    "packages/identity/identity-ui/src/view/login-card.tsx | 请稍候……/{TITLE[form.mode]}": {
+      "commit": 1
+    },
+    "packages/mcp/mcp-ui/src/mcp-page.tsx | {choice.label}": {
+      "R9": 1
+    },
+    "packages/mcp/mcp-ui/src/mcp-page.tsx | 清除这一层的挑选": {
+      "R9": 1
+    },
+    "packages/notification/notification-ui/src/view/entry-row.tsx | {entry.title}": {
+      "name": 1
+    },
+    "packages/notification/notification-ui/src/view/entry-row.tsx | {text}": {
+      "R7": 1
+    },
+    "packages/notification/notification-ui/src/view/inbox-page.tsx | 刷新": {
+      "R7": 1
+    },
+    "packages/schedule/schedule-ui/src/view/drawn.tsx | 重读": {
+      "R8": 1
+    },
+    "packages/schedule/schedule-ui/src/view/schedule-page.tsx | {item.label ?? '未命名'}": {
+      "name": 1
+    },
+    "packages/schedule/schedule-ui/src/view/schedule-page.tsx | 更多": {
+      "R8": 1
+    },
+    "packages/session/session-ui/src/view/archive.tsx | 撤销归档": {
+      "R6b": 1
+    },
+    "packages/session/session-ui/src/view/archive.tsx | 更多": {
+      "R6b": 1
+    },
+    "packages/session/session-ui/src/view/background-pane.tsx | 停止": {
+      "R6b": 1
+    },
+    "packages/session/session-ui/src/view/background-pane.tsx | 后台有 {view.calls.length} 项在跑": {
+      "name": 1
+    },
+    "packages/session/session-ui/src/view/composer-action-slot.tsx | {LABEL[face]}": {
+      "R6b": 1
+    },
+    "packages/session/session-ui/src/view/conversation-page.tsx | 再确认一次": {
+      "R6b": 1
+    },
+    "packages/session/session-ui/src/view/history-search.tsx | 接着搜": {
+      "R6b": 1
+    },
+    "packages/session/session-ui/src/view/history-search.tsx | 更多": {
+      "R6b": 1
+    },
+    "packages/session/session-ui/src/view/model-selection.tsx | {shown}": {
+      "value": 1
+    },
+    "packages/session/session-ui/src/view/session-list-panel.tsx | 新建会话": {
+      "primary": 1
+    },
+    "packages/session/session-ui/src/view/session-list-panel.tsx | 更多": {
+      "R6b": 1
+    },
+    "packages/session/session-ui/src/view/side-frame.tsx | {seat} {name}": {
+      "name": 1
+    },
+    "packages/session/session-ui/src/view/side-panel.tsx | 收起侧边区": {
+      "R6b": 1
+    },
+    "packages/usage/usage-ui/src/view/panel.tsx | 上移": {
+      "R10": 1
+    },
+    "packages/usage/usage-ui/src/view/panel.tsx | 下移": {
+      "R10": 1
+    },
+    "packages/usage/usage-ui/src/view/panel.tsx | 刷新": {
+      "R6b": 1
+    },
+    "packages/usage/usage-ui/src/view/panel.tsx | 去掉": {
+      "R10": 1
+    },
+    "packages/usage/usage-ui/src/view/panel.tsx | 完成/编辑面板": {
+      "R6b": 1
+    },
+    "packages/usage/usage-ui/src/view/panel.tsx | 恢复缺省": {
+      "R10": 1
+    }
+  }
+}

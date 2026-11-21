@@ -297,5 +297,5 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 | FE-I33 | 时刻只经 `Ago` 与它的格式化模块写 | 同一页出现两种时钟格式，或把 UTC 原文给人看 | `apps/desktop/tests/design-gates/time.spec.ts` |
 | FE-I34 | 图表画成 SVG，颜色只来自图表变量，每张图有表格视图 | 图表在一种主题下看不清，或读屏的人拿不到数 | `ui-kit/tests/charts.spec.tsx` 的「draws SVG whose colors come only from the style variables」与「gives the same data as a table」 |
 | FE-I35 | 源码与本组、桌面应用的规格里指向视觉规范技能的锚点都存在 | 读者顺着引用找到的规则已经不在 | `apps/desktop/tests/design-gates/references.spec.ts` |
-| FE-I36 | 成员视图里每个带字的 `Button` 都在登记表 `baselines/worded-buttons.json` 里，每一条写它是哪一种：`commit`（落定）、`choice`（对话里的选项）、`primary`（一页唯一的主动作）、`name`（对象的名字作入口）、`value`（当前值），或交给哪一程收走（`R7` 至 `R10`）；登记表只许缩，表外多一个就失败 | 面上又长出写字的工具钮，与图标钮的标准两套并存 | `apps/desktop/tests/design-gates/worded-buttons.spec.ts` |
+| FE-I36 | 成员视图与外壳里每个带字的 `Button` 都在登记表 `baselines/worded-buttons.json` 里，每一条写各有几个是哪一种：`commit`（落定）、`choice`（对话里的选项）、`primary`（一页唯一的主动作）、`name`（对象的名字作入口）、`value`（当前值），或交给哪一程收走（如 `R7`）；交给一程的只许去掉，那五种新加时写一条并写明种类，表外多一个就失败 | 面上又长出写字的工具钮，与图标钮的标准两套并存 | `apps/desktop/tests/design-gates/worded-buttons.spec.ts` |
 | FE-I37 | 每个抬起的件连同它的投影与焦点环的余地，都在裁切它的每个祖先的可见范围里；件本身滚出视野的不算 | 钮与字段贴着容器的边被切掉边线与投影，看起来像坏了 | 判法的用例 `apps/desktop/tests/raised-edges.spec.ts`；观感走查 `apps/desktop/demo/visual-walk.mjs` 每张截图核一次 |
