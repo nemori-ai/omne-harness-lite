@@ -422,6 +422,7 @@ export declare abstract class ToolCatalogService<P> extends Service implements T
     static readonly provide = "toolCatalog";
     constructor(ctx: Context);
     abstract readonly inspect: ToolCatalog<P>['inspect'];
+    abstract readonly inspectEach: ToolCatalog<P>['inspectEach'];
     abstract readonly usage: ToolCatalog<P>['usage'];
     abstract readonly search: ToolCatalog<P>['search'];
 }

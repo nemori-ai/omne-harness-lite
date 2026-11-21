@@ -358,16 +358,23 @@ export function rememberReleaseDefinition(
     known = { generation, entries: new Map() }
     knownDefinitions.set(ctx.root, known)
   }
-  known.entries.set(definition.name, structuredClone(definition))
+  known.entries.set(definition.name, deepFrozen(structuredClone(definition)))
   return true
+}
+
+function deepFrozen<T>(value: T): T {
+  if (value !== null && typeof value === 'object') {
+    for (const member of Object.values(value)) deepFrozen(member)
+    Object.freeze(value)
+  }
+  return value
 }
 
 export function releaseDefinitionOf(ctx: Context, name: string): ToolDefinition | undefined {
   const release = releaseOf(ctx)
   const known = knownDefinitions.get(ctx.root)
   if (release.kind !== 'trusted' || known?.generation !== release.generation) return undefined
-  const definition = known.entries.get(name)
-  return definition === undefined ? undefined : structuredClone(definition)
+  return known.entries.get(name)
 }
 
 export function releaseCurrentDefinitions<P>(ctx: Context): LocalCurrentDefinitions<P> {

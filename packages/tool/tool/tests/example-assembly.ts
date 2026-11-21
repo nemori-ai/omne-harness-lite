@@ -199,6 +199,12 @@ export function createDemo() {
           adoption: adoption('catalog'),
           reason: 'Tutorial supplies fixed definitions',
         }),
+      inspectEach: async () =>
+        fail({
+          kind: 'unsupported',
+          adoption: adoption('catalog'),
+          reason: 'Tutorial supplies fixed definitions',
+        }),
       usage: async () =>
         fail({
           kind: 'unsupported',

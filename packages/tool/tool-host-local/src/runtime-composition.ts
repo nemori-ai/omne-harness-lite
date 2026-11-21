@@ -144,6 +144,8 @@ export function createRuntimeStages(
     },
     catalog: {
       inspect: request => input.catalog()?.inspect(request) ?? runtimeUnavailable('toolCatalog'),
+      inspectEach: request =>
+        input.catalog()?.inspectEach(request) ?? runtimeUnavailable('toolCatalog'),
       usage: request => input.catalog()?.usage(request) ?? runtimeUnavailable('toolCatalog'),
       search: request => input.catalog()?.search(request) ?? runtimeUnavailable('toolCatalog'),
     },
