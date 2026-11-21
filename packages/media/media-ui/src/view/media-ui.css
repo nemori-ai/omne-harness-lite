@@ -2,12 +2,12 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: var(--omne-space-inline);
 }
 .omne-media-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--omne-space-inline);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -15,17 +15,17 @@
 .omne-media-chip {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--omne-space-inline);
   max-width: 100%;
-  padding: 4px 4px 4px 8px;
+  padding: var(--spacing) var(--spacing) var(--spacing) calc(var(--spacing) * 2);
   border-radius: var(--omne-radius-control);
   box-shadow: 0 0 0 1px var(--omne-line);
   font-size: var(--omne-text-caption);
 }
 .omne-media-chip img {
-  width: 32px;
-  height: 32px;
-  border-radius: 4px;
+  width: calc(var(--spacing) * 8);
+  height: calc(var(--spacing) * 8);
+  border-radius: var(--omne-radius-chip);
   object-fit: cover;
 }
 .omne-media-chip-name {
@@ -47,7 +47,7 @@
 }
 .omne-media-block {
   display: grid;
-  gap: 4px;
+  gap: var(--spacing);
 }
 .omne-media-read {
   margin: 0;
@@ -56,7 +56,8 @@
 }
 .omne-media-picture {
   display: block;
-  margin: 4px 0;
+  height: auto;
+  margin: var(--spacing) 0;
   padding: 0;
   border: 0;
   background: none;
@@ -67,8 +68,8 @@
 }
 .omne-media-picture img {
   display: block;
-  max-width: min(100%, 480px);
-  max-height: 360px;
+  max-width: min(100%, calc(var(--spacing) * 120));
+  max-height: calc(var(--spacing) * 90);
   border-radius: var(--omne-radius-control);
 }
 .omne-media-picture[data-whole='true'] img {

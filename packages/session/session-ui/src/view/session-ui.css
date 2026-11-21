@@ -229,7 +229,8 @@
   background: var(--omne-hover);
   color: var(--omne-ink-primary);
 }
-.omne-session-model-option {
+.omne-session-model-option,
+.omne-session-workspace-option {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -243,15 +244,9 @@
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 8px;
+  gap: var(--spacing) var(--omne-space-inline);
   min-width: 0;
   font-size: var(--omne-text-caption);
-}
-.omne-session-workspace-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 8px;
 }
 .omne-session-workspace-note {
   color: var(--omne-ink-muted);

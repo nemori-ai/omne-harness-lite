@@ -187,7 +187,9 @@ describe('the workspaces page', () => {
     const fake = await shown()
     await opened(fake)
     expect(screen.queryByRole('alert')).toBeNull()
-    expect(screen.getByText('可用：/srv/blog')).toBeTruthy()
+    const available = document.querySelector('[data-state-word="available"]')
+    expect(available?.textContent).toBe('可用')
+    expect(available?.closest('td')?.textContent).toBe('可用：/srv/blog')
     expect(screen.getByText('现在不知道能不能用')).toBeTruthy()
   })
 
@@ -219,7 +221,8 @@ describe('the workspaces page', () => {
     expect(removed.body).toMatchObject({ operation: 'op-2', workspace: BLOG.workspace })
     removed.answer({ outcome: 'succeeded', body: {} })
     await settle()
-    expect(screen.getByRole('status').textContent).toBe('已移除')
+    // The list and the workspace are read again meanwhile: their loading states are statuses named by their label.
+    expect(screen.getByRole('status', { name: '' }).textContent).toBe('已移除')
     expect(fake.calls.filter(call => call.operation === 'list')).toHaveLength(2)
   })
 

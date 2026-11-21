@@ -4,16 +4,20 @@ import {
   Button,
   EmptyState,
   Field,
+  InlineNotice,
   Input,
+  LoadingState,
   PageColumn,
   PageHeader,
   Section,
+  StateWord,
   Table,
   TableBody,
   TableCell,
   TableRow,
 } from '@omne-harness/ui-kit'
 import type {
+  WorkspaceInstanceBody,
   WorkspaceProtocol,
   WorkspaceSummaryBody,
   WorkspaceViewBody,
@@ -78,7 +82,7 @@ export function WorkspacesPage({
 }: WorkspacesPageProps): JSX.Element {
   const owner = readTenantText(tenant)
   return (
-    <PageColumn className="workspace-page">
+    <PageColumn>
       <PageHeader
         title="工作区"
         description="登记服务端机器上的目录，看你能在哪些工作区里工作，把别人加进来或移走。"
@@ -167,7 +171,7 @@ function ToldLine({
 }: Readonly<{ told: Told; onAgain: (pending: Pending) => Promise<void> }>): JSX.Element {
   const { pending } = told
   return (
-    <p role="status" className="workspace-told">
+    <p role="status">
       {told.text}
       {pending === null ? null : (
         <Button variant="outline" onClick={() => void onAgain(pending)}>
@@ -185,8 +189,8 @@ function WorkspaceList({
   list: Read<readonly WorkspaceSummaryBody[]>
   onShow: (workspace: string) => void
 }>): JSX.Element {
-  if (list.kind === 'unread') return <p>正在读……</p>
-  if (list.kind === 'unreadable') return <p role="alert">列不出：{list.reason}</p>
+  if (list.kind === 'unread') return <LoadingState label="正在读……" />
+  if (list.kind === 'unreadable') return <InlineNotice>列不出：{list.reason}</InlineNotice>
   if (list.value.length === 0) return <EmptyState title="还没有工作区。登记一个目录开始。" />
   return (
     <Table>
@@ -209,6 +213,18 @@ function WorkspaceList({
         ))}
       </TableBody>
     </Table>
+  )
+}
+
+/** Whether an instance can be worked in: 可用 is the state table's word, the others a sentence. */
+function Availability({
+  availability,
+}: Readonly<{ availability: WorkspaceInstanceBody['availability'] }>): JSX.Element {
+  if (availability.kind !== 'available') return <>{availabilityText(availability)}</>
+  return (
+    <>
+      <StateWord state="available" />：{availability.directory}
+    </>
   )
 }
 
@@ -240,15 +256,17 @@ function WorkspaceDetail({
   }
   return (
     <Section id="workspace-detail" title={`工作区 ${workspace}`}>
-      {view.kind === 'unread' ? <p>正在读……</p> : null}
-      {view.kind === 'unreadable' ? <p role="alert">看不了：{view.reason}</p> : null}
+      {view.kind === 'unread' ? <LoadingState label="正在读……" /> : null}
+      {view.kind === 'unreadable' ? <InlineNotice>看不了：{view.reason}</InlineNotice> : null}
       {view.kind === 'read' ? (
         <Table>
           <TableBody>
             {view.value.instances.map(instance => (
               <TableRow key={instance.instance}>
                 <TableCell>{instance.address}</TableCell>
-                <TableCell>{availabilityText(instance.availability)}</TableCell>
+                <TableCell>
+                  <Availability availability={instance.availability} />
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -261,7 +279,7 @@ function WorkspaceDetail({
           onChange={event => setTarget(event.target.value)}
         />
       </Field>
-      {wrong ? <p role="alert">对方的租户读不懂</p> : null}
+      {wrong ? <InlineNotice>对方的租户读不懂</InlineNotice> : null}
       <Button onClick={() => change('grant-participation')}>授予参与</Button>
       <Button variant="outline" onClick={() => change('remove')}>
         移除

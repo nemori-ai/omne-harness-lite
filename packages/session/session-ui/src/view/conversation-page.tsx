@@ -627,7 +627,7 @@ function Composer({
         onChange={event => setText(event.target.value)}
         onKeyDown={onKeyDown}
       />
-      <div className="omne-composer-attachments">{attachments(session, draft.draft)}</div>
+      <div>{attachments(session, draft.draft)}</div>
       <div className="omne-composer-actions">
         <div className="omne-session-status">{status}</div>
         <ComposerActionSlot
