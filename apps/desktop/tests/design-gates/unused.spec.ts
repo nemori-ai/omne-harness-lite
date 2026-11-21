@@ -30,21 +30,7 @@ interface Allowance {
   readonly firstUser: string
 }
 
-/** R8 K builds the page skeleton first; the search, schedule and calendar pages of R8 W1 to W3 are its first users. */
-const PAGE_SKELETON: Allowance = {
-  reason: 'the page skeleton lands before the three pages that use it',
-  firstUser: 'R8',
-}
-
-const UNUSED_ON_PURPOSE: ReadonlyMap<string, Allowance> = new Map<string, Allowance>([
-  ['ListReadingDirectory', PAGE_SKELETON],
-  ['ListReadingMain', PAGE_SKELETON],
-  ['ListReadingPage', PAGE_SKELETON],
-  ['ListReadingWorkspace', PAGE_SKELETON],
-  ['ReadingDocument', PAGE_SKELETON],
-  ['ReadingState', PAGE_SKELETON],
-  ['ReadingToolbar', PAGE_SKELETON],
-])
+const UNUSED_ON_PURPOSE: ReadonlyMap<string, Allowance> = new Map<string, Allowance>([])
 
 type Reader = (path: string) => SyntaxNode | undefined
 

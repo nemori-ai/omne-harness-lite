@@ -1,18 +1,31 @@
 import type { TenantId } from '@omne-harness/public-contract'
 import type { ScheduleProtocol } from '@omne-harness/schedule-protocol'
 import type { ClientOf } from '@omne-harness/sdk/core'
-import { FactList, FactRow, formatInstant, Section } from '@omne-harness/ui-kit'
+import {
+  Ago,
+  BackIcon,
+  FactList,
+  FactRow,
+  IconButton,
+  ReadingDocument,
+  ReadingToolbar,
+  Section,
+  StatusPill,
+} from '@omne-harness/ui-kit'
 import { encodeInstant } from '@omne-harness/utc-instant'
 import type { JSX } from 'react'
 import { useReading } from '../model/reading.ts'
 import {
   authorText,
   basisText,
+  calendarText,
   CONTROL_WORDS,
+  localText,
   STANDING_WORDS,
-  upcomingText,
+  stateNote,
   type ScheduleDetail,
   type Succeeded,
+  type Upcoming,
 } from '../model/words.ts'
 import { Drawn } from './drawn.tsx'
 
@@ -21,10 +34,24 @@ type Preview = Succeeded<'preview'>
 
 const UPCOMING_COUNT = 5
 
-export type ScheduleDetailProps = Readonly<{ client: Client; tenant: TenantId; schedule: string }>
+/** The schedule a row opened, with the name the row showed, which the toolbar keeps while the record is read. */
+export type Picked = Readonly<{ schedule: string; label: string | null }>
 
-/** One schedule: what it is now, who made it, why it is in effect, and its next few times. */
-export function ScheduleDetailView({ client, tenant, schedule }: ScheduleDetailProps): JSX.Element {
+export type ScheduleDetailProps = Readonly<{
+  client: Client
+  tenant: TenantId
+  picked: Picked
+  onBack: () => void
+}>
+
+/** The reading pane on one schedule: its toolbar, then its record and its next few times, each read on its own. */
+export function ScheduleDetailView({
+  client,
+  tenant,
+  picked,
+  onBack,
+}: ScheduleDetailProps): JSX.Element {
+  const { schedule } = picked
   const [detail, rereadDetail] = useReading<ScheduleDetail>(schedule, signal =>
     client['read-schedule']({ tenant, schedule }, { signal }),
   )
@@ -35,32 +62,63 @@ export function ScheduleDetailView({ client, tenant, schedule }: ScheduleDetailP
     ),
   )
   return (
-    <div className="schedule-detail">
-      <Section id="schedule-detail" title="详情">
+    <>
+      <ReadingToolbar
+        name={picked.label ?? '未命名'}
+        back={
+          <IconButton label="回到列表" onClick={onBack}>
+            <BackIcon aria-hidden="true" />
+          </IconButton>
+        }
+      />
+      <ReadingDocument>
         <Drawn reading={detail} reread={rereadDetail} refused={() => '看不到这条日程。'}>
-          {value => <Facts detail={value} />}
+          {value => <Record detail={value} />}
         </Drawn>
-      </Section>
-      <Section id="schedule-upcoming" title="接下来几次">
-        <Drawn reading={preview} reread={rereadPreview} refused={previewRefusal}>
-          {value => <UpcomingList preview={value} />}
-        </Drawn>
-      </Section>
-    </div>
+        <Section id="schedule-upcoming" title="接下来几次">
+          <Drawn reading={preview} reread={rereadPreview} refused={previewRefusal}>
+            {value => <UpcomingList preview={value} />}
+          </Drawn>
+        </Section>
+      </ReadingDocument>
+    </>
   )
 }
 
-function Facts({ detail }: Readonly<{ detail: ScheduleDetail }>): JSX.Element {
+/** The record: the name as its title, who made it and how long ago, then its facts. */
+function Record({ detail }: Readonly<{ detail: ScheduleDetail }>): JSX.Element {
+  const note = stateNote(detail)
   return (
-    <FactList aria-label="日程详情">
-      <FactRow term="名字">{detail.label ?? '未命名'}</FactRow>
-      <FactRow term="状态">{CONTROL_WORDS[detail.control]}</FactRow>
-      <FactRow term="能否运行">{STANDING_WORDS[detail.standing]}</FactRow>
-      <FactRow term="谁建的">{authorText(detail.author)}</FactRow>
-      <FactRow term="凭什么生效">{basisText(detail.basis)}</FactRow>
-      <FactRow term="建于">{formatInstant(encodeInstant(detail.createdAt), 'h23')}</FactRow>
-      <FactRow term="修订">{detail.revision}</FactRow>
-    </FactList>
+    <>
+      <h2 className="schedule-record-title">{detail.label ?? '未命名'}</h2>
+      <p className="schedule-record-byline">
+        {authorText(detail.author)}建的 · <Ago at={encodeInstant(detail.createdAt)} />
+      </p>
+      <FactList className="schedule-record-facts" aria-label="日程详情">
+        <FactRow term="状态">
+          <StatusPill tone={note?.tone ?? 'neutral'}>
+            {note?.word ?? CONTROL_WORDS.active}
+          </StatusPill>
+        </FactRow>
+        <FactRow term="能否运行">{STANDING_WORDS[detail.standing]}</FactRow>
+        <FactRow term="下一次">
+          {detail.next === null ? '没有下一次' : <Time item={detail.next} />}
+        </FactRow>
+        <FactRow term="凭什么生效">{basisText(detail.basis)}</FactRow>
+        <FactRow term="修订">{detail.revision}</FactRow>
+      </FactList>
+    </>
+  )
+}
+
+/** One time in the tenant's zone, and in a muted aside the calendar and version its working days came from. */
+function Time({ item }: Readonly<{ item: Upcoming }>): JSX.Element {
+  const calendar = calendarText(item)
+  return (
+    <>
+      {localText(item.local)}
+      {calendar !== undefined && <span className="schedule-calendar">{calendar}</span>}
+    </>
   )
 }
 
@@ -76,7 +134,9 @@ function UpcomingList({ preview }: Readonly<{ preview: Preview }>): JSX.Element 
     <>
       <ol className="schedule-upcoming" aria-label="时间表">
         {preview.upcoming.map(item => (
-          <li key={encodeInstant(item.at)}>{upcomingText(item)}</li>
+          <li key={encodeInstant(item.at)}>
+            <Time item={item} />
+          </li>
         ))}
       </ol>
       {!preview.complete && <p className="schedule-note">只列出了能确定的几次。</p>}

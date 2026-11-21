@@ -56,15 +56,6 @@
     "packages/notification/notification-ui/src/view/entry-row.tsx | {entry.title}": {
       "name": 1
     },
-    "packages/schedule/schedule-ui/src/view/drawn.tsx | 重读": {
-      "R8": 1
-    },
-    "packages/schedule/schedule-ui/src/view/schedule-page.tsx | {item.label ?? '未命名'}": {
-      "name": 1
-    },
-    "packages/schedule/schedule-ui/src/view/schedule-page.tsx | 更多": {
-      "R8": 1
-    },
     "packages/session/session-ui/src/view/background-pane.tsx | 后台有 {view.calls.length} 项在跑": {
       "name": 1
     },
