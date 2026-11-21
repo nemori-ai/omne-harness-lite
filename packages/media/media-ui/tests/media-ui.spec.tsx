@@ -11,6 +11,7 @@ import {
   type MediaBlockSubject,
   type MediaDraftSubject,
 } from '../src/cordis.tsx'
+import type { Microphone } from '../src/model/recorder.ts'
 import { fakeMedia, TENANT, TENANT_TEXT, type FakeMedia } from './fixtures/fake-media.ts'
 import { startShell } from './fixtures/reference-shell.ts'
 
@@ -45,11 +46,17 @@ async function settle(): Promise<void> {
 const png = (name: string, bytes: number[]) =>
   new File([new Uint8Array(bytes)], name, { type: 'image/png' })
 
-async function mounted(media: FakeMedia) {
+async function mounted(media: FakeMedia, microphone?: Microphone) {
   const { root, shell } = await startShell()
   shell.tenant = TENANT_TEXT
   root.reflect.provide(SERVICE, media.client)
-  await root.plugin(createMediaUiModule({ composerAttachments: attachments, block }))
+  await root.plugin(
+    createMediaUiModule({
+      composerAttachments: attachments,
+      block,
+      ...(microphone === undefined ? {} : { microphone }),
+    }),
+  )
   const offers: DraftOffer[] = []
   const holder = (
     root as unknown as { get(name: string): { attach(given: unknown): () => void } }
@@ -178,6 +185,52 @@ describe('输入框的附件区', () => {
     await settle()
     expect(screen.queryByRole('button', { name: '重试 late.wav' })).toBeNull()
     expect(offers.at(-1)).toMatchObject({ ready: true })
+  })
+
+  it('按住录音：松开后录下的话作为语音附件上传并显示转写；用不了麦克风时说出来', async () => {
+    const media = fakeMedia(64)
+    media.once('prepare-media', () => ({
+      outcome: 'succeeded',
+      body: {
+        preprocess: {
+          kind: 'done',
+          representation: {
+            outcome: 'converted',
+            definition: { name: 'voice', revision: '1' },
+            engine: { name: 'voice.transcribe', revision: '1' },
+            text: '提醒我明天交周报',
+            others: [],
+          },
+        },
+      },
+    }))
+    let refuse = false
+    const microphone: Microphone = {
+      open: async () => {
+        if (refuse) throw new Error('refused')
+        return { finish: async () => new Float32Array([0.1, -0.1]), cancel: () => undefined }
+      },
+    }
+    const { shell, offers } = await mounted(media, microphone)
+    render(tray(shell))
+    await settle()
+    const button = screen.getByRole('button', { name: '按住录音' })
+    fireEvent.pointerDown(button)
+    await settle()
+    expect(button.textContent).toContain('松开结束')
+    fireEvent.pointerUp(button)
+    await settle()
+    expect(screen.getByText('录音 1.wav')).not.toBeNull()
+    expect(screen.getByText('已转出：提醒我明天交周报')).not.toBeNull()
+    expect(offers.at(-1)).toMatchObject({ ready: true, attachments: [{ kind: 'voice' }] })
+    const begun = media.calls.find(call => call.operation === 'begin-upload')
+    expect(begun?.body).toMatchObject({ mediaType: 'audio/wav', bytes: 48 })
+    refuse = true
+    fireEvent.keyDown(button, { key: ' ' })
+    await settle()
+    fireEvent.keyUp(button, { key: ' ' })
+    await settle()
+    expect(screen.getByRole('status').textContent).toBe('用不了麦克风')
   })
 
   it('贴图与拖入：在输入框的表单上贴进或拖进的图片也附加上；只贴文字时不拦', async () => {

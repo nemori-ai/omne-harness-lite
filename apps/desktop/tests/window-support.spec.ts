@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { externalTarget } from '../src/main/external-links.ts'
+import { onlyMicrophone } from '../src/main/permissions.ts'
 import {
   RELOAD_CYCLE_MS,
   createRecovery,
@@ -269,5 +270,17 @@ describe('页面的恢复', () => {
     await answerHung('close')
     made.utility('ready')
     expect(done).toEqual(['ask-hung', 'close'])
+  })
+})
+
+describe('the permissions of the page', () => {
+  it('only the microphone is granted: video with it, no media type, and every other permission are refused', () => {
+    expect(onlyMicrophone('media', ['audio'])).toBe(true)
+    expect(onlyMicrophone('media', ['video'])).toBe(false)
+    expect(onlyMicrophone('media', ['audio', 'video'])).toBe(false)
+    expect(onlyMicrophone('media', ['unknown'])).toBe(false)
+    expect(onlyMicrophone('media', [])).toBe(false)
+    for (const other of ['geolocation', 'notifications', 'display-capture', 'clipboard-read'])
+      expect(onlyMicrophone(other, ['audio'])).toBe(false)
   })
 })

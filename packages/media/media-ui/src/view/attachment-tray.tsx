@@ -1,5 +1,5 @@
 import type { TenantId } from '@omne-harness/public-contract'
-import { AttachIcon, Button, DeleteIcon } from '@omne-harness/ui-kit'
+import { AttachIcon, AudioIcon, Button, DeleteIcon } from '@omne-harness/ui-kit'
 import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react'
 import {
   ACCEPTED_TYPES,
@@ -8,6 +8,7 @@ import {
   type Drafts,
   type PickedFile,
 } from '../model/attachment-tray.ts'
+import { Recorder, type Microphone, type RecorderState } from '../model/recorder.ts'
 import type { MediaClient } from '../model/upload.ts'
 
 export type AttachmentTrayProps = Readonly<{
@@ -16,6 +17,7 @@ export type AttachmentTrayProps = Readonly<{
   session: string
   draft: string
   drafts: () => Drafts | null
+  microphone: Microphone
 }>
 
 const NONE: readonly Attachment[] = []
@@ -97,6 +99,71 @@ function useFormDrops(root: RefObject<HTMLElement | null>, tray: AttachmentTray 
   }, [root, tray])
 }
 
+const STILL: RecorderState = { kind: 'idle', problem: null }
+const LABEL: Readonly<Record<RecorderState['kind'], string>> = {
+  idle: '录音',
+  opening: '松开结束',
+  recording: '松开结束',
+  encoding: '在转成 WAV…',
+}
+const HOLD_KEYS = new Set([' ', 'Enter'])
+
+function useRecorder(tray: AttachmentTray | null, microphone: Microphone) {
+  const [recorder, setRecorder] = useState<Recorder | null>(null)
+  useEffect(() => {
+    if (tray === null) return undefined
+    const made = new Recorder({ microphone, deliver: file => tray.add([file]) })
+    setRecorder(made)
+    return () => made.dispose()
+  }, [tray, microphone])
+  const state = useSyncExternalStore(recorder?.subscribe ?? idle, recorder?.read ?? (() => STILL))
+  return { recorder, state }
+}
+
+function RecordButton({
+  tray,
+  microphone,
+}: {
+  tray: AttachmentTray | null
+  microphone: Microphone
+}) {
+  const { recorder, state } = useRecorder(tray, microphone)
+  const press = () => void recorder?.press()
+  const release = () => void recorder?.release()
+  return (
+    <>
+      <Button
+        type="button"
+        variant="ghost"
+        size="compact"
+        aria-label="按住录音"
+        aria-pressed={state.kind === 'opening' || state.kind === 'recording'}
+        disabled={recorder === null || state.kind === 'encoding'}
+        onPointerDown={press}
+        onPointerUp={release}
+        onPointerLeave={release}
+        onPointerCancel={release}
+        onKeyDown={event => {
+          if (!HOLD_KEYS.has(event.key) || event.repeat) return
+          event.preventDefault()
+          press()
+        }}
+        onKeyUp={event => {
+          if (HOLD_KEYS.has(event.key)) release()
+        }}
+      >
+        <AudioIcon />
+        {LABEL[state.kind]}
+      </Button>
+      {state.kind === 'idle' && state.problem !== null ? (
+        <span role="status" className="omne-media-recorder-problem">
+          {state.problem}
+        </span>
+      ) : null}
+    </>
+  )
+}
+
 type ChipProps = Readonly<{ item: Attachment; onRemove: () => void; onRetry: () => void }>
 
 function Chip({ item, onRemove, onRetry }: ChipProps) {
@@ -173,6 +240,7 @@ export function AttachmentTrayView(props: AttachmentTrayProps) {
         <AttachIcon />
         附件
       </Button>
+      <RecordButton tray={tray} microphone={props.microphone} />
     </div>
   )
 }
