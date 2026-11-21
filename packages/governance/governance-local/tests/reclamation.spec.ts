@@ -134,6 +134,32 @@ it('does not grow the governance records with the number of restarts', async () 
   expect(after[5]).toBe(after[1])
 })
 
+function identityStanding(w: World) {
+  const name = Buffer.from('system.identity').toString('hex')
+  const db = new DatabaseSync(join(w.activation.root, 'domains', `${name}.sqlite`), {
+    readOnly: true,
+  })
+  try {
+    const count = (sql: string) => Number((db.prepare(sql).get() as { n: number }).n)
+    return {
+      reservations: count('SELECT count(*) AS n FROM id_standing_reservation'),
+      receipts: count(
+        "SELECT count(*) AS n FROM _sql_receipt WHERE operation = 'identity.coordination'",
+      ),
+    }
+  } finally {
+    db.close()
+  }
+}
+
+it('releases the Identity reservations of the operations each close removes', async () => {
+  const world = await openProviderWorld()
+  worlds.push(world.w)
+  const before = identityStanding(world.w)
+  for (let index = 0; index < 3; index++) await cycle(world)
+  expect(identityStanding(world.w)).toEqual({ reservations: 0, receipts: before.receipts })
+})
+
 it('stops reading the contributions of a closed epoch and reads the current ones', async () => {
   const { w, options } = await openProviderWorld()
   worlds.push(w)
@@ -177,6 +203,7 @@ it('drops the leases and members a crashed epoch left once the next epoch closes
       observe: input => source.observe(input),
       reserve: input => source.reserve(input),
       settle: () => Promise.reject(new Error('Identity offline')),
+      release: input => source.release(input),
       recover: input => source.recover(input),
     },
   }).registrar

@@ -24,7 +24,13 @@ import {
   SettingsTargetSchema,
   SettingsReferenceSchema,
 } from '@omne-harness/settings'
-import { canonical, digest, equal, json, withinBudget } from './encoding.ts'
+import { digest, equal, json, withinBudget } from './encoding.ts'
+import {
+  captureIdentity,
+  captureRequest,
+  recoverCaptures,
+  releaseCapture,
+} from './catalog-cleanup.ts'
 import { failureSchema } from './schema.ts'
 import {
   SnapshotInputSchema,
@@ -66,6 +72,7 @@ export type SettingsCatalogOptions = SettingsSqlTerminalOptions &
     selection?: SettingsSelectionSource
     clock: Readonly<{ now(): number }>
     cursorLifetimeMs: number
+    warn?: (message: string) => void
   }>
 const BasisSchema = z.strictObject({
   scopeKey: SettingsReferenceSchema,
@@ -90,6 +97,48 @@ function definitionRefOf(definition: SettingsRegistrySnapshot['definitions'][num
   const { providerId, definitionId, version } = definition
   return { providerId, definitionId, version, digest: digest(definition) }
 }
+type Captured =
+  | { kind: 'captured'; basis: SettingsBasis }
+  | { kind: 'authority'; targets: SettingsViewRequest['targets']; principalRef: string }
+  | SettingsFailure
+const fail = (reason: SettingsFailure['reason']): SettingsFailure => ({
+  kind: 'rejected',
+  reason,
+})
+function response(result: CommitResultV2, capture: SnapshotInput): Captured {
+  if (result.kind === 'committed') {
+    const entry = result.responses.find(r => r.participant === SNAPSHOT_PARTICIPANT)?.reply.response
+    if (capture.purpose === 'authority') {
+      const parsed = z
+        .object({ operation: z.unknown(), authority: z.array(SettingsTargetSchema).max(128) })
+        .safeParse(entry)
+      return parsed.success && equal(parsed.data.operation, snapshotOperation(capture))
+        ? {
+            kind: 'authority',
+            targets: parsed.data.authority,
+            principalRef: capture.binding.principalRef,
+          }
+        : fail('unavailable')
+    }
+    const parsed = z.object({ operation: z.unknown(), basis: BasisSchema }).safeParse(entry)
+    return parsed.success && equal(parsed.data.operation, snapshotOperation(capture))
+      ? { kind: 'captured', basis: parsed.data.basis }
+      : fail('unavailable')
+  }
+  if (result.kind === 'rolled_back') {
+    const last = result.responses.at(-1)?.reply
+    if (last?.kind === 'conflict') {
+      const parsed = failureSchema.safeParse(last.basis)
+      if (parsed.success) return parsed.data
+      const projection = z
+        .strictObject({ binding: SettingsProjectionBindingSchema, failure: failureSchema })
+        .safeParse(last.basis)
+      if (projection.success && equal(projection.data.binding, capture.binding))
+        return projection.data.failure
+    }
+  }
+  return fail('unavailable')
+}
 export function createSettingsCatalog(
   input: SettingsCatalogOptions,
 ): SettingsReadPort<ActingForTenantPrincipal> & {
@@ -105,17 +154,10 @@ export function createSettingsCatalog(
     throw new TypeError('Positive cursor lifetime required')
   const options = { ...input, required: [...input.required] },
     incarnation = randomUUID()
-  type Captured =
-    | { kind: 'captured'; basis: SettingsBasis }
-    | { kind: 'authority'; targets: SettingsViewRequest['targets']; principalRef: string }
-    | SettingsFailure
   const active = new Set<Promise<Captured>>()
   let closing: Promise<void> | undefined
+  let recovered: Promise<void> | undefined
   let observedTime = 0
-  const fail = (reason: SettingsFailure['reason']): SettingsFailure => ({
-    kind: 'rejected',
-    reason,
-  })
   async function selection(
     principal: ActingForTenantPrincipal,
     request: SettingsViewRequest,
@@ -131,41 +173,6 @@ export function createSettingsCatalog(
     )
       return fail('forbidden')
     return digest(selected)
-  }
-  function response(result: CommitResultV2, capture: SnapshotInput): Captured {
-    if (result.kind === 'committed') {
-      const entry = result.responses.find(r => r.participant === SNAPSHOT_PARTICIPANT)?.reply
-        .response
-      if (capture.purpose === 'authority') {
-        const parsed = z
-          .object({ operation: z.unknown(), authority: z.array(SettingsTargetSchema).max(128) })
-          .safeParse(entry)
-        return parsed.success && equal(parsed.data.operation, snapshotOperation(capture))
-          ? {
-              kind: 'authority',
-              targets: parsed.data.authority,
-              principalRef: capture.binding.principalRef,
-            }
-          : fail('unavailable')
-      }
-      const parsed = z.object({ operation: z.unknown(), basis: BasisSchema }).safeParse(entry)
-      return parsed.success && equal(parsed.data.operation, snapshotOperation(capture))
-        ? { kind: 'captured', basis: parsed.data.basis }
-        : fail('unavailable')
-    }
-    if (result.kind === 'rolled_back') {
-      const last = result.responses.at(-1)?.reply
-      if (last?.kind === 'conflict') {
-        const parsed = failureSchema.safeParse(last.basis)
-        if (parsed.success) return parsed.data
-        const projection = z
-          .strictObject({ binding: SettingsProjectionBindingSchema, failure: failureSchema })
-          .safeParse(last.basis)
-        if (projection.success && equal(projection.data.binding, capture.binding))
-          return projection.data.failure
-      }
-    }
-    return fail('unavailable')
   }
   async function prepareCapture(
     principal: ActingForTenantPrincipal,
@@ -206,30 +213,21 @@ export function createSettingsCatalog(
       expiryEpoch: Math.floor(now / options.cursorLifetimeMs),
       selectionDigest: selected,
     })
-    return { capture, before, principal: verified.principal, scopeRef: tenant.value }
+    return { capture, before, principal: verified.principal }
   }
   async function captureView(
     principal: ActingForTenantPrincipal,
     request: SettingsViewRequest,
     purpose: 'values' | 'authority',
   ): Promise<Captured> {
+    await (recovered ??= recoverCaptures(options, options.deploymentRef))
     const prepared = await prepareCapture(principal, request, purpose)
     if ('kind' in prepared) return prepared
-    const { capture, before, principal: verifiedPrincipal, scopeRef } = prepared
+    const { capture, before, principal: verifiedPrincipal } = prepared
     const operation = snapshotOperation(capture)
     const held = await options.reservations.reserve({
       principal: verifiedPrincipal,
-      required: options.required,
-      binding: {
-        version: 'standing/1',
-        owner: 'settings',
-        operationId: operation.operationId,
-        principalRef: operation.principalRef,
-        destination: options.destination,
-        scopeRef,
-        targetRef: canonical(operation.subject),
-        inputDigest: operation.commandDigest,
-      },
+      ...captureRequest(options, operation),
     })
     if (held.kind !== 'held')
       return fail(
@@ -242,12 +240,7 @@ export function createSettingsCatalog(
     let result: Captured
     try {
       const committed = await options.storage.commit({
-        identity: {
-          ...options.domain,
-          operation: 'settings.capture',
-          protocolVersion: '2',
-          operationKey: digest([operation.principalRef, operation.operationId]),
-        },
+        identity: captureIdentity(options, operation),
         combinationVersion: options.combinationVersion,
         manifestDigest: options.manifestDigest,
         commands: [
@@ -266,6 +259,7 @@ export function createSettingsCatalog(
     const settled = await options.reservations.settle(held.reservation)
     if (settled.kind !== 'terminal' || settled.outcome !== 'committed')
       return result.kind === 'rejected' ? result : fail('basis_changed')
+    await releaseCapture(options, operation)
     if (before.revision !== options.registry.snapshot().revision) return fail('basis_changed')
     return result
   }

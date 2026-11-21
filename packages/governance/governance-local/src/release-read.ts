@@ -7,6 +7,7 @@ import {
 import type { ReadPort, ReadHandlerModule } from '@omne-harness/sql-contract/worker'
 import { equal, json, operationIdentity, scopeKey } from './encoding.ts'
 import { recordSchema } from './operation-schema.ts'
+import { standingCustodySchema, standingRequestSchema } from './standing-schema.ts'
 
 export const RELEASE_HANDLER = {
   handler: 'governance.releasable',
@@ -29,6 +30,7 @@ export const releasePageSchema = z.strictObject({
       z.strictObject({
         key: releasedKeySchema,
         sqlIdentity: recordSchema.shape.sqlIdentity,
+        standing: standingRequestSchema.nullable(),
       }),
     )
     .max(RELEASE_PAGE),
@@ -39,8 +41,9 @@ const rowSchema = z.tuple([
   GovernanceIdSchema,
   GovernanceIdSchema,
   z.string(),
+  z.string().nullable(),
 ])
-const releasableSql = `SELECT command_owner,principal_ref,operation_id,sql_identity_json
+const releasableSql = `SELECT command_owner,principal_ref,operation_id,sql_identity_json,held_json
   FROM gc_operation
   WHERE scope_key=?
     AND command_owner IN ('contribute','withdraw','adopt')
@@ -60,13 +63,16 @@ export function readReleasePage(port: ReadPort, raw: z.infer<typeof releasePageR
       RELEASE_PAGE + 1,
     ])
     .rows.map(row => rowSchema.parse(row))
-  const items = rows.slice(0, RELEASE_PAGE).map(([owner, principalRef, operationId, stored]) => {
-    const key = { owner, principalRef, operationId }
-    const sqlIdentity = recordSchema.shape.sqlIdentity.parse(JSON.parse(stored))
-    const expected = operationIdentity(sqlIdentity.transactionDomain, { scope, ...key })
-    if (!equal(sqlIdentity, expected)) throw new Error('Corrupt governance operation identity')
-    return { key, sqlIdentity }
-  })
+  const items = rows
+    .slice(0, RELEASE_PAGE)
+    .map(([owner, principalRef, operationId, stored, held]) => {
+      const key = { owner, principalRef, operationId }
+      const sqlIdentity = recordSchema.shape.sqlIdentity.parse(JSON.parse(stored))
+      const expected = operationIdentity(sqlIdentity.transactionDomain, { scope, ...key })
+      if (!equal(sqlIdentity, expected)) throw new Error('Corrupt governance operation identity')
+      const standing = held === null ? null : standingCustodySchema.parse(JSON.parse(held)).request
+      return { key, sqlIdentity, standing }
+    })
   return {
     kind: 'page' as const,
     items,

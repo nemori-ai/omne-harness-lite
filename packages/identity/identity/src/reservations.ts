@@ -50,6 +50,10 @@ export type StandingSettleOutcome =
   | Readonly<{ kind: 'operation-conflict' }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
+export type StandingReleaseOutcome =
+  | Readonly<{ kind: 'released' | 'held' | 'operation-conflict' }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+
 export type StandingRecoveryPage =
   | Readonly<{
       kind: 'recovered'
@@ -69,6 +73,7 @@ export interface StandingReservations {
     }>,
   ): Promise<StandingReserveOutcome>
   settle(request: StandingRequest): Promise<StandingSettleOutcome>
+  release(request: StandingRequest): Promise<StandingReleaseOutcome>
   recover(input?: Readonly<{ after?: string; limit?: number }>): Promise<StandingRecoveryPage>
 }
 
