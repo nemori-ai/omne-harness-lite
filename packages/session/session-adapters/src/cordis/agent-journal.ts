@@ -69,7 +69,6 @@ import {
   BATCH_OVERHEAD_BYTES,
   emptySessionView,
   receiptOf as batchReceiptOf,
-  type ExecutionView,
   type ParticipationKind,
   type PublishedBatch,
   type RequestView,

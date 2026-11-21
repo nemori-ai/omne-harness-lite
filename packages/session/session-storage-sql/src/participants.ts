@@ -34,12 +34,11 @@ import type {
 } from '@omne-harness/session-contract'
 import type { FactCommandV2, JsonValue, RecordedReply } from '@omne-harness/sql-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
-import { canonicalText, decodeValue, encodeValue, sha256 } from './codec.ts'
+import { canonicalText, decodeValue, encodeValue, itemContent, sha256 } from './codec.ts'
+import type { ExecutionItemContentRecord, ExecutionItemKeyRecord } from './codec.ts'
 import { readCachedSessionWork } from './work-cache.ts'
 
 import { recordOf, SESSION_PARTICIPANT } from './session-reply.ts'
-import { contentOf, itemContentFacts, type ExecutionItemContentRecord } from './item-content.ts'
-import type { ExecutionItemKeyRecord } from './item-content.ts'
 
 export { SESSION_PARTICIPANT }
 export const EXECUTION_RECORD_PARTICIPANT = 'execution-record'
@@ -171,7 +170,7 @@ export type ExecutionItemRecord = Readonly<{
   body: JsonValue
 }>
 
-export type { ExecutionItemContentRecord, ExecutionItemKeyRecord } from './item-content.ts'
+export type { ExecutionItemContentRecord, ExecutionItemKeyRecord } from './codec.ts'
 
 export type ExecutionAdmissionRecord = Readonly<{
   input: string
@@ -238,7 +237,7 @@ export function executionRecordFacts(write: ExecutionRecordWrite): FactCommandV2
           open,
           body,
         })),
-        ...itemContentFacts(contents, discards),
+        ...itemContent.facts(contents, discards),
       },
     },
   }
@@ -602,7 +601,7 @@ function itemKeyOf(value: JsonValue): ExecutionItemKey | null {
 function itemOf(value: JsonValue): ExecutionItem | null {
   const item = recordOf(value)
   const key = itemKeyOf(value)
-  const content = contentOf(item)
+  const content = itemContent.of(item)
   return item !== null &&
     key !== null &&
     content !== null &&
