@@ -137,7 +137,7 @@ import {
   refusedTool,
   toolCall,
   unsent,
-  type AssociatedToolCall,
+  associationOf,
 } from './tools.ts'
 import { contactMainCall } from './contact.ts'
 import { sameAuthority, sameRecipient } from './same.ts'
@@ -1804,24 +1804,21 @@ function coordinate<P>(
     unacceptedToolActions.delete(action.id)
     if (result.kind === 'association-unknown') return succeed({ batch: next, progressed: false })
     if (result.kind === 'accepted') heldTools.add(action.id)
-    const acceptance = result.kind === 'accepted' ? 'accepted' : 'unknown'
-    return associate(next, action, pending, result.reference, acceptance)
+    return associate(next, action, pending, associationOf(result))
   }
 
   async function associate(
     batch: ActionBatch,
     action: Action,
     pending: PendingCall,
-    reference: AssociatedToolCall['reference'],
-    acceptance: AssociatedToolCall['acceptance'],
+    sent: ReturnType<typeof associationOf>,
   ): Promise<Outcome<Sent, Failure>> {
     const associated: PendingCall = {
       ...pending,
       kind: 'tool',
       purpose: 'action',
       association: 'associated',
-      reference,
-      acceptance,
+      ...sent,
     }
     const next = replaceSlot(replaceAction(batch, { ...action, call: associated }), {
       kind: 'dispatched',

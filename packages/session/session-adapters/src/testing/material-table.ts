@@ -9,7 +9,7 @@ export type Stored = {
   tenant: string
   execution: AgentExecutionId
   value: Material<ContentBlock>
-  readers: MaterialReaders
+  readers?: MaterialReaders
 }
 
 const keyOf = (tenant: string, execution: AgentExecutionId, content: string) =>

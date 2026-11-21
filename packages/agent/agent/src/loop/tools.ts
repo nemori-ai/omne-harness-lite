@@ -32,6 +32,7 @@ import {
   resolveToolInvocationRef,
   type BackgroundSource,
   type ToolCallId,
+  type ToolInvokeOutcome,
   type ToolInvokeRequest,
   type ToolDelivery,
 } from '@omne-harness/tool-contract'
@@ -380,6 +381,13 @@ export function fixedRequestOf(material: Material<ContentBlock>): ToolInvokeRequ
 }
 
 export type AssociatedToolCall = Extract<PendingCall, { kind: 'tool'; association: 'associated' }>
+
+export const associationOf = (
+  invoked: Extract<ToolInvokeOutcome, { kind: 'accepted' | 'commit-unknown' }>,
+): Pick<AssociatedToolCall, 'reference' | 'acceptance'> => ({
+  reference: invoked.reference,
+  acceptance: invoked.kind === 'accepted' ? 'accepted' : 'unknown',
+})
 
 export function slotOf(batch: ActionBatch, action: ActionId): ActionSlot | undefined {
   return batch.slots.find(slot => slot.action === action)

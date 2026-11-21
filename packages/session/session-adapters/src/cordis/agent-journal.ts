@@ -98,8 +98,8 @@ import {
   type CommonRoot,
   type JournalCell,
 } from '../testing/root.ts'
-import { blobRef, blobRowDigest, factDigestOf } from './journal-batch.ts'
-import { ContentRefs, keepNamed, releaseBlocks } from './content-refs.ts'
+import { blobRowDigest, factDigestOf } from './journal-batch.ts'
+import { ContentRefs, keepNamed, settleBlocks } from './content-refs.ts'
 import { fetchNamed } from './block-read.ts'
 import {
   ANSWER_FAMILY,
@@ -228,7 +228,6 @@ type Book<P> = {
   view: SessionJournalView
   readonly blobs: Map<string, string>
   readonly parsed: Map<string, unknown>
-  readonly owned: Set<string>
   copy: Copy<P> | null
   published: number | null
   readonly loaded: Set<string>
@@ -423,14 +422,10 @@ export async function readExecutionInterpretation(
 // The views of these executions as the store holds them open, in place of what the book held.
 function adopt<P>(
   book: Book<P>,
-  found: Readonly<{
-    views: readonly ExecutionView[]
-    full: readonly ExecutionView[]
-    contents: ReadonlyMap<string, string>
-  }>,
+  found: Extract<Awaited<ReturnType<typeof readOpenView>>, { kind: 'read' }>,
   published: number,
 ): void {
-  for (const [row, payload] of found.contents) keepOwned(book, row, payload)
+  book.refs.keep(book, [], found.contents.values())
   const executions = new SharedMap(book.view.executions)
   for (const view of found.views) {
     executions.set(view.execution, view)
@@ -443,12 +438,6 @@ function adopt<P>(
   book.published = Math.max(book.published ?? 0, published)
   book.copy = null
   turn(book.turns)
-}
-
-function keepOwned<P>(book: Book<P>, row: string, payload: string): void {
-  if (book.blobs.has(row)) return
-  book.blobs.set(row, payload)
-  book.owned.add(row)
 }
 
 async function fetchBlobs<P>(book: Book<P>, read: Reader): Promise<Failure | null> {
@@ -525,8 +514,7 @@ function publicationOf<P>(
     closedBefore: before.agent.closed,
     view: book.view,
     published: book.published ?? 0,
-    stored: row => book.blobs.has(row) && !book.owned.has(row),
-    owned: row => book.owned.has(row),
+    held: row => book.refs.held(book, row),
     after,
     own,
     appended,
@@ -666,7 +654,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         view: emptySessionView(),
         blobs: new Map(),
         parsed: new Map(),
-        owned: new Set(),
         copy: null,
         published: null,
         loaded: new Set(),
@@ -1361,9 +1348,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         digest: written.digest,
         facts: prepared.records,
         blobs: blobs.ok,
-        items: prepared.items,
-        contents: prepared.contents,
-        discards: prepared.discards,
+        ...prepared.itemRows,
         boundaries: boundariesOf(changed, heads),
         admissions: admissionsOf(written, own, own && heads.get(own.id), scratch),
       }),
@@ -1475,13 +1460,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     book.view = { ...prepared.view, head: Math.max(prepared.view.head, pub) }
     const execution = job.written.execution as AgentExecutionId
     const { dropped } = foldFull(book.full, execution, prepared, pub)
-    for (const blob of prepared.blobs) {
-      book.blobs.set(blob.digest, blob.payload)
-      book.owned.delete(blob.digest)
-    }
-    for (const content of prepared.contents)
-      keepOwned(book, blobRef(content.payload).digest, content.payload)
-    const released = releaseBlocks(book.refs, prepared.changes, book)
+    const released = settleBlocks(book.refs, prepared, book)
     book.published = pub
     counts.confirm(book.key, pub)
     job.copy.cell.mutate(() => {

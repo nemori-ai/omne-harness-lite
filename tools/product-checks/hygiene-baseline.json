@@ -507,7 +507,7 @@
       },
       "packages/session/session-adapters/src/cordis/agent-journal.ts": {
         "count": 1,
-        "longest": 1137
+        "longest": 1136
       },
       "packages/session/session-adapters/src/cordis/context-holder.ts": {
         "count": 1,
@@ -531,7 +531,7 @@
       },
       "packages/session/session-adapters/src/testing/journal-receiving.ts": {
         "count": 1,
-        "longest": 584
+        "longest": 576
       },
       "packages/session/session-adapters/src/testing/journal.ts": {
         "count": 6,

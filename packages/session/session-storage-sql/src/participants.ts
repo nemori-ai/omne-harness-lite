@@ -38,6 +38,8 @@ import { canonicalText, decodeValue, encodeValue, sha256 } from './codec.ts'
 import { readCachedSessionWork } from './work-cache.ts'
 
 import { recordOf, SESSION_PARTICIPANT } from './session-reply.ts'
+import { contentOf, itemContentFacts, type ExecutionItemContentRecord } from './item-content.ts'
+import type { ExecutionItemKeyRecord } from './item-content.ts'
 
 export { SESSION_PARTICIPANT }
 export const EXECUTION_RECORD_PARTICIPANT = 'execution-record'
@@ -169,9 +171,7 @@ export type ExecutionItemRecord = Readonly<{
   body: JsonValue
 }>
 
-export type ExecutionItemKeyRecord = Readonly<{ execution?: string; family: string; item: string }>
-
-export type ExecutionItemContentRecord = ExecutionItemKeyRecord & Readonly<{ payload: string }>
+export type { ExecutionItemContentRecord, ExecutionItemKeyRecord } from './item-content.ts'
 
 export type ExecutionAdmissionRecord = Readonly<{
   input: string
@@ -200,12 +200,6 @@ export type ExecutionRecordWrite = Readonly<{
   boundaries: readonly ExecutionBoundaryRecord[]
   admissions: readonly ExecutionAdmissionRecord[]
 }>
-
-const keyFields = ({ execution, family, item }: ExecutionItemKeyRecord) => ({
-  ...(execution === undefined ? {} : { execution }),
-  family,
-  item,
-})
 
 export function executionRecordFacts(write: ExecutionRecordWrite): FactCommandV2 {
   const { facts, blobs, items, contents = [], discards = [], ...rest } = write
@@ -244,15 +238,7 @@ export function executionRecordFacts(write: ExecutionRecordWrite): FactCommandV2
           open,
           body,
         })),
-        ...(contents.length === 0
-          ? {}
-          : {
-              contents: contents.map(content => ({
-                ...keyFields(content),
-                payload: content.payload,
-              })),
-            }),
-        ...(discards.length === 0 ? {} : { discards: discards.map(keyFields) }),
+        ...itemContentFacts(contents, discards),
       },
     },
   }
@@ -616,20 +602,14 @@ function itemKeyOf(value: JsonValue): ExecutionItemKey | null {
 function itemOf(value: JsonValue): ExecutionItem | null {
   const item = recordOf(value)
   const key = itemKeyOf(value)
-  const content = item?.['content']
+  const content = contentOf(item)
   return item !== null &&
     key !== null &&
+    content !== null &&
     typeof item['open'] === 'boolean' &&
     typeof item['pub'] === 'string' &&
-    'body' in item &&
-    (content === undefined || typeof content === 'string')
-    ? {
-        ...key,
-        open: item['open'],
-        pub: item['pub'],
-        body: item['body'] ?? null,
-        ...(content === undefined ? {} : { content }),
-      }
+    'body' in item
+    ? { ...key, ...content, open: item['open'], pub: item['pub'], body: item['body'] ?? null }
     : null
 }
 

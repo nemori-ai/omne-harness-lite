@@ -68,8 +68,7 @@ export type PublicationInput = Readonly<{
   published: number
   // The core's closed items before the write: read back, so not published again unless changed.
   closedBefore: ReadonlyMap<string, unknown>
-  stored: (row: string) => boolean
-  owned: (row: string) => boolean
+  held: (row: string) => 'shared' | 'owned' | null
   after: CommonRoot
   own: MemoryExecution | undefined
   appended: readonly PublishedBatch[]
@@ -87,10 +86,12 @@ export type Prepared = Readonly<{
   // The published view once this batch lands, and the items the batch opens or changes in it.
   pub: number
   view: SessionJournalView
-  items: readonly ExecutionItemRecord[]
+  itemRows: Readonly<{
+    items: readonly ExecutionItemRecord[]
+    contents: readonly ExecutionItemContentRecord[]
+    discards: readonly ExecutionItemKeyRecord[]
+  }>
   changes: readonly ItemChange[]
-  contents: readonly ExecutionItemContentRecord[]
-  discards: readonly ExecutionItemKeyRecord[]
 }>
 
 const BORN_CLOSED: ReadonlySet<string> = new Set([
@@ -174,9 +175,9 @@ export function preparePublication(input: PublicationInput): Outcome<Prepared, F
   const blobs = new Map<string, ExecutionBlobRecord>()
   const written = [
     ...[...after.agent.blobs.written()].filter(digest => !only.has(digest)),
-    ...[...shared].filter(digest => input.owned(blobRowDigest(digest))),
+    ...[...shared].filter(digest => input.held(blobRowDigest(digest)) === 'owned'),
   ]
-  coreBlobRows(after.agent.blobs, written, input.stored, blobs)
+  coreBlobRows(after.agent.blobs, written, row => input.held(row) === 'shared', blobs)
   const envelope: BatchEnvelope = { ...appended.at(-1)!.envelope, kinds: [...kinds] }
   const pub = input.published + 1
   const landed = foldItems(input.view, {
@@ -248,23 +249,25 @@ export function preparePublication(input: PublicationInput): Outcome<Prepared, F
     blobs: [...blobs.values()],
     pub,
     view: landed.view,
-    items: [
-      ...landed.changes.map(({ family, item, change, open, body }) => ({
-        family,
-        item,
-        change,
-        open,
-        body: body as JsonValue,
-      })),
-      ...answers.ok,
-    ],
+    itemRows: {
+      items: [
+        ...landed.changes.map(({ family, item, change, open, body }) => ({
+          family,
+          item,
+          change,
+          open,
+          body: body as JsonValue,
+        })),
+        ...answers.ok,
+      ],
+      contents,
+      discards: discardsOf(
+        execution,
+        input.view.executions.get(execution as AgentExecutionId),
+        landed.view.executions.get(execution as AgentExecutionId),
+      ),
+    },
     changes: landed.changes,
-    contents,
-    discards: discardsOf(
-      execution,
-      input.view.executions.get(execution as AgentExecutionId),
-      landed.view.executions.get(execution as AgentExecutionId),
-    ),
     batchBytes: batchBytes({
       execution: execution as AgentExecutionId,
       envelope,

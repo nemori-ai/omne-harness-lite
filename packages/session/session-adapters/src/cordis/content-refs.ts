@@ -6,7 +6,8 @@ import {
   type ItemChange,
   type SessionJournalView,
 } from '../journal/index.ts'
-import { blobRowDigest, factDigestOf } from './journal-batch.ts'
+import { blobRef, blobRowDigest, factDigestOf, type CoreBlob } from './journal-batch.ts'
+import type { Prepared } from './journal-publication.ts'
 
 const HEX_DIGEST = /^[0-9a-f]{64}$/
 
@@ -67,9 +68,33 @@ function itemRefs(
 // How many open items name each content block: a block no open item names leaves the caches.
 export class ContentRefs {
   readonly #count = new Map<string, number>()
+  readonly #owned = new Set<string>()
 
   has(digest: string): boolean {
     return this.#count.has(digest)
+  }
+
+  held(caches: BlockCaches, row: string): 'shared' | 'owned' | null {
+    if (!caches.blobs.has(row)) return null
+    return this.#owned.has(row) ? 'owned' : 'shared'
+  }
+
+  keep(caches: BlockCaches, blobs: readonly CoreBlob[], contents: Iterable<string>): void {
+    for (const blob of blobs) {
+      caches.blobs.set(blob.digest, blob.payload)
+      this.#owned.delete(blob.digest)
+    }
+    for (const payload of contents) {
+      const row = blobRef(payload).digest
+      if (caches.blobs.has(row)) continue
+      caches.blobs.set(row, payload)
+      this.#owned.add(row)
+    }
+  }
+
+  forget(caches: BlockCaches, row: string): void {
+    caches.blobs.delete(row)
+    this.#owned.delete(row)
   }
 
   reset(view: SessionJournalView, payloadOf: (digest: string) => string | undefined): void {
@@ -108,26 +133,22 @@ export class ContentRefs {
   }
 }
 
-export type BlockCaches = Readonly<{
-  blobs: Map<string, string>
-  parsed: Map<string, unknown>
-  owned: Set<string>
-}>
+export type BlockCaches = Readonly<{ blobs: Map<string, string>; parsed: Map<string, unknown> }>
 
-const forget = (caches: BlockCaches, row: string): void => {
-  caches.blobs.delete(row)
-  caches.owned.delete(row)
-}
-
-// After a publication: counts its item changes and drops from the caches the blocks no open item names.
-export function releaseBlocks(
+// After a publication: caches its blocks and drops from the caches the blocks no open item names.
+export function settleBlocks(
   refs: ContentRefs,
-  changes: readonly ItemChange[],
+  prepared: Pick<Prepared, 'blobs' | 'changes' | 'itemRows'>,
   caches: BlockCaches,
 ): string[] {
-  const released = refs.apply(changes, digest => caches.blobs.get(blobRowDigest(digest)))
+  refs.keep(
+    caches,
+    prepared.blobs,
+    prepared.itemRows.contents.map(item => item.payload),
+  )
+  const released = refs.apply(prepared.changes, digest => caches.blobs.get(blobRowDigest(digest)))
   for (const digest of released) {
-    forget(caches, blobRowDigest(digest))
+    refs.forget(caches, blobRowDigest(digest))
     caches.parsed.delete(digest)
   }
   return released
@@ -136,6 +157,6 @@ export function releaseBlocks(
 // Before a rebuild: counts the view and keeps in the caches only the blocks its open items name.
 export function keepNamed(refs: ContentRefs, view: SessionJournalView, caches: BlockCaches): void {
   refs.reset(view, digest => caches.blobs.get(blobRowDigest(digest)))
-  for (const row of caches.blobs.keys()) if (!refs.has(factDigestOf(row))) forget(caches, row)
+  for (const row of caches.blobs.keys()) if (!refs.has(factDigestOf(row))) refs.forget(caches, row)
   for (const digest of caches.parsed.keys()) if (!refs.has(digest)) caches.parsed.delete(digest)
 }

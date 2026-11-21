@@ -171,7 +171,6 @@ export function receivedRecord(scope: RecordScope, received: ReceivedView): Rece
             tenant: scope.tenantText,
             execution: scope.execution,
             value: block<Material<ContentBlock>>(scope.blobs, received.material),
-            readers: 'after-release',
           },
   }
 }
