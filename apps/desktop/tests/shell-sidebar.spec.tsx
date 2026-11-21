@@ -207,7 +207,7 @@ describe('外壳：侧栏的两段', () => {
       ],
     })
 
-  it('primary 段在上面；底部是 utility 段的页面的网格，最后一行左边是侧栏区的 utility 项，右边是「外观」', async () => {
+  it('primary 段在上面；底部两行：utility 段的页面排成一行，下一行左边是侧栏区的 utility 项，右边是「外观」', async () => {
     await twoSegments()
     const top = document.querySelector<HTMLElement>('.shell-navigation-main')!
     const foot = document.querySelector<HTMLElement>('.shell-secondary')!
@@ -236,7 +236,7 @@ describe('外壳：侧栏的两段', () => {
     expect(last.lastElementChild).toBe(screen.getByRole('button', { name: '外观' }))
   })
 
-  it('网格的每一格是图标加名字的安静钮，不在导航行滑动的底里；选中的一格自己画底，侧栏里仍恰好一处选中', async () => {
+  it('那一行的每一项是图标加名字的安静钮，不在导航行滑动的底里；选中的一项自己画底，侧栏里仍恰好一处选中', async () => {
     await twoSegments()
     const grid = screen.getByRole('navigation', { name: '次要页面' })
     for (const cell of within(grid).getAllByRole('link')) {

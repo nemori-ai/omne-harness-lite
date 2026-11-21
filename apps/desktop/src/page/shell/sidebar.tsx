@@ -200,7 +200,7 @@ function PageRows(props: {
   shown: string | undefined
   expanded: boolean
   choose: (id: string) => void
-  grid: boolean
+  utility: boolean
 }) {
   const rows = props.pages.map(page => (
     <PageRow
@@ -210,10 +210,10 @@ function PageRows(props: {
       selected={page.id === props.shown}
       expanded={props.expanded}
       choose={props.choose}
-      glide={!props.grid}
+      glide={!props.utility}
     />
   ))
-  return props.grid ? (
+  return props.utility ? (
     <nav className="shell-utility-nav" aria-label={props.label}>
       {rows}
     </nav>
@@ -308,7 +308,7 @@ function SidebarBody(props: SidebarProps & { expanded: boolean; choose: (id: str
     items
       .filter(item => segmentOf(item) === segment)
       .map(item => <SidebarEntry key={item.id} item={item} scope={scope} expanded={expanded} />)
-  const rows = (label: string, list: readonly PageItem[], grid: boolean) => (
+  const rows = (label: string, list: readonly PageItem[], utility: boolean) => (
     <PageRows
       label={label}
       pages={list}
@@ -316,7 +316,7 @@ function SidebarBody(props: SidebarProps & { expanded: boolean; choose: (id: str
       shown={props.shown}
       expanded={expanded}
       choose={props.choose}
-      grid={grid}
+      utility={utility}
     />
   )
   return (

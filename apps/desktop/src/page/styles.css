@@ -281,14 +281,30 @@ body,
   min-width: 0;
 }
 
-/* The foot (SPEC 页面, OD-22): the utility pages in a grid of two columns; a cell is a quiet row of its own, so its
+/* The foot (SPEC 页面, OD-22, OD-43) has one arrangement, two rows. First the utility pages as one row of quiet items,
+   the source's `.shell-utility-nav`: a row that wraps only when it cannot hold them, each item growing to share it,
+   1 apart like the nav rows. An item is the source's `.shell-utility-button`, icon and name 8 apart at the control
+   height; the row's first item starts on the nav's icon column and the others keep 8 at either side, so three fit
+   one row at every size, where the sidebar grows less than the type. An item is a quiet row of its own, so its
    selected ground is drawn here, the same ground the gliding rows have. The last row holds the sidebar slot's
    utility items on the left, free to grow upward, and the appearance button on the right. On the rail every one of
    them is a circle in one column. */
 .shell-utility-nav {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1px var(--omne-space-inline);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+}
+
+.shell-navigation-content[data-expanded='true'] .shell-utility-nav > .shell-nav-link {
+  flex: 1 0 auto;
+  width: auto;
+  gap: calc(var(--spacing) * 2);
+  min-height: var(--omne-control-height);
+  padding-inline: calc(var(--spacing) * 2);
+}
+
+.shell-navigation-content[data-expanded='true'] .shell-utility-nav > .shell-nav-link:first-child {
+  padding-inline-start: calc((var(--omne-nav-row-height) - var(--omne-icon-label)) / 2);
 }
 
 .shell-utility-nav > .shell-nav-link[data-selected='true'] {
@@ -316,7 +332,7 @@ body,
 }
 
 .shell-navigation-content[data-expanded='false'] .shell-utility-nav {
-  grid-template-columns: minmax(0, 1fr);
+  flex-direction: column;
 }
 
 .shell-navigation-content[data-expanded='false'] .shell-footer-row {
