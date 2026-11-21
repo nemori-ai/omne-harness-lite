@@ -176,7 +176,7 @@ it('retains provider shutdown after dependency loss and retries without another 
   await vi.waitFor(() => expect(world.observed).toContainEqual({ kind: 'closed' }))
   expect(
     await world.w.services().sql.contribution(registered.contribution, world.w.principalRef),
-  ).toMatchObject({ state: 'released' })
+  ).toEqual({ kind: 'denied' })
 })
 
 it('returns unavailable for a disposed caller reference while the provider stays active', async () => {
