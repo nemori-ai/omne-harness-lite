@@ -134,7 +134,6 @@ export type WorkspaceSelectionReading =
   | Readonly<{ kind: 'refused'; failure: SessionFailure }>
   | Readonly<{ kind: 'unavailable' }>
 
-/** The instance a session stands at and the directory a step beginning now works in, read at each ask. */
 export type WorkspaceSelections = Readonly<{
   read(access: SessionAccess<Principal>): Promise<WorkspaceSelectionReading>
 }>

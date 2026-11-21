@@ -82,7 +82,6 @@ export type AuthorEnvironmentInput<P> = Readonly<{
   facts: EnvironmentFacts
   /** The provider that stores products, taken anew at each put; absent while none is installed. */
   media: () => ToolMediaStore<P> | undefined
-  /** The directory pinned in the request, if any. */
   directory?: ToolCallDirectory
 }>
 

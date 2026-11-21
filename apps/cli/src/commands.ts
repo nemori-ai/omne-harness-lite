@@ -487,27 +487,29 @@ const modeTarget = (values: Option): ModeTarget | undefined => {
   return target === undefined ? undefined : { session: target.session, tenant: target.tenant }
 }
 
-const readPermissionMode: ExistingCommand<ModeTarget> = {
+type SessionRead =
+  | 'read-permission-mode'
+  | 'read-waiting-calls'
+  | 'read-model-selection'
+  | 'read-workspace-selection'
+
+const sessionRead = (name: SessionRead): ExistingCommand<ModeTarget> => ({
   kind: 'existing',
-  name: 'read-permission-mode',
+  name,
   accepted: ['--session', '--tenant', serverOption],
   required: ['--session'],
   parse: modeTarget,
   target: ({ session, tenant }) => ({ session, tenant }),
-  build: (parsed, { owner: tenant, newId }) => {
+  build: ({ session }, { owner: tenant, newId }) => {
     const messageId = newId()
     return {
-      send: link =>
-        link.call(
-          sessionProtocol,
-          'read-permission-mode',
-          { tenant, session: parsed.session },
-          messageId,
-        ),
+      send: link => link.call(sessionProtocol, name, { tenant, session }, messageId),
       echo: { messageId, tenant: encodeTenantText(tenant) },
     }
   },
-}
+})
+
+const readPermissionMode = sessionRead('read-permission-mode')
 
 const POSITION = /^(0|[1-9][0-9]*)$/u
 const DEFAULT_PENDING_LIMIT = 50
@@ -540,22 +542,7 @@ const readPending: ExistingCommand<PendingTarget> = {
   },
 }
 
-const readWaitingCalls: ExistingCommand<ModeTarget> = {
-  kind: 'existing',
-  name: 'read-waiting-calls',
-  accepted: ['--session', '--tenant', serverOption],
-  required: ['--session'],
-  parse: modeTarget,
-  target: ({ session, tenant }) => ({ session, tenant }),
-  build: ({ session }, { owner: tenant, newId }) => {
-    const messageId = newId()
-    return {
-      send: link =>
-        link.call(sessionProtocol, 'read-waiting-calls', { tenant, session }, messageId),
-      echo: { messageId, tenant: encodeTenantText(tenant) },
-    }
-  },
-}
+const readWaitingCalls = sessionRead('read-waiting-calls')
 
 const readInputFate: ExistingCommand<ModeTarget & { inputId: string }> = {
   kind: 'existing',
@@ -789,49 +776,9 @@ const selectWorkspace: ExistingCommand<Targeted & { workspace: WorkspaceTarget |
   },
 }
 
-const readModelSelection: ExistingCommand<Targeted> = {
-  kind: 'existing',
-  name: 'read-model-selection',
-  accepted: ['--session', '--tenant', serverOption],
-  required: ['--session'],
-  parse: targeted,
-  target: ({ session, tenant }) => ({ session, tenant }),
-  build: (parsed, { owner: tenant, newId }) => {
-    const messageId = newId()
-    return {
-      send: link =>
-        link.call(
-          sessionProtocol,
-          'read-model-selection',
-          { tenant, session: parsed.session },
-          messageId,
-        ),
-      echo: { messageId, tenant: encodeTenantText(tenant) },
-    }
-  },
-}
+const readModelSelection = sessionRead('read-model-selection')
 
-const readWorkspaceSelection: ExistingCommand<Targeted> = {
-  kind: 'existing',
-  name: 'read-workspace-selection',
-  accepted: ['--session', '--tenant', serverOption],
-  required: ['--session'],
-  parse: targeted,
-  target: ({ session, tenant }) => ({ session, tenant }),
-  build: (parsed, { owner: tenant, newId }) => {
-    const messageId = newId()
-    return {
-      send: link =>
-        link.call(
-          sessionProtocol,
-          'read-workspace-selection',
-          { tenant, session: parsed.session },
-          messageId,
-        ),
-      echo: { messageId, tenant: encodeTenantText(tenant) },
-    }
-  },
-}
+const readWorkspaceSelection = sessionRead('read-workspace-selection')
 
 const listModels: TenantCommand<{ given: TenantId | undefined }> = {
   kind: 'tenant',
