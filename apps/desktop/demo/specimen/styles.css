@@ -45,3 +45,10 @@
   font-size: var(--omne-text-ui);
   line-height: var(--omne-leading-ui);
 }
+
+.specimen-decision {
+  width: 100%;
+  max-width: calc(var(--spacing) * 185);
+  margin: 0 auto;
+  padding: calc(var(--spacing) * 8) calc(var(--spacing) * 1.5);
+}

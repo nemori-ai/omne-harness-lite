@@ -46,6 +46,7 @@ import {
   TableRow,
   Textarea,
 } from '@omne-harness/ui-kit'
+import { DecisionSpecimen } from './decision.tsx'
 import './styles.css'
 
 const violations: string[] = []
@@ -301,8 +302,9 @@ function Specimen() {
   )
 }
 
+// `?decision` draws the decision paper from card data instead (decision.tsx).
 createRoot(document.getElementById('root') as HTMLElement).render(
   <AppTooltipProvider>
-    <Specimen />
+    {new URLSearchParams(location.search).has('decision') ? <DecisionSpecimen /> : <Specimen />}
   </AppTooltipProvider>,
 )

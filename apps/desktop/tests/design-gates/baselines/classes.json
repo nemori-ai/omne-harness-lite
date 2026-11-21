@@ -26,8 +26,6 @@
     "packages/frontend/ui-kit/src/patterns/page-header.tsx | .page-header-actions": 1,
     "packages/frontend/ui-kit/src/patterns/page-header.tsx | .page-header-description": 1,
     "packages/frontend/ui-kit/src/patterns/page-header.tsx | .page-header-text": 1,
-    "packages/human-intervention/human-intervention-ui/src/view/card-view.tsx | .hitl-card-words": 1,
-    "packages/human-intervention/human-intervention-ui/src/view/card-view.tsx | .hitl-release-gate": 1,
     "packages/schedule/schedule-ui/src/view/activation.tsx | .schedule-activation": 1,
     "packages/schedule/schedule-ui/src/view/schedule-detail.tsx | .schedule-detail": 1,
     "packages/schedule/schedule-ui/src/view/schedule-page.tsx | .schedule-page": 1,

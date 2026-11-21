@@ -584,6 +584,198 @@ function tipScenes(id, title, { act, ready = 'await rest()', find, leave = [], s
   ]
 }
 
+/**
+ * R7 W1, the decision paper. Each scene has its own conversation: the release card (C2-decision-one) asks for the
+ * permission mode 需要时问我 first; the two-question paper (C2-decision-two) is the walk's three questions with one
+ * of them answered from outside the page, so the page reads two; that same paper answered (C3-decision-answered) and
+ * sent (C3-decision-sent). A section closed elsewhere cannot be brought about on purpose in the real app: the specimen
+ * page draws it from card data (C4-decision-closed, demo/specimen/decision.tsx). The C3 scenes go on in the
+ * conversation C2-decision-two left open (it has no title of its own until its turn ends), so they run after it.
+ */
+const RELEASE_ASK = '用工具删掉资料库里的搬家清单草稿'
+const TWO_ASK = '先问我两件事'
+const THIRD_QUESTION = './dist 下的构建缓存要留着吗？'
+const DECISION_HELPERS = `
+  const paper = () => conversation()?.querySelector('.hitl-paper') ?? null
+  const twoOpen = () => paper()?.querySelectorAll('article').length === 2 &&
+    sectionOf('开发服务器用哪个端口？') !== undefined && sectionOf('新分支叫什么？') !== undefined
+  const sectionOf = title => [...(paper()?.querySelectorAll('article') ?? [])].find(item =>
+    item.querySelector('h3')?.textContent.trim() === title)
+  const pick = (section, label) => [...section.querySelectorAll('[role=radio]')].find(row =>
+    row.querySelector('.omne-choice-label')?.textContent.trim() === label).click()
+  const keyOn = (target, key) => target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
+`
+/** The session's permission mode through its heading select, opened and chosen with the keys. */
+const MODE_ASK = `
+  const trigger = await wait('the permission mode', () => conversation()?.querySelector('[aria-label="权限处理"]'))
+  if (!trigger.textContent.includes('需要时问我')) {
+    trigger.focus()
+    keyOn(trigger, 'Enter')
+    const item = await wait('the 需要时问我 option', () =>
+      [...document.querySelectorAll('[role=option]')].find(option => option.textContent.includes('需要时问我')))
+    item.focus()
+    keyOn(item, 'Enter')
+    await wait('the mode in force', () => trigger.textContent.includes('需要时问我'))
+  }`
+
+/** Every pending card of the walk's tenant, read the way the page reads them. */
+async function pendingCards(stack) {
+  const hitl = client(stack, 'human-intervention')
+  const tenant = await tenantOf(stack)
+  const items = []
+  let cursor = null
+  do {
+    const page = await hitl['list-cards']({
+      tenant,
+      filter: { states: ['pending'] },
+      cursor,
+      limit: 100,
+    })
+    if (page.outcome !== 'succeeded') throw new Error(`list-cards answered ${JSON.stringify(page)}`)
+    items.push(...page.body.items)
+    cursor = page.body.next
+  } while (cursor !== null)
+  return { hitl, tenant, items }
+}
+
+const decisionSessions = new Set()
+async function noteSessions(walk) {
+  for (const item of (await pendingCards(walk.stack)).items)
+    decisionSessions.add(item.origin.sessionRef)
+}
+
+/** The third question of the conversation that has just asked: answered outside the page, as on another device. */
+async function answerThird(walk) {
+  const { hitl, tenant, items } = await pendingCards(walk.stack)
+  const card = items.find(
+    item =>
+      !decisionSessions.has(item.origin.sessionRef) && item.card.question.title === THIRD_QUESTION,
+  )
+  if (card === undefined) throw new Error('no third question in the new conversation')
+  const sent = await hitl['submit-reply']({
+    tenant,
+    card: card.card.ref,
+    expectedRevision: card.card.revision,
+    reply: { kind: 'selection', optionId: card.card.question.options[0].id },
+    replyId: crypto.randomUUID(),
+  })
+  if (sent.outcome !== 'succeeded') throw new Error(`submit-reply answered ${JSON.stringify(sent)}`)
+  print('answered the third question outside the page')
+}
+
+/**
+ * The paper's box and its parts' insets, measured in the page after each shot's way in, for the comparison with the
+ * reference: the left edge of the agent's paper it shares, the column it stands in, and each part's padding.
+ */
+async function measureDecision(walk) {
+  const measured = await evaluate(
+    walk.browser,
+    `(() => {
+      const box = element => {
+        if (!element) return null
+        const rect = element.getBoundingClientRect()
+        return { left: Math.round(rect.left * 100) / 100, top: Math.round(rect.top * 100) / 100,
+          width: Math.round(rect.width * 100) / 100, height: Math.round(rect.height * 100) / 100 }
+      }
+      const style = (element, ...properties) => element && Object.fromEntries(properties.map(property =>
+        [property, getComputedStyle(element).getPropertyValue(property)]))
+      const page = document.querySelector('section[data-page=conversation]:not([hidden])')
+      const paper = page?.querySelector('.hitl-paper')
+      const section = paper?.querySelector('.hitl-section')
+      const part = selector => section?.querySelector(selector)
+      return {
+        window: innerWidth, size: document.documentElement.dataset.size ?? 'medium',
+        column: box(page?.querySelector('.omne-session-main')),
+        agentBubble: box([...(page?.querySelectorAll('.omne-message:not([data-role=user]) .omne-message-body') ?? [])].at(-1)),
+        processRow: box(page?.querySelector('.omne-conversation .omne-transcript-row')),
+        paper: box(paper), paperStyle: style(paper, 'padding-bottom', 'border-radius', 'box-shadow'),
+        kind: style(part('.hitl-kind'), 'padding', 'font-size', 'gap'), kindMark: box(part('.hitl-kind-mark')),
+        title: style(part('.hitl-title'), 'padding', 'font-size', 'font-weight'),
+        text: style(part('.hitl-text'), 'padding'), who: style(part('.hitl-who'), 'margin'),
+        facts: style(part('.hitl-facts'), 'margin', 'padding-top', 'row-gap', 'column-gap', 'font-size'),
+        fold: style(part('.hitl-fold'), 'margin'), options: style(part('.hitl-options'), 'margin'),
+        row: style(part('.omne-choice-row'), 'min-height', 'padding', 'column-gap'),
+        mark: box(part('.omne-choice-mark')),
+        foot: style(paper?.querySelector('.hitl-foot'), 'padding'),
+        submit: box([...(paper?.querySelectorAll('.hitl-actions button') ?? [])][0]),
+      }
+    })()`,
+  )
+  print(`MEASURE ${JSON.stringify(measured)}`)
+}
+
+const DECISION_SCENES = [
+  {
+    id: 'C2-decision-one',
+    title: '一张放行卡：转写末尾的纸上一节（对 08-decision-live）',
+    tiers: true,
+    act: `${DECISION_HELPERS}
+      await fresh()
+      await say('先说一句话', '这一轮做了什么')
+      ${MODE_ASK}
+      await say(${JSON.stringify(RELEASE_ASK)}, '需要你放行')`,
+    each: ['await rest()', measureDecision],
+  },
+  {
+    id: 'C2-decision-two',
+    title: '两题叠在一张纸上',
+    act: [
+      noteSessions,
+      `${DECISION_HELPERS}
+      await fresh()
+      await say(${JSON.stringify(TWO_ASK)}, 'Agent 在问你')
+      await wait('three sections on the paper', () => paper()?.querySelectorAll('article').length === 3)`,
+      answerThird,
+      `${DECISION_HELPERS}
+      await wait('two sections on the paper', () => paper()?.querySelectorAll('article').length === 2)`,
+    ],
+  },
+  {
+    id: 'C3-decision-answered',
+    title: '几题都作答好，提交钮可按',
+    act: `${DECISION_HELPERS}
+      await wait('the two-question paper C2-decision-two left open', twoOpen)
+      const port = sectionOf('开发服务器用哪个端口？')
+      pick(port, '8081（推荐）')
+      const branch = sectionOf('新分支叫什么？')
+      pick(branch, '用自己的话回答')
+      fill(await wait('the words', () => branch.querySelector('textarea')), 'feature/decision-paper')
+      await wait('the submit enabled', () => {
+        const submit = [...paper().querySelectorAll('button')].find(item => item.textContent.trim() === '提交')
+        return submit !== undefined && !submit.disabled
+      })`,
+  },
+  {
+    id: 'C3-decision-sent',
+    title: '提交之后纸离开，转写里是那几次调用的行',
+    act: `${DECISION_HELPERS}
+      await wait('the two-question paper C2-decision-two left open', twoOpen)
+      await press('section[data-page=conversation]:not([hidden]) .hitl-paper button', '提交')
+      await wait('the paper gone', () => paper() === null)
+      await wait('the reply after the answers', () => transcript().includes('命令跑完了'))`,
+  },
+  {
+    id: 'C4-decision-closed',
+    title: '样张：一节被关掉（已在别处答了），另一节还等着放行',
+    onSpecimen: true,
+    act: [
+      walk => navigate(walk.browser, `${walk.stack.origin}specimen/index.html?decision`),
+      `${DECISION_HELPERS}
+      await wait('the specimen', () => document.querySelector('[data-specimen=ready] .hitl-paper'))
+      const question = [...document.querySelectorAll('.hitl-paper article')].find(item =>
+        item.querySelector('h3')?.textContent.trim() === '开发服务器用哪个端口？')
+      pick(question, '3000')
+      await press('.hitl-paper button', '提交')
+      await wait('the section closed', () => question.querySelector('.hitl-kind')?.textContent.includes('已关闭'))`,
+    ],
+    each: 'await settle()',
+    leave: [
+      walk => navigate(walk.browser, walk.stack.origin),
+      `await wait('the sidebar', () => document.querySelector('.shell-sidebar'))`,
+    ],
+  },
+]
+
 const SCENES = [
   {
     id: 'A1-gate',
@@ -754,6 +946,7 @@ const SCENES = [
     tiers: true,
     act: `await openSession('有几件事要问我')`,
   },
+  ...DECISION_SCENES,
   { id: 'C5-decisions', title: '待你决定', act: `await goTo('待你决定')` },
   { id: 'C6-notifications', title: '通知', act: `await goTo('通知')` },
   { id: 'D1-search', title: '搜索', act: `await goTo('搜索')` },
@@ -1160,7 +1353,8 @@ async function main() {
   const seriesWanted = list('--series', '')
   const specimenWanted =
     seriesWanted.some(name => SERIES[name]?.app !== true) ||
-    (seriesWanted.length === 0 && SCENES.some(item => item.specimen && wanted.has(item.id)))
+    (seriesWanted.length === 0 &&
+      SCENES.some(item => (item.specimen || item.onSpecimen) && wanted.has(item.id)))
   const specimenRoot = specimenWanted ? await buildSpecimen() : undefined
   const stack = await startStack({
     answer,
