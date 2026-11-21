@@ -49,9 +49,14 @@ export function PermissionModeAction({ store, tenant, session }: Props) {
       />
     )
   }
+  // Only a change that did not take is told; one that took shows as the dropdown's new face.
   const change = (value: string, tell: (text: string) => void) => {
     const mode = modeOf(value)
-    if (mode !== undefined) void store.change(tenant, session, mode).then(tell)
+    if (mode === undefined) return
+    say(null)
+    void store.change(tenant, session, mode).then(text => {
+      if (text !== null) tell(text)
+    })
   }
   return (
     <HeadingChoice
