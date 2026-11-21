@@ -4,9 +4,10 @@ import type { ToolsSource } from './translate.ts'
 
 export type ToolAvailabilityRead = ToolAdoption['availability']
 
+/** A null value: the tool is not offered where this request is made. */
 export type ToolLookup<P> = (
   input: Readonly<{ access: Access<P>; binding: Adoption }>,
-) => Promise<SourceRead<ToolAvailabilityRead>>
+) => Promise<SourceRead<ToolAvailabilityRead | null>>
 
 export const absentToolLookup: ToolLookup<unknown> = async () => ({
   kind: 'unavailable',
@@ -25,13 +26,14 @@ export function toolsSourceOf<P>(lookup: ToolLookup<P>): ToolsSource<P> {
     }
     const tools: ToolAdoption[] = []
     for (const binding of bindings) {
-      let read: SourceRead<ToolAvailabilityRead>
+      let read: SourceRead<ToolAvailabilityRead | null>
       try {
         read = await lookup({ access, binding })
       } catch {
         return { kind: 'unavailable', diagnostic: 'tool-lookup-failed' }
       }
       if (read.kind !== 'value') return read
+      if (read.value === null) continue
       if (read.value.definition.name !== binding.name)
         return { kind: 'unavailable', diagnostic: `tool-binding-mismatch: ${binding.name}` }
       tools.push({ resident: true, availability: read.value, binding })

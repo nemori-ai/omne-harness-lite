@@ -1,6 +1,7 @@
 import type { BackgroundCallResolution, BackgroundCallView } from './background-calls.ts'
 import type { ArchiveCollapse } from './call-control.ts'
 import type { ContextScopeBinding } from './values.ts'
+import type { RelationToReference } from './directory-relation.ts'
 import type { SessionCallBinding } from './call-settlement.ts'
 import type { TodoMutationReceipt, TodoPage, TodoPageCursor } from './todos.ts'
 import type { JsonValue } from '@omne-harness/json-text'
@@ -44,7 +45,6 @@ import type {
   Participation,
   ProducedResult,
   ProducerRef,
-  Relation,
   ResidentAdoption,
   RoutedInput,
   RunTerminal,
@@ -52,6 +52,7 @@ import type {
   SessionCreation,
   SessionWaiting,
   WorkSnapshot,
+  Attendance,
 } from './values.ts'
 
 import type { InputFate } from './input-fate.ts'
@@ -277,7 +278,7 @@ export interface SessionManagement<P> {
     input: Mutation<P> & Readonly<{ result: InitializationResult }>,
   ): Reply<CommitReceipt>
   change(input: Mutation<P> & Readonly<{ declaration: DeclarationChange }>): Reply<CommitReceipt>
-  setRelation(input: Mutation<P> & Readonly<{ relation: Relation }>): Reply<CommitReceipt>
+  setResident(input: Mutation<P> & Readonly<{ resident: boolean }>): Reply<CommitReceipt>
   configureAutoArchive(
     input: Mutation<P> & Readonly<{ policy: AutoArchivePolicy }>,
   ): Reply<CommitReceipt>
@@ -322,6 +323,7 @@ export type ProducerFact =
       child: SessionId
       childOperation: SessionOperationId
       source: DurableEvidence
+      refusal?: Readonly<{ reason: string }>
     }>
   | Readonly<{
       kind: 'routed-input'
@@ -443,6 +445,10 @@ export interface SessionHistory<P> {
   ): Reply<ModelViewRead>
 }
 export type ArchivedBy = 'person' | 'auto' | 'parent'
+export type SessionListRelation =
+  | Readonly<{ kind: 'main' }>
+  | Readonly<{ kind: 'child'; parent: SessionId }>
+  | Readonly<{ kind: 'handoff'; origin: SessionId }>
 export type SessionListItem = Readonly<{
   session: SessionId
   createdAt: string | null
@@ -451,6 +457,20 @@ export type SessionListItem = Readonly<{
   title: string | null
   archivedAt: string | null
   archivedBy: ArchivedBy | null
+  relation: SessionListRelation
+  root: SessionId
+  depth: number
+  attendance: Attendance
+  definition: string
+  toReference: RelationToReference | null
+}>
+export type SessionListFilter = Readonly<{
+  kind?: SessionListRelation['kind']
+  parent?: SessionId
+  root?: SessionId
+  attendance?: Attendance
+  definition?: string
+  toReference?: RelationToReference
 }>
 export type SessionListPage = Readonly<{
   items: readonly SessionListItem[]
@@ -462,10 +482,16 @@ type DirectoryAccess<P> = Readonly<{
   tenant: TenantId
   after: string | null
   limit: number
+  filter?: SessionListFilter
+  reference?: SessionId
 }>
+export type UnarchivedLifecycle = Exclude<WorkSnapshot['lifecycle'], 'archived'>
 /** A session is in exactly one of the two lists: the ones not archived, or the archived ones. */
 export interface SessionDirectory<P> {
-  list(input: DirectoryAccess<P>): Reply<SessionListPage>
+  list(
+    input: DirectoryAccess<P> &
+      Readonly<{ lifecycle?: UnarchivedLifecycle; titleContains?: string }>,
+  ): Reply<SessionListPage>
   listArchived(
     input: DirectoryAccess<P> &
       Readonly<{

@@ -154,13 +154,14 @@ async function readIn<V>(
   }
 }
 
-export function publishedViewPortsOf(ctx: Context): PublishedViewPorts | null {
-  const session = ctx.intercept(sessionKey, { caller: 'coordinator' }).get(sessionKey)
-  const eligibility = ctx.get(runtimeContextReaderEligibilityKey)
+/** `declared: false` reads the services lazily, for a row that does not list them among its injects. */
+export function publishedViewPortsOf(ctx: Context, declared = true): PublishedViewPorts | null {
+  const session = ctx.intercept(sessionKey, { caller: 'coordinator' }).get(sessionKey, declared)
+  const eligibility = ctx.get(runtimeContextReaderEligibilityKey, declared)
   const runtime = ctx
     .intercept(runtimeContextKey, { consumer: 'coordinator' })
-    .get(runtimeContextKey)
-  const modes = ctx.get(sessionModesInstallationKey)
+    .get(runtimeContextKey, declared)
+  const modes = ctx.get(sessionModesInstallationKey, declared)
   if (!session || !eligibility || !runtime || !modes) return null
   return {
     work: session.work,

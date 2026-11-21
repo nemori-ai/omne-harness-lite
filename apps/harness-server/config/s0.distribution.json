@@ -356,6 +356,21 @@
       "config": {}
     },
     {
+      "id": "dispatch",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "dispatch-session",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "dispatch-tool",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "server-entry",
       "plugin": "stubPlugin",
       "config": {}

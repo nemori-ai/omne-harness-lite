@@ -57,7 +57,7 @@ const ADMITTED: Readonly<Record<FaceOperation, readonly SessionCallerClass[]>> =
   create: [I],
   completeInitialization: [I],
   change: [I],
-  setRelation: [I],
+  setResident: [I],
   configureAutoArchive: [I],
   considerAutoArchive: [M],
   interrupt: [I],

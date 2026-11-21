@@ -1,6 +1,11 @@
 import { SESSION_LOG_PARTICIPANTS } from '../../src/participants.ts'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
-import type { RoutedInput, SessionCommand, SessionAccess } from '@omne-harness/session-contract'
+import type {
+  RoutedInput,
+  SessionAccess,
+  SessionCommand,
+  SessionCreation,
+} from '@omne-harness/session-contract'
 import {
   adoptedInitializationFixture,
   createPolicySessionAccessCheck,
@@ -128,14 +133,18 @@ export async function app(
     tenant,
     session: sessionId(session),
   })
-  const create = async (tenant: TenantId, session = 'session-1') => {
+  const create = async (
+    tenant: TenantId,
+    session = 'session-1',
+    standing: Pick<SessionCreation, 'relation' | 'attendance'> = {},
+  ) => {
     const command: SessionCommand = {
       kind: 'create',
       input: {
         tenant,
         session: sessionId(session),
         operation: operationId(`create-${session}`),
-        creation: creation(),
+        creation: creation(standing),
       },
     }
     const guards = [

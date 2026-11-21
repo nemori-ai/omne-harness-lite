@@ -59,6 +59,7 @@ import { decideProducerFact } from './decide-receive.ts'
 import { admitInput, readsWithTerms } from './decide-intake.ts'
 import type { AdmittedSource } from './input-sources.ts'
 import { residentEntries, completeEvidence } from './decision-support.ts'
+import { judgeStanding } from './standing.ts'
 import { closingEntries } from './run-closure.ts'
 import { pendingAfterTerminal } from './input-leases.ts'
 import { digestOf } from './operations.ts'
@@ -182,7 +183,9 @@ function decideCreate(
     return invalid('creation.modes.value.environment', 'incomplete adoption')
   if (creation.modes.kind === 'tenant-default' && emptyAdoption(creation.modes.source))
     return invalid('creation.modes.source', 'incomplete adoption')
-  const initialized = decideInitializationCreate(command, guards)
+  const standing = judgeStanding(command.input.session, creation, reads.related)
+  if ('kind' in standing) return standing
+  const initialized = decideInitializationCreate(command, guards, standing.tree)
   if (initialized.kind !== 'entries') return initialized
   const out = [...initialized.entries]
   if (creation.initial !== null) {
@@ -937,7 +940,7 @@ function decideCommand(
     case 'freeze':
       return decideFreeze(previous, command, reads)
     case 'control':
-    case 'setRelation':
+    case 'setResident':
     case 'configureAutoArchive':
     case 'considerAutoArchive':
     case 'recordIdle':

@@ -103,7 +103,12 @@ function factElements(fact: ProducerFact): unknown {
     case 'release':
       return { kind: fact.kind, consumption: fact.consumption, version: fact.result.version }
     case 'cascade':
-      return { kind: fact.kind, child: fact.child, childOperation: fact.childOperation }
+      return {
+        kind: fact.kind,
+        child: fact.child,
+        childOperation: fact.childOperation,
+        ...(fact.refusal === undefined ? {} : { refused: true }),
+      }
     case 'routed-input':
       return { kind: fact.kind, originalOperation: fact.originalOperation }
     case 'scope-release':

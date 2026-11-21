@@ -40,7 +40,7 @@ import {
   type ToolRuntimeHolder,
 } from './holder.ts'
 import { runScopeGrants } from './scope.ts'
-import { toolHitlHolder } from '../tool-hitl/holder.ts'
+import { releaseToolDecisions } from './decision-routes.ts'
 
 const OWNER = '@omne-harness/harness-server'
 
@@ -119,6 +119,7 @@ function inputFor(
     schemaProvider: () => holder.schemaProvider,
     warn: text => root.logger('tool-runtime').warn(text),
   })
+  const decisions = releaseToolDecisions(root)
   const input: LocalToolRuntimeInput = {
     store,
     bodySchemas: {
@@ -149,7 +150,7 @@ function inputFor(
     configuration: { ...config.configuration, readResultArguments: TOOL_READ_ARGUMENTS },
     bindings: () => root.get(toolBindingsKey) as ReturnType<LocalToolRuntimeInput['bindings']>,
     catalog: () => root.get(toolCatalogKey),
-    decisions: () => toolHitlHolder(root).bridge ?? undefined,
+    decisions: () => decisions,
     environment: environment.input,
     capacity: config.capacity,
     observersPerCall: config.observersPerCall,

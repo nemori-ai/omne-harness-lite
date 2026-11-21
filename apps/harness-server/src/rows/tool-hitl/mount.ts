@@ -1,8 +1,10 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
+import { hitlDecisionWait } from '@omne-harness/human-intervention-tool'
 import { fail } from '@omne-harness/operation-result'
 import { toolCommandsKey } from '@omne-harness/tool-cordis-contract/cordis'
 import { sessionWorkReaderOf } from '../../entry/tool-requests.ts'
+import { mountDecisionRoute } from '../tool-runtime/decision-routes.ts'
 import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
 import { createToolHitlBridge, TOOL_HITL_OWNER } from './bridge.ts'
 import { toolHitlHolder } from './holder.ts'
@@ -48,6 +50,10 @@ export function mountToolHitl(
       if ('failure' in issued) return issued
       return readWork({ principal: issued.ok, tenant, session })
     },
+  })
+  mountDecisionRoute(ctx, {
+    contract: hitlDecisionWait.adoption,
+    bridge: () => hitl.bridge ?? undefined,
   })
   hitl.host = host
   hitl.bridge = bridge

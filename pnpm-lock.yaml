@@ -653,6 +653,27 @@ importers:
       '@omne-harness/context-compaction':
         specifier: workspace:*
         version: link:../../packages/context/context-compaction
+      '@omne-harness/dispatch':
+        specifier: workspace:*
+        version: link:../../packages/dispatch/dispatch
+      '@omne-harness/dispatch-contract':
+        specifier: workspace:*
+        version: link:../../packages/dispatch/dispatch-contract
+      '@omne-harness/dispatch-cordis-contract':
+        specifier: workspace:*
+        version: link:../../packages/dispatch/dispatch-cordis-contract
+      '@omne-harness/dispatch-local':
+        specifier: workspace:*
+        version: link:../../packages/dispatch/dispatch-local
+      '@omne-harness/dispatch-session':
+        specifier: workspace:*
+        version: link:../../packages/dispatch/dispatch-session
+      '@omne-harness/dispatch-tool':
+        specifier: workspace:*
+        version: link:../../packages/dispatch/dispatch-tool
+      '@omne-harness/dispatch-tools':
+        specifier: workspace:*
+        version: link:../../packages/dispatch/dispatch-tools
       '@omne-harness/exchange-refs':
         specifier: workspace:*
         version: link:../../packages/common/exchange-refs
@@ -2525,6 +2546,187 @@ importers:
       '@omne-harness/runtime-context-cordis':
         specifier: workspace:*
         version: link:../runtime-context-cordis
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/dispatch/dispatch:
+    dependencies:
+      '@omne-harness/dispatch-contract':
+        specifier: workspace:*
+        version: link:../dispatch-contract
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/dispatch/dispatch-contract:
+    dependencies:
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/dispatch/dispatch-cordis-contract:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@omne-harness/dispatch-contract':
+        specifier: workspace:*
+        version: link:../dispatch-contract
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/dispatch/dispatch-local:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@omne-harness/dispatch':
+        specifier: workspace:*
+        version: link:../dispatch
+      '@omne-harness/dispatch-contract':
+        specifier: workspace:*
+        version: link:../dispatch-contract
+      '@omne-harness/dispatch-cordis-contract':
+        specifier: workspace:*
+        version: link:../dispatch-cordis-contract
+      '@omne-harness/sql-contract':
+        specifier: workspace:*
+        version: link:../../storage/sql-contract
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+    devDependencies:
+      '@omne-harness/sqlite-provider':
+        specifier: workspace:*
+        version: link:../../storage/sqlite-provider
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/dispatch/dispatch-session:
+    dependencies:
+      '@omne-harness/dispatch':
+        specifier: workspace:*
+        version: link:../dispatch
+      '@omne-harness/dispatch-contract':
+        specifier: workspace:*
+        version: link:../dispatch-contract
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/session-contract':
+        specifier: workspace:*
+        version: link:../../session/session-contract
+    devDependencies:
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/dispatch/dispatch-tool:
+    dependencies:
+      '@omne-harness/dispatch':
+        specifier: workspace:*
+        version: link:../dispatch
+      '@omne-harness/dispatch-contract':
+        specifier: workspace:*
+        version: link:../dispatch-contract
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/schema-provider':
+        specifier: workspace:*
+        version: link:../../schema/schema-provider
+      '@omne-harness/tool-contract':
+        specifier: workspace:*
+        version: link:../../tool/tool-contract
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/dispatch/dispatch-tools:
+    dependencies:
+      '@omne-harness/dispatch-contract':
+        specifier: workspace:*
+        version: link:../dispatch-contract
+      '@omne-harness/dispatch-tool':
+        specifier: workspace:*
+        version: link:../dispatch-tool
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/tool-contract':
+        specifier: workspace:*
+        version: link:../../tool/tool-contract
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+    devDependencies:
+      '@omne-harness/dispatch':
+        specifier: workspace:*
+        version: link:../dispatch
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

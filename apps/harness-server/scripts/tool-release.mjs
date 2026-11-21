@@ -20,6 +20,7 @@ const PROBES = [
     Schedules: { resultMaxBytes: 64 },
     Notifications: { resultMaxBytes: 64 },
     Sessions: { resultMaxBytes: 1024 },
+    Agents: { resultMaxBytes: 64 },
     SwitchWorkspace: { resultMaxBytes: 16 },
   },
   {
@@ -40,6 +41,7 @@ const PROBES = [
     Schedules: { resultMaxBytes: 1048576 },
     Notifications: { resultMaxBytes: 1048576 },
     Sessions: { resultMaxBytes: 1048576 },
+    Agents: { resultMaxBytes: 1048576 },
     SwitchWorkspace: { resultMaxBytes: 1048576 },
   },
 ]

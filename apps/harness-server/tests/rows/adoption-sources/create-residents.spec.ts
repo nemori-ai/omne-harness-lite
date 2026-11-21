@@ -28,7 +28,14 @@ const toolRef = (name: string, resident = true) => ({
 
 const withReferences = (name: string, references: readonly unknown[]) =>
   entryConfig(name, {
-    definition: { category: 'AgentDefinition', name, references, attributes: [] },
+    definition: {
+      category: 'AgentDefinition',
+      type: 'master',
+      summary: 'Works on what the person asks for.',
+      name,
+      references,
+      attributes: [],
+    },
   })
 
 const CODING = withReferences('alpha', [toolRef('Files'), toolRef('Shell')])

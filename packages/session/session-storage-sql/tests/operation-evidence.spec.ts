@@ -100,6 +100,7 @@ describe('the migration of the evidence table', () => {
       'session/010-session-archive',
       'session/011-authorization-context',
       'session/012-call-left',
+      'session/013-session-standing',
       'execution-record/002-preadmission',
       'execution-record/003-admission-attempt',
       'execution-record/004-state-parts',

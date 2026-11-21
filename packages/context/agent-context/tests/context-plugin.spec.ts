@@ -32,6 +32,8 @@ const config = { owner }
 
 const CODING: AgentDefinition = {
   category: 'AgentDefinition',
+  type: 'master',
+  summary: 'Works on what the person asks for.',
   name: 'coding',
   references: [],
   attributes: [],

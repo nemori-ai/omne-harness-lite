@@ -13,7 +13,7 @@ export function pendingReasons(snapshot: WorkSnapshot | null): readonly string[]
   else if (
     snapshot.lifecycle !== 'archived' &&
     snapshot.autoArchive?.kind === 'enabled' &&
-    !(snapshot.relation?.kind === 'main' && snapshot.relation.resident)
+    !(snapshot.resident === true)
   )
     reasons.push('idle-armed')
   return reasons
