@@ -78,6 +78,17 @@ describe('the dispatch command: the first segment', () => {
     expect('failure' in first && first.failure.reason.startsWith(`${reason}: `)).toBe(true)
   })
 
+  it('tells an agent whose spawn has no moment to fork at what to do instead', async () => {
+    const w = world({ dispatch: async () => refused('context-unavailable') })
+    const first = await dispatchExecutor.initial(ARGS, null, segment(w))
+    expect(first).toMatchObject({
+      failure: {
+        reason:
+          'context-unavailable: this conversation has no moment to fork at now; use delegate and write the context into the instruction',
+      },
+    })
+  })
+
   it('answers that the result is not known, and that the basis is unavailable, as the registry does', async () => {
     const unknown = world({ dispatch: async () => ({ kind: 'unknown' }) })
     expect(await dispatchExecutor.initial(ARGS, null, segment(unknown))).toMatchObject({
