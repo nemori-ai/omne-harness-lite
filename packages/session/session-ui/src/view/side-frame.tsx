@@ -17,7 +17,7 @@ const DOCK_ROOM = 1160
 
 const dockFits = (width: number, factor: number): boolean => width >= DOCK_ROOM * factor
 
-/** Docked where the page itself is wide enough (`DOCK_ROOM`), else behind the figure as its light ink bubble. */
+/** Folded until asked for; docked where the page is wide enough (`DOCK_ROOM`), else the figure's light ink bubble. */
 export type SideFrame = Readonly<{
   wide: boolean
   shown: boolean
@@ -39,7 +39,7 @@ export const SideFrameContext = createContext<SideFrame | null>(null)
 
 export function useSideFrame(page: RefObject<HTMLElement | null>): SideFrame {
   const [wide, setWide] = useState(false)
-  const [folded, setFolded] = useState(false)
+  const [folded, setFolded] = useState(true)
   const [open, setOpen] = useState(false)
   const [openedByKeyboard, setOpenedByKeyboard] = useState(false)
   const [present, setPresent] = useState(false)
