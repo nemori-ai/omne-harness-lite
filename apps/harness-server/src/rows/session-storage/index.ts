@@ -62,6 +62,7 @@ import {
 import { tenantScopePrincipalsKey } from '../../entry/tenant-scope-principals.ts'
 import { defineRow, type RowHandle } from '../../row.ts'
 import { monotonicClock } from '../../shutdown.ts'
+import { TENANT_DOMAIN_REGISTERED } from '../../entry/tenant-domain-registered.ts'
 import { storageCatalog } from '../storage/catalog.ts'
 import { systemActionAuthorizationKey } from '../authorization/system-action-service.ts'
 import { sessionPermissionBackendKey } from '../governance/session-permission-backend-service.ts'
@@ -425,6 +426,13 @@ async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
   const directory = openTenantDirectory({
     file: config.directoryFile,
     register: registerWith(storage, combination, isOpen),
+    registered: tenant => {
+      ctx.parallel(TENANT_DOMAIN_REGISTERED, tenant).catch((error: unknown) => {
+        ctx
+          .logger('session-storage')
+          .warn(`a listener of ${TENANT_DOMAIN_REGISTERED} failed: ${String(error)}`)
+      })
+    },
   })
   ctx.effect(
     () => () => {

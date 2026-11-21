@@ -35,6 +35,7 @@ type Options = Readonly<{
   scope: GovernanceScope
   epoch: string
   release: TrustedRelease
+  concurrency: number
   service: Service
   assets: AssetsLocal
   organizationTargets: ReturnType<typeof createStandaloneSettingsOwner>
@@ -220,18 +221,39 @@ async function installEntry(
   }
 }
 
+async function settleAll<T, R>(
+  items: readonly T[],
+  limit: number,
+  run: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const settled: PromiseSettledResult<R>[] = []
+  const pending = items.entries()
+  async function worker() {
+    for (const [index, item] of pending) {
+      const [result] = await Promise.allSettled([run(item)])
+      settled[index] = result
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
+  const rejected = settled.find(result => result.status === 'rejected')
+  if (rejected !== undefined) throw rejected.reason
+  return settled.flatMap(result => (result.status === 'fulfilled' ? [result.value] : []))
+}
+
 export async function installToolGovernance(input: Options): Promise<ToolInstallationResult> {
   const organization = organizationCodec.encode(input.principal.tenant.organization)
   if (!organization.ok) return { kind: 'unavailable', phase: 'identity' }
+  const installed = await settleAll(input.release.manifest.entries, input.concurrency, entry =>
+    installEntry(input, entry, organization.value),
+  )
   const members: GovernanceCollectionMember[] = []
   const governed: GovernedToolSettings[] = []
-  for (const entry of input.release.manifest.entries) {
-    const result = await installEntry(input, entry, organization.value)
+  for (const result of installed) {
     if (result.kind !== 'member') return result
     members.push(result.member)
     if (result.settings !== undefined) governed.push(result.settings)
   }
   const reconciliation = { ...input, tenantRef: input.scope.tenantRef }
-  for (const tool of governed) await reconcileToolSettings(reconciliation, tool)
+  await settleAll(governed, input.concurrency, tool => reconcileToolSettings(reconciliation, tool))
   return adopt(input, members)
 }

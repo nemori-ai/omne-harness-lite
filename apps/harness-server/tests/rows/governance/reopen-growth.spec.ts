@@ -40,6 +40,7 @@ import {
   compositeManifestDigest,
 } from '../../../src/rows/session-storage/composite.ts'
 import { COMBINATION_VERSION } from '../../../src/rows/agent-journal/config.ts'
+import { LOCAL_GOVERNANCE_OPENING } from '../../../src/local/operator-defaults.ts'
 import { productionStorageCatalog } from '../../../dist/rows/storage/production-catalog.js'
 import { releaseIdentityConfig } from '../identity/fixtures.ts'
 import { providerConfig, textOf } from '../storage/fixtures/tree.ts'
@@ -176,6 +177,7 @@ async function governedTenant() {
         'installation',
       ),
       release,
+      installationConcurrency: LOCAL_GOVERNANCE_OPENING.installationConcurrency,
       permissionDeclarations: () => release.manifest.entries.map(releasedDeclaration),
       organizationTargets: sources.targets,
       categories,

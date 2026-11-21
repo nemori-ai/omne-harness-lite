@@ -3,6 +3,7 @@ import { createStandaloneSettingsOwner } from '@omne-harness/settings-local'
 import { unmappedCaptureWorld } from './unmapped-capture-world.ts'
 import { installToolGovernance } from '../../../src/rows/governance/tool-installation.ts'
 import { toolAssetTarget } from '../../../src/rows/governance/tool-installation-assets.ts'
+import { LOCAL_GOVERNANCE_OPENING } from '../../../src/local/operator-defaults.ts'
 
 const worlds: Awaited<ReturnType<typeof unmappedCaptureWorld>>[] = []
 afterEach(async () => {
@@ -31,6 +32,7 @@ it('installs and adopts a real asset without inventing an organization Settings 
     scope: w.scope,
     epoch: page.snapshot.epoch,
     release: w.release,
+    concurrency: LOCAL_GOVERNANCE_OPENING.installationConcurrency,
     service: w.service,
     assets: w.owner,
     organizationTargets,

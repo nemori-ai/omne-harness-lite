@@ -164,3 +164,26 @@ test('concurrent registrations publish the complete durable set and a failed wri
     textOf(TENANT_B),
   ])
 })
+
+test('the registered hook hears each tenant once, after its registration is durable, and never after a refusal', async () => {
+  const { file } = workspace()
+  writeEmpty(file)
+  const heard: string[] = []
+  let refuse = true
+  const directory = openTenantDirectory({
+    file,
+    register: async () =>
+      refuse ? { kind: 'unavailable', diagnostic: 'refused' } : { kind: 'registered' },
+    registered: tenant => {
+      expect(JSON.parse(readFileSync(file, 'utf8')).tenants).toContain(tenant)
+      heard.push(tenant)
+    },
+  })
+  expect((await directory.ensureRegistered(textOf(TENANT_A))).kind).toBe('unavailable')
+  expect(heard).toEqual([])
+  refuse = false
+  expect((await directory.ensureRegistered(textOf(TENANT_A))).kind).toBe('ready')
+  expect((await directory.ensureRegistered(textOf(TENANT_A))).kind).toBe('ready')
+  expect((await directory.ensureRegistered(textOf(TENANT_B))).kind).toBe('ready')
+  expect(heard).toEqual([textOf(TENANT_A), textOf(TENANT_B)])
+})

@@ -415,6 +415,8 @@ const LOCAL_NODE = 'local'
 
 const DISPATCH_POLICY = { maxOpen: 8, reconcileIntervalMs: 2_000 }
 
+export const LOCAL_GOVERNANCE_OPENING = { installationConcurrency: 8, warmConcurrency: 1 } as const
+
 /** A person gets every notification on the application's own surfaces. An agent has no destination until sessions take input from notifications. */
 const NOTIFICATION_POLICY = {
   bodyLength: 16_384,
@@ -498,6 +500,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
         tenantBudget: rows.has('session-intake-budget'),
       },
     ],
+    ['governance', LOCAL_GOVERNANCE_OPENING],
     ...(rows.has('session-history-index')
       ? ([['session-history-index', { root: locations.historyIndexRoot }]] as const)
       : []),

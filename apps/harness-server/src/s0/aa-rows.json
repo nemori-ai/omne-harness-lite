@@ -133,7 +133,8 @@
         "standingDestinationResolver",
         "currentToolPermission",
         "sessionModesInstallation",
-        "tenantDomainRegistration"
+        "tenantDomainRegistration",
+        "tenantDomainScannerPrincipal"
       ]
     },
     {

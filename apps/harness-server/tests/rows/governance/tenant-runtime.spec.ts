@@ -132,6 +132,7 @@ import {
   compositeManifestDigest,
 } from '../../../src/rows/session-storage/composite.ts'
 import { COMBINATION_VERSION } from '../../../src/rows/agent-journal/config.ts'
+import { LOCAL_GOVERNANCE_OPENING } from '../../../src/local/operator-defaults.ts'
 
 const cleanup: Array<() => unknown | Promise<unknown>> = []
 afterEach(async () => {
@@ -405,6 +406,7 @@ it('settles an original Settings catalog hold after SQL restart before opening t
   const openBusiness = vi.fn()
   const host = new TenantGovernanceHost({
     domains: w.directory.lookup,
+    warmConcurrency: 1,
     prepare() {
       const assembly = prepareTenantGovernanceWithSettings({ ...options, storage })
       return {
@@ -433,7 +435,11 @@ it('shares one real tenant runtime across concurrent application lookups', async
       scope: { ...w.options.scope, tenantRef },
     }),
   )
-  const host = new TenantGovernanceHost({ domains: w.directory.lookup, prepare })
+  const host = new TenantGovernanceHost({
+    domains: w.directory.lookup,
+    warmConcurrency: 1,
+    prepare,
+  })
   w.setDestination(host.destination)
   const [first, second] = await Promise.all([
     host.runtime(w.options.scope.tenantRef),
@@ -458,7 +464,11 @@ it('shares one real tenant runtime across concurrent application lookups', async
 it('does not prepare or register an unknown tenant', async () => {
   const w = await world()
   const prepare = vi.fn(() => prepareTenantGovernance(w.options))
-  const host = new TenantGovernanceHost({ domains: w.directory.lookup, prepare })
+  const host = new TenantGovernanceHost({
+    domains: w.directory.lookup,
+    warmConcurrency: 1,
+    prepare,
+  })
   expect(await host.runtime(textOf(TENANT_B))).toBeUndefined()
   expect(prepare).not.toHaveBeenCalled()
   expect(await w.directory.lookup.lookup({ tenant: textOf(TENANT_B) })).toEqual({
@@ -474,6 +484,7 @@ it('closes an opening that finishes after shutdown without handing it to the cal
   let late: Awaited<ReturnType<ReturnType<typeof prepareTenantGovernance>['open']>> | undefined
   const host = new TenantGovernanceHost({
     domains: w.directory.lookup,
+    warmConcurrency: 1,
     prepare() {
       const original = prepareTenantGovernance({
         ...w.options,
@@ -527,6 +538,7 @@ it('lets another tenant finish while the first tenant is still opening', async (
   const entered = Promise.withResolvers<void>(),
     release = Promise.withResolvers<void>()
   const host = new TenantGovernanceHost({
+    warmConcurrency: 1,
     domains: {
       lookup: input =>
         input.tenant === a.options.scope.tenantRef
@@ -774,6 +786,7 @@ async function installedWorld(extraParticipants: SqlMaterialCatalog['participant
       storage,
       installationPrincipal: w.installationPrincipal,
       release: w.release,
+      installationConcurrency: LOCAL_GOVERNANCE_OPENING.installationConcurrency,
       permissionDeclarations: () => w.release.manifest.entries.map(releasedDeclaration),
       organizationTargets,
       categories,
@@ -1115,6 +1128,7 @@ it('retains and retries close responsibility for an unavailable installation', a
   )
   const host = new TenantGovernanceHost({
     domains: w.directory.lookup,
+    warmConcurrency: 1,
     prepare() {
       const original = prepareTenantGovernance(w.options)
       return {
@@ -1964,7 +1978,11 @@ it('opens a group of independent settings declared only in this test, and keeps 
   }
   const opened = await groups()
   expect(opened).toEqual(['calendar/environment', 'session/intake', 'test.gadget/environment'])
-  const host = new TenantGovernanceHost({ domains: w.directory.lookup, prepare: () => assembly })
+  const host = new TenantGovernanceHost({
+    domains: w.directory.lookup,
+    warmConcurrency: 1,
+    prepare: () => assembly,
+  })
   cleanup.push(async () => {
     await host.close(monotonicClock.now() + 3000)
   })
@@ -2083,7 +2101,11 @@ it('lists the settings of a holding whose category exists only in this test, bes
       grants: [{ sourceId: 'tenant', actions: ['set', 'clear'] }],
     }),
   ).toMatchObject({ kind: 'committed' })
-  const host = new TenantGovernanceHost({ domains: w.directory.lookup, prepare: () => assembly })
+  const host = new TenantGovernanceHost({
+    domains: w.directory.lookup,
+    warmConcurrency: 1,
+    prepare: () => assembly,
+  })
   cleanup.push(async () => {
     await host.close(monotonicClock.now() + 3000)
   })
@@ -2269,7 +2291,11 @@ async function heldGadget(beforeHeldCommit?: (world: HeldGadget) => Promise<void
     })
     expect(result).toMatchObject({ kind: 'committed', changed: true })
   }
-  const host = new TenantGovernanceHost({ domains: w.directory.lookup, prepare: () => assembly })
+  const host = new TenantGovernanceHost({
+    domains: w.directory.lookup,
+    warmConcurrency: 1,
+    prepare: () => assembly,
+  })
   cleanup.push(async () => {
     await host.close(monotonicClock.now() + 3000)
   })
