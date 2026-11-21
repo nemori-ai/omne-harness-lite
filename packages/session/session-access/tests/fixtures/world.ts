@@ -34,6 +34,8 @@ import type {
   SessionListPage,
   SessionPermissionModes,
   TargetTenantPrincipals,
+  WorkspaceSelectionReading,
+  WorkspaceSelections,
 } from '../../src/ports.ts'
 import { createRequestDrain, type RequestDrain } from '../../src/request-drain.ts'
 import type { QueuedRequest } from '../../src/request-queue.ts'
@@ -134,6 +136,7 @@ type Port =
   | 'permissionModes'
   | 'modelTargets'
   | 'workspaceTargets'
+  | 'workspaceSelections'
 
 type SearchCall = Parameters<HistorySearch<Principal>['search']>[0]
 type SearchScript = Awaited<ReturnType<HistorySearch<Principal>['search']>> | 'throw'
@@ -161,8 +164,14 @@ export const TARGET_BASIS = {
   digest: 'a'.repeat(64),
 }
 
+export type SelectionScript = WorkspaceSelectionReading | 'throw'
+
 export type World = Readonly<{
   session: SessionDouble
+  /** What the workspace selection port answers from now on. */
+  holdSelection(next: SelectionScript): void
+  /** Who asked the workspace selection port, in order. */
+  selectionReads(): readonly SessionAccess<Principal>[]
   issue(login: FixtureLogin, target?: TenantId): Principal
   refuseTargets(refusal: 'denied' | 'basis-unavailable' | 'throw' | undefined): void
   refuseResumes(refusal: 'denied' | 'basis-unavailable' | 'throw' | undefined): void
@@ -350,6 +359,21 @@ export function createWorld(
   }
 
   const modeCalls: SessionAccess<Principal>[] = []
+  const selectionCalls: SessionAccess<Principal>[] = []
+  let held: SelectionScript = {
+    kind: 'read',
+    selection: null,
+    directory: { state: 'default', directory: '/srv/default' },
+    revision: '1',
+  }
+  const workspaceSelections: WorkspaceSelections = {
+    async read(access) {
+      selectionCalls.push(access)
+      if (held === 'throw') throw new Error('selections fault')
+      return held
+    },
+  }
+
   let moded: ModeScript = { kind: 'read', mode: 'bypass-permissions', revision: '0' }
   const permissionModes: SessionPermissionModes = {
     async read(access) {
@@ -389,6 +413,8 @@ export function createWorld(
       causes: () => (removed.has('causes') ? undefined : causes),
       modelTargets: () => (removed.has('modelTargets') ? undefined : modelTargets),
       workspaceTargets: () => (removed.has('workspaceTargets') ? undefined : workspaceTargets),
+      workspaceSelections: () =>
+        removed.has('workspaceSelections') ? undefined : workspaceSelections,
       permissionModes: () => (removed.has('permissionModes') ? undefined : permissionModes),
       principals,
       facts,
@@ -405,6 +431,10 @@ export function createWorld(
     refuseTargets: next => {
       refusal = next
     },
+    holdSelection: next => {
+      held = next
+    },
+    selectionReads: () => [...selectionCalls],
     refuseResumes: next => {
       resumeRefusal = next
     },

@@ -22,6 +22,7 @@ Commands
   omne stop-call --session <id> --producer-kind <kind> --call <id>                                                        Stop a model or tool call.
   omne select-model --session <id> --model <route>                                                                        Select the model of a session: the next model request uses it.
   omne select-workspace --session <id> (--workspace <id> --instance <id> | --none)                                        Select the workspace a session works in, or none: it is in force from the next step.
+  omne read-workspace-selection --session <id>                                                                            Read the workspace a session stands at, and the directory and state its step works in.
   omne read-model-selection --session <id>                                                                                Read the model a session stands at now.
   omne list-models [--tenant <tenant>]                                                                                    List the models of the tenant: which can be selected, and why one cannot.
   omne archive-session --session <id>                                                                                     Archive a session: its run ends and its background calls are withdrawn.

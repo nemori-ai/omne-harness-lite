@@ -44,7 +44,7 @@ it('keeps the maintenance field outside member config and requires native absolu
       )
     for (const invalid of [
       {},
-      { ...config, filesRoot: root },
+      { ...config, filesScope: { read: root, write: root } },
       { ...config, stateDirectory: 'relative' },
       { ...config, extra: true },
     ])

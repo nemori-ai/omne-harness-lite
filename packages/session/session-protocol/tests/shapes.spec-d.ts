@@ -144,7 +144,7 @@ type SessionOutcomes = {
     | 'unsupported'
 }
 
-test('the operations are exactly the twenty-five of session/v1', () => {
+test('the operations are exactly the twenty-six of session/v1', () => {
   expectTypeOf<Name>().toEqualTypeOf<
     | 'create-session'
     | 'query-create-session'
@@ -169,6 +169,7 @@ test('the operations are exactly the twenty-five of session/v1', () => {
     | 'select-model'
     | 'read-model-selection'
     | 'select-workspace'
+    | 'read-workspace-selection'
     | 'read-permission-mode'
     | 'change-permission-mode'
   >()

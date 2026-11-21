@@ -141,6 +141,7 @@ describe('边界', () => {
       '@omne-harness/session-ui/cordis',
       '@omne-harness/tool-ui/cordis',
       '@omne-harness/usage-ui/cordis',
+      '@omne-harness/workspace-ui/cordis',
     ])
     expect(modules.every(specifier => DOMAIN_MEMBERS.has(memberOf(specifier)))).toBe(true)
   })

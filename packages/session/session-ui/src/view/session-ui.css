@@ -110,6 +110,24 @@
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-caption);
 }
+.omne-session-workspace {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-width: 0;
+  font-size: var(--omne-text-caption);
+}
+.omne-session-workspace-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+}
+.omne-session-workspace-note {
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+}
 .omne-session-heading {
   display: flex;
   flex: 1;

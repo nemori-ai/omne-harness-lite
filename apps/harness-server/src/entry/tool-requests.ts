@@ -40,6 +40,10 @@ import {
 } from '@omne-harness/tool-contract'
 import { commandAddedModalities } from '@omne-harness/tool-contract/provider'
 import { toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
+import type { FilesScope } from '@omne-harness/execution-environment-contract'
+import type { OutsideFiles } from '@omne-harness/workspace-local'
+import { tenantIndependentSettingsKey } from '../rows/governance/independent-settings-service.ts'
+import { outsideFilesReader } from '../rows/workspace/outside-files.ts'
 import { toolRuntimeHolder } from '../rows/tool-runtime/holder.ts'
 import { RELEASE_REQUEST_CONTEXT, runToolScope } from '../rows/tool-runtime/scope.ts'
 import { verifySessionWork } from '../rows/tool-runtime/session-work.ts'
@@ -73,6 +77,7 @@ export type ToolRequestPorts = Readonly<{
   workingDirectory(
     access: SessionAccess<unknown>,
   ): Promise<Outcome<WorkingDirectory | null, string>>
+  outsideFiles(tenant: TenantId): Promise<OutsideFiles | null>
 }>
 
 const unavailable = (diagnostic: string) =>
@@ -368,23 +373,38 @@ const pinned = (directory: ToolCallDirectory | undefined): Pinned =>
 type Placed = Readonly<{ kind: 'pinned' }> & Pinned
 const pinnedTo = (directory: ToolCallDirectory): Placed => ({ kind: 'pinned', directory })
 
-export function pinnedDirectory(
+export function filesScopeOf(outside: OutsideFiles, root: string): FilesScope {
+  switch (outside) {
+    case 'none':
+      return { read: root, write: root }
+    case 'read':
+      return { write: root }
+    case 'read-write':
+      return {}
+  }
+}
+
+export async function pinnedDirectory(
   value: WorkingDirectory | null,
-): Outcome<Placed | ToolCallAnswer, Failure> {
+  outsideFiles: () => Promise<OutsideFiles | null>,
+): Promise<Outcome<Placed | ToolCallAnswer, Failure>> {
   if (value === null) return succeed({ kind: 'answered', text: NO_WORKING_DIRECTORY })
   switch (value.state) {
     case 'default':
       return succeed(pinnedTo({ path: value.directory, workspace: null }))
     case 'attached': {
       const id = workspaceCodec.parse(value.workspace)
-      return id.ok
-        ? succeed(
-            pinnedTo({
-              path: value.directory,
-              workspace: { id: id.value, instance: value.instance },
-            }),
-          )
-        : unavailable('the working directory names a workspace that is not one')
+      if (!id.ok) return unavailable('the working directory names a workspace that is not one')
+      const outside = await outsideFiles()
+      if (outside === null)
+        return unavailable('the setting for files outside the workspace is not readable')
+      return succeed(
+        pinnedTo({
+          path: value.directory,
+          workspace: { id: id.value, instance: value.instance },
+          files: filesScopeOf(outside, value.directory),
+        }),
+      )
     }
     case 'unusable':
       return succeed({ kind: 'answered', text: unusableDirectory(value.reason) })
@@ -404,7 +424,7 @@ async function directoryOf(
   const placed: Outcome<Placed | ToolCallAnswer, Failure> =
     'failure' in read
       ? unavailable(`the working directory of the session is not readable: ${read.failure}`)
-      : pinnedDirectory(read.ok)
+      : await pinnedDirectory(read.ok, () => ports.outsideFiles(access.tenant))
   // Such a tool needs no directory itself: without one it carries none.
   const usable = 'ok' in placed && placed.ok.kind === 'pinned'
   return needed || usable ? placed : succeed({ kind: 'pinned' })
@@ -508,5 +528,6 @@ export function releaseToolRequestsOf(ctx: Context): ReleaseToolRequests {
       if (ports === null) return fail('the Session or Runtime Context services are absent')
       return readHeldNeed(ports, access, workingDirectoryCallBinding)
     },
+    outsideFiles: outsideFilesReader(() => ctx.get(tenantIndependentSettingsKey)),
   })
 }

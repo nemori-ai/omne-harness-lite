@@ -583,6 +583,46 @@
               "name": "RecoveryInspection",
               "kind": "type",
               "pending": false
+            },
+            {
+              "name": "FilesScope",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "FileEffect",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "segmentsBelow",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "withinScope",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "windowsPathSegments",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "WindowsPathRefusal",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "fileEffects",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ScopedFileOperation",
+              "kind": "type",
+              "pending": false
             }
           ]
         },

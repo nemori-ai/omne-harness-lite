@@ -79,6 +79,7 @@ describe('command catalog', () => {
       'stop-call',
       'select-model',
       'select-workspace',
+      'read-workspace-selection',
       'read-model-selection',
       'list-models',
       'archive-session',
