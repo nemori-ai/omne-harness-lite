@@ -63,14 +63,14 @@ describe('the guard checks every path of a facility request by its effect', () =
     expect(await confinedToScope({}, 'files', 'write', { path: 'a/b.txt' })).toBe(false)
   })
 
-  it('move and copy: the source is read and the target is written', async () => {
+  it('move writes its source and its target; copy reads its source and writes its target', async () => {
     for (const operation of ['move', 'copy']) {
       const request = (from: unknown, to: unknown) => ({ path: from, target: { path: to } })
       expect(await confinedToScope(both, 'files', operation, request(inside, inside))).toBe(true)
       expect(await confinedToScope(both, 'files', operation, request(inside, outside))).toBe(false)
       expect(await confinedToScope(both, 'files', operation, request(outside, inside))).toBe(false)
       expect(await confinedToScope(writeOnly, 'files', operation, request(outside, inside))).toBe(
-        true,
+        operation === 'copy',
       )
       expect(await confinedToScope(writeOnly, 'files', operation, request(inside, outside))).toBe(
         false,

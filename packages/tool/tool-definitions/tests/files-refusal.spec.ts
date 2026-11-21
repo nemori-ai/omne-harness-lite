@@ -30,6 +30,7 @@ function fenced(
       read: request => gate([request.path], () => files.read(request)),
       write: request => gate([request.path], () => files.write(request)),
       move: request => gate([request.path, request.target.path], () => files.move(request)),
+      copy: request => gate([request.path, request.target.path], () => files.copy(request)),
     },
   }
   return environment
@@ -52,10 +53,20 @@ describe('a refusal of the fence, said by the files this call may reach', () => 
     )
   })
 
-  it('names the target of a move when the source may be read and the target may not be written', async () => {
+  it('names the target of a move when the source may be written and the target may not', async () => {
     const reads = fenced({ write: '/work' })
     expect(await run(author, 'move', { path: '/work/a.txt', target: '/tmp/a.txt' }, reads)).toBe(
       `rejected request="host" reason=outsideScope path="/tmp/a.txt" effect=write ${SETTING} writing there`,
+    )
+  })
+
+  it('names the source of a move outside the write root, since a move takes its source away', async () => {
+    const reads = fenced({ write: '/work' })
+    expect(await run(author, 'move', { path: '/tmp/a.txt', target: '/work/a.txt' }, reads)).toBe(
+      `rejected request="host" reason=outsideScope path="/tmp/a.txt" effect=write ${SETTING} writing there`,
+    )
+    expect(await run(author, 'copy', { path: '/tmp/a.txt', target: '/work/a.txt' }, reads)).toBe(
+      'rejected request="host" reason=notAuthorized',
     )
   })
 

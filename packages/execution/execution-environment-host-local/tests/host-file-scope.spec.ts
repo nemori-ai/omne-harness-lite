@@ -155,7 +155,7 @@ type Case = Readonly<{
   to: 'inside' | 'outside'
 }>
 
-/** Carried out or refused under each scope; a move or copy reads its source and writes its target (SPEC). */
+/** Carried out or refused under each scope; a move writes its source and its target, a copy reads its source (SPEC). */
 const carried: readonly (Case & Readonly<Record<ScopeName, boolean>>)[] = [
   ...['read', 'stat', 'list', 'search'].map(operation => ({
     operation,
@@ -179,7 +179,7 @@ const carried: readonly (Case & Readonly<Record<ScopeName, boolean>>)[] = [
       from: 'outside' as const,
       to: 'inside' as const,
       workspace: false,
-      readOutside: true,
+      readOutside: operation === 'copy',
       everywhere: true,
     },
     {

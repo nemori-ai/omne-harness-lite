@@ -1017,7 +1017,7 @@ export declare const fileEffects: Readonly<{
         path: 'write';
     }>;
     move: Readonly<{
-        path: 'read';
+        path: 'write';
         target: 'write';
     }>;
     copy: Readonly<{

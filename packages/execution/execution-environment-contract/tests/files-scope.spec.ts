@@ -71,7 +71,7 @@ describe('whether a path lies in a files scope, by segments only', () => {
   })
 })
 
-it('limits reads by the read root and writes by the write root; a move or copy reads its source and writes its target', () => {
+it('limits reads by the read root and writes by the write root; a move writes its source and its target, a copy reads its source', () => {
   // execution SPEC: reads are read, stat, list and search; writes are write, remove and mkdir.
   expect(fileEffects).toEqual({
     read: { path: 'read' },
@@ -83,7 +83,7 @@ it('limits reads by the read root and writes by the write root; a move or copy r
     mkdir: { path: 'write' },
     remove: { path: 'write' },
     commitBatch: { path: 'write' },
-    move: { path: 'read', target: 'write' },
+    move: { path: 'write', target: 'write' },
     copy: { path: 'read', target: 'write' },
   })
   expect(Object.isFrozen(fileEffects)).toBe(true)

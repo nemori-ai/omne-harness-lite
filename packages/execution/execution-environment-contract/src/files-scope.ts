@@ -10,9 +10,10 @@ export type ScopedFileOperation = Exclude<keyof FileSystemFacility<unknown>, 'cl
 
 const reads = Object.freeze({ path: 'read' as const })
 const writes = Object.freeze({ path: 'write' as const })
-const transfers = Object.freeze({ path: 'read' as const, target: 'write' as const })
+const moves = Object.freeze({ path: 'write' as const, target: 'write' as const })
+const copies = Object.freeze({ path: 'read' as const, target: 'write' as const })
 
-/** The effect of each operation on its path and on its target: a move or copy reads its source and writes its target. */
+/** The effect of each operation on its path and on its target: a move takes its source away, so it writes both; a copy reads its source. */
 export const fileEffects = Object.freeze({
   read: reads,
   stat: reads,
@@ -23,8 +24,8 @@ export const fileEffects = Object.freeze({
   mkdir: writes,
   remove: writes,
   commitBatch: writes,
-  move: transfers,
-  copy: transfers,
+  move: moves,
+  copy: copies,
 }) satisfies Readonly<
   Record<ScopedFileOperation, Readonly<{ path: FileEffect; target?: FileEffect }>>
 >
