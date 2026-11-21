@@ -1,5 +1,7 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
 import { createFakeClient, type FakeClient } from './fixtures/fake-client.ts'
 import { listed, listPage, page, plainEntry, userEntry } from './fixtures/frames.ts'
@@ -67,6 +69,29 @@ it('一轮失败之后：失败的那一行下面写成因、没处理的条数�
   await settle()
   expect(block.textContent).toContain('没有没处理的消息，发一条新消息让它接着做')
   expect(screen.queryByRole('button', { name: '重试' })).toBeNull()
+})
+
+it('失败通知：只有说事实的那一句带失败色，后面说条数与怎么办的句子是正文的墨', async () => {
+  // The shared notice paints itself in the tone's ink (a utility class this test has no sheet for); the session's
+  // own sheet decides the sentences under the fact.
+  const sheet = document.createElement('style')
+  sheet.textContent = `:root { --omne-ink-primary: rgb(1, 2, 3); --omne-ink-muted: rgb(4, 5, 6); }
+[data-inline-notice][data-tone='danger'] { color: rgb(150, 63, 54); }
+${readFileSync(join(import.meta.dirname, '../src/view/session-ui.css'), 'utf8')}`
+  document.head.append(sheet)
+  try {
+    const fake = createFakeClient()
+    await openFailed(fake)
+    ;(await fake.next('read-waiting')).answer(waiting(2, { kind: 'no-reply', detail: null }))
+    await settle()
+    const block = screen.getByRole('status', { name: '这一轮失败了' })
+    const ink = (text: string) =>
+      window.getComputedStyle(within(block).getByText(text, { exact: false })).color
+    expect(ink('模型没有给出有效的回复。')).toBe('rgb(150, 63, 54)')
+    expect(ink('还有 2 条消息没有处理')).toBe('rgb(1, 2, 3)')
+  } finally {
+    sheet.remove()
+  }
 })
 
 it('条数为零：只提示发一条新消息，没有重试', async () => {

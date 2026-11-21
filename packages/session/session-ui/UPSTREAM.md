@@ -141,3 +141,20 @@
 - 不同之处：占位符是「发消息给」加对话头上 Agent 的名字（同一个常量），没有来源的「，@ 引用」；有在等人答的调用时后面接「，会排队，不算回答」。来源在一轮生成时换成另一句。
 - 不同之处：那一行左边没有来源的附件、引用、新建资源三个图标钮，也没有「发到新话题」；左边留给 `sessionComposerAttachments` 放进来的图标动作；这个拓展点本成员还没有实现，左边空着。右边是 `sessionStatus` 的状态位与唯一的动作钮，隔一个行内间距，照来源的 `.composer-send-pair`。
 - 不同之处：字段自己的上限 `min(40dvh, 320px)` 没有取，只有纸的上限。
+
+## 阅读列、过程行、系统提醒与失败通知（R6c）
+
+取自同一个来源的提交 `83c1616f`。来源的样式表都按中楷写 px，构建时乘上字号档的系数（`desktop/scripts/size-lengths.mjs`，sha256 `671f81be63c384e80824f9c86788f5efd190e094e3042a34bcc10769dba3948e`）；这里把同一个数写成 `calc(var(--spacing) * n)`，`--spacing` 在四档是 3、4、5、6，效果相同。
+
+| 来源（相对 `desktop/src/renderer/src/`） | sha256 | 本成员 |
+| --- | --- | --- |
+| `conversation/conversation.css` | `4c34c3a3ec0e87daf2d60d46a88f428863d1690a8e92fbcb9496850c27e30a25` | `src/view/session-ui.css`：`.conversation-page` 的内边距 0 40 32；`.conversation-main` 最宽 740、居中；`.conversation-transcript-frame` 与 `.conversation-transcript` 的槽、余地 6、上 8、下 24、最矮 160；`.conversation-run-line` 的标签可以换行；`.conversation-run-reasoning` 的字号与量度 |
+| `components/conversation-patterns.css` | `9cf38456486263906c14fbd45f07a3ce822d7e4d2e7a2ee56ee9d432b3417b63` | Agent 的纸：底色、圆角、内边距与 70ch，R5 已照这里写，本程核过没有改 |
+| `conversation/run-line.tsx` | `28eb5b5d0235d882839e712c41305d4060e9ac63730c25b4c188ae64581af783` | `src/view/session-ui.css`：过程行里的工具名是等宽的说明字号（来源调试时工具名是 `font-mono text-xs`） |
+| `components/inline-notice.tsx`、`components/ai/tone.ts` | `e09b4af08bd38a667995572dffa36f8e620422c1741895726f387306394c2a2b`、`a031e554076fa86dc03dff1052bfe2112590e05d614e3c8149e0a32dd9713709` | 只核对，没有取：来源的通知整块是语气的墨（`TONE_SURFACE` 的 `text-danger-ink`），正文跟着它 |
+
+- 照来源：转写的滚动区向主列外伸出滚动条的槽与余地，再把余地作自己的内边距，行落在主列的两边上，你的话的气泡收在右边上。不同之处：槽取共用件的 `--omne-scrollbar-size`（四档 8、10、12、15），来源是 10 乘系数（7.5、10、12.5、15）；没有来源那一层裁切的框，转写自己不是裁切的容器。
+- 不同之处：主列打头的不是转写时（重连的那一行、通知），它离头部的细线一格，与转写第一行的上边距相同。来源的主列里没有这样的东西。
+- 不同之处：推理的阅读字照来源是界面字号、62ch，里面的标题不放大；来源的推理在一轮的那一行展开后的行里，这里每段推理自己是一行。
+- 不同之处：失败通知只有说事实的那一句是失败的墨，后面说条数与怎么办的句子是正文的墨，照会话规格。来源整块都是语气的墨，所以没有改共用件，只在本成员的 `.omne-waiting-body` 上改。
+- 不同之处：系统提醒与内部工具消息展开后是几行弱墨的「名：值」，照会话规格；来源没有这一块。一段字里每个独占几行的元素是一个值，名字取它的 `key`（运行时上下文的块），里面别的单行元素（之前的值）不写；整段是一个 JSON 对象时写它的字段；嵌套的值写成一行摘要，整段在提示里。两样都不是的字（后台调用的结果、停止的说明）照原样写成弱墨的阅读字。

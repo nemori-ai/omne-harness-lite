@@ -11,7 +11,7 @@ export function waitingAnchor(items: readonly Item[], waiting: Waiting | null): 
   return items.findLast(item => item.kind === 'marker' && item.failedRun === fact.run)?.key ?? null
 }
 
-/** A failed run: the failure's tone, the reason first, the diagnosis under 详情, 重试 while inputs are left. */
+/** A failed run: the reason in the failure's tone, then in body ink what is left; 详情, and 重试 while inputs are left. */
 export function WaitingNotice({
   waiting,
   driver,
@@ -41,7 +41,11 @@ export function WaitingNotice({
             }
           : {})}
       >
-        {left ? <Left pending={fact.pending} retry={retry} /> : <p>{NOTHING_PENDING}</p>}
+        {left ? (
+          <Left pending={fact.pending} retry={retry} />
+        ) : (
+          <p className="omne-waiting-body">{NOTHING_PENDING}</p>
+        )}
       </InlineNotice>
     </section>
   )
@@ -50,7 +54,7 @@ export function WaitingNotice({
 function Left({ pending, retry }: { readonly pending: number; readonly retry: Retry }) {
   return (
     <>
-      <p>
+      <p className="omne-waiting-body">
         还有 {pending}{' '}
         条消息没有处理，它们没有丢。按「重试」让它带着这些消息接着做，也可以发一条新消息。
       </p>

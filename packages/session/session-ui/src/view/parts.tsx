@@ -67,6 +67,20 @@ const summary = (value: Plain): string =>
     return key !== '' && !Array.isArray(this) && isEmptyObject(item) ? undefined : item
   })
 
+function Value({ value }: { readonly value: Plain }) {
+  const nested = typeof value === 'object' && value !== null
+  const text = nested ? summary(value) : String(value)
+  return (
+    <span
+      className="omne-process-value"
+      data-nested={nested || undefined}
+      title={nested ? text : undefined}
+    >
+      {text}
+    </span>
+  )
+}
+
 function Arguments({ value }: { readonly value: Plain }) {
   if (value === null || isEmptyObject(value)) return null
   if (!isRecord(value)) return <CodeSurface name="参数" text={summary(value)} />
@@ -74,22 +88,77 @@ function Arguments({ value }: { readonly value: Plain }) {
   if (rows.length === 0) return null
   return (
     <FactList aria-label="参数">
-      {rows.map(([name, item]) => {
-        const nested = typeof item === 'object' && item !== null
-        const text = nested ? summary(item) : String(item)
-        return (
-          <FactRow key={name} term={<code className="omne-process-term">{name}</code>}>
-            <span
-              className="omne-process-value"
-              data-nested={nested || undefined}
-              title={nested ? text : undefined}
-            >
-              {text}
-            </span>
-          </FactRow>
-        )
-      })}
+      {rows.map(([name, item]) => (
+        <FactRow key={name} term={<code className="omne-process-term">{name}</code>}>
+          <Value value={item} />
+        </FactRow>
+      ))}
     </FactList>
+  )
+}
+
+type Fact = Readonly<{ name: string; value: Plain }>
+
+const ELEMENT = /^<([A-Za-z][\w-]*)((?:\s+[\w-]+="[^"]*")*)\s*>$/
+const ONE_LINE_ELEMENT = /^<([A-Za-z][\w-]*)\b[^>]*>.*<\/\1>$/
+const KEY = /\skey="([^"]*)"/
+
+function valueOf(text: string): Plain {
+  try {
+    return JSON.parse(text) as Plain
+  } catch {
+    return text
+  }
+}
+
+/** Each element on lines of its own is one value named by its `key`; a whole JSON object gives its fields. */
+function factsOf(text: string): readonly Fact[] | null {
+  const lines = text.split('\n').map(line => line.trim())
+  const facts: Fact[] = []
+  for (let at = 0; at < lines.length; at += 1) {
+    const open = ELEMENT.exec(lines[at]!)
+    if (open === null) continue
+    const end = lines.indexOf(`</${open[1]}>`, at + 1)
+    if (end === -1) return null
+    const body = lines.slice(at + 1, end).filter(line => !ONE_LINE_ELEMENT.test(line))
+    facts.push({ name: KEY.exec(open[2]!)?.[1] ?? open[1]!, value: valueOf(body.join('\n')) })
+    at = end
+  }
+  if (facts.length > 0) return facts
+  const whole = valueOf(text.trim())
+  return isRecord(whole) ? Object.entries(whole).map(([name, value]) => ({ name, value })) : null
+}
+
+function NoteText({ text }: { readonly text: string }) {
+  const facts = factsOf(text)
+  if (facts === null)
+    return (
+      <div className="omne-process-reading">
+        <Prose text={text} />
+      </div>
+    )
+  return (
+    <ul className="omne-process-facts">
+      {facts.map((fact, at) => (
+        <li key={at} className="omne-process-fact">
+          <span className="omne-process-term">{fact.name}</span>：<Value value={fact.value} />
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function NoteParts({ parts }: { readonly parts: readonly Part[] }) {
+  return (
+    <>
+      {parts.map(part =>
+        part.kind === 'text' ? (
+          <NoteText key={part.key} text={part.text} />
+        ) : (
+          <Parts key={part.key} parts={[part]} live={false} bubble={false} />
+        ),
+      )}
+    </>
   )
 }
 
@@ -272,7 +341,7 @@ export const ItemView = memo(function ItemView({
     case 'note':
       return (
         <ProcessLine name={item.label} light>
-          <Parts parts={item.parts} live={false} bubble={false} />
+          <NoteParts parts={item.parts} />
         </ProcessLine>
       )
     case 'marker':
