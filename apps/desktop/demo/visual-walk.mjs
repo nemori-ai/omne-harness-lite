@@ -575,10 +575,20 @@ async function apply(browser, { theme, width, size }) {
     browser,
     `(async () => {
       const root = document.documentElement
-      if (${JSON.stringify(size)} === 'medium') delete root.dataset.size
-      else root.dataset.size = ${JSON.stringify(size)}
-      try { localStorage.setItem('omne.size', ${JSON.stringify(size)}) } catch {}
-      window.dispatchEvent(new StorageEvent('storage', { key: 'omne.size' }))
+      const want = ${JSON.stringify(size)}
+      // Through the app's own keys (⌘0, then ⌘= or ⌘-), so its size setting and the appearance menu know it too.
+      const mac = /Mac/.test(navigator.platform)
+      const press = key => window.dispatchEvent(new KeyboardEvent('keydown',
+        { key, metaKey: mac, ctrlKey: !mac, bubbles: true, cancelable: true }))
+      press('0')
+      const steps = ['small', 'medium', 'large', 'reading'].indexOf(want) - 1
+      for (let step = 0; step < Math.abs(steps); step++) press(steps > 0 ? '=' : '-')
+      if ((root.dataset.size ?? 'medium') !== want) {
+        // A page without the app's size keys (the specimen): set the size on the root itself.
+        if (want === 'medium') delete root.dataset.size
+        else root.dataset.size = want
+        try { localStorage.setItem('omne.size', want) } catch {}
+      }
       await document.fonts.ready
       await new Promise(resolve => setTimeout(resolve, 450))
       return root.dataset.theme
