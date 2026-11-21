@@ -329,7 +329,7 @@ export function executionFailures(storageRoot: string): readonly unknown[] {
       )
         continue
       for (const row of db
-        .prepare('SELECT tenant, body FROM er_fact ORDER BY pub DESC, ord DESC LIMIT 12')
+        .prepare('SELECT tenant, execution, body FROM er_fact ORDER BY pub DESC, ord DESC LIMIT 12')
         .all()) {
         const text = unpackText(row['body'] as Uint8Array)
         if (!text.includes('node-failed') && !text.includes('compaction-failed')) continue
@@ -339,9 +339,16 @@ export function executionFailures(storageRoot: string): readonly unknown[] {
           const digest = detail.digest.startsWith('sha256:')
             ? detail.digest
             : `sha256:${detail.digest}`
-          const blob = db
-            .prepare('SELECT payload FROM sl_blob WHERE tenant = ? AND digest = ?')
-            .get(String(row['tenant']), digest)
+          const tenant = String(row['tenant'])
+          const blob =
+            db
+              .prepare(
+                'SELECT payload FROM er_block WHERE tenant = ? AND execution = ? AND digest = ?',
+              )
+              .get(tenant, String(row['execution']), digest) ??
+            db
+              .prepare('SELECT payload FROM sl_blob WHERE tenant = ? AND digest = ?')
+              .get(tenant, digest)
           if (blob !== undefined)
             failures.push(JSON.parse(unpackText(blob['payload'] as Uint8Array)))
         }

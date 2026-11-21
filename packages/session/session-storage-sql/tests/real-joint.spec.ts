@@ -164,7 +164,10 @@ describe('the size of the content blocks of one session', () => {
     })
     expect(accepted.kind).toBe('committed')
     const found = decodeExecutionRecordBlob(
-      await read(app, 'execution-record.blob', { digest: block(room).digest }),
+      await read(app, 'execution-record.blob', {
+        execution: 'exe_1',
+        digest: block(room).digest,
+      }),
     )
     expect(found?.kind === 'blob' ? found.payload.length : null).toBe(room)
   })
