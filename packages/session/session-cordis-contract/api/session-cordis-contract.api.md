@@ -411,6 +411,7 @@
 - `retireOnce` · 包 `@omne-harness/session-contract`
 - `routeInput` · 包 `@omne-harness/session-contract`
 - `runCancelledBy` · 包 `@omne-harness/session-contract`
+- `runIdOf` · 包 `@omne-harness/session-contract`
 - `runStartInputs` · 包 `@omne-harness/session-contract`
 - `screenInput` · 包 `@omne-harness/session-contract`
 - `sessionInputBytes` · 包 `@omne-harness/session-contract`

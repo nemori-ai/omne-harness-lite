@@ -3,13 +3,17 @@ import {
   createGovernance,
   createInstances,
   createManagementTypes,
+  createSources,
   type WorkspaceAuthority,
 } from '@omne-harness/workspace'
 import type {
   ManagementTypes,
+  SourceDigests,
+  SourceFiles,
   WorkspaceCatalog,
   WorkspaceGovernance,
   WorkspaceInstances,
+  WorkspaceSources,
 } from '@omne-harness/workspace-contract'
 import { createMinting } from './minting.ts'
 import { createSqlWorkspaceStore, type WorkspaceSqlOptions } from './storage/store.ts'
@@ -19,12 +23,15 @@ export type WorkspaceLocalOptions<P> = Readonly<{
   authority: WorkspaceAuthority<P>
   /** The name of this node. One position belongs to at most one active instance of a node. */
   node: string
+  /** How source roots are read, and the digests their versions are made of. */
+  sources: Readonly<{ files: SourceFiles; digests: SourceDigests }>
 }>
 
 export type WorkspaceLocalApplication<P> = Readonly<{
   governance: WorkspaceGovernance<P>
   instances: WorkspaceInstances<P>
   catalog: WorkspaceCatalog<P>
+  sources: WorkspaceSources<P>
   types: ManagementTypes
 }>
 
@@ -45,6 +52,7 @@ export function createWorkspaceLocalApplication<P>(
     governance: createGovernance(deps),
     instances: createInstances(deps),
     catalog: createCatalog(deps),
+    sources: createSources({ ...deps, ...options.sources }),
     types,
   }
 }

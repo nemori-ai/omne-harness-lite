@@ -1,7 +1,9 @@
 import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ReadHandlerModule } from '@omne-harness/sql-contract/worker'
-import { membershipsOf, sqlTxn, stateOf, type SqlPort } from './facts.ts'
+import { membershipsOf, sqlTxn, stateOf } from './facts.ts'
+import type { SqlPort } from './sql-port.ts'
 import { HANDLER, PROTOCOL } from './schema.ts'
+import { storedAdoption } from './source-facts.ts'
 
 /** Each read of the repository port, by its name. Every one is for a tenant and returns only what that tenant is related to. */
 const READS = {
@@ -11,6 +13,7 @@ const READS = {
     sqlTxn(port).operation(tenant, operation),
   'source-revision': (port: SqlPort, tenant: string, workspace: string) =>
     sqlTxn(port).sourceRevision(workspace, tenant),
+  adoption: storedAdoption,
 } as const
 
 export type ReadName = keyof typeof READS

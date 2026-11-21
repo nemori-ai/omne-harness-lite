@@ -97,6 +97,13 @@ describe('the SwitchWorkspace declaration', () => {
     for (const { text: described } of definition.parameters.descriptions)
       expect(described.length).toBeGreaterThan(20)
     expect(definition.description).toContain('takes effect from your next step')
+    // What the model needs to use it is in its own description, not in a prompt that may outlive it.
+    expect(definition.description).toContain(
+      'make the calls that need the new directory in your next step',
+    )
+    expect(definition.parameters.descriptions[0]?.text).toContain(
+      'for example with git worktree add',
+    )
     expect(definition).toMatchObject({
       backgroundAllowed: false,
       declarations: {

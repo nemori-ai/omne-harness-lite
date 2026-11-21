@@ -196,7 +196,7 @@ export {
   type RouteJudgment,
   type RunStartJudgment,
 } from './judgments.ts'
-export { decide, commandDigest } from './decide.ts'
+export { decide, commandDigest, runIdOf } from './decide.ts'
 export {
   RELATIONS_TO_REFERENCE,
   relationToReference,

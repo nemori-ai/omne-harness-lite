@@ -51,7 +51,7 @@ const returns = {
 } as const
 
 export const SWITCH_DESCRIPTION =
-  'Change the workspace this session works in. Give exactly one target: directory, workspace, or none. The change takes effect from your next step: every call of this step still runs in the directory it was given. A result is one line, <kind> then fields, then what it means: done, refused (nothing changed), half-done (a directory was made an instance but the session was not switched: call again with the same directory), unavailable (try again later).'
+  'Change the workspace this session works in. Give exactly one target: directory, workspace, or none. The change takes effect from your next step: every call of this step still runs in the directory it was given, so make the calls that need the new directory in your next step. A result is one line, <kind> then fields, then what it means: done, refused (nothing changed), half-done (a directory was made an instance but the session was not switched: call again with the same directory), unavailable (try again later).'
 
 const NEXT_STEP =
   'This takes effect from your next step. Calls already made in this step, and any made before it ends, still run in the directory they were given.'

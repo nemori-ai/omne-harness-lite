@@ -1,0 +1,40 @@
+{
+  "name": "@omne-harness/workspace-asset-source",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Connects the source adoptions of the workspace to the asset layers: a layer source, bodies and readers, blind to any category",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "dependencies": {
+    "@omne-harness/assets": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*",
+    "@omne-harness/workspace-contract": "workspace:*"
+  },
+  "devDependencies": {
+    "@omne-harness/workspace": "workspace:*",
+    "@omne-harness/workspace-filesystem": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

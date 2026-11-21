@@ -1,7 +1,7 @@
 {
   "member": "session-contract",
   "model": "models/background-calls/BackgroundCalls.tla",
-  "scope": "finite model BackgroundCalls: one session, one or two backgrounded tool calls, at most two user stops and two outcome deliveries for each call, one human input, one archive. Each action is one session commit; the order of pending inputs, freezing, unarchiving, the Tool side of a stop and the physical end of the execution are not modelled. Safety only. No refinement proof to the implementation. Finite model InputDelivery: one session, three inputs of which one is a quiet stop reminder, at most three Runs and three model replies. It follows which inputs a model request shows and whether the brackets agree with it; a taking and its delivery are one action, the order of submits is free, cancellation, archive and compaction are not modelled. Safety only. No refinement proof to the implementation. Finite model SearchCoverage: two sessions with at most three log positions each, at most two index generations, one query at a time read in three steps, one process kill. Every log position stands for a matching message. The tailer, a rebuild with a swap at any time and the query steps interleave freely. Safety only; that the tailer catches up, a damaged index file and the verification of a candidate against the log are not modelled. No refinement proof to the implementation.",
+  "scope": "finite model BackgroundCalls: one session, one or two backgrounded tool calls, at most two user stops and two outcome deliveries for each call, one human input, one archive. Each action is one session commit; the order of pending inputs, freezing, unarchiving, the Tool side of a stop and the physical end of the execution are not modelled. Safety only. No refinement proof to the implementation. Finite model InputDelivery: one session, three inputs of which one is a quiet stop reminder, at most three Runs and three model replies. It follows which inputs a model request shows and whether the brackets agree with it; a taking and its delivery are one action, the order of submits is free, cancellation, archive and compaction are not modelled. Safety only. No refinement proof to the implementation. Finite model SearchCoverage: two sessions with at most three log positions each, at most two index generations, one query at a time read in three steps, one process kill. Every log position stands for a matching message. The tailer, a rebuild with a swap at any time and the query steps interleave freely. Safety only; that the tailer catches up, a damaged index file and the verification of a candidate against the log are not modelled. No refinement proof to the implementation. Finite model SessionFork: two or three sessions, of which all but the first are forked from another, at most five entries on the position axis of a session, at most two compactions of a session. The moment of a fork is fixed in one step and the session is created in a later one; the source writes and compacts in between and afterwards. It follows which rows a view shows through its segments and which entry a position names. The content of a message, the validity of a prefix as a model request, work state, tenants, access and the archive are not modelled. Safety only. No refinement proof to the implementation.",
   "workers": 2,
   "timeoutSeconds": 600,
   "cases": [
@@ -37,6 +37,18 @@
       "name": "search-design-deeper",
       "model": "models/search-coverage/SearchCoverage.tla",
       "config": "models/search-coverage/design-deeper.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "fork-two-sessions",
+      "model": "models/session-fork/SessionFork.tla",
+      "config": "models/session-fork/two-sessions.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "fork-three-sessions",
+      "model": "models/session-fork/SessionFork.tla",
+      "config": "models/session-fork/three-sessions.cfg",
       "expected": "complete"
     }
   ],
@@ -124,6 +136,48 @@
       "old": "delivered' = delivered \\cup pending",
       "new": "delivered' = delivered \\cup {i \\in pending : i.wakes}",
       "invariant": "NoLostReminder"
+    },
+    {
+      "name": "fork-positions-restart",
+      "base": "fork-two-sessions",
+      "invariant": "RefsNameOneEntry",
+      "old": "LET t == [tail EXCEPT ![c] = base[c].at]",
+      "new": "LET t == [tail EXCEPT ![c] = 0]"
+    },
+    {
+      "name": "fork-position-of-last-row",
+      "base": "fork-two-sessions",
+      "invariant": "RefsNameOneEntry",
+      "old": "base' = [base EXCEPT ![c] = [src |-> p, at |-> tail[p]]]",
+      "new": "base' = [base EXCEPT ![c] = [src |-> p, at |-> View(p, ep[p])[n].pos]]"
+    },
+    {
+      "name": "fork-compaction-drops-old-epoch",
+      "base": "fork-two-sessions",
+      "invariant": "SegmentsLive",
+      "old": "r == [rows EXCEPT ![s][ep[s] + 1] = next]",
+      "new": "r == [rows EXCEPT ![s][ep[s] + 1] = next, ![s][ep[s]] = <<>>]"
+    },
+    {
+      "name": "fork-deep-copy",
+      "base": "fork-two-sessions",
+      "invariant": "InheritedByReference",
+      "old": "  /\\ rows' = rows\n  /\\ tail' = tail\n",
+      "new": "  /\\ rows' = [rows EXCEPT ![c][0] = SubSeq(View(p, ep[p]), 1, n)]\n  /\\ tail' = tail\n"
+    },
+    {
+      "name": "fork-writes-into-source",
+      "base": "fork-two-sessions",
+      "invariant": "OneWriter",
+      "old": "  /\\ rows' = rows\n  /\\ tail' = tail\n",
+      "new": "  /\\ rows' = rows\n  /\\ tail' = [tail EXCEPT ![p] = @ + 1]\n"
+    },
+    {
+      "name": "fork-forgets-inherited-segments",
+      "base": "fork-three-sessions",
+      "invariant": "PrefixStable",
+      "old": "ELSE segs[p][e] \\o <<[src |-> p, ep |-> e, from |-> 1, to |-> n - inherited]>>",
+      "new": "ELSE <<[src |-> p, ep |-> e, from |-> 1, to |-> n - inherited]>>"
     }
   ],
   "controls": [

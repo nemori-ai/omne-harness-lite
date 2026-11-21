@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { digestBytes, packageDigest } from '../src/index.ts'
+import {
+  digestBytes,
+  isReadBody,
+  packageBody,
+  packageDigest,
+  type JsonValue,
+} from '../src/index.ts'
 
 const encoder = new TextEncoder()
 
@@ -42,5 +48,69 @@ describe('packageDigest', () => {
 
   it('gives the digest of no bytes for a package without entries', () => {
     expect(packageDigest([])).toBe(digestBytes(new Uint8Array()))
+  })
+})
+
+describe('packageBody', () => {
+  const manifest = { entries: [{ path: 'MAIN.md', bytes: 3, digest: 'sha256:1' }] }
+  const declared: JsonValue = {
+    kind: 'object',
+    entries: [{ key: 'name', value: { kind: 'string', value: 'lamp' } }],
+  }
+
+  it('is the declaration with the manifest, as a body read by the assets', () => {
+    const made = packageBody(declared, manifest)
+    if (!('ok' in made)) throw new Error(JSON.stringify(made))
+    expect(isReadBody(made.ok)).toBe(true)
+    expect(made.ok).toEqual({
+      kind: 'object',
+      entries: [
+        { key: 'name', value: { kind: 'string', value: 'lamp' } },
+        {
+          key: 'manifest',
+          value: {
+            kind: 'object',
+            entries: [
+              {
+                key: 'entries',
+                value: {
+                  kind: 'array',
+                  items: [
+                    {
+                      kind: 'object',
+                      entries: [
+                        { key: 'path', value: { kind: 'string', value: 'MAIN.md' } },
+                        { key: 'bytes', value: { kind: 'number', lexeme: '3' } },
+                        { key: 'digest', value: { kind: 'string', value: 'sha256:1' } },
+                      ],
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        },
+      ],
+    })
+  })
+
+  it('refuses a declaration that is no object or names a manifest itself, and one too large', () => {
+    const shape = { failure: { kind: 'invalid-package', reason: 'declaration-shape' } }
+    expect(packageBody({ kind: 'string', value: 'x' }, manifest)).toEqual(shape)
+    const named: JsonValue = {
+      kind: 'object',
+      entries: [
+        { key: 'name', value: { kind: 'string', value: 'lamp' } },
+        { key: 'manifest', value: { kind: 'null' } },
+      ],
+    }
+    expect(packageBody(named, manifest)).toEqual(shape)
+    const long: JsonValue = {
+      kind: 'object',
+      entries: [{ key: 'text', value: { kind: 'string', value: 'x'.repeat(70_000) } }],
+    }
+    expect(packageBody(long, manifest)).toEqual({
+      failure: { kind: 'record-rejected', reason: 'limit_exceeded' },
+    })
   })
 })

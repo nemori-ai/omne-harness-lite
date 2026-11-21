@@ -59,8 +59,11 @@ export function reminderReadFailure(failure: ModelReminderFailure): Failure {
     : down(failure.diagnostic)
 }
 
-/** What the reminder commit answered: told, the Session moved on (read again), or a failure. */
-export function reminderOutcome(outcome: JournalCommitResult): 'told' | 'changed' | Failure {
+/** What a commit before a step answered: done, the Session moved on (read again), or a failure. */
+export function reminderOutcome(
+  outcome: JournalCommitResult,
+  subject = 'the runtime context reminder',
+): 'told' | 'changed' | Failure {
   switch (outcome.kind) {
     case 'committed':
       return 'told'
@@ -69,11 +72,11 @@ export function reminderOutcome(outcome: JournalCommitResult): 'told' | 'changed
       const reply = stop === undefined ? null : decodeSessionReply(stop)
       return reply?.kind === 'stopped' && (reply.failure as SessionFailure).kind === 'changed'
         ? 'changed'
-        : down('the Session refused the runtime context reminder')
+        : down(`the Session refused ${subject}`)
     }
     case 'unknown':
     case 'unavailable':
-      return down(`the runtime context reminder: ${outcome.diagnostic}`)
+      return down(`${subject}: ${outcome.diagnostic}`)
     case 'refused':
       return refusalFailure(outcome.reason)
   }

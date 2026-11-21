@@ -400,6 +400,7 @@
 - `retireOnce` · `authorizations.d.ts`
 - `routeInput` · `judgments.d.ts`
 - `runCancelledBy` · `decision-support.d.ts`
+- `runIdOf` · `decide.d.ts`
 - `runStartInputs` · `intake.d.ts`
 - `screenInput` · `before-intake.d.ts`
 - `sessionInputBytes` · `intake.d.ts`
@@ -2495,7 +2496,7 @@ export type { SessionEntriesBoundary, SessionEntriesChannel, SessionEntriesInter
 export type { AdoptionEvidenceCommand, AgentDrivePort, CustodyEvidenceCommand, ProductionEvidenceCommand, SessionAdoptionPlanAnswer, SessionAdoptionPlanInput, SessionAdoptionRecorded, SessionAdoptionSource, SessionCustodySource, SessionProductionSource, DriveFailure, DriveReceipt, DriveReply, DriveTarget, ExecutionStatus, GuardCommand, MutationName, ScopeReleasePort, ScopeReleaseReadback, SessionCallControl, SessionCallStates, SessionBlockDeclaration, SessionClock, SessionCommand, SessionContextInput, SessionEvidenceBridge, SessionIdentityBridge, SessionIdleInput, SessionInternalPrincipals, SessionNotifier, SessionPrincipalBindingSource, SessionScopeOwnerSource, SessionTransactionPort, SessionWorkPrincipals, } from './ports.ts';
 export { sessionModesBlock } from './block.ts';
 export { expectedHolds, expectedRevision, judgeAdvance, judgeCompletion, judgeIdle, judgeRunStart, judgeWaiting, openWork, resolveCascade, resolveControlScope, resolveOperation, routeInput, type AdvanceClaim, type AdvanceJudgment, type CommittedBatch, type CompletionJudgment, type ControlScope, type DecideReads, type Decision, type EncodedEntry, type IdleJudgment, type OpenWork, type OperationJudgment, type OperationRecord, type ReduceResult, type RouteJudgment, type RunStartJudgment, } from './judgments.ts';
-export { decide, commandDigest } from './decide.ts';
+export { decide, commandDigest, runIdOf } from './decide.ts';
 export { RELATIONS_TO_REFERENCE, relationToReference, type DirectoryStanding, type RelationToReference, } from './directory-relation.ts';
 export { MAX_SESSION_DEPTH, childRecorded, judgeStanding, relatedOf, relatedSessionOf, standingOf, type ChildRecord, type RelatedSession, } from './standing.ts';
 export { workspaceSelection, type WorkspaceSelection } from './workspace-selection.ts';
@@ -3300,6 +3301,12 @@ export type SessionOperationElements = Readonly<{
     session: SessionId;
     source: DurableEvidence;
 }> | Readonly<{
+    kind: 'context-step';
+    session: SessionId;
+    scope: string;
+    at: string;
+    value: string;
+}> | Readonly<{
     kind: 'authorization';
     session: SessionId;
     card: DurableEvidence;
@@ -3933,8 +3940,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:5c8aa5d73f0468d5472e34507bbf2a3d0584c44876663fb8a65a75ba7166e29d";
-export declare const SESSION_RELEASE_DIGEST = "sha256:5c8aa5d73f0468d5472e34507bbf2a3d0584c44876663fb8a65a75ba7166e29d";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:64adfe72b84cc9f38795ffb46a5f315b81bff3a0a4afe152818f2a0b8cd182c4";
+export declare const SESSION_RELEASE_DIGEST = "sha256:64adfe72b84cc9f38795ffb46a5f315b81bff3a0a4afe152818f2a0b8cd182c4";
 ```
 
 ## 声明文件 `replay-validation.d.ts`

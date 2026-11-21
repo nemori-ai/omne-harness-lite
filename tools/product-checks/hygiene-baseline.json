@@ -83,7 +83,7 @@
       "packages/model/model/src/commands/commands.ts": 1054,
       "packages/session/session-adapters/src/cordis/agent-journal.ts": 1768,
       "packages/session/session-adapters/src/cordis/context-holder.ts": 1148,
-      "packages/session/session-adapters/src/cordis/context-input.ts": 1111,
+      "packages/session/session-adapters/src/cordis/context-input.ts": 1109,
       "packages/session/session-adapters/src/testing/factory.ts": 1239,
       "packages/session/session-adapters/src/testing/journal-finishing.ts": 1263,
       "packages/session/session-adapters/src/testing/journal.ts": 4190,

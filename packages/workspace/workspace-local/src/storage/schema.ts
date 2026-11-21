@@ -5,7 +5,10 @@ export const MIGRATION = { owner: PARTICIPANT, id: 'workspace-1' }
 export const TABLES = ['ws_workspaces', 'ws_relations', 'ws_instances', 'ws_operations']
 export const SOURCES_MIGRATION = { owner: PARTICIPANT, id: 'workspace-2' }
 export const SOURCES_TABLE = 'ws_source_revisions'
-export const ALL_TABLES = [...TABLES, SOURCES_TABLE]
+export const ADOPTIONS_MIGRATION = { owner: PARTICIPANT, id: 'workspace-3' }
+export const READINGS_TABLE = 'ws_source_readings'
+export const ADOPTIONS_TABLE = 'ws_source_adoptions'
+export const ALL_TABLES = [...TABLES, SOURCES_TABLE, READINGS_TABLE, ADOPTIONS_TABLE]
 
 /** Workspaces belong to no single tenant, so their facts live in one domain of the system scope. */
 export const DOMAIN = {
@@ -16,5 +19,12 @@ export const DOMAIN = {
 /** The most rows one statement may return. More is a failure, never a shorter answer. */
 export const ROW_LIMIT = 20_000
 
-export const SCRIPTS = ['register', 'associate', 'dissociate', 'govern', 'destroy'] as const
+export const SCRIPTS = [
+  'register',
+  'associate',
+  'dissociate',
+  'govern',
+  'destroy',
+  'adopt',
+] as const
 export type ScriptName = (typeof SCRIPTS)[number]

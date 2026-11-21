@@ -3,10 +3,18 @@ import { z } from 'zod'
 import type { SessionId } from '@omne-harness/session-contract'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import {
+  readHeldNeed,
   readPublishedNeed,
   readPublishedView,
   type PublishedViewPorts,
 } from '../../../src/rows/session-ad03/published-view.ts'
+import {
+  encodeInitialContextRegistration,
+  workingDirectoryBindings,
+  workingDirectoryDescriptor,
+} from '@omne-harness/session-adapters/cordis'
+import { SESSION_WORKING_DIRECTORY } from '@omne-harness/session-adapters'
+import { adoptedContextDefinitions } from '../../../src/assembly/context-definitions.ts'
 import { fixtureTenant } from '../../entry/support.ts'
 
 const TENANT = fixtureTenant('a')
@@ -80,6 +88,67 @@ function world(read: () => unknown, change: Partial<Record<string, unknown>> = {
   } as unknown as PublishedViewPorts
   return { ports, ended, asked }
 }
+
+/** The registration of the working directory block a session log holds, declared or as runs 1 and 2 left it. */
+function registration(declared: boolean, scope = SCOPE) {
+  const encoded = encodeInitialContextRegistration(
+    {
+      definition: SESSION_WORKING_DIRECTORY,
+      key: workingDirectoryDescriptor.key,
+      bindings: workingDirectoryBindings,
+      parameters: undefined,
+      ...(declared ? { declaration: workingDirectoryDescriptor } : {}),
+    },
+    adoptedContextDefinitions,
+  )
+  if ('failure' in encoded) throw new Error(encoded.failure)
+  const registered = { owner: 'test', record: 'registration', revision: '1', digest: 'sha256:0' }
+  return {
+    scope,
+    declaration: { kind: 'context-registration', registration: registered, ...encoded.ok },
+  }
+}
+
+const holding = (records: readonly unknown[]) => ({
+  work: {
+    ok: {
+      tenant: TENANT,
+      session: SESSION,
+      contextScopes: [{ generation: '1', scope: SCOPE, ended: null }],
+      contextRecords: records,
+    },
+  },
+})
+
+describe('a need of a block the session holds in its own log', () => {
+  it.each([true, false])(
+    'reads it as any need when the scope registered the block (with its declaration: %s)',
+    async declared => {
+      const w = world(() => value({ directory: '/srv/blog' }), holding([registration(declared)]))
+      expect(await readHeldNeed(w.ports, access, need)).toEqual({
+        ok: { directory: '/srv/blog' },
+      })
+      expect(Object.keys(w.asked)).toEqual(['recover', 'eligibility', 'bind'])
+    },
+  )
+
+  it.each<[string, readonly unknown[]]>([
+    ['never registered the block', []],
+    ['registered it in another scope only', [registration(true, 'session-scope:other')]],
+  ])('answers null and reads nothing when the scope %s', async (_name, records) => {
+    const w = world(() => value({ directory: '/srv/blog' }), holding(records))
+    expect(await readHeldNeed(w.ports, access, need)).toEqual({ ok: null })
+    expect(w.asked).toEqual({})
+    expect(w.ended.count).toBe(0)
+  })
+
+  it('fails as any need when the session work cannot be read', async () => {
+    const w = world(() => value({}), { work: { failure: { kind: 'unavailable' } } })
+    expect(await readHeldNeed(w.ports, access, need)).toEqual({
+      failure: 'session work: unavailable',
+    })
+  })
+})
 
 describe('one need of the coordinator, read in the open scope of the session', () => {
   it('reads the value as its shape, as the coordinator, after the scope is recovered, and ends the reader', async () => {

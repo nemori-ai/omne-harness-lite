@@ -59,6 +59,40 @@ describe('the facts are durable', () => {
   })
 })
 
+describe('the adoptions are durable', () => {
+  const lamp = (version: string) => ({
+    category: 'gadget',
+    namespace: 'gadgets',
+    name: 'lamp',
+    root: 'shared' as const,
+    version,
+    entries: [{ path: 'MAIN.md', bytes: 2, digest: `f:${version}` }],
+  })
+  const adopt = (key: string, version: string) => ({
+    tenant: 'alice',
+    workspace: 'wsp_1',
+    key,
+    instance: REGISTER.instance,
+    read: { kind: 'read' as const, packages: [lamp(version)] },
+  })
+
+  it('a key and its reading are there after the storage opens again, and the count does not go back', async () => {
+    const first = await openSqlWorld()
+    await first.store.register(REGISTER)
+    const made = await first.store.adopt(adopt('k1', 'v1'))
+    const counted = await first.store.sourceRevision('alice', 'wsp_1')
+    await first.close()
+    const second = await world({ root: first.root })
+    expect(await second.store.sourceRevision('alice', 'wsp_1')).toEqual(counted)
+    expect(await second.store.adopt(adopt('k1', 'v2'))).toEqual(made)
+    await second.store.adopt(adopt('k2', 'v2'))
+    expect(await second.store.sourceRevision('alice', 'wsp_1')).toEqual({
+      kind: 'read',
+      value: (counted as { value: number }).value + 1,
+    })
+  })
+})
+
 describe('what the storage did not do', () => {
   const failing = (commit: 'unknown' | 'rejected' | 'throws') => (raw: SqlStorage) =>
     ({

@@ -45,7 +45,7 @@ import { RELEASE_REQUEST_CONTEXT, runToolScope } from '../rows/tool-runtime/scop
 import { verifySessionWork } from '../rows/tool-runtime/session-work.ts'
 import {
   publishedViewPortsOf,
-  readPublishedNeed,
+  readHeldNeed,
   readPublishedView,
 } from '../rows/session-ad03/published-view.ts'
 import { judgeCallConditions, type SessionInteractionRead } from './meta-capabilities.ts'
@@ -356,9 +356,9 @@ async function currentScope(
   return 'failure' in scope ? scope : tenantScope(ports, tenant, scope.ok)
 }
 
-// A call that waits here would wait for ever: the directory changes only when a step begins.
-export const NO_DIRECTORY_IN_FORCE =
-  'unavailable: this session has no working directory in force now, because the server restarted during this step. Nothing ran. Make this call again in your next step.'
+// A call that waits here would wait for ever: a session without the block never gets a value.
+export const NO_WORKING_DIRECTORY =
+  'unavailable: this session has no working directory to use, so file and command tools cannot run in it. Nothing ran. Tell the user: a session created now has one.'
 export const unusableDirectory = (reason: string): string =>
   `unavailable: the workspace selected for this session cannot be used now (reason: ${reason}). Nothing ran, and no other directory was used in its place. Tell the user. The call works again when the workspace can be used or when the session selects another one.`
 
@@ -371,7 +371,7 @@ const pinnedTo = (directory: ToolCallDirectory): Placed => ({ kind: 'pinned', di
 export function pinnedDirectory(
   value: WorkingDirectory | null,
 ): Outcome<Placed | ToolCallAnswer, Failure> {
-  if (value === null) return succeed({ kind: 'answered', text: NO_DIRECTORY_IN_FORCE })
+  if (value === null) return succeed({ kind: 'answered', text: NO_WORKING_DIRECTORY })
   switch (value.state) {
     case 'default':
       return succeed(pinnedTo({ path: value.directory, workspace: null }))
@@ -506,7 +506,7 @@ export function releaseToolRequestsOf(ctx: Context): ReleaseToolRequests {
     workingDirectory: async access => {
       const ports = publishedViewPortsOf(ctx)
       if (ports === null) return fail('the Session or Runtime Context services are absent')
-      return readPublishedNeed(ports, access, workingDirectoryCallBinding)
+      return readHeldNeed(ports, access, workingDirectoryCallBinding)
     },
   })
 }

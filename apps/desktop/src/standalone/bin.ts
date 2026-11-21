@@ -16,7 +16,7 @@ if ('usage' in read) {
 }
 const { config } = read
 const log = (line: string): void => void process.stderr.write(`${line}\n`)
-const pageRoot = fileURLToPath(new URL('../page/', import.meta.url))
+const pageRoot = fileURLToPath(new URL('../release/page/', import.meta.url))
 const standalone = createStandalone({
   forwarding: createForwarding({
     rules: createForwardingRules({

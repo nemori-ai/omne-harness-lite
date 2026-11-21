@@ -17,6 +17,7 @@ it('exports the registry, identity, and pin operations', () => {
     'evaluate',
     'isReadBody',
     'listAssets',
+    'packageBody',
     'packageDigest',
     'pinBody',
     'projectAssetSettings',
