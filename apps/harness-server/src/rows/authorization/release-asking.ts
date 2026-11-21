@@ -91,6 +91,7 @@ function draftOf(
         description: entry.scope,
         offered: entry.offered,
         lasting: entry.lasting,
+        role: entry.role,
       })),
     }),
   }
