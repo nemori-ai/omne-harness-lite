@@ -132,6 +132,45 @@ async function indexedSession<P>(
   return succeed(indexed.session as SessionId)
 }
 
+async function settledAt<P>(
+  options: ExecutionRoutedJournalOptions<P>,
+  scope: Scope,
+  session: SessionId,
+): Promise<ReceptionSettled | null> {
+  const tenant = tenantCodec.encode(scope.tenant)
+  if (!tenant.ok) return null
+  const domain = await resolveDomain(options.tenantDomainLookup, tenant.value)
+  if (domain.kind !== 'ready') return null
+  const read = readerOf(options.storage, domain.domain)
+  const at = { tenant: tenant.value, session, execution: scope.execution }
+  const items = await readOpenItems(read, at, [EXEC_FAMILY])
+  if (items.kind !== 'settled') return null
+  const output = await read(EXECUTION_RECORD_HANDLERS.events, { ...at, after: '0' })
+  const head = output.kind === 'read' ? decodeExecutionRecordEvents(output.output) : null
+  if (head?.kind !== 'events' || head.receipt === null) return null
+  return { kind: 'settled', evidence: head.receipt as unknown as DurableEvidence }
+}
+
+type ResolveTarget<P, T> = (view: SessionView<P>) => Promise<Outcome<T | ReceptionSettled, Failure>>
+
+async function resolvedOn<P, T extends Readonly<{ execution: AgentExecutionId }> | null>(
+  options: ExecutionRoutedJournalOptions<P>,
+  found: Outcome<Route<P>, Failure>,
+  scope: Scope,
+  call: ResolveTarget<P, T>,
+): Promise<Outcome<T | ReceptionSettled, Failure>> {
+  if ('failure' in found) return fail<Failure>(found.failure)
+  const answered = await call(found.ok.view)
+  if ('failure' in answered) {
+    const settled = await settledAt(options, scope, found.ok.session)
+    return settled === null ? answered : succeed(settled)
+  }
+  const target = answered.ok
+  return isSettled(target) || target === null || target.execution === scope.execution
+    ? answered
+    : fail<Failure>({ kind: 'denied', action: 'resolve' })
+}
+
 export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalOptions<P>) {
   const journals = createSessionLogJournal<P>(options)
   const limit = options.routeCacheEntries ?? ROUTE_CACHE_ENTRIES
@@ -293,37 +332,11 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     query: input => routedView('received.query', input, view => view.received.query(input)),
   }
 
-  async function settledAt(scope: Scope, session: SessionId): Promise<ReceptionSettled | null> {
-    const tenant = tenantCodec.encode(scope.tenant)
-    if (!tenant.ok) return null
-    const domain = await resolveDomain(options.tenantDomainLookup, tenant.value)
-    if (domain.kind !== 'ready') return null
-    const read = readerOf(options.storage, domain.domain)
-    const at = { tenant: tenant.value, session, execution: scope.execution }
-    const items = await readOpenItems(read, at, [EXEC_FAMILY])
-    if (items.kind !== 'settled') return null
-    const output = await read(EXECUTION_RECORD_HANDLERS.events, { ...at, after: '0' })
-    const head = output.kind === 'read' ? decodeExecutionRecordEvents(output.output) : null
-    if (head?.kind !== 'events' || head.receipt === null) return null
-    return { kind: 'settled', evidence: head.receipt as unknown as DurableEvidence }
-  }
-
-  async function resolvedAt<T>(
+  const resolvedAt = async <T extends Readonly<{ execution: AgentExecutionId }> | null>(
     action: string,
     scope: Scope,
-    call: (view: SessionView<P>) => Promise<Outcome<T | ReceptionSettled, Failure>>,
-    elsewhere: (target: T) => boolean,
-  ): Promise<Outcome<T | ReceptionSettled, Failure>> {
-    const found = await routeOf(scope, action)
-    if ('failure' in found) return fail<Failure>(found.failure)
-    const answered = await call(found.ok.view)
-    if ('ok' in answered)
-      return isSettled(answered.ok) || !elsewhere(answered.ok)
-        ? answered
-        : fail<Failure>({ kind: 'denied', action: 'resolve' })
-    const settled = await settledAt(scope, found.ok.session)
-    return settled === null ? answered : succeed(settled)
-  }
+    call: ResolveTarget<P, T>,
+  ) => resolvedOn(options, await routeOf(scope, action), scope, call)
 
   const targets: ModelReceptionTargets<P> = {
     forExecution: input =>
@@ -335,11 +348,8 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     async resolve(input) {
       const { execution } = input
       if (execution === undefined) return fail<Failure>({ kind: 'denied', action: 'resolve' })
-      return resolvedAt(
-        'resolve',
-        { tenant: input.access.tenant, execution },
-        view => view.targets.resolve(input),
-        target => target.execution !== execution,
+      return resolvedAt('resolve', { tenant: input.access.tenant, execution }, view =>
+        view.targets.resolve(input),
       )
     },
   }
@@ -354,11 +364,8 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     async resolve(input) {
       const { execution } = input
       if (execution === undefined) return fail<Failure>({ kind: 'denied', action: 'resolve' })
-      return resolvedAt(
-        'toolTargets.resolve',
-        { tenant: input.access.tenant, execution },
-        view => view.toolTargets.resolve(input),
-        target => target !== null && target.execution !== execution,
+      return resolvedAt('toolTargets.resolve', { tenant: input.access.tenant, execution }, view =>
+        view.toolTargets.resolve(input),
       )
     },
   }

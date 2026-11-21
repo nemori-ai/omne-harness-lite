@@ -120,6 +120,15 @@ async function raceAbort<T>(work: Promise<T>, signal: AbortSignal, settle: () =>
   }
 }
 
+function retainIn<T>(tasks: Set<Promise<unknown>>, work: Promise<T>): Promise<T> {
+  tasks.add(work)
+  void work.then(
+    () => tasks.delete(work),
+    () => tasks.delete(work),
+  )
+  return work
+}
+
 export function createAgentToolReceiver<P>(
   dependencies: ToolReceiverDependencies<P>,
   state: ToolReceiverState<P>,
@@ -127,14 +136,7 @@ export function createAgentToolReceiver<P>(
   const receivedPort = dependencies.provider.received
   if (receivedPort === null) return fail({ kind: 'unsupported' })
   const received = receivedPort
-  function retain<T>(work: Promise<T>) {
-    state.tasks.add(work)
-    void work.then(
-      () => state.tasks.delete(work),
-      () => state.tasks.delete(work),
-    )
-    return work
-  }
+  const retain = <T>(work: Promise<T>) => retainIn(state.tasks, work)
   function report(scope?: ReadonlySet<string>): ToolReceiverReport {
     const entries = [...state.receptions.values()].filter(
       item => !scope || scope.has(binding(item.access, item.target)),

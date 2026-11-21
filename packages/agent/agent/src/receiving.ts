@@ -90,6 +90,18 @@ export function receptionOperation<P>(
   return operation.ok
 }
 
+const admissionFailure =
+  <P>(state: ModelReceiverState<P>, access: Access<P>, key: string) =>
+  (dependency: string, error: unknown, target?: ModelReceptionTarget) => {
+    recordDiagnostic(
+      state,
+      `admission:${dependency}:${key}`,
+      String(error),
+      target ? bindingKey(access, target) : null,
+    )
+    return unavailable(dependency)
+  }
+
 export function createAgentModelReceiver<P>(
   dependencies: ModelReceiverDependencies<P>,
   state: ModelReceiverState<P>,
@@ -215,16 +227,7 @@ export function createAgentModelReceiver<P>(
     delivery: ModelDelivery,
     stopped?: AbortSignal,
   ): Promise<Outcome<ModelReceptionTarget | ReceptionSettled, ModelDeliveryFailure>> {
-    const key = receptionKey(access, delivery)
-    const failed = (dependency: string, error: unknown, target?: ModelReceptionTarget) => {
-      recordDiagnostic(
-        state,
-        `admission:${dependency}:${key}`,
-        String(error),
-        target ? bindingKey(access, target) : null,
-      )
-      return unavailable(dependency)
-    }
+    const failed = admissionFailure(state, access, receptionKey(access, delivery))
     if (stopped?.aborted) return fail({ kind: 'cancelled-before-accept' })
     let resolved
     try {
