@@ -253,6 +253,24 @@ describe('independent execution through the public entry', () => {
         ],
       }),
     ],
+    [
+      'reference of an encoded medium',
+      (read: number) => ({
+        media: [
+          {
+            reference: {
+              storage: 's',
+              key: read % 2 === 1 ? 'k' : 'v',
+              mediaType: 'image/png',
+              bytes: '9',
+              digest: 'd',
+            },
+            mediaType: 'image/png',
+            bytes: '9',
+          },
+        ],
+      }),
+    ],
   ] as const)(
     'rejects a receipt whose %s changes between two reads, and starts on a stable one',
     async (_, marks) => {

@@ -403,6 +403,14 @@ describe('消息里一块非文字内容', () => {
       </>,
     )
     await settle()
+    const voices = [...document.querySelectorAll('.omne-media-block')]
+      .filter(each => each.textContent?.includes('〔voice〕'))
+      .map(each => each.querySelector('.omne-media-read')?.textContent)
+    expect(voices).toEqual(['模型读的是原件', '模型读的是转写'])
+    const files = [...document.querySelectorAll('.omne-media-block')]
+      .filter(each => each.textContent?.includes('〔file〕'))
+      .map(each => each.querySelector('.omne-media-read')?.textContent)
+    expect(files).toEqual(['模型读的是提取的文字', '模型读的是另一种表示'])
     expect(screen.getAllByText('模型读的是原件')).toHaveLength(1)
     expect(screen.getAllByText('模型读的是缩小的图')).toHaveLength(1)
     expect(screen.getAllByText('模型读的是转写')).toHaveLength(1)

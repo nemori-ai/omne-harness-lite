@@ -24,10 +24,11 @@ function encodedMedia(answers: ReadAnswers): readonly MaterializedMedium[] | nul
   const { attempts, dispatches } = answers
   if (attempts?.kind === 'gap' || dispatches?.kind === 'gap') return null
   if (dispatches === null) return []
-  const records = dispatches.value
-  const last = records.findLast(record => record.terminal?.kind === 'completed') ?? records.at(-1)
-  return last?.materialization?.receipt.media ?? []
+  return lastSent(dispatches.value)?.materialization?.receipt.media ?? []
 }
+
+const lastSent = (records: readonly DispatchRecord[]): DispatchRecord | undefined =>
+  records.findLast(record => record.terminal?.kind === 'completed') ?? records.at(-1)
 
 function readOf(reference: Reference, media: readonly MaterializedMedium[]): Read['read'] {
   const sent = media.find(medium => sameReference(medium.reference, reference))
@@ -74,10 +75,16 @@ export function readsOf(
   if ('reason' in references) return gapped('session', references.reason)
   const media = encodedMedia(answers)
   if (media === null && references.size > 0) return NONE
-  const value = choices.value.flatMap(({ message, block, choice }): Read[] => {
-    if (choice !== 'original') return [{ message, block, read: choice }]
-    const found = references.get(blockKey(message, block))
-    return found === undefined ? [] : [{ message, block, read: readOf(found, media ?? []) }]
-  })
+  const value = choices.value.flatMap(each => readsOfChoice(each, references, media ?? []))
   return { value, gaps: [] }
+}
+
+function readsOfChoice(
+  { message, block, choice }: RequestBlockChoice,
+  references: ReadonlyMap<string, Reference>,
+  media: readonly MaterializedMedium[],
+): Read[] {
+  if (choice !== 'original') return [{ message, block, read: choice }]
+  const found = references.get(blockKey(message, block))
+  return found === undefined ? [] : [{ message, block, read: readOf(found, media) }]
 }

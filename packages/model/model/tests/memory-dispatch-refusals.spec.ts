@@ -142,6 +142,10 @@ describe('the receipt of a dispatch', () => {
       { ...bound, media: [{ ...medium, bytes: '04' }] },
     ],
     ['names an encoded medium without a type', { ...bound, media: [{ ...medium, mediaType: '' }] }],
+    [
+      'names a good encoded medium and then a bad one',
+      { ...bound, media: [medium, { ...medium, bytes: '04' }] },
+    ],
     ['names another representation', { ...bound, representation: second.adoption }],
     [
       'has a payload digest with a leading character too many',

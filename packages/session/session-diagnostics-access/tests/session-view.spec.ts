@@ -1766,7 +1766,11 @@ describe('what the model read of each block', () => {
   async function readsWith(
     records: DispatchRecords[string],
     answer: Parameters<typeof requestsOf>[0],
-    options: Readonly<{ attempts?: readonly string[]; kinds?: readonly string[] }> = {},
+    options: Readonly<{
+      attempts?: readonly string[]
+      kinds?: readonly string[]
+      entries?: readonly HistoryEntry[]
+    }> = {},
   ) {
     const model = modelDouble(
       { m1: settledCall('c1') },
@@ -1775,7 +1779,7 @@ describe('what the model read of each block', () => {
     )
     const requests = requestsOf(answer)
     const page = await project({
-      entries: oneCall,
+      entries: options.entries ?? oneCall,
       ports: { ...model, ...requests },
       ...(options.kinds === undefined ? {} : { kinds: options.kinds }),
     })
@@ -1813,6 +1817,28 @@ describe('what the model read of each block', () => {
       from: null,
       direction: 'backward',
     })
+    expect(page.gaps).toEqual([])
+  })
+
+  it('reads back past newer messages whose media were not chosen, and tells media apart by storage and key', async () => {
+    const newer = (id: string, message: string) =>
+      entry(id, 'message.user', {
+        message: { id: message, role: 'user', blocks: [{ kind: 'image', id: 'x', ref: ref('x') }] },
+      })
+    const entries = [uploaded, newer('e0b', 'msg-2'), newer('e0c', 'msg-3'), ...oneCall.slice(1)]
+    const elsewhere = { ...ref('b1'), storage: 'other' }
+    const { call, page } = await readsWith(
+      succeed([
+        sentRecord('d1', 'completed', [
+          { reference: elsewhere, mediaType: 'image/webp', bytes: '10' },
+          { reference: ref('x'), mediaType: 'image/webp', bytes: '10' },
+          { reference: ref('b1'), mediaType: 'image/png', bytes: '4000' },
+        ]),
+      ]),
+      succeed([choice('b1', 'original')]),
+      { entries },
+    )
+    expect(call.reads).toEqual([{ message: 'msg-1', block: 'b1', read: 'original' }])
     expect(page.gaps).toEqual([])
   })
 

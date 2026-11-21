@@ -67,6 +67,39 @@ describe('the reads of the blocks of a session', () => {
   })
 })
 
+describe('the reads of the blocks of a session, more', () => {
+  it('a source taken away after another was handed over leaves the new one in place', async () => {
+    const reads = new BlockReads()
+    const old = reads.attach({ readsOf: async () => new Map([['msg_1\nblk_1', 'original']]) })
+    reads.attach({ readsOf: async () => new Map([['msg_1\nblk_1', 'transcript']]) })
+    old()
+    reads.want(TENANT, 'ses_a', '1')
+    await settled()
+    expect(reads.readOf(TENANT, 'ses_a', 'msg_1', 'blk_1')).toBe('transcript')
+  })
+
+  it('a source that could not answer is asked again at the same position; two sessions are asked apart', async () => {
+    const { source, asked } = sourceOf([])
+    const reads = new BlockReads()
+    reads.attach(source)
+    reads.want(TENANT, 'ses_a', '1')
+    reads.want(TENANT, 'ses_b', '1')
+    await settled()
+    reads.want(TENANT, 'ses_a', '1')
+    await settled()
+    expect(asked).toEqual([`${TENANT}/ses_a`, `${TENANT}/ses_b`, `${TENANT}/ses_a`])
+  })
+
+  it('a listener taken off hears nothing more', async () => {
+    const reads = new BlockReads()
+    let told = 0
+    const off = reads.subscribe(() => (told += 1))
+    off()
+    reads.attach(sourceOf([]).source)
+    expect(told).toBe(0)
+  })
+})
+
 describe('reads from the session diagnostics', () => {
   const read = (message: string, block: string, how: string) => ({ message, block, read: how })
   const run = (position: string, ...reads: object[]) => ({
@@ -107,7 +140,40 @@ describe('reads from the session diagnostics', () => {
       ]),
     )
     expect(calls).toHaveLength(2)
+    expect(calls[0]).toMatchObject({
+      session: 'ses_a',
+      cursor: null,
+      run: null,
+      pageBytes: '65536',
+    })
     expect(calls[1]).toMatchObject({ session: 'ses_a', cursor: 'c1' })
+  })
+
+  it('runs are ordered by their position as a number, not as text', async () => {
+    const client = {
+      'read-session-diagnostics': async () =>
+        page(
+          [
+            run('10', read('msg_1', 'blk_1', 'transcript')),
+            run('9', read('msg_1', 'blk_1', 'original')),
+          ],
+          null,
+        ),
+    }
+    const got = await diagnosticsReads(client as never).readsOf(TENANT, 'ses_a')
+    expect(got?.get('msg_1\nblk_1')).toBe('transcript')
+  })
+
+  it('a tenant it cannot read is not asked about at all', async () => {
+    let asked = 0
+    const answering = {
+      'read-session-diagnostics': async () => {
+        asked += 1
+        return page([run('1', read('msg_1', 'blk_1', 'original'))], null)
+      },
+    }
+    expect(await diagnosticsReads(answering as never).readsOf('not a tenant', 'ses_a')).toBeNull()
+    expect(asked).toBe(0)
   })
 
   it('a page that does not succeed, a call that throws, or a tenant it cannot read gives nothing', async () => {

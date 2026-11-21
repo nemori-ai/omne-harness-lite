@@ -203,6 +203,14 @@ describe('the six media rows', () => {
             body: { bytes: PICTURE.byteLength, digest: digestOf(PICTURE) },
           })
           expect(readFileSync(back).equals(Buffer.from(PICTURE))).toBe(true)
+          const described = await tree.cli(['media', 'describe', '--ref', JSON.stringify(ref)])
+          expect(described.status, described.stderr).toBe(0)
+          expect(JSON.parse(described.stdout)).toMatchObject({
+            body: { state: 'staged', preprocess: { kind: 'not-needed' } },
+          })
+          const categories = await tree.cli(['asset', 'categories'])
+          expect(categories.status, categories.stderr).toBe(0)
+          expect(categories.stdout).toContain('converter')
         },
       ])
       expect(exitCodes).toEqual([0, 0])
