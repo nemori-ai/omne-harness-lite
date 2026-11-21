@@ -78,6 +78,7 @@ describe('current file authorization', () => {
       lease,
       naming: { name },
       facts: { system: 'fixture', release: '1', architecture: 'fixture', facilities: ['files'] },
+      media: () => undefined,
       directory: { path: '/srv/default', workspace: null },
     })
     expect(plain.directory).toBe('/srv/default')
