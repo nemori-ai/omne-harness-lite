@@ -1,6 +1,6 @@
 # 形式模型与规格、代码的对照
 
-本页对照 `session-adapters/verification` 下三个有限模型：进程代次与准入记录（`generation-handoff`）、Agent 事实族（`journal-facts`）、执行日志的开放集（`journal-open-set`）。条款在包组规格 [`packages/session/SPEC.md`](../../SPEC.md)；Agent 一侧的承诺在 [Agent 规格](../../../agent/SPEC.md)。模型检查只说明有限范围内的设计性质。配置预期见下表；运行器按预期判读，正控要求无反例，负控要求命中指定性质。手写的无界证明见 [proofs/](proofs/)。
+本页对照 `session-adapters/verification` 下四个有限模型：进程代次与准入记录（`generation-handoff`）、Agent 事实族（`journal-facts`）、执行日志的开放集（`journal-open-set`）、执行记录的确认与回收（`execution-settlement`）。条款在包组规格 [`packages/session/SPEC.md`](../../SPEC.md)；Agent 一侧的承诺在 [Agent 规格](../../../agent/SPEC.md)。模型检查只说明有限范围内的设计性质。配置预期见下表；运行器按预期判读，正控要求无反例，负控要求命中指定性质。手写的无界证明见 [proofs/](proofs/)。
 
 ## generation-handoff
 
@@ -44,7 +44,7 @@
 | --------------------- | -------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------- |
 | P1 唯一事实源         | 进程内视图等于已提交日志的折叠                                                                                 | `P1_ViewIsFold`、`P1_HeadIsTail`                           | `bad-cache-only-p1`：判定批只进视图，不追加                                       |
 | P1 位置唯一来源       | 核心给下一批的位置等于发布计数加一；每个完成步的判定事实都到达日志                                             | `P1_OnePosition`、`P1_FactsPublished`                      | `bad-second-position-p1`、`bad-second-position-facts`：核心另持位置               |
-| P2 只追加             | 已提交的批不改写、不删除                                                                                       | `P2_AppendOnly`（动作性质）                                | `bad-upsert-p2`：判定批原地改写上一批                                             |
+| P2 只追加             | 执行结清之前，已提交的批不改写、不删除；结清之后整执行的回收见 `execution-settlement`                          | `P2_AppendOnly`（动作性质）                                | `bad-upsert-p2`：判定批原地改写上一批                                             |
 | P3 每步提交有界       | 一批只带本步新增事实，权重有与步数无关的常数上界                                                               | `P3_NoFactRepeated`、`P3_BatchBounded`                     | `bad-whole-rewrite-p3`、`bad-whole-rewrite-p3-repeat`：每批带上全部游标与历史事实 |
 | P4 自有部分线性于步数 | 自有权重不超过显式系数乘步数加常数，及其对日志内容的比值形式                                                   | `P4_LinearInSteps`、`P4_RatioBound`                        | `bad-whole-rewrite-p4`、`bad-whole-rewrite-p4-ratio`                              |
 | P5 恢复等价           | 重启后折叠出的视图等于崩溃前最后一次成功提交留下的视图                                                         | `P5_Recovery`（动作性质）                                  | `bad-cache-only-p5`                                                               |
@@ -118,3 +118,62 @@
 | 按原键点查                 | `AgentJournalReading.inputAcceptance`；模型控制记录自带 `modelInvocation`              |
 | 进程内视图与冷重建同一投影 | `testing/journal-records.ts` 与进程内推进；守卫 `tests/journal-records-parity.spec.ts` |
 | 持久投影、冷装载两页同头   | 尚未实现：冷装载仍从头重放事实（#1310）                                                |
+
+## execution-settlement
+
+`ExecutionSettlement.tla` 是行为模型，判什么时候可以回收一个执行的执行记录。模型里有同一租户的两个执行，其中一个可以发起一个 Tool 调用；另有会话自己写下的终结、进程崩溃与新写者代际打开租户域。规格见 [SE-40](../../SPEC.md#不变式)，与包组规格[与 Agent 的同日志参加与解释](../../SPEC.md#与-agent-的同日志参加与解释)一节里执行记录的确认与回收。
+
+| 性质                             | 含义                                                                                          | 负控                                                                                       |
+| -------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `NoLostEvent`                    | 内容不再是全时，会话已消费这个执行发出的每一个事件                                            | `bad-settle-short`：`settled` 不要求确认到最后发出的事件                                   |
+| `NoLostLateResult`               | 内容不再是全时，这个执行的调用结果已写进会话日志                                              | `bad-ignore-consumption`：`receivedAll` 不看挂着的调用                                     |
+| `SummaryBeforeReclaim`           | 内容不再是全时，终结条目已在会话日志里：解释写下的带收尾摘要，会话自己写下的按规则 `end` 为空 | 无负控命中，见配置一段                                                                     |
+| `AckOnlyReceivedAll`（动作性质） | 确认只在收完成立、且 `through` 等于消费位置时前进                                             | `bad-ignore-run-active`：`receivedAll` 不看 Run 是否进行中                                 |
+| `FrozenAfterReclaim`（动作性质） | 内容不再是全之后，发出、消费、确认都不再变                                                    | 无负控                                                                                     |
+| `TwoPhase`                       | 内容为无时，结清它的代际早于当前代际                                                          | 无负控命中，见配置一段                                                                     |
+| `AnswerStable`                   | 本代际的写者在已结清的执行上发过的操作，按 `er_operation` 认回仍答已提交                      | `bad-phase1-drops-operation`：第一段连 `er_operation` 一起删                               |
+| `EventuallyReclaimed`（活性）    | 每个终结了的执行最终不再是全                                                                  | `bad-no-startup-wake`：打开租户域不唤醒；`bad-no-ad06-ack`：AD-06 把交付写进会话之后不确认 |
+| `BoundedRetention`（活性）       | 结清之后有了更晚的代际，墓碑最终变成无                                                        | `bad-no-phase2`：清扫什么都不删                                                            |
+
+配置：`settlement` 是正控，检查全部性质，预期无反例。七个 `bad-*` 各打开一个错误，只检查上表对应的一条性质，预期命中它。`masked-ignore-run-active` 打开与 `bad-ignore-run-active` 相同的错误，检查除 `AckOnlyReceivedAll` 以外的全部性质，预期无反例。运行：`TLA2TOOLS_JAR=<钉住的 tla2tools.jar> python3 check.py --out <证据目录>`。执行全部收完之后没有可走的步，所以运行器给 TLC 加 `-deadlock`，这些状态由两条活性性质判。
+
+`receivedAll` 不看 Run 是否进行中时，`NoLostEvent` 与 `SummaryBeforeReclaim` 仍成立。Agent 一侧的结清要求确认到最后发出的事件，也就是终结事件；`through` 只取会话的消费位置。所以会话解释终结事件之前，任何确认都不会让执行结清。终结事件的解释提交同时写下终结条目与收尾摘要。这个错误只违反 `AckOnlyReceivedAll`。`bad-phase1-drops-operation` 不命中 `TwoPhase`：第一段留着 `er_execution`，内容仍是墓碑。
+
+范围：两个执行，只有 `e1` 发起调用；每个执行至多 5 个事件，终结事件在内；至多 2 次崩溃。
+
+模型比实现宽的地方：Agent 可以在任何时候终结，调用转了后台、还在运行或已收到结果都可以；会话可以在任何时候自己写下终结。宽出来的行为只会多出反例，不会藏住反例。
+
+| 前提                    | 内容                                                                                           | 谁强制                                                                                                     |
+| ----------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| S1 判结清与回收同事务   | 触及执行的提交判结清，结清的那一次在同一事务里删内容、留墓碑与 `er_operation`                  | `session-storage-sql` 的 `execution-record.ts`：写批时 `settles` 为真就调 `reclaim`                        |
+| S2 终结事件是最后一个   | 终结之后不再发事件；终结之后收到的结果只保管                                                   | `journal/fold.ts` 的 `eventOf`                                                                             |
+| S3 Run 与执行同时终结   | 工作快照里 Run 的终态与执行的 `terminal` 由同一个 `run.terminal` 条目写下                      | `session-contract` 的 `applyRunTerminal`                                                                   |
+| S4 清扫先于本代际的读写 | 本代际每次打开租户域都先等第一次打开的唤醒与清扫                                               | `agent-journal.ts` 的 `domainOf` 等 `createTenantSweep`                                                    |
+| S5 清扫一次做完         | 模型把唤醒与清扫当成一步，且一次成功                                                           | 没有强制：清扫没做完时，`createTenantSweep` 在同一代际下次打开时再扫，`sweep` 删全部已结清的执行，不分代际 |
+| S6 终结责任只建两类     | 输出责任与调用责任；其余各类在模型里视为已结清。清单在终结之前开出，输出责任覆盖到终结事件之前 | `testing/journal-finishing.ts` 的 `buildObligations`、`callObligations`                                    |
+| S7 消费与解释终会发生   | 解释、AD-06 消费、确认、Tool 完成与打开租户域都是弱公平                                        | Agent 日志每次写入之后的唤醒（`subscribePublished`）与新代际的唤醒                                         |
+| S8 失败的确认不留待办   | 一次确认失败与进程中断同样只靠新代际的唤醒补回；模型只经崩溃丢掉确认                           | `acknowledgeReceived` 失败时只记日志                                                                       |
+
+| 模型                          | 实现                                                                                                                                              |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `emitted`、`ended`、`acked`   | 执行视图的 `emitted`、`finish.ended`、`acknowledged`；Agent 快照的 `output.emittedThrough` 与 `acknowledgedThrough`                               |
+| `outputAt`                    | 输出责任的 `emittedThrough`；`acknowledgedFacts` 在确认到它时把它记为已结清                                                                       |
+| `call`                        | 调用在 Agent 结果接收方的保管：`running` 还没有交付，`background` 占位已保管，`done` 最终结果已保管，`lost` 记录已回收时被拒                      |
+| `callAt`、`consumption`       | 调用意图的事件；工作快照 `consumptions` 里挂在这个执行上的调用                                                                                    |
+| `consumed`、`run`             | 执行的 `readThrough`；工作快照的 `run` 与执行的 `terminal`：`end` 是解释提交写下的终结，带 `RunEnd`；`cancelled` 是会话自己写下的终结，`end` 为空 |
+| `content`                     | `er_fact`、`er_item`、`er_item_content`、`er_preadmission` 都在为全，第一段之后只剩 `er_execution` 为墓碑，第二段之后为无                         |
+| `operations`、`settledGen`    | 这个执行的 `er_operation`；`er_execution.settled` 所在的写者代际                                                                                  |
+| `gen`、`opened`、`pendingAck` | 写者代际；`createTenantSweep` 已为本代际打开过租户域；进程里待发的 `acknowledgeReceived`                                                          |
+| `Settled`、`Commit`           | `journal/items.ts` 的 `settled`；提交的 `settles` 与 `reclaim`                                                                                    |
+| `ReceivedAll`、`Ack`          | `cordis/received-all.ts` 的 `receivedAll` 与 `acknowledgeReceived`                                                                                |
+| `Recognized`                  | `recordedStanding` 按 `er_operation` 认回；墓碑上的结清操作由 `reclaimedCommit` 答已提交                                                          |
+
+| 模型动作                             | 实现步骤                                                                                                                 |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `AgentStep`、`AgentCall`、`AgentEnd` | Agent 的提交：一个事件；调用意图；开出终结责任清单之后写 `finish.ended` 与终结事件                                       |
+| `Placeholder`、`Final`               | Tool 把占位与最终结果推给原消费位置，结果接收方写 `result.received`；调用责任在第一份交付保管时结清（`callObligations`） |
+| `SessionCancel`                      | 会话自己写下 `run.terminal`，例如取消一轮或归档                                                                          |
+| `Interpret`                          | AD-02（`journal-interpretation.ts`）解释一个事件；解释成功之后调 `acknowledgeReceived`                                   |
+| `Ad06`                               | AD-06 把最终结果写进会话日志并记下结算；`acknowledgingCommitted` 随后调 `acknowledgeReceived`                            |
+| `OpenTenant`                         | `createTenantSweep`：唤醒 `retired.waiting` 里的执行，再提交清扫意图，由 `sweep` 删墓碑与 `er_operation`                 |
+| `Crash`                              | 进程重启，写者代际加一，进程里待发的确认丢失                                                                             |
