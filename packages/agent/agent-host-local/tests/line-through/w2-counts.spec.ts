@@ -235,7 +235,7 @@ async function runToLimit(shape: Shape, w: W2World) {
   let failed: number | null = null
   try {
     for (let round = 1; round <= MAX_ROUNDS; round += 1) {
-      const ended = await w.runRound(round, 'one fixed question', 20_000).then(
+      const ended = await w.runRound(round, 'one fixed question', 20_000, 'settled').then(
         () => true,
         () => false,
       )

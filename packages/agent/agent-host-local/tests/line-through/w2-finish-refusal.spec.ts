@@ -6,9 +6,14 @@ import { openW2World, replyText } from './w2-world.ts'
 it('waits on Session pending input without replacing the completion candidate', async () => {
   let injected = false
   const handIn = Promise.withResolvers<void>()
+  const second = Promise.withResolvers<void>()
   const w = await openW2World({
     reception: 'routed',
-    model: a => ({ parts: [replyText(`reply-${a.index}`, 'recovered answer')], reason: 'stop' }),
+    model: a => ({
+      parts: [replyText(`reply-${a.index}`, 'recovered answer')],
+      reason: 'stop',
+      ...(a.index === 1 ? { hold: second.promise } : {}),
+    }),
     wrapAgentDependencies: dependencies => ({
       ...dependencies,
       handoff: {
@@ -62,18 +67,22 @@ it('waits on Session pending input without replacing the completion candidate', 
     expect(w.modelCalls).toHaveLength(1)
 
     handIn.resolve()
-    await w.until(async () => ok(await w.fresh().load(access)).state.kind === 'ended', 10_000)
-    const ended = ok(await w.fresh().load(access))
-    expect(ended.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'complete' } })
-    expect(ended.checkpoint.inputBatch?.ordered).toEqual(['in-2'])
-    expect(w.modelCalls).toHaveLength(2)
+    await w.until(() => w.modelCalls.length === 2, 10_000)
+    const asking = ok(await w.probeLog.load(access))
+    expect(asking.checkpoint.inputBatch?.ordered).toEqual(['in-2'])
+    second.resolve()
     await w.until(async () => (await w.lastOutcome()) === 'completed', 10_000)
+    expect(w.modelCalls).toHaveLength(2)
+    const ended = w.endedRuns().at(-1)
+    expect(ended?.execution).toBe(active)
+    expect(await w.runEnd(ended!.run)).toEqual({ conclusion: 'complete', failure: null })
     expect(ok(await w.probe.readWork(intakeAccess)).pending).toHaveLength(0)
     expect(ok(await w.fresh().load({ ...w.agentAccess, execution: failed })).state.kind).toBe(
       'ended',
     )
   } finally {
     handIn.resolve()
+    second.resolve()
     await w.close()
   }
 })
