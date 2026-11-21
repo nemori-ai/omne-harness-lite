@@ -3,7 +3,14 @@ import { mediaKey } from '@omne-harness/media-cordis-contract/cordis'
 import { sessionBeforeIntakeKey } from '@omne-harness/session-cordis-contract/cordis'
 import { ModelMediaSourceService } from '@omne-harness/model-cordis-contract/cordis'
 import { ToolMediaStoreService } from '@omne-harness/tool-cordis-contract/cordis'
-import { createModelMediaSource, createReferencesProcessor, createToolMediaStore } from './index.ts'
+import { categoryContributionPlugin } from '@omne-harness/assets-cordis-contract/cordis'
+import {
+  converterBodyContract,
+  converterCategoryDisplay,
+  createModelMediaSource,
+  createReferencesProcessor,
+  createToolMediaStore,
+} from './index.ts'
 
 /** Registers `media.references` while media and Session's registration point are both there. */
 export const mediaIntakePlugin = {
@@ -35,3 +42,9 @@ export class MediaToolStorePlugin extends ToolMediaStoreService<unknown> {
     this.put = createToolMediaStore(() => ctx.get(mediaKey)?.custody).put
   }
 }
+
+/** Contributes the category `converter` to the assets while it is in the tree. */
+export const converterCategoryPlugin = categoryContributionPlugin('converter-category', {
+  contract: converterBodyContract(),
+  display: converterCategoryDisplay,
+})

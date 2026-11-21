@@ -3758,6 +3758,15 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.1.0
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../../assets/assets
+      '@omne-harness/assets-cordis-contract':
+        specifier: workspace:*
+        version: link:../../assets/assets-cordis-contract
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
       '@omne-harness/media-contract':
         specifier: workspace:*
         version: link:../media-contract
@@ -3770,6 +3779,9 @@ importers:
       '@omne-harness/model-cordis-contract':
         specifier: workspace:*
         version: link:../../model/model-cordis-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
       '@omne-harness/session-contract':
         specifier: workspace:*
         version: link:../../session/session-contract
@@ -3789,9 +3801,6 @@ importers:
       '@omne-harness/media':
         specifier: workspace:*
         version: link:../media
-      '@omne-harness/operation-result':
-        specifier: workspace:*
-        version: link:../../common/operation-result
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

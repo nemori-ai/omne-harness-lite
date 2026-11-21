@@ -3,6 +3,15 @@ import type { IntakeProcessor, IntakeVerdict } from '@omne-harness/session-contr
 
 export { createModelMediaSource } from './model-source.ts'
 export { createToolMediaStore } from './tool-store.ts'
+export {
+  CONVERTER_CATEGORY,
+  converterBodyContract,
+  converterCategoryDisplay,
+  parseConverterBody,
+  type ConverterBody,
+  type ConverterBodyRejection,
+} from './converter-category.ts'
+export { createConverterDefinitions, type ConverterLayers } from './converter-definitions.ts'
 
 export const REFERENCES_PROCESSOR = 'media.references'
 
