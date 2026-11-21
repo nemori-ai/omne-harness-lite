@@ -1,7 +1,7 @@
 {
   "request": {
     "profile": {
-      "owner": "pi-ai-anthropic-tests",
+      "owner": "pi-ai-openai-tests",
       "name": "profile",
       "revision": "1",
       "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -9,13 +9,13 @@
     "suppliers": [
       {
         "adoption": {
-          "owner": "@omne-harness/pi-ai-anthropic",
-          "name": "anthropic/claude-haiku-5.5",
-          "revision": "2",
-          "digest": "c4afc8cfb8649290a8bba7be68da9f53d57492288feba9c09d456ef587e4997b"
+          "owner": "@omne-harness/pi-ai-openai",
+          "name": "openai/gpt-5.6-luna",
+          "revision": "4",
+          "digest": "5e6071046da37c9e71255de04dd7a899a9b905aed938d36ad4da8af65f0ff243"
         },
         "provider": "openrouter",
-        "model": "anthropic/claude-haiku-5.5",
+        "model": "openai/gpt-5.6-luna",
         "credential": {
           "layer": "official"
         }
@@ -23,7 +23,7 @@
     ],
     "fallback": false,
     "retryPolicy": {
-      "owner": "pi-ai-anthropic-tests",
+      "owner": "pi-ai-openai-tests",
       "name": "retry",
       "revision": "1",
       "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -122,26 +122,26 @@
     "toolChoice": "auto",
     "declarations": [
       {
-        "produces": "openrouter/anthropic/claude-haiku-5.5",
+        "produces": "openrouter/openai/gpt-5.6-luna",
         "accepts": [
-          "openrouter/anthropic/claude-haiku-5.5"
+          "openrouter/openai/gpt-5.6-luna"
         ],
         "foreignThinking": "omit"
       }
     ],
     "representation": {
-      "owner": "@omne-harness/pi-ai-anthropic",
-      "name": "anthropic/claude-haiku-5.5#representation",
-      "revision": "2",
-      "digest": "c4afc8cfb8649290a8bba7be68da9f53d57492288feba9c09d456ef587e4997b"
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-5.6-luna#representation",
+      "revision": "4",
+      "digest": "5e6071046da37c9e71255de04dd7a899a9b905aed938d36ad4da8af65f0ff243"
     },
     "parameterAdoptions": [
       {
         "supplier": {
-          "owner": "@omne-harness/pi-ai-anthropic",
-          "name": "anthropic/claude-haiku-5.5",
-          "revision": "2",
-          "digest": "c4afc8cfb8649290a8bba7be68da9f53d57492288feba9c09d456ef587e4997b"
+          "owner": "@omne-harness/pi-ai-openai",
+          "name": "openai/gpt-5.6-luna",
+          "revision": "4",
+          "digest": "5e6071046da37c9e71255de04dd7a899a9b905aed938d36ad4da8af65f0ff243"
         },
         "applied": {
           "kind": "max-output-tokens",
@@ -154,7 +154,7 @@
             "value": "1024"
           },
           "source": {
-            "owner": "pi-ai-anthropic-tests",
+            "owner": "pi-ai-openai-tests",
             "name": "source",
             "revision": "1",
             "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -163,10 +163,10 @@
       },
       {
         "supplier": {
-          "owner": "@omne-harness/pi-ai-anthropic",
-          "name": "anthropic/claude-haiku-5.5",
-          "revision": "2",
-          "digest": "c4afc8cfb8649290a8bba7be68da9f53d57492288feba9c09d456ef587e4997b"
+          "owner": "@omne-harness/pi-ai-openai",
+          "name": "openai/gpt-5.6-luna",
+          "revision": "4",
+          "digest": "5e6071046da37c9e71255de04dd7a899a9b905aed938d36ad4da8af65f0ff243"
         },
         "applied": {
           "kind": "reasoning-effort",
@@ -179,7 +179,7 @@
             "value": "high"
           },
           "source": {
-            "owner": "pi-ai-anthropic-tests",
+            "owner": "pi-ai-openai-tests",
             "name": "source",
             "revision": "1",
             "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -188,60 +188,59 @@
       }
     ],
     "source": {
-      "owner": "pi-ai-anthropic-tests",
+      "owner": "pi-ai-openai-tests",
       "name": "source",
       "revision": "1",
       "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   },
   "body": {
-    "max_tokens": 1024,
-    "messages": [
+    "include": [
+      "reasoning.encrypted_content"
+    ],
+    "input": [
       {
         "content": [
           {
-            "cache_control": {
-              "ttl": "1h",
-              "type": "ephemeral"
-            },
-            "text": "Work out how many positive integers below 100 are divisible by 3 or by 7 but not by both. If the count is even, get the weather of Oslo, otherwise of Lima. Use the tool.",
-            "type": "text"
+            "text": "Answer briefly. Call tools one at a time.",
+            "type": "input_text"
           }
         ],
-        "role": "user"
+        "role": "developer",
+        "type": "message"
+      },
+      {
+        "content": [
+          {
+            "text": "Work out how many positive integers below 100 are divisible by 3 or by 7 but not by both. If the count is even, get the weather of Oslo, otherwise of Lima. Use the tool.",
+            "type": "input_text"
+          }
+        ],
+        "role": "user",
+        "type": "message"
       }
     ],
-    "model": "anthropic/claude-haiku-5.5",
-    "output_config": {
-      "effort": "high"
-    },
+    "max_output_tokens": 1024,
+    "model": "openai/gpt-5.6-luna",
+    "prompt_cache_key": "820d3ec8d63c931f350b2e8288dfb31295d504d10ee9a70ccc69ec33e2ee8431",
     "provider": {
       "allow_fallbacks": false,
       "order": [
-        "anthropic"
+        "openai"
       ]
     },
+    "reasoning": {
+      "effort": "high",
+      "summary": "auto"
+    },
+    "store": false,
     "stream": true,
-    "system": [
-      {
-        "text": "Answer briefly. Call tools one at a time.",
-        "type": "text"
-      }
-    ],
-    "thinking": {
-      "block_binding": {
-        "prefix_mismatch_behavior": "drop_block"
-      },
-      "display": "summarized",
-      "type": "adaptive"
-    },
-    "tool_choice": {
-      "type": "auto"
-    },
+    "tool_choice": "auto",
     "tools": [
       {
         "description": "Read the current weather of one city.",
-        "input_schema": {
+        "name": "get_weather",
+        "parameters": {
           "properties": {
             "city": {
               "type": "string"
@@ -252,7 +251,7 @@
           ],
           "type": "object"
         },
-        "name": "get_weather"
+        "type": "function"
       }
     ]
   }

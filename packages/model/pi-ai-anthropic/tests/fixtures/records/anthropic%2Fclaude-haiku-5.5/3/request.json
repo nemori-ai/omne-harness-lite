@@ -1,7 +1,7 @@
 {
   "request": {
     "profile": {
-      "owner": "pi-ai-openai-tests",
+      "owner": "pi-ai-anthropic-tests",
       "name": "profile",
       "revision": "1",
       "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -9,13 +9,13 @@
     "suppliers": [
       {
         "adoption": {
-          "owner": "@omne-harness/pi-ai-openai",
-          "name": "openai/gpt-5.6-luna",
+          "owner": "@omne-harness/pi-ai-anthropic",
+          "name": "anthropic/claude-haiku-5.5",
           "revision": "3",
-          "digest": "99547654de77ec1bdb55123e9d26790a53821aa2653a2a4b3142a3b8cf98495d"
+          "digest": "3b6efeba2f5c63a67912f3516ed88c61062f6f7b27688e64879250bff755f0bb"
         },
         "provider": "openrouter",
-        "model": "openai/gpt-5.6-luna",
+        "model": "anthropic/claude-haiku-5.5",
         "credential": {
           "layer": "official"
         }
@@ -23,7 +23,7 @@
     ],
     "fallback": false,
     "retryPolicy": {
-      "owner": "pi-ai-openai-tests",
+      "owner": "pi-ai-anthropic-tests",
       "name": "retry",
       "revision": "1",
       "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -122,26 +122,26 @@
     "toolChoice": "auto",
     "declarations": [
       {
-        "produces": "openrouter/openai/gpt-5.6-luna",
+        "produces": "openrouter/anthropic/claude-haiku-5.5",
         "accepts": [
-          "openrouter/openai/gpt-5.6-luna"
+          "openrouter/anthropic/claude-haiku-5.5"
         ],
         "foreignThinking": "omit"
       }
     ],
     "representation": {
-      "owner": "@omne-harness/pi-ai-openai",
-      "name": "openai/gpt-5.6-luna#representation",
+      "owner": "@omne-harness/pi-ai-anthropic",
+      "name": "anthropic/claude-haiku-5.5#representation",
       "revision": "3",
-      "digest": "99547654de77ec1bdb55123e9d26790a53821aa2653a2a4b3142a3b8cf98495d"
+      "digest": "3b6efeba2f5c63a67912f3516ed88c61062f6f7b27688e64879250bff755f0bb"
     },
     "parameterAdoptions": [
       {
         "supplier": {
-          "owner": "@omne-harness/pi-ai-openai",
-          "name": "openai/gpt-5.6-luna",
+          "owner": "@omne-harness/pi-ai-anthropic",
+          "name": "anthropic/claude-haiku-5.5",
           "revision": "3",
-          "digest": "99547654de77ec1bdb55123e9d26790a53821aa2653a2a4b3142a3b8cf98495d"
+          "digest": "3b6efeba2f5c63a67912f3516ed88c61062f6f7b27688e64879250bff755f0bb"
         },
         "applied": {
           "kind": "max-output-tokens",
@@ -154,7 +154,7 @@
             "value": "1024"
           },
           "source": {
-            "owner": "pi-ai-openai-tests",
+            "owner": "pi-ai-anthropic-tests",
             "name": "source",
             "revision": "1",
             "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -163,10 +163,10 @@
       },
       {
         "supplier": {
-          "owner": "@omne-harness/pi-ai-openai",
-          "name": "openai/gpt-5.6-luna",
+          "owner": "@omne-harness/pi-ai-anthropic",
+          "name": "anthropic/claude-haiku-5.5",
           "revision": "3",
-          "digest": "99547654de77ec1bdb55123e9d26790a53821aa2653a2a4b3142a3b8cf98495d"
+          "digest": "3b6efeba2f5c63a67912f3516ed88c61062f6f7b27688e64879250bff755f0bb"
         },
         "applied": {
           "kind": "reasoning-effort",
@@ -179,7 +179,7 @@
             "value": "high"
           },
           "source": {
-            "owner": "pi-ai-openai-tests",
+            "owner": "pi-ai-anthropic-tests",
             "name": "source",
             "revision": "1",
             "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -188,59 +188,60 @@
       }
     ],
     "source": {
-      "owner": "pi-ai-openai-tests",
+      "owner": "pi-ai-anthropic-tests",
       "name": "source",
       "revision": "1",
       "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   },
   "body": {
-    "include": [
-      "reasoning.encrypted_content"
-    ],
-    "input": [
+    "max_tokens": 1024,
+    "messages": [
       {
         "content": [
           {
-            "text": "Answer briefly. Call tools one at a time.",
-            "type": "input_text"
-          }
-        ],
-        "role": "developer",
-        "type": "message"
-      },
-      {
-        "content": [
-          {
+            "cache_control": {
+              "ttl": "1h",
+              "type": "ephemeral"
+            },
             "text": "Work out how many positive integers below 100 are divisible by 3 or by 7 but not by both. If the count is even, get the weather of Oslo, otherwise of Lima. Use the tool.",
-            "type": "input_text"
+            "type": "text"
           }
         ],
-        "role": "user",
-        "type": "message"
+        "role": "user"
       }
     ],
-    "max_output_tokens": 1024,
-    "model": "openai/gpt-5.6-luna",
-    "prompt_cache_key": "820d3ec8d63c931f350b2e8288dfb31295d504d10ee9a70ccc69ec33e2ee8431",
+    "model": "anthropic/claude-haiku-5.5",
+    "output_config": {
+      "effort": "high"
+    },
     "provider": {
       "allow_fallbacks": false,
       "order": [
-        "openai"
+        "anthropic"
       ]
     },
-    "reasoning": {
-      "effort": "high",
-      "summary": "auto"
-    },
-    "store": false,
     "stream": true,
-    "tool_choice": "auto",
+    "system": [
+      {
+        "text": "Answer briefly. Call tools one at a time.",
+        "type": "text"
+      }
+    ],
+    "thinking": {
+      "block_binding": {
+        "prefix_mismatch_behavior": "drop_block"
+      },
+      "display": "summarized",
+      "type": "adaptive"
+    },
+    "tool_choice": {
+      "type": "auto"
+    },
     "tools": [
       {
         "description": "Read the current weather of one city.",
-        "name": "get_weather",
-        "parameters": {
+        "input_schema": {
           "properties": {
             "city": {
               "type": "string"
@@ -251,7 +252,7 @@
           ],
           "type": "object"
         },
-        "type": "function"
+        "name": "get_weather"
       }
     ]
   }
