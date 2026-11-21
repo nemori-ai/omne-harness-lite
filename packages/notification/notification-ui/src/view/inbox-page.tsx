@@ -1,11 +1,11 @@
 import type { TenantId } from '@omne-harness/public-contract'
 import {
-  Button,
   EmptyState,
   InlineNotice,
   LoadingState,
   PageColumn,
   PageHeader,
+  RetryIcon,
   Segmented,
 } from '@omne-harness/ui-kit'
 import type { JSX, ReactNode } from 'react'
@@ -57,21 +57,12 @@ function Inbox({ hub, tenant, sections, focus }: InboxProps): JSX.Element {
         title="通知"
         description="来源发给你的事件。办完或划掉之后不再提醒，随时可以恢复。"
         actions={
-          <>
-            <Segmented
-              label="显示哪些通知"
-              value={state.filter}
-              options={FILTERS}
-              onValueChange={filter => driver.filter(filter)}
-            />
-            <Button
-              variant="outline"
-              disabled={state.read.kind === 'reading'}
-              onClick={() => driver.refresh()}
-            >
-              刷新
-            </Button>
-          </>
+          <Segmented
+            label="显示哪些通知"
+            value={state.filter}
+            options={FILTERS}
+            onValueChange={filter => driver.filter(filter)}
+          />
         }
       />
       <LiveLine state={state} />
@@ -137,14 +128,14 @@ function Body({ state, driver, focus }: BodyProps): JSX.Element {
         <InlineNotice
           tone="caution"
           role="status"
-          action={{ label: '重试', onClick: () => driver.refresh() }}
+          action={{ label: '重试', icon: RetryIcon, onClick: () => driver.refresh() }}
         >
           <p>{empty ? '收件箱现在读不出。' : '收件箱现在读不出，下面是上一次读到的。'}</p>
         </InlineNotice>
       ) : null}
       {read.kind === 'ready' && read.more ? (
         <InlineNotice tone="caution" role="status">
-          <p>通知太多，这里没有列全。办完或划掉一些之后再刷新。</p>
+          <p>通知太多，这里没有列全。</p>
         </InlineNotice>
       ) : null}
       <Section title="未了结" entries={open} state={state} driver={driver} focus={focus} />

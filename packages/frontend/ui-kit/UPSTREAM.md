@@ -95,7 +95,7 @@
 - 取时：来源各处的 `performance.now()` 都改经 `clock.ts` 的 `inkNow()`。它是唯一带取时标注的出口，用例能换掉它；`travel.ts` 与 `note-bubble.tsx` 帧回调里的时刻也由它取，比帧开始的时刻晚一点点。
 - 颜色字面量（FE-I20：颜色只写在 `tokens.css`）：画布的兜底墨色 `#1f1d1a` 改为 `CanvasText`；擦除笔和层画布遮罩的 `#000` 改为 `CanvasText`，这两处只用 alpha，结果相同；墨晕的三个 `rgba(0,0,0,…)` 改读 `--omne-ink-wash-*`，纸的遮罩改读 `--omne-ink-mask`，墨框影子改读 `--omne-ink-shadow`，值都与来源相同。
 - 长度字面量：样式里大于 1px 的长度换成 `tokens.css` 里按角色起名、四档各一个值的 token（`--omne-ink-bubble-paper-soft`、`--omne-ink-shadow-y`、`--omne-ink-shadow-blur`、`--omne-ink-breath-near`、`--omne-ink-breath-far`、`--omne-told-note-room`、`--omne-told-note-padding`），中楷的值与来源相同。
-- 告知笺的截行：来源只在经典面侧栏展开、笺在家里时截行；本成员处处截（最多三行，第四行能写完全文时写四行），因为本产品的告知笺只在家写。笺的宽度不越出侧栏，由外壳的版面限定。
+- 告知笺的截行：来源只在经典面侧栏展开、笺在家里时截行；本成员处处截（最多三行，第四行能写完全文时写四行），因为本产品的告知笺只在家写。笺的宽度不越出侧栏，由外壳的版面限定。来源没有行数的上限由宿主给这一样：`ToldNote` 多收一个 `maxLines`，截在它与自己算出的行数里小的那个（OD-20）。
 - 告知笺的按钮：原生 `button` 改为 `role="button"` 的 `span`，带 `data-control="told-note"`（FE-I25）；`Told` 只有 `id` 与 `text`；`onOpen` 收整条 `Told`。
 - 停留规则：`doing.ts` 的 `follow(doing, moment)` 直接收状态名与一次性的事实，`serial` 变了才算新的一次。来源从 `activity.ts` 读活动。`DWELL`、`SETTLE`、`LAG` 与欠账照来源。
 - 形的一层与座位：座位直接从页面元素读，中点照来源取到 0.01；来源由宿主每帧轮询座位，本成员在 resize、捕获阶段的 scroll、`body` 与座位的大小变化、`inert` 变化时重排，没事时帧循环停着。没有看得见的座位满 `SEATLESS_HOLD` 500 ms，墨原地干去（来源是去角落）。一个页面只画一个形（FE-I18）。悬停时圆心点一个墨点，抬起时回调 `onPress`。命中区是半径为形大小 0.4 的圆。

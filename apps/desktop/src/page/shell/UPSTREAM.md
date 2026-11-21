@@ -18,6 +18,7 @@
 - `sidebar-motion.ts`：宽度类型改为本地声明；重排时淡入的区块去掉来源的选中高亮块；`useReducedMotion` 取自共用界面件。
 - 导航组件 `shell/navigation.tsx` 只当范本，按本应用的插入位置重写在 `shell.tsx`。
 - 侧栏里的两个滚动区 `.shell-navigation-content`、`.shell-sidebar-primary` 向外伸出焦点环的余地，再把它作自己的内边距（S15、K1）：贴着侧栏边的抬起的件不被裁，里面的东西不挪。
+- 家旁告知笺的宽度照来源 `assistant/told-note.css` 的 `.told-note[data-at='home']`：从形旁到折叠钮前一个行内间距。来源不管它往下写到哪里；本应用按笺的上沿到导航第一行的空地给它定行数的上限，不少于两行（`told.tsx`，OD-20）。
 
 ## 没取的
 

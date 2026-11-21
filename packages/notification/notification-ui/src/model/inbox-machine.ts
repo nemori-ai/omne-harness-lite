@@ -290,7 +290,8 @@ export function step(state: State, event: Event): Step {
 }
 
 const newestFirst = (a: Entry, b: Entry) => b.sequence - a.sequence
-const isOpen = (entry: Entry) => entry.marks.resolved === null && entry.marks.supersededBy === null
+export const isOpen = (entry: Entry): boolean =>
+  entry.marks.resolved === null && entry.marks.supersededBy === null
 
 /** The two sections of the panel, newest first. A notification a newer one replaced counts as settled. */
 export function sectionsOf(

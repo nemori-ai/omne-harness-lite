@@ -503,6 +503,96 @@ async function tellStrong(stack) {
   print(`sent strong notification ${told}`)
 }
 
+/** A told sentence longer than the note's room at every size, so the note is cut short with an ellipsis (OD-20). */
+const TOLD_LONG =
+  '时间到了：该给阳台的花浇水啦。顺便看看客厅那盆绿萝，叶子有点发黄，先摸摸土干不干，再决定浇多少；浇完把水壶放回门口的架子上。'
+
+/** One notification the owner writes to themselves under its own event id (source owner.posts, type post: strong). */
+async function sendOwnPost(stack, event, title) {
+  const sent = await client(stack, 'notification').send({
+    tenant: await tenantOf(stack),
+    source: 'owner.posts',
+    event,
+    type: 'post',
+    subject: null,
+    title,
+    body: '',
+    locator: null,
+    replaceKey: null,
+    renotify: false,
+    named: [],
+  })
+  if (sent.outcome !== 'succeeded' && sent.outcome !== 'no-change')
+    throw new Error(`notification send answered ${JSON.stringify(sent)}`)
+  print(`sent ${event}`)
+}
+
+/** The person's own mark on one of the owner's posts, as the notification page sends it. */
+async function markOwnPost(stack, event, operation) {
+  const marked = await client(stack, 'notification').mark({
+    tenant: await tenantOf(stack),
+    recipient: { kind: 'person' },
+    source: 'owner.posts',
+    event,
+    operation,
+  })
+  if (marked.outcome !== 'succeeded' && marked.outcome !== 'no-change')
+    throw new Error(`notification mark answered ${JSON.stringify(marked)}`)
+}
+
+/**
+ * The inbox the notification page is shot with, once per walk: one strong and not yet seen (the dot, done and
+ * dismiss), one seen, and one done (restore, under 「全部」). Sent with the figure at home, so the walk waits for the
+ * last one's told note: going to the notification page then puts it away instead of it arriving there.
+ */
+const INBOX_NEW = '构建失败：主分支的第 214 次构建没有通过。'
+let inboxSeeded = false
+async function seedInbox(walk) {
+  if (inboxSeeded) return
+  inboxSeeded = true
+  const { stack } = walk
+  await sendOwnPost(stack, 'visual-walk-inbox-done', '张三在「发布计划」里提到了你。')
+  await markOwnPost(stack, 'visual-walk-inbox-done', 'done')
+  await sendOwnPost(stack, 'visual-walk-inbox-seen', '日程提醒：周五下午三点的评审改到四点。')
+  await markOwnPost(stack, 'visual-walk-inbox-seen', 'seen')
+  await sendOwnPost(stack, 'visual-walk-inbox-new', INBOX_NEW)
+  await run(
+    walk.browser,
+    `await wait('the told note of the last one', () =>
+      document.querySelector('.omne-told-note:not([inert])')?.textContent.includes(${JSON.stringify(INBOX_NEW)}))`,
+  )
+}
+
+/** Where the told note ends against the first row of the navigation under it, printed for each shot (OD-20). */
+async function reportTold(walk) {
+  const seen = await evaluate(
+    walk.browser,
+    `(() => {
+      const note = document.querySelector('.omne-told-note')
+      const words = note?.querySelector('.omne-told-note-words')
+      const row = document.querySelector('.shell-navigation-content .shell-nav-link')
+      const label = row?.querySelector('.shell-link-label')
+      if (!note || !words || !row || !label) return null
+      const line = Number.parseFloat(getComputedStyle(words).lineHeight)
+      const bottom = note.getBoundingClientRect().bottom
+      const rowTop = row.getBoundingClientRect().top
+      const textTop = label.getBoundingClientRect().top
+      return {
+        size: document.documentElement.dataset.size ?? 'medium',
+        window: innerWidth + 'x' + innerHeight,
+        cap: note.style.getPropertyValue('--omne-told-lines'),
+        lines: Math.round(words.clientHeight / line),
+        cut: words.scrollHeight > words.clientHeight + 1,
+        noteBottom: Math.round(bottom * 100) / 100,
+        rowTop: Math.round(rowTop * 100) / 100,
+        toRow: Math.round((rowTop - bottom) * 100) / 100,
+        toText: Math.round((textTop - bottom) * 100) / 100,
+      }
+    })()`,
+  )
+  print(`TOLD ${JSON.stringify(seen)}`)
+}
+
 const ON_ASSETS = `await goTo('资产'); await seated('home')`
 const WIDE_ONLY = ['1440', '1100']
 
@@ -749,13 +839,43 @@ const SCENES = [
       await settle()`,
   },
   {
+    id: 'T1b-told-long',
+    title: '一条长的强通知：告知笺按家下面、导航第一行上面的空地收住行数',
+    widths: WIDE_ONLY,
+    act: [ON_ASSETS, walk => sendOwnPost(walk.stack, 'visual-walk-told-long', TOLD_LONG)],
+    each: [
+      `
+      await rest()
+      await wait('the told note written', () => document.querySelector('.omne-told-note')?.dataset.ink === 'open')
+      await settle()`,
+      reportTold,
+    ],
+  },
+  {
     id: 'C1-cards',
     title: '一批问询卡',
     tiers: true,
     act: `await openSession('有几件事要问我')`,
   },
   { id: 'C5-decisions', title: '待你决定', act: `await goTo('待你决定')` },
-  { id: 'C6-notifications', title: '通知', act: `await goTo('通知')` },
+  {
+    id: 'C6-notifications',
+    title: '通知：未了结的两条，一条强的没看过',
+    act: [ON_ASSETS, seedInbox, `await goTo('通知')`],
+  },
+  {
+    id: 'C6b-notifications-all',
+    title: '通知的「全部」：未了结与已了结两组',
+    act: [
+      ON_ASSETS,
+      seedInbox,
+      `
+      await goTo('通知')
+      await press('[data-segment]', '全部')
+      await wait('the settled group', () => document.querySelector('[role=region][aria-label="已了结"]'))`,
+    ],
+    leave: `await press('[data-segment]', '未了结')`,
+  },
   { id: 'D1-search', title: '搜索', act: `await goTo('搜索')` },
   { id: 'D2-schedule', title: '日程', act: `await goTo('日程')` },
   { id: 'D3-calendar', title: '日历', act: `await goTo('日历')` },

@@ -68,12 +68,6 @@
     "packages/notification/notification-ui/src/view/entry-row.tsx | {entry.title}": {
       "name": 1
     },
-    "packages/notification/notification-ui/src/view/entry-row.tsx | {text}": {
-      "R7": 1
-    },
-    "packages/notification/notification-ui/src/view/inbox-page.tsx | 刷新": {
-      "R7": 1
-    },
     "packages/schedule/schedule-ui/src/view/drawn.tsx | 重读": {
       "R8": 1
     },
