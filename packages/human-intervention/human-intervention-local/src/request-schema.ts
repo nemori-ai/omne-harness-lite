@@ -29,6 +29,7 @@ export const REQUEST_WRITER = 'hitl.requests'
 export const REQUEST_PROTOCOL = 'hitl-sql/2'
 export const REQUEST_HANDLER = 'hitl.request-read'
 export const REQUEST_MIGRATION = { owner: REQUEST_WRITER, id: 'hitl-requests-1' }
+export const ASKED_AT_MIGRATION = { owner: REQUEST_WRITER, id: 'hitl-requests-asked-at-1' }
 export const LOCAL_PROTOCOL = 'hitl-local-commit/2'
 export const WAIT_BASIS_FACT = { key: 'hitl.wait-plan', protocol: 'independent-wait/2' }
 export const PLAN_FACT = { key: 'hitl.local-plan', protocol: LOCAL_PROTOCOL }

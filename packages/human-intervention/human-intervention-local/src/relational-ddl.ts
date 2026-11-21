@@ -177,7 +177,6 @@ export const requestDdl = [
   action_basis_json TEXT CHECK(action_basis_json IS NULL OR json_valid(action_basis_json)),
   audience_digest TEXT NOT NULL CHECK(length(audience_digest)=64),
   card_count INTEGER NOT NULL CHECK(card_count BETWEEN 1 AND 64),
-  asked_at TEXT CHECK(${stringCheck('asked_at', 66)}),
   ${originColumns()},
   UNIQUE(tenant_ref,request_id),
   UNIQUE(tenant_ref,sequence)
@@ -261,6 +260,9 @@ export const requestDdl = [
 ) STRICT, WITHOUT ROWID;`,
   `CREATE INDEX hi_pool_scoped_order_v2 ON hi_pool_scoped_buckets_v2(tenant_ref,actor_ref,session_key,origin_key,bucket,request_sequence);`,
 ] as const
+// Added after the table shipped, by its own migration, so the table's first migration keeps its bytes.
+export const askedAtDdl = `ALTER TABLE hi_requests_v2 ADD COLUMN asked_at TEXT CHECK(${stringCheck('asked_at', 66)})`
+
 export const requestTables = [
   'hi_request_versions_v2',
   'hi_requests_v2',
