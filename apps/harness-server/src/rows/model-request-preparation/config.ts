@@ -26,6 +26,7 @@ export const modelRequestPreparationConfig = z.strictObject({
   maxCitedCalls: count,
   openai: family,
   anthropic: family,
+  qwen: family,
 })
 
 export type ModelRequestPreparationConfig = z.output<typeof modelRequestPreparationConfig>

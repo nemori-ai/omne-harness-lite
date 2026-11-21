@@ -117,6 +117,7 @@ const PREPARATION = {
   maxCitedCalls: 1_024,
   openai: FAMILY,
   anthropic: FAMILY,
+  qwen: FAMILY,
 } as const
 
 export const LOCAL_CONCURRENT_MODEL_CALLS = 20

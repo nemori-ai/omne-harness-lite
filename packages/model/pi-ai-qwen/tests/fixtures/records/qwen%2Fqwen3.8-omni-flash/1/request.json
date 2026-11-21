@@ -1,0 +1,243 @@
+{
+  "request": {
+    "profile": {
+      "owner": "pi-ai-qwen-tests",
+      "name": "profile",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-qwen",
+          "name": "qwen/qwen3.8-omni-flash",
+          "revision": "1",
+          "digest": "0f83adf6f781c1de5f01884abc8e99576cf1f1b7e817bf8a39abc59f8dfe0dff"
+        },
+        "provider": "openrouter",
+        "model": "qwen/qwen3.8-omni-flash",
+        "credential": {
+          "layer": "official"
+        }
+      }
+    ],
+    "fallback": false,
+    "retryPolicy": {
+      "owner": "pi-ai-qwen-tests",
+      "name": "retry",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "parameters": [
+      {
+        "kind": "max-output-tokens",
+        "value": "1024"
+      },
+      {
+        "kind": "reasoning-effort",
+        "value": "high"
+      }
+    ],
+    "system": [
+      {
+        "kind": "text",
+        "id": "s1",
+        "visibility": {
+          "toHuman": true,
+          "toModel": true
+        },
+        "text": "Answer briefly. Call tools one at a time."
+      }
+    ],
+    "messages": [
+      {
+        "id": "msg_u100000000000000000000",
+        "role": "user",
+        "blocks": [
+          {
+            "kind": "text",
+            "id": "b1",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "Work out how many positive integers below 100 are divisible by 3 or by 7 but not by both. If the count is even, get the weather of Oslo, otherwise of Lima. Use the tool."
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "get_weather",
+        "description": "Read the current weather of one city.",
+        "argumentsSchema": {
+          "kind": "object",
+          "entries": [
+            {
+              "key": "type",
+              "value": {
+                "kind": "string",
+                "value": "object"
+              }
+            },
+            {
+              "key": "properties",
+              "value": {
+                "kind": "object",
+                "entries": [
+                  {
+                    "key": "city",
+                    "value": {
+                      "kind": "object",
+                      "entries": [
+                        {
+                          "key": "type",
+                          "value": {
+                            "kind": "string",
+                            "value": "string"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "key": "required",
+              "value": {
+                "kind": "array",
+                "items": [
+                  {
+                    "kind": "string",
+                    "value": "city"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "toolChoice": "auto",
+    "declarations": [
+      {
+        "produces": "openrouter/qwen/qwen3.8-omni-flash",
+        "accepts": [
+          "openrouter/qwen/qwen3.8-omni-flash"
+        ],
+        "foreignThinking": "omit"
+      }
+    ],
+    "representation": {
+      "owner": "@omne-harness/pi-ai-qwen",
+      "name": "qwen/qwen3.8-omni-flash#representation",
+      "revision": "1",
+      "digest": "0f83adf6f781c1de5f01884abc8e99576cf1f1b7e817bf8a39abc59f8dfe0dff"
+    },
+    "parameterAdoptions": [
+      {
+        "supplier": {
+          "owner": "@omne-harness/pi-ai-qwen",
+          "name": "qwen/qwen3.8-omni-flash",
+          "revision": "1",
+          "digest": "0f83adf6f781c1de5f01884abc8e99576cf1f1b7e817bf8a39abc59f8dfe0dff"
+        },
+        "applied": {
+          "kind": "max-output-tokens",
+          "value": "1024"
+        },
+        "origin": {
+          "kind": "explicit",
+          "requested": {
+            "kind": "max-output-tokens",
+            "value": "1024"
+          },
+          "source": {
+            "owner": "pi-ai-qwen-tests",
+            "name": "source",
+            "revision": "1",
+            "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        }
+      },
+      {
+        "supplier": {
+          "owner": "@omne-harness/pi-ai-qwen",
+          "name": "qwen/qwen3.8-omni-flash",
+          "revision": "1",
+          "digest": "0f83adf6f781c1de5f01884abc8e99576cf1f1b7e817bf8a39abc59f8dfe0dff"
+        },
+        "applied": {
+          "kind": "reasoning-effort",
+          "value": "high"
+        },
+        "origin": {
+          "kind": "explicit",
+          "requested": {
+            "kind": "reasoning-effort",
+            "value": "high"
+          },
+          "source": {
+            "owner": "pi-ai-qwen-tests",
+            "name": "source",
+            "revision": "1",
+            "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        }
+      }
+    ],
+    "source": {
+      "owner": "pi-ai-qwen-tests",
+      "name": "source",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  },
+  "body": {
+    "max_tokens": 1024,
+    "messages": [
+      {
+        "content": "Answer briefly. Call tools one at a time.",
+        "role": "system"
+      },
+      {
+        "content": "Work out how many positive integers below 100 are divisible by 3 or by 7 but not by both. If the count is even, get the weather of Oslo, otherwise of Lima. Use the tool.",
+        "role": "user"
+      }
+    ],
+    "model": "qwen/qwen3.8-omni-flash",
+    "provider": {
+      "allow_fallbacks": false,
+      "order": [
+        "alibaba"
+      ],
+      "require_parameters": true
+    },
+    "reasoning": {
+      "effort": "high"
+    },
+    "stream": true,
+    "tool_choice": "auto",
+    "tools": [
+      {
+        "function": {
+          "description": "Read the current weather of one city.",
+          "name": "get_weather",
+          "parameters": {
+            "properties": {
+              "city": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "city"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      }
+    ]
+  }
+}

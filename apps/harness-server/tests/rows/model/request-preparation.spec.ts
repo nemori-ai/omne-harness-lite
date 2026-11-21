@@ -41,7 +41,7 @@ const family = {
   },
   margin: { percent: '10', source: ADOPTION },
 }
-const config = { maxCitedCalls: 8, openai: family, anthropic: family }
+const config = { maxCitedCalls: 8, openai: family, anthropic: family, qwen: family }
 const profilesConfig = {
   retryPolicy: ADOPTION,
   compactionTriggerPercent: '80',
