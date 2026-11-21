@@ -1,21 +1,25 @@
 import {
   Ago,
   Checkbox,
+  CloseIcon,
+  ConversationIcon,
+  DirectorySearch,
   Disclosure,
   EmptyState,
   GlideMenu,
   IconButton,
   InlineNotice,
-  Input,
+  ListReadingRow,
   LoadingState,
   PageColumn,
   PageHeader,
   RetryIcon,
+  SearchIcon,
   Segmented,
   useAgeClock,
 } from '@omne-harness/ui-kit'
 import { encodeInstant } from '@omne-harness/utc-instant'
-import { useCallback, useState, useSyncExternalStore } from 'react'
+import { useCallback, useRef, useState, useSyncExternalStore } from 'react'
 import {
   incompleteText,
   indexText,
@@ -52,6 +56,7 @@ const MODES = [
   { value: 'words', label: '词' },
   { value: 'regex', label: '正则' },
 ] as const
+const CLEAR = '清除搜索'
 
 function HitRow({
   hit,
@@ -67,40 +72,57 @@ function HitRow({
   const { before, match, after } = hit.snippet
   return (
     <li>
-      <button
-        type="button"
-        className="omne-search-hit"
-        data-glide-row=""
-        data-control="row"
-        onClick={onOpen}
-      >
-        <span className="omne-search-hit-meta">
-          {KIND[hit.kind]} · {name ?? hit.session.slice(0, 8)}
-          {hit.at === null ? null : (
-            <>
-              {' · '}
-              <Ago at={encodeInstant(hit.at)} now={now} />
-            </>
-          )}
-        </span>
-        <span className="omne-search-hit-text">
-          {before}
-          <mark>{match}</mark>
-          {after}
-        </span>
-      </button>
+      <ListReadingRow
+        mark={<ConversationIcon aria-hidden="true" />}
+        title={name ?? hit.session.slice(0, 8)}
+        facts={
+          <span className="omne-search-snippet">
+            {before}
+            <mark>{match}</mark>
+            {after}
+          </span>
+        }
+        time={
+          <>
+            {KIND[hit.kind]}
+            {hit.at === null ? null : (
+              <>
+                {' · '}
+                <Ago at={encodeInstant(hit.at)} now={now} />
+              </>
+            )}
+          </>
+        }
+        onSelect={onOpen}
+      />
     </li>
   )
 }
 
-/** The end of a page: one not through says why, never "nothing found", and 接着搜; one through reads on by itself. */
-function ListedEnd({ listed, more }: { listed: Listed; more: () => void }) {
+/** The end of a page: none found says so as a list does, with 清除搜索; one not through says why, then 接着搜. */
+function ListedEnd({
+  listed,
+  more,
+  clear,
+}: {
+  listed: Listed
+  more: () => void
+  clear: () => void
+}) {
   const { incomplete, next } = listed
   if (incomplete === null)
     return (
       <>
         {listed.hits.length > 0 ? null : (
-          <EmptyState title="没有找到。" hint="可以换几个词，或改用正则。" />
+          <EmptyState
+            icon={SearchIcon}
+            title={`没有匹配「${listed.ask.text.trim()}」的记录。`}
+            action={
+              <IconButton label={CLEAR} variant="outline" onClick={clear}>
+                <CloseIcon aria-hidden="true" />
+              </IconButton>
+            }
+          />
         )}
         <ReadOnEnd page={next === null ? null : listed} read={more} />
       </>
@@ -123,7 +145,7 @@ function ListedEnd({ listed, more }: { listed: Listed; more: () => void }) {
   )
 }
 
-/** The search over the history of every session: what was said, newest first. */
+/** The search over the history of every session, newest first: a list column on the reading measure. */
 export function HistorySearchPage({ store, tenant, nameOf, onOpen }: Props) {
   const subscribe = useCallback(
     (listener: () => void) => store.subscribe(tenant, listener),
@@ -136,73 +158,83 @@ export function HistorySearchPage({ store, tenant, nameOf, onOpen }: Props) {
     caseSensitive: false,
     onlyMine: false,
   })
+  const form = useRef<HTMLFormElement>(null)
   // Each change builds on the form as it is now: two of them may come before the next render.
   const change = (part: Partial<SearchAsk>) => setAsk(current => ({ ...current, ...part }))
+  const write = (text: string) => {
+    change({ text })
+    if (text === '') void store.search(tenant, { ...ask, text })
+  }
+  const clear = () => {
+    write('')
+    form.current?.querySelector('input')?.focus()
+  }
   const hits = view.kind === 'idle' ? [] : view.hits
   const now = useAgeClock(hits.length > 0)
   const listed = view.kind === 'listed' ? view : null
   return (
     <PageColumn className="omne-search">
       <PageHeader title="搜索" />
-      <form
-        className="omne-search-form"
-        onSubmit={event => {
-          event.preventDefault()
-          void store.search(tenant, ask)
-        }}
-      >
-        <div className="omne-search-query">
-          <Input
-            className="h-(--omne-control-height-large)"
-            aria-label="要找的词或正则"
-            placeholder={ask.mode === 'regex' ? '一条正则' : '一个或几个词，用空格分开'}
-            enterKeyHint="search"
+      <div className="omne-search-column">
+        <form
+          ref={form}
+          className="omne-search-form"
+          onSubmit={event => {
+            event.preventDefault()
+            void store.search(tenant, ask)
+          }}
+        >
+          <DirectorySearch
+            label={ask.mode === 'regex' ? '一条正则' : '一个或几个词，用空格分开'}
+            clearLabel={CLEAR}
             value={ask.text}
             maxLength={512}
-            onChange={event => change({ text: event.target.value })}
+            onChange={write}
           />
-          <Segmented
-            label="按词还是按正则"
-            options={MODES}
-            value={ask.mode}
-            onValueChange={mode => change({ mode })}
-          />
-        </div>
-        <div className="omne-search-options">
-          <label className="omne-search-option">
-            <Checkbox
-              checked={ask.onlyMine}
-              onCheckedChange={checked => change({ onlyMine: checked === true })}
+          <div className="omne-search-ways">
+            <Segmented
+              label="按词还是按正则"
+              options={MODES}
+              value={ask.mode}
+              onValueChange={mode => change({ mode })}
             />
-            只看我说的
-          </label>
-          <label className="omne-search-option">
-            <Checkbox
-              checked={ask.caseSensitive}
-              onCheckedChange={checked => change({ caseSensitive: checked === true })}
-            />
-            区分大小写
-          </label>
-        </div>
-        {view.kind === 'refused' ? <InlineNotice tone="neutral">{view.text}</InlineNotice> : null}
-      </form>
-      {view.kind === 'searching' ? <LoadingState label="正在搜……" /> : null}
-      {hits.length === 0 ? null : (
-        <GlideMenu>
-          <ul className="omne-search-hits">
-            {hits.map(hit => (
-              <HitRow
-                key={`${hit.session}#${hit.position}`}
-                hit={hit}
-                name={nameOf(hit.session)}
-                now={now}
-                onOpen={() => onOpen(hit)}
+            <label className="omne-search-option">
+              <Checkbox
+                checked={ask.onlyMine}
+                onCheckedChange={checked => change({ onlyMine: checked === true })}
               />
-            ))}
-          </ul>
-        </GlideMenu>
-      )}
-      {listed === null ? null : <ListedEnd listed={listed} more={() => void store.more(tenant)} />}
+              只看我说的
+            </label>
+            <label className="omne-search-option">
+              <Checkbox
+                checked={ask.caseSensitive}
+                onCheckedChange={checked => change({ caseSensitive: checked === true })}
+              />
+              区分大小写
+            </label>
+          </div>
+          {view.kind === 'refused' ? <InlineNotice tone="neutral">{view.text}</InlineNotice> : null}
+        </form>
+        {view.kind === 'searching' ? <LoadingState label="正在搜……" /> : null}
+        {hits.length === 0 ? null : (
+          <GlideMenu>
+            <ul className="omne-search-hits">
+              {hits.map(hit => (
+                <HitRow
+                  key={`${hit.session}#${hit.position}`}
+                  hit={hit}
+                  name={nameOf(hit.session)}
+                  now={now}
+                  onOpen={() => onOpen(hit)}
+                />
+              ))}
+            </ul>
+          </GlideMenu>
+        )}
+        {listed === null ? null : (
+          <ListedEnd listed={listed} more={() => void store.more(tenant)} clear={clear} />
+        )}
+      </div>
     </PageColumn>
   )
 }

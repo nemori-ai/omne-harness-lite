@@ -610,6 +610,18 @@ const ON_CALENDAR = `
     document.querySelector('#calendar-shipped .setting-row') &&
     !document.querySelector('#calendar-shipped [aria-label=读取中]'))`
 
+/** A word the seeded conversations hold (REST_ASK and the reply that changes the port), and one none of them do. */
+const SEARCH_FOUND = '端口'
+const SEARCH_NONE = '不存在的词'
+/** Asks the search page for `text` as Enter does; with `until`, waits for what the answer draws. */
+const searchFor = (text, until) => `
+  const box = await wait('the search field', () =>
+    document.querySelector('.omne-search form input:not([type=checkbox])'))
+  fill(box, ${JSON.stringify(text)})
+  await sleep(100)
+  box.form.requestSubmit()
+  ${until === null ? 'await sleep(300)' : `await wait('the answer', () => document.querySelector(${JSON.stringify(until)}))`}`
+
 /**
  * The first run, signed in as an account without a session (OD-42, OD-43): the conversation page draws no header and
  * says one line in its middle, the figure stays at home, the empty session list says nothing; the sidebar's 新建会话
@@ -1255,6 +1267,18 @@ const SCENES = [
     leave: `await press('[data-segment]', '未了结')`,
   },
   { id: 'D1-search', title: '搜索', act: `await goTo('搜索')` },
+  {
+    id: 'D1b-search-found',
+    title: '搜索：在种好的会话里搜到几条',
+    act: [`await goTo('搜索')`, searchFor(SEARCH_FOUND, '.omne-search [data-glide-row]')],
+    leave: searchFor('', null),
+  },
+  {
+    id: 'D1c-search-nomatch',
+    title: '搜索：没有匹配',
+    act: [`await goTo('搜索')`, searchFor(SEARCH_NONE, '.omne-search .empty-state')],
+    leave: searchFor('', null),
+  },
   { id: 'D2-schedule', title: '日程', act: `await goTo('日程')` },
   { id: 'D3-calendar', title: '日历', act: ON_CALENDAR },
   {
