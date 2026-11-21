@@ -1,4 +1,16 @@
-import type { ContentReference, Holder, Provenance } from './values.ts'
+import type { TenantId } from '@omne-harness/legal-identity'
+import type { Outcome } from '@omne-harness/operation-result'
+import type { EngineAccess } from './engine.ts'
+import type {
+  ContentReference,
+  Custody,
+  Holder,
+  InvalidReference,
+  Provenance,
+  Reads,
+  Uploads,
+  Variants,
+} from './values.ts'
 
 export const REPRESENTATION_OWNER = '@omne-harness/media/representation'
 
@@ -40,3 +52,25 @@ export type Preprocess =
   | Readonly<{ kind: 'running' }>
   | Readonly<{ kind: 'done'; representation: Representation }>
   | Readonly<{ kind: 'failed'; reason: PreprocessFailure }>
+
+type Answer = Promise<Outcome<Preprocess, InvalidReference>>
+
+export interface Representations {
+  /** Makes the representation of a medium ready, once: asked twice at a time, it converts once. */
+  ensure(input: { access: EngineAccess; ref: ContentReference; signal: AbortSignal }): Answer
+  read(input: { tenant: TenantId; ref: ContentReference }): Answer
+  /** What `read` answers now, then every change of it, until the signal aborts. */
+  watch(input: {
+    tenant: TenantId
+    ref: ContentReference
+    signal: AbortSignal
+  }): AsyncIterable<Preprocess>
+}
+
+export interface Media {
+  readonly uploads: Uploads
+  readonly custody: Custody
+  readonly variants: Variants
+  readonly reads: Reads
+  readonly representations: Representations
+}

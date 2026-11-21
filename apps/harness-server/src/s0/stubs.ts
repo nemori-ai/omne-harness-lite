@@ -471,7 +471,10 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'media-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'media-storage-sql': { provides: ['mediaIndex'], injects: ['storage', 'tenantDomainLookup'] },
   'media-image': { provides: ['mediaImage'], injects: [] },
-  media: { provides: ['mediaStores', 'media'], injects: ['mediaIndex', 'mediaImage'] },
+  media: {
+    provides: ['mediaStores', 'mediaEngines', 'media'],
+    injects: ['mediaIndex', 'mediaImage'],
+  },
   'media-storage-local': { injects: ['mediaStores'] },
   'media-sweep': { injects: ['media', 'tenantDomains', 'tenantDomainScannerPrincipal'] },
   'media-intake': { injects: ['media', 'sessionBeforeIntake'] },

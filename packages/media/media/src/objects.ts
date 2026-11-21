@@ -14,7 +14,7 @@ import {
   type MediaUnavailable,
   type MediaUnknown,
 } from '@omne-harness/media-contract'
-import { collect, digestOf } from './bytes.ts'
+import { collect, digestOf, partsOf } from './bytes.ts'
 import { isPortFailure, later, unavailable, writeFailure, type MediaDependencies } from './deps.ts'
 
 export type Measured = Outcome<
@@ -27,6 +27,73 @@ const materialUnavailable = fail<MaterialUnavailable>({ kind: 'material-unavaila
 
 /** Where an object is and whose it is: all that deleting it or staging it needs of its row. */
 export type Placed = Pick<MediaRow, 'key' | 'tenant' | 'storage' | 'write' | 'mediaType'>
+
+type Storing = Readonly<{
+  storeOf(name: string): ByteStore | undefined
+  discard(row: Placed): Promise<void>
+  settle(input: {
+    row: Placed
+    digest: string
+    bytes: number
+    facts: MediaFacts
+    holder: Holder | null
+  }): Promise<Outcome<Committed, MediaUnavailable | MediaUnknown | { kind: 'not-uploading' }>>
+}>
+
+function keeping(deps: MediaDependencies, { storeOf, discard, settle }: Storing) {
+  const { index } = deps
+
+  async function write(row: Placed, bytes: Uint8Array): Promise<boolean> {
+    const target = storeOf(row.storage)
+    if (target === undefined) return false
+    const begun = await target.begin(row.key)
+    if ('failure' in begun) return false
+    let sequence = 0
+    for (const part of partsOf(bytes, deps.config.partBytes)) {
+      if ('failure' in (await target.append(begun.ok.write, sequence, part))) return false
+      sequence += 1
+    }
+    return 'ok' in (await target.seal(begun.ok.write, sequence))
+  }
+
+  /** Stores bytes a referrer inside the server brings and holds them for it, in one step. */
+  async function keep(input: {
+    tenant: string
+    mediaType: string
+    bytes: Uint8Array
+    facts: MediaFacts
+    holder: Holder
+  }): Promise<Outcome<Committed, MediaUnavailable | MediaUnknown>> {
+    const { tenant, mediaType, bytes } = input
+    const key = deps.newKey()
+    const inserted = await index.insertUploading({
+      key,
+      tenant,
+      storage: deps.writeTo,
+      mediaType,
+      bytes: bytes.byteLength,
+      upload: null,
+      expiresAt: later(deps.clock, deps.config.uploadTtlMs),
+    })
+    if ('failure' in inserted) return writeFailure('index', inserted.failure)
+    const row = { key, tenant, storage: deps.writeTo, mediaType, write: null }
+    if (!(await write(row, bytes))) {
+      await discard(row)
+      return unavailable('store')
+    }
+    const settled = await settle({
+      row,
+      digest: digestOf(bytes),
+      bytes: bytes.byteLength,
+      facts: input.facts,
+      holder: input.holder,
+    })
+    if ('ok' in settled) return settled
+    return settled.failure.kind === 'not-uploading' ? unavailable('index') : fail(settled.failure)
+  }
+
+  return keep
+}
 
 export function createObjects(deps: MediaDependencies) {
   const { index, image } = deps
@@ -132,7 +199,8 @@ export function createObjects(deps: MediaDependencies) {
     return digestOf(bytes) === row.digest ? succeed(bytes) : materialUnavailable
   }
 
-  return { storeOf, committed, measure, erase, discard, settle, resolve, whole }
+  const keep = keeping(deps, { storeOf, discard, settle })
+  return { storeOf, committed, measure, erase, discard, settle, resolve, whole, keep }
 }
 
 export type Objects = ReturnType<typeof createObjects>

@@ -1,8 +1,7 @@
 import { fail, succeed } from '@omne-harness/operation-result'
 import { KNOWN_MEDIA_TYPES, modalityOf, type Custody } from '@omne-harness/media-contract'
-import { digestOf, partsOf } from './bytes.ts'
-import { later, tenantText, unavailable, writeFailure, type MediaDependencies } from './deps.ts'
-import type { Objects, Placed } from './objects.ts'
+import { tenantText, writeFailure, type MediaDependencies } from './deps.ts'
+import type { Objects } from './objects.ts'
 
 const invalidReference = fail({ kind: 'invalid-reference' } as const)
 
@@ -21,20 +20,6 @@ export function createCustody(deps: MediaDependencies, objects: Objects): Custod
     return new Uint8Array(Buffer.concat(taken))
   }
 
-  /** Writes the bytes of an uploading row to the store and seals them. */
-  async function store(row: Placed, bytes: Uint8Array): Promise<boolean> {
-    const target = objects.storeOf(row.storage)
-    if (target === undefined) return false
-    const begun = await target.begin(row.key)
-    if ('failure' in begun) return false
-    let sequence = 0
-    for (const part of partsOf(bytes, config.partBytes)) {
-      if ('failure' in (await target.append(begun.ok.write, sequence, part))) return false
-      sequence += 1
-    }
-    return 'ok' in (await target.seal(begun.ok.write, sequence))
-  }
-
   return {
     async put(input) {
       const tenant = tenantText(input.tenant)
@@ -44,31 +29,13 @@ export function createCustody(deps: MediaDependencies, objects: Objects): Custod
       if (bytes === null) return fail({ kind: 'too-large', limit })
       const measured = await objects.measure(input.mediaType, bytes)
       if ('failure' in measured) return measured
-      const key = deps.newKey()
-      const inserted = await index.insertUploading({
-        key,
+      return objects.keep({
         tenant,
-        storage: deps.writeTo,
         mediaType: input.mediaType,
-        bytes: bytes.byteLength,
-        upload: null,
-        expiresAt: later(deps.clock, config.uploadTtlMs),
-      })
-      if ('failure' in inserted) return writeFailure('index', inserted.failure)
-      const row = { key, tenant, storage: deps.writeTo, mediaType: input.mediaType, write: null }
-      if (!(await store(row, bytes))) {
-        await objects.discard(row)
-        return unavailable('store')
-      }
-      const settled = await objects.settle({
-        row,
-        digest: digestOf(bytes),
-        bytes: bytes.byteLength,
+        bytes,
         facts: measured.ok,
         holder: input.holder,
       })
-      if ('ok' in settled) return settled
-      return settled.failure.kind === 'not-uploading' ? unavailable('index') : fail(settled.failure)
     },
 
     async hold(input) {

@@ -63,6 +63,9 @@ export function world(fit: ImageCodec['fit'] = async () => fail({ kind: 'cannot-
     index,
     image: { probe, fit },
     clock: { now: () => '2026-10-19T00:00:00.000Z' },
+    timer: { after: () => () => undefined },
+    definitions: () => null,
+    engines: () => null,
     newKey: () => (keys++).toString(16).padStart(32, '0'),
     config: {
       maxBytes: { image: 64, voice: 64, file: 64 },
@@ -70,6 +73,7 @@ export function world(fit: ImageCodec['fit'] = async () => fail({ kind: 'cannot-
       uploadTtlMs: 60_000,
       stagingTtlMs: 600_000,
       variantCacheBytes: 40,
+      conversion: { timeoutMs: 5_000, queueLimit: 1, inlineTextBytes: 16 },
     },
   })
   const begin = async (tenant: TenantId, upload: string, bytes: Uint8Array) => {

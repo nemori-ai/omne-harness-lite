@@ -143,10 +143,3 @@ export interface Reads {
     target: VariantTarget | null
   }): MediaRead<Page, VariantFailure>
 }
-
-export interface Media {
-  readonly uploads: Uploads
-  readonly custody: Custody
-  readonly variants: Variants
-  readonly reads: Reads
-}

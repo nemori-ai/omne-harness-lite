@@ -42,7 +42,7 @@ describe('the six media rows', () => {
   it.each([
     [mediaStorageSqlRow, 'media-storage-sql', ['mediaIndex'], ['storage', 'tenantDomainLookup']],
     [mediaImageRow, 'media-image', ['mediaImage'], []],
-    [mediaRow, 'media', ['mediaStores', 'media'], ['mediaIndex', 'mediaImage']],
+    [mediaRow, 'media', ['mediaStores', 'mediaEngines', 'media'], ['mediaIndex', 'mediaImage']],
     [mediaStorageLocalRow, 'media-storage-local', [], ['mediaStores']],
     [mediaSweepRow, 'media-sweep', [], ['media', 'tenantDomains', 'tenantDomainScannerPrincipal']],
     [mediaAccessRow, 'media-access', [], ['accessRegistry', 'principalIssuer']],
