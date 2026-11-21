@@ -1,9 +1,17 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { changeText, PermissionModeStore } from '../src/model/permission-mode.ts'
 import { PermissionModeAction } from '../src/view/permission-mode.tsx'
 
+beforeAll(() => {
+  Object.assign(Element.prototype, {
+    hasPointerCapture: () => false,
+    releasePointerCapture: () => undefined,
+    setPointerCapture: () => undefined,
+    scrollIntoView: () => undefined,
+  })
+})
 afterEach(cleanup)
 
 const TENANT =
@@ -73,7 +81,7 @@ describe('the permission mode of a session', () => {
     expect(change).not.toHaveBeenCalled()
   })
 
-  it('shows the three modes with the one in force pressed, and changes on a press', async () => {
+  it('is a quiet dropdown whose face is the mode in force; it offers the three and changes on a choice', async () => {
     const { store, change } = clientWith(
       [mode('bypass-permissions', '0'), mode('never', '1')],
       mode('never', '1'),
@@ -81,13 +89,21 @@ describe('the permission mode of a session', () => {
     await act(async () => {
       render(<PermissionModeAction store={store} tenant={TENANT} session={SESSION} />)
     })
-    const pressed = screen.getByRole('button', { pressed: true })
-    expect(pressed.textContent).toBe('跳过询问')
+    const trigger = screen.getByRole('combobox', { name: '权限处理' })
+    expect(trigger.textContent).toBe('跳过询问')
+    expect(screen.queryByRole('button', { name: '需要时拒绝' })).toBeNull()
+    fireEvent.keyDown(trigger, { key: 'Enter' })
+    const options = await screen.findAllByRole('option')
+    expect(options.map(option => option.textContent)).toEqual([
+      '需要时拒绝',
+      '需要时问我',
+      '跳过询问',
+    ])
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: '需要时拒绝' }))
+      fireEvent.click(screen.getByRole('option', { name: '需要时拒绝' }))
     })
     expect(change.mock.calls[0]?.[0]).toMatchObject({ mode: 'never', expectedRevision: '0' })
     expect(screen.getByRole('status').textContent).toBe('已改为「需要时拒绝」')
-    expect(screen.getByRole('button', { pressed: true }).textContent).toBe('需要时拒绝')
+    expect(screen.getByRole('combobox', { name: '权限处理' }).textContent).toBe('需要时拒绝')
   })
 })

@@ -43,7 +43,7 @@ it('附着位置的名字是 session.status (C31)', () => {
   expect(sessionStatus.name).toBe(SESSION_STATUS)
 })
 
-it('会话打开后，放进来的项按次序排在输入框下方的一行里，收到会话标识与当前租户', async () => {
+it('会话打开后，放进来的项按次序排在输入框底部一行的左边、动作钮之前，收到会话标识与当前租户', async () => {
   const { shell, open } = await opened()
   for (const [id, order] of [
     ['second', 2],
@@ -63,7 +63,8 @@ it('会话打开后，放进来的项按次序排在输入框下方的一行里�
   expect(first.textContent).toBe(`ses_a|${TENANT}`)
   const row = first.closest('.omne-session-status')
   const composer = screen.getByRole('textbox', { name: '输入消息' }).closest('form')
-  expect(row?.previousElementSibling).toBe(composer)
+  expect(row?.closest('form')).toBe(composer)
+  expect(row?.nextElementSibling?.getAttribute('data-action')).toBe('none')
   expect([...(row?.children ?? [])].map(child => child.getAttribute('data-testid'))).toEqual([
     'first',
     'second',

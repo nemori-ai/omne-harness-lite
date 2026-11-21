@@ -1,4 +1,4 @@
-import { Segmented } from '@omne-harness/ui-kit'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@omne-harness/ui-kit'
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import {
   MODE_LABELS,
@@ -8,11 +8,11 @@ import {
 
 type Props = Readonly<{ store: PermissionModeStore; tenant: string; session: string }>
 
-const OPTIONS = (Object.keys(MODE_LABELS) as PermissionMode[]).map(value => ({
-  value,
-  label: MODE_LABELS[value],
-}))
+const MODES = Object.keys(MODE_LABELS) as PermissionMode[]
 
+const modeOf = (value: string): PermissionMode | undefined => MODES.find(mode => mode === value)
+
+/** How the session handles permissions: a quiet dropdown in the heading whose face is the mode in force. */
 export function PermissionModeAction({ store, tenant, session }: Props) {
   const subscribe = useCallback(
     (listener: () => void) => store.subscribe(tenant, session, listener),
@@ -32,12 +32,24 @@ export function PermissionModeAction({ store, tenant, session }: Props) {
     )
   return (
     <span className="omne-session-mode">
-      <Segmented
-        label="权限处理"
+      <Select
         value={view.mode}
-        options={OPTIONS}
-        onValueChange={mode => void store.change(tenant, session, mode).then(say)}
-      />
+        onValueChange={value => {
+          const mode = modeOf(value)
+          if (mode !== undefined) void store.change(tenant, session, mode).then(say)
+        }}
+      >
+        <SelectTrigger aria-label="权限处理" size="sm">
+          <SelectValue>{MODE_LABELS[view.mode]}</SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          {MODES.map(mode => (
+            <SelectItem key={mode} value={mode}>
+              {MODE_LABELS[mode]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       {said === null ? null : <span role="status">{said}</span>}
     </span>
   )
