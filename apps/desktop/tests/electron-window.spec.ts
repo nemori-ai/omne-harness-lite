@@ -49,12 +49,13 @@ const openObservation = `(async () => {
 
 // After a reload: the page finds itself signed in from the cookie alone, and still holds no proof.
 const AFTER_RELOAD = `(async () => {
-  for (let i = 0; i < 150 && !document.body.innerText.includes('退出登录'); i += 1)
+  const workspace = () => document.querySelector('.shell-workspace') !== null
+  for (let i = 0; i < 150 && !workspace(); i += 1)
     await new Promise(resolve => setTimeout(resolve, 100))
   const text = document.body.innerText
   const places = [document.cookie, document.documentElement.outerHTML, JSON.stringify(localStorage)]
   return {
-    workspace: text.includes('退出登录'),
+    workspace: workspace(),
     gate: text.includes('登录名'),
     cookie: document.cookie,
     proofInPage: places.some(place => place.includes(${JSON.stringify(PROOF_SENTINEL)})),

@@ -6,12 +6,12 @@ import {
   useSyncExternalStore,
   type MouseEvent,
   type ReactNode,
+  type RefCallback,
   type RefObject,
 } from 'react'
 import type { PageItem, SidebarItem } from '@omne-harness/shell-contract'
 import {
   ActionTooltip,
-  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuLabel,
@@ -156,6 +156,7 @@ function PageRow(props: {
   selected: boolean
   expanded: boolean
   choose: (id: string) => void
+  glide: boolean
 }) {
   const { page, scope, selected } = props
   const Icon = ICONS[page.icon] ?? UnknownIcon
@@ -172,7 +173,7 @@ function PageRow(props: {
         ref={row}
         href={hrefOf(page.id)}
         className={props.selected ? 'shell-nav-link active' : 'shell-nav-link'}
-        data-glide-row=""
+        data-glide-row={props.glide ? '' : undefined}
         data-control="row"
         data-selected={props.selected}
         aria-current={props.selected ? 'page' : undefined}
@@ -199,21 +200,26 @@ function PageRows(props: {
   shown: string | undefined
   expanded: boolean
   choose: (id: string) => void
+  grid: boolean
 }) {
-  return (
+  const rows = props.pages.map(page => (
+    <PageRow
+      key={page.id}
+      page={page}
+      scope={props.scope}
+      selected={page.id === props.shown}
+      expanded={props.expanded}
+      choose={props.choose}
+      glide={!props.grid}
+    />
+  ))
+  return props.grid ? (
+    <nav className="shell-utility-nav" aria-label={props.label}>
+      {rows}
+    </nav>
+  ) : (
     <nav className="shell-nav" aria-label={props.label}>
-      <GlideMenu className="shell-nav-rows">
-        {props.pages.map(page => (
-          <PageRow
-            key={page.id}
-            page={page}
-            scope={props.scope}
-            selected={page.id === props.shown}
-            expanded={props.expanded}
-            choose={props.choose}
-          />
-        ))}
-      </GlideMenu>
+      <GlideMenu className="shell-nav-rows">{rows}</GlideMenu>
     </nav>
   )
 }
@@ -241,17 +247,15 @@ function Appearance(props: { theme: ThemeSwitch; size: SizeSwitch; expanded: boo
     listener => size.subscribe(() => listener()),
     () => size.current(),
   )
+  const side = props.expanded ? 'top' : 'right'
   return (
     <DropdownMenu>
-      <RowHint expanded={props.expanded} label="外观">
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="shell-utility-button" data-appearance="">
-            <ViewIcon aria-hidden="true" />
-            <span className="shell-link-label">外观</span>
-          </Button>
-        </DropdownMenuTrigger>
-      </RowHint>
-      <DropdownMenuContent side="top" align="start">
+      <DropdownMenuTrigger asChild>
+        <IconButton label="外观" tooltipSide={side} className="shell-appearance" data-appearance="">
+          <ViewIcon aria-hidden="true" />
+        </IconButton>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side={side} align="end">
         <DropdownMenuLabel>主题</DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={choice}
@@ -304,7 +308,7 @@ function SidebarBody(props: SidebarProps & { expanded: boolean; choose: (id: str
     items
       .filter(item => segmentOf(item) === segment)
       .map(item => <SidebarEntry key={item.id} item={item} scope={scope} expanded={expanded} />)
-  const rows = (label: string, list: readonly PageItem[]) => (
+  const rows = (label: string, list: readonly PageItem[], grid: boolean) => (
     <PageRows
       label={label}
       pages={list}
@@ -312,6 +316,7 @@ function SidebarBody(props: SidebarProps & { expanded: boolean; choose: (id: str
       shown={props.shown}
       expanded={expanded}
       choose={props.choose}
+      grid={grid}
     />
   )
   return (
@@ -322,13 +327,15 @@ function SidebarBody(props: SidebarProps & { expanded: boolean; choose: (id: str
     >
       <Reconnecting connectivity={props.connectivity} />
       <div className="shell-navigation-main">
-        {rows('页面', primary)}
+        {rows('页面', primary, false)}
         <div className="shell-sidebar-primary">{entries('primary')}</div>
       </div>
       <div className="shell-secondary">
-        {utility.length === 0 ? null : rows('次要页面', utility)}
-        <Appearance theme={props.theme} size={props.size} expanded={expanded} />
-        {entries('utility')}
+        {utility.length === 0 ? null : rows('次要页面', utility, true)}
+        <div className="shell-footer-row">
+          <div className="shell-footer-items">{entries('utility')}</div>
+          <Appearance theme={props.theme} size={props.size} expanded={expanded} />
+        </div>
       </div>
     </div>
   )
@@ -385,12 +392,12 @@ export function Sidebar(
 
 export const SHEET_LABEL = '展开或收起导航'
 
-function useArrived(open: boolean): [RefObject<HTMLDivElement | null>, boolean] {
-  const inside = useRef<HTMLDivElement>(null)
+function useArrived(open: boolean): [RefCallback<HTMLDivElement>, boolean] {
+  const [inside, setInside] = useState<HTMLDivElement | null>(null)
   const [arrived, setArrived] = useState(false)
   useLayoutEffect(() => {
     setArrived(false)
-    const sheet = inside.current?.closest<HTMLElement>('[data-slot="sheet-content"]')
+    const sheet = inside?.closest<HTMLElement>('[data-slot="sheet-content"]')
     if (!open || sheet == null) return undefined
     if (!sheet.getAnimations().some(animation => animation.playState === 'running')) {
       setArrived(true)
@@ -405,21 +412,26 @@ function useArrived(open: boolean): [RefObject<HTMLDivElement | null>, boolean] 
       sheet.removeEventListener('animationend', landed)
       sheet.removeEventListener('animationcancel', landed)
     }
-  }, [open])
-  return [inside, open && arrived]
+  }, [open, inside])
+  return [setInside, open && arrived]
 }
 
-function SheetNavigation(props: SidebarProps & { open: boolean; choose: (id: string) => void }) {
-  const [inside, arrived] = useArrived(props.open)
+function SheetNavigation(
+  props: SidebarProps & {
+    inside: RefCallback<HTMLDivElement>
+    seat: boolean
+    choose: (id: string) => void
+  },
+) {
   return (
-    <div ref={inside} className="shell-sheet-navigation">
+    <div ref={props.inside} className="shell-sheet-navigation">
       <div className="shell-brand-row">
         <Home
           appName={props.appName}
           selected={homeSelected(props)}
           page={props.homePage}
           choose={props.choose}
-          seat={arrived}
+          seat={props.seat}
         />
       </div>
       <SidebarBody {...props} expanded choose={props.choose} />
@@ -427,11 +439,12 @@ function SheetNavigation(props: SidebarProps & { open: boolean; choose: (id: str
   )
 }
 
-/** Below 768 a sheet from the right; the page behind it is inert, and its home is a seat once it has come in. */
+/** Below 768 a sheet over an inert page; the home beside its toggle is the seat until the sheet's own has come in. */
 export function NarrowNavigation(props: SidebarProps & { covering: (open: boolean) => void }) {
   const [openedOn, setOpenedOn] = useState<{ readonly page: string | undefined } | null>(null)
   if (openedOn !== null && openedOn.page !== props.shown) setOpenedOn(null)
   const open = openedOn !== null
+  const [inside, arrived] = useArrived(open)
   const { covering, ...navigation } = props
   useEffect(() => {
     covering(open)
@@ -449,6 +462,13 @@ export function NarrowNavigation(props: SidebarProps & { covering: (open: boolea
       tabIndex={-1}
       data-width="sheet"
     >
+      <Home
+        appName={navigation.appName}
+        selected={homeSelected(navigation)}
+        page={navigation.homePage}
+        choose={navigation.state.page.choose}
+        seat={!arrived}
+      />
       <Sheet
         open={open}
         onOpenChange={opening => setOpenedOn(opening ? { page: navigation.shown } : null)}
@@ -465,7 +485,7 @@ export function NarrowNavigation(props: SidebarProps & { covering: (open: boolea
           aria-describedby={undefined}
         >
           <SheetTitle className="sr-only">{navigation.appName}</SheetTitle>
-          <SheetNavigation {...navigation} open={open} choose={choose} />
+          <SheetNavigation {...navigation} inside={inside} seat={arrived} choose={choose} />
         </SheetContent>
       </Sheet>
     </aside>

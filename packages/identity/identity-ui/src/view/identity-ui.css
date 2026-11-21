@@ -15,25 +15,42 @@
 .identity-account {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 0 4px;
+  gap: var(--omne-space-inline);
+  min-width: 0;
 }
 
-.identity-account-tenant {
-  margin: 0;
-  padding: 4px 8px;
-  overflow: hidden;
+/* The glyph stands in the sidebar's icon column: the control's inset is the one a navigation row gives its icon. */
+.identity-account-control {
+  align-self: flex-start;
+  justify-content: flex-start;
+  gap: calc((var(--omne-nav-row-height) - var(--omne-icon-label)) / 2);
+  max-width: 100%;
+  padding: 0 calc((var(--omne-nav-row-height) - var(--omne-icon-label)) / 2);
   color: var(--omne-ink-muted);
+  font-weight: normal;
+}
+
+.identity-account-control:is(:hover, [aria-expanded='true']) {
+  color: var(--omne-ink-primary);
+}
+
+.identity-account-control > svg {
+  width: var(--omne-icon-label);
+  height: var(--omne-icon-label);
+}
+
+.identity-account-short {
+  min-width: 0;
+  overflow: hidden;
   font-family: var(--omne-font-mono, ui-monospace, monospace);
   font-size: var(--omne-text-caption);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.identity-account-logout {
-  justify-content: flex-start;
-}
-
+/* On the rail the account is a circle as wide as the column, like every other circle there. */
 .identity-account-rail {
+  width: var(--omne-nav-row-height);
+  height: var(--omne-nav-row-height);
   border-radius: var(--omne-radius-pill);
 }
