@@ -983,7 +983,7 @@ try {
       observe: request => inner.observe(request, lastLogin),
     },
   }
-  const pageRoot = new URL('../dist/page/', import.meta.url).pathname
+  const pageRoot = new URL('../dist/release/page/', import.meta.url).pathname
   const log = line => hostLog.push(`${new Date().toISOString()} ${line}`)
   host = createStandalone({
     forwarding: createForwarding({
