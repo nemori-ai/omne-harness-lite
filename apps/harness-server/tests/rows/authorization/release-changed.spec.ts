@@ -64,13 +64,13 @@ async function changedBeforeStart(pick: 'deny' | 'auto') {
         n => n > 0,
       )
       expect(startAcceptances(tree.storageRoot)).toHaveLength(0)
+      releases = admittedReleases(tree.storageRoot)
       await setShell(tree, pick, `set-shell-${pick}`)
       hold.go()
       const entries = await endedRuns(tree, session, 1)
       first = toolResults(entries).join('\n')
       expressed = entries.filter(entry => entry.kind === ONCE).length
       accepted = startAcceptances(tree.storageRoot)
-      releases = admittedReleases(tree.storageRoot)
       if (pick === 'deny') {
         await sendInput(tree, session, 'start: echo after')
         const next = await endedRuns(tree, session, 2)

@@ -233,12 +233,12 @@ function withObservationPolicy(
   return { ops: [...ops, { kind: 'replace', id: 'session-observation', config: { policy } }] }
 }
 
-function withAgentWaitInterval(layer: unknown): unknown {
+function withAgentWaitInterval(layer: unknown, delays: readonly number[] = [50]): unknown {
   const { ops } = layer as { ops: Readonly<{ kind: string; id: string; config?: object }>[] }
   return {
     ops: ops.map(op =>
       op.id === 'agent-host'
-        ? { ...op, config: { ...op.config, reconciliationDelaysMs: [50] } }
+        ? { ...op, config: { ...op.config, reconciliationDelaysMs: delays } }
         : op,
     ),
   }
@@ -670,6 +670,8 @@ export type ReleaseTreeOptions = Readonly<{
   addedRows?: readonly AddedRow[]
   /** The screen backend the host row is given; absent: the one of the machine the test runs on. */
   hostScreen?: NonNullable<Parameters<typeof runServe>[0]['hostScreen']>
+  /** The fallback checks of a waiting Agent; absent: every 50 ms, so no test waits on the clock. */
+  reconciliationDelaysMs?: readonly number[]
 }>
 
 export type AddedRow = Readonly<{
@@ -820,6 +822,7 @@ async function serveOnce(
               ),
               options.queueCapacity,
             ),
+            options.reconciliationDelaysMs,
           ),
           options.observationPolicy,
         ),
