@@ -24,8 +24,12 @@ CASES = [('settlement', None),
          ('bad-settle-short', 'NoLostEvent'),
          ('bad-phase1-drops-operation', 'AnswerStable'),
          ('bad-no-phase2', 'BoundedRetention'),
+         ('bad-sweep-any-generation', 'TwoPhase'),
          ('bad-no-startup-wake', 'EventuallyReclaimed'),
-         ('bad-no-ad06-ack', 'EventuallyReclaimed')]
+         ('masked-no-ad06-ack', None),
+         ('bad-interpret-overtakes', 'NoLostLateResult'),
+         ('bad-ad06-agent-wake-only', 'EventuallyReclaimed'),
+         ('bad-open-awaits-processing', 'EventuallyReclaimed')]
 parser = argparse.ArgumentParser()
 parser.add_argument('--case')
 parser.add_argument('--jar', default=os.environ.get('TLA2TOOLS_JAR'))
