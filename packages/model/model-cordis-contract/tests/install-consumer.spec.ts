@@ -22,19 +22,19 @@ const { NODE_PATH: _path, OMNE_INSTALL_ALLOW_NETWORK: _network, ...environment }
 
 const closureMembers = [
   '@omne-harness/model-cordis-contract',
+  '@omne-harness/assets',
   '@omne-harness/kernel-basis',
   '@omne-harness/legal-identity',
   '@omne-harness/modality',
   '@omne-harness/model-contract',
   '@omne-harness/operation-result',
-  '@omne-harness/assets',
+  '@omne-harness/json-text',
+  '@omne-harness/settings',
   '@omne-harness/call-account',
   '@omne-harness/content-block',
   '@omne-harness/exchange-refs',
-  '@omne-harness/json-text',
   '@omne-harness/message',
   '@omne-harness/stream-arrival',
-  '@omne-harness/settings',
   '@omne-harness/utc-instant',
 ]
 
