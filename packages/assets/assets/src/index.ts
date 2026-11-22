@@ -68,10 +68,13 @@ export {
 } from './summary.ts'
 export { pinBody, type PinnedBody } from './adoption.ts'
 export {
+  createHeldBook,
+  heldLayerSource,
   heldPoint,
   layerInputsOf,
   layerOfScope,
   scopeOfLayer,
+  type HeldBook,
   type HeldEntry,
   type HeldHolding,
   type HeldItem,

@@ -1,6 +1,6 @@
 import type { AssetLayerSource, HeldPort } from '@omne-harness/assets'
 import type { AssetCategoriesService } from '@omne-harness/assets-cordis-contract/cordis'
-import { tenantLayerSource, type AssetsLocal } from '@omne-harness/assets-local'
+import { tenantListing, type AssetsLocal } from '@omne-harness/assets-local'
 import { registrySources } from './registry-sources.ts'
 
 type Categories = Pick<AssetCategoriesService, 'held' | 'holdingsOf'>
@@ -44,7 +44,7 @@ export function heldOnRegistry(
           current: ref => !stale.has(ref),
           async listing(ref) {
             const assets = await open(ref)
-            return assets === undefined ? undefined : tenantLayerSource(assets).list
+            return assets === undefined ? undefined : tenantListing(assets)
           },
         },
         tenantRef,

@@ -97,6 +97,7 @@ async function world() {
   categories.contribute({ contract: category('bundle', true), display, point: 'bundle.items' })
   const packageRoot = realpathSync(mkdtempSync(join(tmpdir(), 'assets-management-')))
   const opened = await openWorld({
+    withBook: true,
     categories,
     packageRoot,
     uploads: { idleMs: 60_000, maxOpen: 4, partBytes: 8 },
@@ -123,7 +124,7 @@ async function world() {
     },
     storeOf: async tenant =>
       tenant === 'tenant-a'
-        ? createTenantLayerStore(opened.owner, 'tenant-a', categories)
+        ? createTenantLayerStore(opened.owner, 'tenant-a', categories, [opened.tenantLayer])
         : undefined,
   })
   async function publish(

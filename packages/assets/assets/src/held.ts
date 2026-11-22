@@ -1,5 +1,6 @@
 import type { Candidate } from './evaluate.ts'
-import type { AssetLayer, AssetLayerInput } from './layers.ts'
+import type { CapabilityId } from './identity.ts'
+import type { AssetLayer, AssetLayerInput, AssetLayerSource } from './layers.ts'
 
 /** One held definition as an item on the point of its category: the candidate an evaluation weighs. */
 export type HeldItem = Readonly<{
@@ -113,4 +114,45 @@ export function layerInputsOf(reading: HeldReading, tenant: string): readonly As
     if (!held[layer].some(known => same(known, item))) held[layer].push(item)
   }
   return HELD_LAYERS.map(layer => ({ layer, state: 'read', candidates: held[layer] }))
+}
+
+/** One layer of one tenant as a source: candidates from a reading of the held entries, listing from where it is given. */
+export function heldLayerSource(
+  input: Readonly<{
+    layer: HeldLayer
+    tenant: string
+    read(capability: CapabilityId): HeldReading | Promise<HeldReading>
+    list: AssetLayerSource['list']
+  }>,
+): AssetLayerSource {
+  const { layer, tenant } = input
+  return Object.freeze({
+    layer,
+    list: input.list,
+    async candidates(capability: CapabilityId) {
+      const layers = layerInputsOf(await input.read(capability), tenant)
+      return layers.find(each => each.layer === layer) ?? { layer, state: 'unavailable' }
+    },
+  })
+}
+
+export type HeldBook = HeldPort & Readonly<{ read(capability: CapabilityId): HeldReading }>
+
+/** What one tenant holds, kept in memory as its store tells it: for a use of the assets without a registry. */
+export function createHeldBook(tenant: string): HeldBook {
+  const scope = scopeOfLayer('tenant', tenant)
+  let held: readonly HeldHolding[] | undefined
+  return Object.freeze({
+    sync(holdings: readonly HeldHolding[]) {
+      held = holdings
+    },
+    missed() {
+      held = undefined
+    },
+    read({ category, name }: CapabilityId): HeldReading {
+      if (held === undefined) return { kind: 'unavailable' }
+      const mine = held.filter(each => each.category === category && each.name === name)
+      return { kind: 'read', entries: mine.map(({ item }) => ({ scope, item })) }
+    },
+  })
 }

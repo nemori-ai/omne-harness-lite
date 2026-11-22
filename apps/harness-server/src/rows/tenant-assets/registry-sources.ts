@@ -1,7 +1,5 @@
 import {
-  layerInputsOf,
-  type AssetLayer,
-  type AssetLayerInput,
+  heldLayerSource,
   type AssetLayerSource,
   type CapabilityId,
   type HeldReading,
@@ -18,34 +16,33 @@ export type RegistrySourcePorts = Readonly<{
   listing(tenantRef: string): Promise<TenantListing | undefined>
 }>
 
-const layerOf = (inputs: readonly AssetLayerInput[], layer: AssetLayer): AssetLayerInput =>
-  inputs.find(input => input.layer === layer) ?? { layer, state: 'unavailable' }
+const UNREAD: HeldReading = Object.freeze({ kind: 'unavailable' })
 
 /** The official and the tenant layer of one tenant: candidates from the registry, listing from the ledger. */
 export function registrySources(
   ports: RegistrySourcePorts,
-  tenantRef: string,
+  tenant: string,
 ): readonly AssetLayerSource[] {
-  const read = (capability: CapabilityId) =>
-    layerInputsOf(ports.held(capability, tenantRef), tenantRef)
   return Object.freeze([
-    Object.freeze({
+    heldLayerSource({
       layer: 'official',
+      tenant,
+      read: capability => ports.held(capability, tenant),
       list: async () => ({ layer: 'official', state: 'not-applicable' }),
-      candidates: async capability => layerOf(read(capability), 'official'),
-    } satisfies AssetLayerSource),
-    Object.freeze({
+    }),
+    heldLayerSource({
       layer: 'tenant',
+      tenant,
+      async read(capability) {
+        const opened = await ports.listing(tenant)
+        return opened !== undefined && ports.current(tenant)
+          ? ports.held(capability, tenant)
+          : UNREAD
+      },
       async list(request) {
-        const listing = await ports.listing(tenantRef)
+        const listing = await ports.listing(tenant)
         return listing === undefined ? { layer: 'tenant', state: 'unavailable' } : listing(request)
       },
-      async candidates(capability) {
-        const opened = await ports.listing(tenantRef)
-        if (opened === undefined || !ports.current(tenantRef))
-          return { layer: 'tenant', state: 'unavailable' }
-        return layerOf(read(capability), 'tenant')
-      },
-    } satisfies AssetLayerSource),
+    }),
   ])
 }

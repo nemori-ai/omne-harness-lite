@@ -108,11 +108,13 @@ function setup(options: Options = {}) {
       return options.publication ?? { kind: 'not-found' }
     },
     uploads,
-    layer: {
-      layer: 'tenant',
-      list: async () => ({ state: 'invalid' }),
-      candidates: async () => ({ layer: 'tenant', state: 'unavailable' }),
-    },
+    layers: [
+      {
+        layer: 'tenant',
+        list: async () => ({ state: 'invalid' }),
+        candidates: async () => ({ layer: 'tenant', state: 'unavailable' }),
+      },
+    ],
   }
   const management = createTenantManagement<Principal>({
     acting: {

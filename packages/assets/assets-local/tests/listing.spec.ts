@@ -6,7 +6,6 @@ import {
   readBodyText,
   type CapabilityId,
 } from '@omne-harness/assets'
-import { tenantLayerSource } from '../src/index.ts'
 import { ownerSources } from './sources.ts'
 import { lookupOf } from './lookup.ts'
 import { grants, openWorld, type World } from './world.ts'
@@ -27,7 +26,7 @@ afterEach(async () => {
 })
 
 async function open(options: Parameters<typeof openWorld>[0] = {}) {
-  const world = await openWorld({ categories, ...options })
+  const world = await openWorld({ categories, withBook: true, ...options })
   worlds.push(world)
   return world
 }
@@ -262,11 +261,11 @@ describe('listHeld: one category of the held assets, page by page', () => {
   })
 })
 
-describe('tenantLayerSource: the tenant layer of the asset layers', () => {
+describe('the tenant layer without a registry: what the store told, and its listing', () => {
   it('a held asset is one candidate that is not disabled', async () => {
     const world = await open()
     await held(world, 'service', ['alpha'])
-    expect(await tenantLayerSource(world.owner).candidates(id('service', 'alpha'))).toEqual({
+    expect(await world.tenantLayer.candidates(id('service', 'alpha'))).toEqual({
       layer: 'tenant',
       state: 'read',
       candidates: [
@@ -285,7 +284,7 @@ describe('tenantLayerSource: the tenant layer of the asset layers', () => {
     const world = await open()
     await held(world, 'service', ['alpha'])
     await change(world, 'holding-service-alpha', { kind: 'setEnabled', enabled: false })
-    expect(await tenantLayerSource(world.owner).candidates(id('service', 'alpha'))).toEqual({
+    expect(await world.tenantLayer.candidates(id('service', 'alpha'))).toEqual({
       layer: 'tenant',
       state: 'read',
       candidates: [
@@ -304,7 +303,7 @@ describe('tenantLayerSource: the tenant layer of the asset layers', () => {
     const world = await open()
     await held(world, 'service', ['alpha'])
     await publish(world, 'service', 'bravo')
-    const source = tenantLayerSource(world.owner)
+    const source = world.tenantLayer
     for (const name of ['bravo', 'charlie'])
       expect(await source.candidates(id('service', name))).toEqual({
         layer: 'tenant',
@@ -325,20 +324,21 @@ describe('tenantLayerSource: the tenant layer of the asset layers', () => {
         read: () => Promise.reject(new Error('named read transport failure')),
       }),
     })
-    expect(await tenantLayerSource(world.owner).candidates(id('service', 'alpha'))).toEqual({
+    expect(await world.tenantLayer.candidates(id('service', 'alpha'))).toEqual({
       layer: 'tenant',
       state: 'unavailable',
     })
-    expect(
-      await tenantLayerSource(world.owner).list({ category: 'service', after: null, limit: 10 }),
-    ).toEqual({ layer: 'tenant', state: 'unavailable' })
+    expect(await world.tenantLayer.list({ category: 'service', after: null, limit: 10 })).toEqual({
+      layer: 'tenant',
+      state: 'unavailable',
+    })
   })
 
   it('lists the tenant layer as asset entries, and an invalid request as invalid', async () => {
     const world = await open()
     await held(world, 'service', ['alpha', 'bravo'])
     await change(world, 'holding-service-bravo', { kind: 'setEnabled', enabled: false })
-    const source = tenantLayerSource(world.owner)
+    const source = world.tenantLayer
     expect(source.layer).toBe('tenant')
     expect(await source.list({ category: 'service', after: null, limit: 1 })).toEqual({
       layer: 'tenant',
@@ -366,7 +366,7 @@ describe('tenantLayerSource: the tenant layer of the asset layers', () => {
   it('the asset contract pages across the tenant layer to the end', async () => {
     const world = await open()
     await held(world, 'service', ['alpha', 'bravo', 'charlie'])
-    const source = tenantLayerSource(world.owner)
+    const source = world.tenantLayer
     const names: string[] = []
     let after: string | null = null
     do {

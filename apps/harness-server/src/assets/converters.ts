@@ -1,13 +1,13 @@
 import { createHash } from 'node:crypto'
 import { readBodyText, type AssetLayerSource, type JsonValue } from '@omne-harness/assets'
-import { tenantLayerSource, type AssetsLocal } from '@omne-harness/assets-local'
+import type { AssetsLocal } from '@omne-harness/assets-local'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import {
   CONVERTER_CATEGORY,
   parseConverterBody,
   type ConverterLayers,
 } from '@omne-harness/media-adapters'
-import { officialAssetRef } from './official-holdings.ts'
+import { officialAssetRef, officialItem } from './official-holdings.ts'
 
 const RELEASE_CONVERTER_TEXTS: readonly string[] = [
   '{"kind":"voice","engine":"voice.transcribe","parameters":{},"egress":{"kind":"remote","destination":"openrouter.ai"}}',
@@ -42,6 +42,14 @@ export function releaseConverters(): readonly ReleaseConverter[] {
   return converters
 }
 
+/** The release's converters as the items its row brings on the point of the category. */
+export function officialConverterItems() {
+  return releaseConverters().map(({ name, version }) => ({
+    name,
+    item: officialItem(CONVERTER_CATEGORY, name, version),
+  }))
+}
+
 const byRef = (asset: string) =>
   releaseConverters().find(item => officialAssetRef(CONVERTER_CATEGORY, item.name) === asset)
 
@@ -50,40 +58,20 @@ export function officialConverterBody(asset: string): JsonValue | undefined {
   return byRef(asset)?.body
 }
 
-/** The official layer of `converter`, for evaluating definitions only: the asset page lists none of it. */
-export function officialConverterSource(): AssetLayerSource {
-  return Object.freeze({
-    layer: 'official',
-    list: async () => ({ layer: 'official', state: 'not-applicable' }),
-    async candidates(capability) {
-      const held =
-        capability.category === CONVERTER_CATEGORY
-          ? releaseConverters().find(item => item.name === capability.name)
-          : undefined
-      if (held === undefined) return { layer: 'official', state: 'read', candidates: [] }
-      const candidate = {
-        asset: officialAssetRef(CONVERTER_CATEGORY, held.name),
-        version: held.version,
-        disabled: false,
-        immutable: false,
-        replaceLocked: false,
-      }
-      return { layer: 'official', state: 'read', candidates: [candidate] }
-    },
-  } satisfies AssetLayerSource)
-}
+type TenantAssets = Pick<AssetsLocal, 'readVersion'>
 
-type TenantAssets = Pick<AssetsLocal, 'listHeld' | 'readHeldCapability' | 'readVersion'>
-
-/** The layers a tenant's converter definitions are evaluated over: the release's, then its own. */
-export function converterLayersOf(open: (tenantRef: string) => Promise<TenantAssets | undefined>) {
-  const official = officialConverterSource()
+/** The layers a tenant's converter definitions are evaluated over, and where the body of a candidate is read. */
+export function converterLayersOf(
+  open: (tenantRef: string) => Promise<TenantAssets | undefined>,
+  sourcesOf: (tenantRef: string) => readonly AssetLayerSource[] | undefined,
+) {
   return async (tenant: TenantId): Promise<ConverterLayers | undefined> => {
     const ref = tenantCodec.encode(tenant)
     const assets = ref.ok ? await open(ref.value) : undefined
-    if (assets === undefined) return undefined
+    const sources = ref.ok ? sourcesOf(ref.value) : undefined
+    if (assets === undefined || sources === undefined) return undefined
     return {
-      sources: [official, tenantLayerSource(assets)],
+      sources,
       async body(candidate) {
         const shipped = officialConverterBody(candidate.asset)
         if (shipped !== undefined) return shipped

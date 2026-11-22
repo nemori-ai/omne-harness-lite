@@ -179,7 +179,7 @@ export type TenantLayerStore = Readonly<{
   ): Promise<StoreChange | Readonly<{ kind: 'not-found' }>>
   recallPublication(operationId: string): Promise<StorePublication>
   uploads: StoreUploads
-  layer: AssetLayerSource
+  layers: readonly AssetLayerSource[]
 }>
 
 type Scope<P> = Readonly<{ tenant: string; principal: P }>
@@ -228,14 +228,20 @@ const UNAVAILABLE = Object.freeze({ kind: 'unavailable' } as const)
 const BODY_NOT_READ = Object.freeze({ kind: 'invalid', reason: 'body-not-read' } as const)
 const NOT_COMMITTED = Object.freeze({ kind: 'not-committed' } as const)
 
-function standingOf(evaluation: Evaluation): AssetStanding {
-  if (evaluation.kind === 'winner') return { kind: 'selected' }
+type Held = Readonly<{ asset: string; version: string }>
+
+const isHeld = (candidate: Held, held: Held): boolean =>
+  candidate.asset === held.asset && candidate.version === held.version
+
+function standingOf(evaluation: Evaluation, held: Held): AssetStanding {
   if (evaluation.kind === 'unavailable') return { kind: 'unavailable', layer: evaluation.layer }
-  const first = evaluation.filtered[0]
-  if (first === undefined) return { kind: 'unavailable', layer: 'tenant' }
-  return first.by === undefined
-    ? { kind: 'filtered', reason: first.reason }
-    : { kind: 'filtered', reason: first.reason, by: first.by }
+  if (evaluation.kind === 'winner' && isHeld(evaluation.candidate, held))
+    return { kind: 'selected' }
+  const out = evaluation.filtered.find(filtered => isHeld(filtered.candidate, held))
+  if (out === undefined) return { kind: 'unavailable', layer: 'tenant' }
+  return out.by === undefined
+    ? { kind: 'filtered', reason: out.reason }
+    : { kind: 'filtered', reason: out.reason, by: out.by }
 }
 
 function storeOutcome(answer: StoreChange, operationId: string): HoldingOutcome {
@@ -330,9 +336,9 @@ async function describe<P>(
   try {
     const held = await store.held(input.capability)
     if (held.kind !== 'held') return held
-    const layers = await collectCandidates([store.layer], input.capability)
-    const standing = standingOf(evaluate({ layers, eligible: () => 'yes' }))
+    const layers = await collectCandidates(store.layers, input.capability)
     const { row, revision, content, settings } = held
+    const standing = standingOf(evaluate({ layers, eligible: () => 'yes' }), row)
     return { kind: 'asset', row, revision, content, standing, settings }
   } catch {
     return UNAVAILABLE

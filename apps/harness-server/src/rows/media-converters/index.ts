@@ -7,9 +7,7 @@ import {
   mediaConverterDefinitionsKey,
 } from '@omne-harness/media-cordis-contract/cordis'
 import { mediaConvertersPoint } from '@omne-harness/media-cordis-contract/cordis'
-import { CONVERTER_CATEGORY } from '@omne-harness/media-adapters'
-import { converterLayersOf, releaseConverters } from '../../assets/converters.ts'
-import { officialItem } from '../../assets/official-holdings.ts'
+import { converterLayersOf, officialConverterItems } from '../../assets/converters.ts'
 import { defineRow } from '../../row.ts'
 import { tenantAssetsKey } from '../tenant-assets/service.ts'
 
@@ -17,7 +15,10 @@ class ConverterDefinitions extends MediaConverterDefinitionsService {
   readonly resolve: MediaConverterDefinitionsService['resolve']
   constructor(ctx: Context) {
     super(ctx)
-    const layersOf = converterLayersOf(async ref => ctx.get(tenantAssetsKey)?.open(ref))
+    const layersOf = converterLayersOf(
+      async ref => ctx.get(tenantAssetsKey)?.open(ref),
+      ref => ctx.get(tenantAssetsKey)?.layerSources(ref),
+    )
     this.resolve = createConverterDefinitions({ layersOf }).resolve
   }
 }
@@ -37,13 +38,7 @@ export const mediaConvertersRow = defineRow({
     inject: [tenantAssetsKey, assetCategoriesKey],
     apply(ctx: Context) {
       ctx.plugin(converterCategoryPlugin)
-      ctx.assetCategories.bring(
-        mediaConvertersPoint.name,
-        releaseConverters().map(({ name, version }) => ({
-          name,
-          item: officialItem(CONVERTER_CATEGORY, name, version),
-        })),
-      )
+      ctx.assetCategories.bring(mediaConvertersPoint.name, officialConverterItems())
       new ConverterDefinitions(ctx)
     },
   },

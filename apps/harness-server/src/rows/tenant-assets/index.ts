@@ -115,7 +115,7 @@ export const tenantAssetsRow = defineRow({
           const assets = await host.open(tenant)
           return assets === undefined
             ? undefined
-            : createTenantLayerStore(assets, tenant, categories)
+            : createTenantLayerStore(assets, tenant, categories, layerSources(tenant))
         },
       }),
     )

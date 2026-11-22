@@ -41,7 +41,7 @@ function storeOver(
   ) as unknown as AssetsLocal
   const looked = { directory: { layout: {} }, data: {}, unknown: undefined }[category]
   const categories = { lookup: () => looked } as never
-  return createTenantLayerStore(local, 'tenant-a', categories)
+  return createTenantLayerStore(local, 'tenant-a', categories, [])
 }
 
 const LIST = { scopeRef: 'tenant-a', limit: 10, after: null } as never
