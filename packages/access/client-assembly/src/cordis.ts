@@ -27,6 +27,8 @@ export interface Connection {
   readonly availability: {
     current(): ReadonlySet<ProtocolKey>
     isOpen(key: ProtocolKey): boolean
+    /** The revision the server has this protocol at; nothing when it is not served or not said. */
+    peerRevision(key: ProtocolKey): number | undefined
     subscribe(listener: (open: ReadonlySet<ProtocolKey>) => void): () => void
   }
   readonly login: {
@@ -91,6 +93,7 @@ function availabilityState(diagnostics: ConnectionOptions['diagnostics']) {
     face: {
       current: () => current,
       isOpen: (key: ProtocolKey) => view?.open.has(keyText(key)) === true,
+      peerRevision: (key: ProtocolKey) => view?.revisions.get(keyText(key)),
       subscribe(listener: (open: ReadonlySet<ProtocolKey>) => void): () => void {
         listeners.add(listener)
         return () => {
@@ -274,11 +277,11 @@ export function defineProtocolClient<P extends ProtocolContract>(protocol: P): P
         if (open && provided === undefined) {
           const revoke = new AbortController()
           const { readRetry } = connection
+          const peerRevision = (): number | undefined => connection.availability.peerRevision(key)
+          const settings = readRetry === undefined ? { peerRevision } : { readRetry, peerRevision }
           const client = guarded(
             protocol,
-            readRetry === undefined
-              ? createClient(protocol, connection.transport)
-              : createClient(protocol, connection.transport, { readRetry }),
+            createClient(protocol, connection.transport, settings),
             revoke.signal,
           )
           const unregister = ctx.reflect.provide(service, client)

@@ -5209,6 +5209,9 @@ importers:
         specifier: workspace:*
         version: link:../../common/utc-instant
     devDependencies:
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
       '@omne-harness/identity':
         specifier: workspace:*
         version: link:../../identity/identity
