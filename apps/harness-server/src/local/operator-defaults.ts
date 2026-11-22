@@ -416,7 +416,7 @@ const LOCAL_NODE = 'local'
 
 const DISPATCH_POLICY = { maxOpen: 8, reconcileIntervalMs: 2_000 }
 
-export const LOCAL_GOVERNANCE_OPENING = { installationConcurrency: 8, warmConcurrency: 1 } as const
+export const LOCAL_GOVERNANCE_OPENING = { installationConcurrency: 8 } as const
 
 /** A person gets every notification on the application's own surfaces. An agent has no destination until sessions take input from notifications. */
 const NOTIFICATION_POLICY = {

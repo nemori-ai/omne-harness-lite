@@ -35,7 +35,6 @@ function hostOver(results: readonly Opened[], extra: Partial<HostOptions> = {}) 
     domains: {
       lookup: async () => ({ kind: 'ready', domain: DOMAIN }),
     } as unknown as HostOptions['domains'],
-    warmConcurrency: 1,
     prepare() {
       const result = results[Math.min(prepared, results.length - 1)]
       prepared += 1
@@ -279,63 +278,4 @@ it('opens a registered tenant as before when no registration is mounted', async 
   const { settings, prepare } = withSettings(created())
   const { host } = hostOver([], { registration: () => undefined, prepare })
   expect(await host.settings(TENANT)).toBe(settings)
-})
-
-const tenantOf = (account: string) => TENANT.replace(/1"}$/, `${account}"}`)
-const turn = () => new Promise(resolve => setImmediate(resolve))
-
-function slowTenants() {
-  const opened: string[] = []
-  const openings = new Map<string, PromiseWithResolvers<Opened>>()
-  const { host } = hostOver([], {
-    domains: {
-      lookup: async ({ tenant }: { tenant: string }) => ({
-        kind: 'ready',
-        domain: { name: `tenant/${tenant}`, scope: { kind: 'tenant', tenant } },
-      }),
-    } as unknown as HostOptions['domains'],
-    prepare: tenantRef =>
-      ({
-        destination: {},
-        open: () => {
-          opened.push(tenantRef)
-          const opening = Promise.withResolvers<Opened>()
-          openings.set(tenantRef, opening)
-          return opening.promise
-        },
-      }) as unknown as Assembly,
-  })
-  return {
-    host,
-    opened,
-    finish: (tenantRef: string) => openings.get(tenantRef)?.resolve(created()),
-  }
-}
-
-it('warms a tenant through the one opening that a caller arriving right after it shares', async () => {
-  const { host, opened, finish } = slowTenants()
-  host.warm(TENANT)
-  const runtime = host.runtime(TENANT)
-  await turn()
-  expect(opened).toEqual([TENANT])
-  finish(TENANT)
-  expect(await runtime).toMatchObject({ kind: 'created' })
-  expect(opened).toEqual([TENANT])
-})
-
-it('starts a caller on another tenant at once while a slow opening holds the warm queue', async () => {
-  const [first, queued, other] = [tenantOf('2'), tenantOf('3'), tenantOf('4')]
-  const { host, opened, finish } = slowTenants()
-  host.warm(first)
-  host.warm(queued)
-  await turn()
-  expect(opened).toEqual([first])
-  const runtime = host.runtime(other)
-  await turn()
-  expect(opened).toEqual([first, other])
-  finish(other)
-  expect(await runtime).toMatchObject({ kind: 'created' })
-  finish(first)
-  await turn()
-  expect(opened).toEqual([first, other, queued])
 })

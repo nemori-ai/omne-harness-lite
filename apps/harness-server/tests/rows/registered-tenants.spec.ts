@@ -21,7 +21,7 @@ const ready =
 function run(
   listing: () => Promise<TenantDomainListing>,
   open: (tenant: string) => void | Promise<void> = () => {},
-  label = 'governance warm-up',
+  label = 'execution log opening',
 ) {
   const opened: string[] = []
   const warnings: string[] = []
@@ -60,7 +60,7 @@ describe('opening the registered tenants', () => {
     expect(await seen.done).toBe(0)
     expect(seen.opened).toEqual([])
     expect(seen.warnings).toEqual([
-      `governance warm-up: the tenant domain listing answered ${kind}; tenants open on first use`,
+      `execution log opening: the tenant domain listing answered ${kind}; tenants open on first use`,
     ])
   })
 

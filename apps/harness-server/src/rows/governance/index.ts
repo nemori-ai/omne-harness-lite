@@ -18,15 +18,7 @@ import { assetCategoriesKey, independentSettingsKey } from '@omne-harness/assets
 import { IndependentSettingsService } from '@omne-harness/assets-cordis-contract/cordis'
 import { toolCategoryDisplay } from '@omne-harness/tool-contract'
 import { createIndependentSettingsPoint, createSettingsRegistry } from '@omne-harness/settings'
-import type { TenantDomains } from '@omne-harness/sql-contract'
-import {
-  storageKey,
-  tenantDomainLookupKey,
-  tenantDomainsKey,
-} from '@omne-harness/sql-contract/cordis'
-import { TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY } from '../../entry/tenant-domain-scanner.ts'
-import { TENANT_DOMAIN_REGISTERED } from '../../entry/tenant-domain-registered.ts'
-import { openRegisteredTenants } from '../registered-tenants.ts'
+import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
 import { toolContributionAuthorityKey } from '@omne-harness/tool-cordis-contract/cordis'
 import { defineRow } from '../../row.ts'
 import { classify } from '../authorization/principals.ts'
@@ -68,7 +60,6 @@ const configSchema = z.strictObject({
     .int()
     .min(1)
     .default(LOCAL_GOVERNANCE_OPENING.installationConcurrency),
-  warmConcurrency: z.number().int().min(1).default(LOCAL_GOVERNANCE_OPENING.warmConcurrency),
 })
 
 class SessionBackend extends SessionPermissionBackendService {
@@ -130,8 +121,6 @@ export const governanceRow = defineRow({
       toolContributionAuthorityKey,
       assetCategoriesKey,
       tenantAssetsKey,
-      tenantDomainsKey,
-      TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY,
     ],
     sameProviderGroup: null,
   },
@@ -166,7 +155,6 @@ export const governanceRow = defineRow({
     ctx.effect(() => () => sources.close(), 'governance.settings-sources.close')
     const host = new TenantGovernanceHost({
       domains: ctx.tenantDomainLookup,
-      warmConcurrency: config.warmConcurrency,
       registration: () => ctx.get(tenantDomainRegistrationKey),
       report: failure =>
         ctx
@@ -234,19 +222,6 @@ export const governanceRow = defineRow({
     })
     new StandingDestination(ctx, host)
     new SessionBackend(ctx, host)
-    ctx.on(TENANT_DOMAIN_REGISTERED, tenant => host.warm(tenant))
-    const directory = ctx.get(tenantDomainsKey) as TenantDomains<unknown>
-    const scanner: unknown = ctx.get(TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY)
-    ctx.effect(() => {
-      const first = setTimeout(() => {
-        void openRegisteredTenants('governance warm-up', {
-          listing: () => directory.enumerate({ principal: scanner }),
-          open: tenant => host.warm(tenant),
-          warn: message => ctx.logger('governance').warn(message),
-        })
-      }, 0)
-      return () => clearTimeout(first)
-    }, 'governance.warm-registered')
     new CurrentPermissionService(ctx, {
       identity: {
         verifier: { verify: input => ctx.principalVerifier.verify(input) },

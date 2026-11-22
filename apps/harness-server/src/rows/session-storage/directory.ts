@@ -111,7 +111,6 @@ export type RegisterOutcome =
 export type DirectoryOptions = Readonly<{
   file: string
   register(entry: TenantDomain): Promise<RegisterOutcome>
-  registered?(tenantText: string): void
 }>
 
 export type TenantDirectory = Readonly<{
@@ -156,7 +155,6 @@ export function openTenantDirectory(options: DirectoryOptions): TenantDirectory 
     }
     entries.set(tenantText, entry)
     confirmed.add(tenantText)
-    options.registered?.(tenantText)
     return { kind: 'ready', entry }
   }
 

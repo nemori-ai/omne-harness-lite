@@ -31,7 +31,6 @@ function world() {
   })
   const read = vi.fn(async () => ({ kind: 'unavailable' as const }))
   const host = new TenantGovernanceHost({
-    warmConcurrency: 1,
     domains: {
       lookup: async () =>
         registered

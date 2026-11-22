@@ -298,7 +298,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
 
   it('opens governance beside the release values and leaves half the query queue of a tenant domain to other callers', () => {
     const governance = z
-      .object({ installationConcurrency: z.number().int(), warmConcurrency: z.number().int() })
+      .object({ installationConcurrency: z.number().int() })
       .parse(configOf(layer, 'governance'))
     const storage = z.object({ queryQueuePerDomain: z.number() }).parse(configOf(layer, 'storage'))
     expect(configOf(layer, 'governance')).toEqual({
@@ -307,7 +307,6 @@ describe('localOperatorLayer over the bundled distribution', () => {
     })
     expect(governance.installationConcurrency).toBeGreaterThan(1)
     expect(2 * governance.installationConcurrency).toBeLessThanOrEqual(storage.queryQueuePerDomain)
-    expect(governance.warmConcurrency).toBeGreaterThanOrEqual(1)
   })
 
   it('gives the diagnostics access row the three projection settings together, valid for its configuration', () => {

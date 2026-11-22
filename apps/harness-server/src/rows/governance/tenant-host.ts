@@ -24,7 +24,6 @@ export type TenantGovernanceOpenFailure = Readonly<{
 
 type Options = Readonly<{
   domains: TenantDomainLookup
-  warmConcurrency: number
   registration?(): TenantDomainRegistration | undefined
   prepare(tenantRef: string, domain: DomainRef): TenantGovernanceAssembly
   retryPauseMs?(failures: number): number
@@ -46,8 +45,6 @@ export class TenantGovernanceHost {
   private readonly failures = new Map<string, number>()
   private readonly preparePauses = new Map<string, number>()
   private readonly renewals = new WeakMap<Entry, Promise<Entry | undefined>>()
-  private readonly warming = new Set<string>()
-  private readonly warmQueue: string[] = []
   private closing = false
   private stopping: Promise<StopResult> | undefined
   readonly destination: StandingDestinationResolver
@@ -181,25 +178,6 @@ export class TenantGovernanceHost {
     if (!this.closing) return result
     await result.close()
     return undefined
-  }
-
-  warm(tenantRef: string): void {
-    if (this.closing || this.warming.has(tenantRef)) return
-    this.warming.add(tenantRef)
-    this.warmQueue.push(tenantRef)
-    this.startWarming()
-  }
-
-  private startWarming(): void {
-    while (this.warming.size - this.warmQueue.length < this.options.warmConcurrency) {
-      const tenantRef = this.warmQueue.shift()
-      if (tenantRef === undefined) return
-      const settle = () => {
-        this.warming.delete(tenantRef)
-        this.startWarming()
-      }
-      void this.runtime(tenantRef).then(settle, settle)
-    }
   }
 
   private async registered(tenantRef: string): Promise<boolean> {

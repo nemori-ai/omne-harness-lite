@@ -406,7 +406,6 @@ it('settles an original Settings catalog hold after SQL restart before opening t
   const openBusiness = vi.fn()
   const host = new TenantGovernanceHost({
     domains: w.directory.lookup,
-    warmConcurrency: 1,
     prepare() {
       const assembly = prepareTenantGovernanceWithSettings({ ...options, storage })
       return {
@@ -437,7 +436,6 @@ it('shares one real tenant runtime across concurrent application lookups', async
   )
   const host = new TenantGovernanceHost({
     domains: w.directory.lookup,
-    warmConcurrency: 1,
     prepare,
   })
   w.setDestination(host.destination)
@@ -466,7 +464,6 @@ it('does not prepare or register an unknown tenant', async () => {
   const prepare = vi.fn(() => prepareTenantGovernance(w.options))
   const host = new TenantGovernanceHost({
     domains: w.directory.lookup,
-    warmConcurrency: 1,
     prepare,
   })
   expect(await host.runtime(textOf(TENANT_B))).toBeUndefined()
@@ -484,7 +481,6 @@ it('closes an opening that finishes after shutdown without handing it to the cal
   let late: Awaited<ReturnType<ReturnType<typeof prepareTenantGovernance>['open']>> | undefined
   const host = new TenantGovernanceHost({
     domains: w.directory.lookup,
-    warmConcurrency: 1,
     prepare() {
       const original = prepareTenantGovernance({
         ...w.options,
@@ -538,7 +534,6 @@ it('lets another tenant finish while the first tenant is still opening', async (
   const entered = Promise.withResolvers<void>(),
     release = Promise.withResolvers<void>()
   const host = new TenantGovernanceHost({
-    warmConcurrency: 1,
     domains: {
       lookup: input =>
         input.tenant === a.options.scope.tenantRef
@@ -1128,7 +1123,6 @@ it('retains and retries close responsibility for an unavailable installation', a
   )
   const host = new TenantGovernanceHost({
     domains: w.directory.lookup,
-    warmConcurrency: 1,
     prepare() {
       const original = prepareTenantGovernance(w.options)
       return {
@@ -1980,7 +1974,6 @@ it('opens a group of independent settings declared only in this test, and keeps 
   expect(opened).toEqual(['calendar/environment', 'session/intake', 'test.gadget/environment'])
   const host = new TenantGovernanceHost({
     domains: w.directory.lookup,
-    warmConcurrency: 1,
     prepare: () => assembly,
   })
   cleanup.push(async () => {
@@ -2103,7 +2096,6 @@ it('lists the settings of a holding whose category exists only in this test, bes
   ).toMatchObject({ kind: 'committed' })
   const host = new TenantGovernanceHost({
     domains: w.directory.lookup,
-    warmConcurrency: 1,
     prepare: () => assembly,
   })
   cleanup.push(async () => {
@@ -2293,7 +2285,6 @@ async function heldGadget(beforeHeldCommit?: (world: HeldGadget) => Promise<void
   }
   const host = new TenantGovernanceHost({
     domains: w.directory.lookup,
-    warmConcurrency: 1,
     prepare: () => assembly,
   })
   cleanup.push(async () => {
