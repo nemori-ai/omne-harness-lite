@@ -23,7 +23,7 @@ import {
   type SettleNote,
 } from '../settle/settle.ts'
 import { parseAddress, pathOf, type Address } from './address.ts'
-import { EMPTY_BODY, writeAnswer, writeBare } from './answer.ts'
+import { EMPTY_BODY, writeAnswer, writeBare, writeNotOffered } from './answer.ts'
 import { readBody } from './body.ts'
 import { contentTypeAccepted, countHeader, hostAccepted } from './headers.ts'
 import { establish, type Established, type SignedIn } from './identity-rule.ts'
@@ -49,6 +49,7 @@ export type PipelineDiagnosticCode =
   | 'access.host-rejected'
   | 'access.content-type-rejected'
   | 'access.not-mounted'
+  | 'access.not-offered'
   | 'access.busy'
   | 'access.message-id-rejected'
   | 'access.revision-rejected'
@@ -112,8 +113,10 @@ export function admit(
   if (req.method !== 'POST') return refused(405, 'access.method-rejected')
   if (!hostAccepted(req, loopback)) return refused(421, 'access.host-rejected')
   if (!contentTypeAccepted(req)) return refused(415, 'access.content-type-rejected')
-  const entered = registry.enter({ name: address.protocol, major: address.major }, address.name)
-  if (entered === undefined) return refused(404, 'access.not-mounted')
+  const key = { name: address.protocol, major: address.major }
+  const entered = registry.enter(key, address.name)
+  if (entered === undefined)
+    return refused(404, registry.mounts(key) ? 'access.not-offered' : 'access.not-mounted')
   return { kind: 'entered', address, entered }
 }
 
@@ -163,6 +166,11 @@ function openingOf(req: IncomingMessage, entered: Entered): Opening {
   if (claimed === undefined || (entered.member.contract.since ?? 1) > claimed)
     return { kind: 'refused', code: 'access.revision-rejected', carried: { messageId } }
   return { kind: 'opened', messageId, revision: Math.min(entered.revision, claimed) }
+}
+
+function refuse(res: ServerResponse, refusal: Extract<Admission, { kind: 'refused' }>): void {
+  if (refusal.code === 'access.not-offered') return writeNotOffered(res)
+  writeBare(res, refusal.status, refusal.status === 405 ? { allow: 'POST' } : {})
 }
 
 const quietly =
@@ -404,8 +412,7 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
     const admission = admit(req, access.registry, settings.loopback)
     if (admission.kind === 'refused') {
       diagnose(eventOf(admission.code, admission.path, admission.address))
-      writeBare(res, admission.status, admission.status === 405 ? { allow: 'POST' } : {})
-      return
+      return refuse(res, admission)
     }
     const release = settings.slots.take(res)
     if (release === undefined) {

@@ -59,11 +59,14 @@ describe('one answer per step', () => {
     expectBare(reply, 415)
   })
 
-  it('step 5: a protocol not mounted, or a name not in it, is 404', async () => {
+  it('step 5: a protocol not mounted is a bare 404; a name the mounted protocol does not have is a 404 that says nothing ran', async () => {
     expectBare(await send(fixture.port, '/api/other/v1/read-note', { body: '{}' }), 404)
     expectBare(await send(fixture.port, '/api/notes/v2/read-note', { body: '{}' }), 404)
-    expectBare(await call(fixture.port, 'no-such-note'), 404)
-    expectBare(await call(fixture.port, 'constructor'), 404)
+    for (const name of ['no-such-note', 'constructor']) {
+      const reply = await call(fixture.port, name)
+      expect(reply.status).toBe(404)
+      expect(reply.text).toBe('{"kind":"not-executed","reason":"not-offered"}')
+    }
     expect(fixture.log.entries).toEqual([])
   })
 

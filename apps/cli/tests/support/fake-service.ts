@@ -256,6 +256,9 @@ function assetAnswer(operation: string, body: Record<string, unknown>): Answer |
 }
 
 /** An observation answer: the frames, then an end with this reason. */
+/** What a server answers for a name its mounted protocol does not have: nothing ran. */
+export const NOT_OFFERED: Answer = Object.freeze({ outcome: 'not-offered', body: {} })
+
 export function streamAnswer(frames: readonly unknown[], end: string): Answer {
   return { outcome: 'stream', body: { frames, end } }
 }
@@ -306,6 +309,11 @@ async function listenFakeService(answer: (seen: Seen) => Answer): Promise<FakeSe
       }
       seen.push(item)
       const reply = answer(item)
+      if (reply === NOT_OFFERED) {
+        response.writeHead(404, { 'content-type': 'application/json; charset=utf-8' })
+        response.end('{"kind":"not-executed","reason":"not-offered"}')
+        return
+      }
       if (reply.outcome === 'stream') {
         const { frames, end } = reply.body as { frames: unknown[]; end: string }
         response.writeHead(200, { 'content-type': 'text/event-stream' })

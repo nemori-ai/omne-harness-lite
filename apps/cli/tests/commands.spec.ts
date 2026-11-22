@@ -27,6 +27,7 @@ import {
   otherTenantText,
   ownLoginId,
   sessionId,
+  NOT_OFFERED,
   startFakeService,
   tenantText,
   type Answer,
@@ -325,6 +326,21 @@ describe('session commands', () => {
       expect(printed['result']).toBe('unavailable')
       expect(printed).not.toHaveProperty('outcome')
       expect(printed).not.toHaveProperty('body')
+      expect(printed['request']).toHaveProperty('messageId')
+    })
+
+    it('exits 4 with result unavailable when the server does not have the operation: nothing ran', async () => {
+      const service = await serve(seen =>
+        seen.operation === 'issue-login'
+          ? { outcome: 'succeeded', body: loginBody(seen) }
+          : NOT_OFFERED,
+      )
+      await loginOwningSession(service)
+      const result = await cli([name, ...args])
+      expect(result.code).toBe(4)
+      const printed = parsed(result.stdout)
+      expect(printed['result']).toBe('unavailable')
+      expect(printed).not.toHaveProperty('outcome')
       expect(printed['request']).toHaveProperty('messageId')
     })
 

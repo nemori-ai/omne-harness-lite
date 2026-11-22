@@ -35,6 +35,7 @@ const CODES = [
   'access.host-rejected',
   'access.content-type-rejected',
   'access.not-mounted',
+  'access.not-offered',
   'access.busy',
   'access.message-id-rejected',
   'access.revision-rejected',

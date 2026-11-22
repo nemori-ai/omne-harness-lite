@@ -66,6 +66,19 @@ type EventReader = ReadableStreamDefaultReader<string>
 
 const ABORTED: ObserveEnd = Object.freeze({ kind: 'aborted' })
 const STOPPED: ObserveEnd = Object.freeze({ kind: 'uncertain' })
+const NOT_SENT = Object.freeze({ kind: 'not-sent' as const })
+
+/** The server says its mounted protocol has no such name. Nothing ran, so it is as if nothing was sent. */
+function notOffered(response: Response, source: string, limits: JsonLimits): boolean {
+  if (response.status !== 404) return false
+  const read = readJsonText(source, limits)
+  if (read.kind !== 'ok' || read.value.kind !== 'object' || read.value.entries.length !== 2)
+    return false
+  return (
+    text(member(read.value, 'kind')) === 'not-executed' &&
+    text(member(read.value, 'reason')) === 'not-offered'
+  )
+}
 
 function eventOf(
   data: string,
@@ -132,7 +145,8 @@ export function createHttpProtocolTransport(options: HttpProtocolTransportOption
         await response.body?.cancel()
         return UNCERTAIN
       }
-      return answerOf(await response.text(), limits)
+      const source = await response.text()
+      return notOffered(response, source, limits) ? NOT_SENT : answerOf(source, limits)
     } catch {
       return UNCERTAIN
     }
@@ -144,7 +158,9 @@ export function createHttpProtocolTransport(options: HttpProtocolTransportOption
     const response = await send(url, request, request.open, signal)
     if (typeof response === 'string') return signal.aborted ? ABORTED : { kind: response }
     if (mediaType(response) === 'application/json') {
-      const refused = answerOf(await response.text(), limits)
+      const source = await response.text()
+      if (notOffered(response, source, limits)) return NOT_SENT
+      const refused = answerOf(source, limits)
       return refused.kind === 'answered' ? { kind: 'refused', outcome: refused.outcome } : STOPPED
     }
     const body = response.body

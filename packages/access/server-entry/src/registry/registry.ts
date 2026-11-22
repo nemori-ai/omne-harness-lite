@@ -53,6 +53,8 @@ export type AvailabilitySubscription = {
 
 export type RegistryForPipeline = {
   readonly enter: (key: ProtocolKey, name: string) => Entered | undefined
+  /** Tells a name the mounted protocol does not have from a protocol that is not mounted. */
+  readonly mounts: (key: ProtocolKey) => boolean
   readonly subscribe: (listener: (change: AvailabilityChange) => void) => AvailabilitySubscription
 }
 
@@ -174,5 +176,5 @@ export function createAccessRegistry(options: AccessRegistryOptions = {}): Acces
     }
   }
 
-  return { mount, enter, subscribe }
+  return { mount, enter, mounts: key => entries.has(keyText(key)), subscribe }
 }
