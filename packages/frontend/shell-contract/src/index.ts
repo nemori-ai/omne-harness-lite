@@ -64,3 +64,12 @@ export type {
   ShellLogin,
   ShellLoginState,
 } from './host.ts'
+export {
+  needPoint,
+  needProtocol,
+  type BoundOf,
+  type Need,
+  type PointNeed,
+  type ProtocolNeed,
+  type Reader,
+} from './needs.ts'

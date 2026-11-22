@@ -9,6 +9,8 @@ it('exports the toast store, the figure store, the assembly error, the slot tabl
     'createToastStore',
     'defineKeyedPoint',
     'definePoint',
+    'needPoint',
+    'needProtocol',
     'serviceKey',
     'serviceOf',
     'shellContracts',

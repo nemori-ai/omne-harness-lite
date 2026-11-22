@@ -1,9 +1,24 @@
 import { CordisError, Service, type Context, type Plugin } from '@deepseek-ai/cordis'
-import { declare, type Contract, type Registry } from '@omne-harness/dynamis'
+import {
+  adopt,
+  declare,
+  type Adoption,
+  type Contract,
+  type Reference,
+  type Registry,
+} from '@omne-harness/dynamis'
 import { DynamisRefused, type Made } from '@omne-harness/dynamis-cordis/cordis'
 import type { ReactNode } from 'react'
 import type { FigureBoard, FigureReport } from './figure-store.ts'
 import type { ScopeSource, ShellLogin } from './host.ts'
+import {
+  pinnedClient,
+  pointReader,
+  referenceOf,
+  referencesOf,
+  type BoundOf,
+  type Need,
+} from './needs.ts'
 import type { ServiceKey } from './service-key.ts'
 import { entryOf, sameView, shellContracts, viewOf, type SlotView } from './placement.ts'
 import {
@@ -37,6 +52,9 @@ export abstract class ShellService extends Service implements ShellSlots {
 
   private readonly views = new Map<SlotName, SlotView>()
   private readonly watchers = new Set<Watcher>()
+  private readonly required = new Map<string, Readonly<Record<string, Reference>>>()
+  private readonly adoptionWatchers = new Set<() => void>()
+  private adopted: Readonly<{ registry: Registry; of: Map<string, Adoption> }> | undefined
 
   constructor(ctx: Context) {
     super(ctx, ShellService.provide)
@@ -68,6 +86,46 @@ export abstract class ShellService extends Service implements ShellSlots {
     return () => void this.watchers.delete(watcher)
   }
 
+  registry(): Registry {
+    return this.ctx.dynamis.registry()
+  }
+
+  require(module: string, references: Readonly<Record<string, Reference>>): void {
+    this.ctx.effect(() => {
+      this.required.set(module, references)
+      this.adopted = undefined
+      return () => {
+        this.required.delete(module)
+        this.adopted = undefined
+      }
+    }, 'shell.require')
+  }
+
+  adoption(module: string): Adoption | undefined {
+    const references = this.required.get(module)
+    if (references === undefined) return undefined
+    const registry = this.ctx.dynamis.registry()
+    if (this.adopted?.registry !== registry) this.adopted = { registry, of: new Map() }
+    const known = this.adopted.of.get(module)
+    if (known !== undefined) return known
+    const made = adopt(registry, references, [])
+    this.adopted.of.set(module, made)
+    return made
+  }
+
+  owner(slot: Exclude<SlotName, 'attached'>, id: string): string | undefined {
+    const point = `shell.${slot}`
+    return this.ctx.dynamis
+      .registry()
+      .placed.find(placed => placed.point === point && placed.id === (slot === 'gate' ? '' : id))
+      ?.instance.fiber
+  }
+
+  watchAdoptions(listener: () => void): () => void {
+    this.adoptionWatchers.add(listener)
+    return () => void this.adoptionWatchers.delete(listener)
+  }
+
   private put(slot: SlotName, id: string, made: Made): void {
     try {
       this.ctx.dynamis.put(made)
@@ -91,6 +149,13 @@ export abstract class ShellService extends Service implements ShellSlots {
         watcher.listener()
       } catch {
         this.ctx.logger.warn(`shell: a watcher of ${watcher.slot} threw`)
+      }
+    }
+    for (const listener of Array.from(this.adoptionWatchers)) {
+      try {
+        listener()
+      } catch {
+        this.ctx.logger.warn('shell: a watcher of the adoptions threw')
       }
     }
   }
@@ -177,26 +242,59 @@ declare module '@deepseek-ai/cordis' {
 
 export type Provide = <T>(key: ServiceKey<T>, value: NoInfer<T>) => void
 
-export type UiModuleDefinition<S extends Record<string, unknown>> = Readonly<{
+export type InjectingUiModule<S extends Record<string, unknown>> = Readonly<{
   name: string
   inject: readonly (keyof S & string)[]
   apply: (shell: ShellService, services: Readonly<S>, provide: Provide) => void
 }>
 
+export type UiModuleDefinition<N extends Readonly<Record<string, Need>>> = Readonly<{
+  name: string
+  needs: N
+  apply: (shell: ShellService, bound: BoundOf<N>, provide: Provide) => void
+}>
+
+function boundOf(shell: ShellService, registry: () => Registry, needs: Record<string, Need>) {
+  const bound: Record<string, unknown> = {}
+  for (const [slot, need] of Object.entries(needs)) {
+    const reference = referenceOf(need)
+    bound[slot] =
+      need.kind === 'protocol'
+        ? pinnedClient(registry, reference)
+        : pointReader(registry, reference, listener => shell.watchAdoptions(listener))
+  }
+  return Object.freeze(bound)
+}
+
+export function defineUiModule<N extends Readonly<Record<string, Need>>>(
+  definition: UiModuleDefinition<N>,
+): Plugin.Object
 export function defineUiModule<S extends Record<string, unknown> = Record<string, unknown>>(
-  definition: UiModuleDefinition<S>,
+  definition: InjectingUiModule<S>,
+): Plugin.Object
+export function defineUiModule(
+  definition: UiModuleDefinition<Record<string, Need>> | InjectingUiModule<Record<string, unknown>>,
 ): Plugin.Object {
+  const injected = 'inject' in definition ? definition.inject : []
   return {
     name: definition.name,
-    inject: [ShellService.provide, ...definition.inject],
+    inject: [ShellService.provide, ...injected],
     apply(ctx: Context) {
-      const lookup = ctx as unknown as { get(name: string): unknown }
-      const services: Record<string, unknown> = {}
-      for (const name of definition.inject) services[name] = lookup.get(name)
       const provide: Provide = (key, value) => {
         ctx.effect(() => ctx.reflect.provide(key, value), 'ui-module.provide')
       }
-      definition.apply(ctx.shell, services as S, provide)
+      if ('inject' in definition) {
+        const lookup = ctx as unknown as { get(name: string): unknown }
+        const services: Record<string, unknown> = {}
+        for (const name of definition.inject) services[name] = lookup.get(name)
+        definition.apply(ctx.shell, services, provide)
+        return
+      }
+      ctx.shell.require(definition.name, referencesOf(definition.needs))
+      const { shell } = ctx
+      const registry = (): Registry => shell.registry()
+      const bound = boundOf(ctx.shell, registry, definition.needs) as BoundOf<Record<string, Need>>
+      definition.apply(ctx.shell, bound, provide)
     },
   }
 }
