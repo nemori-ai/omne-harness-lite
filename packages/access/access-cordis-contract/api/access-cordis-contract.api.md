@@ -6,7 +6,6 @@
 
 ## 入口 `.` · `index.d.ts`
 
-- `AccessAssemblyError` · `contribution.d.ts`
 - `AccessContribution` · `contribution.d.ts`
 - `AccessIdentity` · `identity.d.ts`
 - `ActForResult` · `identity.d.ts`
@@ -113,10 +112,6 @@ export type AccessContribution<P extends ProtocolContract> = {
         readonly [K in keyof P['observations']]: FrameSource<P['observations'][K]>;
     };
 };
-export declare class AccessAssemblyError extends Error {
-    readonly protocol: ProtocolKey;
-    constructor(protocol: ProtocolKey);
-}
 export {};
 ```
 
@@ -129,8 +124,7 @@ import type { AccessContribution } from './contribution.ts';
 export declare abstract class AccessRegistryService extends Service {
     static readonly provide = "accessRegistry";
     constructor(ctx: Context);
-    mount<P extends ProtocolContract>(contribution: AccessContribution<P>): void;
-    protected abstract attach(contribution: AccessContribution<ProtocolContract>): () => Promise<void>;
+    abstract mount<P extends ProtocolContract>(contribution: AccessContribution<P>): void;
 }
 export declare const accessRegistryKey = "accessRegistry";
 declare module '@deepseek-ai/cordis' {
@@ -173,7 +167,6 @@ export type AccessIdentity = {
 ## 声明文件 `index.d.ts`
 
 ```ts
-export { AccessAssemblyError } from './contribution.ts';
 export { createChangeObservation, type ChangeAdmission, type ChangeListener, type ChangeObservationInput, } from './change-observation.ts';
 export type { AccessContribution, AnswerOf, BodyOf, CallContext, EndOf, FrameOf, FrameSource, LoginIdentity, ObservationContext, OpenOf, OperationHandler, Principal, PrincipalFor, ProtocolKey, } from './contribution.ts';
 export type { AccessIdentity, ActForResult, IdentityFailure, LoginResult } from './identity.ts';

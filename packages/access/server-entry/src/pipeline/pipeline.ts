@@ -142,9 +142,11 @@ function eventOf(
   code: PipelineDiagnosticCode,
   path: string,
   address?: Address,
+  by?: readonly string[],
 ): PipelineDiagnostic {
   if (address === undefined) return { code, path }
-  return { code, path, protocol: address.protocol, major: address.major, operation: address.name }
+  const { protocol, major, name: operation } = address
+  return { code, path, protocol, major, operation, ...(by !== undefined && { by }) }
 }
 
 const MESSAGE_ID = /^[\x21-\x7e]{1,128}$/
@@ -429,10 +431,7 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
   async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const admission = admit(req, access.registry, settings.loopback)
     if (admission.kind === 'refused') {
-      diagnose({
-        ...eventOf(admission.code, admission.path, admission.address),
-        ...(admission.by !== undefined && { by: admission.by }),
-      })
+      diagnose(eventOf(admission.code, admission.path, admission.address, admission.by))
       return refuse(res, admission)
     }
     const release = settings.slots.take(res)

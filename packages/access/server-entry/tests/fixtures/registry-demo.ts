@@ -1,4 +1,4 @@
-import { type AccessContribution } from '@omne-harness/access-cordis-contract'
+import type { AccessContribution } from '@omne-harness/access-cordis-contract'
 import { createStandaloneRegistry } from '../../src/registry/desk.ts'
 import { settleCall } from '../../src/settle/settle.ts'
 import { manualClock } from '../support/manual-clock.ts'

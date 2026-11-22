@@ -31,7 +31,6 @@
   },
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:",
-    "@omne-harness/dynamis": "workspace:*",
     "@omne-harness/public-contract": "workspace:*"
   },
   "devDependencies": {

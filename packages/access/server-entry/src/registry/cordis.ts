@@ -1,7 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { AccessContribution } from '@omne-harness/access-cordis-contract'
 import { AccessRegistryService } from '@omne-harness/access-cordis-contract/cordis'
-import { declare, type Entry, type Instance } from '@omne-harness/dynamis'
+import { declare } from '@omne-harness/dynamis'
 import type { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import type { ProtocolContract } from '@omne-harness/public-contract'
 import type { PipelineDiagnostic } from '../pipeline/pipeline.ts'
@@ -36,15 +36,13 @@ export class AccessRegistryProvider extends AccessRegistryService implements Reg
     ctx.on('dynamis-cordis/changed', registry => this.desk.changed(registry))
   }
 
-  protected entry(contribution: AccessContribution<ProtocolContract>, instance: Instance): Entry {
-    return entryOf(contribution, instance)
-  }
-
-  protected drained(
-    contribution: AccessContribution<ProtocolContract>,
-    instance: Instance,
-  ): Promise<void> {
-    return this.desk.drained(instance, keyOf(contribution.protocol))
+  /** Puts the protocol as an effect of the calling plugin: it is served once that plugin is ready. */
+  override mount<P extends ProtocolContract>(typed: AccessContribution<P>): void {
+    const contribution = typed as unknown as AccessContribution<ProtocolContract>
+    const dynamis = this.ctx.get('dynamis') as DynamisService
+    dynamis.put(instance => [entryOf(contribution, instance)], {
+      drain: instance => this.desk.drained(instance, keyOf(contribution.protocol)),
+    })
   }
 
   /** The entry's own protocol, put as the row that built this provider and taken back by hand. */
