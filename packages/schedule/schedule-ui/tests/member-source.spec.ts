@@ -30,6 +30,7 @@ it('S3 the member reads only its own protocol, the client side of access, the fr
     '@omne-harness/shell-contract',
     '@omne-harness/shell-contract/cordis',
     '@omne-harness/ui-kit',
+    '@omne-harness/ui-kit/layers.css',
     '@omne-harness/utc-instant',
   ])
   const imports = code.flatMap(({ text }) =>
