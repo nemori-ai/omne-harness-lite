@@ -117,7 +117,7 @@ describe('the declaration of a part, checked against the module that makes it', 
 
 describe('a part a view module declares', () => {
   it('carries its name to the element it is drawn on', () => {
-    expect(definePart(send).props).toEqual({ 'data-part': 'notes.composer.send' })
+    expect(definePart(send).props).toEqual({ 'data-omne-part': 'notes.composer.send' })
     expect(definePart(send).name).toBe('notes.composer.send')
   })
 

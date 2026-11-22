@@ -21,6 +21,7 @@ import { nextText, stateNote, type ScheduleCard, type Succeeded } from '../model
 import { Drawn } from './drawn.tsx'
 import { ReadOnEnd } from './read-on-end.tsx'
 import { ScheduleDetailView, type Picked } from './schedule-detail.tsx'
+import { scheduleFilter, scheduleRefresh } from '../parts.ts'
 
 type Client = ClientOf<ScheduleProtocol>
 type Page = Succeeded<'list-schedules'>
@@ -70,7 +71,11 @@ function Schedules({
       description={DESCRIPTION}
       detail={open}
       actions={
-        <IconButton label="刷新" onClick={() => setRound(value => value + 1)}>
+        <IconButton
+          label="刷新"
+          {...scheduleRefresh.props}
+          onClick={() => setRound(value => value + 1)}
+        >
           <RetryIcon aria-hidden="true" />
         </IconButton>
       }
@@ -78,7 +83,7 @@ function Schedules({
       <ListReadingWorkspace detail={open} empty={empty}>
         <ListReadingDirectory
           search={
-            <div className="schedule-span">
+            <div className="schedule-span" {...scheduleFilter.props}>
               <Segmented
                 label="范围"
                 value={span}

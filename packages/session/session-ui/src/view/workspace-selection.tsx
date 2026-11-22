@@ -17,6 +17,7 @@ import {
   type WorkspaceSelectionView,
   type WorkspaceTarget,
 } from '../model/workspace-selection.ts'
+import { sessionHeaderWorkspace } from '../parts.ts'
 
 const NONE = '::none'
 const OPTION = 'omne-session-workspace-option'
@@ -110,7 +111,7 @@ export function WorkspaceAction({ store, tenant, session }: Props) {
       <HeadingChoice
         rank={FOLD_RANK.workspace}
         bar={
-          <span className="omne-session-workspace">
+          <span className="omne-session-workspace" {...sessionHeaderWorkspace.props}>
             <span role="status">{reason}</span>
             {told}
           </span>
@@ -128,7 +129,7 @@ export function WorkspaceAction({ store, tenant, session }: Props) {
     <HeadingChoice
       rank={FOLD_RANK.workspace}
       bar={
-        <span className="omne-session-workspace">
+        <span className="omne-session-workspace" {...sessionHeaderWorkspace.props}>
           {choices === null ? null : (
             <WorkspaceSelect
               label="工作区"

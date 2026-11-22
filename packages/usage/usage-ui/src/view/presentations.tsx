@@ -9,6 +9,7 @@ import {
   type ChartSeries,
   type SharePart,
 } from '@omne-harness/ui-kit'
+import { usageOccupancy } from '../parts.ts'
 import { usagePresentation } from '../points.ts'
 
 type Drawn = Readonly<Record<string, unknown>>
@@ -33,7 +34,12 @@ function Percent({ data }: { readonly data: Drawn }): React.JSX.Element | null {
   const said = `${label(data)} ${shown}${caption === null ? '' : `，${caption}`}`
   const caution = percent > 100 || (mark !== null && percent > mark)
   return (
-    <span className="usage-percent" data-tone={caution ? 'caution' : undefined} title={said}>
+    <span
+      className="usage-percent"
+      {...usageOccupancy.props}
+      data-tone={caution ? 'caution' : undefined}
+      title={said}
+    >
       <span aria-hidden="true">{shown}</span>
       <span className="sr-only">{said}</span>
     </span>

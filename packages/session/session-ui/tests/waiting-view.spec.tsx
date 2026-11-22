@@ -56,6 +56,7 @@ it('一轮失败之后：失败的那一行下面写成因、没处理的条数�
   const block = screen.getByRole('status', { name: '这一轮失败了' })
   expect(block.previousElementSibling?.textContent).toBe('这一轮失败了')
   expect(block.textContent).toContain('模型没有给出有效的回复。')
+  expect(block.getAttribute('data-omne-part')).toBe('session.transcript.failure')
   expect(block.textContent).toContain('还有 2 条消息没有处理')
   // The recovery leads with the retry glyph, as the reference's failure notice does (A4).
   expect(

@@ -2,6 +2,7 @@ import type { HumanInterventionCardItem } from '@omne-harness/human-intervention
 import { defineKeyedPoint, type KeyedPointSink, type PointHost } from '@omne-harness/shell-contract'
 import { FactList, FactRow, Segmented } from '@omne-harness/ui-kit'
 import { Component, createContext, useContext, useState, type JSX, type ReactNode } from 'react'
+import { humanInterventionPaperCardDetail } from '../parts.ts'
 
 type Question = HumanInterventionCardItem['card']['question']
 type Detail = NonNullable<Extract<Question, { kind: 'release' }>['detail']>
@@ -85,7 +86,7 @@ const FACES = [
 function Switchable({ view, rows }: Readonly<{ view: ReactNode; rows: ReactNode }>): JSX.Element {
   const [face, setFace] = useState<Face>('view')
   return (
-    <div className="hitl-detail">
+    <div className="hitl-detail" {...humanInterventionPaperCardDetail.props}>
       <Segmented label="详情的画法" value={face} onValueChange={setFace} options={FACES} />
       {face === 'rows' ? rows : view}
     </div>
@@ -95,7 +96,11 @@ function Switchable({ view, rows }: Readonly<{ view: ReactNode; rows: ReactNode 
 export function ReleaseDetailView({ detail }: Readonly<{ detail: GivenDetail }>): JSX.Element {
   const host = useContext(DetailHost)
   const rows = <Rows rows={detail.rows} />
-  const plain = <div className="hitl-detail">{rows}</div>
+  const plain = (
+    <div className="hitl-detail" {...humanInterventionPaperCardDetail.props}>
+      {rows}
+    </div>
+  )
   if (detail.typed === undefined || host === undefined) return plain
   return (
     <Fallback.Provider value={plain}>

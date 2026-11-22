@@ -105,6 +105,27 @@ it.each([
   expect(row('月报提醒').textContent).toBe(`月报提醒${word}2026-11-30 17:00`)
 })
 
+it('P0 the refresh and the filter are on their own elements from the first read', async () => {
+  await listed([MONTHLY])
+  const on = (name: string) => document.querySelectorAll(`[data-omne-part="${name}"]`)
+  expect(on('schedule.refresh')).toHaveLength(1)
+  expect(on('schedule.refresh')[0]?.getAttribute('aria-label')).toBe('刷新')
+  expect(on('schedule.filter')[0]?.classList.contains('schedule-span')).toBe(true)
+  expect(on('schedule.title')).toHaveLength(0)
+  expect(on('schedule.upcoming')).toHaveLength(0)
+})
+
+it('P0 an opened schedule has its name and its next times as parts', async () => {
+  const fake = await listed([MONTHLY])
+  const { read, preview } = await picked(fake)
+  await answer(read, { outcome: 'succeeded', body: DETAIL })
+  await answer(preview, { outcome: 'succeeded', body: { upcoming: [NEXT], complete: true } })
+  const on = (name: string) => document.querySelectorAll(`[data-omne-part="${name}"]`)
+  expect(on('schedule.title')[0]?.textContent).toBe('月报提醒')
+  expect(on('schedule.title')[0]?.classList.contains('schedule-record-title')).toBe(true)
+  expect(on('schedule.upcoming')[0]?.classList.contains('schedule-upcoming')).toBe(true)
+})
+
 it('L2 no schedule yet: the list says nothing and the reading pane says what will be here', async () => {
   await listed([])
   expect(screen.getByText('命令行与 agent 建的日程会列在这里。')).toBeTruthy()

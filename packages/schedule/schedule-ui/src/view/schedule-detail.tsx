@@ -27,6 +27,7 @@ import {
   type Upcoming,
 } from '../model/words.ts'
 import { Drawn } from './drawn.tsx'
+import { scheduleTitle, scheduleUpcoming } from '../parts.ts'
 
 type Client = ClientOf<ScheduleProtocol>
 type Preview = Succeeded<'preview'>
@@ -89,7 +90,9 @@ function Record({ detail }: Readonly<{ detail: ScheduleDetail }>): JSX.Element {
   const note = stateNote(detail)
   return (
     <>
-      <h2 className="schedule-record-title">{detail.label ?? '未命名'}</h2>
+      <h2 className="schedule-record-title" {...scheduleTitle.props}>
+        {detail.label ?? '未命名'}
+      </h2>
       <p className="schedule-record-byline">
         {authorText(detail.author)}建的 · <Ago at={encodeInstant(detail.createdAt)} />
       </p>
@@ -130,7 +133,7 @@ function UpcomingList({ preview }: Readonly<{ preview: Preview }>): JSX.Element 
   if (preview.upcoming.length === 0) return <p className="schedule-note">没有接下来的时间。</p>
   return (
     <>
-      <ol className="schedule-upcoming" aria-label="时间表">
+      <ol className="schedule-upcoming" aria-label="时间表" {...scheduleUpcoming.props}>
         {preview.upcoming.map(item => (
           <li key={encodeInstant(item.at)}>
             <Time item={item} />

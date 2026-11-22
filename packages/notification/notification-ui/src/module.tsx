@@ -10,6 +10,7 @@ import { watchStrongArrivals } from './model/strong-arrivals.ts'
 import { inboxSections } from './points.ts'
 import { InboxPage } from './view/inbox-page.tsx'
 import { UnresolvedBadge } from './view/unresolved-badge.tsx'
+import { notificationParts } from './parts.ts'
 
 export const PAGE_ID = 'notifications'
 export const PAGE_ORDER = 11
@@ -58,6 +59,7 @@ export const notificationUiModule = defineUiModule({
   needs: { notification: needProtocol<ClientOf<NotificationProtocol>>(notificationProtocol) },
   apply(shell, { notification: client }) {
     const hub = new InboxHub({ client })
+    for (const part of notificationParts) part.declare(shell)
     inboxSections.declare(shell)
     contribute(shell, hub)
     const stopArrivals = watchStrongArrivals({

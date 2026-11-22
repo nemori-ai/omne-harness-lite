@@ -6,6 +6,7 @@ import {
   type NoticeAction,
 } from '@omne-harness/ui-kit'
 import { useEffect, useState, useSyncExternalStore, type JSX } from 'react'
+import { mcpEndpoint, mcpEndpointPermission, mcpPage } from './parts.ts'
 import type {
   McpEndpoint,
   McpGovernance,
@@ -59,7 +60,7 @@ function McpBody({ view }: { readonly view: McpView }): JSX.Element {
       return <NoticeLine notice={snapshot.notice} action={{ label: '重试', onClick: view.read }} />
     case 'read':
       return (
-        <div className="mcp-page">
+        <div className="mcp-page" {...mcpPage.props}>
           {snapshot.partial ? (
             <NoticeLine
               notice={{
@@ -92,7 +93,7 @@ function Endpoint({
 }): JSX.Element {
   const DefaultRow = view.Row
   return (
-    <section className="mcp-endpoint" aria-label={endpoint.name}>
+    <section className="mcp-endpoint" aria-label={endpoint.name} {...mcpEndpoint.props}>
       <h3 className="mcp-endpoint-title">{endpoint.name}</h3>
       {endpoint.rows.filter(drawnHere).map(row => (
         <CallPermission key={row.key} row={row} view={view} />
@@ -135,7 +136,7 @@ function CallPermission({
     row.read.kind !== 'read' || row.write.kind === 'submitting' || row.write.kind === 'unknown'
   const picked = setting.effective.kind === 'value' ? setting.effective.value : null
   return (
-    <div className="mcp-permission">
+    <div className="mcp-permission" {...mcpEndpointPermission.props}>
       <h4 className="mcp-permission-title">{setting.declaration.title}</h4>
       <div role="group" aria-label={setting.declaration.title} className="mcp-permission-choices">
         {setting.choices.map(choice => (

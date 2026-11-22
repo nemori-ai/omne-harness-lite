@@ -10,10 +10,17 @@ import {
   TraceHeader,
   type Icon,
 } from '@omne-harness/ui-kit'
+import type { PartProps } from '@omne-harness/shell-contract'
 import { memo, useContext, useId, useState, type ReactNode } from 'react'
 import type { Item, Part } from '../model/conversation.ts'
 import { isRecord, type Plain } from '../model/plain.ts'
 import { BlockSlotContext } from './block-slot.ts'
+import {
+  sessionTranscriptAgentMessage,
+  sessionTranscriptReasoning,
+  sessionTranscriptToolCall,
+  sessionTranscriptUserMessage,
+} from '../parts.ts'
 
 type ToolCallPart = Extract<Part, { kind: 'tool-call' }>
 
@@ -25,18 +32,20 @@ function ProcessLine({
   live = false,
   light = false,
   children,
+  partProps,
 }: {
   readonly icon?: Icon
   readonly name: ReactNode
   readonly word?: ReactNode
   readonly live?: boolean
   readonly light?: boolean
+  readonly partProps?: PartProps
   readonly children: ReactNode
 }) {
   const [open, setOpen] = useState(false)
   const region = useId()
   return (
-    <div className="omne-process" data-weight={light ? 'light' : undefined}>
+    <div className="omne-process" data-weight={light ? 'light' : undefined} {...partProps}>
       <TraceHeader
         state={live ? 'live' : 'settled'}
         quiet
@@ -197,6 +206,7 @@ function ToolCall({ part }: { readonly part: ToolCallPart }) {
       name={<code className="omne-process-name">{part.name ?? '（名字还没生成）'}</code>}
       word={word}
       live={live}
+      partProps={sessionTranscriptToolCall.props}
     >
       {part.raw === null ? (
         <Arguments value={part.arguments} />
@@ -218,6 +228,7 @@ function Reasoning({ text, live }: { readonly text: string; readonly live: boole
       name="推理"
       word={<StateWord state={live ? 'thinking' : 'completed'} />}
       live={live}
+      partProps={sessionTranscriptReasoning.props}
     >
       <div className="omne-process-reading">
         <Prose text={text} isAnimating={live} />
@@ -329,6 +340,9 @@ export function speakerOf(item: Item): 'user' | 'agent' | undefined {
   return item.kind === 'note' ? 'agent' : undefined
 }
 
+const messagePart = (role: string): typeof sessionTranscriptUserMessage =>
+  role === 'user' ? sessionTranscriptUserMessage : sessionTranscriptAgentMessage
+
 export const ItemView = memo(function ItemView({
   item,
   failed = false,
@@ -340,7 +354,12 @@ export const ItemView = memo(function ItemView({
   switch (item.kind) {
     case 'message':
       return (
-        <article className="omne-message" data-role={item.role} data-live={item.live}>
+        <article
+          className="omne-message"
+          data-role={item.role}
+          data-live={item.live}
+          {...messagePart(item.role).props}
+        >
           <span className="omne-message-speaker">{SPEAKER[item.role]}</span>
           <Parts parts={item.parts} live={item.live} bubble />
         </article>

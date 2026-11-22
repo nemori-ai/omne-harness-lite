@@ -13,6 +13,7 @@ import {
 import { ShellService } from '@omne-harness/shell-contract/cordis'
 import { Arranged, Attached } from './attached.tsx'
 import { lackOf, type Lack, type LackSlot, type Standing } from './lacks.ts'
+import { shellParts } from './parts.ts'
 import type { ShellState } from './state.ts'
 
 const SLOT_NAMES: readonly SlotName[] = ['gate', 'pages', 'sidebar', 'attached']
@@ -32,6 +33,7 @@ export class DesktopShell extends ShellService {
     this.state = state
     this.login = state.login
     this.scope = state.scope
+    this.declareOwn(shellParts.map(part => part.declaration))
     ctx.effect(() => state.slots.bind(this), 'desktop-shell.slots')
     for (const slot of SLOT_NAMES)
       ctx.effect(

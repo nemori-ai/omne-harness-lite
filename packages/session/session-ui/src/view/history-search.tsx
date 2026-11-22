@@ -33,6 +33,7 @@ import type { SessionWorkspaces } from '../model/session-workspaces.ts'
 import { ReadOnEnd } from './read-on-end.tsx'
 import { useSession } from './use-session.ts'
 import type { SessionDriver } from '../model/session-driver.ts'
+import { sessionSearch } from '../parts.ts'
 
 type Listed = Extract<SearchView, { kind: 'listed' }>
 
@@ -173,7 +174,7 @@ export function HistorySearchPage({ store, tenant, nameOf, onOpen }: Props) {
   const now = useAgeClock(hits.length > 0)
   const listed = view.kind === 'listed' ? view : null
   return (
-    <PageColumn className="omne-search">
+    <PageColumn className="omne-search" {...sessionSearch.props}>
       <PageHeader title="搜索" />
       <div className="omne-search-column">
         <form

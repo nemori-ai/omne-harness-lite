@@ -25,6 +25,7 @@ export { shellContracts } from './placement.ts'
 export { defineKeyedPoint, definePoint } from './point.ts'
 export {
   PARTS_POINT,
+  PART_ATTRIBUTE,
   definePart,
   partFault,
   partsOn,
@@ -33,6 +34,7 @@ export {
   type PartDeclaration,
   type PartDeclarer,
   type PartDepth,
+  type PartProps,
   type PartsRead,
 } from './part.ts'
 export { serviceKey, type ServiceKey } from './service-key.ts'

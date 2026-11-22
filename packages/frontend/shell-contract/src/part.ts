@@ -7,6 +7,9 @@ import {
 } from '@omne-harness/dynamis'
 
 export const PARTS_POINT = 'shell.parts'
+export const PART_ATTRIBUTE = 'data-omne-part'
+
+export type PartProps = Readonly<{ [PART_ATTRIBUTE]: string }>
 
 const DEPTHS = ['tokens', 'style', 'render'] as const
 
@@ -26,7 +29,7 @@ export type PartDeclarer = Readonly<{ declarePart: (declaration: PartDeclaration
 export type Part = Readonly<{
   name: string
   declaration: PartDeclaration
-  props: Readonly<{ 'data-part': string }>
+  props: PartProps
   declare: (shell: PartDeclarer) => void
 }>
 
@@ -133,7 +136,7 @@ export function definePart(declaration: PartDeclaration): Part {
   return {
     name: declaration.name,
     declaration,
-    props: { 'data-part': declaration.name },
+    props: { [PART_ATTRIBUTE]: declaration.name },
     declare: shell => shell.declarePart(declaration),
   }
 }

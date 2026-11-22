@@ -4,6 +4,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { Context } from '@deepseek-ai/cordis'
 import type { ReactNode } from 'react'
 import {
+  partsOn,
   type AttachedLayout,
   type ScopeSource,
   type ShellLogin,
@@ -97,6 +98,20 @@ async function setup() {
 }
 
 describe('身份的界面模块', () => {
+  it('M4 声明六个部位，协议有没有服务都一样', async () => {
+    const t = await setup()
+    const read = partsOn(t.shell.registry())
+    expect(read.kind === 'read' && read.conflicts).toEqual([])
+    expect(read.kind === 'read' && read.parts.map(part => [part.name, part.within])).toEqual([
+      ['identity.account', 'shell.sidebar.footer'],
+      ['identity.account.control', 'identity.account'],
+      ['identity.account.rail', 'shell.sidebar.footer'],
+      ['identity.login', 'shell.gate'],
+      ['identity.login.form', 'identity.login'],
+      ['identity.login.submit', 'identity.login.form'],
+    ])
+  })
+
   it('登录门不依赖身份协议，一直在；协议的客户端出现时再放侧栏区一项，消失时撤掉', async () => {
     const t = await setup()
     expect(t.shell.items('gate').map(item => item.id)).toEqual([GATE_ID])
@@ -182,6 +197,12 @@ describe('身份的界面模块', () => {
       render(<>{t.shell.items('sidebar')[0]!.render({ scope: undefined })}</>)
     })
     const control = screen.getByRole('button', { name: '正在读取当前租户……' })
+    expect(control.getAttribute('data-omne-part')).toBe('identity.account.control')
+    expect(
+      control
+        .closest('[data-omne-part="identity.account"]')
+        ?.classList.contains('identity-account'),
+    ).toBe(true)
     expect(control.querySelector(GLYPH)).toBeTruthy()
     expect(control.querySelector('[data-loading-indicator]')).toBeTruthy()
     expect(control.textContent).toBe('')
@@ -238,6 +259,7 @@ describe('身份的界面模块', () => {
     expect(t.calls.scopes).toEqual([TENANT_TEXT])
     const circle = screen.getByRole('button', { name: TENANT_TEXT })
     expect(circle.classList.contains('identity-account-rail')).toBe(true)
+    expect(circle.getAttribute('data-omne-part')).toBe('identity.account.rail')
     expect(circle.querySelector(GLYPH)).toBeTruthy()
     expect(circle.textContent).toBe('')
     expect(await hint(circle)).toBe(TENANT_TEXT)

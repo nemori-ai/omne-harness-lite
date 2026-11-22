@@ -68,6 +68,7 @@ it('排着的话：一行回执重量的字「还有 n 句话排着没处理」�
   )
   await settle()
   const region = work()!
+  expect(region.getAttribute('data-omne-part')).toBe('session.queue')
   expect(screen.getByRole('region', { name: '排着的话' })).toBe(region)
   expect(fold().textContent).toBe('还有 2 句话排着没处理')
   expect(fold().getAttribute('aria-expanded')).toBe('false')

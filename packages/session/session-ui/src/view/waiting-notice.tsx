@@ -2,6 +2,7 @@ import { InlineNotice, RetryIcon } from '@omne-harness/ui-kit'
 import type { Item } from '../model/conversation.ts'
 import type { SessionDriver } from '../model/session-driver.ts'
 import { causeSentence, type Retry, type Waiting } from '../model/waiting.ts'
+import { sessionTranscriptFailure } from '../parts.ts'
 
 export const NOTHING_PENDING = '没有没处理的消息，发一条新消息让它接着做。'
 
@@ -25,7 +26,12 @@ export function WaitingNotice({
   const left = fact.pending > 0 && retry.kind !== 'no-change'
   const detail = fact.cause?.detail ?? null
   return (
-    <section className="omne-waiting" role="status" aria-label="这一轮失败了">
+    <section
+      className="omne-waiting"
+      {...sessionTranscriptFailure.props}
+      role="status"
+      aria-label="这一轮失败了"
+    >
       <InlineNotice
         tone="danger"
         role="status"

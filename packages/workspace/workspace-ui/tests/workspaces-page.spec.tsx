@@ -193,6 +193,16 @@ describe('the workspaces page', () => {
     expect(screen.getByText('现在不知道能不能用')).toBeTruthy()
   })
 
+  it('P0 each part of the page is on its own element', async () => {
+    const fake = await shown()
+    const on = (name: string) => document.querySelectorAll(`[data-omne-part="${name}"]`)
+    expect(on('workspace.page')).toHaveLength(1)
+    expect(on('workspace.item')[0]?.tagName).toBe('TR')
+    expect(on('workspace.instance')).toHaveLength(0)
+    await opened(fake)
+    expect(on('workspace.instance')[0]?.textContent).toContain('/srv/blog')
+  })
+
   it('grants participation and removes, to a tenant it can read, and refuses one it cannot', async () => {
     const fake = await shown()
     await opened(fake)

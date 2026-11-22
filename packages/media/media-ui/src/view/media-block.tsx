@@ -2,6 +2,7 @@ import type { TenantId } from '@omne-harness/public-contract'
 import { Button, LoadingState } from '@omne-harness/ui-kit'
 import { useEffect, useState } from 'react'
 import { IMAGE_TYPES } from '../model/attachment-tray.ts'
+import { mediaFile, mediaPicture, mediaRead } from '../parts.ts'
 import { readWhole, type DisplayTarget, type MediaClient, type Reference } from '../model/upload.ts'
 
 export type MediaBlockProps = Readonly<{
@@ -91,6 +92,7 @@ function Picture(props: MediaBlockProps & { readonly read: Read }) {
     <Button
       variant="ghost"
       className="omne-media-picture"
+      {...mediaPicture.props}
       data-whole={whole}
       aria-label={whole ? '收起' : '看原图'}
       onClick={() => setWhole(value => !value)}
@@ -115,10 +117,14 @@ function readText(read: string | undefined, kind: string): string | null {
 function MediaContent(props: MediaBlockProps) {
   const read = readBlock(props.content)
   if (typeof read === 'string')
-    return <p className="omne-media-line">〔{read}〕这一块的内容读不懂</p>
+    return (
+      <p className="omne-media-line" {...mediaFile.props}>
+        〔{read}〕这一块的内容读不懂
+      </p>
+    )
   if (read.kind === 'image') return <Picture {...props} read={read} />
   return (
-    <p className="omne-media-line">
+    <p className="omne-media-line" {...mediaFile.props}>
       〔{read.kind}〕{read.ref.mediaType} · {sizeText(read.ref.bytes)}
     </p>
   )
@@ -132,7 +138,9 @@ export function MediaBlock(props: MediaBlockProps) {
   return (
     <div className="omne-media-block">
       <MediaContent {...props} />
-      <p className="omne-media-read">模型读的是{said}</p>
+      <p className="omne-media-read" {...mediaRead.props}>
+        模型读的是{said}
+      </p>
     </div>
   )
 }

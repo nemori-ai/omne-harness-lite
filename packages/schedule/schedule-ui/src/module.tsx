@@ -5,6 +5,7 @@ import type { ClientOf } from '@omne-harness/sdk/core'
 import { ACTIVATION_KIND } from './model/activation.ts'
 import { ActivationDetail } from './view/activation.tsx'
 import { SchedulePage } from './view/schedule-page.tsx'
+import { scheduleParts } from './parts.ts'
 
 export const SCHEDULE_PAGE_ID = 'schedules'
 export const SCHEDULE_PAGE_ORDER = 12
@@ -20,6 +21,7 @@ export function createScheduleUiModule(options: ScheduleUiOptions = {}) {
     name: 'schedule-ui',
     needs: { schedule: needProtocol<ClientOf<ScheduleProtocol>>(scheduleProtocol) },
     apply(shell, { schedule: client }) {
+      for (const part of scheduleParts) part.declare(shell)
       shell.contribute('pages', {
         id: SCHEDULE_PAGE_ID,
         title: '日程',

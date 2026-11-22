@@ -130,6 +130,218 @@ system
         settings  [effective, assets-ui#1]
         usage  [effective, usage-ui#1]
       shell.parts  [keyed-one]
+        assets.category
+          assets-ui#1  [effective]
+        assets.category.create
+          assets-ui#1  [effective]
+        assets.category.head
+          assets-ui#1  [effective]
+        assets.create
+          assets-ui#1  [effective]
+        assets.create.submit
+          assets-ui#1  [effective]
+        assets.item
+          assets-ui#1  [effective]
+        assets.item.actions
+          assets-ui#1  [effective]
+        assets.item.detail
+          assets-ui#1  [effective]
+        assets.list
+          assets-ui#1  [effective]
+        assets.page
+          assets-ui#1  [effective]
+        assets.panel
+          assets-ui#1  [effective]
+        assets.setting
+          assets-ui#1  [effective]
+        assets.setting.control
+          assets-ui#1  [effective]
+        assets.settings-page
+          assets-ui#1  [effective]
+        assets.settings-page.group
+          assets-ui#1  [effective]
+        assets.tabs
+          assets-ui#1  [effective]
+        assets.tabs.tab
+          assets-ui#1  [effective]
+        calendar.lookup
+          calendar-ui#1  [effective]
+        calendar.lookup.ask
+          calendar-ui#1  [effective]
+        calendar.page
+          calendar-ui#1  [effective]
+        human-intervention.page
+          human-intervention-ui#1  [effective]
+        human-intervention.page.group
+          human-intervention-ui#1  [effective]
+        human-intervention.paper
+          human-intervention-ui#1  [effective]
+        human-intervention.paper.card
+          human-intervention-ui#1  [effective]
+        human-intervention.paper.card.answer
+          human-intervention-ui#1  [effective]
+        human-intervention.paper.card.detail
+          human-intervention-ui#1  [effective]
+        human-intervention.paper.card.title
+          human-intervention-ui#1  [effective]
+        human-intervention.paper.foot
+          human-intervention-ui#1  [effective]
+        human-intervention.paper.foot.actions
+          human-intervention-ui#1  [effective]
+        human-intervention.paper.foot.submit
+          human-intervention-ui#1  [effective]
+        human-intervention.session-cards
+          human-intervention-ui#1  [effective]
+        identity.account
+          identity-ui#1  [effective]
+        identity.account.control
+          identity-ui#1  [effective]
+        identity.account.rail
+          identity-ui#1  [effective]
+        identity.login
+          identity-ui#1  [effective]
+        identity.login.form
+          identity-ui#1  [effective]
+        identity.login.submit
+          identity-ui#1  [effective]
+        mcp.endpoint
+          mcp-ui#1  [effective]
+        mcp.endpoint.permission
+          mcp-ui#1  [effective]
+        mcp.page
+          mcp-ui#1  [effective]
+        media.file
+          media-ui#1  [effective]
+        media.picture
+          media-ui#1  [effective]
+        media.read
+          media-ui#1  [effective]
+        media.tray
+          media-ui#1  [effective]
+        media.tray.attach
+          media-ui#1  [effective]
+        media.tray.chip
+          media-ui#1  [effective]
+        media.tray.record
+          media-ui#1  [effective]
+        notification.page
+          notification-ui#1  [effective]
+        notification.page.filter
+          notification-ui#1  [effective]
+        notification.page.group
+          notification-ui#1  [effective]
+        notification.row
+          notification-ui#1  [effective]
+        notification.row.actions
+          notification-ui#1  [effective]
+        notification.row.detail
+          notification-ui#1  [effective]
+        notification.row.title
+          notification-ui#1  [effective]
+        schedule.activation
+          schedule-ui#1  [effective]
+        schedule.filter
+          schedule-ui#1  [effective]
+        schedule.refresh
+          schedule-ui#1  [effective]
+        schedule.title
+          schedule-ui#1  [effective]
+        schedule.upcoming
+          schedule-ui#1  [effective]
+        session.archived
+          session-ui#1  [effective]
+        session.archived.item
+          session-ui#1  [effective]
+        session.composer
+          session-ui#1  [effective]
+        session.composer.input
+          session-ui#1  [effective]
+        session.composer.send
+          session-ui#1  [effective]
+        session.header
+          session-ui#1  [effective]
+        session.header.model
+          session-ui#1  [effective]
+        session.header.more
+          session-ui#1  [effective]
+        session.header.permission
+          session-ui#1  [effective]
+        session.header.title
+          session-ui#1  [effective]
+        session.header.workspace
+          session-ui#1  [effective]
+        session.list
+          session-ui#1  [effective]
+        session.list.item
+          session-ui#1  [effective]
+        session.list.new
+          session-ui#1  [effective]
+        session.queue
+          session-ui#1  [effective]
+        session.search
+          session-ui#1  [effective]
+        session.side
+          session-ui#1  [effective]
+        session.side.background-call
+          session-ui#1  [effective]
+        session.transcript
+          session-ui#1  [effective]
+        session.transcript.agent-message
+          session-ui#1  [effective]
+        session.transcript.failure
+          session-ui#1  [effective]
+        session.transcript.reasoning
+          session-ui#1  [effective]
+        session.transcript.tool-call
+          session-ui#1  [effective]
+        session.transcript.user-message
+          session-ui#1  [effective]
+        shell.app
+          DesktopShell#1  [effective]
+        shell.gate
+          DesktopShell#1  [effective]
+        shell.sidebar
+          DesktopShell#1  [effective]
+        shell.sidebar.appearance
+          DesktopShell#1  [effective]
+        shell.sidebar.fold
+          DesktopShell#1  [effective]
+        shell.sidebar.footer
+          DesktopShell#1  [effective]
+        shell.sidebar.home
+          DesktopShell#1  [effective]
+        shell.sidebar.menu
+          DesktopShell#1  [effective]
+        shell.sidebar.nav
+          DesktopShell#1  [effective]
+        shell.sidebar.nav.row
+          DesktopShell#1  [effective]
+        shell.sidebar.utility
+          DesktopShell#1  [effective]
+        shell.workspace
+          DesktopShell#1  [effective]
+        shell.workspace.page
+          DesktopShell#1  [effective]
+        tool.call-output
+          tool-ui#1  [effective]
+        usage.card
+          usage-ui#1  [effective]
+        usage.occupancy
+          usage-ui#1  [effective]
+        usage.page
+          usage-ui#1  [effective]
+        usage.panel
+          usage-ui#1  [effective]
+        usage.panel.bar
+          usage-ui#1  [effective]
+        usage.panel.menu
+          usage-ui#1  [effective]
+        workspace.instance
+          workspace-ui#1  [effective]
+        workspace.item
+          workspace-ui#1  [effective]
+        workspace.page
+          workspace-ui#1  [effective]
       shell.sidebar  [list, build]
         session-list  [effective, session-ui#1]
         archived-sessions  [effective, session-ui#1]

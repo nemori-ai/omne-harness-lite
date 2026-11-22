@@ -215,3 +215,13 @@ it('F6 目录型：选完显示文件数与总字节，超上限先说明；提�
   await settle()
   expect(form.getByText(/服务端已收 10 \/ 14 字节/)).toBeTruthy()
 })
+
+it('P0 the create button, the form and its submit carry their parts', async () => {
+  await shown({ kind: 'data', schema: FIELDS_SCHEMA })
+  const on = (name: string) => document.querySelectorAll(`[data-omne-part="${name}"]`)
+  expect(on('assets.category.create')[0]?.textContent).toBe('新建')
+  expect(on('assets.create')).toHaveLength(0)
+  await openForm()
+  expect(on('assets.create')[0]?.tagName).toBe('FORM')
+  expect(on('assets.create.submit')[0]?.textContent).toBe('提交')
+})

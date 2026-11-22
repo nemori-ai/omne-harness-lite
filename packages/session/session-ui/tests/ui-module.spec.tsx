@@ -2,6 +2,7 @@
 import { act, cleanup, fireEvent, screen } from '@testing-library/react'
 import { afterEach, expect, it } from 'vitest'
 import { sessionProtocol } from '@omne-harness/session-protocol'
+import { partsOn } from '@omne-harness/shell-contract'
 import { serveProtocol } from '@omne-harness/shell-contract/testing'
 import { sessionUiModule } from '../src/cordis.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
@@ -115,4 +116,40 @@ it('还没有租户：两样都不发调用', async () => {
   await mountModule(fake.client, undefined)
   await settle()
   expect(fake.calls).toEqual([])
+})
+
+it('M4 declares its 24 parts when the protocol is served', async () => {
+  const { root, shell } = await startShell()
+  await serveProtocol(root, sessionProtocol, createFakeClient().client)
+  await root.plugin(sessionUiModule)
+  await serveProtocol(root, sessionProtocol, createFakeClient().client)
+  await new Promise(resolve => setTimeout(resolve, 0))
+  const read = partsOn(shell.registry())
+  expect(read.kind === 'read' && read.conflicts).toEqual([])
+  expect(read.kind === 'read' && read.parts.map(part => [part.name, part.within])).toEqual([
+    ['session.archived', 'shell.sidebar'],
+    ['session.archived.item', 'session.archived'],
+    ['session.composer', null],
+    ['session.composer.input', 'session.composer'],
+    ['session.composer.send', 'session.composer'],
+    ['session.header', null],
+    ['session.header.model', 'session.header'],
+    ['session.header.more', 'session.header'],
+    ['session.header.permission', 'session.header'],
+    ['session.header.title', 'session.header'],
+    ['session.header.workspace', 'session.header'],
+    ['session.list', 'shell.sidebar'],
+    ['session.list.item', 'session.list'],
+    ['session.list.new', 'session.list'],
+    ['session.queue', null],
+    ['session.search', 'shell.workspace.page'],
+    ['session.side', null],
+    ['session.side.background-call', 'session.side'],
+    ['session.transcript', null],
+    ['session.transcript.agent-message', 'session.transcript'],
+    ['session.transcript.failure', 'session.transcript'],
+    ['session.transcript.reasoning', 'session.transcript'],
+    ['session.transcript.tool-call', 'session.transcript'],
+    ['session.transcript.user-message', 'session.transcript'],
+  ])
 })

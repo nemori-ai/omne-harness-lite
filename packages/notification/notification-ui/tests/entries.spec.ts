@@ -7,6 +7,7 @@ it('the cordis entry gives the interface module, the page id and order, and the 
     'PAGE_ID',
     'PAGE_ORDER',
     'inboxSections',
+    'notificationParts',
     'notificationUiModule',
   ])
   expect(cordis['PAGE_ID']).toBe('notifications')

@@ -12,6 +12,7 @@ it('the cordis entry gives the module factory, the example module, the two point
       'createUsageUiModule',
       'memoryLayoutStore',
       'usageExampleModule',
+      'usageParts',
       'usagePresentation',
       'usageWidget',
     ].sort(),

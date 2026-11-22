@@ -22,6 +22,7 @@ import {
 } from '../model/inbox-machine.ts'
 import { EntryRow } from './entry-row.tsx'
 import { useInbox, useTenant } from './use-inbox.ts'
+import { notificationPage, notificationPageFilter, notificationPageGroup } from '../parts.ts'
 
 export type InboxPageProps = Readonly<{
   hub: InboxHub
@@ -41,7 +42,7 @@ export function InboxPage(props: InboxPageProps): JSX.Element {
   const tenant = useTenant(props.tenant)
   if (tenant === undefined)
     return (
-      <PageColumn className="notification-page">
+      <PageColumn className="notification-page" {...notificationPage.props}>
         <InlineNotice tone="danger" role="alert">
           <p>外壳给的租户读不懂，这一页不能工作。</p>
         </InlineNotice>
@@ -60,10 +61,10 @@ type InboxProps = Readonly<{
 function Inbox({ hub, tenant, sections, focus }: InboxProps): JSX.Element {
   const { driver, state } = useInbox(hub, tenant)
   return (
-    <PageColumn className="notification-page">
+    <PageColumn className="notification-page" {...notificationPage.props}>
       <PageHeader title="通知" description="来源发给你的事件。" />
       <div className="notification-column">
-        <div className="notification-scope">
+        <div className="notification-scope" {...notificationPageFilter.props}>
           <Segmented
             label="显示哪些通知"
             value={state.filter}
@@ -106,7 +107,12 @@ function Section({
 }: BodyProps & { title: string; entries: readonly Entry[] }) {
   if (entries.length === 0) return null
   return (
-    <section className="notification-section" role="region" aria-label={title}>
+    <section
+      className="notification-section"
+      role="region"
+      aria-label={title}
+      {...notificationPageGroup.props}
+    >
       <h3 className="notification-section-title">
         {title}（{entries.length}）
       </h3>

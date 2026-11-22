@@ -5,6 +5,7 @@ import { EmptyState, LoadingState, PageColumn, PageHeader } from '@omne-harness/
 import { useEffect, useMemo, useState, useSyncExternalStore, type JSX } from 'react'
 import { groupsOf } from '../model/setting-groups.ts'
 import { SettingsDriver } from '../model/settings-driver.ts'
+import { assetsSettingsPage, assetsSettingsPageGroup } from '../parts.ts'
 import { NoticeLine } from './notice.tsx'
 import { RowView } from './setting-row.tsx'
 
@@ -17,7 +18,7 @@ export type SettingsPageProps = Readonly<{
 export function SettingsPage({ client, tenant: text, newId }: SettingsPageProps): JSX.Element {
   const tenant = useMemo(() => readTenantText(text), [text])
   return (
-    <PageColumn className="assets-settings">
+    <PageColumn className="assets-settings" {...assetsSettingsPage.props}>
       <PageHeader title="设置" description="这一层：当前租户" />
       {tenant === undefined ? (
         <NoticeLine notice={{ kind: 'refused', text: '外壳给的租户读不懂，设置页不能工作。' }} />
@@ -74,7 +75,12 @@ function Groups({ driver }: { readonly driver: SettingsDriver }): JSX.Element {
           ) : null}
           {groups.length === 0 ? <EmptyState title="这一层还没有不属于资产的设置。" /> : null}
           {groups.map(group => (
-            <section key={group.key} className="assets-group" aria-label={group.title}>
+            <section
+              key={group.key}
+              className="assets-group"
+              aria-label={group.title}
+              {...assetsSettingsPageGroup.props}
+            >
               <header className="assets-group-head">
                 <h3 className="assets-group-title">{group.title}</h3>
                 <p className="assets-group-description">{group.description}</p>

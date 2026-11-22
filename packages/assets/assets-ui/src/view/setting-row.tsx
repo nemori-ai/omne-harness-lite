@@ -13,6 +13,7 @@ import type { CategoryGovernance } from '../model/governance.ts'
 import type { SettingsDriver } from '../model/settings-driver.ts'
 import type { Row } from '../model/settings-machine.ts'
 import { controlOf, type ValueControl } from '../model/value-control.ts'
+import { assetsSetting, assetsSettingControl } from '../parts.ts'
 import { NoticeLine } from './notice.tsx'
 import { Facts, hasOwn } from './setting-facts.tsx'
 
@@ -54,7 +55,7 @@ export function RowView({ row, driver }: Props): JSX.Element {
   const { title, purpose } = view.declaration
   const reading = row.read.kind === 'reading'
   return (
-    <li className="assets-setting" data-kind={view.kind}>
+    <li className="assets-setting" data-kind={view.kind} {...assetsSetting.props}>
       <div className="assets-setting-main">
         <div className="assets-setting-head">
           <h4 className="assets-setting-title">{title}</h4>
@@ -67,7 +68,7 @@ export function RowView({ row, driver }: Props): JSX.Element {
         )}
       </div>
       {row.read.kind === 'failed' ? null : (
-        <div className="assets-setting-control">
+        <div className="assets-setting-control" {...assetsSettingControl.props}>
           <Controls key={view.revision} row={row} driver={driver} />
         </div>
       )}

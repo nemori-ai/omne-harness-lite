@@ -37,6 +37,7 @@ export {
   type SessionDraftSubject,
   type SessionSubject,
 } from './points.ts'
+export { sessionParts } from './parts.ts'
 export { sessionReadsSourceKey, sessionReadsUiModule } from './reads-module.ts'
 export type {
   BlockRead,

@@ -9,6 +9,7 @@ it('Cordis 入口给出界面模块的工厂、选项类型、页面的标识与
     'PAGE_ID',
     'PAGE_ORDER',
     'createHumanInterventionUiModule',
+    'humanInterventionParts',
     'releaseDetail',
   ])
   expect(cordis['PAGE_ID']).toBe('decisions')

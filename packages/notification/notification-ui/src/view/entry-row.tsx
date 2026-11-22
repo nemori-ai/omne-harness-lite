@@ -28,6 +28,12 @@ import {
   type Opened,
   type State,
 } from '../model/inbox-machine.ts'
+import {
+  notificationRow,
+  notificationRowActions,
+  notificationRowDetail,
+  notificationRowTitle,
+} from '../parts.ts'
 
 const NOTICE: Readonly<Record<Notice, string>> = {
   'restore-first': '这一条已经办完或划掉了，要先恢复才能改。',
@@ -116,7 +122,7 @@ function Detail({
       </InlineNotice>
     )
   return (
-    <div className="notification-detail">
+    <div className="notification-detail" {...notificationRowDetail.props}>
       <FactList>
         {view.subject === null ? null : <FactRow term="对象">{view.subject}</FactRow>}
         <FactRow term="类型">
@@ -168,7 +174,7 @@ export function EntryRow({
   const opened = state.opened?.key === key ? state.opened : null
   const label = stateOf(entry)
   return (
-    <li ref={row} className="notification-row">
+    <li ref={row} className="notification-row" {...notificationRow.props}>
       <div className="notification-head" data-glide-row="">
         <span className="notification-mark">
           {isFresh(entry) ? <span className="notification-dot" aria-hidden="true" /> : null}
@@ -177,6 +183,7 @@ export function EntryRow({
           <Button
             variant="ghost"
             className="notification-title"
+            {...notificationRowTitle.props}
             aria-expanded={opened !== null}
             onClick={() => (opened === null ? driver.open(key) : driver.close())}
           >
@@ -193,7 +200,7 @@ export function EntryRow({
             )}
           </p>
         </div>
-        <span className="notification-actions">
+        <span className="notification-actions" {...notificationRowActions.props}>
           {actionsOf(entry).map(([operation, name, Glyph]) => (
             <IconButton
               key={operation}

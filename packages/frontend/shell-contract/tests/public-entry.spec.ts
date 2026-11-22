@@ -5,6 +5,7 @@ it('exports the toast store, the figure store, the assembly error, the slot tabl
   const root = (await import('@omne-harness/shell-contract')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual([
     'PARTS_POINT',
+    'PART_ATTRIBUTE',
     'PROTOCOLS_POINT',
     'ShellAssemblyError',
     'attachWhile',

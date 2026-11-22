@@ -17,6 +17,7 @@ import {
   type ReactNode,
 } from 'react'
 import { SideFrameContext, type SideFrame } from './side-frame.tsx'
+import { sessionSide } from '../parts.ts'
 
 /** An entry of the side content; the session's own entries may carry how many things they list. */
 export type SideEntry = AttachedEntry & Readonly<{ count?: number }>
@@ -97,6 +98,7 @@ export function SidePanel({ entries }: { readonly entries: readonly SideEntry[] 
       <aside
         id={frame?.sideId}
         className="omne-session-side"
+        {...sessionSide.props}
         data-presentation="docked"
         data-open={open}
         data-keyboard-region="side"
@@ -196,6 +198,7 @@ function SideBubble({
       as="section"
       id={frame.sideId}
       className="omne-session-side"
+      {...sessionSide.props}
       data-presentation="bubble"
       data-keyboard-region="side"
       aria-label={LABEL}

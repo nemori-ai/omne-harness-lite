@@ -151,6 +151,18 @@ describe('the detail part of a release card, by what the server holds and what t
     expect(card.queryByRole('group', { name: '详情的画法' })).toBeNull()
   })
 
+  it.each(['draws', 'none'] as const)(
+    'P0 puts the detail part on the detail when the client %s',
+    async drawing => {
+      await shown(DETAILS.typed, drawing)
+      const on = document.querySelectorAll(
+        '[data-omne-part="human-intervention.paper.card.detail"]',
+      )
+      expect(on).toHaveLength(1)
+      expect(on[0]?.classList.contains('hitl-detail')).toBe(true)
+    },
+  )
+
   it('draws the rows of a typed detail where no shell hosts the views of kinds', async () => {
     const fake = createFakeClient()
     render(<DecisionsPage hub={new CardsHub({ client: fake.client })} tenant={TENANT} />)

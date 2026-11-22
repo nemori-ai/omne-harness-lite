@@ -42,6 +42,15 @@ import { TranscriptRow, usePublication } from './transcript-arrivals.tsx'
 import { useSession } from './use-session.ts'
 import { WaitingNotice, waitingAnchor } from './waiting-notice.tsx'
 import { useShownEntry } from './shown-entry.ts'
+import {
+  sessionComposer,
+  sessionComposerInput,
+  sessionHeader,
+  sessionHeaderMore,
+  sessionHeaderTitle,
+  sessionTranscript,
+  sessionTranscriptUserMessage,
+} from '../parts.ts'
 
 type WaitingCalls = Readonly<{
   subscribe: (tenant: string, session: string, listener: () => void) => () => void
@@ -163,8 +172,8 @@ function Page({
   return (
     <SideFrameContext.Provider value={frame}>
       <div className="omne-session-page" ref={setPage}>
-        <header className="omne-session-bar" ref={frame.header}>
-          <h2 className="omne-session-title" ref={fold.title}>
+        <header className="omne-session-bar" ref={frame.header} {...sessionHeader.props}>
+          <h2 className="omne-session-title" ref={fold.title} {...sessionHeaderTitle.props}>
             {title}
           </h2>
           <FigureControl frame={frame} />
@@ -236,7 +245,7 @@ function SessionMore({
       )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <IconButton label="更多" tooltipSide="bottom">
+          <IconButton label="更多" tooltipSide="bottom" {...sessionHeaderMore.props}>
             <MoreIcon aria-hidden="true" />
           </IconButton>
         </DropdownMenuTrigger>
@@ -492,7 +501,12 @@ function Conversation({
   const found = useShownEntry(epoch, scroller, rows, content.readThrough !== null)
   const notice = <WaitingNotice waiting={waiting} driver={driver} />
   return (
-    <div className="omne-conversation" ref={scroller} onScroll={onScroll}>
+    <div
+      className="omne-conversation"
+      ref={scroller}
+      onScroll={onScroll}
+      {...sessionTranscript.props}
+    >
       {committed.map(item => (
         <Fragment key={item.key}>
           <TranscriptRow
@@ -543,7 +557,12 @@ function PendingInputView({
   readonly driver: SessionDriver
 }) {
   return (
-    <article className="omne-message" data-role="user" data-pending={input.status}>
+    <article
+      className="omne-message"
+      data-role="user"
+      data-pending={input.status}
+      {...sessionTranscriptUserMessage.props}
+    >
       <span className="omne-message-speaker">你</span>
       <div className="omne-message-body">{input.text}</div>
       {input.attachments.length === 0 ? null : (
@@ -614,12 +633,14 @@ function Composer({
   return (
     <form
       className="omne-composer"
+      {...sessionComposer.props}
       onSubmit={event => {
         event.preventDefault()
         submit()
       }}
     >
       <Textarea
+        {...sessionComposerInput.props}
         aria-label="输入消息"
         placeholder={placeholderOf(waiting, state.run.kind !== 'idle')}
         rows={1}

@@ -17,6 +17,7 @@ it('Cordis 入口给出界面模块与读法的小模块、三个位置标识、
     'sessionComposerAttachments',
     'sessionComposerIntakeKey',
     'sessionDock',
+    'sessionParts',
     'sessionReadsSourceKey',
     'sessionReadsUiModule',
     'sessionSide',

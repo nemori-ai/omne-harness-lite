@@ -1,6 +1,7 @@
 import { needPoint, type PointSink, type ServiceKey } from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import { MCP_CATEGORY, McpPage } from './mcp-page.tsx'
+import { mcpParts } from './parts.ts'
 import type { McpGovernance } from './port.ts'
 
 export type McpUiOptions = Readonly<{
@@ -13,6 +14,7 @@ export function createMcpUiModule({ page, governance }: McpUiOptions) {
     name: 'mcp-ui',
     needs: { governance: needPoint(governance) },
     apply(shell, bound) {
+      for (const part of mcpParts) part.declare(shell)
       const port = bound.governance.get()
       if (port === undefined) return
       page.contribute(shell, {

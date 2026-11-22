@@ -5,6 +5,7 @@ import type { ClientOf } from '@omne-harness/sdk/core'
 import { needProtocol } from '@omne-harness/shell-contract'
 import { defineUiModule, type ShellService } from '@omne-harness/shell-contract/cordis'
 import type { AccountPorts } from './model/account.ts'
+import { identityParts } from './parts.ts'
 import { createLoginModel, type LoginPorts } from './model/login.ts'
 import { AccountBlock, AccountRail } from './view/account-block.tsx'
 import { LoginCard } from './view/login-card.tsx'
@@ -41,6 +42,7 @@ export const identityUiModule: Plugin.Object = defineUiModule({
   name: 'identity-ui',
   needs: { identity: needProtocol<IdentityClient>(identityProtocol) },
   apply(shell, { identity }) {
+    for (const part of identityParts) part.declare(shell)
     contribute(shell, identity)
   },
 })

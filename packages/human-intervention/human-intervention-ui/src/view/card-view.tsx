@@ -24,6 +24,11 @@ import type { Choice, Closed, Draft, Entry } from '../model/cards-machine.ts'
 import { exposedOf, type Exposed } from '../model/verdict.ts'
 import { NoticeLine } from './notice.tsx'
 import { ReleaseDetailView } from './release-detail.tsx'
+import {
+  humanInterventionPaperCard,
+  humanInterventionPaperCardAnswer,
+  humanInterventionPaperCardTitle,
+} from '../parts.ts'
 
 export type Shown =
   | Readonly<{ kind: 'pending'; key: string; entry: Entry; draft: Draft }>
@@ -115,13 +120,19 @@ export function CardView({
   return (
     <article
       className="hitl-section"
+      {...humanInterventionPaperCard.props}
       data-card={card.key}
       data-kind={question.kind}
       data-state={state}
       aria-labelledby={title}
     >
       <KindLine card={card} at={at} of={of} />
-      <h3 id={title} className="hitl-title" data-face={release ? 'ui' : 'reading'}>
+      <h3
+        id={title}
+        className="hitl-title"
+        {...humanInterventionPaperCardTitle.props}
+        data-face={release ? 'ui' : 'reading'}
+      >
         {question.title}
       </h3>
       {release || question.description === '' ? null : (
@@ -191,7 +202,7 @@ function Answer({
   if (question.options.length === 0) {
     const declined = draft.choice.kind === 'decline'
     return (
-      <div className="hitl-answer">
+      <div className="hitl-answer" {...humanInterventionPaperCardAnswer.props}>
         {field}
         <div className="hitl-decline">
           <Button
@@ -214,7 +225,11 @@ function Answer({
   const lasting =
     question.kind === 'release' ? question.options.filter(option => option.lasting) : []
   return (
-    <div className="hitl-answer" data-verdict={buttons ? 'buttons' : 'rows'}>
+    <div
+      className="hitl-answer"
+      {...humanInterventionPaperCardAnswer.props}
+      data-verdict={buttons ? 'buttons' : 'rows'}
+    >
       <ChoiceList
         label="作答"
         value={chosen}

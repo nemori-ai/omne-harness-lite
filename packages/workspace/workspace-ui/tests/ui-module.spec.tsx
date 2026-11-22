@@ -2,6 +2,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import { workspaceProtocol, type WorkspaceProtocol } from '@omne-harness/workspace-protocol'
+import { partsOn } from '@omne-harness/shell-contract'
 import { providedOn, serveProtocol } from '@omne-harness/shell-contract/testing'
 import { afterEach, beforeAll, expect, it } from 'vitest'
 import { workspaceChoicesKey, workspaceUiModule } from '../src/cordis.ts'
@@ -71,4 +72,18 @@ it('a change made on the page is told to whoever listens to the list of instance
     await tick()
   })
   expect(told).toBe(1)
+})
+
+it('M4 declares its three parts', async () => {
+  const { root, shell } = await startShell()
+  const client = createFakeClient<ClientOf<WorkspaceProtocol>>(OPERATIONS).client
+  await serveProtocol(root, workspaceProtocol, client)
+  await root.plugin(workspaceUiModule)
+  const read = partsOn(shell.registry())
+  expect(read.kind === 'read' && read.conflicts).toEqual([])
+  expect(read.kind === 'read' && read.parts.map(part => [part.name, part.within])).toEqual([
+    ['workspace.instance', 'workspace.page'],
+    ['workspace.item', 'workspace.page'],
+    ['workspace.page', 'shell.workspace.page'],
+  ])
 })

@@ -72,6 +72,9 @@ it('工具调用是一行过程行：图标、等宽的工具名、状态词；�
   expect(button.getAttribute('aria-expanded')).toBe('false')
   expect(button.querySelectorAll('svg').length).toBe(2)
   expect(button.querySelector('code.omne-process-name')?.textContent).toBe('Read')
+  expect(button.closest('.omne-process')?.getAttribute('data-omne-part')).toBe(
+    'session.transcript.tool-call',
+  )
   expect(word(button)?.getAttribute('data-state-word')).toBe('working')
   expect(word(button)?.textContent).toBe('处理中')
   const bubble = document.querySelector('.omne-message-body')
@@ -184,6 +187,9 @@ it('推理是一行过程行：图标、「推理」、状态词；展开是弱�
   ])
   const view = render(<ItemView item={first(itemsOf([thought]), 'message')} />)
   const button = line(/推理/)
+  expect(button.closest('.omne-process')?.getAttribute('data-omne-part')).toBe(
+    'session.transcript.reasoning',
+  )
   expect(button.querySelectorAll('svg').length).toBe(2)
   expect(word(button)?.getAttribute('data-state-word')).toBe('completed')
   expect(button.getAttribute('aria-expanded')).toBe('false')

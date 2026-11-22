@@ -3,7 +3,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, beforeAll, expect, it } from 'vitest'
 import { humanInterventionProtocol } from '@omne-harness/human-intervention-protocol'
-import { definePoint } from '@omne-harness/shell-contract'
+import { definePoint, partsOn } from '@omne-harness/shell-contract'
 import { serveProtocol } from '@omne-harness/shell-contract/testing'
 import { createHumanInterventionUiModule } from '../src/cordis.ts'
 import { page, questionItem } from './fixtures/cards.ts'
@@ -51,6 +51,26 @@ it('U1 协议客户端在：放「待你决定」一页，次序 10，带张数�
   expect(placed?.badge).toBeTypeOf('function')
   expect(shell.items('sidebar')).toEqual([])
   expect(shell.items('gate')).toEqual([])
+})
+
+it('U1b 模块声明它的十一个部位，协议客户端在不在都一样', async () => {
+  const { root, shell } = await startShell()
+  await root.plugin(createHumanInterventionUiModule())
+  const read = partsOn(shell.registry())
+  expect(read.kind === 'read' && read.conflicts).toEqual([])
+  expect(read.kind === 'read' && read.parts.map(part => [part.name, part.within])).toEqual([
+    ['human-intervention.page', 'shell.workspace.page'],
+    ['human-intervention.page.group', 'human-intervention.page'],
+    ['human-intervention.paper', null],
+    ['human-intervention.paper.card', 'human-intervention.paper'],
+    ['human-intervention.paper.card.answer', 'human-intervention.paper.card'],
+    ['human-intervention.paper.card.detail', 'human-intervention.paper.card'],
+    ['human-intervention.paper.card.title', 'human-intervention.paper.card'],
+    ['human-intervention.paper.foot', 'human-intervention.paper'],
+    ['human-intervention.paper.foot.actions', 'human-intervention.paper.foot'],
+    ['human-intervention.paper.foot.submit', 'human-intervention.paper.foot'],
+    ['human-intervention.session-cards', 'session.transcript'],
+  ])
 })
 
 it('U2 这一页用外壳给的租户，经注入的客户端取列表', async () => {

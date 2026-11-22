@@ -11,10 +11,12 @@ import { useMemo, type ReactNode } from 'react'
 import type { Drafts } from './model/attachment-tray.ts'
 import type { Microphone } from './model/recorder.ts'
 import type { MediaClient } from './model/upload.ts'
+import { mediaParts } from './parts.ts'
 import { AttachmentTrayView } from './view/attachment-tray.tsx'
 import { MediaBlock } from './view/media-block.tsx'
 import { browserMicrophone } from './view/microphone.ts'
 
+export { mediaParts } from './parts.ts'
 export type { DraftOffer, Drafts } from './model/attachment-tray.ts'
 
 /** The message being written in a session, as the host of the composer names it. */
@@ -59,6 +61,7 @@ export function createMediaUiModule(options: MediaUiOptions = {}) {
       intake: needPoint(options.drafts, { optional: true }),
     },
     apply(shell, { media: client, intake }) {
+      for (const part of mediaParts) part.declare(shell)
       const drafts = () => intake.get() ?? null
       options.composerAttachments?.contribute(shell, {
         id: ITEM,

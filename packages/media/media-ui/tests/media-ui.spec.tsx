@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { mediaProtocol } from '@omne-harness/media-protocol'
-import { definePoint } from '@omne-harness/shell-contract'
+import { definePoint, partsOn } from '@omne-harness/shell-contract'
 import { serviceKey } from '@omne-harness/shell-contract'
 import { provideOn, serveProtocol } from '@omne-harness/shell-contract/testing'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
@@ -91,6 +91,24 @@ describe('界面模块', () => {
     ])
   })
 
+  it('声明七个部位，协议有没有服务都一样', async () => {
+    const { root, shell } = await startShell()
+    await root.plugin(createMediaUiModule({ composerAttachments: attachments, block }))
+    const read = partsOn(shell.registry())
+    expect(read.kind === 'read' && read.conflicts).toEqual([])
+    expect(
+      read.kind === 'read' && read.parts.map(part => [part.name, part.within ?? null]),
+    ).toEqual([
+      ['media.file', 'session.transcript'],
+      ['media.picture', 'session.transcript'],
+      ['media.read', 'session.transcript'],
+      ['media.tray', 'session.composer'],
+      ['media.tray.attach', 'media.tray'],
+      ['media.tray.chip', 'media.tray'],
+      ['media.tray.record', 'media.tray'],
+    ])
+  })
+
   it('没给拓展点时什么都不放，照样加载', async () => {
     const { root, shell } = await startShell()
     await serveProtocol(root, mediaProtocol, fakeMedia().client)
@@ -113,7 +131,14 @@ describe('输入框的附件区', () => {
     expect(input.accept).toBe(
       'image/png,image/jpeg,image/webp,image/gif,audio/wav,audio/x-wav,audio/mpeg,audio/mp4,audio/ogg,audio/webm,audio/flac,audio/aac,application/pdf',
     )
+    const on = (name: string) => document.querySelectorAll(`[data-omne-part="${name}"]`)
+    expect(on('media.tray')[0]?.classList.contains('omne-media-tray')).toBe(true)
+    expect(on('media.tray.attach')[0]?.getAttribute('aria-label')).toBe('附加图片、语音或 PDF')
+    expect(on('media.tray.record')[0]?.getAttribute('aria-label')).toBe('按住录音')
+    expect(on('media.tray.chip')).toHaveLength(0)
     fireEvent.change(input, { target: { files: [png('a.png', [1, 2, 3, 4, 5])] } })
+    expect(on('media.tray.chip')[0]?.tagName).toBe('LI')
+    expect(on('media.tray.chip')[0]?.closest('[data-omne-part="media.tray"]')).not.toBeNull()
     expect(screen.getByText('a.png')).not.toBeNull()
     expect(screen.getByRole('img', { name: 'a.png 的预览' }).getAttribute('src')).toBe(
       'blob:made-1',
@@ -331,6 +356,9 @@ describe('消息里一块非文字内容', () => {
     await settle()
     const image = screen.getByRole('img', { name: '图片 64×48' })
     expect(image.getAttribute('src')).toBe('blob:made-1')
+    expect(
+      image.closest('[data-omne-part="media.picture"]')?.classList.contains('omne-media-picture'),
+    ).toBe(true)
     expect(reads(media)).toEqual([
       {
         tenant: TENANT,
@@ -427,6 +455,12 @@ describe('消息里一块非文字内容', () => {
     expect(screen.getAllByText('模型读的是提取的文字')).toHaveLength(1)
     expect(screen.getAllByText('模型读的是另一种表示')).toHaveLength(1)
     expect(document.querySelectorAll('.omne-media-read')).toHaveLength(5)
+    expect(document.querySelectorAll('[data-omne-part="media.read"]')).toHaveLength(5)
+    expect(
+      document
+        .querySelector('[data-omne-part="media.read"]')
+        ?.classList.contains('omne-media-read'),
+    ).toBe(true)
   })
 
   it('语音与文件画成一行：种类、媒体类型与大小；读不懂的内容照样说出来', async () => {
@@ -446,6 +480,12 @@ describe('消息里一块非文字内容', () => {
     await settle()
     expect(screen.getByText('〔file〕application/pdf · 2.0 KB')).not.toBeNull()
     expect(screen.getByText('〔image〕这一块的内容读不懂')).not.toBeNull()
+    const lines = [...document.querySelectorAll('[data-omne-part="media.file"]')]
+    expect(lines.map(line => line.textContent)).toEqual([
+      '〔file〕application/pdf · 2.0 KB',
+      '〔image〕这一块的内容读不懂',
+    ])
+    expect(lines.every(line => line.classList.contains('omne-media-line'))).toBe(true)
     expect(media.calls).toEqual([])
   })
 })

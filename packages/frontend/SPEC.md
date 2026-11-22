@@ -146,7 +146,7 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 
 | 入口 | 内容 |
 | --- | --- |
-| `.` | 运行时有十四样：常量表 `slots`、外壳自己三个位置的规矩 `shellContracts`、错误 `ShellAssemblyError`、声明带类型的拓展点的两个函数 `definePoint` 与 `defineKeyedPoint`、声明部位的 `definePart` 与它的核法 `partFault`、读现在声明着哪些部位的 `partsOn`、部位的点名 `PARTS_POINT`、造带类型的键的 `serviceKey`、写需要的 `needProtocol` 与 `needPoint`、跟读口的 `attachWhile`、协议的需要指着的点名 `PROTOCOLS_POINT`（另有瞬时提示与形口的两个工厂，见各自一节）。其余是类型：带类型的键 `ServiceKey`，一处冲突 `SlotConflict`，四种位置的一项 `GateItem`、`PageItem`、`SidebarItem`、`AttachedItem`，位置名 `SlotName`，按位置取项的类型 `ItemOf`，渲染函数的属性 `GateProps`、`ScopedProps`、`AttachedProps`，宿主排版时拿到的一项 `AttachedEntry` 与排版函数 `AttachedLayout`，带类型的拓展点的类型（见「带类型的拓展点」），外壳一侧读位置的接口 `ShellSlots`，租户的形状 `ScopeSource`，登录的端口 `ShellLogin`、登录状态 `ShellLoginState`、凭据与结果 `LoginCredentials`、`LoginResult`、`LogoutResult` |
+| `.` | 运行时有十五样：常量表 `slots`、外壳自己三个位置的规矩 `shellContracts`、错误 `ShellAssemblyError`、声明带类型的拓展点的两个函数 `definePoint` 与 `defineKeyedPoint`、声明部位的 `definePart` 与它的核法 `partFault`、读现在声明着哪些部位的 `partsOn`、部位的点名 `PARTS_POINT` 与元素上的属性名 `PART_ATTRIBUTE`、造带类型的键的 `serviceKey`、写需要的 `needProtocol` 与 `needPoint`、跟读口的 `attachWhile`、协议的需要指着的点名 `PROTOCOLS_POINT`（另有瞬时提示与形口的两个工厂，见各自一节）。其余是类型：带类型的键 `ServiceKey`，一处冲突 `SlotConflict`，四种位置的一项 `GateItem`、`PageItem`、`SidebarItem`、`AttachedItem`，位置名 `SlotName`，按位置取项的类型 `ItemOf`，渲染函数的属性 `GateProps`、`ScopedProps`、`AttachedProps`，宿主排版时拿到的一项 `AttachedEntry` 与排版函数 `AttachedLayout`，带类型的拓展点的类型（见「带类型的拓展点」），外壳一侧读位置的接口 `ShellSlots`，租户的形状 `ScopeSource`，登录的端口 `ShellLogin`、登录状态 `ShellLoginState`、凭据与结果 `LoginCredentials`、`LoginResult`、`LogoutResult` |
 | `./cordis` | 服务 `shell` 的抽象类 `ShellService`、它的键 `shellKey`、界面模块的助手 `defineUiModule` 与它的类型 `UiModuleDefinition`、提供服务的函数类型 `Provide`。根入口的源码闭包不含 Cordis 绑定 |
 | `./testing` | 给界面模块的用例用的参考外壳 `ReferenceShell`，与起一棵带登记表和外壳的树的 `startShell`、`startShellOf(外壳的类, 可选的配置)`。它只存不画。另有像连接与别的模块那样往树上放东西的帮手：`serveProtocol(根, 协议, 客户端)`、`servePoint(根, 规矩, 一项)`、`provideOn(根, 键, 值)`，各返回一个 fiber，撤掉它就是收回；它们的插件形是 `protocolsPoint`、`servedProtocol`、`servedPoint`。`providedOn(外壳, 键)` 读一个键下现在提供的值 |
 
@@ -265,7 +265,7 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 
 部位是界面上说得出名字的一样东西：一个按钮、一块区域、一行。名字用来指它，改它的样子靠的就是这个名字。
 
-- 界面模块用 `definePart({ name, label, summary, within, depths })` 声明一个部位，在 `apply` 里 `part.declare(shell)`，画它的元素上写 `{...part.props}`（就是 `data-part="<名字>"`）。`data-slot` 照旧标组件的种类，两样互不相干。
+- 界面模块用 `definePart({ name, label, summary, within, depths })` 声明一个部位，在 `apply` 里 `part.declare(shell)`，画它的元素上写 `{...part.props}`（就是 `data-omne-part="<名字>"`，属性名是常量 `PART_ATTRIBUTE`）。`data-slot` 照旧标组件的种类，两样互不相干。属性不叫 `data-part`：共用件的墨迹已经用它标一笔的各段，别的界面库也常用这个名字。
 - 名字的形状：`<宿主>.<区域>`、`<宿主>.<区域>.<部位>`，至多四段，用点隔开；每段是小写字母、数字、连字符，字母开头。宿主是声明它的界面模块的名字去掉末尾的 `-ui`，和这个模块的拓展点用同一个前缀。名字说它是什么，不说它在哪、长什么样。
 - `label` 是给人看的叫法，`summary` 是一句说明，两样都不能空。`within` 是上一级部位的名字，可以不写，可以是别的模块的部位；一个部位不能在自己里面。`depths` 写它开哪几种改法：`tokens`、`style`、`render`，可以一种都不开，不能重复。
 - 不合这些规矩的声明当场抛 `ShellAssemblyError`（原因 `invalid`，写明是哪一条），这个模块放的东西整份不出现（FE-I38）。核法是纯函数 `partFault(声明, 宿主)`：合规矩答 `null`，否则答一句原因。
@@ -274,6 +274,9 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 - 声明进客户端登记表上的点 `shell.parts`：每键一项，键是部位的名字，一项是数据（叫法、说明、上一级、开了哪几种）。这个点由外壳声明，运行中能变。模块卸载，它声明的部位跟着取走。
 - 同一个名字的两份声明内容相同算同一个部位；内容不同是冲突：这个名字不代表任何部位，两个模块都列出来。`partsOn(登记表)` 按名字给出现在声明着的部位与冲突；点没有声明时答读不出，不答空表。
 - 列表里重复出现的东西是一个部位，不是很多个。名字是承诺：改名是换一个部位，旧名字上的改动不再生效。
+- 元素上的名字只经 `part.props` 写。共用件、界面模块与页面的源码和样式里不手写这个属性，自带的样式也不按它选元素（FE-I41）。
+- 名字只挂在已有的元素上，不为了挂名字加包裹的元素。一个位置的根是共用件、而那个共用件不把多余的属性带到 DOM 上时，这个位置没有名字：日程页的列表与阅读面、日历与工作区页里的分区、各处的分段选择与提示条现在是这样。
+- 应用装配出的全部部位钉在 `apps/desktop/tests/client-parts.txt`：名字、叫法、说明、上一级、开了哪几种、什么时候画出来、谁声明的。改一个名字就是改这份清单。
 
 #### 界面模块
 
@@ -360,3 +363,4 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 | FE-I38 | 一个模块放的东西整份出现、整份消失：`apply` 里放的各项在它就绪时一起可见，`apply` 抛错的模块放的东西从不出现；一个位置的项没变时读到的是同一个数组，别的位置的变化不通知它的订阅者 | 界面闪出半截的页面；一处变了，全部订阅者重画 | `shell-contract/tests/contribute.spec.ts` 的「shows all a module put at once」「shows nothing of a module whose apply throws」「gives the same array」；`dynamis-cordis/tests/service.spec.ts` |
 | FE-I39 | 应用装配出的客户端树上，外壳的三个位置与每个界面拓展点都由它的宿主声明进了目录，树的问题一栏是空的；往没有声明的点上放东西不生效，并在问题一栏写出这个点 | 一个点没有声明，放在上面的东西不出声地不见了 | `apps/desktop/tests/client-tree.spec.tsx` 与它钉住的树 `apps/desktop/tests/client-tree.txt` |
 | FE-I40 | 共用件、装配进来的每个界面模块与应用页面的每一条样式规则都在层里；层的次序只写在一处，改动的那一层在最后 | 一条规则落在层外，它盖过所有的层，放进改动那一层的东西对它不生效 | `apps/desktop/tests/design-gates/layers.spec.ts` |
+| FE-I41 | 元素上部位的名字只经声明过的部位的 `props` 写；应用装配出的部位里每个名字只有一种声明，写了上一级的，上一级也声明了 | 手写的名字没有声明，指着它的改动没有东西可核；同名两种声明时这个名字不代表任何部位 | `apps/desktop/tests/design-gates/parts.spec.ts`；`apps/desktop/tests/client-tree.spec.tsx` 与它钉住的清单 `apps/desktop/tests/client-parts.txt` |

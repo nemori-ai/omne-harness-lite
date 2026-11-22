@@ -44,6 +44,17 @@ import type { Connectivity } from '../connectivity.ts'
 import { useSlot, useWatched } from './hooks.ts'
 import { Item } from './item.tsx'
 import { useSidebarFoldMotion, type SidebarWidth } from './sidebar-motion.ts'
+import {
+  shellSidebar,
+  shellSidebarAppearance,
+  shellSidebarFold,
+  shellSidebarFooter,
+  shellSidebarHome,
+  shellSidebarMenu,
+  shellSidebarNav,
+  shellSidebarNavRow,
+  shellSidebarUtility,
+} from './parts.ts'
 import type { ShellState } from './state.ts'
 
 export type ThemeSwitch = {
@@ -123,6 +134,7 @@ function Home(props: {
       <a
         href={hrefOf(props.page)}
         className="shell-home"
+        {...shellSidebarHome.props}
         data-control="row"
         data-selected={props.selected}
         aria-current={props.selected ? 'page' : undefined}
@@ -173,6 +185,7 @@ function PageRow(props: {
         ref={row}
         href={hrefOf(page.id)}
         className={props.selected ? 'shell-nav-link active' : 'shell-nav-link'}
+        {...shellSidebarNavRow.props}
         data-glide-row={props.glide ? '' : undefined}
         data-control="row"
         data-selected={props.selected}
@@ -214,11 +227,11 @@ function PageRows(props: {
     />
   ))
   return props.utility ? (
-    <nav className="shell-utility-nav" aria-label={props.label}>
+    <nav className="shell-utility-nav" aria-label={props.label} {...shellSidebarUtility.props}>
       {rows}
     </nav>
   ) : (
-    <nav className="shell-nav" aria-label={props.label}>
+    <nav className="shell-nav" aria-label={props.label} {...shellSidebarNav.props}>
       <GlideMenu className="shell-nav-rows">{rows}</GlideMenu>
     </nav>
   )
@@ -251,7 +264,13 @@ function Appearance(props: { theme: ThemeSwitch; size: SizeSwitch; expanded: boo
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <IconButton label="外观" tooltipSide={side} className="shell-appearance" data-appearance="">
+        <IconButton
+          label="外观"
+          tooltipSide={side}
+          className="shell-appearance"
+          data-appearance=""
+          {...shellSidebarAppearance.props}
+        >
           <ViewIcon aria-hidden="true" />
         </IconButton>
       </DropdownMenuTrigger>
@@ -332,7 +351,7 @@ function SidebarBody(props: SidebarProps & { expanded: boolean; choose: (id: str
       </div>
       <div className="shell-secondary">
         {utility.length === 0 ? null : rows('次要页面', utility, true)}
-        <div className="shell-footer-row">
+        <div className="shell-footer-row" {...shellSidebarFooter.props}>
           <div className="shell-footer-items">{entries('utility')}</div>
           <Appearance theme={props.theme} size={props.size} expanded={expanded} />
         </div>
@@ -358,6 +377,7 @@ export function Sidebar(
     <aside
       ref={props.sidebar}
       className="shell-sidebar"
+      {...shellSidebar.props}
       data-keyboard-region="sidebar"
       tabIndex={-1}
       data-width={props.width}
@@ -376,6 +396,7 @@ export function Sidebar(
           label={expanded ? '收起侧栏' : '展开侧栏'}
           tooltipSide="right"
           className="shell-fold"
+          {...shellSidebarFold.props}
           onClick={() => {
             fold.prepare()
             props.setWidth(expanded ? 'rail' : 'expanded')
@@ -458,6 +479,7 @@ export function NarrowNavigation(props: SidebarProps & { covering: (open: boolea
   return (
     <aside
       className="shell-sidebar"
+      {...shellSidebar.props}
       data-keyboard-region="sidebar"
       tabIndex={-1}
       data-width="sheet"
@@ -474,7 +496,12 @@ export function NarrowNavigation(props: SidebarProps & { covering: (open: boolea
         onOpenChange={opening => setOpenedOn(opening ? { page: navigation.shown } : null)}
       >
         <SheetTrigger asChild>
-          <IconButton label={SHEET_LABEL} tooltipSide="bottom" className="shell-menu">
+          <IconButton
+            label={SHEET_LABEL}
+            tooltipSide="bottom"
+            className="shell-menu"
+            {...shellSidebarMenu.props}
+          >
             <MenuIcon aria-hidden="true" />
           </IconButton>
         </SheetTrigger>

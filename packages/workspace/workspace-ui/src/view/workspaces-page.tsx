@@ -24,6 +24,7 @@ import type {
   WorkspaceViewBody,
 } from '@omne-harness/workspace-protocol'
 import { useEffect, useState, type JSX } from 'react'
+import { workspaceInstance, workspaceItem, workspacePage } from '../parts.ts'
 import { commit, recheck, type Pending, type Told } from '../model/commits.ts'
 import { availabilityText, readRefusal, standingText } from '../model/words.ts'
 
@@ -83,7 +84,7 @@ export function WorkspacesPage({
 }: WorkspacesPageProps): JSX.Element {
   const owner = readTenantText(tenant)
   return (
-    <PageColumn>
+    <PageColumn {...workspacePage.props}>
       <PageHeader
         title="工作区"
         description="登记服务端机器上的目录，看你能在哪些工作区里工作，把别人加进来或移走。"
@@ -197,7 +198,7 @@ function WorkspaceList({
     <Table>
       <TableBody>
         {list.value.map(item => (
-          <TableRow key={item.workspace}>
+          <TableRow key={item.workspace} {...workspaceItem.props}>
             <TableCell>
               <Button
                 variant="link"
@@ -262,7 +263,7 @@ function WorkspaceDetail({
         <Table>
           <TableBody>
             {view.value.instances.map(instance => (
-              <TableRow key={instance.instance}>
+              <TableRow key={instance.instance} {...workspaceInstance.props}>
                 <TableCell>{instance.address}</TableCell>
                 <TableCell>
                   <Availability availability={instance.availability} />

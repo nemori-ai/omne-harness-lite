@@ -208,3 +208,11 @@ it('M16 the snapshot changes: the page follows', () => {
   act(() => fake.show(readOf()))
   expect(screen.getByText(EMPTY)).toBeTruthy()
 })
+
+it('P0 each part of the page is on its own element', () => {
+  shown()
+  const on = (name: string) => document.querySelectorAll(`[data-omne-part="${name}"]`)
+  expect(on('mcp.page')[0]?.classList.contains('mcp-page')).toBe(true)
+  expect(on('mcp.endpoint')[0]?.classList.contains('mcp-endpoint')).toBe(true)
+  expect(on('mcp.endpoint.permission')[0]?.classList.contains('mcp-permission')).toBe(true)
+})

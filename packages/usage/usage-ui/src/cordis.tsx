@@ -4,6 +4,7 @@ import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import { usageProtocol, type UsageProtocol } from '@omne-harness/usage-protocol'
 import { ianaZoneOf } from './model/range.ts'
 import { contributeUsage, type UsageUiOptions } from './places.tsx'
+import { usageParts } from './parts.ts'
 import { usagePresentation, usageWidget } from './points.ts'
 import { createUsageReads } from './view/reads.ts'
 
@@ -16,6 +17,7 @@ export function createUsageUiModule(options: UsageUiOptions = {}): UiModule {
     name: 'usage-ui',
     needs: { usage: needProtocol<ClientOf<UsageProtocol>>(usageProtocol) },
     apply(shell, { usage }) {
+      for (const part of usageParts) part.declare(shell)
       usageWidget.declare(shell)
       usagePresentation.declare(shell)
       const reads = createUsageReads(usage, options.zone ?? localZone)
@@ -25,6 +27,7 @@ export function createUsageUiModule(options: UsageUiOptions = {}): UiModule {
 }
 
 export { usageExampleModule } from './example.tsx'
+export { usageParts } from './parts.ts'
 export {
   USAGE_PRESENTATION,
   USAGE_WIDGET,

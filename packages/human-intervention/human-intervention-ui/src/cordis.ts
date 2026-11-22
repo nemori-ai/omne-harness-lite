@@ -5,3 +5,4 @@ export {
   type HumanInterventionUiOptions,
 } from './module.tsx'
 export { releaseDetail } from './view/release-detail.tsx'
+export { humanInterventionParts } from './parts.ts'

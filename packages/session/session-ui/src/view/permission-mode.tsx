@@ -13,6 +13,7 @@ import {
   type PermissionModeStore,
 } from '../model/permission-mode.ts'
 import { FOLD_RANK, FoldedChoice, HeadingChoice, useHeadingPlace } from './heading-fold.tsx'
+import { sessionHeaderPermission } from '../parts.ts'
 
 type Props = Readonly<{ store: PermissionModeStore; tenant: string; session: string }>
 
@@ -41,7 +42,7 @@ export function PermissionModeAction({ store, tenant, session }: Props) {
       <HeadingChoice
         rank={FOLD_RANK.mode}
         bar={
-          <span className="omne-session-mode" role="status">
+          <span className="omne-session-mode" {...sessionHeaderPermission.props} role="status">
             {reason}
           </span>
         }
@@ -62,7 +63,7 @@ export function PermissionModeAction({ store, tenant, session }: Props) {
     <HeadingChoice
       rank={FOLD_RANK.mode}
       bar={
-        <span className="omne-session-mode">
+        <span className="omne-session-mode" {...sessionHeaderPermission.props}>
           <Select value={view.mode} onValueChange={value => change(value, say)}>
             <SelectTrigger aria-label="权限处理" size="sm">
               <SelectValue>{MODE_LABELS[view.mode]}</SelectValue>

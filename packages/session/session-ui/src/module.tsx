@@ -44,6 +44,7 @@ import { ModelAction } from './view/model-selection.tsx'
 import { EntryFocusContext } from './view/shown-entry.ts'
 import { PermissionModeAction } from './view/permission-mode.tsx'
 import { SessionWork } from './view/session-work.tsx'
+import { sessionParts } from './parts.ts'
 import { SessionListPanel } from './view/session-list-panel.tsx'
 import { SidePanel } from './view/side-panel.tsx'
 import { WorkspaceAction } from './view/workspace-selection.tsx'
@@ -123,6 +124,7 @@ const apply: UiModuleDefinition<ReturnType<typeof needsOf>>['apply'] = (
   { session: client, modelChoices, workspaceChoices, blockReads },
   provide,
 ) => {
+  for (const part of sessionParts) part.declare(shell)
   for (const point of SESSION_POINTS) point.declare(shell)
   const models = new ModelSelectionStore(client)
   const drafts = new ComposerDraftStore()

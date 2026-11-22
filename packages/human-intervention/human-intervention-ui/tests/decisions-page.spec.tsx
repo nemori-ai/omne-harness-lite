@@ -102,6 +102,32 @@ it('V1 打开时只列当前租户待定的卡：一页一百张', async () => {
   expect(screen.getByText('正在读取……')).toBeTruthy()
 })
 
+it('P0 部位都在各自的元素上：页、组、纸、卡、标题、作答、纸底、提交', async () => {
+  await listed()
+  const on = (name: string) => document.querySelectorAll(`[data-omne-part="${name}"]`)
+  expect(on('human-intervention.page')).toHaveLength(1)
+  expect(on('human-intervention.page')[0]?.classList.contains('hitl-decisions')).toBe(true)
+  expect(on('human-intervention.page.group')[0]?.classList.contains('hitl-group')).toBe(true)
+  expect(on('human-intervention.paper')[0]?.classList.contains('hitl-paper')).toBe(true)
+  expect(on('human-intervention.paper.card')[0]?.tagName).toBe('ARTICLE')
+  expect(on('human-intervention.paper.card.title')[0]?.textContent).toBe('用哪个分支发布？')
+  expect(on('human-intervention.paper.card.answer')[0]?.classList.contains('hitl-answer')).toBe(
+    true,
+  )
+  expect(on('human-intervention.paper.foot')[0]?.classList.contains('hitl-foot')).toBe(true)
+  expect(on('human-intervention.paper.foot.submit')[0]?.textContent).toBe('提交')
+  expect(on('human-intervention.paper.foot.actions')[0]?.classList.contains('hitl-actions')).toBe(
+    true,
+  )
+})
+
+it('P0 读不懂租户的那一页也带页的部位', async () => {
+  const fake = createFakeClient()
+  render(<DecisionsPage hub={hubOf(fake)} tenant="not-a-tenant" />)
+  await settle()
+  expect(document.querySelectorAll('[data-omne-part="human-intervention.page"]')).toHaveLength(1)
+})
+
 it('V2 问题卡是纸上的一节：种类行、标题、说明、谁在问，作答是一组选择行，自己写与不回答收在折叠里；没有题号条', async () => {
   await listed()
   const question = shownCard()

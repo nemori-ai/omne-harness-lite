@@ -3,6 +3,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, beforeAll, expect, it } from 'vitest'
 import { notificationProtocol } from '@omne-harness/notification-protocol'
+import { partsOn } from '@omne-harness/shell-contract'
 import { serveProtocol } from '@omne-harness/shell-contract/testing'
 import { INBOX_SECTIONS, inboxSections, notificationUiModule } from '../src/cordis.ts'
 import { entry, page } from './fixtures/entries.ts'
@@ -53,6 +54,22 @@ it('without the protocol client it keeps its page and puts nothing else', async 
   expect(shell.items('sidebar')).toEqual([])
   expect(shell.items('gate')).toEqual([])
   expect(shell.items('attached')).toEqual([])
+})
+
+it('declares its seven parts, whether or not the protocol is served', async () => {
+  const { root, shell } = await startShell()
+  await root.plugin(notificationUiModule)
+  const read = partsOn(shell.registry())
+  expect(read.kind === 'read' && read.conflicts).toEqual([])
+  expect(read.kind === 'read' && read.parts.map(part => [part.name, part.within])).toEqual([
+    ['notification.page', 'shell.workspace.page'],
+    ['notification.page.filter', 'notification.page'],
+    ['notification.page.group', 'notification.page'],
+    ['notification.row', 'notification.page.group'],
+    ['notification.row.actions', 'notification.row'],
+    ['notification.row.detail', 'notification.row'],
+    ['notification.row.title', 'notification.row'],
+  ])
 })
 
 it('the module is adopted at notification/v2 while it is served, and the page stays when it goes', async () => {

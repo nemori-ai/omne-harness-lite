@@ -2,7 +2,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { definePoint } from '@omne-harness/shell-contract'
+import { definePoint, partsOn } from '@omne-harness/shell-contract'
 import { serveProtocol } from '@omne-harness/shell-contract/testing'
 import { toolProtocol } from '@omne-harness/tool-protocol'
 import { CALL_OUTPUT_ID, createToolUiModule } from '../src/cordis.ts'
@@ -59,6 +59,17 @@ describe('the tool-ui module (C26)', () => {
     await served.dispose()
     await new Promise(resolve => setTimeout(resolve, 0))
     expect(attached(root)).toEqual([])
+  })
+
+  it('M4 declares its one part', async () => {
+    const { root, shell } = await startShell()
+    await serveProtocol(root, toolProtocol, client([]).client)
+    await root.plugin(createToolUiModule({ callDetail: detail }))
+    const read = partsOn(shell.registry())
+    expect(read.kind === 'read' && read.conflicts).toEqual([])
+    expect(read.kind === 'read' && read.parts.map(part => [part.name, part.within])).toEqual([
+      ['tool.call-output', 'session.side.background-call'],
+    ])
   })
 
   it('without a point, it places nothing', async () => {
@@ -137,6 +148,7 @@ describe('the output of a call as the view keeps it (C26, C24)', () => {
     const store = new CallOutputStore(fake.client as never, 60_000)
     render(<CallOutput store={store} tenant={TENANT} reference="ref-4" />)
     const output = await screen.findByRole('group', { name: '调用的输出' })
+    expect(output.getAttribute('data-omne-part')).toBe('tool.call-output')
     const surface = output.querySelector('.code-surface')
     expect(surface?.querySelector('pre')?.textContent).toBe('one\n')
     const word = output.querySelector('[data-state-word]')

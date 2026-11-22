@@ -54,6 +54,14 @@ it('A2 draws what is done, to which schedule, and the next three times', async (
   expect(view.getByLabelText('接下来三次').children).toHaveLength(3)
 })
 
+it('A2b puts the activation part on what it draws', async () => {
+  const [entry] = await contributed()
+  const view = draw(entry!.item, { action: 'create', name: '交月报', next: { kind: 'none' } })
+  const on = view.container.querySelectorAll('[data-omne-part="schedule.activation"]')
+  expect(on).toHaveLength(1)
+  expect(on[0]?.classList.contains('schedule-activation')).toBe(true)
+})
+
 it.each([
   [{ kind: 'none' }, '这一动作之后不再执行。'],
   [{ kind: 'unavailable' }, '接下来几次取不到。'],

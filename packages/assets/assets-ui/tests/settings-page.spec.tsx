@@ -169,3 +169,12 @@ it('读不了时一句话与「重试」，重试从头再读；没有一项时�
   await settle()
   expect(screen.getByText('这一层还没有不属于资产的设置。')).toBeTruthy()
 })
+
+it('P0 the settings page, its groups and its rows carry their parts', async () => {
+  await opened()
+  const on = (name: string) => document.querySelectorAll(`[data-omne-part="${name}"]`)
+  expect(on('assets.settings-page')[0]?.classList.contains('assets-settings')).toBe(true)
+  expect(on('assets.settings-page.group')).toHaveLength(2)
+  expect(on('assets.setting')[0]?.tagName).toBe('LI')
+  expect(on('assets.setting.control')[0]?.classList.contains('assets-setting-control')).toBe(true)
+})
