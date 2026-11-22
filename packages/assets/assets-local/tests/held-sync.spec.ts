@@ -1,6 +1,17 @@
 import { randomUUID } from 'node:crypto'
+import { mkdtempSync, realpathSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import type { HeldHolding } from '@omne-harness/assets'
+import {
+  capabilityId,
+  createCategoryPoint,
+  digestBytes,
+  type CategoryContribution,
+  type HeldHolding,
+  type PackageReader,
+} from '@omne-harness/assets'
+import { createTenantPublisher } from '../src/tenant-publisher.ts'
 import { grants, openWorld, pinned, type World } from './world.ts'
 import { ownerSources } from './sources.ts'
 
@@ -277,5 +288,175 @@ describe('held.sync: everything the tenant holds, given after each change', () =
     await publish(world, 'asset-b', 'beta')
     await Promise.all([hold(world, 'asset-a'), hold(world, 'asset-b')])
     expect(calls.at(-1)?.map(held => held.name)).toEqual(['alpha', 'beta'])
+  })
+
+  it('a reading the store refuses is told as unread, and the commit stays committed', async () => {
+    let refuse = false
+    const { world, calls, missed } = await open({
+      ownerWrap: storage => ({
+        ...storage,
+        async read(input) {
+          const asked = input.input as { kind?: string }
+          if (refuse && asked.kind === 'held')
+            return {
+              kind: 'unavailable',
+              requestKey: input.requestKey,
+              reason: 'read_failed',
+              diagnostic: 'test',
+            } as never
+          return storage.read(input)
+        },
+      }),
+    })
+    await publish(world, 'asset-a', 'ledger')
+    refuse = true
+    const before = calls.length
+    expect(await hold(world, 'asset-a')).toMatchObject({ kind: 'committed', changed: true })
+    expect(calls).toHaveLength(before)
+    expect(missed).toEqual(['unread'])
+  })
+
+  it('without a port there is nothing to tell: asking for a sync answers synced and reads nothing', async () => {
+    let heldReads = 0
+    const world = await openWorld({
+      ownerWrap: storage => ({
+        ...storage,
+        read(input) {
+          if ((input.input as { kind?: string }).kind === 'held') heldReads += 1
+          return storage.read(input)
+        },
+      }),
+    })
+    worlds.push(world)
+    expect(await world.owner.syncHeld()).toBe('synced')
+    await world.setup()
+    expect(heldReads).toBe(0)
+  })
+
+  it('recalling an operation that changed nothing, or was never made, tells nothing', async () => {
+    const { world, calls } = await open()
+    await publish(world, 'asset-a', 'ledger')
+    await hold(world, 'asset-a')
+    await change(world, 'same', 1, { kind: 'setEnabled', enabled: true })
+    const before = calls.length
+    expect(await world.owner.getOperation('same')).toMatchObject({
+      kind: 'committed',
+      changed: false,
+    })
+    expect(await world.owner.getOperation('never-made')).toEqual({ kind: 'not_found' })
+    expect(
+      await world.owner.recallChange({
+        operationId: 'same',
+        holdingRef: 'holding-asset-a',
+        change: { kind: 'setEnabled', enabled: true },
+      }),
+    ).toMatchObject({ kind: 'committed', changed: false })
+    expect(await world.owner.recallPublication('never-made')).toMatchObject({ kind: 'not_found' })
+    expect(calls).toHaveLength(before)
+  })
+
+  it('recalling a change whose reply was lost tells what is held now', async () => {
+    let lose = false
+    const { world, calls } = await open({
+      ownerWrap: storage => ({
+        ...storage,
+        async commit(input) {
+          const result = await storage.commit(input)
+          if (lose) throw new Error('reply lost')
+          return result
+        },
+      }),
+    })
+    await publish(world, 'asset-a', 'ledger')
+    await hold(world, 'asset-a')
+    lose = true
+    await change(world, 'lost', 1, { kind: 'setEnabled', enabled: false })
+    lose = false
+    const before = calls.length
+    expect(
+      await world.owner.recallChange({
+        operationId: 'lost',
+        holdingRef: 'holding-asset-a',
+        change: { kind: 'setEnabled', enabled: false },
+      }),
+    ).toMatchObject({ kind: 'committed', changed: true })
+    expect(calls).toHaveLength(before + 1)
+    expect(calls.at(-1)?.[0]?.item.disabled).toBe(true)
+  })
+
+  it('recalling a publication whose reply was lost tells what is held now', async () => {
+    const bundle: CategoryContribution = {
+      display: { title: 'B', summary: 'S.' },
+      contract: {
+        category: 'bundle',
+        schema: { kind: 'null' },
+        judge: () => ({ ok: true }) as const,
+        deriveDeclarations: () => ({ entries: [] }),
+        references: () => [],
+        layout: {
+          namespace: 'bundles',
+          limits: { files: 2, fileBytes: 16, totalBytes: 32 },
+          inspect: async () => ({ ok: { kind: 'object', entries: [] } }),
+        },
+      },
+      point: 'bundle.items',
+    }
+    const categories = createCategoryPoint()
+    categories.contribute(bundle)
+    const packageRoot = realpathSync(mkdtempSync(join(tmpdir(), 'assets-held-')))
+    let lose = false
+    const { world, calls } = await open({
+      categories,
+      packageRoot,
+      ownerWrap: storage => ({
+        ...storage,
+        async commit(input) {
+          const result = await storage.commit(input)
+          if (lose) throw new Error('reply lost')
+          return result
+        },
+      }),
+    })
+    const bytes = new TextEncoder().encode('hello')
+    const from: PackageReader = {
+      manifest: async () => ({
+        ok: { entries: [{ path: 'a.txt', bytes: bytes.length, digest: digestBytes(bytes) }] },
+      }),
+      open: async () => ({ ok: bytes }),
+    }
+    const id = capabilityId('bundle', 'docs')
+    if (!id.ok) throw new Error('id')
+    lose = true
+    const publisher = createTenantPublisher(world.owner, 'tenant-a')
+    const lost = await publisher.publish({
+      operationId: 'pkg-1',
+      capability: id.id,
+      content: { kind: 'directory', from },
+    })
+    expect(lost.kind).toBe('unknown')
+    lose = false
+    const before = calls.length
+    expect(await world.owner.recallPublication('pkg-1')).toMatchObject({
+      kind: 'published',
+      changed: true,
+    })
+    expect(calls).toHaveLength(before + 1)
+    expect(calls.at(-1)?.map(held => [held.category, held.name])).toEqual([['bundle', 'docs']])
+  })
+
+  it('a port whose missed throws does not change the outcome of the commit', async () => {
+    const world = await openWorld({
+      held: {
+        sync() {
+          throw new Error('the registry refused')
+        },
+        missed() {
+          throw new Error('nobody listens')
+        },
+      },
+    })
+    worlds.push(world)
+    expect(await publish(world, 'asset-a', 'ledger')).toMatchObject({ kind: 'committed' })
+    expect(await world.owner.syncHeld()).toBe('missed')
   })
 })
