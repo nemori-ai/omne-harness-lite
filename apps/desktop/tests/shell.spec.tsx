@@ -13,7 +13,7 @@ import {
 import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
 import { createMcpUiModule } from '@omne-harness/mcp-ui/cordis'
 import { ITEM_FAILED_TEXT } from '../src/page/shell/item.tsx'
-import { NO_LOGIN_TEXT, gateConflictText } from '../src/page/shell/shell.tsx'
+import { NO_LOGIN_TEXT } from '../src/page/shell/shell.tsx'
 import { RECONNECTING_TEXT } from '../src/page/shell/sidebar.tsx'
 import { LOGOUT_UNKNOWN_TEXT } from '../src/page/shell/state.ts'
 import { fakeGate, fakeSidebar } from './support/fake-modules.tsx'
@@ -59,7 +59,7 @@ describe('外壳：登录之外', () => {
     expect(screen.queryByText('登录门占位')).toBeNull()
     expect(screen.queryByText('另一个登录门')).toBeNull()
     expect(screen.getByRole('alert').textContent).toBe(
-      gateConflictText(['fake-gate', 'other-gate']),
+      '登录入口有 2 份，来自 fake-gate、other-gate，都没有显示。',
     )
     expect(warned).toHaveBeenCalledWith(
       'shell: gate is put by fake-gate, other-gate; none of them is drawn',

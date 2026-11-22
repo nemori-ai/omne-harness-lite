@@ -266,8 +266,11 @@ describe('contribute', () => {
       throw new Error('watcher')
     })
     shell.subscribe('pages', () => (told += 1))
+    const warned: string[] = []
+    root.logger.warn = (text: string) => void warned.push(text)
     await place(root, 'a', ctx => ctx.shell.contribute('pages', page('chat')))
     expect(told).toBe(1)
+    expect(warned).toEqual(['shell: a watcher of pages threw'])
     expect(shell.items('pages').map(item => item.id)).toEqual(['chat'])
   })
 

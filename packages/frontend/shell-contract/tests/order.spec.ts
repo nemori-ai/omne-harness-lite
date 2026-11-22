@@ -48,3 +48,33 @@ describe('a list slot', () => {
     expect(shell.items('sidebar').map(item => item.id)).toEqual(['B', 'a', 'b'])
   })
 })
+
+describe('the whole attached slot, across the places', () => {
+  const item = (anchor: string, id: string, order = 0) => ({ anchor, id, order, render })
+  const listed = async (...items: ReturnType<typeof item>[]) => {
+    const { root, shell } = await startShell()
+    await root.plugin({
+      name: 'a',
+      inject: ['shell'],
+      apply: ctx => items.forEach(made => ctx.shell.contribute('attached', made)),
+    })
+    return shell.items('attached').map(made => `${made.anchor}:${made.id}`)
+  }
+
+  it('orders by the id before the place: an id that comes first is first, wherever it is attached', async () => {
+    expect(await listed(item('test.b', 'a'), item('test.a', 'b'))).toEqual(['test.b:a', 'test.a:b'])
+    expect(await listed(item('test.a', 'b'), item('test.b', 'a'))).toEqual(['test.b:a', 'test.a:b'])
+  })
+
+  it('orders items of one order and one id by the place', async () => {
+    expect(await listed(item('test.b', 'x'), item('test.a', 'x'))).toEqual(['test.a:x', 'test.b:x'])
+    expect(await listed(item('test.a', 'x'), item('test.b', 'x'))).toEqual(['test.a:x', 'test.b:x'])
+  })
+
+  it('orders by the order before both', async () => {
+    expect(await listed(item('test.a', 'a', 2), item('test.b', 'z', 1))).toEqual([
+      'test.b:z',
+      'test.a:a',
+    ])
+  })
+})
