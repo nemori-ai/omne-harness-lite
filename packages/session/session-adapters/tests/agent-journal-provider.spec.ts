@@ -1051,6 +1051,39 @@ describe('sessionAdoptedRequests: the a part of a session, from the same plugin 
     expect(
       await held.readAdoptedRequest({ access: s.access, session: s.access.session }),
     ).toMatchObject({ kind: 'unavailable' })
+    expect(
+      await held.readRequestChoices({
+        access: s.access,
+        session: s.access.session,
+        reference: invocation(s.access.tenant, '1'),
+      }),
+    ).toMatchObject({ kind: 'unavailable' })
+  })
+
+  it('the choices of a call check history.readAdoptedRequest on the session: denied, undecided and unminted answer as the adopted request does', async () => {
+    const s = await scene('adopted-plugin-choices')
+    const { adopted, wiring, journal } = await assembled(s)
+    const open = ok(await journal().open(s.openInput))
+    await m0(s, journal(), open.authority, '1')
+    const reference = invocation(s.access.tenant, '1')
+    const read = (access = s.access) =>
+      adopted().readRequestChoices({ access, session: s.access.session, reference })
+    expect(await read()).toEqual({ kind: 'value', value: [] })
+    expect(wiring.decided.at(-1)).toEqual({
+      access: s.access,
+      operation: 'history.readAdoptedRequest',
+      target: { kind: 'session', session: s.access.session },
+    })
+    const reads = wiring.reads
+    wiring.decide = () => ({ kind: 'denied' })
+    expect(await read()).toEqual({ kind: 'denied' })
+    wiring.decide = () => ({ kind: 'unavailable', diagnostic: 'qualification source down' })
+    expect(await read()).toEqual({ kind: 'unavailable', diagnostic: 'qualification source down' })
+    expect(wiring.reads).toBe(reads)
+    wiring.decide = undefined
+    expect(await read({ ...s.access, tenant: structuredClone(s.access.tenant) })).toEqual({
+      kind: 'denied',
+    })
   })
 })
 

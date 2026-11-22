@@ -431,6 +431,7 @@ export abstract class SessionAdoptedRequestsService<P = unknown>
     super(ctx, SessionAdoptedRequestsService.provide)
   }
   abstract readonly readAdoptedRequest: SessionAdoptedRequests<P>['readAdoptedRequest']
+  abstract readonly readRequestChoices: SessionAdoptedRequests<P>['readRequestChoices']
 }
 export const sessionAdoptedRequestsKey = SessionAdoptedRequestsService.provide
 

@@ -29,7 +29,6 @@ import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { SessionId } from '@omne-harness/session-contract'
 import type {
-  SessionAdoptedRequestRead,
   SessionAdoptedRequests,
   SessionExecutionLog,
   SessionExecutionLogOpened,
@@ -53,6 +52,7 @@ import {
   type SessionLogJournalOptions,
   type SessionLogJournalProvider,
 } from './agent-journal.ts'
+import { adoptedRequestsOf } from './adopted-requests.ts'
 import { EXEC_FAMILY } from '../journal/items.ts'
 import { readOpenItems } from './item-read.ts'
 import { readerOf } from './journal-read.ts'
@@ -304,28 +304,11 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
       routedView('entries.receivedOf', input, view => view.entries.receivedOf(input)),
   }
 
-  const adoptedRequests: SessionAdoptedRequests<P> = {
-    async readAdoptedRequest(input): Promise<SessionAdoptedRequestRead> {
-      if (closed) return { kind: 'unavailable', diagnostic: 'the agentJournal plugin has stopped' }
-      const { access, session, reference } = input
-      if (!tenantCodec.encode(access.tenant).ok) return { kind: 'denied' }
-      let decision
-      try {
-        decision = await options.sessionAccessCheck.check({
-          access,
-          operation: 'history.readAdoptedRequest',
-          target: { kind: 'session', session },
-        })
-      } catch (error) {
-        return { kind: 'unavailable', diagnostic: `the access check threw: ${String(error)}` }
-      }
-      if (decision.kind === 'denied') return { kind: 'denied' }
-      if (decision.kind !== 'allowed') return decision
-      const read = await journals.readAdopted({ tenant: access.tenant, session, reference })
-      if (read.kind !== 'value' || read.value === null) return read
-      return { kind: 'value', value: { ...read.value } }
-    },
-  }
+  const adoptedRequests = adoptedRequestsOf<P>({
+    stopped: () => closed,
+    sessionAccessCheck: options.sessionAccessCheck,
+    journals,
+  })
 
   const received: AgentReceivedCommits<P, ContentBlock> = {
     commit: input => routedWrite('received', input, view => view.received.commit(input)),
@@ -609,10 +592,12 @@ class SessionLogExecutionLog extends SessionExecutionLogService {
 
 class SessionLogAdoptedRequests extends SessionAdoptedRequestsService<unknown> {
   readonly readAdoptedRequest: SessionAdoptedRequests<unknown>['readAdoptedRequest']
+  readonly readRequestChoices: SessionAdoptedRequests<unknown>['readRequestChoices']
 
   constructor(ctx: Context, requests: SessionAdoptedRequests<unknown>) {
     super(ctx)
     this.readAdoptedRequest = requests.readAdoptedRequest
+    this.readRequestChoices = requests.readRequestChoices
   }
 }
 

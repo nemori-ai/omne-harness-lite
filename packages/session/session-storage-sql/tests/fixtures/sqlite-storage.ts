@@ -45,6 +45,9 @@ import executionRecord from '../../src/worker/execution-record.ts'
 import factBlobMigration from '../../src/worker/fact-blob-migration.ts'
 import itemMigration from '../../src/worker/item-migration.ts'
 import blockMigration from '../../src/worker/block-migration.ts'
+import adoptionMigration from '../../src/worker/adoption-migration.ts'
+import readSessionAdoption from '../../src/worker/read-session-adoption.ts'
+import readRequestChoices from '../../src/worker/read-request-choices.ts'
 import factBodyMigration from '../../src/worker/fact-body-migration.ts'
 import migration from '../../src/worker/migration.ts'
 import evidenceMigration from '../../src/worker/operation-evidence-migration.ts'
@@ -131,6 +134,8 @@ const HANDLERS: readonly ReadHandlerModule[] = [
   readExecutionSession,
   readExecutionRetired,
   readPreadmission,
+  readSessionAdoption,
+  readRequestChoices,
 ]
 
 const PARTICIPANTS: ReadonlyMap<string, ParticipantModule> = new Map([
@@ -158,6 +163,7 @@ const MIGRATIONS: readonly MigrationModule[] = [
   factBlobMigration,
   itemMigration,
   blockMigration,
+  adoptionMigration,
   compactionIndexMigration,
   callLeftMigration,
   forkMigration,

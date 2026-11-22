@@ -293,6 +293,8 @@
 - `SessionReadAccessOperation` · 包 `@omne-harness/session-contract`
 - `SessionReconciliation` · 包 `@omne-harness/session-contract`
 - `SessionReplayFacts` · `context-facts.d.ts`
+- `SessionRequestChoice` · `adopted-request.d.ts`
+- `SessionRequestChoicesRead` · `adopted-request.d.ts`
 - `SessionRevision` · 包 `@omne-harness/session-contract`
 - `SessionRunLookup` · 包 `@omne-harness/session-contract`
 - `SessionScopeLookup` · `context-facts.d.ts`
@@ -559,12 +561,32 @@ export type SessionAdoptedRequestRead = Readonly<{
     kind: 'unavailable';
     diagnostic: string;
 }>;
+export type SessionRequestChoice = Readonly<{
+    message: string;
+    block: string;
+    choice: 'original' | 'derived' | 'transcript';
+    mediaType: string | null;
+}>;
+export type SessionRequestChoicesRead = Readonly<{
+    kind: 'value';
+    value: readonly SessionRequestChoice[] | null;
+}> | Readonly<{
+    kind: 'denied';
+}> | Readonly<{
+    kind: 'unavailable';
+    diagnostic: string;
+}>;
 export interface SessionAdoptedRequests<P> {
     readAdoptedRequest(input: Readonly<{
         access: Access<P>;
         session: SessionId;
         reference?: string;
     }>): Promise<SessionAdoptedRequestRead>;
+    readRequestChoices(input: Readonly<{
+        access: Access<P>;
+        session: SessionId;
+        reference: string;
+    }>): Promise<SessionRequestChoicesRead>;
 }
 ```
 
@@ -810,6 +832,7 @@ export declare abstract class SessionAdoptedRequestsService<P = unknown> extends
     static readonly provide = "sessionAdoptedRequests";
     constructor(ctx: Context);
     abstract readonly readAdoptedRequest: SessionAdoptedRequests<P>['readAdoptedRequest'];
+    abstract readonly readRequestChoices: SessionAdoptedRequests<P>['readRequestChoices'];
 }
 export declare const sessionAdoptedRequestsKey = "sessionAdoptedRequests";
 export declare abstract class SessionExecutionLogService extends Service implements SessionExecutionLog {
