@@ -1,10 +1,10 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, screen } from '@testing-library/react'
 import { afterEach, expect, it } from 'vitest'
-import { SESSION_BLOCK, sessionBlock, sessionBlockReadsKey } from '../src/cordis.ts'
+import { SESSION_BLOCK, sessionBlock } from '../src/cordis.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
 import { listed, listPage, messageEntry, page } from './fixtures/frames.ts'
-import { mountModule } from './fixtures/shell.tsx'
+import { mountModule, providerOf, TAKEN } from './fixtures/shell.tsx'
 
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
@@ -35,10 +35,7 @@ async function opened(
   const fake = createFakeClient()
   const mounted = await mountModule(fake.client, TENANT)
   if (reads !== undefined) {
-    const holder = (
-      mounted.root as unknown as { get(name: string): { attach(source: unknown): () => void } }
-    ).get(sessionBlockReadsKey)
-    holder.attach({ readsOf: async () => reads })
+    providerOf(mounted.root, TAKEN.blockReads).attach({ readsOf: async () => reads })
   }
   ;(await fake.next('list-sessions')).answer(listPage([listed('ses_a', '甲')]))
   await settle()

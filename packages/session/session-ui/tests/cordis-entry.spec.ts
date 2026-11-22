@@ -11,23 +11,18 @@ it('Cordis 入口给出界面模块与读法的小模块、三个位置标识、
     'SESSION_LIST',
     'SESSION_SIDE',
     'SESSION_STATUS',
+    'createSessionUiModule',
     'sessionBlock',
-    'sessionBlockReadsKey',
     'sessionCallDetail',
     'sessionComposerAttachments',
     'sessionComposerIntakeKey',
     'sessionDock',
-    'sessionModelChoicesKey',
     'sessionReadsSourceKey',
     'sessionReadsUiModule',
     'sessionSide',
     'sessionStatus',
     'sessionUiModule',
-    'sessionWorkspaceChoicesKey',
   ])
-  expect(cordis['sessionModelChoicesKey']).toBe('session.model-choices')
-  expect(cordis['sessionWorkspaceChoicesKey']).toBe('session.workspace-choices')
-  expect(cordis['sessionBlockReadsKey']).toBe('session.block-reads')
   expect(cordis['sessionReadsSourceKey']).toBe('session.block-reads-source')
   expect(cordis['sessionReadsUiModule']).toMatchObject({
     name: 'session-reads-ui',

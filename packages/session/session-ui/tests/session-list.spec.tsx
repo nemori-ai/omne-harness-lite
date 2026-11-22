@@ -4,13 +4,12 @@ import type { Context } from '@deepseek-ai/cordis'
 import { formatInstant } from '@omne-harness/ui-kit'
 import { parseInstant, type Instant } from '@omne-harness/utc-instant'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { sessionModelChoicesKey, type ModelChoiceHolder } from '../src/cordis.ts'
 import { arrange, type ListedSession, type SessionList } from '../src/model/session-list.ts'
 import { SessionListView } from '../src/view/session-list-panel.tsx'
 import { createFakeClient } from './fixtures/fake-client.ts'
 import { listed, listPage } from './fixtures/frames.ts'
 import { stubInView } from './fixtures/in-view.ts'
-import { mountModule } from './fixtures/shell.tsx'
+import { mountModule, providerOf, TAKEN } from './fixtures/shell.tsx'
 
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
@@ -38,10 +37,7 @@ const minutesAgo = (minutes: number): Instant => {
   if (!parsed.ok) throw new Error('fixture instant')
   return parsed.value
 }
-const holderOf = (root: Context): ModelChoiceHolder =>
-  (root as unknown as { get(name: string): unknown }).get(
-    sessionModelChoicesKey,
-  ) as ModelChoiceHolder
+const holderOf = (root: Context) => providerOf(root, TAKEN.modelChoices)
 
 describe('会话列表的顶上一行', () => {
   it('「新建会话」是导航那一列里的一行：图标加字的安静钮，不是描边框；模型列着也不在侧栏里选，新会话不带模型', async () => {

@@ -2,7 +2,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import { workspaceProtocol, type WorkspaceProtocol } from '@omne-harness/workspace-protocol'
-import { serveProtocol } from '@omne-harness/shell-contract/testing'
+import { providedOn, serveProtocol } from '@omne-harness/shell-contract/testing'
 import { afterEach, beforeAll, expect, it } from 'vitest'
 import { workspaceChoicesKey, workspaceUiModule } from '../src/cordis.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
@@ -11,8 +11,8 @@ import { startShell } from './fixtures/reference-shell.ts'
 
 const OPERATIONS = Object.keys(workspaceProtocol.operations)
 const tick = () => new Promise(resolve => setTimeout(resolve, 0))
-const choicesOf = (root: unknown) =>
-  (root as { get(name: string): unknown }).get(workspaceChoicesKey)
+const choicesOf = (shell: Parameters<typeof providedOn>[0]) =>
+  providedOn(shell, workspaceChoicesKey)
 
 beforeAll(stubAnimation)
 afterEach(cleanup)
@@ -26,7 +26,7 @@ it('the workspace client present: the page and the list of instances; withdrawn:
     { id: 'workspaces', title: '工作区', order: 14, icon: 'resource' },
   ])
   expect(shell.items('sidebar')).toEqual([])
-  expect(choicesOf(root)).toMatchObject({ list: expect.any(Function) })
+  expect(choicesOf(shell)).toMatchObject({ list: expect.any(Function) })
   expect(shell.adoption('workspace-ui')).toMatchObject({
     kind: 'adopted',
     bindings: { workspace: { key: 'workspace/v1' } },
@@ -34,7 +34,7 @@ it('the workspace client present: the page and the list of instances; withdrawn:
   await served.dispose()
   await tick()
   expect(shell.items('pages').map(page => page.id)).toEqual(['workspaces'])
-  expect(choicesOf(root)).toBeUndefined()
+  expect(choicesOf(shell)).toBeUndefined()
 })
 
 it('no tenant yet: nothing is drawn and nothing is read', async () => {
@@ -59,7 +59,7 @@ it('a change made on the page is told to whoever listens to the list of instance
   await serveProtocol(root, workspaceProtocol, fake.client)
   await root.plugin(workspaceUiModule)
   let told = 0
-  ;(choicesOf(root) as { changed(listener: () => void): () => void }).changed(() => (told += 1))
+  ;(choicesOf(shell) as { changed(listener: () => void): () => void }).changed(() => (told += 1))
   const tenant =
     '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
   render(<>{shell.items('pages')[0]!.render({ scope: tenant })}</>)

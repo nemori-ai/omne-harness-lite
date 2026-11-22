@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import { modelChoicesKey, modelUiModule } from '@omne-harness/model-ui/cordis'
 import { modelProtocol } from '@omne-harness/model-protocol'
-import { serveProtocol } from '@omne-harness/shell-contract/testing'
+import { providedOn, serveProtocol } from '@omne-harness/shell-contract/testing'
 import { startShell } from './fixtures/shell.ts'
 
 const TENANT =
@@ -24,19 +24,20 @@ it('while model/v1 is on the tree: provides the list of choices, and places noth
     kind: 'adopted',
     bindings: { model: { key: 'model/v1' } },
   })
-  const lookup = root as unknown as { get(name: string): { list(t: string): Promise<unknown> } }
-  expect(await lookup.get(modelChoicesKey).list(TENANT)).toEqual({ kind: 'listed', choices: [] })
+  expect(await providedOn(shell, modelChoicesKey)?.list(TENANT)).toEqual({
+    kind: 'listed',
+    choices: [],
+  })
   for (const slot of ['gate', 'pages', 'sidebar', 'attached'] as const)
     expect(shell.items(slot)).toEqual([])
   // The protocol goes: the service goes with it.
   await served.dispose()
   await new Promise(resolve => setTimeout(resolve, 0))
-  expect(lookup.get(modelChoicesKey)).toBeUndefined()
+  expect(providedOn(shell, modelChoicesKey)).toBeUndefined()
 })
 
 it('without model/v1 it provides nothing', async () => {
-  const { root } = await startShell()
+  const { root, shell } = await startShell()
   await root.plugin(modelUiModule)
-  const lookup = root as unknown as { get(name: string): unknown }
-  expect(lookup.get(modelChoicesKey)).toBeUndefined()
+  expect(providedOn(shell, modelChoicesKey)).toBeUndefined()
 })

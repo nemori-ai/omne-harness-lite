@@ -7,14 +7,43 @@ import {
   type FigureBoard,
   type FigureReport,
   type ItemOf,
+  serviceKey,
   type ScopeSource,
+  type ServiceKey,
   type ShellLogin,
   type SlotName,
 } from '@omne-harness/shell-contract'
 import { serveProtocol, startShellOf, type Started } from '@omne-harness/shell-contract/testing'
 import { ShellService } from '@omne-harness/shell-contract/cordis'
 import { Fragment, StrictMode, useEffect, useState, type ReactNode } from 'react'
-import { sessionUiModule } from '../../src/cordis.ts'
+import type { Context } from '@deepseek-ai/cordis'
+import {
+  createSessionUiModule,
+  type ModelChoiceSource,
+  type WorkspaceChoiceSource,
+} from '../../src/cordis.ts'
+import type { BlockReadsSource } from '../../src/model/block-reads.ts'
+
+/** The keys a case provides under: the session module is mounted taking what is on them. */
+export const TAKEN = {
+  modelChoices: serviceKey<ModelChoiceSource>('test.model-choices'),
+  workspaceChoices: serviceKey<WorkspaceChoiceSource>('test.workspace-choices'),
+  blockReads: serviceKey<BlockReadsSource>('test.block-reads'),
+}
+
+/** Provides under a key as another module does; what `attach` returns takes it back. */
+export function providerOf<T extends object>(root: Context, key: ServiceKey<T>) {
+  return {
+    attach(source: T): () => void {
+      const fiber = root.plugin({
+        name: `provides:${key}`,
+        inject: ['shell'],
+        apply: (ctx: Context) => ctx.shell.offer(key, source),
+      })
+      return () => void fiber.dispose()
+    },
+  }
+}
 
 export class TestShell extends ShellService {
   readonly navigated: string[] = []
@@ -139,7 +168,7 @@ export async function mountModule(
 ) {
   const { root, shell } = await startShell()
   const served = await serveProtocol(root, sessionProtocol, client)
-  await root.plugin(sessionUiModule)
+  await root.plugin(createSessionUiModule(TAKEN))
   shell.tenant = scope
   const tree = (next: string | undefined) =>
     options.strict === true ? (

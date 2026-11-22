@@ -2,11 +2,11 @@
 import { Context } from '@deepseek-ai/cordis'
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, beforeAll, expect, it } from 'vitest'
-import { serveProtocol } from '@omne-harness/shell-contract/testing'
+import { providedOn, serveProtocol } from '@omne-harness/shell-contract/testing'
 import { assetsProtocol } from '@omne-harness/assets-protocol'
 import { readTenantText } from '@omne-harness/public-contract'
 import { permissionView } from './fixtures/views.ts'
-import { serviceOf, ShellAssemblyError } from '@omne-harness/shell-contract'
+import { needPoint, ShellAssemblyError } from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import {
   ASSETS_CATEGORY_PAGE,
@@ -93,8 +93,8 @@ it('U4 the protocol withdrawn: the two pages stay and the module is not adopted;
   expect(shell.adoption('assets-ui')).toMatchObject({ kind: 'adopted' })
 })
 
-it('U6 the module provides the governance port: another module injects it, reads one category through it, and loses it with the module', async () => {
-  const { root } = await startShell()
+it('U6 the module provides the governance port: another module needs it, reads one category through it, and loses it with the module', async () => {
+  const { root, shell } = await startShell()
   const fake = createFakeClient()
   const served = await serveProtocol(root, assetsProtocol, fake.client)
   await root.plugin(assetsUiModule)
@@ -102,9 +102,10 @@ it('U6 the module provides the governance port: another module injects it, reads
   await root.plugin(
     defineUiModule({
       name: 'category-ui',
-      inject: [assetGovernanceKey],
-      apply(_shell, services) {
-        seen.push(serviceOf(services, assetGovernanceKey))
+      needs: { port: needPoint(assetGovernanceKey) },
+      apply(_shell, bound) {
+        const port = bound.port.get()
+        if (port !== undefined) seen.push(port)
       },
     }),
   )
@@ -138,10 +139,9 @@ it('U6 the module provides the governance port: another module injects it, reads
   })
   expect(() => broken.subscribe(() => undefined)()).not.toThrow()
   expect(fake.calls.filter(call => call.operation === 'list-settings')).toHaveLength(1)
-  const lookup = root as unknown as { get(name: string): unknown }
   await served.dispose()
   await new Promise(resolve => setTimeout(resolve, 0))
-  expect(lookup.get(assetGovernanceKey)).toBeUndefined()
+  expect(providedOn(shell, assetGovernanceKey)).toBeUndefined()
 })
 
 it('U7 a category page put into assets.category-page: one per category; a second for the same category is an assembly error and the first stays', async () => {
@@ -213,7 +213,5 @@ it('U11 a tree without the connection: the module is not adopted, it lacks what 
     kind: 'unavailable',
     missing: [{ slot: 'server', reference: { point: 'connection.server-points' } }],
   })
-  expect(
-    (root as unknown as { get(name: string): unknown }).get(assetGovernanceKey),
-  ).toBeUndefined()
+  expect(providedOn(shell, assetGovernanceKey)).toBeUndefined()
 })

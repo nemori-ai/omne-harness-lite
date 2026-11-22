@@ -14,7 +14,7 @@ export type AssetGovernance = Readonly<{
   open: (tenantText: string, category: string) => CategoryView
 }>
 
-export const assetGovernanceKey = serviceKey<AssetGovernance>('asset-governance')
+export const assetGovernanceKey = serviceKey<AssetGovernance>('assets.governance')
 
 const UNREADABLE_TENANT: CategorySnapshot = {
   kind: 'unreadable',

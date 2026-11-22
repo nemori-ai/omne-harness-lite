@@ -3,10 +3,9 @@ import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
 import type { ComponentProps } from 'react'
 import type { Context } from '@deepseek-ai/cordis'
 import { afterEach, expect, it, vi } from 'vitest'
-import { sessionWorkspaceChoicesKey, type WorkspaceChoiceHolder } from '../src/cordis.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
 import { listed, listPage, page } from './fixtures/frames.ts'
-import { mountModule } from './fixtures/shell.tsx'
+import { mountModule, providerOf, TAKEN } from './fixtures/shell.tsx'
 
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
@@ -324,9 +323,7 @@ it('头部放不下：工作区最先收进「更多」，菜单里写当前的�
   layOut(1000)
   const fake = createFakeClient()
   const root = await openLong(fake)
-  const holder = (root as unknown as { get(name: string): unknown }).get(
-    sessionWorkspaceChoicesKey,
-  ) as WorkspaceChoiceHolder
+  const holder = providerOf(root, TAKEN.workspaceChoices)
   await act(async () => {
     holder.attach({
       list: async () => ({

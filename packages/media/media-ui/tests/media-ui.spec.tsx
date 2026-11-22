@@ -1,13 +1,14 @@
 // @vitest-environment happy-dom
 import { mediaProtocol } from '@omne-harness/media-protocol'
 import { definePoint } from '@omne-harness/shell-contract'
-import { serveProtocol } from '@omne-harness/shell-contract/testing'
+import { serviceKey } from '@omne-harness/shell-contract'
+import { provideOn, serveProtocol } from '@omne-harness/shell-contract/testing'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   createMediaUiModule,
-  mediaComposerIntakeKey,
   type DraftOffer,
+  type Drafts,
   type MediaBlockSubject,
   type MediaDraftSubject,
 } from '../src/cordis.tsx'
@@ -52,6 +53,8 @@ async function settle(): Promise<void> {
 const png = (name: string, bytes: number[]) =>
   new File([new Uint8Array(bytes)], name, { type: 'image/png' })
 
+const draftsKey = serviceKey<Drafts>('test.drafts')
+
 async function mounted(media: FakeMedia, microphone?: Microphone) {
   const { root, shell } = await startShell()
   shell.tenant = TENANT_TEXT
@@ -60,25 +63,22 @@ async function mounted(media: FakeMedia, microphone?: Microphone) {
     createMediaUiModule({
       composerAttachments: attachments,
       block,
+      drafts: draftsKey,
       ...(microphone === undefined ? {} : { microphone }),
     }),
   )
   const offers: DraftOffer[] = []
-  const holder = (
-    root as unknown as { get(name: string): { attach(given: unknown): () => void } }
-  ).get(mediaComposerIntakeKey)
-  const detach = holder.attach({ offer: (offer: DraftOffer) => offers.push(offer) })
-  return { root, shell, offers, detach }
+  const drafts: Drafts = { offer: (offer: DraftOffer) => void offers.push(offer) }
+  await provideOn(root, draftsKey, drafts)
+  return { root, shell, offers }
 }
 
 describe('界面模块', () => {
-  it('协议客户端在时往两个拓展点各放一项，并提供收草稿的口的持有者；客户端不在时这些都不放', async () => {
+  it('协议客户端在时往两个拓展点各放一项；客户端不在时这些都不放', async () => {
     const { root, shell } = await startShell()
     await root.plugin(createMediaUiModule({ composerAttachments: attachments, block }))
-    const lookup = root as unknown as { get(name: string): unknown }
     expect(shell.items('attached')).toEqual([])
     expect(shell.adoption('media-ui')).toMatchObject({ kind: 'unavailable' })
-    expect(lookup.get(mediaComposerIntakeKey)).toBeUndefined()
     await serveProtocol(root, mediaProtocol, fakeMedia().client)
     await settle()
     expect(shell.adoption('media-ui')).toMatchObject({
@@ -89,10 +89,6 @@ describe('界面模块', () => {
       ['session.block', 'media'],
       ['session.composer-attachments', 'media'],
     ])
-    expect(mediaComposerIntakeKey).toBe('media.composer-intake')
-    expect(
-      (root as unknown as { get(name: string): unknown }).get(mediaComposerIntakeKey),
-    ).toBeDefined()
   })
 
   it('没给拓展点时什么都不放，照样加载', async () => {

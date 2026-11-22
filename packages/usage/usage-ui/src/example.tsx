@@ -47,7 +47,7 @@ function Weekdays() {
 /** A module of its own that brings one presentation and one widget, to show both points can be filled. */
 export const usageExampleModule = defineUiModule({
   name: 'usage-example',
-  inject: [],
+  needs: {},
   apply(shell) {
     usagePresentation.contribute(shell, 'series', {
       id: EXAMPLE_PRESENTATION,

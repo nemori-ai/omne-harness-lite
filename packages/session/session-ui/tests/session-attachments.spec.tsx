@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, screen } from '@testing-library/react'
 import { afterEach, expect, it } from 'vitest'
+import { providedOn } from '@omne-harness/shell-contract/testing'
 import {
   SESSION_COMPOSER_ATTACHMENTS,
   sessionComposerAttachments,
@@ -48,9 +49,8 @@ async function opened() {
     body: page([assistantEntry('1', '1', '内容')], '1'),
   })
   await settle()
-  const drafts = (mounted.root as unknown as { get(name: string): ComposerDrafts }).get(
-    sessionComposerIntakeKey,
-  )
+  const drafts = providedOn<ComposerDrafts>(mounted.shell, sessionComposerIntakeKey)
+  if (drafts === undefined) throw new Error('the session module provides no composer intake')
   const offer = async (ready: boolean, attachments: DraftOffer['attachments'] = [PICTURE]) => {
     const draft = seen.at(-1)?.draft ?? ''
     await act(async () => {

@@ -2,6 +2,7 @@
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, beforeAll, expect, it } from 'vitest'
 import { definePoint, serviceKey, type AttachedEntry } from '@omne-harness/shell-contract'
+import { provideOn } from '@omne-harness/shell-contract/testing'
 import { createMcpUiModule, type McpGovernance } from '../src/cordis.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { TENANT, fakeGovernance, readOf } from './fixtures/fake-governance.tsx'
@@ -37,7 +38,7 @@ const entries = (shell: ReferenceShell, scope?: string): AttachedEntry[] => {
 
 it('UI1 the port present: one MCP page at the category-page point, labelled by MCP itself', async () => {
   const { root, shell } = await startShell()
-  root.reflect.provide(governanceKey, fakeGovernance(readOf()).governance)
+  await provideOn(root, governanceKey, fakeGovernance(readOf()).governance)
   await root.plugin(mcpUiModule)
   expect(entries(shell).map(({ id, label }) => ({ id, label }))).toEqual([
     { id: 'mcp', label: 'MCP' },
@@ -48,7 +49,7 @@ it('UI1 the port present: one MCP page at the category-page point, labelled by M
 it('UI2 the page draws from the port the module was given, for the scope the shell gives', async () => {
   const { root, shell } = await startShell()
   const fake = fakeGovernance(readOf())
-  root.reflect.provide(governanceKey, fake.governance)
+  await provideOn(root, governanceKey, fake.governance)
   await root.plugin(mcpUiModule)
   render(<>{entries(shell, TENANT)[0]!.node}</>)
   expect(fake.opened).toEqual([`mcp ${TENANT}`])
@@ -58,25 +59,26 @@ it('UI2 the page draws from the port the module was given, for the scope the she
 it('UI3 no scope yet: nothing is drawn and the port is not opened', async () => {
   const { root, shell } = await startShell()
   const fake = fakeGovernance(readOf())
-  root.reflect.provide(governanceKey, fake.governance)
+  await provideOn(root, governanceKey, fake.governance)
   await root.plugin(mcpUiModule)
   const view = render(<>{entries(shell)[0]!.node}</>)
   expect(view.container.textContent).toBe('')
   expect(fake.opened).toEqual([])
 })
 
-it('UI4 the port absent: the module waits; it comes: the page is placed; it goes: the page goes', async () => {
+it('UI4 the port absent: the module is not adopted; it comes: the page is placed; it goes: the page goes', async () => {
   const { root, shell } = await startShell()
   await root.plugin(mcpUiModule)
   expect(entries(shell)).toEqual([])
-  let withdraw: () => void = () => undefined
+  expect(shell.adoption('mcp-ui')).toMatchObject({ kind: 'unavailable' })
+  let provided: Awaited<ReturnType<typeof provideOn>> | undefined
   await act(async () => {
-    withdraw = root.reflect.provide(governanceKey, fakeGovernance(readOf()).governance)
+    provided = await provideOn(root, governanceKey, fakeGovernance(readOf()).governance)
     await new Promise(resolve => setTimeout(resolve, 0))
   })
   expect(entries(shell).map(entry => entry.id)).toEqual(['mcp'])
   await act(async () => {
-    withdraw()
+    await provided?.dispose()
     await new Promise(resolve => setTimeout(resolve, 0))
   })
   expect(entries(shell)).toEqual([])
