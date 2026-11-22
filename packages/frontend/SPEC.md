@@ -138,9 +138,9 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 
 | 入口 | 内容 |
 | --- | --- |
-| `.` | 运行时有七样：常量表 `slots`、外壳自己三个位置的规矩 `shellContracts`、错误 `ShellAssemblyError`、声明带类型的拓展点的两个函数 `definePoint` 与 `defineKeyedPoint`、造带类型的键的 `serviceKey` 与按键取服务的 `serviceOf`（另有瞬时提示与形口的两个工厂，见各自一节）。其余是类型：带类型的键 `ServiceKey`，一处冲突 `SlotConflict`，四种位置的一项 `GateItem`、`PageItem`、`SidebarItem`、`AttachedItem`，位置名 `SlotName`，按位置取项的类型 `ItemOf`，渲染函数的属性 `GateProps`、`ScopedProps`、`AttachedProps`，宿主排版时拿到的一项 `AttachedEntry` 与排版函数 `AttachedLayout`，带类型的拓展点的类型（见「带类型的拓展点」），外壳一侧读位置的接口 `ShellSlots`，租户的形状 `ScopeSource`，登录的端口 `ShellLogin`、登录状态 `ShellLoginState`、凭据与结果 `LoginCredentials`、`LoginResult`、`LogoutResult` |
+| `.` | 运行时有十样：常量表 `slots`、外壳自己三个位置的规矩 `shellContracts`、错误 `ShellAssemblyError`、声明带类型的拓展点的两个函数 `definePoint` 与 `defineKeyedPoint`、造带类型的键的 `serviceKey`、写需要的 `needProtocol` 与 `needPoint`、跟读口的 `attachWhile`、协议的需要指着的点名 `PROTOCOLS_POINT`（另有瞬时提示与形口的两个工厂，见各自一节）。其余是类型：带类型的键 `ServiceKey`，一处冲突 `SlotConflict`，四种位置的一项 `GateItem`、`PageItem`、`SidebarItem`、`AttachedItem`，位置名 `SlotName`，按位置取项的类型 `ItemOf`，渲染函数的属性 `GateProps`、`ScopedProps`、`AttachedProps`，宿主排版时拿到的一项 `AttachedEntry` 与排版函数 `AttachedLayout`，带类型的拓展点的类型（见「带类型的拓展点」），外壳一侧读位置的接口 `ShellSlots`，租户的形状 `ScopeSource`，登录的端口 `ShellLogin`、登录状态 `ShellLoginState`、凭据与结果 `LoginCredentials`、`LoginResult`、`LogoutResult` |
 | `./cordis` | 服务 `shell` 的抽象类 `ShellService`、它的键 `shellKey`、界面模块的助手 `defineUiModule` 与它的类型 `UiModuleDefinition`、提供服务的函数类型 `Provide`。根入口的源码闭包不含 Cordis 绑定 |
-| `./testing` | 给界面模块的用例用的参考外壳 `ReferenceShell`，与起一棵带登记表和外壳的树的 `startShell`、`startShellOf(外壳的类, 可选的配置)`。它只存不画 |
+| `./testing` | 给界面模块的用例用的参考外壳 `ReferenceShell`，与起一棵带登记表和外壳的树的 `startShell`、`startShellOf(外壳的类, 可选的配置)`。它只存不画。另有像连接与别的模块那样往树上放东西的帮手：`serveProtocol(根, 协议, 客户端)`、`servePoint(根, 规矩, 一项)`、`provideOn(根, 键, 值)`，各返回一个 fiber，撤掉它就是收回；它们的插件形是 `protocolsPoint`、`servedProtocol`、`servedPoint`。`providedOn(外壳, 键)` 读一个键下现在提供的值 |
 
 #### 插入位置
 
@@ -255,15 +255,29 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 
 #### 界面模块
 
-`defineUiModule({ name, inject, apply })` 返回一个 Cordis 插件。它依赖 `shell` 与 `inject` 里列的服务；`apply(shell, services)` 里 `services` 以服务名为键，给出这些服务，界面模块在里面调 `shell.contribute` 放东西。`inject` 里的名字与 `services` 的类型由调用方用类型参数声明，协议客户端的服务名由应用的装配处给出，契约不认识它。
+`defineUiModule({ name, needs, apply })` 返回一个 Cordis 插件。它只依赖 `shell`：外壳在它就加载，外壳不在时不加载。
 
-加载与卸载都是 Cordis 的依赖注入本来就做的，不另写判断：依赖的服务出现时插件加载，消失时卸载，它放的东西随作用域撤掉；外壳不在时不加载。
+`needs` 是一组具名的需要，每个是一条引用：
 
-界面模块也能在客户端的树上提供一个服务，交给别的界面模块用。`apply` 的第三个参数 `provide(键, 值)` 把值以键为名提供出去，绑在这个界面模块的作用域上：它卸载时服务撤回，注入这个服务的界面模块随之卸载，再提供时再加载。不提供服务的界面模块不用这个参数。
+- `needProtocol(协议, { majors, optional })`：要一份协议。认几个主版本时把想要的写在前面；不写时只认契约自己的主版本。它是对点 `connection.protocols` 的引用，键是「协议名/v主版本」。契约只认识这个点的名字，不认识声明它的成员。
+- `needPoint(键, { optional })`：要另一个界面模块提供的东西，或别的单项的点上的那一项。
 
-- 键是带类型的键 `ServiceKey<T>`：它就是服务名的文本，类型里另带一个形状 `T`，放在函数返回值的位置上。`serviceKey<T>(名字)` 造一个键。所以给得多的键能当给得少的用（`ServiceKey<多>` 能赋给 `ServiceKey<少>`），反过来编译不过。`provide` 的值必须是键的形状。
-- 提供方从自己的 `./cordis` 入口导出键。使用方不导入提供方：它用自己要的形状写键的类型，由应用的装配把提供方的键交给它；形状对不上时，在应用的装配处编译不过。使用方把键写进 `inject`，在 `apply` 里用 `serviceOf(services, 键)` 取到这个形状的服务。
-- 同一个名字由两个界面模块提供，照 Cordis 自己的规则；契约不另定。一个口只有一个宿主。
+**采用。** 外壳对每个界面模块的引用做一次采用（Dynamis 的 `adopt`）：每条引用钉在点上恰好一项上。必需的引用有一条钉不上，整份采用不可用，并列出缺的每一条。采用不存：`shell.adoption(模块名)` 按此刻的登记表算，`shell.watchAdoptions(监听)` 在登记表变时叫一声。可选的引用指着一个没有人声明的点时算没有，记空。
+
+**`apply` 跟着采用走。** `apply(shell, bound, provide)` 对每一个采用跑一次，跑在一个与模块同名的作用域里。采用换了，上一次放的东西先随那个作用域收回，再跑一次。`apply` 可以返回一个收回函数。所以 `apply` 里建的读法、观察与订阅不会留着上一个采用的。可选的点上的需要来去不重跑 `apply`，界面模块经读口自己跟。
+
+`bound` 给每个需要一格：
+
+- 协议的那一格是这份协议的客户端，它一直在。每次调用按此刻的登记表找钉住的那一项：有就转过去；没有就当场答不可用，观察以不可用结束，不碰传输。
+- 点的那一格是读口：`get()` 给此刻的那一项，没有时是 `undefined`；`subscribe(监听)` 在登记表变时叫一声。`attachWhile(读口, 接上)` 做三件事：有就接上，换了先摘再接，没了摘掉。它返回收回函数。
+
+**缺着时放什么。** 必需的需要缺着时 `apply` 照跑。它放的页面与登录门照放，由外壳画成一句说明，写出缺的是哪一条与原因（见应用的规格）。它放在侧栏区与附着位置上的不放，`provide` 不生效。所以少一份协议只影响引用它的界面模块，别的页面上不会多出一块读不出的东西。
+
+**提供。** `apply` 的第三个参数 `provide(键, 值)` 以这个界面模块的名义声明一个单项的点并放上这一项（`shell.offer`）。点的名字就是键，形状是「宿主.名字」。值是一个对象。界面模块的作用域收回时，这个点与这一项一起收回。
+
+- 键是带类型的键 `ServiceKey<T>`：它就是点名的文本，类型里另带一个形状 `T`，放在函数返回值的位置上。`serviceKey<T>(名字)` 造一个键。所以给得多的键能当给得少的用（`ServiceKey<多>` 能赋给 `ServiceKey<少>`），反过来编译不过。`provide` 的值必须是键的形状。
+- 提供方从自己的 `./cordis` 入口导出键。使用方不导入提供方：它用自己要的形状写键的类型，由应用的装配把提供方的键交给它，它写成 `needPoint(键)`。形状对不上时，在应用的装配处编译不过。装配没有交键的那一格指着一个没有人声明的点，读到空。
+- 同一个键由两个界面模块提供时，点上有两项，答冲突：引用它的界面模块缺这一条。
 
 ## 原则与约束
 
