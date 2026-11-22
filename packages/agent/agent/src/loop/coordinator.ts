@@ -533,6 +533,7 @@ function coordinate<P>(
   let yieldedWait = false
   let savedWait = false
   let waking = false
+  let changedAt: ExecutionRevision | null = null
   let resumeState: OpenState = state
   let reconciliationOperations: readonly AgentOperationId[] = []
   let recheckDependency: ((read: ExecutionSnapshot) => Promise<Outcome<unknown, Failure>>) | null =
@@ -608,7 +609,7 @@ function coordinate<P>(
       finish: write.finish ?? null,
     })
     if ('failure' in committed) {
-      if (committed.failure.kind === 'changed') {
+      if (committed.failure.kind === 'changed' && write.exactCursor !== true) {
         const latest = await load()
         if ('failure' in latest) return latest
         if (advancementOf(latest.ok).kind !== 'current') return fail({ kind: 'stale-advance' })
@@ -1424,6 +1425,10 @@ function coordinate<P>(
       const original =
         pendingCommit?.operation ?? reconciliationOperations[0] ?? snapshot?.unresolved[0]
       if (original !== undefined) return fail({ kind: 'commit-unknown', operation: original })
+      if (changedAt !== null && changedAt === revision) {
+        yieldedWait = true
+        return step('unsaved-wait', null)
+      }
       if (
         snapshot?.state.kind === 'waiting' &&
         canonical(snapshot.state.waits) === canonical(waits)
@@ -1435,6 +1440,7 @@ function coordinate<P>(
       const saved = await commit('W0', required(checkpoint, 'checkpoint').position, {
         state: { kind: 'waiting', waits },
         events: [{ kind: 'waiting', waits }],
+        exactCursor: true,
       })
       if ('failure' in saved) {
         if (saved.failure.kind === 'unavailable') {
@@ -1442,6 +1448,7 @@ function coordinate<P>(
           return step('unsaved-wait', null)
         }
         if (saved.failure.kind !== 'changed') return saved
+        changedAt = revision
         waking = true
         return step('reconciled', null)
       }
@@ -2310,6 +2317,12 @@ function coordinate<P>(
       if (complete)
         return step(batch.slots.some(slot => slot.kind !== 'denied') ? 'batch' : 'admit', null)
       if (unsent(batch, unacceptedToolActions).length > 0) return step('dispatch', null)
+      for (const action of batch.actions) {
+        if (slotOf(batch, action.id)?.kind !== 'dispatched') continue
+        const received = await receivedToolDelivery(action, RETURN_KINDS)
+        if ('failure' in received) return received
+        if (received.ok !== null) return step('received', null)
+      }
       return toolWait('T3', batch)
     },
     async T4() {
