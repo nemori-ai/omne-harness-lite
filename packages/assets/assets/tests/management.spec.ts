@@ -88,6 +88,8 @@ function setup(
     holding?: Holding | 'absent' | 'unavailable'
     change?: StoreChange | 'throws'
     recall?: StoreChange | { kind: 'not-found' } | 'throws'
+    /** A second contribution of the category: it is a conflict and gives no contract. */
+    rival?: true
   } = {},
 ) {
   const categories = createCategoryPoint()
@@ -96,6 +98,12 @@ function setup(
     display: { title: 'Note', summary: 'Notes.' },
     point: 'test.site2',
   })
+  if (options.rival === true)
+    categories.contribute({
+      contract,
+      display: { title: 'Rival', summary: 'R.' },
+      point: 'note.rival',
+    })
   const asked: string[] = []
   const changed: Changed[] = []
   const reads: string[] = []
@@ -307,6 +315,10 @@ describe('enable, disable and remove: the answers that do not depend on the stat
 describe('list one category', () => {
   const list = (limit = 10, category = 'note') => ({ ...scope, category, after: null, limit })
 
+  it('a category that two contributions make a conflict is unavailable, not unknown and not listed', async () => {
+    expect(await setup({ rival: true }).management.list(list())).toEqual({ kind: 'unavailable' })
+  })
+
   it('gives the page of the store, complete', async () => {
     expect(await setup().management.list(list())).toEqual({
       kind: 'page',
@@ -475,6 +487,39 @@ describe('describe one asset', () => {
         kind: 'unavailable',
         layer: 'tenant',
       })
+    })
+  })
+
+  it('a filtered holding names the layer that blocks it only when one does', async () => {
+    const s = setup({ store: { layers: [layer('disabled')] } })
+    const described = await s.management.describe(describing)
+    expect(described.kind === 'asset' && described.standing).toStrictEqual({
+      kind: 'filtered',
+      reason: 'disabled',
+    })
+  })
+
+  it('another asset at the same version is not this holding', async () => {
+    const other: AssetLayerSource = {
+      layer: 'tenant',
+      list: async () => ({ state: 'invalid' }),
+      candidates: async () => ({
+        layer: 'tenant',
+        state: 'read',
+        candidates: [
+          {
+            asset: 'note/other',
+            version: 'v1',
+            disabled: false,
+            immutable: false,
+            replaceLocked: false,
+          },
+        ],
+      }),
+    }
+    const s = setup({ store: { layers: [other] } })
+    expect(await s.management.describe(describing)).toMatchObject({
+      standing: { kind: 'unavailable', layer: 'tenant' },
     })
   })
 

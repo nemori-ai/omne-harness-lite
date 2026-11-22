@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  admitCategory,
   categoryViewOf,
   createCategoryPoint,
   isReadBody,
@@ -259,6 +260,38 @@ describe('how the general entry creates an asset of a category', () => {
     point.contribute(contribution('note'))
     expect(point.describe('note')).toBe(point.list()[0])
     expect(point.describe('nobody')).toBeUndefined()
+  })
+})
+
+describe('what a contribution is admitted as', () => {
+  it('carries a creation hint and a closed general entry only when they were given', () => {
+    const point = createCategoryPoint()
+    point.contribute(contribution('note'))
+    point.contribute({
+      ...contribution('tool'),
+      display: { title: 'T', summary: 'S', creation: 'Pick one.' },
+      generalCreation: 'closed',
+    })
+    expect(point.describe('note')).toStrictEqual({
+      category: 'note',
+      display: { title: 'note title', summary: 'note summary' },
+      creation: 'data',
+      point: 'note.items',
+    })
+    expect(point.describe('tool')).toStrictEqual({
+      category: 'tool',
+      display: { title: 'T', summary: 'S', creation: 'Pick one.' },
+      creation: 'none',
+      point: 'tool.items',
+    })
+    expect(Object.keys(admitCategory(contribution('note'))).sort()).toEqual([
+      'contract',
+      'display',
+      'point',
+    ])
+    expect(admitCategory({ ...contribution('tool'), generalCreation: 'closed' })).toMatchObject({
+      generalCreation: 'closed',
+    })
   })
 })
 

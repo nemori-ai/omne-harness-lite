@@ -66,10 +66,14 @@ function setup(
     admit?: TenantActing<Principal>['admit']
     publisherOf?: (tenant: string) => Promise<TenantPublisher | undefined>
     answer?: TenantPublishOutcome
+    /** A second contribution of `note`: it is a conflict and gives no contract. */
+    rival?: true
   } = {},
 ) {
   const categories = createCategoryPoint()
   categories.contribute({ contract: contract('note', false), display, point: 'note.items' })
+  if (options.rival === true)
+    categories.contribute({ contract: contract('note', false), display, point: 'note.rival' })
   categories.contribute({ contract: contract('bundle', true), display, point: 'bundle.items' })
   categories.contribute({
     contract: contract('tool', false),
@@ -158,6 +162,12 @@ describe('the publish service: the cells of table three', () => {
     expect(await publishing.publish(request({ capability: id('nobody', 'a') }))).toEqual({
       kind: 'unknown-category',
     })
+    expect(published).toEqual([])
+  })
+
+  it('类别有两份贡献在抢：unavailable，不答没登记，不调本机资产', async () => {
+    const { publishing, published } = setup({ rival: true })
+    expect(await publishing.publish(request())).toEqual({ kind: 'unavailable' })
     expect(published).toEqual([])
   })
 

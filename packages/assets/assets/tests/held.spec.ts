@@ -9,7 +9,10 @@ import {
 } from '@omne-harness/dynamis'
 import { describe, expect, it } from 'vitest'
 import {
+  capabilityId,
+  createHeldBook,
   evaluate,
+  heldLayerSource,
   heldPoint,
   layerInputsOf,
   layerOfScope,
@@ -335,6 +338,144 @@ describe('differential: candidates given by layer, and read back from the point'
     expect(evaluate({ layers: inputs, eligible: () => 'yes' })).toEqual({
       kind: 'unavailable',
       layer: 'official',
+    })
+  })
+})
+
+describe('heldPoint: the rules of the point of a category', () => {
+  it('gives rules the registry takes: keyed, most specific, an item of the five facts, keys private unless said', () => {
+    const point = heldPoint({ name: 'gadget.items', key: 'the gadget name', summary: 'Gadgets.' })
+    expect(point).toEqual({
+      name: 'gadget.items',
+      tree: 'server',
+      arity: 'keyed-one',
+      keyFrom: null,
+      key: 'the gadget name',
+      gives: expect.stringMatching(/\S/u),
+      item: {
+        kind: 'data',
+        fields: {
+          asset: 'string',
+          version: 'string',
+          disabled: 'boolean',
+          immutable: 'boolean',
+          replaceLocked: 'boolean',
+        },
+      },
+      resolve: 'most-specific',
+      binding: 'run',
+      onError: expect.stringMatching(/\S/u),
+      version: 1,
+      revision: 1,
+      keys: 'private',
+      conformance: null,
+      summary: 'Gadgets.',
+    })
+    expect(heldPoint({ name: 'a.b', key: 'k', summary: 's', keys: 'public' }).keys).toBe('public')
+  })
+
+  it('an entry that lacks one of the five facts breaks the rules and is no candidate', () => {
+    const whole = {
+      asset: 'a',
+      version: '1',
+      disabled: false,
+      immutable: false,
+      replaceLocked: false,
+    }
+    const { version: _version, ...lacking } = whole
+    let registry = put(empty, 'skills', [declare(contract)])
+    registry = put(registry, 'release', [
+      entryOf('whole', [], whole),
+      { ...entryOf('lacking', [], whole), item: lacking as never },
+    ])
+    const read = readPoint<HeldItem>(registry, POINT, null, [])
+    if (read.kind !== 'read') throw new Error(read.kind)
+    expect(read.entries.map(entry => entry.key)).toEqual(['whole'])
+    expect(read.filtered.map(out => [out.entry.key, out.reason])).toEqual([['lacking', 'breach']])
+  })
+})
+
+describe('scopeOfLayer without a tenant', () => {
+  it('refuses the tenant layer when no tenant is given at all', () => {
+    expect(() => scopeOfLayer('tenant', undefined as never)).toThrow('needs a tenant')
+  })
+})
+
+describe('a layer of one tenant as a source, without a registry', () => {
+  const alpha = {
+    asset: 'tenant-a/gadget/alpha',
+    version: '1',
+    disabled: false,
+    immutable: false,
+    replaceLocked: false,
+  }
+  const id = (category: string, name: string) => {
+    const made = capabilityId(category, name)
+    if (!made.ok) throw new Error('capability')
+    return made.id
+  }
+  const listing = async () => ({ layer: 'tenant' as const, state: 'not-applicable' as const })
+
+  it('the book reads as unavailable until it is told, then gives what it was told under that name', () => {
+    const book = createHeldBook('tenant-a')
+    expect(book.read(id('gadget', 'alpha'))).toEqual({ kind: 'unavailable' })
+    book.sync([
+      { category: 'gadget', name: 'alpha', item: alpha },
+      { category: 'gadget', name: 'beta', item: { ...alpha, asset: 'tenant-a/gadget/beta' } },
+      { category: 'widget', name: 'alpha', item: { ...alpha, asset: 'tenant-a/widget/alpha' } },
+    ])
+    expect(book.read(id('gadget', 'alpha'))).toEqual({
+      kind: 'read',
+      entries: [{ scope: ['tenant', 'tenant-a'], item: alpha }],
+    })
+    expect(book.read(id('gadget', 'gamma'))).toEqual({ kind: 'read', entries: [] })
+    book.missed('failed')
+    expect(book.read(id('gadget', 'alpha'))).toEqual({ kind: 'unavailable' })
+    book.sync([])
+    expect(book.read(id('gadget', 'alpha'))).toEqual({ kind: 'read', entries: [] })
+  })
+
+  it('the source gives the candidates of its own layer, and unavailable when the reading is', async () => {
+    const book = createHeldBook('tenant-a')
+    const source = heldLayerSource({
+      layer: 'tenant',
+      tenant: 'tenant-a',
+      read: book.read,
+      list: listing,
+    })
+    expect(source.layer).toBe('tenant')
+    expect(source.list).toBe(listing)
+    expect(await source.candidates(id('gadget', 'alpha'))).toEqual({
+      layer: 'tenant',
+      state: 'unavailable',
+    })
+    book.sync([{ category: 'gadget', name: 'alpha', item: alpha }])
+    expect(await source.candidates(id('gadget', 'alpha'))).toEqual({
+      layer: 'tenant',
+      state: 'read',
+      candidates: [alpha],
+    })
+    const official = heldLayerSource({
+      layer: 'official',
+      tenant: 'tenant-a',
+      read: book.read,
+      list: listing,
+    })
+    expect(await official.candidates(id('gadget', 'alpha'))).toEqual({
+      layer: 'official',
+      state: 'read',
+      candidates: [],
+    })
+    const other = heldLayerSource({
+      layer: 'tenant',
+      tenant: 'tenant-b',
+      read: book.read,
+      list: listing,
+    })
+    expect(await other.candidates(id('gadget', 'alpha'))).toEqual({
+      layer: 'tenant',
+      state: 'read',
+      candidates: [],
     })
   })
 })

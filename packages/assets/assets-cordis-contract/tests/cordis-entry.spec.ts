@@ -12,7 +12,15 @@ import {
   categoryContributionPlugin,
 } from '@omne-harness/assets-cordis-contract/cordis'
 import { ASSET_CATEGORIES_POINT, heldEntry } from '@omne-harness/assets-cordis-contract'
-import { ask, candidates, CATALOG, list, standingOf, type Contract } from '@omne-harness/dynamis'
+import {
+  ask,
+  candidates,
+  CATALOG,
+  declare,
+  list,
+  standingOf,
+  type Contract,
+} from '@omne-harness/dynamis'
 import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { describe, expect, it } from 'vitest'
 
@@ -358,5 +366,74 @@ describe('the point of a category, and what the deployment brings on it', () => 
     ]
     for (const other of changed)
       expect(heldEntry('gadget.items', 'spanner', [], other).digest).not.toBe(first.digest)
+  })
+
+  it("reads what one tenant sees under a name: the official item, its own, never another tenant's", async () => {
+    const { root, service } = await categories()
+    await root.plugin(contributionPlugin('gadget-category', contribution('gadget', 'G')))
+    const shipped = item('official/gadget/spanner')
+    const mine = item('tenant-a/gadget/spanner')
+    await root.plugin({
+      name: 'holders',
+      inject: ['assetCategories'],
+      apply(ctx: Context) {
+        ctx.assetCategories.bring('gadget.items', [{ name: 'spanner', item: shipped }])
+        ctx.assetCategories.holdingsOf(
+          'tenant-a',
+          () => undefined,
+        )([
+          { category: 'gadget', name: 'spanner', item: mine },
+          { category: 'gadget', name: 'wrench', item: item('tenant-a/gadget/wrench') },
+        ])
+      },
+    })
+    const spanner = { category: 'gadget', name: 'spanner' }
+    const read = service.held(spanner, 'tenant-a')
+    expect(read.kind === 'read' && read.entries.map(entry => [entry.scope, entry.item])).toEqual([
+      [[], shipped],
+      [['tenant', 'tenant-a'], mine],
+    ])
+    const other = service.held(spanner, 'tenant-b')
+    expect(other.kind === 'read' && other.entries.map(entry => entry.item)).toEqual([shipped])
+  })
+
+  it('answers unavailable, and exactly that, for a category that is not registered or is a conflict', async () => {
+    const { root, service } = await categories()
+    expect(service.held({ category: 'gadget', name: 'spanner' }, 'tenant-a')).toStrictEqual({
+      kind: 'unavailable',
+    })
+    await root.plugin(contributionPlugin('first', contribution('gadget', 'G')))
+    const rival = root.plugin(contributionPlugin('second', contribution('gadget', 'G2')))
+    await rival.await()
+    expect(service.held({ category: 'gadget', name: 'spanner' }, 'tenant-a')).toStrictEqual({
+      kind: 'unavailable',
+    })
+    await rival.dispose()
+    expect(service.held({ category: 'gadget', name: 'spanner' }, 'tenant-a').kind).toBe('read')
+  })
+
+  it('when the categories point itself cannot be read, no category gives a contract and each says it is unread', async () => {
+    const { root, service } = await categories()
+    await root.plugin(contributionPlugin('gadget-category', contribution('gadget', 'G')))
+    const again = root.plugin({
+      name: 'second-declarer',
+      inject: ['dynamis'],
+      apply(ctx: Context) {
+        ctx.dynamis.put([
+          declare({
+            ...heldPoint({ name: ASSET_CATEGORIES_POINT, key: 'k', summary: 'Another rule.' }),
+          }),
+        ])
+      },
+    })
+    await again.await()
+    expect(service.view.lookup('gadget')).toBeUndefined()
+    expect(service.view.list()).toEqual([])
+    expect(service.view.describe('gadget')).toMatchObject({
+      category: 'gadget',
+      unusable: 'unread',
+    })
+    await again.dispose()
+    expect(service.view.lookup('gadget')?.category).toBe('gadget')
   })
 })
