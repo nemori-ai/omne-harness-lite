@@ -141,6 +141,11 @@
       "config": {}
     },
     {
+      "id": "dynamis",
+      "plugin": "dynamisRow",
+      "config": {}
+    },
+    {
       "id": "asset-categories",
       "plugin": "assetCategoriesRow",
       "config": {}

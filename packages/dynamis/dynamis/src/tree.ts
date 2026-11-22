@@ -130,6 +130,7 @@ function pointNode(
     contract.version === 1 && contract.revision === 1
       ? ''
       : `v${contract.version}.${contract.revision}`,
+    contract.keys === 'public' ? 'public keys' : '',
   ]
   if (unread !== null) notes.push(`unread: ${unread}`)
   const keyed = contract.arity.startsWith('keyed')

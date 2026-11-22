@@ -21,6 +21,7 @@ const SHARED = {
   resolve: 'conflict',
   version: 1,
   revision: 1,
+  keys: 'private',
   conformance: null,
 } as const
 

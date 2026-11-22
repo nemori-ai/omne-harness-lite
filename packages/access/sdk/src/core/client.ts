@@ -1,5 +1,6 @@
 import type { JsonLimits } from '@omne-harness/json-text'
 import {
+  livesAt,
   revisionOf,
   type Codec,
   type ObservationContract,
@@ -67,7 +68,12 @@ export type ReadRetry = {
   readonly wait: (ms: number, signal: AbortSignal | undefined) => Promise<void>
 }
 
-export type ClientSettings = { readonly limits?: JsonLimits; readonly readRetry?: ReadRetry }
+export type ClientSettings = {
+  readonly limits?: JsonLimits
+  readonly readRetry?: ReadRetry
+  /** The revision the other end has this protocol at, when it is known; asked for at every call. */
+  readonly peerRevision?: () => number | undefined
+}
 
 const now = (): number =>
   /* wall-clock: operation-timing -- The elapsed time of a read is a monotonic duration from its first ask. */ performance.now()
@@ -133,6 +139,15 @@ export function createClient<P extends ProtocolContract>(
       `${target('observe')}: an operation cannot take the name of the observations`,
     )
 
+  /** Whether the other end knows all of this request: its name, and every field it carries. */
+  function known(codec: Codec<unknown>, since: number | undefined, value: unknown, sent: unknown) {
+    const peer = settings.peerRevision?.()
+    if (peer === undefined || peer >= revision) return true
+    if (!livesAt(since, peer)) return false
+    const lesser = codec.write(value as never, limits, peer)
+    return lesser.ok && JSON.stringify(lesser.value) === JSON.stringify(sent)
+  }
+
   async function ask(operation: OperationContract, request: CallRequest) {
     let report = await transport.call(request)
     if (report.kind === 'not-sent') report = await transport.call(request)
@@ -149,6 +164,7 @@ export function createClient<P extends ProtocolContract>(
   ) {
     const written = operation.body.write(body as never, limits)
     if (!written.ok) throw new ClientRequestError(target(name))
+    if (!known(operation.body, operation.since, body, written.value)) return UNAVAILABLE
     const request: CallRequest = {
       protocol: key,
       operation: name,
@@ -181,6 +197,7 @@ export function createClient<P extends ProtocolContract>(
   ): AsyncGenerator<unknown, ObservationEnd<ObservationContract>> {
     const written = contract.open.write(open as never, limits)
     if (!written.ok) throw new ClientRequestError(target(name))
+    if (!known(contract.open, contract.since, open, written.value)) return { kind: 'unavailable' }
     const stream = transport.observe({
       protocol: key,
       observation: name,

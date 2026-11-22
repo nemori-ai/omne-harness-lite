@@ -47,6 +47,7 @@
 - `NextSnapshot` · `snapshot.d.ts`
 - `SnapshotStore` · `snapshot.d.ts`
 - `checkRecorded` · `snapshot.d.ts`
+- `contractDigest` · `snapshot.d.ts`
 - `nextSnapshot` · `snapshot.d.ts`
 - `snapshotProblems` · `snapshot.d.ts`
 
@@ -89,9 +90,86 @@ declare const availabilityFrame: {
                                         readonly kind: 'positive-integer';
                                     };
                                 };
+                                readonly revision: {
+                                    readonly rule: {
+                                        readonly kind: 'positive-integer';
+                                    };
+                                    readonly optional: true;
+                                    readonly since: 2;
+                                };
+                                readonly digest: {
+                                    readonly rule: {
+                                        readonly kind: 'text';
+                                    };
+                                    readonly optional: true;
+                                    readonly since: 2;
+                                };
                             };
                         };
                     };
+                };
+                readonly conflicts: {
+                    readonly rule: {
+                        readonly kind: 'array';
+                        readonly item: {
+                            readonly kind: 'object';
+                            readonly fields: {
+                                readonly name: {
+                                    readonly rule: {
+                                        readonly kind: 'text';
+                                    };
+                                };
+                                readonly major: {
+                                    readonly rule: {
+                                        readonly kind: 'positive-integer';
+                                    };
+                                };
+                            };
+                        };
+                    };
+                    readonly optional: true;
+                    readonly since: 2;
+                };
+                readonly points: {
+                    readonly rule: {
+                        readonly kind: 'array';
+                        readonly item: {
+                            readonly kind: 'object';
+                            readonly fields: {
+                                readonly name: {
+                                    readonly rule: {
+                                        readonly kind: 'text';
+                                    };
+                                };
+                                readonly major: {
+                                    readonly rule: {
+                                        readonly kind: 'positive-integer';
+                                    };
+                                };
+                                readonly revision: {
+                                    readonly rule: {
+                                        readonly kind: 'positive-integer';
+                                    };
+                                };
+                                readonly digest: {
+                                    readonly rule: {
+                                        readonly kind: 'text';
+                                    };
+                                };
+                                readonly keys: {
+                                    readonly rule: {
+                                        readonly kind: 'array';
+                                        readonly item: {
+                                            readonly kind: 'text';
+                                        };
+                                    };
+                                    readonly optional: true;
+                                };
+                            };
+                        };
+                    };
+                    readonly optional: true;
+                    readonly since: 2;
                 };
             };
         },
@@ -127,6 +205,20 @@ declare const availabilityFrame: {
                                         readonly kind: 'positive-integer';
                                     };
                                 };
+                                readonly revision: {
+                                    readonly rule: {
+                                        readonly kind: 'positive-integer';
+                                    };
+                                    readonly optional: true;
+                                    readonly since: 2;
+                                };
+                                readonly digest: {
+                                    readonly rule: {
+                                        readonly kind: 'text';
+                                    };
+                                    readonly optional: true;
+                                    readonly since: 2;
+                                };
                             };
                         };
                     };
@@ -151,6 +243,28 @@ declare const availabilityFrame: {
                         };
                     };
                 };
+                readonly conflicts: {
+                    readonly rule: {
+                        readonly kind: 'array';
+                        readonly item: {
+                            readonly kind: 'object';
+                            readonly fields: {
+                                readonly name: {
+                                    readonly rule: {
+                                        readonly kind: 'text';
+                                    };
+                                };
+                                readonly major: {
+                                    readonly rule: {
+                                        readonly kind: 'positive-integer';
+                                    };
+                                };
+                            };
+                        };
+                    };
+                    readonly optional: true;
+                    readonly since: 2;
+                };
             };
         }
     ];
@@ -165,14 +279,33 @@ export declare const accessProtocol: {
             readonly identity: "none";
             readonly open: import("./rule-codec.ts").Codec<{}>;
             readonly frame: import("./rule-codec.ts").Codec<{
-                readonly kind: "snapshot";
-                readonly protocols: readonly {
+                readonly conflicts?: readonly {
                     readonly major: number;
                     readonly name: string;
+                }[];
+                readonly kind: "snapshot";
+                readonly points?: readonly {
+                    readonly digest: string;
+                    readonly keys?: readonly string[];
+                    readonly major: number;
+                    readonly name: string;
+                    readonly revision: number;
+                }[];
+                readonly protocols: readonly {
+                    readonly digest?: string;
+                    readonly major: number;
+                    readonly name: string;
+                    readonly revision?: number;
                 }[];
                 readonly revision: number;
             } | {
                 readonly added: readonly {
+                    readonly digest?: string;
+                    readonly major: number;
+                    readonly name: string;
+                    readonly revision?: number;
+                }[];
+                readonly conflicts?: readonly {
                     readonly major: number;
                     readonly name: string;
                 }[];
@@ -506,6 +639,7 @@ export type SnapshotStore = Readonly<{
     write: (text: string) => void;
     append: boolean;
 }>;
+export declare function contractDigest(protocol: ProtocolContract, revision: number, sha256: (bytes: Uint8Array) => Uint8Array): string | undefined;
 export declare function snapshotProblems(protocol: ProtocolContract, recorded: unknown): Promise<string[]>;
 export type NextSnapshot = Readonly<{
     ok: true;

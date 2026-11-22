@@ -1,5 +1,5 @@
-import { AccessAssemblyError, type AccessContribution } from '@omne-harness/access-cordis-contract'
-import { createAccessRegistry } from '../../src/registry/registry.ts'
+import type { AccessContribution } from '@omne-harness/access-cordis-contract'
+import { createStandaloneRegistry } from '../../src/registry/desk.ts'
 import { settleCall } from '../../src/settle/settle.ts'
 import { manualClock } from '../support/manual-clock.ts'
 import { NOTES, notesContribution, type NotesProtocol } from '../support/test-contribution.ts'
@@ -43,7 +43,7 @@ function heldContribution(title: string): {
 
 function settle(title: string) {
   const entered = registry.enter(NOTES, 'save-note')
-  if (entered === undefined) throw new Error('notes/v1 is not mounted')
+  if ('refused' in entered) throw new Error('notes/v1 is not mounted')
   say(`enter notes/v1 save-note (${title}): in flight`)
   return settleCall({
     entered: {
@@ -63,29 +63,27 @@ function settle(title: string) {
   })
 }
 
-const registry = createAccessRegistry()
-const subscription = registry.subscribe(change =>
-  say(
-    `  subscriber: revision ${change.revision}, ${change.change} ${change.protocol.name}/v${change.protocol.major}`,
-  ),
-)
+const registry = createStandaloneRegistry()
+const subscription = registry.subscribe(change => {
+  if (change.change === 'points') return
+  const { name, major } = change.protocol
+  say(`  subscriber: revision ${change.revision}, ${change.change} ${name}/v${major}`)
+})
 say(`subscribe: revision ${subscription.revision}, protocols [${subscription.protocols.length}]`)
 
 say('— 1. mount, and mount the same protocol again')
 const first = heldContribution('call A')
 const takeDownFirst = registry.mount(first.contribution)
-try {
-  registry.mount(notesContribution('second'))
-} catch (error) {
-  if (!(error instanceof AccessAssemblyError)) throw error
-  say(`  ${error.name}: ${error.message}`)
-}
+const takeDownClash = registry.mount(notesContribution('second'))
+const clash = registry.enter(NOTES, 'save-note')
+say(`  two mounts of notes/v1: ${'refused' in clash ? clash.refused : 'in flight'}`)
+await takeDownClash()
 
 say('— 2. take down while a call is in flight; the handler honours the abort')
 const callA = settle('call A')
 const drainedFirst = takeDownFirst().then(() => say('  take-down of notes/v1 complete'))
 say(
-  `  enter after take-down: ${registry.enter(NOTES, 'save-note') === undefined ? 'not mounted' : 'in flight'}`,
+  `  enter after take-down: ${'refused' in registry.enter(NOTES, 'save-note') ? 'not mounted' : 'in flight'}`,
 )
 first.release()
 await callA

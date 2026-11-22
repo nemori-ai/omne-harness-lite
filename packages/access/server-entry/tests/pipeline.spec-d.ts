@@ -1,7 +1,7 @@
 import { expectTypeOf, test } from 'vitest'
 import { admit } from '../src/pipeline/pipeline.ts'
 import { createServerEntry, type ServerEntryAccess } from '../src/index.ts'
-import { createAccessRegistry } from '../src/index.ts'
+import { createStandaloneRegistry } from '../src/index.ts'
 import { testIdentity } from './support/access-kit.ts'
 
 test('steps 1 to 5 return no promise: looking up and entering cannot be split by a take-down', () => {
@@ -10,7 +10,7 @@ test('steps 1 to 5 return no promise: looking up and entering cannot be split by
 })
 
 test('access is given whole or not at all', () => {
-  const registry = createAccessRegistry()
+  const registry = createStandaloneRegistry()
   const identity = testIdentity().port
   expectTypeOf({
     registry,

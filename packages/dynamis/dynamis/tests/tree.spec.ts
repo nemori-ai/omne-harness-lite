@@ -184,6 +184,14 @@ describe('tree：点、键、条目排成一棵树', () => {
     expect(render(root)).toContain(`${HOLDINGS}  [keyed-list]`)
   })
 
+  it('树上标出键对外公开的点', () => {
+    const open = contract(CATEGORIES, { keys: 'public' })
+    const registry = registryOf(['assets', [declare(open)]])
+    expect(find(tree(registry, deployment).root, `server/assets/${CATEGORIES}`)?.note).toBe(
+      'keyed-one, public keys',
+    )
+  })
+
   it('读不出的点：点在树上，写明读不出，它自己的条目一个都不列；键取自它的点照常在', () => {
     const registry = withUnread(registryOf(...parts()), [
       { point: CATEGORIES, source: 'tenant-layer', scope: [] },

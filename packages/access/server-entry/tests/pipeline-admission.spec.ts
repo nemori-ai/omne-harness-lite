@@ -25,6 +25,13 @@ function expectBare(reply: HttpReply, status: number): void {
   if (status !== 405) expect(reply.headers.allow).toBeUndefined()
 }
 
+/** What is not provided answers 404 with a body that says nothing ran, and why. */
+function expectNotMounted(reply: HttpReply): void {
+  expect(reply.status).toBe(404)
+  expect(reply.text).toBe('{"kind":"not-executed","reason":"not-mounted"}')
+  expect(reply.headers['content-type']).toBe('application/json; charset=utf-8')
+}
+
 describe('one answer per step', () => {
   beforeEach(async () => {
     fixture = await startAccessFixture()
@@ -38,7 +45,7 @@ describe('one answer per step', () => {
   })
 
   it('a major version of several digits is on the grammar: not mounted, not off the grammar', async () => {
-    expectBare(await send(fixture.port, '/api/notes/v12/read-note', { body: '{}' }), 404)
+    expectNotMounted(await send(fixture.port, '/api/notes/v12/read-note', { body: '{}' }))
     expect(fixture.diagnostics.map(event => event.code)).toEqual(['access.not-mounted'])
   })
 
@@ -59,9 +66,9 @@ describe('one answer per step', () => {
     expectBare(reply, 415)
   })
 
-  it('step 5: a protocol not mounted is a bare 404; a name the mounted protocol does not have is a 404 that says nothing ran', async () => {
-    expectBare(await send(fixture.port, '/api/other/v1/read-note', { body: '{}' }), 404)
-    expectBare(await send(fixture.port, '/api/notes/v2/read-note', { body: '{}' }), 404)
+  it('step 5: a protocol not mounted and a name the mounted protocol does not have each answer a 404 that says nothing ran, and why', async () => {
+    expectNotMounted(await send(fixture.port, '/api/other/v1/read-note', { body: '{}' }))
+    expectNotMounted(await send(fixture.port, '/api/notes/v2/read-note', { body: '{}' }))
     for (const name of ['no-such-note', 'constructor']) {
       const reply = await call(fixture.port, name)
       expect(reply.status).toBe(404)
@@ -82,7 +89,7 @@ describe('one answer per step', () => {
 
   it('step 5: a protocol taken down answers 404 at the same address', async () => {
     await fixture.takeDown()
-    expectBare(await call(fixture.port, 'read-note', { body: '{"noteId":"n-1"}' }), 404)
+    expectNotMounted(await call(fixture.port, 'read-note', { body: '{"noteId":"n-1"}' }))
   })
 
   it('answers a protocol not mounted without reading the declared body', async () => {
@@ -162,7 +169,7 @@ describe('step 6: the in-flight budget', () => {
     const first = call(fixture.port, 'read-note', { body: '{"noteId":"n-1"}' })
     await fixture.notes.called()
 
-    expectBare(await send(fixture.port, '/api/other/v1/read-note', { body: '{}' }), 404)
+    expectNotMounted(await send(fixture.port, '/api/other/v1/read-note', { body: '{}' }))
     const busy = await call(fixture.port, 'read-note', { body: '{"noteId":"n-2"}' })
     expectBare(busy, 429)
     expect(busy.headers['x-omne-limit']).toBe('in-flight-requests')

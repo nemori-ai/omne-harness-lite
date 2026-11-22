@@ -103,13 +103,25 @@ function canonical(value: Plain): string {
   )
 }
 
+const bytesOf = (protocol: ProtocolContract, revision: number): Uint8Array<ArrayBuffer> =>
+  new TextEncoder().encode(canonical(rulesOf(protocol, revision)))
+
+const named = (hash: Uint8Array): string =>
+  `sha256:${Array.from(hash, byte => byte.toString(16).padStart(2, '0')).join('')}`
+
 async function digestOf(protocol: ProtocolContract, revision: number): Promise<string> {
-  const bytes = new TextEncoder().encode(canonical(rulesOf(protocol, revision)))
-  const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))
-  return `sha256:${Array.from(hash, byte => byte.toString(16).padStart(2, '0')).join('')}`
+  return named(new Uint8Array(await crypto.subtle.digest('SHA-256', bytesOf(protocol, revision))))
 }
 
-/** A codec that was written by hand carries no rule: what it reads cannot be recorded. */
+/** The digest a snapshot records for a revision, with the caller's SHA-256: for one that cannot wait. */
+export function contractDigest(
+  protocol: ProtocolContract,
+  revision: number,
+  sha256: (bytes: Uint8Array) => Uint8Array,
+): string | undefined {
+  return unruled(protocol) === undefined ? named(sha256(bytesOf(protocol, revision))) : undefined
+}
+
 function unruled(protocol: ProtocolContract): string | undefined {
   const bare = (codec: { readonly rule?: Rule } | true): boolean =>
     codec !== true && codec.rule === undefined

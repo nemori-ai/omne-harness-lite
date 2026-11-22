@@ -43,6 +43,7 @@
     "@omne-harness/utc-instant": "workspace:*"
   },
   "devDependencies": {
+    "@omne-harness/dynamis-cordis": "workspace:*",
     "@omne-harness/identity": "workspace:*",
     "@omne-harness/operation-result": "workspace:*",
     "@omne-harness/public-contract": "workspace:*",

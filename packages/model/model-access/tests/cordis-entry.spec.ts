@@ -9,11 +9,11 @@ import { createWorld, fixtureLogin, loginIdentity, REQUIRED } from './fixtures/w
 class RecordingRegistry extends AccessRegistryService {
   readonly mounted: AccessContribution<ModelProtocol>[] = []
   readonly unmounted: AccessContribution<ModelProtocol>[] = []
-  protected attach(contribution: never) {
-    this.mounted.push(contribution)
-    return async () => {
-      this.unmounted.push(contribution)
-    }
+  mount(contribution: never): void {
+    this.ctx.effect(() => {
+      this.mounted.push(contribution)
+      return () => void this.unmounted.push(contribution)
+    }, 'test.mount')
   }
 }
 

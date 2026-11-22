@@ -16,11 +16,11 @@ import { expect, it } from 'vitest'
 class RecordingRegistry extends AccessRegistryService {
   readonly mounted: AccessContribution<ToolProtocol>[] = []
   readonly unmounted: AccessContribution<ToolProtocol>[] = []
-  protected attach(contribution: never) {
-    this.mounted.push(contribution)
-    return async () => {
-      this.unmounted.push(contribution)
-    }
+  mount(contribution: never): void {
+    this.ctx.effect(() => {
+      this.mounted.push(contribution)
+      return () => void this.unmounted.push(contribution)
+    }, 'test.mount')
   }
 }
 

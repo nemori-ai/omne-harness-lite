@@ -7,6 +7,7 @@ import {
   keyText,
   type AvailabilityView,
   type Backoff,
+  type ServerPoint,
   type ProtocolKey,
 } from './availability.ts'
 
@@ -27,6 +28,11 @@ export interface Connection {
   readonly availability: {
     current(): ReadonlySet<ProtocolKey>
     isOpen(key: ProtocolKey): boolean
+    /** The revision the server has this protocol at; nothing when it is not served or not said. */
+    peerRevision(key: ProtocolKey): number | undefined
+    /** The points the server declares; and the keys now on one of them, where it makes them public. */
+    points(): ReadonlyMap<string, ServerPoint>
+    keys(point: string): readonly string[] | undefined
     subscribe(listener: (open: ReadonlySet<ProtocolKey>) => void): () => void
   }
   readonly login: {
@@ -64,6 +70,8 @@ function timerSleep(ms: number, signal: AbortSignal): Promise<void> {
   })
 }
 
+const NO_POINTS: ReadonlyMap<string, ServerPoint> = new Map()
+
 function availabilityState(diagnostics: ConnectionOptions['diagnostics']) {
   let view: AvailabilityView | undefined
   let current: ReadonlySet<ProtocolKey> = new Set()
@@ -91,6 +99,9 @@ function availabilityState(diagnostics: ConnectionOptions['diagnostics']) {
     face: {
       current: () => current,
       isOpen: (key: ProtocolKey) => view?.open.has(keyText(key)) === true,
+      peerRevision: (key: ProtocolKey) => view?.revisions.get(keyText(key)),
+      points: (): ReadonlyMap<string, ServerPoint> => view?.points ?? NO_POINTS,
+      keys: (point: string) => view?.points.get(point)?.keys,
       subscribe(listener: (open: ReadonlySet<ProtocolKey>) => void): () => void {
         listeners.add(listener)
         return () => {
@@ -274,11 +285,11 @@ export function defineProtocolClient<P extends ProtocolContract>(protocol: P): P
         if (open && provided === undefined) {
           const revoke = new AbortController()
           const { readRetry } = connection
+          const peerRevision = (): number | undefined => connection.availability.peerRevision(key)
+          const settings = readRetry === undefined ? { peerRevision } : { readRetry, peerRevision }
           const client = guarded(
             protocol,
-            readRetry === undefined
-              ? createClient(protocol, connection.transport)
-              : createClient(protocol, connection.transport, { readRetry }),
+            createClient(protocol, connection.transport, settings),
             revoke.signal,
           )
           const unregister = ctx.reflect.provide(service, client)

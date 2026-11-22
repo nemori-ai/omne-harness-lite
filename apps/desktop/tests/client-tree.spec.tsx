@@ -7,6 +7,7 @@ import { expect, it, vi } from 'vitest'
 import { assembly } from '../src/page/assembly.tsx'
 import { shellPlugin } from '../src/page/shell/service.ts'
 import { createShellState } from '../src/page/shell/state.ts'
+import { quietConnection } from './support/shell-setup.tsx'
 
 const login: ShellLogin = {
   state: () => 'signed-in',
@@ -27,6 +28,7 @@ const settle = async (): Promise<void> => {
 async function clientTree() {
   const root = new Context()
   await root.plugin(shellPlugin(createShellState(login)))
+  root.reflect.provide('connection', quietConnection)
   for (const protocol of assembly.protocols)
     root.reflect.provide(protocolServiceName(protocol), silent())
   for (const module of assembly.modules) await root.plugin(module)
