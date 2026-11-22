@@ -113,6 +113,11 @@ describe('the categories as keys on the registry of the tree', () => {
     if (declared.kind !== 'read') throw new Error('the catalog is not read')
     const point = declared.items.find(({ entry }) => entry.key === ASSET_CATEGORIES_POINT)
     expect(point?.entry.item).toMatchObject({ tree: 'server', arity: 'keyed-one', keys: 'public' })
+    expect(point?.entry.item.item).toEqual({ kind: 'data', fields: { category: 'string' } })
+    // The rules are read by people and go into the digest the other tree sees: none is left empty.
+    const texts = Object.values(point?.entry.item ?? {}).filter(value => typeof value === 'string')
+    expect(texts.length).toBeGreaterThan(8)
+    expect(texts.every(text => text !== '')).toBe(true)
     expect(point?.entry.instance.fiber).toBe('asset-categories')
   })
 

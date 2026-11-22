@@ -90,6 +90,13 @@ describe('the view keeps what each served protocol is at', () => {
 })
 
 describe('a protocol client writes at the lesser of the two revisions (V2)', () => {
+  it('before the first frame nothing is known of the server: no revision, no points, no keys', async () => {
+    const { connection } = await tree()
+    expect(connection.availability.peerRevision(DRAFTS)).toBeUndefined()
+    expect([...connection.availability.points()]).toEqual([])
+    expect(connection.availability.keys('assets.categories')).toBeUndefined()
+  })
+
   it('the server is behind: what it does not have is unavailable here and not sent; the rest is served', async () => {
     const t = await tree()
     t.fake.push(snapshot(1, { ...ACCESS, revision: 2 }, { ...DRAFTS, revision: 1 }))

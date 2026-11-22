@@ -1,5 +1,4 @@
 import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
 import { connect, createServer, type AddressInfo } from 'node:net'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
@@ -364,16 +363,12 @@ describe('availability at the entry', () => {
     await takeSecond()
     for (const client of [old, now]) await client.waitForEvents(3)
 
-    const recorded = JSON.parse(
-      readFileSync(
-        new URL('../../public-contract/contract/access.v1.json', import.meta.url),
-        'utf8',
-      ),
-    ) as { digests: Record<string, string> }
+    // That this is the digest the snapshot of access/v1 records is held where the snapshot is.
+    const recorded = contractDigest(accessProtocol, 2, sha256)
     const notes = served(fixture.notes.contribution.protocol)
     const access = served(accessProtocol)
     expect(notes.digest).toMatch(/^sha256:[0-9a-f]{64}$/)
-    expect(access).toEqual({ name: 'access', major: 1, revision: 2, digest: recorded.digests['2'] })
+    expect(access).toEqual({ name: 'access', major: 1, revision: 2, digest: recorded })
     expect(now.events().map(event => (event as { frame?: unknown }).frame ?? event)).toEqual([
       {
         kind: 'snapshot',

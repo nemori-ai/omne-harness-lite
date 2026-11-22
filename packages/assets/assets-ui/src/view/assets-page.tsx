@@ -146,7 +146,7 @@ function Tabs({ entries, data, reading, chosen, choose, extras, generic }: TabsP
   useEffect(() => {
     if (chosen === null && shown !== undefined) choose(shown)
   }, [shown, chosen, choose])
-  if (ids.length === 0 || shown === undefined)
+  if (shown === undefined)
     return reading ? (
       <LoadingState label="正在读取资产……" />
     ) : (
