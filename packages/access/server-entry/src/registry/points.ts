@@ -19,14 +19,15 @@ export function points(registry: Registry, last: Points = noPoints): Points {
   if (from.length === last.from.length && from.every((each, index) => each === last.from[index]))
     return last
   const declared = list<Contract>(registry, CATALOG, null, [])
-  if (declared.kind !== 'read') return { facts: [], from }
+  // Unread is not empty: the catalog keeps what was last read, a point that is unread tells no keys.
+  if (declared.kind !== 'read') return { facts: last.facts, from }
   const facts = declared.items.map(({ entry }): PointFact => {
     const { name, version: major, revision, keys } = entry.item
     const fact = { name, major, revision, rules: entry.digest }
     if (keys !== 'public') return fact
     const listing = list(registry, name, null, [])
-    const held = listing.kind === 'read' ? listing.items.map(item => item.entry.key) : []
-    return { ...fact, keys: [...new Set(held)].sort() }
+    if (listing.kind !== 'read') return fact
+    return { ...fact, keys: [...new Set(listing.items.map(item => item.entry.key))].sort() }
   })
   facts.sort((left, right) => (left.name < right.name ? -1 : 1))
   const now = new Set(facts.filter(fact => fact.keys !== undefined).map(fact => fact.name))

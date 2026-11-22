@@ -42,6 +42,8 @@ export type OperationHandler<O extends OperationContract> = (
 export type ObservationContext<O extends ObservationContract> = {
   readonly principal: PrincipalFor<O['identity']>
   readonly messageId: string
+  /** The contract revision the frames are written at. A frame the subscriber cannot read a change in is not sent. */
+  readonly revision: number
   readonly signal: AbortSignal
 }
 export type OpenOf<O extends ObservationContract> = ValueOf<O['open']>

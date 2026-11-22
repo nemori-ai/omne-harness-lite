@@ -68,16 +68,24 @@ const ABORTED: ObserveEnd = Object.freeze({ kind: 'aborted' })
 const STOPPED: ObserveEnd = Object.freeze({ kind: 'uncertain' })
 const NOT_SENT = Object.freeze({ kind: 'not-sent' as const })
 
-const NOT_EXECUTED: readonly (string | undefined)[] = ['not-offered', 'not-mounted', 'conflict']
+/** The reasons the server gives for running nothing, each with the status it comes at. */
+const NOT_EXECUTED: Readonly<Record<string, number>> = Object.freeze({
+  'not-offered': 404,
+  'not-mounted': 404,
+  conflict: 404,
+  unavailable: 503,
+})
 
 /** The server says what was asked for is not provided. Nothing ran, so it is as if nothing was sent. */
 function notOffered(response: Response, source: string, limits: JsonLimits): boolean {
-  if (response.status !== 404) return false
+  if (response.status !== 404 && response.status !== 503) return false
   const read = readJsonText(source, limits)
   if (read.kind !== 'ok' || read.value.kind !== 'object' || read.value.entries.length !== 2)
     return false
-  const reason = text(member(read.value, 'reason'))
-  return text(member(read.value, 'kind')) === 'not-executed' && NOT_EXECUTED.includes(reason)
+  const reason = text(member(read.value, 'reason')) ?? ''
+  const said = text(member(read.value, 'kind')) === 'not-executed'
+  // A reason counts only at its own status; a name that is no reason has no status to match.
+  return said && NOT_EXECUTED[reason] === response.status
 }
 
 function eventOf(

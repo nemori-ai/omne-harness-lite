@@ -142,9 +142,9 @@ function Tabs({ entries, data, reading, chosen, choose, extras, generic }: TabsP
   const contributed = new Map(entries.map(entry => [entry.id, entry]))
   const ids = [...contributed.keys(), ...data.filter(category => !contributed.has(category))]
   const shown = chosen !== null && ids.includes(chosen) ? chosen : ids[0]
-  // What is shown is what is chosen: a category that arrives later does not take the pane away.
+  // The first one shown counts as chosen: a category that arrives later does not take the pane away.
   useEffect(() => {
-    if (shown !== undefined && shown !== chosen) choose(shown)
+    if (chosen === null && shown !== undefined) choose(shown)
   }, [shown, chosen, choose])
   if (ids.length === 0 || shown === undefined)
     return reading ? (

@@ -59,6 +59,7 @@ export type Enter =
       member: Entered['member']
     }>
   | Readonly<{ kind: 'not-mounted' }>
+  | Readonly<{ kind: 'unavailable' }>
   | Readonly<{ kind: 'not-offered' }>
   | Readonly<{ kind: 'conflict'; by: readonly Instance[] }>
 
@@ -109,6 +110,8 @@ export function enter(registry: Registry, calls: Calls, key: string, name: strin
   const answer = ask<ProtocolItem>(registry, PROTOCOLS, key, [])
   if (answer.kind === 'conflict')
     return { kind: 'conflict', by: answer.entries.map(entry => entry.instance).sort(byFiber) }
+  // The point cannot be read: that is not the same as nothing being on it.
+  if (answer.kind === 'unavailable') return { kind: 'unavailable' }
   if (answer.kind !== 'one') return { kind: 'not-mounted' }
   const { instance, item } = answer.entry
   const member = memberOf(item.contribution, name)
@@ -144,10 +147,10 @@ export function busy(calls: Calls, instance: Instance, key: string): boolean {
   )
 }
 
-/** What the entry serves now, and the protocols that two instances hold at once. */
-export function open(registry: Registry): Open {
+/** What the entry serves now, and the protocols that two instances hold at once; nothing when unread. */
+export function open(registry: Registry): Open | undefined {
   const listing = list<ProtocolItem>(registry, PROTOCOLS, null, [])
-  if (listing.kind !== 'read') return { protocols: [], conflicts: [] }
+  if (listing.kind !== 'read') return undefined
   const named = ({ key, item }: Entry<ProtocolItem>) => {
     const { name, major } = item.contribution.protocol
     return { key, name, major }

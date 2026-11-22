@@ -59,7 +59,19 @@ describe('the server says the protocol does not have this name (V3)', () => {
     },
   )
 
+  it('the registry cannot say what is served (503, unavailable): the same certain answer', async () => {
+    const reply = json(503, '{"kind":"not-executed","reason":"unavailable"}')
+    expect(await callOf(reply)).toEqual({ kind: 'not-sent' })
+    expect(await endOf(reply)).toEqual({ kind: 'not-sent' })
+  })
+
   it.each([
+    ['a reason at the status of another', json(503, NOT_OFFERED)],
+    ['unavailable at 404', json(404, '{"kind":"not-executed","reason":"unavailable"}')],
+    [
+      'a reason that is a property of every object',
+      json(404, '{"kind":"not-executed","reason":"constructor"}'),
+    ],
     ['another status', json(200, NOT_OFFERED)],
     ['another reason', json(404, '{"kind":"not-executed","reason":"other"}')],
     ['another kind', json(404, '{"kind":"executed","reason":"not-offered"}')],

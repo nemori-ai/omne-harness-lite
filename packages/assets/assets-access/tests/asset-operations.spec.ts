@@ -460,7 +460,12 @@ describe('observe-assets', () => {
   it('opens for a login that may act for the tenant, subscribes to that tenant, and frames each change', async () => {
     const world = setup()
     const opened = await world.contribution.observations['observe-assets'](
-      { principal: loginIdentity(ALICE), messageId: 'm-o', signal: new AbortController().signal },
+      {
+        principal: loginIdentity(ALICE),
+        messageId: 'm-o',
+        revision: 1,
+        signal: new AbortController().signal,
+      },
       { tenant: ALICE.tenant },
     )
     if (opened.outcome !== 'succeeded') throw new Error(opened.outcome)
@@ -473,7 +478,12 @@ describe('observe-assets', () => {
   it('a login that may not act for the tenant is denied and nothing is subscribed', async () => {
     const world = setup()
     const opened = await world.contribution.observations['observe-assets'](
-      { principal: loginIdentity(ALICE), messageId: 'm-o', signal: new AbortController().signal },
+      {
+        principal: loginIdentity(ALICE),
+        messageId: 'm-o',
+        revision: 1,
+        signal: new AbortController().signal,
+      },
       { tenant: BOB.tenant },
     )
     expect(opened).toEqual({ outcome: 'denied' })
@@ -484,7 +494,12 @@ describe('observe-assets', () => {
     const world = setup()
     world.state.refusal = 'basis-unavailable'
     const opened = await world.contribution.observations['observe-assets'](
-      { principal: loginIdentity(ALICE), messageId: 'm-o', signal: new AbortController().signal },
+      {
+        principal: loginIdentity(ALICE),
+        messageId: 'm-o',
+        revision: 1,
+        signal: new AbortController().signal,
+      },
       { tenant: ALICE.tenant },
     )
     expect(opened).toEqual({ outcome: 'basis-unavailable' })

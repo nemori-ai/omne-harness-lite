@@ -119,6 +119,29 @@ describe('server-entry row: the new address', () => {
 })
 
 describe('server-entry row: the access it gives the entry', () => {
+  it('a protocol conflict carries the two instances that hold the protocol, as one reference', () => {
+    const capture = createCapturingTelemetry()
+    const sink = accessDiagnostics(capture.port)
+    sink({
+      code: 'access.protocol-conflict',
+      path: '/api/notes/v1/read-note',
+      operation: 'read-note',
+      by: ['notes-access#1', 'notes-access~2#1'],
+    })
+    sink({ code: 'access.protocol-conflict', by: ['a'.repeat(300), 'b'] })
+    expect(
+      capture.records().map(record => (record.kind === 'event' ? record.fields : null)),
+    ).toStrictEqual([
+      {
+        code: 'access.protocol-conflict',
+        path: '/api/notes/v1/read-note',
+        operation: 'read-note',
+        by: 'notes-access#1,notes-access~2#1',
+      },
+      { code: 'access.protocol-conflict' },
+    ])
+  })
+
   it('leaves out a reference the event refuses, and keeps the code', () => {
     const capture = createCapturingTelemetry()
     const sink = accessDiagnostics(capture.port)

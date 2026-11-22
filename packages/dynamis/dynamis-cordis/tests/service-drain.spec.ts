@@ -223,4 +223,45 @@ describe('要排空的批（DC-2）', () => {
     expect(dynamis.registry().retiring).toEqual([])
     expect(ids(dynamis.registry())).toEqual([])
   })
+  it('排空当场抛出：算同一种失败，实例照样取走，登记表不留撤不完的', async () => {
+    const { ctx, dynamis } = await tree()
+    const fiber = await ctx.plugin(
+      mod('mod', inner => {
+        inner.dynamis.put([a1], {
+          drain: () => {
+            throw new Error('drain threw on the spot')
+          },
+        })
+      }),
+    )
+    await fiber.dispose().then(
+      () => undefined,
+      () => undefined,
+    )
+    await settle()
+    expect(dynamis.registry().retiring).toEqual([])
+    expect(ids(dynamis.registry())).toEqual([])
+  })
+
+  it('登记表服务自己卸载：依赖它的照样先正在撤下、排空，它的卸载等排空完', async () => {
+    const ctx = new Context()
+    const service = ctx.plugin(DynamisService)
+    await service
+    const dynamis = ctx.get('dynamis') as DynamisService
+    const held = gate()
+    await ctx.plugin(mod('mod', inner => void inner.dynamis.put([a1], { drain: held.drain })))
+    let gone = false
+    const leaving = service.dispose().then(() => {
+      gone = true
+    })
+    await settle()
+    expect(named(held.asked)).toEqual(['mod#1'])
+    expect(named(dynamis.registry().retiring)).toEqual(['mod#1'])
+    expect(gone).toBe(false)
+    held.open()
+    await leaving
+    expect(gone).toBe(true)
+    expect(dynamis.registry().retiring).toEqual([])
+    expect(ids(dynamis.registry())).toEqual([])
+  })
 })

@@ -382,3 +382,37 @@ it('K5 页面关了就不再跟：没有订阅留下，之后的变化不发调�
   await settle()
   expect(categoryReads(fake)).toBe(1)
 })
+
+it('K6 点过的类别在一次重读失败时不在栏里，重试读到之后回到它，不停在回落的那一项', async () => {
+  const fake = createFakeClient()
+  serveSettings(fake)
+  serveAssetReads(fake, [])
+  const keys = fakeKeys()
+  keys.set(CATEGORIES_POINT, ['tool'])
+  render(
+    <AssetsPage
+      governance={createGovernance({ client: fake.client })}
+      tenant={TENANT}
+      categoryNames={createCategoryNames(fake.client, keys.source)}
+      pages={pagesOf([entry('mcp', 'MCP')])}
+    />,
+  )
+  ;(await fake.next('list-categories')).answer(listed([['tool', '工具']]))
+  await settle()
+  fireEvent.click(tabs().getByRole('tab', { name: '工具' }))
+  expect(selected()).toEqual(['工具'])
+  await act(async () => keys.set(CATEGORIES_POINT, ['skill', 'tool']))
+  ;(await fake.next('list-categories')).answer({ outcome: 'basis-unavailable' })
+  await settle()
+  expect(tabTexts()).toEqual(['MCP'])
+  expect(selected()).toEqual(['MCP'])
+  fireEvent.click(screen.getByRole('button', { name: '重试' }))
+  ;(await fake.next('list-categories')).answer(
+    listed([
+      ['skill', '技能'],
+      ['tool', '工具'],
+    ]),
+  )
+  await settle()
+  expect(selected()).toEqual(['工具'])
+})

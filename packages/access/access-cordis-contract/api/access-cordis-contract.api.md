@@ -92,6 +92,7 @@ export type OperationHandler<O extends OperationContract> = (call: CallContext<O
 export type ObservationContext<O extends ObservationContract> = {
     readonly principal: PrincipalFor<O['identity']>;
     readonly messageId: string;
+    readonly revision: number;
     readonly signal: AbortSignal;
 };
 export type OpenOf<O extends ObservationContract> = ValueOf<O['open']>;

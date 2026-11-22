@@ -139,7 +139,12 @@ export function createObservationHub(settings: HubSettings): ObservationHub {
     const watch = watchCall(entered.signal, res)
     const decided = await watch.attend(() =>
       input.source(
-        { principal: input.principal as never, messageId, signal: source.signal },
+        {
+          principal: input.principal as never,
+          messageId,
+          revision: input.revision ?? entered.revision,
+          signal: source.signal,
+        },
         input.open,
       ),
     )

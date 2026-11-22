@@ -83,7 +83,7 @@ type Subscriber = {
 function open(registry: AccessRegistry, backlog: number) {
   const controller = new AbortController()
   const opened = availabilitySource(registry, backlog)(
-    { principal: undefined as never, messageId: 'm-1', signal: controller.signal },
+    { principal: undefined as never, messageId: 'm-1', revision: 2, signal: controller.signal },
     {},
   )
   return { opened, controller }
@@ -183,7 +183,7 @@ describe('availability is a projection of the registry', () => {
     registry.mount(accessContribution(registry, 4))
     const controller = new AbortController()
     const opened = await availabilitySource(registry, 4)(
-      { principal: undefined as never, messageId: 'm-1', signal: controller.signal },
+      { principal: undefined as never, messageId: 'm-1', revision: 2, signal: controller.signal },
       {},
     )
     if (opened.outcome !== 'succeeded') throw new Error('not opened')

@@ -51,6 +51,7 @@ export type PipelineDiagnosticCode =
   | 'access.not-mounted'
   | 'access.not-offered'
   | 'access.protocol-conflict'
+  | 'access.registry-unavailable'
   | 'access.busy'
   | 'access.message-id-rejected'
   | 'access.revision-rejected'
@@ -136,6 +137,7 @@ const NOT_EXECUTED_CODE = {
   'not-mounted': 'access.not-mounted',
   'not-offered': 'access.not-offered',
   conflict: 'access.protocol-conflict',
+  unavailable: 'access.registry-unavailable',
 } as const satisfies Readonly<Record<NotExecuted, PipelineDiagnosticCode>>
 
 function eventOf(

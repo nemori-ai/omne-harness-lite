@@ -27,6 +27,7 @@ import {
   noCalls,
   open,
   protocolsContract,
+  type Open,
   type ProtocolItem,
 } from './table.ts'
 
@@ -77,6 +78,22 @@ export function createDesk(read: () => Registry, options: DeskOptions = {}): Pro
     }
   }
 
+  function follow(opened: Open): void {
+    const now = new Map(opened.protocols.map(protocol => [protocol.key, protocol]))
+    conflicts = opened.conflicts.map(({ name, major }) => ({ name, major }))
+    for (const [key, protocol] of Array.from(served))
+      if (!now.has(key)) {
+        served.delete(key)
+        announce('unmounted', protocol)
+      }
+    for (const [key, { name, major, revision: at, contract }] of now)
+      if (!served.has(key)) {
+        const protocol = { name, major, revision: at, contract }
+        served.set(key, protocol)
+        announce('mounted', protocol)
+      }
+  }
+
   function settle(instance: Instance, key: string): void {
     const tag = tagOf(instance, key)
     const done = waiting.get(tag)
@@ -125,20 +142,9 @@ export function createDesk(read: () => Registry, options: DeskOptions = {}): Pro
       })
     },
     changed(registry) {
+      // Unread is not empty: what was last read stands until the point reads again.
       const opened = open(registry)
-      const now = new Map(opened.protocols.map(protocol => [protocol.key, protocol]))
-      conflicts = opened.conflicts.map(({ name, major }) => ({ name, major }))
-      for (const [key, protocol] of Array.from(served))
-        if (!now.has(key)) {
-          served.delete(key)
-          announce('unmounted', protocol)
-        }
-      for (const [key, { name, major, revision: at, contract }] of now)
-        if (!served.has(key)) {
-          const protocol = { name, major, revision: at, contract }
-          served.set(key, protocol)
-          announce('mounted', protocol)
-        }
+      if (opened !== undefined) follow(opened)
       const facts = points(registry, declared)
       const same = JSON.stringify(facts.facts) === JSON.stringify(declared.facts)
       declared = facts

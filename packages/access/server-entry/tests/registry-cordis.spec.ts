@@ -230,7 +230,12 @@ describe('the points of the tree reach the availability (C10)', () => {
     await root.plugin(AccessRegistryProvider)
     const provider = root.accessRegistry as unknown as AccessRegistryProvider
     const opened = await availabilitySource(provider, 4)(
-      { principal: undefined as never, messageId: 'm-1', signal: new AbortController().signal },
+      {
+        principal: undefined as never,
+        messageId: 'm-1',
+        revision: 2,
+        signal: new AbortController().signal,
+      },
       {},
     )
     if (opened.outcome !== 'succeeded') throw new Error(opened.outcome)
@@ -357,5 +362,87 @@ describe('defineAccessPlugin on real Cordis', () => {
       outcome: 'succeeded',
       body: { noteId: 'n-1', title: 'first' },
     })
+  })
+})
+
+describe('a subscriber the points cannot be written to (revision 1)', () => {
+  const tags = { ...protocolsContract, name: 'notes.tags', arity: 'keyed-list', keys: 'public' }
+  const tag = { ...declare(tags as never), point: 'notes.tags', key: 'a', id: 'a', digest: 'a' }
+  const item = { contribution: {}, revision: 1, controller: {} }
+
+  async function subscribed(revision: number) {
+    const root = new Context()
+    await root.plugin(DynamisService)
+    await root.plugin(AccessRegistryProvider)
+    const provider = root.accessRegistry as unknown as AccessRegistryProvider
+    const opened = await availabilitySource(provider, 4)(
+      {
+        principal: undefined as never,
+        messageId: 'm-1',
+        revision,
+        signal: new AbortController().signal,
+      },
+      {},
+    )
+    if (opened.outcome !== 'succeeded') throw new Error(opened.outcome)
+    const next = async () => {
+      const step = opened.frames.next()
+      const got = await Promise.race([step, flush().then(() => 'none' as const)])
+      return got === 'none' ? { pending: step } : { frame: got.value as { kind: string } }
+    }
+    return { root, next }
+  }
+
+  const changes = async (root: Context): Promise<void> => {
+    await root.plugin({
+      name: 'notes-access',
+      inject: ['accessRegistry'],
+      apply: (ctx: Context) => void ctx.accessRegistry.mount(notesContribution('first')),
+    })
+    await root.plugin({
+      name: 'notes-host',
+      inject: ['dynamis'],
+      apply: (ctx: Context) =>
+        void ctx.dynamis.put([declare(tags as never), { ...tag, item } as never]),
+    })
+  }
+
+  it('is sent the change frame it had queued and nothing for the points', async () => {
+    const { root, next } = await subscribed(1)
+    expect((await next()).frame).toMatchObject({ kind: 'snapshot', revision: 0 })
+    await changes(root)
+    expect((await next()).frame).toMatchObject({ kind: 'change', revision: 1 })
+    expect((await next()).frame).toBeUndefined()
+  })
+
+  it('at revision 2 the same history ends in one snapshot that carries the point', async () => {
+    const { root, next } = await subscribed(2)
+    expect((await next()).frame).toMatchObject({ kind: 'snapshot', revision: 0 })
+    await changes(root)
+    const frame = (await next()).frame as { kind: string; points: { name: string }[] }
+    expect(frame.kind).toBe('snapshot')
+    expect(frame.points.map(point => point.name)).toEqual(['access.protocols', 'notes.tags'])
+    expect((await next()).frame).toBeUndefined()
+  })
+})
+
+describe('the point of the protocols cannot be read', () => {
+  it('a second, different declaration: calls answer unavailable, and the availability keeps what it last read', async () => {
+    const { root, registry } = await assemble(notesContribution('first'))
+    const seen: string[] = []
+    registry.subscribe(change => void seen.push(change.change))
+    const rival = await root.plugin({
+      name: 'rival-host',
+      inject: ['dynamis'],
+      apply: (ctx: Context) =>
+        void ctx.dynamis.put([declare({ ...protocolsContract, summary: 'Another.' })]),
+    })
+    expect(registry.enter(NOTES, 'read-note')).toEqual({ refused: 'unavailable' })
+    // The catalog changed, so the points are told again; no protocol is told as gone.
+    expect(seen).toEqual(['points'])
+    const again = registry.subscribe(() => {})
+    expect(again.protocols.map(protocol => protocol.name)).toEqual(['notes'])
+    await rival.dispose()
+    expect('refused' in registry.enter(NOTES, 'read-note')).toBe(false)
   })
 })

@@ -67,7 +67,8 @@ export class DynamisService extends Service {
         if (instance === undefined || drain === undefined)
           return this.commit(drop(this.seats, key, outcome.batch))
         const taken = (): void => this.commit(drained(this.seats, key, outcome.batch))
-        return drain(instance).finally(taken)
+        // A drain that throws on the spot is a drain that failed: the instance is taken all the same.
+        return new Promise<void>(resolve => resolve(drain(instance))).finally(taken)
       }
     }, 'dynamis.put')
   }

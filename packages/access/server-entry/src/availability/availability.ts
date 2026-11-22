@@ -50,11 +50,15 @@ function changeFrame(change: Mounting): AvailabilityFrame {
     : { kind: 'change', revision, added: [], removed: [keyValue(change.protocol)], conflicts }
 }
 
+/** The revision of `access/v1` that added the points to the snapshot. */
+const POINTS_SINCE = 2
+
 export function availabilitySource(
   registry: RegistryForPipeline,
   backlog: number,
 ): FrameSource<Availability> {
-  return async ({ signal }) => {
+  return async ({ signal, revision: writtenAt }) => {
+    const readsPoints = writtenAt >= POINTS_SINCE
     const known = new Map<string, ServedProtocol>()
     let conflicts: readonly ProtocolKey[] = []
     const queue: Mounting[] = []
@@ -63,6 +67,8 @@ export function availabilitySource(
     let revision = 0
     let wake: (() => void) | undefined
     const subscription = registry.subscribe(change => {
+      // A subscriber the points are not written to is sent nothing for them, and keeps its queue.
+      if (change.change === 'points' && !readsPoints) return
       revision = change.revision
       if (change.change === 'points') declared = change.points
       else {

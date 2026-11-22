@@ -60,9 +60,9 @@ export type AvailabilitySubscription = {
   readonly unsubscribe: () => void
 }
 
-/** A call that was not taken: the protocol is not there, two instances hold it, or it has no such name. */
+/** A call that was not taken: not there, held by two instances, no such name, or the point is unread. */
 export type Refusal = Readonly<{
-  refused: 'not-mounted' | 'not-offered' | 'conflict'
+  refused: 'not-mounted' | 'not-offered' | 'conflict' | 'unavailable'
   by?: readonly string[]
 }>
 

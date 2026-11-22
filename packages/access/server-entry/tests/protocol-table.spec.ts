@@ -1,11 +1,13 @@
 import type { AccessContribution } from '@omne-harness/access-cordis-contract'
 import {
+  CATALOG,
   complete,
   declare,
   drain,
   empty,
   install,
   retire,
+  withUnread,
   type Instance,
   type Registry,
 } from '@omne-harness/dynamis'
@@ -93,8 +95,8 @@ describe('进入', () => {
     expect(enter(declared(), noCalls, KEY, 'read')).toEqual({ kind: 'not-mounted' })
   })
 
-  it('点还没声明：也是 not-mounted', () => {
-    expect(enter(empty, noCalls, KEY, 'read')).toEqual({ kind: 'not-mounted' })
+  it('点还没声明：读不出，不是没挂', () => {
+    expect(enter(empty, noCalls, KEY, 'read')).toEqual({ kind: 'unavailable' })
   })
 
   it('一份在服务，有这个名字：进入，钉在那个实例上，账上多一次在跑的', () => {
@@ -216,8 +218,8 @@ describe('对外可用的集合', () => {
     })
   })
 
-  it('点没声明：空的', () => {
-    expect(open(empty)).toEqual({ protocols: [], conflicts: [] })
+  it('点没声明：读不出，不说成空的', () => {
+    expect(open(empty)).toBeUndefined()
   })
 })
 
@@ -263,6 +265,31 @@ describe('这棵树声明的点，与公开的点现在的键', () => {
     ])
     expect(points(retire(two, a1)).facts.at(-1)?.keys).toEqual(['a'])
     expect(points(base).facts.at(-1)?.keys).toEqual([])
+  })
+
+  it('键公开的点读不出：这个点不带键，不写成空的', () => {
+    const base = installed(
+      declared(),
+      host,
+      declare(protocolsContract) as never,
+      declare(tags) as never,
+    )
+    const held = installed(base, a1, tag('a') as never)
+    const unread = withUnread(held, [{ point: 'notes.tags', source: 'store', scope: [] }])
+    expect(points(unread).facts.map(point => [point.name, point.keys])).toEqual([
+      ['access.protocols', undefined],
+      ['notes.tags', undefined],
+    ])
+  })
+
+  it('目录读不出：点保持上一次读到的样子，不说成一个点也没有', () => {
+    const base = installed(declared(), host, declare(protocolsContract) as never)
+    const first = points(base)
+    // Something it is read from changed too, so the catalog is read again and found unread.
+    const more = installed(base, a1, declare(tags) as never)
+    const unread = withUnread(more, [{ point: CATALOG, source: 'store', scope: [] }])
+    expect(first.facts.map(point => point.name)).toEqual(['access.protocols'])
+    expect(points(unread, first).facts).toEqual(first.facts)
   })
 
   it('读它的东西没变：给回上一次的那一个，不再读目录；变了才重算，从哪一次接着算答案都一样', () => {

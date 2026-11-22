@@ -35,7 +35,12 @@ function setup() {
   const controller = new AbortController()
   const open = () =>
     contribution.observations['observe-cards'](
-      { principal: loginIdentity(ALICE), messageId: 'm-observe', signal: controller.signal },
+      {
+        principal: loginIdentity(ALICE),
+        messageId: 'm-observe',
+        revision: 1,
+        signal: controller.signal,
+      },
       { tenant: ALICE.tenant },
     )
   const frames = async () => {
