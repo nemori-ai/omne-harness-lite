@@ -190,6 +190,29 @@ describe('a change that breaks: a published revision no longer reads as recorded
       'notes/v1: revision 2 was recorded and the contract is now at 1; a revision cannot go down',
     )
   })
+
+  const gone = (revision: number): string =>
+    `notes/v1: revision ${revision} is recorded and its digest is gone; a recorded revision is never taken out`
+
+  it('a digest taken out so that its revision could change: neither the check nor the append takes it', async () => {
+    const snapshot = await recorded(notes({ fields: { colour: later(2) } }))
+    const after = notes({ states: ['draft', 'shared', 'gone'], fields: { colour: later(2) } })
+    const cut = {
+      ...snapshot,
+      digests: { '2': snapshot.digests['2'] },
+      rules: (await recorded(after)).rules,
+    }
+    expect(await snapshotProblems(after, cut)).toEqual([gone(1), changed(2)])
+    expect(await nextSnapshot(after, cut)).toEqual({ ok: false, problems: [gone(1), changed(2)] })
+  })
+
+  it('the last digest taken out: the record still says how far it went', async () => {
+    const snapshot = await recorded(notes({ fields: { colour: later(2) } }))
+    const after = notes({ fields: { colour: later(2), tag: later(2) } })
+    const cut = { ...snapshot, digests: { '1': snapshot.digests['1'] } }
+    expect(await snapshotProblems(after, cut)).toEqual([gone(2)])
+    expect(await nextSnapshot(after, cut)).toEqual({ ok: false, problems: [gone(2)] })
+  })
 })
 
 describe('what is not a snapshot of this protocol', () => {
@@ -200,6 +223,11 @@ describe('what is not a snapshot of this protocol', () => {
       { name: 'other', major: 1, revision: 1, rules: {}, digests: { '1': 'sha256:0' } },
     ],
     ['no digests', { name: 'notes', major: 1, revision: 1, rules: {} }],
+    ['no revision', { name: 'notes', major: 1, rules: {}, digests: { '1': 'sha256:0' } }],
+    [
+      'a revision that is not one',
+      { name: 'notes', major: 1, revision: 0, rules: {}, digests: {} },
+    ],
   ])('%s', async (_name, value) => {
     expect(await snapshotProblems(notes(), value)).toEqual([
       'notes/v1: the file is not a snapshot of this protocol',
