@@ -9,7 +9,6 @@ import {
 
 export type Batch = Readonly<{ id: number; entries: readonly Entry[] }>
 
-/** What one live fiber holds: staged until the fiber is ready, seated after. */
 export type Seat = Readonly<{
   fiber: string
   instance: Instance
@@ -48,10 +47,12 @@ function freeName(seats: Seats, name: string): string {
   return candidate
 }
 
-function opened(seats: Seats, fiber: string, name: string): Seat {
+/** The instance a fiber puts as: the one its seat has, or the one a put would open. */
+export function instanceFor(seats: Seats, fiber: string, name: string): Instance {
+  const held = seatOf(seats, fiber)
+  if (held !== undefined) return held.instance
   const taken = freeName(seats, name)
-  const instance = { fiber: taken, generation: (seats.issued[taken] ?? 0) + 1 }
-  return { fiber, instance, seated: false, batches: [] }
+  return { fiber: taken, generation: (seats.issued[taken] ?? 0) + 1 }
 }
 
 /** A seat is never seated with what `put` did not check, and names are unique, so this holds. */
@@ -83,7 +84,12 @@ function withoutSeat(seats: Seats, seat: Seat): Seats {
 
 /** Add one batch to the seat of a fiber, opening the seat when there is none. */
 export function put(seats: Seats, fiber: string, name: string, entries: readonly Entry[]): Put {
-  const seat = seatOf(seats, fiber) ?? opened(seats, fiber, name)
+  const seat = seatOf(seats, fiber) ?? {
+    fiber,
+    instance: instanceFor(seats, fiber, name),
+    seated: false,
+    batches: [],
+  }
   const id = seats.batches + 1
   const next = { ...seat, batches: [...seat.batches, { id, entries: [...entries] }] }
   const fit = install(next.seated ? seats.registry : empty, next.instance, entriesOf(next))

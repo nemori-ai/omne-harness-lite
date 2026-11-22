@@ -1,6 +1,6 @@
 import { empty, placedBy, standing } from '@omne-harness/dynamis'
 import { describe, expect, it } from 'vitest'
-import { drop, gone, noSeats, put, ready, type Seats } from '../src/index.ts'
+import { drop, gone, instanceFor, noSeats, put, ready, type Seats } from '../src/index.ts'
 import { entry, mustPut, recomputed } from './support.ts'
 
 const a1 = entry('host.list', 'k', { id: 'a1' })
@@ -200,6 +200,16 @@ describe('名字与代数（DC-3）', () => {
       { fiber: 'mod~2', generation: 1 },
       { fiber: 'mod', generation: 2 },
     ])
+  })
+
+  it('放之前就问得出自己会是谁：有座位答座位上的，没有答下一次放会占的', () => {
+    expect(instanceFor(noSeats, 'f1', 'mod')).toEqual(mod1)
+    const first = seated().seats
+    expect(instanceFor(first, 'f1', 'ignored')).toEqual(mod1)
+    expect(instanceFor(first, 'f2', 'mod')).toEqual({ fiber: 'mod~2', generation: 1 })
+    expect(instanceFor(gone(first, 'f1'), 'f1', 'mod')).toEqual({ fiber: 'mod', generation: 2 })
+    const next = mustPut(first, 'f2', 'mod', [a1]).seats
+    expect(next.seats[1]?.instance).toEqual(instanceFor(first, 'f2', 'mod'))
   })
 
   it('被拒绝的放入不占名字、不发代数、不发批号', () => {
