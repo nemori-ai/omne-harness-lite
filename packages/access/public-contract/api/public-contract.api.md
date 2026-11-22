@@ -40,6 +40,15 @@
 - `revisionOf` · `revision.d.ts`
 - `ruleCodec` · `rule-codec.d.ts`
 
+## 入口 `./snapshot` · `snapshot.d.ts`
+
+- `ContractSnapshot` · `snapshot.d.ts`
+- `NextSnapshot` · `snapshot.d.ts`
+- `SnapshotStore` · `snapshot.d.ts`
+- `checkRecorded` · `snapshot.d.ts`
+- `nextSnapshot` · `snapshot.d.ts`
+- `snapshotProblems` · `snapshot.d.ts`
+
 ## 声明文件 `access-protocol.d.ts`
 
 ```ts
@@ -474,4 +483,36 @@ export type Family<V extends string, P extends string, S extends string> = {
     readonly responseRule: (operation: P, outcome: string) => Rule | undefined;
 };
 export declare const empty: Rule;
+```
+
+## 声明文件 `snapshot.d.ts`
+
+```ts
+import type { ProtocolContract } from './protocol.ts';
+type Plain = string | number | boolean | null | readonly Plain[] | {
+    readonly [key: string]: Plain;
+};
+export type ContractSnapshot = Readonly<{
+    name: string;
+    major: number;
+    revision: number;
+    rules: Plain;
+    digests: Readonly<Record<string, string>>;
+}>;
+export type SnapshotStore = Readonly<{
+    read: () => string | undefined;
+    write: (text: string) => void;
+    append: boolean;
+}>;
+export declare function snapshotProblems(protocol: ProtocolContract, recorded: unknown): Promise<string[]>;
+export type NextSnapshot = Readonly<{
+    ok: true;
+    snapshot: ContractSnapshot;
+}> | Readonly<{
+    ok: false;
+    problems: string[];
+}>;
+export declare function nextSnapshot(protocol: ProtocolContract, recorded: unknown): Promise<NextSnapshot>;
+export declare function checkRecorded(protocol: ProtocolContract, store: SnapshotStore): Promise<string[]>;
+export {};
 ```

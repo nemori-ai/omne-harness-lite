@@ -1,0 +1,108 @@
+{
+  "digests": {
+    "1": "sha256:69f341e1b9334e9b03d9767cc3e709ecdd31710149f3166354e88d6d887093eb"
+  },
+  "major": 1,
+  "name": "model",
+  "revision": 1,
+  "rules": {
+    "observations": {},
+    "operations": {
+      "list-models": {
+        "body": {
+          "fields": {
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "models": {
+                "rule": {
+                  "item": {
+                    "fields": {
+                      "credential": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "available",
+                            "missing",
+                            "unknown"
+                          ]
+                        }
+                      },
+                      "input": {
+                        "rule": {
+                          "item": {
+                            "kind": "literal",
+                            "values": [
+                              "text",
+                              "image",
+                              "voice"
+                            ]
+                          },
+                          "kind": "array"
+                        }
+                      },
+                      "output": {
+                        "rule": {
+                          "item": {
+                            "kind": "literal",
+                            "values": [
+                              "text",
+                              "image",
+                              "voice"
+                            ]
+                          },
+                          "kind": "array"
+                        }
+                      },
+                      "reasons": {
+                        "rule": {
+                          "item": {
+                            "kind": "literal",
+                            "values": [
+                              "modality",
+                              "locked",
+                              "scope"
+                            ]
+                          },
+                          "kind": "array"
+                        }
+                      },
+                      "route": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "selectable": {
+                        "rule": {
+                          "kind": "boolean"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  "kind": "array"
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      }
+    }
+  }
+}

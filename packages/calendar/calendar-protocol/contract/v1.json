@@ -1,0 +1,731 @@
+{
+  "digests": {
+    "1": "sha256:29b67b1c2ae921be44950e1ff93485d773c0aa209ad839f3b778475c57287693"
+  },
+  "major": 1,
+  "name": "calendar",
+  "revision": 1,
+  "rules": {
+    "observations": {},
+    "operations": {
+      "answer": {
+        "body": {
+          "fields": {
+            "calendar": {
+              "optional": true,
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "question": {
+              "rule": {
+                "kind": "one-of",
+                "rules": [
+                  {
+                    "fields": {
+                      "date": {
+                        "rule": {
+                          "kind": "plain-date"
+                        }
+                      },
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "day"
+                          ]
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  {
+                    "fields": {
+                      "from": {
+                        "rule": {
+                          "kind": "plain-date"
+                        }
+                      },
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "count"
+                          ]
+                        }
+                      },
+                      "to": {
+                        "rule": {
+                          "kind": "plain-date"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  {
+                    "fields": {
+                      "date": {
+                        "rule": {
+                          "kind": "plain-date"
+                        }
+                      },
+                      "days": {
+                        "rule": {
+                          "kind": "count"
+                        }
+                      },
+                      "direction": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "forward",
+                            "backward"
+                          ]
+                        }
+                      },
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "shift"
+                          ]
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  {
+                    "fields": {
+                      "after": {
+                        "rule": {
+                          "kind": "plain-date"
+                        }
+                      },
+                      "count": {
+                        "rule": {
+                          "kind": "positive-integer"
+                        }
+                      },
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "next"
+                          ]
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  {
+                    "fields": {
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "nth"
+                          ]
+                        }
+                      },
+                      "ordinal": {
+                        "rule": {
+                          "kind": "one-of",
+                          "rules": [
+                            {
+                              "kind": "positive-integer"
+                            },
+                            {
+                              "kind": "literal",
+                              "values": [
+                                "last"
+                              ]
+                            }
+                          ]
+                        }
+                      },
+                      "periodEnd": {
+                        "rule": {
+                          "kind": "plain-date"
+                        }
+                      },
+                      "periodStart": {
+                        "rule": {
+                          "kind": "plain-date"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  }
+                ]
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "version": {
+              "optional": true,
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "invalid": {
+            "fields": {
+              "reason": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "input",
+                    "timezone"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "calendar": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "coverageEnd": {
+                "rule": {
+                  "kind": "plain-date"
+                }
+              },
+              "coverageStart": {
+                "rule": {
+                  "kind": "plain-date"
+                }
+              },
+              "result": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "fields": {
+                        "adjusted": {
+                          "rule": {
+                            "kind": "boolean"
+                          }
+                        },
+                        "classification": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "workingDay",
+                              "holiday",
+                              "nonWorkingDay"
+                            ]
+                          }
+                        },
+                        "date": {
+                          "rule": {
+                            "kind": "plain-date"
+                          }
+                        },
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "day"
+                            ]
+                          }
+                        },
+                        "working": {
+                          "rule": {
+                            "kind": "boolean"
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    },
+                    {
+                      "fields": {
+                        "count": {
+                          "rule": {
+                            "kind": "count"
+                          }
+                        },
+                        "from": {
+                          "rule": {
+                            "kind": "plain-date"
+                          }
+                        },
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "count"
+                            ]
+                          }
+                        },
+                        "to": {
+                          "rule": {
+                            "kind": "plain-date"
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    },
+                    {
+                      "fields": {
+                        "date": {
+                          "rule": {
+                            "kind": "plain-date"
+                          }
+                        },
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "shift"
+                            ]
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    },
+                    {
+                      "fields": {
+                        "dates": {
+                          "rule": {
+                            "item": {
+                              "kind": "plain-date"
+                            },
+                            "kind": "array"
+                          }
+                        },
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "next"
+                            ]
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    },
+                    {
+                      "fields": {
+                        "date": {
+                          "rule": {
+                            "kind": "one-of",
+                            "rules": [
+                              {
+                                "kind": "plain-date"
+                              },
+                              {
+                                "kind": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "nth"
+                            ]
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    }
+                  ]
+                }
+              },
+              "version": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unsupported": {
+            "fields": {
+              "reason": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "coverage",
+                    "search-limit",
+                    "environment"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "list-calendars": {
+        "body": {
+          "fields": {
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "calendars": {
+                "rule": {
+                  "item": {
+                    "fields": {
+                      "calendar": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "coverageEnd": {
+                        "rule": {
+                          "kind": "one-of",
+                          "rules": [
+                            {
+                              "kind": "plain-date"
+                            },
+                            {
+                              "kind": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "coverageStart": {
+                        "rule": {
+                          "kind": "one-of",
+                          "rules": [
+                            {
+                              "kind": "plain-date"
+                            },
+                            {
+                              "kind": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "timezone": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "version": {
+                        "rule": {
+                          "kind": "one-of",
+                          "rules": [
+                            {
+                              "kind": "text"
+                            },
+                            {
+                              "kind": "null"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  "kind": "array"
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "read-environment": {
+        "body": {
+          "fields": {
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "calendar": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "revision": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "timezone": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "version": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "text"
+                    },
+                    {
+                      "kind": "null"
+                    }
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unsupported": {
+            "fields": {
+              "reason": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "environment"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "read-supply-health": {
+        "body": {
+          "fields": {
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "calendars": {
+                "rule": {
+                  "item": {
+                    "fields": {
+                      "calendar": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "consecutiveFailures": {
+                        "rule": {
+                          "kind": "count"
+                        }
+                      },
+                      "coverageEnd": {
+                        "rule": {
+                          "kind": "one-of",
+                          "rules": [
+                            {
+                              "kind": "plain-date"
+                            },
+                            {
+                              "kind": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "coverageStart": {
+                        "rule": {
+                          "kind": "one-of",
+                          "rules": [
+                            {
+                              "kind": "plain-date"
+                            },
+                            {
+                              "kind": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "horizon": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "ok",
+                            "warning",
+                            "critical",
+                            "unknown"
+                          ]
+                        }
+                      },
+                      "knowledgeAsOf": {
+                        "rule": {
+                          "kind": "one-of",
+                          "rules": [
+                            {
+                              "kind": "instant"
+                            },
+                            {
+                              "kind": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "lastSuccess": {
+                        "rule": {
+                          "kind": "one-of",
+                          "rules": [
+                            {
+                              "kind": "instant"
+                            },
+                            {
+                              "kind": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "pendingRuns": {
+                        "rule": {
+                          "kind": "count"
+                        }
+                      },
+                      "queryAvailability": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "available",
+                            "missing",
+                            "unavailable"
+                          ]
+                        }
+                      },
+                      "reasons": {
+                        "rule": {
+                          "item": {
+                            "kind": "text"
+                          },
+                          "kind": "array"
+                        }
+                      },
+                      "remainingCoverageDays": {
+                        "rule": {
+                          "kind": "one-of",
+                          "rules": [
+                            {
+                              "kind": "count"
+                            },
+                            {
+                              "kind": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "sources": {
+                        "rule": {
+                          "item": {
+                            "fields": {
+                              "consecutiveFailures": {
+                                "rule": {
+                                  "kind": "count"
+                                }
+                              },
+                              "observation": {
+                                "rule": {
+                                  "kind": "literal",
+                                  "values": [
+                                    "changed",
+                                    "unchanged",
+                                    "failed"
+                                  ]
+                                }
+                              },
+                              "reason": {
+                                "rule": {
+                                  "kind": "one-of",
+                                  "rules": [
+                                    {
+                                      "kind": "text"
+                                    },
+                                    {
+                                      "kind": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "source": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              }
+                            },
+                            "kind": "object"
+                          },
+                          "kind": "array"
+                        }
+                      },
+                      "supply": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "ok",
+                            "failed",
+                            "pending",
+                            "unknown"
+                          ]
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  "kind": "array"
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      }
+    }
+  }
+}
