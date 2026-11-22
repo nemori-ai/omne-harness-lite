@@ -1,6 +1,16 @@
 import { Service, type Context } from '@deepseek-ai/cordis'
 import type { Entry, Instance, Registry } from '@omne-harness/dynamis'
-import { drop, gone, instanceFor, noSeats, put, ready, type Seats } from './seat.ts'
+import {
+  drained,
+  drop,
+  gone,
+  instanceFor,
+  leaving,
+  noSeats,
+  put,
+  ready,
+  type Seats,
+} from './seat.ts'
 
 type CordisFiberState = typeof import('@deepseek-ai/cordis').FiberState
 
@@ -8,6 +18,9 @@ const ACTIVE = 2 satisfies CordisFiberState['ACTIVE']
 const UNLOADING = 5 satisfies CordisFiberState['UNLOADING']
 
 export type Made = readonly Entry[] | ((instance: Instance) => readonly Entry[])
+
+/** Called once after the instance began to withdraw; it resolves when this batch has drained. */
+export type Drain = (instance: Instance) => Promise<void>
 
 /** A batch that was not taken: an entry is not valid, or the caller holds this spot already. */
 export class DynamisRefused extends Error {
@@ -40,16 +53,22 @@ export class DynamisService extends Service {
   }
 
   /** Puts one batch as an effect of the calling fiber; the batch shows once that fiber is ready. */
-  put(made: Made): () => unknown {
+  put(made: Made, { drain }: Readonly<{ drain?: Drain }> = {}): () => unknown {
     const fiber = this.ctx.fiber
     const key = this.keyOf(fiber)
     const entries =
       typeof made === 'function' ? made(instanceFor(this.seats, key, fiber.name)) : made
-    const outcome = put(this.seats, key, fiber.name, entries)
+    const outcome = put(this.seats, key, fiber.name, entries, drain !== undefined)
     if (outcome.kind === 'refused') throw new DynamisRefused(outcome.reason, outcome.detail)
     return fiber.effect(() => {
       this.commit((fiber.state as number) === ACTIVE ? ready(outcome.seats, key) : outcome.seats)
-      return () => this.commit(drop(this.seats, key, outcome.batch))
+      return () => {
+        const instance = leaving(this.seats, key, outcome.batch)
+        if (instance === undefined || drain === undefined)
+          return this.commit(drop(this.seats, key, outcome.batch))
+        const taken = (): void => this.commit(drained(this.seats, key, outcome.batch))
+        return drain(instance).finally(taken)
+      }
     }, 'dynamis.put')
   }
 
