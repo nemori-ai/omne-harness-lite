@@ -315,6 +315,32 @@ export function sqliteFiles(storageRoot: string): string[] {
   return files
 }
 
+/** Agent executions, of one session or of all, whose record is not settled yet: a Run that ended logically may still be closing. */
+export function unsettledExecutions(storageRoot: string, session?: string): number {
+  let open = 0
+  for (const file of sqliteFiles(storageRoot)) {
+    const db = new DatabaseSync(file, { readOnly: true })
+    try {
+      const held = db
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'er_execution'")
+        .get()
+      if (held === undefined) continue
+      const row =
+        session === undefined
+          ? db.prepare('SELECT COUNT(*) AS n FROM er_execution WHERE settled IS NULL').get()
+          : db
+              .prepare(
+                'SELECT COUNT(*) AS n FROM er_execution WHERE settled IS NULL AND session = ?',
+              )
+              .get(session)
+      open += Number(row?.['n'] ?? 0)
+    } finally {
+      db.close()
+    }
+  }
+  return open
+}
+
 type LedgerRow = Readonly<{ kind: string; name: string; record: Record<string, unknown> }>
 
 export function executionFailures(storageRoot: string): readonly unknown[] {
@@ -967,9 +993,25 @@ async function serveOnce(
     controller.abort('test: stop')
     exitCode = (await finished.catch(() => undefined))?.exitCode
     if (exitCode !== undefined && exitCode !== 0)
-      process.stderr.write(`release tree, server exit ${String(exitCode)}: ${unsettled(records)}\n`)
+      process.stderr.write(
+        `release tree, server exit ${String(exitCode)}: ${unsettled(records)}${warnings(records)}\n`,
+      )
   }
   return exitCode
+}
+
+function warnings(records: readonly S0Record[]): string {
+  const lines = records
+    .filter(
+      record => record['signal'] === 'log' && ['warn', 'error'].includes(String(record['level'])),
+    )
+    .map(
+      record =>
+        `${String(record['time'])} ${String(record['component'])}: ${String((record['fields'] as { text?: unknown } | undefined)?.text)}`,
+    )
+  return lines.length === 0
+    ? ''
+    : `\nserver warnings, last ${Math.min(lines.length, STDERR_TAIL_LINES)} of ${lines.length}:\n${lines.slice(-STDERR_TAIL_LINES).join('\n')}`
 }
 
 // What a shutdown left unsettled, row by row: a server that exits non-zero names its own cause.

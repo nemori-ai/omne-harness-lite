@@ -14,6 +14,7 @@ import {
   sqliteFiles,
   toolCallsByRequest,
   toolResults,
+  unsettledExecutions,
   type ReleaseTree,
 } from '../../support/release-tree.ts'
 import {
@@ -51,7 +52,6 @@ function records(tree: ReleaseTree): Reading {
     Table,
     { rows: number; bytes: number }
   >
-  let unsettled = 0
   for (const file of sqliteFiles(tree.storageRoot)) {
     const db = new DatabaseSync(file, { readOnly: true })
     try {
@@ -67,13 +67,11 @@ function records(tree: ReleaseTree): Reading {
             0,
           )
         }
-      const open = db.prepare('SELECT COUNT(*) AS n FROM er_execution WHERE settled IS NULL').get()
-      unsettled += Number(open?.['n'] ?? 0)
     } finally {
       db.close()
     }
   }
-  return { ...totals, unsettled }
+  return { ...totals, unsettled: unsettledExecutions(tree.storageRoot) }
 }
 
 const total = (reading: Reading): number =>
