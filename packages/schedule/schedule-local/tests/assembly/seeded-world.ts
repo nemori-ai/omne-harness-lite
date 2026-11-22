@@ -170,7 +170,7 @@ export async function seededWorld(
         fixtures: [
           'identity and authorization',
           ...(input.environment ? [] : ['settings environment']),
-          'consent/quota/basis SQL guard',
+          'quota/basis SQL guard',
           'empty execution history',
         ],
         notExercised: [

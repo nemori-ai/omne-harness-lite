@@ -21,6 +21,7 @@ it('root entry exports the independent execution functions, the ledger, the runt
     'USAGE_WORKS_MAX',
     'backgroundAllowed',
     'canonicalDigest',
+    'canonicalJson',
     'checkToolResultBody',
     'createIndependentToolScope',
     'createToolAccounts',

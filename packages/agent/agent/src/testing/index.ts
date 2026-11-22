@@ -309,6 +309,7 @@ export async function createToolReceiverFixture(): Promise<ToolReceiverFixture> 
     association: 'associated',
     purpose: 'action',
     reference,
+    acceptance: 'accepted',
     action: value(decodeActionId('receiver-tool-action')),
     consumption: value(decodeConsumptionId('receiver-tool-consumption')),
     position: { owner: 'agent', work: 'opaque-tool-work', position: 'tool', purpose: 'result' },

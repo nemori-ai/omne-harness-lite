@@ -10,13 +10,10 @@ export {
   SESSION_PERMISSION_MODE_HANDLER,
   SESSION_PERMISSION_CURRENT_FACT,
   SESSION_PERMISSION_GUARD,
-  SESSION_AUTHORIZATION_GUARD,
-  sessionAuthorizationGuardFacts,
   sessionPermissionGuardFacts,
   decodeSessionPermissionCurrent,
   decodeSessionPermissionMode,
   decodeSessionPermissionRead,
-  type SessionAuthorizationGuard,
   type SessionPermissionRead,
   type SessionPermissionCurrent,
   type SessionPermissionCurrentRead,
@@ -37,13 +34,13 @@ import type {
 } from '@omne-harness/session-contract'
 import type { FactCommandV2, JsonValue, RecordedReply } from '@omne-harness/sql-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
-import { canonicalText, decodeValue, encodeValue, sha256 } from './codec.ts'
+import { canonicalText, decodeValue, encodeValue, itemContent, sha256 } from './codec.ts'
+import type { ExecutionItemContentRecord, ExecutionItemKeyRecord } from './codec.ts'
 import { readCachedSessionWork } from './work-cache.ts'
 
-import { recordOf, SESSION_PARTICIPANT } from './session-reply.ts'
+import { EXECUTION_RECORD_PARTICIPANT, recordOf, SESSION_PARTICIPANT } from './session-reply.ts'
 
-export { SESSION_PARTICIPANT }
-export const EXECUTION_RECORD_PARTICIPANT = 'execution-record'
+export { EXECUTION_RECORD_PARTICIPANT, SESSION_PARTICIPANT }
 // execution-record runs before session: ascending names keep that order, so the joint checks of session see the same commit.
 export const SESSION_LOG_PARTICIPANTS: readonly [
   typeof EXECUTION_RECORD_PARTICIPANT,
@@ -61,17 +58,33 @@ export const SESSION_INPUT_HANDLER = 'session.input'
 export const SESSION_EXECUTION_HANDLER = 'session.execution'
 export const SESSION_ENTRY_MESSAGE_HANDLER = 'session.entry-message'
 export const SESSION_COMPACTION_INPUT_CHECK_HANDLER = 'session.compaction-input-check'
-export const EXECUTION_RECORD_HANDLERS = {
-  facts: 'execution-record.facts',
-  openExecutions: 'execution-record.open-executions',
-  events: 'execution-record.events',
-  operation: 'execution-record.operation',
-  blob: 'execution-record.blob',
-  blobs: 'execution-record.blobs',
-  openItems: 'execution-record.open-items',
-  items: 'execution-record.items',
-  preadmission: 'execution-record.preadmission',
-} as const
+export {
+  EXECUTION_RECORD_HANDLERS,
+  decodeExecutionRequestChoices,
+  decodeExecutionSessionAdoption,
+  type ExecutionSessionAdoption,
+} from './execution-reads.ts'
+
+export type ExecutionRecordRetiredRead = Readonly<{ tenant: string; generation: string }>
+export type ExecutionRecordRetired = Readonly<{
+  kind: 'retired'
+  settled: boolean
+  waiting: readonly Readonly<{ session: string; execution: string }>[]
+}>
+
+export function decodeExecutionRecordRetired(output: JsonValue): ExecutionRecordRetired | null {
+  const value = recordOf(output)
+  const settled = value?.['settled']
+  const waiting = listDecoded(value?.['waiting'], raw => {
+    const item = recordOf(raw)
+    return typeof item?.['session'] === 'string' && typeof item['execution'] === 'string'
+      ? { session: item['session'], execution: item['execution'] }
+      : null
+  })
+  return value?.['kind'] === 'retired' && typeof settled === 'boolean' && waiting !== null
+    ? { kind: 'retired', settled, waiting }
+    : null
+}
 
 export function sessionCommandFacts(
   command: SessionCommand,
@@ -141,6 +154,7 @@ export type ExecutionBoundaryRecord = Readonly<{
   revision: string
   receipt: DurableEvidence
   emittedThrough: string
+  acknowledged: string
   ended: Readonly<{ sequence: string; source: DurableEvidence }> | null
 }>
 
@@ -160,7 +174,20 @@ export type ExecutionFactRecord = Readonly<{
   body: JsonValue
 }>
 
-export type ExecutionBlobRecord = Readonly<{ digest: string; media: string; payload: string }>
+export type ExecutionBlobRecord = Readonly<{
+  digest: string
+  media: string
+  payload: string
+  shared?: boolean
+}>
+
+const blobFacts = (blobs: readonly ExecutionBlobRecord[]): JsonValue[] =>
+  blobs.map(({ digest, media, payload, shared }) => ({
+    digest,
+    media,
+    payload,
+    ...(shared === true ? { shared } : {}),
+  }))
 
 // One item of an execution view a publication opens or changes; `open` is its state after it.
 export type ExecutionItemRecord = Readonly<{
@@ -171,6 +198,8 @@ export type ExecutionItemRecord = Readonly<{
   open: boolean
   body: JsonValue
 }>
+
+export type { ExecutionItemContentRecord, ExecutionItemKeyRecord } from './codec.ts'
 
 export type ExecutionAdmissionRecord = Readonly<{
   input: string
@@ -194,12 +223,17 @@ export type ExecutionRecordWrite = Readonly<{
   facts: readonly ExecutionFactRecord[]
   blobs: readonly ExecutionBlobRecord[]
   items: readonly ExecutionItemRecord[]
+  contents?: readonly ExecutionItemContentRecord[]
+  discards?: readonly ExecutionItemKeyRecord[]
   boundaries: readonly ExecutionBoundaryRecord[]
   admissions: readonly ExecutionAdmissionRecord[]
+  settledBy: string | null
+  choices?: readonly Readonly<{ reference: string; payload: readonly JsonValue[] }>[]
+  retain?: Readonly<{ reference: string; pub: string; digest: string; adoption: JsonValue }>
 }>
 
 export function executionRecordFacts(write: ExecutionRecordWrite): FactCommandV2 {
-  const { facts, blobs, items, ...rest } = write
+  const { facts, blobs, items, contents = [], discards = [], ...rest } = write
   const encoded = encodeValue(rest) as Readonly<Record<string, JsonValue>>
   return {
     participant: EXECUTION_RECORD_PARTICIPANT,
@@ -226,7 +260,7 @@ export function executionRecordFacts(write: ExecutionRecordWrite): FactCommandV2
                 },
               }),
         })),
-        blobs: blobs.map(({ digest, media, payload }) => ({ digest, media, payload })),
+        blobs: blobFacts(blobs),
         items: items.map(({ execution, family, item, change, open, body }) => ({
           ...(execution === undefined ? {} : { execution }),
           family,
@@ -235,6 +269,7 @@ export function executionRecordFacts(write: ExecutionRecordWrite): FactCommandV2
           open,
           body,
         })),
+        ...itemContent.facts(contents, discards),
       },
     },
   }
@@ -242,6 +277,7 @@ export function executionRecordFacts(write: ExecutionRecordWrite): FactCommandV2
 
 export type ExecutionBlobsWrite = Readonly<{
   tenant: TenantId
+  execution?: string
   blobs: readonly ExecutionBlobRecord[]
 }>
 
@@ -252,9 +288,38 @@ export function executionRecordBlobFacts(write: ExecutionBlobsWrite): FactComman
       intent: 'blobs',
       write: {
         tenant: encodeValue(write.tenant),
-        blobs: write.blobs.map(({ digest, media, payload }) => ({ digest, media, payload })),
+        ...(write.execution === undefined ? {} : { execution: write.execution }),
+        blobs: blobFacts(write.blobs),
       },
     },
+  }
+}
+
+export function executionRecordSweepFacts(tenant: TenantId, generation: string): FactCommandV2 {
+  return {
+    participant: EXECUTION_RECORD_PARTICIPANT,
+    facts: { intent: 'sweep', write: { tenant: encodeValue(tenant), generation } },
+  }
+}
+
+export type ExecutionRecordSwept =
+  | Readonly<{ kind: 'swept'; swept: string }>
+  | Readonly<{ kind: 'failed'; diagnostic: string }>
+  | Readonly<{ kind: 'unsupported'; reason: string }>
+
+export function decodeExecutionSweepReply(reply: RecordedReply): ExecutionRecordSwept {
+  switch (reply.kind) {
+    case 'participated': {
+      const swept = recordOf(reply.response)?.['swept']
+      return typeof swept === 'string'
+        ? { kind: 'swept', swept }
+        : { kind: 'failed', diagnostic: 'a sweep reply without its count' }
+    }
+    case 'conflict':
+      return { kind: 'failed', diagnostic: 'a sweep does not conflict' }
+    case 'unsupported':
+    case 'failed':
+      return otherReply(reply)
   }
 }
 
@@ -360,6 +425,8 @@ export type ExecutionBatch = Readonly<{
 
 export type ExecutionRecordDenied = Readonly<{ kind: 'denied' }>
 export type ExecutionRecordMissing = Readonly<{ kind: 'missing'; published: string }>
+export type ExecutionRecordSettled = Readonly<{ kind: 'settled'; published: string }>
+export type ExecutionReclaimedBatch = Readonly<{ published: string; execution: string }>
 
 export type ExecutionRecordFactsRead = Readonly<{
   tenant: string
@@ -373,6 +440,7 @@ export type ExecutionRecordFactsPage =
       published: string
       batches: readonly ExecutionBatch[]
       next: string | null
+      reclaimed?: readonly ExecutionReclaimedBatch[]
     }>
   | ExecutionRecordMissing
   | ExecutionRecordDenied
@@ -447,9 +515,35 @@ export function decodeExecutionRecordFacts(output: JsonValue): ExecutionRecordFa
   if (value === null) return null
   if (value['kind'] !== 'facts') return refusalOf(value)
   const batches = listDecoded(value['batches'], batchOf)
+  const reclaimed = listDecoded(value['reclaimed'] ?? [], reclaimedOf)
   const { published, next } = value
-  return typeof published === 'string' && isTextOrNull(next ?? null) && batches !== null
-    ? { kind: 'facts', published, batches, next: (next ?? null) as string | null }
+  return typeof published === 'string' &&
+    isTextOrNull(next ?? null) &&
+    batches !== null &&
+    reclaimed !== null
+    ? {
+        kind: 'facts',
+        published,
+        batches,
+        next: (next ?? null) as string | null,
+        ...(reclaimed.length === 0 ? {} : { reclaimed }),
+      }
+    : null
+}
+
+function reclaimedOf(value: JsonValue): ExecutionReclaimedBatch | null {
+  const item = recordOf(value)
+  return typeof item?.['published'] === 'string' && typeof item['execution'] === 'string'
+    ? { published: item['published'], execution: item['execution'] }
+    : null
+}
+
+function settledOf(
+  value: Readonly<{ readonly [key: string]: JsonValue }>,
+): ExecutionRecordSettled | null {
+  const published = value['published']
+  return value['kind'] === 'settled' && typeof published === 'string'
+    ? { kind: 'settled', published }
     : null
 }
 
@@ -585,6 +679,7 @@ export type ExecutionItem = Readonly<{
   open: boolean
   pub: string
   body: JsonValue
+  content?: string
 }>
 
 function itemKeyOf(value: JsonValue): ExecutionItemKey | null {
@@ -597,12 +692,14 @@ function itemKeyOf(value: JsonValue): ExecutionItemKey | null {
 function itemOf(value: JsonValue): ExecutionItem | null {
   const item = recordOf(value)
   const key = itemKeyOf(value)
+  const content = itemContent.of(item)
   return item !== null &&
     key !== null &&
+    content !== null &&
     typeof item['open'] === 'boolean' &&
     typeof item['pub'] === 'string' &&
     'body' in item
-    ? { ...key, open: item['open'], pub: item['pub'], body: item['body'] ?? null }
+    ? { ...key, ...content, open: item['open'], pub: item['pub'], body: item['body'] ?? null }
     : null
 }
 
@@ -627,13 +724,14 @@ export type ExecutionRecordOpenItemsPage =
     }>
   | ExecutionRecordMissing
   | ExecutionRecordDenied
+  | ExecutionRecordSettled
 
 export function decodeExecutionRecordOpenItems(
   output: JsonValue,
 ): ExecutionRecordOpenItemsPage | null {
   const value = recordOf(output)
   if (value === null) return null
-  if (value['kind'] !== 'open') return refusalOf(value)
+  if (value['kind'] !== 'open') return settledOf(value) ?? refusalOf(value)
   const items = listDecoded(value['items'], itemOf)
   const next = value['next'] === null ? null : itemKeyOf(value['next'] ?? null)
   const { published } = value
@@ -660,11 +758,12 @@ export type ExecutionRecordItems =
     }>
   | ExecutionRecordMissing
   | ExecutionRecordDenied
+  | ExecutionRecordSettled
 
 export function decodeExecutionRecordItems(output: JsonValue): ExecutionRecordItems | null {
   const value = recordOf(output)
   if (value === null) return null
-  if (value['kind'] !== 'items') return refusalOf(value)
+  if (value['kind'] !== 'items') return settledOf(value) ?? refusalOf(value)
   const items = listDecoded(value['items'], itemOf)
   const rest = listDecoded(value['rest'], itemKeyOf)
   const { published } = value
@@ -673,7 +772,11 @@ export function decodeExecutionRecordItems(output: JsonValue): ExecutionRecordIt
     : null
 }
 
-export type ExecutionRecordBlobsRead = Readonly<{ tenant: string; digests: readonly string[] }>
+export type ExecutionRecordBlobsRead = Readonly<{
+  tenant: string
+  execution?: string
+  digests: readonly string[]
+}>
 export type ExecutionRecordBlobs = Readonly<{
   kind: 'blobs'
   blobs: readonly Readonly<{ digest: string; media: string; size: string; payload: string }>[]
@@ -703,7 +806,11 @@ export function decodeExecutionRecordBlobs(output: JsonValue): ExecutionRecordBl
     : null
 }
 
-export type ExecutionRecordBlobRead = Readonly<{ tenant: string; digest: string }>
+export type ExecutionRecordBlobRead = Readonly<{
+  tenant: string
+  execution?: string
+  digest: string
+}>
 export type ExecutionRecordBlob =
   | Readonly<{ kind: 'blob'; digest: string; media: string; size: string; payload: string }>
   | ExecutionRecordDenied
@@ -728,7 +835,19 @@ export type ExecutionRecordOperation = Readonly<{
   execution: string
   published: string
   facts: readonly ExecutionFact[]
+  reclaimed?: ExecutionTombstone
 }>
+export type ExecutionTombstone = Readonly<{ settled: string; revision: string; receipt: JsonValue }>
+
+function tombstoneOf(value: JsonValue | undefined): ExecutionTombstone | null | 'malformed' {
+  if (value === undefined || value === null) return null
+  const tombstone = recordOf(value)
+  const settled = tombstone?.['settled']
+  const revision = tombstone?.['revision']
+  return typeof settled === 'string' && typeof revision === 'string'
+    ? { settled, revision, receipt: tombstone?.['receipt'] ?? null }
+    : 'malformed'
+}
 
 export function decodeExecutionRecordOperation(
   output: JsonValue,
@@ -737,150 +856,36 @@ export function decodeExecutionRecordOperation(
   const value = recordOf(output)
   const facts = listDecoded(value?.['facts'], factOf)
   const { digest, session, execution, published } = value ?? {}
+  const reclaimed = tombstoneOf(value?.['reclaimed'])
   return typeof digest === 'string' &&
     typeof session === 'string' &&
     typeof execution === 'string' &&
     typeof published === 'string' &&
+    reclaimed !== 'malformed' &&
     facts !== null
-    ? { digest, session, execution, published, facts }
-    : 'malformed'
-}
-
-export type PreadmissionIntent = Readonly<{
-  request: JsonValue
-  origin: JsonValue
-  principal: JsonValue
-  qualification: JsonValue
-  adoption: JsonValue
-  materials: JsonValue
-}>
-
-export type PreadmissionIntentWrite = Readonly<{
-  phase: 'intent'
-  tenant: TenantId
-  handoff: string
-  entry: string | null
-  session: SessionId | null
-  execution: string | null
-  intent: PreadmissionIntent
-}>
-
-export type PreadmissionOutcome = Readonly<{ kind: 'prepared' | 'rejected' }> &
-  Readonly<{ [key: string]: JsonValue }>
-
-export type PreadmissionOutcomeWrite = Readonly<{
-  phase: 'outcome'
-  tenant: TenantId
-  handoff: string
-  outcome: PreadmissionOutcome
-}>
-
-export function preadmissionFacts(
-  write: PreadmissionIntentWrite | PreadmissionOutcomeWrite,
-): FactCommandV2 {
-  const { phase, tenant, ...rest } = write
-  return {
-    participant: EXECUTION_RECORD_PARTICIPANT,
-    facts: {
-      intent: 'preadmission',
-      phase,
-      write: { ...(rest as Readonly<Record<string, JsonValue>>), tenant: encodeValue(tenant) },
-    },
-  }
-}
-
-export type PreadmissionRecord = Readonly<{
-  tenant: string
-  handoff: string
-  entry: string | null
-  session: string | null
-  execution: string | null
-  intent: JsonValue
-  intentDigest: string
-  outcome: JsonValue | null
-  outcomeDigest: string | null
-}>
-
-const textOrNull = (value: JsonValue | undefined): value is string | null =>
-  value === null || typeof value === 'string'
-
-export function decodePreadmissionRecord(
-  output: JsonValue,
-): PreadmissionRecord | null | 'malformed' {
-  if (output === null) return null
-  const value = recordOf(output)
-  if (value === null) return 'malformed'
-  const { tenant, handoff, entry, session, execution, intentDigest, outcomeDigest } = value
-  return typeof tenant === 'string' &&
-    typeof handoff === 'string' &&
-    typeof intentDigest === 'string' &&
-    textOrNull(entry) &&
-    textOrNull(session) &&
-    textOrNull(execution) &&
-    textOrNull(outcomeDigest) &&
-    value['intent'] !== undefined
     ? {
-        tenant,
-        handoff,
-        entry,
+        digest,
         session,
         execution,
-        intent: value['intent'],
-        intentDigest,
-        outcome: value['outcome'] ?? null,
-        outcomeDigest,
+        published,
+        facts,
+        ...(reclaimed === null ? {} : { reclaimed }),
       }
     : 'malformed'
 }
 
-export type PreadmissionParticipation =
-  | Readonly<{ kind: 'saved'; created: boolean; record: PreadmissionRecord }>
-  | Readonly<{ kind: 'conflict'; record: PreadmissionRecord }>
-  | Readonly<{ kind: 'invalid'; reason: string }>
-  | Readonly<{ kind: 'failed'; diagnostic: string }>
-  | Readonly<{ kind: 'unsupported'; reason: string }>
-
-function decodeSaved(response: JsonValue | undefined): PreadmissionParticipation {
-  const value = recordOf(response)
-  const created = value?.['created']
-  const record = decodePreadmissionRecord(value?.['record'] ?? null)
-  return value?.['kind'] === 'saved' &&
-    typeof created === 'boolean' &&
-    record !== null &&
-    record !== 'malformed'
-    ? { kind: 'saved', created, record }
-    : { kind: 'failed', diagnostic: 'a preadmission reply without its record' }
-}
-
-function decodeRefusal(basis: JsonValue | undefined): PreadmissionParticipation {
-  const value = recordOf(basis)
-  const reason = value?.['reason']
-  if (value?.['kind'] === 'invalid' && typeof reason === 'string')
-    return { kind: 'invalid', reason }
-  const record = decodePreadmissionRecord(value?.['record'] ?? null)
-  return value?.['kind'] === 'preadmission' && record !== null && record !== 'malformed'
-    ? { kind: 'conflict', record }
-    : { kind: 'failed', diagnostic: 'a preadmission conflict without a basis' }
-}
-
-export function decodePreadmissionReply(reply: RecordedReply): PreadmissionParticipation {
-  switch (reply.kind) {
-    case 'participated':
-      return decodeSaved(reply.response)
-    case 'conflict':
-      return decodeRefusal(reply.basis)
-    case 'unsupported': {
-      const reason = recordOf(reply.basis)?.['reason']
-      return { kind: 'unsupported', reason: typeof reason === 'string' ? reason : 'unsupported' }
-    }
-    case 'failed':
-      return { kind: 'failed', diagnostic: `${reply.category}: ${reply.diagnostic}` }
-  }
-}
-
-export type PreadmissionRead =
-  | Readonly<{ tenant: string; handoff: string }>
-  | Readonly<{ tenant: string; entry: string }>
+export {
+  decodePreadmissionRecord,
+  decodePreadmissionReply,
+  preadmissionFacts,
+  type PreadmissionIntent,
+  type PreadmissionIntentWrite,
+  type PreadmissionOutcome,
+  type PreadmissionOutcomeWrite,
+  type PreadmissionParticipation,
+  type PreadmissionRead,
+  type PreadmissionRecord,
+} from './preadmission.ts'
 
 export type SessionExecutionRead = Readonly<{ tenant: string; execution: string }>
 export type SessionExecution = Readonly<{ session: string; run: string; position: string }>

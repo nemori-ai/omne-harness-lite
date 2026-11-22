@@ -436,6 +436,7 @@ describe('final decisions after an observed-only tail', () => {
           outcome: 'completed' as const,
           cause: null,
           disposition: evidence('disposition'),
+          end: null,
         },
       ],
     }

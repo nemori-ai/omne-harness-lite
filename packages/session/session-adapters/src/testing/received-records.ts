@@ -191,6 +191,12 @@ export function closedReceived(
   return receivedRecord(scope, body.received)
 }
 
+export type ReleasedMaterial = Readonly<{
+  tenant: string
+  execution: AgentExecutionId
+  released: MaterialView['value']
+}>
+
 // A material the core no longer holds open: a preserved one by its source, else with its result.
 export function closedMaterial(
   table: ClosedTable & Readonly<{ blobs: BlobStore }>,
@@ -198,7 +204,7 @@ export function closedMaterial(
   tenant: TenantId,
   source: DurableEvidence,
   need: boolean,
-): Stored | undefined {
+): Stored | ReleasedMaterial | undefined {
   const named = sourceNames(mint.session, source)
   const encoded = tenantCodec.encode(tenant)
   if (named === null || !encoded.ok || named.tenant !== encoded.value) return undefined
@@ -206,10 +212,13 @@ export function closedMaterial(
     const ref = { execution: named.execution, family: 'material', item: canonical(source) }
     const body = (need ? needClosed(table, ref) : peekClosed(table, ref)) as MaterialView | null
     if (body === null) return undefined
+    if (body.readers === 'until-release')
+      return { tenant: named.tenant, execution: named.execution, released: body.value }
     return {
       tenant: named.tenant,
       execution: named.execution,
       value: block(table.blobs, body.value),
+      readers: body.readers,
     }
   }
   const input = { tenant, execution: named.execution }

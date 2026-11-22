@@ -41,7 +41,7 @@ describe('accepting a send', () => {
       level: 'strong',
       note: 'triage it',
       term: { kind: 'standing' },
-      basis: { kind: 'owner' },
+      creator: { kind: 'human', actorRef: 'owner' },
       expired: false,
     }
     const facts = w.store.facts(w.ctx.tenant)
@@ -64,7 +64,7 @@ describe('accepting a send', () => {
       level: 'strong',
       note: null,
       term: { kind: 'once' },
-      basis: { kind: 'owner' },
+      creator: { kind: 'human', actorRef: 'owner' },
       expired: false,
     }
     const facts = w.store.facts(w.ctx.tenant)

@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
-  consentBasis,
   decideSubscription,
   subscriptionChangeSchema,
   subscriptionKeySchema,
-  type ConsentAnswer,
+  type Creator,
   type SubscriptionActor,
   type SubscriptionChange,
   type SubscriptionDecisionInput,
@@ -15,6 +14,13 @@ const a = agent('a')
 const now = at(10)
 const owner: SubscriptionActor = { kind: 'owner' }
 const self: SubscriptionActor = { kind: 'agent', recipient: a }
+const HUMAN: Creator = { kind: 'human', actorRef: 'acc' }
+const AGENT: Creator = {
+  kind: 'agent',
+  actorRef: 'p',
+  originatingSessionRef: 'session-a',
+  originatingCallRef: 'call-1',
+}
 
 function change(overrides: Partial<SubscriptionChange> = {}): SubscriptionChange {
   return {
@@ -34,13 +40,15 @@ const decide = (overrides: Partial<SubscriptionDecisionInput> = {}) =>
     change: change(),
     current: null,
     actor: self,
+    creator: overrides.actor?.kind === 'owner' ? HUMAN : AGENT,
     declared: declared(),
     now,
     ...overrides,
   })
 
 const refused = (reason: string) => ({ kind: 'refused', reason })
-const NEEDS_CONSENT = { kind: 'needs-consent' }
+const BY_OWNER = { kind: 'set', creator: HUMAN }
+const BY_AGENT = { kind: 'set', creator: AGENT }
 
 describe('decideSubscription: what anyone meets first', () => {
   it('refuses a term that has already passed', () => {
@@ -52,7 +60,7 @@ describe('decideSubscription: what anyone meets first', () => {
       decide({ change: change({ term: { kind: 'until', at: at(11) } }), actor: owner }),
     ).toEqual({
       kind: 'set',
-      basis: { kind: 'owner' },
+      creator: HUMAN,
     })
   })
 
@@ -88,7 +96,7 @@ describe('decideSubscription: what anyone meets first', () => {
     const subject = { presence: 'none', hint: '' } as const
     expect(decide({ declared: declared({ subject }), actor: owner })).toEqual({
       kind: 'set',
-      basis: { kind: 'owner' },
+      creator: HUMAN,
     })
   })
 
@@ -99,7 +107,7 @@ describe('decideSubscription: what anyone meets first', () => {
       decide({ change: change({ scope }), declared: declared({ subject }), actor: owner }),
     ).toEqual({
       kind: 'set',
-      basis: { kind: 'owner' },
+      creator: HUMAN,
     })
   })
 })
@@ -109,7 +117,7 @@ describe('decideSubscription: the owner', () => {
     for (const recipient of [person, a])
       expect(decide({ change: change({ recipient }), actor: owner })).toEqual({
         kind: 'set',
-        basis: { kind: 'owner' },
+        creator: HUMAN,
       })
   })
 
@@ -119,17 +127,28 @@ describe('decideSubscription: the owner', () => {
     for (const next of [{ level: 'weak' }, { note: 'new' }, { term: { kind: 'once' } }] as const)
       expect(decide({ current, change: change(next), actor: owner })).toEqual({
         kind: 'set',
-        basis: { kind: 'owner' },
+        creator: HUMAN,
       })
   })
 
   it('sets anew over an expired subscription', () => {
     const current = subscription(a, { kind: 'all' }, { level: 'strong', expired: true })
-    expect(decide({ current, actor: owner })).toEqual({ kind: 'set', basis: { kind: 'owner' } })
+    expect(decide({ current, actor: owner })).toEqual(BY_OWNER)
   })
 })
 
 describe('decideSubscription: an agent', () => {
+  it('sets its subscription at once, and names itself, its session and its call as the creator', () => {
+    const creator = {
+      kind: 'agent',
+      actorRef: 'principal/a',
+      originatingSessionRef: 'session-a',
+      originatingCallRef: 'call-7',
+    } as const
+    expect(decide({ creator })).toEqual({ kind: 'set', creator })
+    expect(decide({ creator, change: change({ level: 'off' }) })).toEqual({ kind: 'set', creator })
+  })
+
   it('may only subscribe for itself', () => {
     for (const recipient of [person, agent('b')])
       expect(decide({ change: change({ recipient }), declared: declared() })).toEqual(
@@ -137,16 +156,7 @@ describe('decideSubscription: an agent', () => {
       )
   })
 
-  it('needs the consent of its call for a first subscription', () => {
-    expect(decide()).toEqual(NEEDS_CONSENT)
-    expect(decide({ change: change({ level: 'off' }) })).toEqual(NEEDS_CONSENT)
-  })
-
-  const held = subscription(
-    a,
-    { kind: 'all' },
-    { level: 'strong', basis: { kind: 'granular', grant: 'g0' } },
-  )
+  const held = subscription(a, { kind: 'all' }, { level: 'strong', creator: AGENT })
 
   it.each([
     ['strong to weak', held, { level: 'weak' }],
@@ -165,40 +175,14 @@ describe('decideSubscription: an agent', () => {
       subscription(a, { kind: 'all' }, { level: 'strong', expired: true }),
       {},
     ],
-  ] as const)(
-    'needs the consent of its call for any change, lower or higher: %s',
-    (_case, current, next) => {
-      expect(decide({ current, change: change(next) })).toEqual(NEEDS_CONSENT)
-    },
-  )
-
-  it('is recalled when nothing would change, without asking for consent', () => {
-    expect(decide({ current: held })).toEqual({ kind: 'recalled', current: held })
+  ] as const)('sets any change at once, lower or higher: %s', (_case, current, next) => {
+    expect(decide({ current, change: change(next) })).toEqual(BY_AGENT)
   })
-})
 
-describe('consentBasis: what the consent of the call makes of a write', () => {
-  const grant = '{"via":"once"}'
-  it.each([
-    [
-      'a blanket consent that stands',
-      { kind: 'consented', basis: { kind: 'blanket', scope: 'standing', grant } },
-      { kind: 'basis', basis: { kind: 'blanket', scope: 'standing', grant } },
-    ],
-    [
-      'a blanket consent of this session',
-      { kind: 'consented', basis: { kind: 'blanket', scope: 'session', grant } },
-      { kind: 'basis', basis: { kind: 'blanket', scope: 'session', grant } },
-    ],
-    [
-      'a granular consent, whose layer is always this session',
-      { kind: 'consented', basis: { kind: 'granular', scope: 'session', grant } },
-      { kind: 'basis', basis: { kind: 'granular', grant } },
-    ],
-    ['no consent', { kind: 'none' }, { kind: 'refused', reason: 'consent-required' }],
-    ['a consent that cannot be read', { kind: 'unavailable' }, { kind: 'unavailable' }],
-  ] as const)('%s', (_case, answer, expected) => {
-    expect(consentBasis(answer as ConsentAnswer)).toEqual(expected)
+  it('is recalled when nothing would change, whoever made the subscription', () => {
+    expect(decide({ current: held })).toEqual({ kind: 'recalled', current: held })
+    const byOwner = subscription(a, { kind: 'all' }, { level: 'strong', creator: HUMAN })
+    expect(decide({ current: byOwner })).toEqual({ kind: 'recalled', current: byOwner })
   })
 })
 

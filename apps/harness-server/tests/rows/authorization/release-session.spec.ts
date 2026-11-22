@@ -10,6 +10,7 @@ import {
 } from '../../support/release-tree.ts'
 import {
   ONCE,
+  admittedReleases,
   answerCard,
   endedRuns,
   pendingCard,
@@ -42,18 +43,23 @@ it(
         expression: { scope: { kind: 'session', capabilityId: expect.any(String) } },
       })
 
-      await sendInput(tree, session, 'start: echo second')
+      await sendInput(tree, session, 'start: echo slow-second')
+      // The admission record lives as long as its execution: read it while the call runs.
+      const released = await pollUntil(
+        'the second admission to rest on the session grant',
+        () => admittedReleases(tree.storageRoot).filter(item => item.by === 'session'),
+        rows => rows.length > 0,
+      )
+      expect(released).toEqual([
+        { by: 'session', grant: expect.objectContaining({ via: 'session-grant' }) },
+      ])
       const second = await endedRuns(tree, session, 2)
-      expect(toolResults(second).join('\n')).toContain('second-done')
+      expect(toolResults(second).join('\n')).toContain('slow-second-done')
       expect(await tree.cards({ sessionRef: session, states: ['pending'] })).toEqual([])
       expect(second.filter(entry => entry.kind === ONCE)).toHaveLength(1)
-      expect(startAcceptances(tree.storageRoot).filter(row => 'authorizations' in row)).toEqual([])
-      // Both starts rest on the one session grant, named by its own source and guarded at acceptance.
-      const releases = startAcceptances(tree.storageRoot).map(row => row['release'])
-      expect(releases).toEqual([
-        { by: 'session', grant: expect.stringContaining('"via":"session-grant"') },
-        { by: 'session', grant: expect.stringContaining('"via":"session-grant"') },
-      ])
+      const accepted = startAcceptances(tree.storageRoot)
+      expect(accepted).toHaveLength(2)
+      expect(accepted.filter(row => 'authorizations' in row || 'release' in row)).toEqual([])
 
       const other = await tree.startSession('start: echo other')
       await pendingCard(tree, other, 'the other session')

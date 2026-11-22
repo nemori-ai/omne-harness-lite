@@ -14,7 +14,11 @@ import { digest, equal, canonical, operationIdentity } from './encoding.ts'
 import type { OperationRecord, OperationBinding } from './operation-schema.ts'
 import { readGovernanceStanding } from './standing-custody.ts'
 import { standingRecoverySchema } from './standing-schema.ts'
-import type { SqlStage } from './sql-stage-schema.ts'
+import { sqlStageSchema, type SqlStage } from './sql-stage-schema.ts'
+
+export const ACCEPT_OPERATION = 'governance.meta.accept'
+export const RETIRE_OPERATION = 'governance.meta.retire-contribution'
+export const custodyOperation = (stage: SqlStage) => 'governance.custody.' + stage
 
 export function stageIdentity(
   domain: string,
@@ -23,6 +27,17 @@ export function stageIdentity(
 ): SqlIdentity {
   const identity = operationIdentity(domain, ref)
   return stage === 'apply' ? identity : { ...identity, operation: 'governance.meta.' + stage }
+}
+export function operationReceipts(domain: string, ref: GovernanceOperationRef): SqlIdentity[] {
+  const identity = operationIdentity(domain, ref)
+  return [
+    { ...identity, operation: ACCEPT_OPERATION },
+    { ...identity, operation: RETIRE_OPERATION },
+    ...sqlStageSchema.options.flatMap(stage => [
+      stageIdentity(domain, ref, stage),
+      { ...identity, operation: custodyOperation(stage) },
+    ]),
+  ]
 }
 function matchesStanding(
   port: ReadPort,

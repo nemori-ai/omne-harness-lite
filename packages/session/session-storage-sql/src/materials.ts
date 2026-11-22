@@ -4,11 +4,7 @@ import {
   PERMISSION_CURRENT_MIGRATION,
   PERMISSION_CURRENT_TABLES,
 } from './worker/permission-current-schema.ts'
-import {
-  SESSION_AUTHORIZATION_GUARD,
-  SESSION_PERMISSION_CURRENT_FACT,
-  SESSION_PERMISSION_GUARD,
-} from './permission-current.ts'
+import { SESSION_PERMISSION_CURRENT_FACT, SESSION_PERMISSION_GUARD } from './permission-current.ts'
 import {
   SESSION_ORDINARY_BASIS,
   SESSION_COMMIT_BASIS,
@@ -31,6 +27,10 @@ import {
 import {
   ADMISSION_ATTEMPT_MIGRATION,
   ADMISSION_ATTEMPT_TABLES,
+  ADOPTION_MIGRATION,
+  ADOPTION_TABLES,
+  BLOCK_MIGRATION,
+  BLOCK_TABLES,
   FACT_BLOB_MIGRATION,
   FACT_BLOB_TABLES,
   FACT_BODY_MIGRATION,
@@ -142,6 +142,11 @@ const factBlobMigrationRef = Object.freeze({
   id: FACT_BLOB_MIGRATION.id,
 })
 const itemMigrationRef = Object.freeze({ owner: ITEM_MIGRATION.owner, id: ITEM_MIGRATION.id })
+const blockMigrationRef = Object.freeze({ owner: BLOCK_MIGRATION.owner, id: BLOCK_MIGRATION.id })
+const adoptionMigrationRef = Object.freeze({
+  owner: ADOPTION_MIGRATION.owner,
+  id: ADOPTION_MIGRATION.id,
+})
 const indexMigrations = [
   migrationRef,
   attemptGrantMigrationRef,
@@ -331,7 +336,11 @@ export const HANDLERS: readonly Handler[] = [
     maxRowsRead: SESSION_LIST_SCAN_ROWS + 2,
   },
 
-  { handler: 'session.references', file: 'read-references', tables: ['sl_resident_idx'] },
+  {
+    handler: 'session.references',
+    file: 'read-references',
+    tables: ['sl_resident_idx', 'sl_resident_shape'],
+  },
   {
     handler: 'session.released-scopes',
     file: 'read-released-scopes',
@@ -359,7 +368,7 @@ export const HANDLERS: readonly Handler[] = [
   {
     handler: 'execution-record.facts',
     file: 'read-execution-batches',
-    tables: ['sl_journal', 'er_root', 'er_fact'],
+    tables: ['sl_journal', 'er_root', 'er_fact', 'er_execution', 'er_operation'],
     protocol: EXECUTION_RECORD_PROTOCOL,
     migrations: factMigrations,
   },
@@ -380,23 +389,23 @@ export const HANDLERS: readonly Handler[] = [
   {
     handler: 'execution-record.operation',
     file: 'read-execution-operation',
-    tables: ['er_operation', 'er_fact'],
+    tables: ['er_operation', 'er_fact', 'er_execution'],
     protocol: EXECUTION_RECORD_PROTOCOL,
     migrations: [recordMigrationRef, factBlobMigrationRef],
   },
   {
     handler: 'execution-record.blob',
     file: 'read-blob',
-    tables: ['sl_blob'],
+    tables: ['sl_blob', ...BLOCK_TABLES],
     protocol: EXECUTION_RECORD_PROTOCOL,
-    migrations: [factBlobMigrationRef],
+    migrations: [factBlobMigrationRef, blockMigrationRef],
   },
   {
     handler: 'execution-record.blobs',
     file: 'read-blobs',
-    tables: ['sl_blob'],
+    tables: ['sl_blob', ...BLOCK_TABLES],
     protocol: EXECUTION_RECORD_PROTOCOL,
-    migrations: [factBlobMigrationRef],
+    migrations: [factBlobMigrationRef, blockMigrationRef],
     maxRowsRead: 20_000,
   },
   {
@@ -414,11 +423,34 @@ export const HANDLERS: readonly Handler[] = [
     migrations: itemMigrations,
   },
   {
+    handler: 'execution-record.retired',
+    file: 'read-execution-retired',
+    tables: ['er_execution'],
+    protocol: EXECUTION_RECORD_PROTOCOL,
+    migrations: [recordMigrationRef],
+  },
+  {
     handler: 'execution-record.preadmission',
     file: 'read-preadmission',
     tables: PREADMISSION_TABLES,
     protocol: EXECUTION_RECORD_PROTOCOL,
     migrations: [preadmissionMigrationRef],
+  },
+  {
+    handler: 'execution-record.session-adoption',
+    file: 'read-session-adoption',
+    tables: ['er_session_adoption'],
+    protocol: EXECUTION_RECORD_PROTOCOL,
+    migrations: [adoptionMigrationRef],
+    maxRowsRead: 1,
+  },
+  {
+    handler: 'execution-record.request-choices',
+    file: 'read-request-choices',
+    tables: ['er_request_choice'],
+    protocol: EXECUTION_RECORD_PROTOCOL,
+    migrations: [adoptionMigrationRef],
+    maxRowsRead: 1,
   },
 ]
 
@@ -477,7 +509,6 @@ export function sessionStorageMaterials(
       guardOf(SESSION_PERMISSION_GUARD, 'permission-current-guard', PERMISSION_CURRENT_TABLES, [
         SESSION_PERMISSION_CURRENT_FACT,
       ]),
-      guardOf(SESSION_AUTHORIZATION_GUARD, 'authorization-guard', AUTHORIZATION_CONTEXT_TABLES, []),
       {
         participant: EXECUTION_RECORD_PARTICIPANT,
         protocol: EXECUTION_RECORD_PROTOCOL,
@@ -491,6 +522,8 @@ export function sessionStorageMaterials(
           ...FACT_BODY_TABLES,
           ...FACT_BLOB_TABLES,
           ...ITEM_TABLES,
+          ...BLOCK_TABLES,
+          ...ADOPTION_TABLES,
         ],
         readTables: [],
         requiresFacts: [],
@@ -574,6 +607,8 @@ export function sessionStorageMaterials(
         factBodyMigrationRef,
       ]),
       migrationOf(itemMigrationRef, 'item-migration', [factBlobMigrationRef]),
+      migrationOf(blockMigrationRef, 'block-migration', [itemMigrationRef]),
+      migrationOf(adoptionMigrationRef, 'adoption-migration', [blockMigrationRef]),
     ],
     readHandlers: HANDLERS.map(item => {
       const file = module(item.file)

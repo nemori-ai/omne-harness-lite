@@ -45,6 +45,7 @@
 - `ClockSample` · 包 `@omne-harness/session-contract`
 - `CommitReceipt` · 包 `@omne-harness/session-contract`
 - `CommittedBatch` · 包 `@omne-harness/session-contract`
+- `CommittedBinding` · 包 `@omne-harness/session-contract`
 - `CompactionCommitState` · 包 `@omne-harness/session-contract`
 - `CompactionContextRead` · 包 `@omne-harness/session-contract`
 - `Completion` · 包 `@omne-harness/session-contract`
@@ -172,7 +173,9 @@
 - `RouteJudgment` · 包 `@omne-harness/session-contract`
 - `RoutedInput` · 包 `@omne-harness/session-contract`
 - `RunBoundaryView` · 包 `@omne-harness/session-contract`
+- `RunEnd` · 包 `@omne-harness/session-contract`
 - `RunExecution` · 包 `@omne-harness/session-contract`
+- `RunFailure` · 包 `@omne-harness/session-contract`
 - `RunId` · 包 `@omne-harness/session-contract`
 - `RunStartJudgment` · 包 `@omne-harness/session-contract`
 - `RunState` · 包 `@omne-harness/session-contract`
@@ -243,6 +246,8 @@
 - `SessionEntriesReceipt` · 包 `@omne-harness/session-contract`
 - `SessionEntriesStart` · 包 `@omne-harness/session-contract`
 - `SessionEvidenceBridge` · 包 `@omne-harness/session-contract`
+- `SessionExecutionLog` · `execution-log.d.ts`
+- `SessionExecutionLogOpened` · `execution-log.d.ts`
 - `SessionExecutionPrefix` · 包 `@omne-harness/session-contract`
 - `SessionFaces` · 包 `@omne-harness/session-contract`
 - `SessionFactBoundary` · 包 `@omne-harness/session-contract`
@@ -288,6 +293,8 @@
 - `SessionReadAccessOperation` · 包 `@omne-harness/session-contract`
 - `SessionReconciliation` · 包 `@omne-harness/session-contract`
 - `SessionReplayFacts` · `context-facts.d.ts`
+- `SessionRequestChoice` · `adopted-request.d.ts`
+- `SessionRequestChoicesRead` · `adopted-request.d.ts`
 - `SessionRevision` · 包 `@omne-harness/session-contract`
 - `SessionRunLookup` · 包 `@omne-harness/session-contract`
 - `SessionScopeLookup` · `context-facts.d.ts`
@@ -336,6 +343,7 @@
 - `batchEvidence` · 包 `@omne-harness/session-contract`
 - `bindingOf` · 包 `@omne-harness/session-contract`
 - `boundCall` · 包 `@omne-harness/session-contract`
+- `boundConsumptions` · 包 `@omne-harness/session-contract`
 - `budgetTermsOf` · 包 `@omne-harness/session-contract`
 - `callKeysIn` · 包 `@omne-harness/session-contract`
 - `callKeysOutside` · 包 `@omne-harness/session-contract`
@@ -345,6 +353,7 @@
 - `commandDigest` · 包 `@omne-harness/session-contract`
 - `commandInput` · 包 `@omne-harness/session-contract`
 - `commitWithinBudget` · 包 `@omne-harness/session-contract`
+- `committedBindings` · 包 `@omne-harness/session-contract`
 - `compactionCallChangeOf` · 包 `@omne-harness/session-contract`
 - `compactionContextForView` · 包 `@omne-harness/session-contract`
 - `consumptionIdOf` · 包 `@omne-harness/session-contract`
@@ -434,6 +443,7 @@
 - `waitingCalls` · 包 `@omne-harness/session-contract`
 - `wakingInputs` · 包 `@omne-harness/session-contract`
 - `withIntakeTerms` · 包 `@omne-harness/session-contract`
+- `withoutCommitted` · 包 `@omne-harness/session-contract`
 - `workspaceSelection` · 包 `@omne-harness/session-contract`
 
 ## 入口 `./cordis` · `cordis.d.ts`
@@ -453,6 +463,7 @@
 - `SessionDelegatedTransactionsService` · `cordis.d.ts`
 - `SessionDerivedInputsService` · `cordis.d.ts`
 - `SessionEvidenceBridgeService` · `cordis.d.ts`
+- `SessionExecutionLogService` · `cordis.d.ts`
 - `SessionHistoryIndexService` · `history-search.d.ts`
 - `SessionHistoryLogService` · `history-search.d.ts`
 - `SessionIdentityBridgeService` · `cordis.d.ts`
@@ -488,6 +499,7 @@
 - `sessionDelegatedTransactionsKey` · `cordis.d.ts`
 - `sessionDerivedInputsKey` · `cordis.d.ts`
 - `sessionEvidenceKey` · `cordis.d.ts`
+- `sessionExecutionLogKey` · `cordis.d.ts`
 - `sessionHistoryIndexKey` · `history-search.d.ts`
 - `sessionHistoryLogKey` · `history-search.d.ts`
 - `sessionIdentityKey` · `cordis.d.ts`
@@ -549,12 +561,32 @@ export type SessionAdoptedRequestRead = Readonly<{
     kind: 'unavailable';
     diagnostic: string;
 }>;
+export type SessionRequestChoice = Readonly<{
+    message: string;
+    block: string;
+    choice: 'original' | 'derived' | 'transcript';
+    mediaType: string | null;
+}>;
+export type SessionRequestChoicesRead = Readonly<{
+    kind: 'value';
+    value: readonly SessionRequestChoice[] | null;
+}> | Readonly<{
+    kind: 'denied';
+}> | Readonly<{
+    kind: 'unavailable';
+    diagnostic: string;
+}>;
 export interface SessionAdoptedRequests<P> {
     readAdoptedRequest(input: Readonly<{
         access: Access<P>;
         session: SessionId;
         reference?: string;
     }>): Promise<SessionAdoptedRequestRead>;
+    readRequestChoices(input: Readonly<{
+        access: Access<P>;
+        session: SessionId;
+        reference: string;
+    }>): Promise<SessionRequestChoicesRead>;
 }
 ```
 
@@ -598,6 +630,7 @@ import type { TenantId } from '@omne-harness/legal-identity';
 import { type BeforeIntakeRegistry, type DerivedAdmission, type DerivedInputKind, type InputSourceDeclaration, type InputSourceLookup, type InputSourceName, type InputSources, type IntakeProcessor, type SessionDerivedInputs } from '@omne-harness/session-contract';
 import type { AgentDrivePort, SessionAdoptionSource, SessionCustodySource, SessionProductionSource, SessionDelegatedTransactions, SessionPrincipalBindingSource, SessionScopeOwnerSource, SessionWorkPrincipals, DurableEvidence, ScopeReleasePort, SessionAccessCheck, SessionCallControl, SessionCallStates, SessionCallerClass, SessionClock, SessionContextInput, SessionDirectory, SessionEvidenceBridge, SessionFaces, SessionId, SessionIdentityBridge, SessionIdleInput, SessionInternalPrincipals, SessionNotifier, SessionRevision, SessionTransactionPort } from '@omne-harness/session-contract';
 import type { SessionAdoptedRequests } from './adopted-request.ts';
+import type { SessionExecutionLog } from './execution-log.ts';
 import type { SessionCursorSigning } from './cursor-signing.ts';
 import type { SessionReplayFacts, SessionScopeLookup } from './context-facts.ts';
 export * from './history-search.ts';
@@ -799,8 +832,15 @@ export declare abstract class SessionAdoptedRequestsService<P = unknown> extends
     static readonly provide = "sessionAdoptedRequests";
     constructor(ctx: Context);
     abstract readonly readAdoptedRequest: SessionAdoptedRequests<P>['readAdoptedRequest'];
+    abstract readonly readRequestChoices: SessionAdoptedRequests<P>['readRequestChoices'];
 }
 export declare const sessionAdoptedRequestsKey = "sessionAdoptedRequests";
+export declare abstract class SessionExecutionLogService extends Service implements SessionExecutionLog {
+    static readonly provide = "sessionExecutionLog";
+    constructor(ctx: Context);
+    abstract readonly openTenant: SessionExecutionLog['openTenant'];
+}
+export declare const sessionExecutionLogKey = "sessionExecutionLog";
 export declare class SessionInputSourcesService extends Service implements InputSources {
     static readonly provide = "sessionInputSources";
     private readonly registry;
@@ -856,6 +896,7 @@ declare module '@deepseek-ai/cordis' {
         sessionReplayFacts: SessionReplayFactsService;
         sessionScopeLookup: SessionScopeLookupService;
         sessionAdoptedRequests: SessionAdoptedRequestsService<unknown>;
+        sessionExecutionLog: SessionExecutionLogService;
     }
     interface Events {
         'session-cordis-contract/committed'(tenant: TenantId, session: SessionId, revision: SessionRevision, source: DurableEvidence, kinds: readonly string[]): void;
@@ -889,6 +930,21 @@ export interface SessionCursorSigning {
         payload: Uint8Array;
         signature: SessionCursorSignature;
     }>): Promise<SessionCursorVerifyResult>;
+}
+```
+
+## 声明文件 `execution-log.d.ts`
+
+```ts
+import type { TenantId } from '@omne-harness/legal-identity';
+export type SessionExecutionLogOpened = Readonly<{
+    kind: 'opened';
+}> | Readonly<{
+    kind: 'unavailable';
+    diagnostic: string;
+}>;
+export interface SessionExecutionLog {
+    openTenant(tenant: TenantId): Promise<SessionExecutionLogOpened>;
 }
 ```
 
@@ -938,6 +994,7 @@ export type * from '@omne-harness/session-contract';
 export type * from './cursor-signing.ts';
 export type * from './context-facts.ts';
 export type * from './adopted-request.ts';
+export type * from './execution-log.ts';
 ```
 
 ## 声明文件 `testing.d.ts`

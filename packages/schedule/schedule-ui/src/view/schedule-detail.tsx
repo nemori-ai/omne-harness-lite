@@ -17,7 +17,6 @@ import type { JSX } from 'react'
 import { useReading } from '../model/reading.ts'
 import {
   authorText,
-  basisText,
   calendarText,
   CONTROL_WORDS,
   localText,
@@ -104,7 +103,6 @@ function Record({ detail }: Readonly<{ detail: ScheduleDetail }>): JSX.Element {
         <FactRow term="下一次">
           {detail.next === null ? '没有下一次' : <Time item={detail.next} />}
         </FactRow>
-        <FactRow term="凭什么生效">{basisText(detail.basis)}</FactRow>
         <FactRow term="修订">{detail.revision}</FactRow>
       </FactList>
     </>

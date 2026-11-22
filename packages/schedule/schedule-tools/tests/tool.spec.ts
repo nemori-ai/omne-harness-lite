@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  CALL,
   DEFINITION,
   ID,
   bound,
@@ -22,16 +23,13 @@ async function once(args: ReturnType<typeof parse>, writes: Parameters<typeof se
 }
 
 describe('one call is one write the domain answers', () => {
-  it('creates a schedule that takes effect, and names the consent it took effect on', async () => {
+  it('creates a schedule that takes effect, and names the session and the call that created it', async () => {
     const { text, service } = await once(parse('create', { definition: DEFINITION }), [
-      committed(
-        view('active', {
-          consentAdoption: { adoptionKind: 'blanket', scope: 'standing', grantRef: 'g' },
-        }),
-      ),
+      committed(view('active')),
     ])
     expect(text).toMatch(/^done Schedules create\n/)
-    expect(text).toContain('"basis":"blanket scope=standing"')
+    expect(text).toContain(`"author":"agent session=session-1 call=${CALL}"`)
+    expect(text).not.toContain('"basis"')
     expect(service.asked).toHaveLength(1)
     expect(service.asked[0]?.input.initial).toEqual({ kind: 'active' })
     expect(service.asked[0]?.input.meta).toEqual({
@@ -51,7 +49,6 @@ describe('one call is one write the domain answers', () => {
   })
 
   it.each([
-    ['consent_required', 'unavailable'],
     ['revision_conflict', 'conflict'],
     ['forbidden', 'not_found'],
     ['invalid_transition', 'invalid'],
@@ -125,14 +122,14 @@ describe('the Schedules declaration and reads', () => {
     ).toHaveProperty('failure')
   })
 
-  it('reads without writing: preview names the calendar of each time; show and list name the consent', async () => {
+  it('reads without writing: preview names the calendar of each time; show and list name the author', async () => {
     const service = services([])
     const execution = scope(bound(service))
     expect(await run(parse('preview', { definition: DEFINITION, count: 3 }), execution)).toContain(
       '"calendar":"cn-legal-holidays"',
     )
     expect(await run(parse('show', { schedule: ID }), execution)).toMatch(
-      /^done Schedules show\n.*"basis":"none"|"basis":"owner"/s,
+      /^done Schedules show\n.*"author":"agent session=session-1 call=/s,
     )
     expect(await run(parse('list', {}), execution)).toMatch(/^done Schedules list/)
     expect(

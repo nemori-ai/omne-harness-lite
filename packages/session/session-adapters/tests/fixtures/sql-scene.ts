@@ -20,6 +20,7 @@ import type {
   SessionCommand,
   SessionFaces,
   SessionTransactionPort,
+  WorkSnapshot,
 } from '@omne-harness/session-contract'
 import {
   adoptedInitializationFixture,
@@ -222,7 +223,8 @@ async function doubleStorage(): Promise<{ storage: SqlStorage; controls: DoubleC
           diagnostic: 'dropped',
         })
       }
-      const existing = receipts.get(key(request.identity))
+      const keeps = request.identity.recall !== 'never'
+      const existing = keeps ? receipts.get(key(request.identity)) : undefined
       if (existing !== undefined)
         return Promise.resolve(
           existing.inputDigest === inputDigestV2(request)
@@ -230,27 +232,26 @@ async function doubleStorage(): Promise<{ storage: SqlStorage; controls: DoubleC
             : { kind: 'identity_conflict', identity: request.identity, existing },
         )
       const receipt = execute(request)
-      receipts.set(key(request.identity), receipt)
+      if (keeps) receipts.set(key(request.identity), receipt)
       if (lose) {
         lose = false
         return Promise.resolve({ kind: 'unknown', identity: request.identity, diagnostic: 'lost' })
       }
       return Promise.resolve({ ...receipt, recalled: false })
     },
-    query: identity =>
-      Promise.resolve(
-        receipts.get(key(identity)) ?? {
-          kind: 'not_committed',
-          identity,
-          proofs: {
-            writerGenerationExcluded: true,
-            oldTransactionTerminated: true,
-            databaseRecoveryFinished: true,
-            authoritativeReadSucceeded: true,
-            operationNotQueued: true,
-          },
-        },
-      ),
+    query: identity => {
+      const proofs = {
+        writerGenerationExcluded: true,
+        oldTransactionTerminated: true,
+        databaseRecoveryFinished: true,
+        authoritativeReadSucceeded: true,
+        operationNotQueued: true,
+      } as const
+      if (identity.recall === 'never') return Promise.resolve({ kind: 'settled', identity, proofs })
+      return Promise.resolve(
+        receipts.get(key(identity)) ?? { kind: 'not_committed', identity, proofs },
+      )
+    },
     read(request) {
       reads.push(request.handler)
       const module = handlers.get(request.handler)
@@ -350,7 +351,7 @@ export async function sqlScene(name = 'sql-session', options: SqlSceneOptions = 
   const commits: string[][] = []
   const inner = storage
   const rewriteReads: {
-    current: ((request: ReadRequest, answer: ReadResult) => ReadResult) | null
+    current: ((request: ReadRequest, answer: ReadResult) => ReadResult | Promise<ReadResult>) | null
   } = { current: null }
   storage = {
     database: inner.database,
@@ -661,22 +662,22 @@ export async function takeInputs(
 
 export async function nextRun(s: SqlScene, n: number): Promise<SqlScene> {
   const snapshot = ok(await s.port.readWork(s.sessionAccess))
-  if (snapshot.run.kind !== 'active') throw new Error('an active Run is expected')
-  ok(
-    await s.port.commit({
-      access: s.sessionAccess,
-      command: {
-        kind: 'control',
-        input: {
-          tenant: s.access.tenant,
-          session: s.access.session,
-          operation: operationId(`cancel-${n}`),
-          intent: { kind: 'cancel-run', run: snapshot.run.run, urgency: 'force' },
+  if (snapshot.run.kind === 'active')
+    ok(
+      await s.port.commit({
+        access: s.sessionAccess,
+        command: {
+          kind: 'control',
+          input: {
+            tenant: s.access.tenant,
+            session: s.access.session,
+            operation: operationId(`cancel-${n}`),
+            intent: { kind: 'cancel-run', run: snapshot.run.run, urgency: 'force' },
+          },
         },
-      },
-      guards: [],
-    }),
-  )
+        guards: [],
+      }),
+    )
   const value = ordinaryInput(`input-${n}`)
   ok(
     await s.port.commit({
@@ -743,6 +744,10 @@ export type CordisSceneOptions = Readonly<{
     inner: NonNullable<SessionTransactionPort<string>['commitLog']>,
   ) => NonNullable<SessionTransactionPort<string>['commitLog']>
   transactions?: 'absent'
+  acknowledge?: (
+    inner: AgentJournal<unknown>['acknowledge'],
+  ) => AgentJournal<unknown>['acknowledge']
+  work?: (snapshot: WorkSnapshot) => WorkSnapshot
 }>
 
 export async function cordisScene(s: SqlScene, options: CordisSceneOptions = {}) {
@@ -786,8 +791,15 @@ export async function cordisScene(s: SqlScene, options: CordisSceneOptions = {})
         typeof caller === 'string' && !admitted[operation].includes(caller)
           ? (Promise.resolve(fail({ kind: 'denied', action: operation })) as Promise<T>)
           : read(input)
+    const shown = options.work
     return {
-      readWork: gate('readWork', s.port.readWork),
+      readWork: gate('readWork', (input: Parameters<typeof s.port.readWork>[0]) =>
+        s.port
+          .readWork(input)
+          .then(answer =>
+            'ok' in answer && shown !== undefined ? { ok: shown(answer.ok) } : answer,
+          ),
+      ),
       readCurrentScope: gate('readCurrentScope', s.port.readCurrentScope),
       readCall: gate('readWork', s.port.readCall),
       readModelSelection: gate('readModelSelection', s.port.readModelSelection),
@@ -830,7 +842,18 @@ export async function cordisScene(s: SqlScene, options: CordisSceneOptions = {})
   await mount(Access)
   await mount(Session)
   if (options.transactions !== 'absent') await mount(Transactions)
-  const journal = await mount(SessionLogAgentJournalProvider, s.combination)
+  const acknowledging = options.acknowledge
+  class Journal extends SessionLogAgentJournalProvider {
+    constructor(
+      scope: Context,
+      config: ConstructorParameters<typeof SessionLogAgentJournalProvider>[1],
+    ) {
+      super(scope, config)
+      if (acknowledging !== undefined)
+        Object.defineProperty(this, 'acknowledge', { value: acknowledging(this.acknowledge) })
+    }
+  }
+  const journal = await mount(Journal, s.combination)
   const face = <T>(key: string) => {
     const found: unknown = ctx.get(key)
     if (found === undefined) throw new Error(`${key} is not provided`)

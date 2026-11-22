@@ -28,7 +28,7 @@
 > **EN**: The optional `programmable` property of a tool definition. It permits an agent to call the tool from a script that combines or orchestrates tool calls. Only explicit `true` permits this use. An omitted value or `false` does not.
 
 - **形态**：属性
-- **出处**：[工具执行：可编程调用许可](../../product/tool-execution/design.md#可编程调用许可)（rev 10）
+- **出处**：[工具执行：可编程调用许可](../../product/tool-execution/design.md#可编程调用许可)（rev 11）
 - **别混**：不是当前动作授权、常驻标记或后台许可。独立程序消费 SDK 不自动属于 Agent 脚本编排；脚本经 SDK 或通用调用入口间接调用工具，仍属于该许可的范围。
 
 ### UL-tool-definition · 工具定义 · Tool Definition
@@ -69,7 +69,7 @@
 - **形态**：视图
 - **出处**：[PF-006 §5.2](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#52-工具这个词指三样东西寿命各不相同) · [§5.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#53-一份工具定义长什么样) ·
   [工具说明与每个参数的说明，必填](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#工具说明与每个参数的说明必填) ·
-  [多命令工具的定义里带多少](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡)（rev 24） · 多命令工具在模型面前的清单与出错时的用法见[工具执行：工具作者必须说明什么](../../product/tool-execution/design.md#工具作者必须说明什么)（rev 10） · [PF-002 §4 Tool](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#tool)（rev 32）；装载时派生与各字段的来源见已采用的 [RFC-0012 对象链](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#对象链)，形态由属性改为视图的理由见 [C-66](../conflicts.md#c-71工具定义由长期数据改为装载时派生)
+  [多命令工具的定义里带多少](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡)（rev 24） · 多命令工具在模型面前的清单与出错时的用法见[工具执行：工具作者必须说明什么](../../product/tool-execution/design.md#工具作者必须说明什么)（rev 11） · [PF-002 §4 Tool](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#tool)（rev 32）；装载时派生与各字段的来源见已采用的 [RFC-0012 对象链](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#对象链)，形态由属性改为视图的理由见 [C-66](../conflicts.md#c-71工具定义由长期数据改为装载时派生)
 - **别混**：与[工具](capabilities-and-composition.md#ul-tool--工具--tool)不是一回事——
   工具是那一类资产，**工具定义是资产与实现合成出的那一份表示**；
   同一个身份下，官方、组织、租户、工作区各层的资产各自派生自己的一份，形状可以不同
@@ -103,6 +103,24 @@
   收件人都没了；**这一刀不可逆**，撤销归档不会把它接回来
 - **注意 ③**：**同一个会话里同一个工具同时在执行的次数有上限时，超出的排队、不被拒**——[工具并发上限](#ul-tool-concurrency-limit--工具并发上限--tool-concurrency-limit)按会话算，前台后台一起数
 
+### UL-call-acceptance · 调用受理 · Call Acceptance
+
+> **中**：Tool 收下一次调用的那一步。它核请求的形状与参数、目标此刻可用、调用方主体的资格与推进资格、执行环境能否满足，
+> 然后写下这次调用的受理记录，排进发起。**它不判这个动作许不许**：那在调用方交出调用之前已经由
+> [放行判断](interaction-and-dispatch.md#ul-admission-decision--放行判断--admission-decision)判过，调用到了就按已放行受理。
+>
+> **EN**: The step in which Tool takes in one call. It checks the shape and arguments of the
+> request, that the target is available now, the calling principal's eligibility and advance
+> eligibility, and whether the execution environment can be met; it then writes the call's
+> acceptance record and queues the call to start. **It does not judge whether the action may
+> run**: the admission decision judged that before the caller handed the call over, and a call
+> that arrives is accepted as already released.
+
+- **形态**：过程
+- **出处**：[工具执行产品页 TL-J02](../../product/tool-execution/design.md#tl-j02) · [CAP-TL03](../../product/tool-execution/design.md#cap-tl03)（rev 11）
+- **别混**：**不是[放行判断](interaction-and-dispatch.md#ul-admission-decision--放行判断--admission-decision)**——放行判断判许不许，在动作发起时跑一次；调用受理只核这次调用能不能在这里执行。也不是[消息准入](agent-runtime-loop.md#ul-message-admission--消息准入--message-admission)
+- **注意**：**说 Tool 收下一次调用，用调用受理，不写「准入」**；说一个动作许不许，用放行判断。撤权发生在受理之后的，这次调用照常执行；要停它用取消
+
 ### UL-background-execution · 后台执行 · Background Execution
 
 > **中**：一次工具执行**不占着当前这一轮**地跑。
@@ -129,17 +147,17 @@
 ### UL-call-intent · 调用意图 · Call Intent
 
 > **中**：**发起一次工具调用的一方在发起时写下的一句话，说明为什么发起这次调用。**
-> 它在调用受理时固定，之后不变。它只用来让人和 agent 辨认这次调用：准入、权限、批准与执行都不读它，
+> 它在[调用受理](#ul-call-acceptance--调用受理--call-acceptance)时固定，之后不变。它只用来让人和 agent 辨认这次调用：放行判断、权限、批准与执行都不读它，
 > 工具作者也收不到它。可能转后台的调用必须带它，别的调用可以不带。
 >
 > **EN**: **One sentence that the caller of a tool call writes when it makes the call, to say
-> why it makes the call.** It is fixed when the call is admitted and does not change. People
-> and agents use it only to recognise the call. Admission, permission, approval and execution
-> do not read it, and the tool author does not receive it. A call that can move to the
+> why it makes the call.** It is fixed when the call is accepted and does not change. People
+> and agents use it only to recognise the call. The admission decision, permission, approval
+> and execution do not read it, and the tool author does not receive it. A call that can move to the
 > background must carry it. Other calls can omit it.
 
 - **形态**：属性
-- **出处**：[工具执行「前台和后台是等待与交付方式」](../../product/tool-execution/design.md#前台和后台是等待与交付方式)（rev 10）
+- **出处**：[工具执行「前台和后台是等待与交付方式」](../../product/tool-execution/design.md#前台和后台是等待与交付方式)（rev 11）
 - **别混**：**它不是调用的参数，也不是实际动作。**参数决定工具做什么；意图是发起方的自述，可能与实际动作不符，
   所以请人批准时显示的是实际动作
 - **注意**：裸写「意图」在别的 topic 里另有所指（工作意图、写入意图）；跨 topic 引用写正式名
@@ -525,7 +543,7 @@
 > **EN**: Storing a tool result's model-facing body separately and presenting the author's summary or a mechanical preview with a retrieval reference in the first model message. Program data and native resource references are separate result components.
 
 - **形态**：过程
-- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 10）
+- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 11）
 - **别混**：裸写「卸载」不作为本词的跨领域简称，插件卸载是另一过程。原生图片、文件或数据集引用不属于结果卸载。
 - **注意**：首次追加的是预览，不是在 Session 日志中改写已存在的全文。后续读取追加新返回，不替换旧预览，也不重做原工具效果。
 - **注意**：结果卸载与执行的前后台关系、内部等待分别判断。正文按披露的期限保管，读回支持按声明格式分页。
@@ -539,7 +557,7 @@
 
 - **留存边界**：有限期限和当前读取资格由工具执行契约约束。正文到期后不可新读且自动回收，读取、ACK、压缩、Run 结束和归档不刷新期限。每读取一页都单独核对期限，到期判定的时钟偏差见[读回到期窗口](#ul-read-expiry-window--读回到期窗口--read-expiry-window)。
 - **形态**：对象
-- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 10）
+- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 11）
 - **别混 ①**：它不是进入消息的作者摘要或[机械预览](#ul-mechanical-preview--机械预览--mechanical-preview)，也不是未经校验的作者原返回或完整 ToolResult 封装。
 - **别混 ②**：它不是原生[附件](#ul-attachment--附件--attachment)。附件本来就以资源引用交付，不能仅因结果正文到期而删除目标。
 - **弃用**：「工具原件」。该说法与模型模态转换中的原件混淆。
@@ -551,7 +569,7 @@
 > **EN**: The largest model-facing body, in bytes, that a tool operation may present to the model directly. It is the smaller of the cap the author declares for that operation and the system cap set at assembly. Without a smaller author cap it equals the system cap. A body larger than it is offloaded. It decides only whether a body is offloaded, not how much the model sees first after offloading.
 
 - **形态**：属性
-- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 10）
+- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 11）
 - **别混 ①**：不是[卸载预览预算](#ul-offload-preview-budget--卸载预览预算--offload-preview-budget)。卸载预览预算约束卸载后首次呈现的大小，卸载触发阈值只用来判断是否卸载。
 - **别混 ②**：裸写「触发阈值」不作为本词的简称。工具的自动转后台阈值是另一项声明。
 
@@ -562,7 +580,7 @@
 > **EN**: The byte limit on the preview part the model sees first after a body is offloaded. The preview part is the author content and author summary, or the excerpts of the mechanical preview. The header is metadata and does not count. It is the smallest of three values: the author's preview cap, the system preview cap, and the offloading threshold divided by k and rounded down. Without an author preview cap it is the smaller of the last two. Assembly sets k. Author content, the author summary and the excerpts of the mechanical preview count against it; the header has its own fixed bound.
 
 - **形态**：属性
-- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 10）
+- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 11）
 - **别混**：不是读回分页的页预算。后续页是新的返回，按页预算分页。
 - **注意**：它与正文大小无关。作者内容或摘要超出它时，结果明确报告不能采用，不被截断。
 
@@ -573,7 +591,7 @@
 > **EN**: The structured preview that the system computes from an offloaded body, by the body's format, when the author supplies no summary. It appears in the first model message. It has a header and excerpts. The header gives the body's format, total bytes, line or record count, schema identity, expiry time and how to read the body back. The excerpts follow the format and stay within the offload preview budget: text gives the head and tail cut at line boundaries; JSON Lines gives the first and last complete records; a JSON document gives an outline of keys, value types and array lengths. The header is metadata outside that budget; it holds only fixed fields and the schema identity, so its size has a fixed bound. It contains no semantic summary and no truncated JSON text.
 
 - **形态**：视图
-- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 10）
+- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 11）
 - **别混 ①**：不是作者摘要。作者摘要由作者提供，系统不编造语义摘要。
 - **别混 ②**：不是[被卸载的原始结果](#ul-offloaded-result--被卸载的原始结果--offloaded-result)截到某个长度的前缀。
 - **注意**：系统在作者内容之后追加的描述头，与机械预览的描述头说明同样的内容。
@@ -585,7 +603,7 @@
 > **EN**: The span from ε before to ε after the expiry time of an offloaded result, where ε is the clock-skew bound between participants declared at assembly. Inside the span a read may already be refused, or it may still succeed. Outside the span the result depends only on the expiry time. A read that crosses the expiry time after the body is reclaimed answers not found, never an integrity failure.
 
 - **形态**：规则
-- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 10）
+- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 11）
 - **别混**：不是期限的延长。窗口不刷新期限，到期前已获准的读取也不延续到期限之后。
 
 ### UL-body-entry · 正文条目 · Body Entry
@@ -595,7 +613,7 @@
 > **EN**: The ledger's authoritative record of one offloaded body. It is kept in the call domain of the tool call that opened the body. It records the write intent, the seal, the link to exactly one result, and the reclaim. Its states are opened, sealed, linked and reclaimed, in that order. When the call settles, a body that has no link goes from opened or sealed to orphaned, and then to reclaimed. Each entry has one body identity. The system does not reuse, share or deduplicate a body identity. The entry decides whether a body exists and whether it can be read. It holds no body bytes and no expiry. The body descriptor of the result and the due index hold the expiry.
 
 - **形态**：对象
-- **出处**：[Tool 领域的结果卸载领域模型](../../../../docs/domains/tool-execution/architecture.md#领域模型) · [工具执行组的部署无关原则](../../../../packages/tool/SPEC.md#正文卸载与保管)；卸载正文与期限的产品规则见[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 10）
+- **出处**：[Tool 领域的结果卸载领域模型](../../../../docs/domains/tool-execution/architecture.md#领域模型) · [工具执行组的部署无关原则](../../../../packages/tool/SPEC.md#正文卸载与保管)；卸载正文与期限的产品规则见[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 11）
 - **别混 ①**：不是[被卸载的原始结果](#ul-offloaded-result--被卸载的原始结果--offloaded-result)。被卸载的原始结果是已关联到结果、可以读回的完整正文；正文条目在关联之前已经存在，从未关联的正文条目成为孤儿后被回收，不成为被卸载的原始结果。
 - **别混 ②**：不是[记录条目](record-and-context.md#ul-record-entry--记录条目--record-entry)。记录条目在会话日志中，正文条目在 Tool 的账本中。
 - **注意**：账本只在确认调用的执行仍活跃、执行代次匹配且调用未结算后，才提交开启并签发[写入许可](#ul-write-permit--写入许可--write-permit)。回收先删除[正文字节](#ul-body-bytes--正文字节--body-bytes)，再在账本中记录已回收；回收之后不留行。
@@ -614,7 +632,7 @@
 > enters the model context only when a consumer reads it explicitly.
 
 - **形态**：对象
-- **出处**：[工具执行「返回、过程与账目」](../../product/tool-execution/design.md#返回过程与账目)（rev 10）
+- **出处**：[工具执行「返回、过程与账目」](../../product/tool-execution/design.md#返回过程与账目)（rev 11）
 - **别混 ①**：不是过程帧。过程帧只给人观察，不进入模型上下文；输出正文可以由 agent 显式读取
 - **别混 ②**：不是[正文条目](#ul-body-entry--正文条目--body-entry)。正文条目是账本对一份卸载正文的记录；输出正文是那份正文本身，而且是执行结束前就可读的那一份
 
@@ -663,7 +681,7 @@
 > **EN**: **The release of a producer's duty to deliver a settled result, where the producer is one model call or one tool execution. It takes effect once the current legitimate consumer has finished processing the result, or has durably saved the content, original identity and processing position that later work needs.** There are two paths: finish processing and save the completion fact, or save the content first and process it later. Reading, displaying, receiving a reference and starting to process are not enough. On the model side the release is the ACK. It also requires the whole call to have truly settled, and it cannot happen while a retry or a retry decision is pending. On the tool side it releases the matching hand-over obligation. Material release follows each component's custody duties and retention period. After the release, continuation proceeds from the data the consumer saved.
 
 - **形态**：过程
-- **出处**：[产品页 模型调用 J-MD06](../../product/model-invocation/design.md#j-md06)（rev 6）；[产品页 工具执行 结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 10）；[产品页 Agent J-AG06](../../product/agent-progression/design.md#j-ag06)（rev 6）
+- **出处**：[产品页 模型调用 J-MD06](../../product/model-invocation/design.md#j-md06)（rev 6）；[产品页 工具执行 结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 11）；[产品页 Agent J-AG06](../../product/agent-progression/design.md#j-ag06)（rev 6）
 - **别混 ①**：**不是[执行收场](#ul-execution-outcome--执行收场--execution-outcome)**——收场是一次执行的终局，解除发生在收场之后，由消费侧的保管或处理触发
 - **别混 ②**：**不是读取方对事件流的确认**——Agent 契约的 `acknowledge` 只清理满足保留政策且责任已交清的事件，不证明任何结果已处理，也不证明业务终态，见 [Agent 契约的确认](../../../../packages/agent/SPEC.md#事件与读取)
 - **注意**：产品正文与 Model 契约用 ACK 指模型一侧的解除；本词表的正式名是「交付责任解除」，英文 Delivery Release，ACK 是它在模型一侧的通称。工具一侧的两条路径归 [Tool 契约](../../../../packages/tool/SPEC.md#交付与调用状态的寿命)
@@ -683,7 +701,7 @@
 > attempt, a rebuilt instance or a recovery does not change it.
 
 - **形态**：属性
-- **出处**：[会话与工作：会话治理工作，三个 runtime 分别承担实际运行](../../product/sessions-and-work/design.md#会话治理工作三个-runtime-分别承担实际运行) · [一次工作可以等待、恢复和并行调用](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 12）；[工具执行：定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 10）；[模型调用：每次真实发出和失败](../../product/model-invocation/design.md#每次真实发出和失败)（rev 6）
+- **出处**：[会话与工作：会话治理工作，三个 runtime 分别承担实际运行](../../product/sessions-and-work/design.md#会话治理工作三个-runtime-分别承担实际运行) · [一次工作可以等待、恢复和并行调用](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 12）；[工具执行：定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 11）；[模型调用：每次真实发出和失败](../../product/model-invocation/design.md#每次真实发出和失败)（rev 6）
 - **别混**：不是 [Loop 拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)。拓展点是设计时穷举的固定位点；消费位置随每次调用产生，指那次调用的接收处
 - **注意**：[交付责任解除](#ul-delivery-release--交付责任解除--delivery-release)要求消费侧保存原身份与处理位置，那个处理位置就是消费位置
 
@@ -894,7 +912,7 @@
 > **EN**: An identifiable schedule containing its own routine description together with one-off or recurring timing rules, temporal bounds, and catch-up and overlap declarations. Actual work instances are represented by scheduled jobs.
 
 - **形态**：对象
-- **出处**：[日程与作业：安排与单次工作](../../product/schedules-and-jobs/design.md#schedule-job-model)（rev 6）
+- **出处**：[日程与作业：安排与单次工作](../../product/schedules-and-jobs/design.md#schedule-job-model)（rev 7）
 - **别混**：Routine 是它所包含的工作描述；Scheduled Job 是据它开展的某一次工作，不是日程自身。
 
 ### UL-system-schedule · 系统日程 · System Schedule
@@ -904,7 +922,7 @@
 > **EN**: A schedule owned by the system itself for its own predefined mechanical operations. It belongs to no account, organization, or tenant, retains schedule identity and lifecycle semantics, and does not start an agent session for execution.
 
 - **形态**：变体（父：[日程](#ul-schedule--日程--schedule)）
-- **出处**：[日程与作业 J-SJ07](../../product/schedules-and-jobs/design.md#j-sj07-系统按部署条件做机械工作)（rev 6）
+- **出处**：[日程与作业 J-SJ07](../../product/schedules-and-jobs/design.md#j-sj07-系统按部署条件做机械工作)（rev 7）
 - **别混**：系统出厂提供 Routine，不使采用它的租户日程归系统；系统负责调度一份日程也不决定其所有者。
 
 ### UL-job · 作业 · Job
@@ -914,7 +932,7 @@
 > **EN**: One admitted unit of work with its own identity, frozen requirements, creation provenance, and outcomes. A human or agent can request it directly. A scheduler can request it for a schedule occurrence. It performs execution, notification, or both. Execution uses a program or an agent in a new or existing session.
 
 - **形态**：对象
-- **出处**：[日程与作业：安排与单次工作](../../product/schedules-and-jobs/design.md#schedule-job-model)（rev 6）
+- **出处**：[日程与作业：安排与单次工作](../../product/schedules-and-jobs/design.md#schedule-job-model)（rev 7）
 - **别混**：来源会话、执行会话与结果回传目标分别表达。Job 不等于 Session 或 Run，也不要求必须有 Schedule。
 
 ### UL-scheduled-job · 定时作业 · Scheduled Job
@@ -924,7 +942,7 @@
 > **EN**: A job admitted for a valid schedule occurrence. It retains the schedule, occurrence, and schedule author, using the identity and lifecycle of a job.
 
 - **形态**：变体（父：[作业](#ul-job--作业--job)）
-- **出处**：[日程与作业：安排与单次工作](../../product/schedules-and-jobs/design.md#schedule-job-model)（rev 6）
+- **出处**：[日程与作业：安排与单次工作](../../product/schedules-and-jobs/design.md#schedule-job-model)（rev 7）
 - **别混**：调度器是这次 Job 的触发者，不替代安排作者，也不改变工作所有者。
 
 ### UL-scheduled-execution · 定时执行 · Scheduled Execution
@@ -934,7 +952,7 @@
 > **EN**: The process of executing an accepted scheduled job according to its frozen intent, by invoking a registered program or delivering instructions to a new or specified existing agent session.
 
 - **形态**：过程
-- **出处**：[日程与作业：执行意图](../../product/schedules-and-jobs/design.md#execution-modes)（rev 6）
+- **出处**：[日程与作业：执行意图](../../product/schedules-and-jobs/design.md#execution-modes)（rev 7）
 - **别混**：谁创建安排不决定执行路径。输入已受理或会话空闲都不等于本次目标已完成。
 
 ### UL-scheduled-notification · 定时通知 · Scheduled Notification
@@ -944,7 +962,7 @@
 > **EN**: The process of notifying a target tenant as part of scheduled work, either in a notification-only job or combined with execution in the same job. The notification action does not create an additional agent work session.
 
 - **形态**：过程
-- **出处**：[日程与作业：提醒与事件通知](../../product/schedules-and-jobs/design.md#reminder)（rev 6）
+- **出处**：[日程与作业：提醒与事件通知](../../product/schedules-and-jobs/design.md#reminder)（rev 7）
 - **别混**：执行并通知同时承担两部分工作，不等于纯通知，也不拆成两个到期 Job；通知时机与送达判据由产品规则定义。
 
 ### UL-schedule-date-policy · 日程日期处理策略 · Schedule Date Policy
@@ -954,7 +972,7 @@
 > **EN**: A property of a schedule specifying whether a base candidate on a non-working date is retained, skipped, or moved to the preceding or following working date. It is distinct from recurrence rules, explicit excluded dates, and catch-up policy.
 
 - **形态**：属性
-- **出处**：[日程与作业：时间与日期规则](../../product/schedules-and-jobs/design.md#time-rules)（rev 6）
+- **出处**：[日程与作业：时间与日期规则](../../product/schedules-and-jobs/design.md#time-rules)（rev 7）
 - **别混**：它改变未接受候选的日期，不移动已有 Job，也不把未来候选提前接受为工作。
 
 ### UL-schedule-catch-up-policy · 日程补跑策略 · Schedule Catch-up Policy
@@ -964,7 +982,7 @@
 > **EN**: A schedule property specifying whether missed occurrences that have not produced jobs may be caught up and, when enabled, the maximum number of most recent missed occurrences selected relative to the recovery processing time. It does not rerun existing jobs.
 
 - **形态**：属性
-- **出处**：[日程与作业：恢复与补跑](../../product/schedules-and-jobs/design.md#recovery)（rev 6）
+- **出处**：[日程与作业：恢复与补跑](../../product/schedules-and-jobs/design.md#recovery)（rev 7）
 - **别混**：补跑上限不是时间长度，也不是一次分页大小；已经创建但等待执行的 Job 不是漏过时刻。
 
 ### UL-schedule-overlap-policy · 日程重叠策略 · Schedule Overlap Policy
@@ -974,7 +992,7 @@
 > **EN**: A schedule property choosing how new due work interacts with earlier unfinished actions of the same schedule: skip the new occurrence, stop prior work before starting it, run independently in parallel, or wait and execute in order. Job identities and result ownership remain separate.
 
 - **形态**：属性
-- **出处**：[日程与作业 J-SJ05](../../product/schedules-and-jobs/design.md#j-sj05-遇到前序尚未结束的动作)（rev 6）
+- **出处**：[日程与作业 J-SJ05](../../product/schedules-and-jobs/design.md#j-sj05-遇到前序尚未结束的动作)（rev 7）
 - **别混**：并行不合并会话或结果；停止是新增控制事实，不回写先前 Job 的工作要求或撤销已发生外部效果。
 
 ### UL-job-notification-policy · 作业通知策略 · Job Notification Policy
@@ -984,7 +1002,7 @@
 > **EN**: A property of the work intent that declares which execution events trigger notifications to the target tenant and the content requirements for each event. Each job retains its creation-time declaration; notification delivery failure does not recursively trigger an execution-failure notification.
 
 - **形态**：属性
-- **出处**：[日程与作业：提醒与事件通知](../../product/schedules-and-jobs/design.md#reminder)（rev 6）
+- **出处**：[日程与作业：提醒与事件通知](../../product/schedules-and-jobs/design.md#reminder)（rev 7）
 - **别混**：纯通知在到期时发送已定义内容；通知事件、发送尝试、送达与已读是不同事实。此属性不另立可管理对象。
 
 
@@ -995,7 +1013,7 @@
 > **EN**: An identifiable adoption of a system schedule definition by one owner, retaining the selected version, parameters, management state, and acceptance history. Cancellation prevents new admissions while existing jobs retain their responsibilities.
 
 - **形态**：对象
-- **出处**：[日程与作业：系统功能订阅](../../product/schedules-and-jobs/design.md#subscriptions)（rev 6）
+- **出处**：[日程与作业：系统功能订阅](../../product/schedules-and-jobs/design.md#subscriptions)（rev 7）
 - **别混**：它不是连接件的事件订阅，也不复制或修改系统功能定义。不同订阅者的同刻工作分别去重。
 
 ## 工程遥测的输出怎么换

@@ -1,10 +1,8 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { Principal } from '@omne-harness/access-cordis-contract'
 import { accessRegistryKey } from '@omne-harness/access-cordis-contract/cordis'
-import { agentJournalKey } from '@omne-harness/agent-cordis-contract/cordis'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
 import { modelDiagnosticsKey, modelRuntimeKey } from '@omne-harness/model-cordis-contract/cordis'
-import { decodeFixedRequestRecord } from '@omne-harness/request-context-contract'
 import type { SessionId } from '@omne-harness/session-contract'
 import { sessionAdoptedRequestsKey, sessionKey } from '@omne-harness/session-cordis-contract/cordis'
 import type {
@@ -64,37 +62,23 @@ function modelRequests(ctx: Context): ModelRequestReader<Principal> {
   return {
     async readChoices({ principal, tenant, session, reference }) {
       const requests = present(ctx.get(sessionAdoptedRequestsKey), 'sessionAdoptedRequests')
-      const read = await requests.readAdoptedRequest({
+      const read = await requests.readRequestChoices({
         access: { principal, tenant },
         session: session as SessionId,
         reference,
       })
       if (read.kind !== 'value') return { failure: { reason: read.kind } }
       if (read.value === null) return { failure: { reason: 'not-recorded' } }
-      const record = decodeFixedRequestRecord(read.value.record)
-      if ('failure' in record) return { failure: { reason: 'unsupported' } }
-      return {
-        ok: record.ok.coverage.representations.map(({ message, block, choice, mediaType }) => ({
-          message,
-          block,
-          choice,
-          mediaType,
-        })),
-      }
+      return { ok: read.value }
     },
   }
 }
 
 function diagnosticPorts(ctx: Context): DiagnosticPorts<Principal> {
-  const journal = () => present(ctx.get(agentJournalKey), 'agentJournal')
   const calls = () => present(ctx.get(modelRuntimeKey), 'modelRuntime').calls
   const attempts = () => present(ctx.get(modelDiagnosticsKey), 'modelDiagnostics')
-  const tools = () =>
-    present(ctx.get(toolRuntimeKey) as ToolRuntime | undefined, 'toolRuntime').queries
+  const tools = () => present(ctx.get(toolRuntimeKey) as ToolRuntime | undefined, 'toolRuntime')
   return {
-    agentJournal: {
-      readFinish: input => present(journal().readFinish, 'agentJournal.readFinish')(input),
-    },
     modelCalls: {
       inspect: input => calls().inspect(input),
       dispatches: input => calls().dispatches(input),
@@ -102,9 +86,9 @@ function diagnosticPorts(ctx: Context): DiagnosticPorts<Principal> {
     modelDiagnostics: { list: input => attempts().list(input) },
     modelRequests: modelRequests(ctx),
     toolQueries: {
-      lookup: input => tools().lookup(input),
-      account: input => tools().account(input),
-      readDiagnostics: input => tools().readDiagnostics(input),
+      current: input => tools().instances.current(input),
+      account: input => tools().queries.account(input),
+      readDiagnostics: input => tools().queries.readDiagnostics(input),
     },
   }
 }

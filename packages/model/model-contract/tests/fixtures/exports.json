@@ -402,6 +402,11 @@
               "pending": false
             },
             {
+              "name": "dispatchSend",
+              "kind": "value",
+              "pending": false
+            },
+            {
               "name": "CostLookupState",
               "kind": "type",
               "pending": false

@@ -11,6 +11,7 @@ import {
   ScheduleOwnerSchema,
   ScheduleRefSchema,
   ScheduleViewSchema,
+  scheduleAuthorIdentity,
   type ScheduleCallContext,
   type ScheduleDomainError,
   type ScheduleView,
@@ -112,7 +113,10 @@ export function visible(context: ScheduleCallContext, access: ReadAccess, view: 
   const visibility = access.visibility
   if (visibility.kind !== 'ownerAll' && !visibility.scheduleIds.includes(view.scheduleId))
     fail(context, 'provider_failure', 'Store returned a schedule outside current visibility')
-  if (visibility.kind === 'authoredIds' && !equal(visibility.author, view.author))
+  if (
+    visibility.kind === 'authoredIds' &&
+    !equal(scheduleAuthorIdentity(visibility.author), scheduleAuthorIdentity(view.author))
+  )
     fail(context, 'provider_failure', 'Store returned a different author')
 }
 export function requireId(context: ScheduleCallContext, access: ReadAccess, scheduleId: string) {

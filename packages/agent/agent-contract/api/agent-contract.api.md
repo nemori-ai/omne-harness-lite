@@ -74,7 +74,6 @@
 - `AgentRuntime` · `execution.d.ts`
 - `AgentRuntimeControl` · `execution.d.ts`
 - `AgentState` · `execution.d.ts`
-- `AgentToolQualification` · `tool-qualification.d.ts`
 - `AgentType` · `definition.d.ts`
 - `AssetReference` · `definition.d.ts`
 - `AttributeDeclaration` · `definition.d.ts`
@@ -216,6 +215,7 @@
 - `LoopFacts` · `evaluation.d.ts`
 - `Material` · `passages.d.ts`
 - `MaterialDescription` · `passages.d.ts`
+- `MaterialReaders` · `passages.d.ts`
 - `MessageHandoff` · `passages.d.ts`
 - `MessageSource` · `passages.d.ts`
 - `MigrationRecord` · `finishing.d.ts`
@@ -261,6 +261,7 @@
 - `ReceivedCommitValue` · `receiving.d.ts`
 - `ReceivedDelivery` · `receiving.d.ts`
 - `ReceivedEntry` · `receiving.d.ts`
+- `ReceptionSettled` · `receiving.d.ts`
 - `RecoveryAction` · `finishing.d.ts`
 - `RecoveryContinuation` · `finishing.d.ts`
 - `RefusalReason` · `judgment.d.ts`
@@ -295,10 +296,9 @@
 - `TerminalObservation` · `execution.d.ts`
 - `TerminalParticipantFact` · `finishing.d.ts`
 - `TerminalParticipantFacts` · `finishing.d.ts`
+- `ToolAcceptance` · `evaluation.d.ts`
 - `ToolAssociationRecord` · `finishing.d.ts`
 - `ToolIntentKey` · `finishing.d.ts`
-- `ToolQualification` · `tool-qualification.d.ts`
-- `ToolQualificationRequest` · `tool-qualification.d.ts`
 - `ToolReceptionTarget` · `receiving.d.ts`
 - `ToolReceptionTargets` · `receiving.d.ts`
 - `UnavailabilityPolicy` · `extensions.d.ts`
@@ -888,7 +888,7 @@ export type Failure = Readonly<{
     owner: string;
     diagnostic: string;
 }> | Readonly<{
-    kind: 'stale-advance' | 'not-ready' | 'terminal' | 'busy' | 'changed' | 'unsupported';
+    kind: 'stale-advance' | 'not-ready' | 'terminal' | 'busy' | 'changed' | 'unsupported' | 'reclaimed';
 }> | Readonly<{
     kind: 'commit-unknown';
     operation: AgentOperationId;
@@ -898,6 +898,7 @@ export type Failure = Readonly<{
 }>;
 export type Reply<A> = Promise<Outcome<A, Failure>>;
 export type ModelPurpose = 'main' | 'extension';
+export type ToolAcceptance = 'accepted' | 'unknown';
 type PendingCommon = Readonly<{
     action: ActionId;
     consumption: ConsumptionId;
@@ -916,9 +917,11 @@ export type PendingCall = PendingCommon & (Readonly<{
 }> & (Readonly<{
     association: 'intent';
     reference?: never;
+    acceptance?: never;
 }> | Readonly<{
     association: 'associated';
     reference: T.ToolInvocationRef;
+    acceptance: ToolAcceptance;
 }>)));
 export type ActionJudgment = Readonly<{
     kind: 'pending';
@@ -2604,7 +2607,6 @@ export type * from './receiving.ts';
 export type * from './request.ts';
 export type { BatchJudgment, Judgment, OutputRefusalReason, RefusalReason } from './judgment.ts';
 export type * from './action-qualification.ts';
-export type * from './tool-qualification.ts';
 ```
 
 ## 声明文件 `journal.d.ts`
@@ -3219,6 +3221,9 @@ export interface DecisionCards<P> {
             kind: 'pending';
         }>;
     }>[]>;
+    changes(input: Access<P> & Readonly<{
+        signal: AbortSignal;
+    }>): AsyncIterable<void>;
 }
 export type DenialCategory = 'rule' | 'not-released' | 'prohibited' | 'card-closed' | 'guidance';
 export type AdmissionDecision = Readonly<{
@@ -3449,12 +3454,14 @@ export type MaterialDescription = Readonly<{
     size: number;
     kind: Material<ContentBlock>['kind'];
 }>;
+export type MaterialReaders = 'after-release' | 'until-release';
 export interface AgentMaterials<P, B extends ContentBlock> {
     preserve(input: Access<P> & Readonly<{
         execution: AgentExecutionId;
         identity: string;
         consumer: ConsumerRef;
         value: Material<B>;
+        readers?: MaterialReaders;
     }>): Reply<DurableEvidence>;
     read(input: Access<P> & Readonly<{
         source: DurableEvidence;
@@ -3623,6 +3630,10 @@ export type ModelReceptionTarget = Readonly<{
         kind: 'model';
     }>;
 }>;
+export type ReceptionSettled = Readonly<{
+    kind: 'settled';
+    evidence: DurableEvidence;
+}>;
 export interface ModelReceptionTargets<P> {
     forExecution(input: Readonly<{
         access: Access<P>;
@@ -3633,7 +3644,7 @@ export interface ModelReceptionTargets<P> {
         consumer: ConsumerRef;
         reference: M.ModelInvocationRef;
         execution?: AgentExecutionId;
-    }>): Reply<ModelReceptionTarget>;
+    }>): Reply<ModelReceptionTarget | ReceptionSettled>;
 }
 export type ToolReceptionTarget = Readonly<{
     execution: AgentExecutionId;
@@ -3650,7 +3661,7 @@ export interface ToolReceptionTargets<P> {
         consumer: ConsumerRef;
         reference: T.ToolInvocationRef;
         execution?: AgentExecutionId;
-    }>): Reply<ToolReceptionTarget | null>;
+    }>): Reply<ToolReceptionTarget | ReceptionSettled | null>;
     forExecution(input: Readonly<{
         access: Access<P>;
         execution: AgentExecutionId;
@@ -4530,29 +4541,4 @@ export type { ReceivedCommitFixture, RequiredReceivedCommits } from './testing-r
 export { agentJournalReplayConformance, agentJournalReplayTraces, agentJournalViolatingTraces, replayJournalTrace, type JournalReplayState, type JournalReplayStep, type JournalReplayTrace, } from './testing-journal-replay.ts';
 export { describeMaterial, entryPage, materialDigest, receivedEntriesOf, } from './testing-journal-reads.ts';
 export { sampleCompactionInput, sampleCompactionAdoption } from './testing-compaction.ts';
-```
-
-## 声明文件 `tool-qualification.d.ts`
-
-```ts
-import type { ToolCallId, ToolInvokeRequest, ToolOperationId } from '@omne-harness/tool-contract';
-import type { Access, Adoption, AgentExecutionId, DurableEvidence, ExecutionRevision } from './identity.ts';
-import type { Reply } from './evaluation.ts';
-export type ToolQualificationRequest<P> = Access<P> & Readonly<{
-    call: ToolCallId;
-    admission: ToolOperationId;
-    request: ToolInvokeRequest;
-}>;
-export type ToolQualification = Readonly<{
-    version: 1;
-    request: Omit<ToolQualificationRequest<unknown>, 'principal'>;
-    execution: AgentExecutionId;
-    association: 'intent' | 'associated';
-    agentDefinition: Adoption;
-    revision: ExecutionRevision;
-    history: DurableEvidence;
-}>;
-export interface AgentToolQualification<P> {
-    qualify(input: ToolQualificationRequest<P>): Reply<ToolQualification>;
-}
 ```

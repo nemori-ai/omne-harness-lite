@@ -9,6 +9,7 @@ import type {
   Adoption,
   DurableEvidence,
   Modes,
+  RunId,
   SavedModelSelection,
   SessionAccess,
   SessionFailure,
@@ -147,7 +148,7 @@ export type RunFailureReading =
 
 export interface RunFailureCauses {
   read(
-    input: Readonly<{ principal: Principal; tenant: TenantId; execution: string }>,
+    input: Readonly<{ principal: Principal; tenant: TenantId; session: SessionId; run: RunId }>,
   ): Promise<RunFailureReading>
 }
 

@@ -9,7 +9,6 @@ import { decodeToolInstanceId, type ToolStartAuthority } from '@omne-harness/too
 import {
   runConformanceCase,
   toolStartAuthorityConformance,
-  toolStartAuthorizationConformance,
   toolStartFenceConformance,
 } from '@omne-harness/tool-contract/testing'
 import {
@@ -81,25 +80,18 @@ async function fixture() {
 }
 
 const suites = [
-  { name: 'P04 start authority', cases: toolStartAuthorityConformance<Principal>(), missing: null },
-  { name: 'P04 start fence', cases: toolStartFenceConformance<Principal>(), missing: null },
-  {
-    name: 'P04 start authorization',
-    cases: toolStartAuthorizationConformance<Principal>(),
-    missing: 'authorization',
-  },
+  { name: 'P04 start authority', cases: toolStartAuthorityConformance<Principal>() },
+  { name: 'P04 start fence', cases: toolStartFenceConformance<Principal>() },
 ] as const
 
-describe.each(suites)('$name suite on the coordinator over the SQL store', ({ cases, missing }) => {
+describe.each(suites)('$name suite on the coordinator over the SQL store', ({ cases }) => {
   it('has cases', () => {
     expect(cases.length).toBeGreaterThan(0)
   })
 
   it.each(cases)('$clause $name', async conformance => {
     const verdict = await runConformanceCase(conformance, await fixture())
-    expect(verdict).toEqual(
-      missing === null ? { kind: 'passed' } : { kind: 'not-applicable', handle: missing },
-    )
+    expect(verdict).toEqual({ kind: 'passed' })
   })
 })
 

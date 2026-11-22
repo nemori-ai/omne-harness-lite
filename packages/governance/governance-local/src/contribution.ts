@@ -2,11 +2,12 @@ import type {
   GovernanceContributionCommand,
   GovernanceWithdrawalCommand,
   GovernanceContributionRef,
+  GovernanceScope,
 } from '@omne-harness/governance-contract'
 import type { ParticipantPort } from '@omne-harness/sql-contract/worker'
 import { definitionKey, digest, scopeKey } from './encoding.ts'
 import { saveDefinition, validateBundle } from './definition.ts'
-import type { OperationBinding } from './operation-schema.ts'
+import { requestSchema, type OperationBinding } from './operation-schema.ts'
 import { readScope } from './scope.ts'
 import { CONTRIBUTION_LIMIT, REVISION_LIMIT } from './revision-budget.ts'
 export function collectionDigest(port: ParticipantPort, scope: string, epoch: string) {
@@ -96,6 +97,34 @@ function removeSupport(
     SELECT 1 FROM gc_member m WHERE m.scope_key=gc_selected_definition.scope_key AND m.epoch=gc_selected_definition.epoch AND m.definition_key=gc_selected_definition.definition_key LIMIT 1)`,
     [key, definition, epoch],
   )
+}
+export function reclaimContributions(port: ParticipantPort, scope: GovernanceScope) {
+  const current = readScope(port, scope)
+  if (!current) return
+  const key = scopeKey(scope)
+  const withdrawn = new Set(
+    port
+      .execute(
+        "SELECT request_json FROM gc_operation WHERE scope_key=? AND command_owner='withdraw'",
+        [key],
+      )
+      .rows.map(row => requestSchema.parse(JSON.parse(String(row[0]))))
+      .map(request =>
+        request.owner === 'withdraw' ? request.command.contribution.registrationId : '',
+      ),
+  )
+  const exited = port.execute(
+    `SELECT c.registration_id FROM gc_contribution c WHERE c.scope_key=? AND c.epoch IS NOT ?
+    AND NOT EXISTS (SELECT 1 FROM gc_operation o WHERE o.scope_key=c.scope_key AND o.command_owner='contribute' AND o.principal_ref=c.registrar_ref AND o.operation_id=c.registration_operation_id)`,
+    [key, current.state === 'open' ? current.epoch : null],
+  ).rows
+  for (const registrationId of exited.map(row => String(row[0])))
+    if (!withdrawn.has(registrationId))
+      for (const table of ['gc_member_target', 'gc_member', 'gc_contribution'])
+        port.execute(`DELETE FROM ${table} WHERE scope_key=? AND registration_id=?`, [
+          key,
+          registrationId,
+        ])
 }
 export function adoptionDigest(port: ParticipantPort, key: string, epoch: string) {
   const members = port.execute(

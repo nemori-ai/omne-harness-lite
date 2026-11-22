@@ -10,7 +10,11 @@ import {
 } from '@omne-harness/tool-cordis-contract/cordis'
 import { inProcessPrincipalAuthority } from '@omne-harness/identity'
 import { fail, succeed } from '@omne-harness/operation-result'
-import type { ToolAuthority } from '@omne-harness/tool-contract/provider'
+import {
+  deriveDefinition,
+  judgeToolDefinition,
+  type ToolAuthority,
+} from '@omne-harness/tool-contract/provider'
 import {
   ReleaseToolContributionAuthority,
   createToolReleaseEntries,
@@ -18,16 +22,27 @@ import {
   TOOL_RELEASE_TENANT,
   loadProductionRelease,
   productionReleaseInput,
+  releaseCurrentDefinitions,
+  releaseDefinitionOf,
+  releaseOf,
+  rememberReleaseDefinition,
 } from '../../src/entry/tool-release.ts'
-import { RELEASE_ENTRY_FILE, loadToolRelease } from '../../src/entry/tool-release-manifest.ts'
+import {
+  RELEASE_ENTRY_FILE,
+  governanceOf,
+  loadToolRelease,
+} from '../../src/entry/tool-release-manifest.ts'
 import { shellToolModule } from '@omne-harness/tool-definitions'
 import { TOOL_RESIDENCY_PRINCIPAL_KEY } from '../../src/entry/tool-residency-principal.ts'
 import {
+  TEST_CONSTRUCTION,
   authorityOf,
+  entryOf,
   formalManifest,
   packageCopy,
   releaseFixture,
   releaseFrom,
+  tree,
 } from '../rows/tool-host/support.ts'
 import { fixtureEnv, fixtureTenant, got, okOf } from './support.ts'
 
@@ -108,6 +123,44 @@ describe('toolContributionAuthority.verify', () => {
     expect(authority.admits(registrant, { kind: 'official' })).toMatchObject({
       failure: { kind: 'unavailable' },
     })
+  })
+})
+
+describe('the current definitions Tool reads by name', () => {
+  it('answers unavailable without a trusted release, not that the tool is unknown', async () => {
+    const definitions = releaseCurrentDefinitions<'agent'>(new Context())
+    expect(
+      await definitions.current({ principal: 'agent', tenant: fixtureTenant('a'), name: 'Shell' }),
+    ).toMatchObject({ failure: { kind: 'unavailable' } })
+  })
+})
+
+describe('the release definitions one generation remembers', () => {
+  const deeplyFrozen = (value: unknown): boolean =>
+    value === null ||
+    typeof value !== 'object' ||
+    (Object.isFrozen(value) && Object.values(value).every(deeplyFrozen))
+
+  it('hands out one deeply frozen copy per name for the whole generation', async () => {
+    const fixture = await releaseFixture()
+    const release = releaseOf(fixture.root)
+    if (release.kind !== 'trusted') throw new Error('fixture release')
+    const author = okOf(shellToolModule.createAuthor(tree(TEST_CONSTRUCTION.Shell)), 'author')
+    const given = structuredClone(
+      okOf(
+        judgeToolDefinition(
+          deriveDefinition(governanceOf(entryOf(fixture.manifest, 'Shell')), author.facts),
+        ),
+        'definition',
+      ),
+    )
+    expect(rememberReleaseDefinition(fixture.root, release.generation, given)).toBe(true)
+    const first = releaseDefinitionOf(fixture.root, 'Shell')
+    expect(first).toEqual(given)
+    expect(first).not.toBe(given)
+    expect(releaseDefinitionOf(fixture.root, 'Shell')).toBe(first)
+    expect(deeplyFrozen(first)).toBe(true)
+    expect(Object.isFrozen(given)).toBe(false)
   })
 })
 

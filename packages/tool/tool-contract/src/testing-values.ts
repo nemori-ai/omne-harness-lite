@@ -161,7 +161,6 @@ export function fixedRequest(): FixedToolRequest {
     settings: adoption('settings'),
     context: adoption('context'),
     workspace: null,
-    environment: null,
     requesterScope: fixtureScope(),
     resources: [],
     scope: { owner: 'scope-owner', key: 'scope-1', grant: evidence('grant') },

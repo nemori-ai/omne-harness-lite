@@ -348,6 +348,24 @@
       "model": "models/StandingRequestSettlement.tla",
       "config": "models/standing-request-no-close.cfg",
       "expected": "temporal:Completion"
+    },
+    {
+      "name": "standing-request-early-release",
+      "model": "models/StandingRequestSettlement.tla",
+      "config": "models/standing-request-early-release.cfg",
+      "expected": "NoLateHold"
+    },
+    {
+      "name": "standing-request-release-held",
+      "model": "models/StandingRequestSettlement.tla",
+      "config": "models/standing-request-release-held.cfg",
+      "expected": "ReleaseOnlySettled"
+    },
+    {
+      "name": "standing-request-no-release",
+      "model": "models/StandingRequestSettlement.tla",
+      "config": "models/standing-request-no-release.cfg",
+      "expected": "temporal:Released"
     }
   ]
 }

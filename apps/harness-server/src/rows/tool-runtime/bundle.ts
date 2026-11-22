@@ -9,31 +9,25 @@ import {
   toolCatalogKey,
   toolStartAuthorityKey,
 } from '@omne-harness/tool-cordis-contract/cordis'
-import {
-  createLocalInvocationSource,
-  createLocalInvocationQualifier,
-  type LocalInvocationSourceInput,
-} from '@omne-harness/tool-host-local'
+import { createLocalInvocationSource } from '@omne-harness/tool-host-local'
 import {
   createLocalToolRuntimePlugins,
   type LocalToolRuntimeInput,
 } from '@omne-harness/tool-host-local/cordis'
 import { admitMaintainer } from '../../entry/execution-authorities.ts'
 import { workspaceInstancesKey } from '@omne-harness/workspace-cordis-contract/cordis'
-import { releaseOf } from '../../entry/tool-release.ts'
+import { releaseCurrentDefinitions, releaseOf } from '../../entry/tool-release.ts'
 import { isReleaseToolsRequest } from '../../entry/tool-forward-requests.ts'
-import { toolTargetPolicyOf } from '../authorization/tool-target-policy.ts'
 import {
-  admittedTargetAccess,
-  currentTargetPolicy,
-  withTargetAdmissionPolicy,
+  admittedTargetResidency,
+  currentTargetResidency,
+  withTargetResidency,
 } from './target-policy.ts'
 import { createReleaseToolIdentity, releasePrincipalCodec } from './access.ts'
 import type { ToolRuntimeConfig } from './config.ts'
 import { createReleaseEnvironment } from './environment.ts'
 import {
   lateBodyStore,
-  lateConditional,
   lateStore,
   toolRuntimeHolder,
   type ToolRuntimeBundle,
@@ -91,14 +85,12 @@ function inputFor(
 ) {
   const identity = createReleaseToolIdentity(holder)
   const store = lateStore(holder)
-  const requestAccess = currentTargetPolicy({
-    authorization: () => toolTargetPolicyOf(root),
-    view: () => releaseCatalogViewOf(root),
-  })
-  const sourceInput: LocalInvocationSourceInput<unknown> = {
+  const residency = currentTargetResidency(() => releaseCatalogViewOf(root))
+  const sources = createLocalInvocationSource({
     store,
     authority: identity.sourceAuthority,
     principalCodec: releasePrincipalCodec,
+    definitions: releaseCurrentDefinitions(root),
     commitAttempts: config.configuration.ledgerCommitAttempts,
     forwarding: {
       authority: () => root.get(toolStartAuthorityKey, false),
@@ -109,8 +101,7 @@ function inputFor(
         pageBytes: config.configuration.resultPageBytes,
       },
     },
-  }
-  const sources = createLocalInvocationSource(sourceInput)
+  })
   const recoveryAccess = createRecoveryAccess()
   admitMaintainer(root, recoveryAccess)
   const environment = createReleaseEnvironment(holder, identity, {
@@ -138,10 +129,9 @@ function inputFor(
       permitKey: holder.bodyPermitKey,
       clock: holder.bodyClock,
     },
-    conditionalCommit: lateConditional(holder),
     content: null,
-    sources: { ...sources, guard: withTargetAdmissionPolicy(sources.guard, store, requestAccess) },
-    access: { ...identity.access, request: admittedTargetAccess(store, requestAccess) },
+    sources: { ...sources, guard: withTargetResidency(sources.guard, store, residency) },
+    access: { ...identity.access, target: admittedTargetResidency(store, residency) },
     subjects: identity.subjects,
     grants: runScopeGrants(),
     guardsOf: () => [],
@@ -159,7 +149,7 @@ function inputFor(
     recoveryAccess,
     ...(lostContact === undefined ? {} : { lostContact }),
   }
-  return { input, qualification: createLocalInvocationQualifier(sourceInput) }
+  return input
 }
 
 export function ensureToolRuntimeBundle(
@@ -174,8 +164,8 @@ export function ensureToolRuntimeBundle(
       throw new Error('tool runtime: this run already built its bundle with another configuration')
     return holder.bundle.value
   }
-  const { input, qualification } = inputFor(ctx.root, holder, config, lostContact)
-  const value = Object.freeze({ ...createLocalToolRuntimePlugins(input), qualification })
+  const input = inputFor(ctx.root, holder, config, lostContact)
+  const value = Object.freeze({ ...createLocalToolRuntimePlugins(input) })
   holder.bundle = Object.freeze({ value, configDigest: digest })
   holder.resolve(value)
   return value

@@ -13,6 +13,8 @@ import {
   type OperationRecord,
 } from './operation-schema.ts'
 import { readScope } from './scope.ts'
+import { standingCustodySchema } from './standing-schema.ts'
+import { ENDED_STAGES, sqlStageSchema, type SqlStage } from './sql-stage-schema.ts'
 export const conflict = () => ({ kind: 'conflict' as const, reason: 'operation' as const })
 export const operationParams = (ref: GovernanceOperationRef) => [
   scopeKey(ref.scope),
@@ -116,7 +118,34 @@ export function finishOperation(
     "UPDATE gc_operation SET state=?,result_json=? WHERE scope_key=? AND command_owner=? AND principal_ref=? AND operation_id=? AND state IN ('accepted','submitted')",
     [state, canonical(result), ...operationParams(binding.ref)],
   )
+  dropStages(port, binding.ref, ENDED_STAGES)
   return readOperation(port, binding.ref)
+}
+function dropStages(
+  port: ParticipantPort,
+  ref: GovernanceOperationRef,
+  stages: readonly SqlStage[],
+) {
+  port.execute(
+    `DELETE FROM gc_sql_stage WHERE scope_key=? AND command_owner=? AND principal_ref=? AND operation_id=? AND stage IN (${stages.map(() => '?').join(',')})`,
+    [...operationParams(ref), ...stages],
+  )
+}
+export function releaseOperation(port: ParticipantPort, ref: GovernanceOperationRef) {
+  const row = port.execute(
+    'SELECT state,held_json FROM gc_operation WHERE scope_key=? AND command_owner=? AND principal_ref=? AND operation_id=? LIMIT 1',
+    operationParams(ref),
+  ).rows[0]
+  if (!row) return
+  const settled =
+    row[1] === null || standingCustodySchema.parse(JSON.parse(String(row[1]))).kind === 'settled'
+  if ((row[0] !== 'committed' && row[0] !== 'aborted') || !settled)
+    throw new Error('Governance operation is not released before it ends')
+  dropStages(port, ref, sqlStageSchema.options)
+  port.execute(
+    'DELETE FROM gc_operation WHERE scope_key=? AND command_owner=? AND principal_ref=? AND operation_id=?',
+    operationParams(ref),
+  )
 }
 export function sealOperation(port: ParticipantPort, binding: OperationBinding) {
   const found = boundOperation(port, binding)

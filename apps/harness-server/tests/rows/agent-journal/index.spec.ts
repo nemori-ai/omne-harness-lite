@@ -50,7 +50,7 @@ async function start(): Promise<LoadedTree> {
 }
 
 describe('the agent-journal row: declaration', () => {
-  it('is the real row: provides the Journal, compaction input, receiving and adopted-request keys, injects the storage, access and Runtime Context keys, no shutdown phase, group `agent-journal`', () => {
+  it('is the real row: provides the Journal, compaction input, receiving, adopted-request and execution-log keys, injects the storage, access, tenant listing and Runtime Context keys, no shutdown phase, group `agent-journal`', () => {
     expect(rowDeclarationOf(agentJournalRow)).toEqual({
       row: 'agent-journal',
       implementation: 'real',
@@ -65,11 +65,14 @@ describe('the agent-journal row: declaration', () => {
           'agentModelReceptionTargets',
           'agentToolReceptionTargets',
           'sessionAdoptedRequests',
+          'sessionExecutionLog',
         ],
         injects: [
           'sessionAccessCheck',
           'storage',
           'tenantDomainLookup',
+          'tenantDomains',
+          'tenantDomainScannerPrincipal',
           'runtimeContext',
           'runtimeContextReaderEligibility',
         ],
@@ -84,7 +87,7 @@ describe('the agent-journal row: declaration', () => {
     const manifest = compositeManifestDigest(storageCatalog())
     if (manifest.kind !== 'manifest') throw new Error(manifest.diagnostic)
     expect(agentJournalCombination()).toEqual({
-      combinationVersion: 'session-composite/20',
+      combinationVersion: 'session-composite/22',
       manifestDigest: manifest.digest,
     })
   })

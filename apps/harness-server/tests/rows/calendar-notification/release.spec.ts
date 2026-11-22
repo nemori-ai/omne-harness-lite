@@ -81,7 +81,7 @@ describe('the calendar-notification row', () => {
       const exitCode = await onReleaseTree({ script: toolCallsThenText(() => []) }, async tree => {
         await tree.startSession('hello')
         const tenant = savedTenant(tree.home)
-        const sources = await call(tree, '/api/notification/v1/list-sources', { tenant })
+        const sources = await call(tree, '/api/notification/v2/list-sources', { tenant })
         const calendar = sources.json.body.sources.find(
           (source: any) => source.name === 'calendar.supply',
         )
@@ -121,7 +121,7 @@ describe('the calendar-notification row', () => {
           () => calendarItems(tree),
           found => found.length === 3,
         )
-        const set = await call(tree, '/api/notification/v1/set-subscription', {
+        const set = await call(tree, '/api/notification/v2/set-subscription', {
           tenant,
           recipient: person,
           source: 'calendar.supply',
@@ -162,7 +162,7 @@ describe('the calendar-notification row', () => {
           { item: 'calendar.supply/jp-legal-holidays/supply-failing', pending: 0 },
           { item: 'calendar.supply/us-federal-holidays/supply-failing', pending: 0 },
         ])
-        const inbox = await call(tree, '/api/notification/v1/list-inbox', {
+        const inbox = await call(tree, '/api/notification/v2/list-inbox', {
           tenant,
           recipient: person,
           filter: 'all',
@@ -186,7 +186,7 @@ describe('the calendar-notification row', () => {
         async tree => {
           await tree.startSession('hello')
           const tenant = savedTenant(tree.home)
-          const sources = await call(tree, '/api/notification/v1/list-sources', { tenant })
+          const sources = await call(tree, '/api/notification/v2/list-sources', { tenant })
           expect(sources.json.body.sources.map((source: any) => source.name)).not.toContain(
             'calendar.supply',
           )

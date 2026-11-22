@@ -33,7 +33,7 @@ import {
   fakeAuthority,
   fakeChannel,
   fakeClock,
-  fakeConsent,
+  fakeCreators,
 } from '@omne-harness/notification/testing'
 import { createIndependentToolScope } from '@omne-harness/tool'
 import { readToolRegistration } from '@omne-harness/tool-contract/binding'
@@ -44,10 +44,6 @@ export const person: RecipientRef = { kind: 'person' }
 export const agent = (ref: string) => ({ kind: 'agent', ref }) as const
 export const POSTS = { source: 'agent.posts', type: 'post' } as const
 export const NOW = '2026-11-18T06:00:00.000Z'
-
-/** A call released on a standing blanket consent, as the port of the application answers it. */
-export const consented = (grant = 'grant-1') =>
-  ({ kind: 'consented', basis: { kind: 'blanket', scope: 'standing', grant } }) as const
 
 export const json = (value: unknown) => {
   const read = readJsonText(JSON.stringify(value), {
@@ -85,7 +81,7 @@ export function domain() {
   const store = createMemoryStore()
   const authority = fakeAuthority()
   const clock = fakeClock(NOW)
-  const consent = fakeConsent()
+  const creators = fakeCreators()
   const sources = createSourceRegistry()
   sources.register({
     name: sourceNameSchema.parse(POSTS.source),
@@ -119,7 +115,7 @@ export function domain() {
       authority,
       store,
       sources,
-      consent,
+      creators,
       clock,
       defaults,
       beatRange: { min: 5, max: 1440 },
@@ -155,7 +151,7 @@ export function domain() {
     if (page.kind !== 'done') throw new Error(`list answered ${page.kind}`)
     return page.value.entries
   }
-  return { store, authority, clock, consent, sources, faces, contextOf, owner, emit, boxOf }
+  return { store, authority, clock, creators, sources, faces, contextOf, owner, emit, boxOf }
 }
 
 function scope() {

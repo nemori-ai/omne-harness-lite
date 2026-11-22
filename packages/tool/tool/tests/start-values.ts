@@ -44,6 +44,7 @@ import {
 import {
   callId,
   invokeAuthority,
+  knownDefinition,
   snapshotTestPrincipal,
   fixedRequestForNamedSourceGuard,
   configurationOf,
@@ -396,6 +397,7 @@ export function startHarness(options: StartOptions = {}): StartHarness {
   const source = createTestInvocationSource<Principal>({
     authority: invokeAuthority(options),
     snapshotPrincipal: snapshotTestPrincipal,
+    definition: knownDefinition,
   })
   const identities = createTestToolIdentities()
   const host = testHost(spies, identities.instanceIdentities)
@@ -695,6 +697,7 @@ export function losingCommits(
     usage: query => memory.usage(query),
     readRecord: memory.readRecord,
     due: memory.due,
+    definition: memory.definition,
     read: domain => memory.read(domain),
     commit: async input => {
       if (left === 0 || !matches(input)) return memory.commit(input)
@@ -722,6 +725,7 @@ export function landingAfterRead(
       usage: query => memory.usage(query),
       readRecord: memory.readRecord,
       due: memory.due,
+      definition: memory.definition,
       read: async domain => {
         const result = await memory.read(domain)
         if (left > 0 && domain.kind === 'call') {

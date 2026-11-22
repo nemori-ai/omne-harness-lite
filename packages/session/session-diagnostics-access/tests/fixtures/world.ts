@@ -84,6 +84,7 @@ export const runEntries = (run: string, at: number): HistoryEntry[] => [
     cause: evidence('model-refused'),
     disposition: null,
     bounded: null,
+    end: { conclusion: 'fail', failure: { kind: 'model-refused', failure: 'denied' } },
   }),
 ]
 
@@ -211,27 +212,9 @@ export function createWorld(options: WorldOptions = {}) {
           } as never,
           modelDiagnostics: { list: async () => fail({ kind: 'denied', action: 'list' }) } as never,
           toolQueries: {
-            lookup: async () => fail({ kind: 'denied', action: 'lookup' }),
+            current: async () => fail({ kind: 'denied', action: 'lookup' }),
             account: async () => fail({ kind: 'denied', action: 'account' }),
             readDiagnostics: async () => fail({ kind: 'denied', action: 'diagnostics' }),
-          } as never,
-          agentJournal: {
-            readFinish: async () =>
-              succeed({
-                candidate: 'f1',
-                conclusion: { kind: 'fail', cause: evidence('c') },
-                inputWatermark: evidence('w'),
-                obligations: null,
-                beforeTerminal: null,
-                failure: {
-                  kind: 'model-refused',
-                  call: 'mc',
-                  failure: { kind: 'denied', action: 'admit' },
-                  step: null,
-                  at: '0',
-                  source: evidence('f'),
-                },
-              }),
           } as never,
         }
 

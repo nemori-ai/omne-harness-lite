@@ -96,17 +96,24 @@ export function heldBy(checkpoint: AgentCheckpoint): HoldRef[] {
   ]
 }
 
+const accepted = (call: PendingCall): boolean =>
+  call.kind === 'tool' && call.association === 'associated' && call.acceptance === 'accepted'
+
 // The sources a checkpoint still reads: the request or answer each batch action was judged with,
-// and the request every call was fixed on.
+// and the request every call was fixed on, until the Tool has accepted that request.
 function heldMaterials(checkpoint: AgentCheckpoint): string[] {
-  const sources = (checkpoint.batch?.actions ?? []).flatMap(({ judgment }) =>
+  const calls = checkpointCalls(checkpoint)
+  const sent = new Set(calls.filter(accepted).map(call => call.action))
+  const sources = (checkpoint.batch?.actions ?? []).flatMap(({ id, judgment }) =>
     judgment.kind === 'allowed'
-      ? [judgment.request]
+      ? sent.has(id)
+        ? []
+        : [judgment.request]
       : judgment.kind === 'denied' && judgment.answer !== undefined
         ? [judgment.answer]
         : [],
   )
-  for (const call of checkpointCalls(checkpoint)) sources.push(call.fixed)
+  for (const call of calls) if (!accepted(call)) sources.push(call.fixed)
   return [...new Set(sources.map(source => materialHold(canonical(source))))]
 }
 

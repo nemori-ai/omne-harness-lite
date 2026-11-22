@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import type { AgentExecutionId } from '@omne-harness/agent-contract'
+import type { AgentExecutionId, MaterialReaders } from '@omne-harness/agent-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { Material } from '@omne-harness/agent-contract'
 import { SharedMap } from '../journal/shared-map.ts'
@@ -9,10 +9,16 @@ export type Stored = {
   tenant: string
   execution: AgentExecutionId
   value: Material<ContentBlock>
+  readers?: MaterialReaders
 }
 
-const contentKey = (tenant: string, execution: AgentExecutionId, content: string) =>
+const keyOf = (tenant: string, execution: AgentExecutionId, content: string) =>
   JSON.stringify([tenant, execution, createHash('sha256').update(content).digest('hex')])
+
+const contentKey = (stored: Stored): string | null =>
+  stored.readers === 'until-release'
+    ? null
+    : keyOf(stored.tenant, stored.execution, canonical(stored.value))
 
 // The materials kept in a session, by source. One with the same tenant, execution and content is found by its
 // content, without reading every material kept so far. Forks share everything, as SharedMap does.
@@ -33,13 +39,14 @@ export class MaterialTable implements Map<string, Stored> {
   }
 
   sameContent(tenant: string, execution: AgentExecutionId, content: string): string | undefined {
-    return this.#byContent.get(contentKey(tenant, execution, content))?.[0]
+    return this.#byContent.get(keyOf(tenant, execution, content))?.[0]
   }
 
   #unindex(key: string): void {
     const old = this.#stored.get(key)
     if (old === undefined) return
-    const at = contentKey(old.tenant, old.execution, canonical(old.value))
+    const at = contentKey(old)
+    if (at === null) return
     const rest = (this.#byContent.get(at) ?? []).filter(item => item !== key)
     if (rest.length === 0) this.#byContent.delete(at)
     else this.#byContent.set(at, rest)
@@ -58,13 +65,12 @@ export class MaterialTable implements Map<string, Stored> {
   }
 
   set(key: string, stored: Stored): this {
-    const at = contentKey(stored.tenant, stored.execution, canonical(stored.value))
+    const at = contentKey(stored)
     const old = this.#stored.get(key)
-    const same =
-      old !== undefined && contentKey(old.tenant, old.execution, canonical(old.value)) === at
+    const same = old !== undefined && contentKey(old) === at
     if (!same) {
       this.#unindex(key)
-      this.#byContent.set(at, [...(this.#byContent.get(at) ?? []), key])
+      if (at !== null) this.#byContent.set(at, [...(this.#byContent.get(at) ?? []), key])
     }
     this.#stored.set(key, stored)
     return this

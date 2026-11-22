@@ -16,7 +16,7 @@ export const ACTIVATION_DETAIL_ID = 'schedule-activation'
 /** Where a release card draws a typed detail: the assembly hands in the point, keyed by kind. */
 export type ScheduleUiOptions = Readonly<{ releaseDetail?: KeyedPointSink<string> }>
 
-/** The schedule page, there while the `schedule/v1` client is on the tree; and, when the assembly
+/** The schedule page, there while the `schedule/v2` client is on the tree; and, when the assembly
  * hands in the point, how a release card draws a call that would bring a schedule into effect. */
 export function createScheduleUiModule(options: ScheduleUiOptions = {}) {
   return defineUiModule<Record<string, ClientOf<ScheduleProtocol>>>({

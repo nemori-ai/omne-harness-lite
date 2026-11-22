@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "The public protocol notification/v1: inbox, subscriptions, destinations, catalogue and one observation. Pure data",
+  "description": "The public protocol notification/v2: inbox, subscriptions, destinations, catalogue and one observation. Pure data",
   "engines": {
     "node": ">=24"
   },

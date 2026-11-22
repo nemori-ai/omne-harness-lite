@@ -38,9 +38,9 @@ import {
   type TenantDomainRegistration,
 } from '../governance/tenant-domain-registration-service.ts'
 import { productionStorageCatalog } from '../storage/production-catalog.ts'
-import { callConsent } from '../tool-bindings/call-consent.ts'
+import { liveCallOrigin } from '../tool-bindings/live-calls.ts'
 import { createNotificationAuthority } from './authority.ts'
-import { subscriptionConsents } from './consent.ts'
+import { subscriptionCreators } from './creators.ts'
 import { createTenantBindings, NOTIFICATION_PARTICIPANTS, type Combination } from './binding.ts'
 import { OWNER_POSTS } from './owner-source.ts'
 import { createStandingItemsReader, standingContribution } from './standing.ts'
@@ -110,7 +110,7 @@ export const notificationRow = defineRow({
       sql: bindings,
       ports: {
         authority: createNotificationAuthority(),
-        consent: subscriptionConsents(callConsent(ctx)),
+        creators: subscriptionCreators(liveCallOrigin(ctx)),
         standing: createStandingItemsReader<unknown>({
           scope: () => ctx.get(runtimeContextTenantScopeKey),
           principal: async tenant => ctx.get(tenantScopePrincipalsKey)?.forTenant(tenant) ?? null,

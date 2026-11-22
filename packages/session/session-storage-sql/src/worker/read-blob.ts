@@ -1,13 +1,19 @@
 import { handler } from './support.ts'
-import { readSharedBlob } from './shared-blobs.ts'
+import { readBlock } from './execution-blocks.ts'
 
 export default handler('execution-record.blob', (input, port) => {
   const value =
     typeof input === 'object' && input !== null ? (input as Record<string, unknown>) : {}
-  const { tenant, digest } = value
-  if (typeof tenant !== 'string' || tenant === '' || typeof digest !== 'string' || digest === '')
+  const { tenant, execution, digest } = value
+  if (
+    typeof tenant !== 'string' ||
+    tenant === '' ||
+    typeof digest !== 'string' ||
+    digest === '' ||
+    (execution !== undefined && (typeof execution !== 'string' || execution === ''))
+  )
     throw new Error('invalid input')
-  const row = readSharedBlob(port, tenant, digest)
+  const row = readBlock(port, tenant, (execution as string | undefined) ?? null, digest)
   return row === null
     ? { kind: 'denied' }
     : {

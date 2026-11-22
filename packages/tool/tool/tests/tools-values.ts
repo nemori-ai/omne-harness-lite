@@ -36,6 +36,7 @@ import { testAssembly } from './testing-values.ts'
 import {
   testSettlementPorts,
   adoption,
+  available,
   configuration,
   evidence,
   guards,
@@ -253,12 +254,7 @@ export function registeredFixture(
     calls: () => count,
     async invoke(command: string, argumentsValue: unknown) {
       const payload = request({
-        availability: {
-          kind: 'available',
-          definition: tools.definition,
-          executor: adoption('Tools-executor'),
-          layer: { kind: 'official' },
-        },
+        availability: available(tools.definition, adoption('Tools-executor')),
         command,
         arguments: {
           original: JSON.stringify({ command, params: argumentsValue }),

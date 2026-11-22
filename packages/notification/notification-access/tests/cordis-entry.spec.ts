@@ -55,7 +55,7 @@ it('the root entry gives the contribution factory and nothing else at run time',
   expect(Object.keys(root)).toEqual(['createNotificationContribution'])
 })
 
-it('mounts notification/v1 with every operation and its observation', async () => {
+it('mounts notification/v2 with every operation and its observation', async () => {
   const { registry, seen } = await mount(true)
   expect(registry.mounted).toHaveLength(1)
   const contribution = registry.mounted[0]!

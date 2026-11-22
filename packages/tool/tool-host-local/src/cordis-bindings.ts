@@ -98,6 +98,11 @@ export function createLocalToolBindingsPlugin<P, E, B extends ContentBlock>(
           const answer = await catalog.inspect(request)
           return live() ? answer : unavailable()
         }
+        readonly inspectEach: ToolCatalogService<P>['inspectEach'] = async request => {
+          if (!live()) return unavailable()
+          const answer = await catalog.inspectEach(request)
+          return live() ? answer : unavailable()
+        }
         readonly usage: ToolCatalogService<P>['usage'] = async request => {
           if (!live()) return unavailable()
           const answer = await catalog.usage(request)

@@ -190,6 +190,8 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'sessionTransactions',
       'storage',
       'tenantDomainLookup',
+      'agentJournal',
+      'agentJournalEntries',
     ],
   },
   'session-ad03': {
@@ -284,11 +286,14 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'agentModelReceptionTargets',
       'agentToolReceptionTargets',
       'sessionAdoptedRequests',
+      'sessionExecutionLog',
     ],
     injects: [
       'sessionAccessCheck',
       'storage',
       'tenantDomainLookup',
+      'tenantDomains',
+      'tenantDomainScannerPrincipal',
       'runtimeContext',
       'runtimeContextReaderEligibility',
     ],
@@ -367,15 +372,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
     group: 'model-records',
   },
   'tool-records': {
-    provides: [
-      'toolAccounts',
-      'toolCommands',
-      'toolReads',
-      'toolStartAuthority',
-      'toolStartFence',
-      'toolStartReleases',
-      'toolInvocationQualification',
-    ],
+    provides: ['toolAccounts', 'toolCommands', 'toolReads', 'toolStartAuthority', 'toolStartFence'],
     injects: [
       'storage',
       'tenantDomainLookup',

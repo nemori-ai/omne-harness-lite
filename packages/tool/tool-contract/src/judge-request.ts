@@ -4,13 +4,12 @@ import type {
   FixedToolRequest,
   ResourceScope,
   ToolAvailability,
-  ToolDefinition,
+  ToolAvailabilityReference,
   ToolInvocation,
+  ToolInvokeRequest,
 } from './definitions.ts'
-import type { ToolInvokeRequest } from './operations.ts'
 import { toolCallLabel } from './call-label.ts'
-import { canonicalJsonText } from './dynamics.ts'
-import { environmentDeclaration, toolDefinition } from './judge-definition.ts'
+import { toolDefinition } from './judge-definition.ts'
 import { toolArguments } from './parameter-codec.ts'
 import {
   filled,
@@ -28,36 +27,42 @@ import {
   type Check,
   type ShapeRejection,
 } from './shape.ts'
-import {
-  adoption,
-  consumerRef,
-  durableEvidence,
-  sameAdoption,
-  sourceLayer,
-  workspaceId,
-} from './value-shapes.ts'
+import { adoption, consumerRef, durableEvidence, sourceLayer, workspaceId } from './value-shapes.ts'
 
 const nonNegativeSafeInteger: Check<number> = (value, at) => {
   if (typeof value !== 'number') return reject(at, 'type')
   return Number.isSafeInteger(value) && value >= 0 ? succeed(value) : reject(at, 'range')
 }
 
-function availabilityFor<T>(definition: Check<T>) {
-  return variant('kind', {
-    available: record({
-      kind: literal('available'),
-      definition,
-      executor: adoption,
-      layer: sourceLayer,
-    }),
-    'known-unavailable': record({
-      kind: literal('known-unavailable'),
-      definition,
-      reason: nonBlank,
-    }),
-  })
-}
-const availability: Check<ToolAvailability> = availabilityFor(toolDefinition)
+const availability: Check<ToolAvailability> = variant('kind', {
+  available: record({
+    kind: literal('available'),
+    definition: toolDefinition,
+    executor: adoption,
+    layer: sourceLayer,
+  }),
+  'known-unavailable': record({
+    kind: literal('known-unavailable'),
+    definition: toolDefinition,
+    reason: nonBlank,
+  }),
+})
+
+const availabilityReference: Check<ToolAvailabilityReference> = variant('kind', {
+  available: record({
+    kind: literal('available'),
+    definition: adoption,
+    name: nonBlank,
+    executor: adoption,
+    layer: sourceLayer,
+  }),
+  'known-unavailable': record({
+    kind: literal('known-unavailable'),
+    definition: adoption,
+    name: nonBlank,
+    reason: nonBlank,
+  }),
+})
 
 const invocation: Check<ToolInvocation> = record({
   kind: literal('direct', 'programmatic'),
@@ -87,15 +92,13 @@ const requesterScope: Check<ScopeRef> = (value, at) => {
   return copy(value, at)
 }
 
-const callerFields = {
-  availability,
+const callFields = {
   command: nullable(filled),
   arguments: toolArguments,
   label: toolCallLabel,
   settings: adoption,
   context: adoption,
   workspace: nullable(workspaceId),
-  environment: nullable(environmentDeclaration),
   requesterScope,
   resources: list(adoption),
   scope,
@@ -105,14 +108,12 @@ const callerFields = {
   limits,
 } as const
 
-type RequestDefinition = Pick<ToolDefinition, 'declarations'> &
-  (
-    | Readonly<{ kind: 'function' }>
-    | Readonly<{
-        kind: 'commands'
-        commands: readonly Readonly<{ name: string; background?: unknown }>[]
-      }>
-  )
+type RequestDefinition =
+  | Readonly<{ kind: 'function' }>
+  | Readonly<{
+      kind: 'commands'
+      commands: readonly Readonly<{ name: string; background?: unknown }>[]
+    }>
 function commandRule(
   definition: RequestDefinition,
   command: string | null,
@@ -143,19 +144,10 @@ function labelRule(
 }
 
 function requestRule(
-  request: Omit<ToolInvokeRequest, 'availability'> &
-    Readonly<{ availability: Readonly<{ definition: RequestDefinition }> }>,
+  request: Pick<FixedToolRequest, 'availability' | 'command' | 'label'>,
   at: string,
 ): ShapeRejection | undefined {
-  const declared = request.availability.definition.declarations.environment
-  const fixed = request.environment
-  const matches =
-    declared === null || fixed === null
-      ? declared === fixed
-      : sameAdoption(declared.adoption, fixed.adoption) &&
-        canonicalJsonText(declared.value) === canonicalJsonText(fixed.value)
-  if (!matches) return { field: member(at, 'environment'), reason: 'definition-mismatch' }
-  const definition = request.availability.definition
+  const definition: RequestDefinition = request.availability.definition
   return commandRule(definition, request.command, at) ?? labelRule(definition, request, at)
 }
 
@@ -167,19 +159,30 @@ const pinnedFields = {
 } as const
 
 const fixedToolRequest: Check<FixedToolRequest> = refine(
-  record({ ...callerFields, invocation }, pinnedFields),
+  record({ ...callFields, availability, invocation }, pinnedFields),
   requestRule,
 )
 
-const invokeToolRequest: Check<ToolInvokeRequest> = refine(
-  record(callerFields, pinnedFields),
+const toolCall: Check<Omit<FixedToolRequest, 'invocation'>> = refine(
+  record({ ...callFields, availability }, pinnedFields),
   requestRule,
+)
+
+const invokeToolRequest: Check<ToolInvokeRequest> = record(
+  { ...callFields, availability: availabilityReference },
+  pinnedFields,
 )
 
 export function judgeFixedToolRequest(
   value: unknown,
 ): Outcome<FixedToolRequest, Readonly<{ field: string; reason: string }>> {
   return judgeUnknown(fixedToolRequest, value, 'FixedToolRequest')
+}
+
+export function judgeToolCall(
+  value: unknown,
+): Outcome<Omit<FixedToolRequest, 'invocation'>, Readonly<{ field: string; reason: string }>> {
+  return judgeUnknown(toolCall, value, 'ToolCall')
 }
 
 export function judgeToolInvokeRequest(

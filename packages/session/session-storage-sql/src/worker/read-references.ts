@@ -1,3 +1,4 @@
+import { StoredEntryMalformed } from '../entry-codec.ts'
 import { handler, rowsOf, text } from './support.ts'
 
 type Input = Readonly<{
@@ -20,10 +21,11 @@ export default handler('session.references', (raw, port) => {
     throw new Error('invalid input')
   const rows = rowsOf(
     port,
-    `SELECT session, capability, shape FROM sl_resident_idx
-      WHERE resident_key = ? AND tenant = ?
-        ${input.after === null ? '' : 'AND (session > ? OR (session = ? AND capability > ?))'}
-      ORDER BY session, capability LIMIT ?`,
+    `SELECT i.session, i.capability, s.shape FROM sl_resident_idx i
+      LEFT JOIN sl_resident_shape s ON s.tenant = i.tenant AND s.digest = i.shape_digest
+      WHERE i.resident_key = ? AND i.tenant = ?
+        ${input.after === null ? '' : 'AND (i.session > ? OR (i.session = ? AND i.capability > ?))'}
+      ORDER BY i.session, i.capability LIMIT ?`,
     [
       input.key,
       input.tenant,
@@ -34,11 +36,16 @@ export default handler('session.references', (raw, port) => {
     ],
   )
   return {
-    rows: rows.slice(0, input.limit).map(row => ({
-      session: text(row['session']),
-      capability: text(row['capability']),
-      shape: JSON.parse(text(row['shape'])),
-    })),
+    rows: rows.slice(0, input.limit).map(row => {
+      const shape = row['shape']
+      if (typeof shape !== 'string')
+        throw new StoredEntryMalformed('session.references: the shape of a resident row is missing')
+      return {
+        session: text(row['session']),
+        capability: text(row['capability']),
+        shape: JSON.parse(shape),
+      }
+    }),
     more: rows.length > input.limit,
   }
 })

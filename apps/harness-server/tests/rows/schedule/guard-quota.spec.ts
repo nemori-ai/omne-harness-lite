@@ -81,6 +81,26 @@ describe('the quota the schedule guard keeps in the same transaction as the sche
     expect(holdQuota(p, reserve(3), 1)).toBe('capacity_exceeded')
   })
 
+  it('counts what an agent creates in different calls of one session as one author', () => {
+    const p = port()
+    const byAgent = (n: number, call: string): Requirement => ({
+      quotaEffect: {
+        kind: 'reserve',
+        owner,
+        author: {
+          kind: 'agent',
+          actorRef: 'principal/p',
+          originatingSessionRef: 'session-1',
+          originatingCallRef: call,
+        },
+        scheduleId: id(n),
+      },
+      resultingHolding: { kind: 'held', reservationRef: `reservation:${String(n)}` },
+    })
+    expect(holdQuota(p, byAgent(1, 'call-a'), 1)).toBeNull()
+    expect(holdQuota(p, byAgent(2, 'call-b'), 1)).toBe('capacity_exceeded')
+  })
+
   it('frees the slot of a released schedule so a new one fits', () => {
     const p = port()
     holdQuota(p, reserve(1), 1)

@@ -4,7 +4,7 @@ import { loginAccess } from '../../model/public-stream-support.ts'
 import { onReleaseTree } from '../../support/release-tree.ts'
 import { SHELL, faceOf, shellRound, shellScript } from '../../governance/tenant-settings-support.ts'
 
-it('a deny pick of the tenant layer stops the next Shell call at its start, and a clear lets the call after it start', async () => {
+it('a deny pick of the tenant layer stops the next Shell call at its admission so the Tool never gets it, and a clear lets the call after it start', async () => {
   const exit = await onReleaseTree({ script: shellScript }, async tree => {
     const face = faceOf(tree)
     await shellRound(tree, 'warmup')

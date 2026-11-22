@@ -64,7 +64,7 @@ function contribute(shell: ShellService, hub: InboxHub): void {
   })
 }
 
-/** The notification page with its count, there while the `notification/v1` client is on the tree. */
+/** The notification page with its count, there while the `notification/v2` client is on the tree. */
 export const notificationUiModule: UiModule = {
   name: 'notification-ui',
   inject: [shellKey, NOTIFICATION],

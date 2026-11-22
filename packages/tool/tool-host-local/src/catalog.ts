@@ -28,6 +28,7 @@ import {
 } from './catalog-ranking.ts'
 import {
   readCatalogView,
+  registryDigest,
   visibleCatalogListings,
   type LocalToolCatalogViewSource,
   type LocalToolCatalogView,
@@ -171,55 +172,80 @@ function usageOf(
   } satisfies ToolUsage)
 }
 
+function listingsFor<P>(
+  registry: ToolListingSource<P> | null,
+  access: Access<P>,
+  view: LocalToolCatalogView,
+) {
+  if (registry === null)
+    return fail({
+      kind: 'unavailable',
+      dependency: DEPENDENCY,
+      diagnostic: 'the binding registry is absent',
+    } as const)
+  const read = registry.listings(access)
+  if ('failure' in read)
+    return fail({
+      kind: 'unavailable',
+      dependency: DEPENDENCY,
+      diagnostic: read.failure.diagnostic,
+    } as const)
+  return succeed(visibleCatalogListings(read.ok, view))
+}
+
+const changed = (after: string | null) =>
+  after === null
+    ? fail({
+        kind: 'unavailable',
+        dependency: 'toolCatalogView',
+        diagnostic: 'catalog snapshot changed; retry',
+      } as const)
+    : fail({ kind: 'invalid-cursor', reason: 'catalog-snapshot-changed' } as const)
+
+function chosen(
+  visible: ReturnType<typeof visibleCatalogListings>,
+  view: LocalToolCatalogView,
+  name: string,
+  command: string | null,
+): Outcome<CatalogCandidate, ToolFailure> {
+  const candidate = candidateFor(visible, view, name)
+  if (candidate === undefined) return unknownTool
+  const { definition } = candidate
+  if (
+    command !== null &&
+    (definition.kind !== 'commands' || !definition.commands.some(item => item.name === command))
+  )
+    return fail({ kind: 'invalid', field: 'command', reason: 'unknown-command' })
+  return succeed(candidate)
+}
+
 export function createLocalToolCatalog<P>(input: LocalToolCatalogInput<P>): ToolCatalog<P> {
   const { registry, availability } = input
   const rank = createCatalogRanking(input.search)
 
-  const listingsFor = (access: Access<P>, view: LocalToolCatalogView) => {
-    if (registry === null)
-      return fail({
-        kind: 'unavailable',
-        dependency: DEPENDENCY,
-        diagnostic: 'the binding registry is absent',
-      } as const)
-    const read = registry.listings(access)
-    if ('failure' in read)
-      return fail({
-        kind: 'unavailable',
-        dependency: DEPENDENCY,
-        diagnostic: read.failure.diagnostic,
-      } as const)
-    return succeed(visibleCatalogListings(read.ok, view))
-  }
-
   const liveFor = async (access: Access<P>) => {
     const observed = await readCatalogView(input.view, access)
     if ('failure' in observed) return observed
-    const listed = listingsFor(access, observed.ok.view)
+    const listed = listingsFor(registry, access, observed.ok.view)
     if ('failure' in listed) return listed
-    return succeed({ ...observed.ok, entries: listed.ok, registryDigest: catalogDigest(listed.ok) })
+    return succeed({
+      ...observed.ok,
+      entries: listed.ok,
+      registryDigest: registryDigest(listed.ok),
+    })
   }
 
-  const changed = (after: string | null) =>
-    after === null
-      ? fail({
-          kind: 'unavailable',
-          dependency: 'toolCatalogView',
-          diagnostic: 'catalog snapshot changed; retry',
-        } as const)
-      : fail({ kind: 'invalid-cursor', reason: 'catalog-snapshot-changed' } as const)
-
-  const stable = (
-    current: Awaited<ReturnType<typeof readCatalogView<P>>>,
+  const stable = async (
     observed: Readonly<{ digest: string; registryDigest: string }>,
     access: Access<P>,
     after: string | null = null,
   ) => {
+    const current = await readCatalogView(input.view, access)
     if ('failure' in current) return current
     if (current.ok.digest !== observed.digest) return changed(after)
-    const listed = listingsFor(access, current.ok.view)
+    const listed = listingsFor(registry, access, current.ok.view)
     if ('failure' in listed) return listed
-    if (catalogDigest(listed.ok) !== observed.registryDigest) return changed(after)
+    if (registryDigest(listed.ok) !== observed.registryDigest) return changed(after)
     return succeed(undefined)
   }
 
@@ -281,19 +307,27 @@ export function createLocalToolCatalog<P>(input: LocalToolCatalogInput<P>): Tool
     inspect: async request => {
       const live = await liveFor(request)
       if ('failure' in live) return live
-      const candidate = candidateFor(live.ok.entries, live.ok.view, request.name)
-      if (candidate === undefined) return unknownTool
-      const { definition } = candidate
-      if (
-        request.command !== null &&
-        (definition.kind !== 'commands' ||
-          !definition.commands.some(command => command.name === request.command))
-      )
-        return fail({ kind: 'invalid', field: 'command', reason: 'unknown-command' })
-      const answer = await judged(request, candidate, request.consumer, request.command)
-      const current = await readCatalogView(input.view, request)
-      const checked = stable(current, live.ok, request)
+      const candidate = chosen(live.ok.entries, live.ok.view, request.name, request.command)
+      if ('failure' in candidate) return candidate
+      const answer = await judged(request, candidate.ok, request.consumer, request.command)
+      const checked = await stable(live.ok, request)
       return 'failure' in checked ? checked : answer
+    },
+
+    inspectEach: async request => {
+      const live = await liveFor(request)
+      if ('failure' in live) return live
+      const answers: Outcome<ToolAvailability, ToolFailure>[] = []
+      for (const name of request.names) {
+        const candidate = chosen(live.ok.entries, live.ok.view, name, null)
+        answers.push(
+          'failure' in candidate
+            ? candidate
+            : await judged(request, candidate.ok, request.consumer, null),
+        )
+      }
+      const checked = await stable(live.ok, request)
+      return 'failure' in checked ? checked : succeed(answers)
     },
 
     usage: async request => {
@@ -306,8 +340,7 @@ export function createLocalToolCatalog<P>(input: LocalToolCatalogInput<P>): Tool
       const verdict = await availability.judge(
         asked(request, candidate, request.consumer, request.command),
       )
-      const current = await readCatalogView(input.view, request)
-      const checked = stable(current, live.ok, request)
+      const checked = await stable(live.ok, request)
       if ('failure' in checked) return checked
       if ('failure' in verdict) return verdict
       if (verdict.ok.qualification !== 'allowed') return fail({ kind: 'denied', action: 'usage' })
@@ -351,8 +384,7 @@ export function createLocalToolCatalog<P>(input: LocalToolCatalogInput<P>): Tool
         const entry = byName.get(name)
         return entry === undefined ? [] : [entry]
       })
-      const current = await readCatalogView(input.view, request)
-      const checked = stable(current, live.ok, request, request.after)
+      const checked = await stable(live.ok, request, request.after)
       if ('failure' in checked) return checked
       return succeed({
         entries: Object.freeze(page),

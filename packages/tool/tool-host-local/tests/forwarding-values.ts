@@ -6,19 +6,28 @@ import type { CallRecord, ToolLedgerStore } from '@omne-harness/tool'
 import {
   encodeToolInvocationRef,
   type FixedToolRequest,
+  type ToolDefinition,
   type ToolForwardIntent,
   type ToolInvokeRequest,
 } from '@omne-harness/tool-contract'
 import {
   decodeToolRevision,
   decodeToolResultVersion,
+  toolInvokeRequestOf,
   type ToolForwardParent,
 } from '@omne-harness/tool-contract/provider'
 import {
   createLocalInvocationSource,
   createLocalStartCoordinator,
 } from '@omne-harness/tool-host-local'
-import { adoption, evidence, request, startOf, tenantA } from './coordinator-values.ts'
+import {
+  adoption,
+  currentDefinitions,
+  evidence,
+  request,
+  startOf,
+  tenantA,
+} from './coordinator-values.ts'
 
 export function ok<T>(result: { ok: T } | { failure: unknown }): T {
   if ('failure' in result) throw new Error(JSON.stringify(result.failure))
@@ -32,39 +41,39 @@ export const targetIntent: ToolForwardIntent = {
     entries: [{ key: 'path', value: { kind: 'string', value: 'a.txt' } }],
   },
 }
+export function toolsDefinition(): ToolDefinition {
+  const definition = request().availability.definition
+  return {
+    name: 'Tools',
+    adoption: adoption('Tools'),
+    description: definition.description,
+    requiredCapabilities: [],
+    backgroundAllowed: false,
+    declarations: definition.declarations,
+    kind: 'commands',
+    encoding: 'wrapped',
+    commands: [
+      {
+        name: 'execute',
+        summary: 'Execute one target',
+        parameters: { kind: 'executor-owned' },
+        returns: ordinaryReturnFixture(adoption('codec')),
+      },
+    ],
+  }
+}
 export function parentRequest(): ToolInvokeRequest {
-  const { invocation: _, ...base } = request()
-  const definition = base.availability.definition
+  const base = request()
   const text = JSON.stringify({
     command: 'execute',
     params: { name: 'read_file', command: null, arguments: { path: 'a.txt' } },
   })
-  return {
+  return toolInvokeRequestOf({
     ...base,
     command: 'execute',
     arguments: { original: text, effective: text, complete: true },
-    availability: {
-      ...base.availability,
-      definition: {
-        name: 'Tools',
-        adoption: adoption('Tools'),
-        description: definition.description,
-        requiredCapabilities: [],
-        backgroundAllowed: false,
-        declarations: definition.declarations,
-        kind: 'commands',
-        encoding: 'wrapped',
-        commands: [
-          {
-            name: 'execute',
-            summary: 'Execute one target',
-            parameters: { kind: 'executor-owned' },
-            returns: ordinaryReturnFixture(adoption('codec')),
-          },
-        ],
-      },
-    },
-  }
+    availability: { ...base.availability, definition: toolsDefinition() },
+  })
 }
 export async function forwardingFixture(
   options: {
@@ -82,6 +91,7 @@ export async function forwardingFixture(
     read: memory.read,
     readRecord: memory.readRecord,
     due: memory.due,
+    definition: memory.definition,
     async commit(input) {
       const fault = nextCommit
       nextCommit = null
@@ -122,6 +132,7 @@ export async function forwardingFixture(
       decode: (value: unknown) =>
         typeof value === 'string' ? succeed(value) : fail({ reason: 'not a string' }),
     },
+    definitions: currentDefinitions<string>(toolsDefinition(), request().availability.definition),
     forwarding: {
       authority: () => authority,
       isParent: (fixed: FixedToolRequest) =>
@@ -129,33 +140,14 @@ export async function forwardingFixture(
     },
   }
   const source = createLocalInvocationSource(input)
-  const business = parentRequest()
-  const definition = business.availability.definition
-  if (definition.kind !== 'commands') throw new Error('commands required')
-  const cleaned = {
-    ...business,
-    availability: {
-      ...business.availability,
-      definition: {
-        name: definition.name,
-        adoption: definition.adoption,
-        description: definition.description,
-        requiredCapabilities: definition.requiredCapabilities,
-        backgroundAllowed: definition.backgroundAllowed,
-        declarations: definition.declarations,
-        kind: definition.kind,
-        encoding: definition.encoding,
-        commands: definition.commands,
-      },
-    },
-  }
+  const cleaned = parentRequest()
   const issued = await source.issuer.resolve({
     principal: 'alice',
     tenant: tenantA,
     request: cleaned,
   })
   if (issued.kind !== 'bound') throw new Error(JSON.stringify(issued))
-  const fixed = { ...cleaned, invocation: issued.invocation }
+  const fixed = issued.request
   const parent: ToolForwardParent<string> = {
     principal: 'alice',
     tenant: tenantA,
@@ -206,7 +198,7 @@ export async function forwardingFixture(
   const consume = () =>
     authority.consume({ ...parent, permit, executorReceipt: evidence('parent-executor') })
   if (options.consumed !== false) ok(await consume())
-  const { invocation: __, ...target } = request()
+  const target = toolInvokeRequestOf(request())
   return {
     memory,
     store,

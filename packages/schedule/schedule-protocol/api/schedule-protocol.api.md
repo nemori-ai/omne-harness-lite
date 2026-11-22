@@ -76,16 +76,6 @@ export declare const scheduleProtocol: {
                     } | {
                         readonly kind: "system";
                     };
-                    readonly basis: {
-                        readonly kind: "owner";
-                    } | {
-                        readonly kind: "blanket";
-                        readonly scope: "session" | "standing";
-                    } | {
-                        readonly kind: "granular";
-                    } | {
-                        readonly kind: "none";
-                    };
                     readonly control: "active" | "discarded" | "draft" | "exhausted" | "paused" | "stopped" | "superseded";
                     readonly createdAt: import("@omne-harness/utc-instant").Instant;
                     readonly definition: import("@omne-harness/json-text").JsonValue;
@@ -223,16 +213,6 @@ export declare const scheduleProtocol: {
                     } | {
                         readonly kind: "system";
                     };
-                    readonly basis: {
-                        readonly kind: "owner";
-                    } | {
-                        readonly kind: "blanket";
-                        readonly scope: "session" | "standing";
-                    } | {
-                        readonly kind: "granular";
-                    } | {
-                        readonly kind: "none";
-                    };
                     readonly control: "active" | "discarded" | "draft" | "exhausted" | "paused" | "stopped" | "superseded";
                     readonly createdAt: import("@omne-harness/utc-instant").Instant;
                     readonly definition: import("@omne-harness/json-text").JsonValue;
@@ -285,16 +265,6 @@ export declare const scheduleProtocol: {
                     } | {
                         readonly kind: "system";
                     };
-                    readonly basis: {
-                        readonly kind: "owner";
-                    } | {
-                        readonly kind: "blanket";
-                        readonly scope: "session" | "standing";
-                    } | {
-                        readonly kind: "granular";
-                    } | {
-                        readonly kind: "none";
-                    };
                     readonly control: "active" | "discarded" | "draft" | "exhausted" | "paused" | "stopped" | "superseded";
                     readonly createdAt: import("@omne-harness/utc-instant").Instant;
                     readonly definition: import("@omne-harness/json-text").JsonValue;
@@ -336,16 +306,6 @@ export declare const scheduleProtocol: {
                         readonly session: string;
                     } | {
                         readonly kind: "system";
-                    };
-                    readonly basis: {
-                        readonly kind: "owner";
-                    } | {
-                        readonly kind: "blanket";
-                        readonly scope: "session" | "standing";
-                    } | {
-                        readonly kind: "granular";
-                    } | {
-                        readonly kind: "none";
                     };
                     readonly control: "active" | "discarded" | "draft" | "exhausted" | "paused" | "stopped" | "superseded";
                     readonly createdAt: import("@omne-harness/utc-instant").Instant;
@@ -413,16 +373,6 @@ export declare const scheduleProtocol: {
                     } | {
                         readonly kind: "system";
                     };
-                    readonly basis: {
-                        readonly kind: "owner";
-                    } | {
-                        readonly kind: "blanket";
-                        readonly scope: "session" | "standing";
-                    } | {
-                        readonly kind: "granular";
-                    } | {
-                        readonly kind: "none";
-                    };
                     readonly control: "active" | "discarded" | "draft" | "exhausted" | "paused" | "stopped" | "superseded";
                     readonly createdAt: import("@omne-harness/utc-instant").Instant;
                     readonly definition: import("@omne-harness/json-text").JsonValue;
@@ -470,7 +420,7 @@ export declare const scheduleProtocol: {
         };
     };
     readonly name: "schedule";
-    readonly major: 1;
+    readonly major: 2;
     readonly observations: {};
 };
 export type ScheduleProtocol = typeof scheduleProtocol;

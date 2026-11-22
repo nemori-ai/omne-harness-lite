@@ -72,6 +72,7 @@ export function heldSettingsCurrentMaterial(
   const subjectRef = canonicalDigest({ tenant: target.scopeRef, target })
   return settingsCurrentMaterial({
     values: values.views[0]!,
+    commandKind: 'change',
     tenantRef: target.scopeRef,
     transactionDomain: capture.domain.transactionDomain,
     mode: capture.request.mode,

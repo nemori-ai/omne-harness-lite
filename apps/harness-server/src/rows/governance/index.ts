@@ -28,6 +28,7 @@ import { governanceDirectoryPrincipalsKey } from '../../entry/governance-directo
 import { releaseOf } from '../../entry/tool-release.ts'
 import { readSystemInstant, epochMillisOf } from '../../entry/session-clock.ts'
 import { productionStorageCatalog } from '../storage/production-catalog.ts'
+import { LOCAL_GOVERNANCE_OPENING } from '../../local/operator-defaults.ts'
 import {
   SessionPermissionBackendService,
   sessionPermissionBackendKey,
@@ -54,6 +55,11 @@ const configSchema = z.strictObject({
   logicalServiceId: GovernanceIdSchema,
   recoveryPagesPerPass: z.number().int().min(1),
   closeTimeoutMs: z.number().int().min(0).max(60_000),
+  installationConcurrency: z
+    .number()
+    .int()
+    .min(1)
+    .default(LOCAL_GOVERNANCE_OPENING.installationConcurrency),
 })
 
 class SessionBackend extends SessionPermissionBackendService {
@@ -176,9 +182,11 @@ export const governanceRow = defineRow({
           installationPrincipal,
           login: () => ctx.identityGovernance,
           release,
+          installationConcurrency: config.installationConcurrency,
           categories,
           tenantAssets: () => ctx.tenantAssets.open(tenantRef),
           independentSettings: () => independent.list(),
+          warn: message => ctx.logger('governance').warn(message),
           permissionOrigins: () => permissionOriginsOf(ctx),
           permissionDeclarations: () => permissionDeclarationsOf(ctx),
           organizationTargets: sources.targets,

@@ -61,16 +61,15 @@ it('reports unavailable at host capacity one without running a target effect', a
   }
 })
 
-it('does not run a forwarded target when its current policy denies after preparation', async () => {
+it('does not run a forwarded target that leaves the current view after preparation', async () => {
   let targetChecks = 0
   const world = await fixture(undefined, undefined, 2, true, {
     qualify: async ({ request }) => {
-      if (request.availability.definition.name === 'Tools')
-        return { kind: 'allowed', condition: null }
+      if (request.availability.definition.name === 'Tools') return { kind: 'allowed' }
       targetChecks++
       return targetChecks < 3
-        ? { kind: 'allowed', condition: null }
-        : { kind: 'denied', reason: 'target-rule-revoked' }
+        ? { kind: 'allowed' }
+        : { kind: 'denied', reason: 'target-not-included' }
     },
   })
   try {

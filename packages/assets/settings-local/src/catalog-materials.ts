@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
 import { settingsStandaloneProjectionFact, settingsAssetsProjectionFact } from './projection.ts'
 import {
+  CATALOG_CAPTURES,
+  CATALOG_CAPTURE_PAGE,
   CATALOG_TERMINAL,
   CATALOG_TERMINAL_FACT,
   CATALOG_TERMINAL_MIGRATION,
@@ -56,6 +58,16 @@ export function settingsCatalogMaterials(): Pick<
         requires: [],
       },
     ],
-    readHandlers: [],
+    readHandlers: [
+      {
+        ...CATALOG_CAPTURES,
+        ...file('catalog-capture-read'),
+        ordering: 'snapshot',
+        readTables: [CATALOG_TERMINAL.table],
+        requiresMigrations: [CATALOG_TERMINAL_MIGRATION],
+        maxRowsRead: CATALOG_CAPTURE_PAGE + 1,
+        maxOutputBytes: 2 * 1024 * 1024,
+      },
+    ],
   }
 }

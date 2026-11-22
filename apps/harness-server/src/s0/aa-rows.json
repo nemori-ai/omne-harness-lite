@@ -134,7 +134,6 @@
         "governanceInstallationPrincipals",
         "sessionPermissionBackend",
         "standingDestinationResolver",
-        "toolInvocationQualification",
         "currentToolPermission",
         "sessionModesInstallation",
         "tenantDomainRegistration"
@@ -313,7 +312,8 @@
         "storage",
         "tenantDomainLookup",
         "agentReceivedRecords",
-        "sessionWorkingDirectory"
+        "sessionWorkingDirectory",
+        "tenantDomainScannerPrincipal"
       ]
     },
     {
@@ -390,8 +390,7 @@
       "names": [
         "storage",
         "tenantDomainLookup",
-        "tenantDomainScannerPrincipal",
-        "toolInvocationQualification"
+        "tenantDomainScannerPrincipal"
       ]
     },
     {

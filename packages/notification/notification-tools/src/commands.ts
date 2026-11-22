@@ -169,7 +169,6 @@ const subscribed = (subscription: Subscription, recalled: boolean) => ({
   recalled,
 })
 
-/** One call is one subscription: the call's release is the consent, read by the service, not asked here. */
 const subscribe: Handler<'subscribe'> = (reached, params) =>
   writing(
     'subscribe',

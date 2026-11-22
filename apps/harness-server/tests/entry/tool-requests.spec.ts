@@ -98,19 +98,24 @@ async function world() {
   const issue = sessionWorkIssuerOf(fixture.env)
   const principalA = okOf(issue({ tenant: TENANT_A, session: 'ses-a' }), 'issue A')
   const principalB = okOf(issue({ tenant: TENANT_B, session: 'ses-b' }), 'issue B')
+  const inspect: ToolCatalog<unknown>['inspect'] = async input => {
+    const definition = definitions.get(input.name)
+    if (definition === undefined)
+      return fail({ kind: 'invalid', field: 'name', reason: 'unknown-tool' })
+    const availability: ToolAvailability = {
+      kind: 'available',
+      definition,
+      executor: entryOf(fixture.manifest, input.name).module.executor,
+      layer: { kind: 'official' },
+    }
+    return succeed(availability)
+  }
   const catalog: ToolCatalog<unknown> = {
-    inspect: async input => {
-      const definition = definitions.get(input.name)
-      if (definition === undefined)
-        return fail({ kind: 'invalid', field: 'name', reason: 'unknown-tool' })
-      const availability: ToolAvailability = {
-        kind: 'available',
-        definition,
-        executor: entryOf(fixture.manifest, input.name).module.executor,
-        layer: { kind: 'official' },
-      }
-      return succeed(availability)
-    },
+    inspect,
+    inspectEach: async input =>
+      succeed(
+        await Promise.all(input.names.map(name => inspect({ ...input, name, command: null }))),
+      ),
     usage: async () => fail({ kind: 'unavailable', dependency: 'test', diagnostic: 'unused' }),
     search: async () => fail({ kind: 'unavailable', dependency: 'test', diagnostic: 'unused' }),
   }
@@ -178,23 +183,18 @@ async function preparedBy(source: ReleaseToolRequests, principal: unknown, tenan
   const described = await source.describe(input)
   if ('failure' in described) return described
   if (described.ok.kind === 'answered') throw new Error(`describe answered: ${described.ok.text}`)
-  return source.prepare({
-    ...input,
-    definition: described.ok.definition,
-    admission: { owner: 'test', record: 'admission', revision: '1', digest: 'd' },
-  })
+  return source.prepare({ ...input, definition: described.ok.definition })
 }
 
 describe('the trusted Tool request source', () => {
   it('selects the command from the call: a known command routes there, any other call is answered with the guide', async () => {
     const { ports, principalA } = await world()
     const source = createReleaseToolRequests(ports)
-    const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
     const request = async (args: string) => {
       const input = actionInput(principalA, TENANT_A, 'Shell', args)
       const described = await source.describe(input)
       if ('failure' in described || described.ok.kind === 'answered') return described
-      return source.prepare({ ...input, definition: described.ok.definition, admission })
+      return source.prepare({ ...input, definition: described.ok.definition })
     }
     expect(await request('{"command":"info","params":{}}')).toMatchObject({
       ok: { command: 'info' },
@@ -245,16 +245,11 @@ describe('the trusted Tool request source', () => {
   it('fixes the label of the call from the envelope: intent, tool, command and preview (C2)', async () => {
     const { ports, principalA } = await world()
     const source = createReleaseToolRequests(ports)
-    const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
     const labelOf = async (args: string) => {
       const input = actionInput(principalA, TENANT_A, 'Shell', args)
       const described = await source.describe(input)
       if ('failure' in described || described.ok.kind === 'answered') throw new Error('describe')
-      const answer = await source.prepare({
-        ...input,
-        definition: described.ok.definition,
-        admission,
-      })
+      const answer = await source.prepare({ ...input, definition: described.ok.definition })
       return (okOf(answer, 'prepare') as ToolInvokeRequest).label
     }
     expect(
@@ -277,13 +272,12 @@ describe('the trusted Tool request source', () => {
 
   it('reads the time limits from the Shell settings before admission (C6)', async () => {
     const { ports, principalA } = await world()
-    const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
     const limitsOf = async (args: string, operator = ports.operatorSettings) => {
       const source = createReleaseToolRequests({ ...ports, operatorSettings: operator })
       const input = actionInput(principalA, TENANT_A, 'Shell', args)
       const described = await source.describe(input)
       if ('failure' in described || described.ok.kind === 'answered') throw new Error('describe')
-      return source.prepare({ ...input, definition: described.ok.definition, admission })
+      return source.prepare({ ...input, definition: described.ok.definition })
     }
     const once = '{"command":"execute","intent":"build","params":{"script":"pnpm build"}}'
     const terminal =
@@ -328,12 +322,7 @@ describe('the trusted Tool request source', () => {
     const input = actionInput(principalA, TENANT_A, 'Files', '{"command":"list","params":{}}')
     const described = await source.describe(input)
     if ('failure' in described || described.ok.kind === 'answered') throw new Error('describe')
-    const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
-    const answer = await source.prepare({
-      ...input,
-      definition: described.ok.definition,
-      admission,
-    })
+    const answer = await source.prepare({ ...input, definition: described.ok.definition })
     expect((okOf(answer, 'prepare') as ToolInvokeRequest).limits).toMatchObject({
       foregroundMs: null,
       backgroundAfterMs: null,
@@ -360,8 +349,9 @@ describe('the trusted Tool request source', () => {
       mode: 'foreground',
       consumer: { owner: '@omne-harness/agent', work: 'exec-1', purpose: 'action' },
     })
-    expect(request.availability.definition.adoption).toEqual(definitions.get('Shell')?.adoption)
-    expect(request.environment).toEqual(definitions.get('Shell')?.declarations.environment)
+    expect(request.availability.definition).toEqual(definitions.get('Shell')?.adoption)
+    expect(request.availability).toMatchObject({ name: 'Shell' })
+    expect(request).not.toHaveProperty('environment')
   })
 
   it('pins the call to the working directory the coordinator reads for its session when the call is prepared', async () => {
@@ -502,11 +492,7 @@ describe('the trusted Tool request source', () => {
       const input = actionInput(principalA)
       // Waiting here would wait for ever: the directory changes only when the next step begins.
       expect(await source.describe(input)).toEqual({ ok: { kind: 'answered', text } })
-      const prepared = await source.prepare({
-        ...input,
-        definition: {} as never,
-        admission: { owner: 'test', record: 'admission', revision: '1', digest: 'd' },
-      })
+      const prepared = await source.prepare({ ...input, definition: {} as never })
       expect(prepared).toEqual({
         failure: {
           kind: 'unavailable',
@@ -549,12 +535,7 @@ describe('the trusted Tool request source', () => {
         const input = actionInput(principalA, TENANT_A, tool, call)
         const described = okOf(await source.describe(input), 'describe')
         if (described.kind !== 'tool') throw new Error(`describe answered: ${described.text}`)
-        const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
-        const prepared = await source.prepare({
-          ...input,
-          definition: described.definition,
-          admission,
-        })
+        const prepared = await source.prepare({ ...input, definition: described.definition })
         return (okOf(prepared, 'prepare') as ToolInvokeRequest).directory
       }
       expect(await directoryFor(succeed({ state: 'default', directory: '/srv/default' }))).toEqual({
@@ -589,31 +570,22 @@ describe('the trusted Tool request source', () => {
     const described = okOf(await source.describe(input), 'describe')
     if (described.kind !== 'tool') throw new Error('describe answered')
     const request = okOf(
-      await source.prepare({
-        ...input,
-        definition: described.definition,
-        admission: { owner: 'test', record: 'admission', revision: '1', digest: 'd' },
-      }),
+      await source.prepare({ ...input, definition: described.definition }),
       'prepare',
     ) as ToolInvokeRequest
-    expect(request.environment).toBeNull()
+    expect('environment' in request).toBe(false)
     expect('directory' in request).toBe(false)
   })
 
   it('reads the wait mode from run_in_background in the call: true is a launch in the background, anything else the foreground', async () => {
     const { ports, principalA } = await world()
     const source = createReleaseToolRequests(ports)
-    const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
     const modeOf = async (params: string) => {
       const args = `{"command":"execute","intent":"test call","params":${params}}`
       const input = actionInput(principalA, TENANT_A, 'Shell', args)
       const described = await source.describe(input)
       if ('failure' in described || described.ok.kind === 'answered') throw new Error('describe')
-      const answer = await source.prepare({
-        ...input,
-        definition: described.ok.definition,
-        admission,
-      })
+      const answer = await source.prepare({ ...input, definition: described.ok.definition })
       return (okOf(answer, 'prepare') as ToolInvokeRequest).mode
     }
     expect(await modeOf('{"script":"sleep 9","run_in_background":true}')).toBe('background')
@@ -731,13 +703,9 @@ describe('the trusted Tool request source', () => {
     const input = actionInput(principalA)
     const other = definitions.get('Files')?.adoption
     if (other === undefined) throw new Error('fixture: Files definition')
-    expect(
-      await source.prepare({
-        ...input,
-        definition: other,
-        admission: { owner: 'test', record: 'admission', revision: '1', digest: 'd' },
-      }),
-    ).toMatchObject({ failure: { kind: 'unavailable' } })
+    expect(await source.prepare({ ...input, definition: other })).toMatchObject({
+      failure: { kind: 'unavailable' },
+    })
   })
 })
 
@@ -764,7 +732,6 @@ const ASK = JSON.stringify({
   },
 })
 describe('the meta-capability host: Ask runs only while the session lets the model ask a person', () => {
-  const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
   type Interaction = Readonly<{ humanInteraction: boolean }> | null
   const facts = (value: NonNullable<Interaction>) =>
     ({ attendance: 'attended', child: false, ...value }) as const
@@ -789,9 +756,9 @@ describe('the meta-capability host: Ask runs only while the session lets the mod
     const input = call('Ask', ASK)
     const described = await source.describe(input)
     if ('failure' in described || described.ok.kind !== 'tool') throw new Error('not a tool')
-    expect(
-      await source.prepare({ ...input, definition: described.ok.definition, admission }),
-    ).toMatchObject({ ok: { command: 'ask' } })
+    expect(await source.prepare({ ...input, definition: described.ok.definition })).toMatchObject({
+      ok: { command: 'ask' },
+    })
     expect(reads[0]).toEqual({ principal: principalA, tenant: TENANT_A, session: 'ses-a' })
   })
 
@@ -812,9 +779,9 @@ describe('the meta-capability host: Ask runs only while the session lets the mod
     const described = await source.describe(input)
     if ('failure' in described || described.ok.kind !== 'tool') throw new Error('not a tool')
     open = false
-    expect(
-      await source.prepare({ ...input, definition: described.ok.definition, admission }),
-    ).toMatchObject({ failure: { kind: 'unavailable' } })
+    expect(await source.prepare({ ...input, definition: described.ok.definition })).toMatchObject({
+      failure: { kind: 'unavailable' },
+    })
   })
 
   it('answers unavailable when the interaction cannot be read, and does not read it for other tools', async () => {
@@ -835,7 +802,6 @@ describe('the meta-capability host: Ask runs only while the session lets the mod
 })
 
 describe('a command whose result carries more than the tool declares is judged by itself before it runs', () => {
-  const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
   const OPEN = '{"command":"open","params":{"path":"/a.png"}}'
   const READ = '{"command":"read","params":{"path":"/a.txt"}}'
   type Inspect = ToolCatalog<unknown>['inspect']
@@ -870,9 +836,9 @@ describe('a command whose result carries more than the tool declares is judged b
     const described = await source.describe(input)
     if ('failure' in described || described.ok.kind !== 'tool') throw new Error('not a tool')
     expect(asked).toEqual([null, 'open'])
-    expect(
-      await source.prepare({ ...input, definition: described.ok.definition, admission }),
-    ).toMatchObject({ ok: { command: 'open' } })
+    expect(await source.prepare({ ...input, definition: described.ok.definition })).toMatchObject({
+      ok: { command: 'open' },
+    })
   })
 
   it('does not ask again for a command that adds nothing to what the tool declares', async () => {
@@ -924,7 +890,7 @@ describe('a command whose result carries more than the tool declares is judged b
     expect(await source.describe(actionInput(principalA))).toMatchObject({ ok: { kind: 'tool' } })
     const input = actionInput(principalA, TENANT_A, 'Files', READ)
     expect(
-      await source.prepare({ ...input, definition: definitions.get('Files')!.adoption, admission }),
+      await source.prepare({ ...input, definition: definitions.get('Files')!.adoption }),
     ).toMatchObject({ failure: { kind: 'unavailable' } })
   })
 
@@ -945,9 +911,9 @@ describe('a command whose result carries more than the tool declares is judged b
     const described = await source.describe(input)
     if ('failure' in described || described.ok.kind !== 'tool') throw new Error('not a tool')
     answer = known
-    expect(
-      await source.prepare({ ...input, definition: described.ok.definition, admission }),
-    ).toMatchObject({ failure: { kind: 'unavailable' } })
+    expect(await source.prepare({ ...input, definition: described.ok.definition })).toMatchObject({
+      failure: { kind: 'unavailable' },
+    })
   })
 })
 
@@ -981,11 +947,7 @@ describe('the release composition releaseToolRequestsOf on a real Cordis root (N
     const described = okOf(await source.describe(input), 'describe')
     if (described.kind !== 'tool') throw new Error('describe answered')
     const request = okOf(
-      await source.prepare({
-        ...input,
-        definition: described.definition,
-        admission: { owner: 'test', record: 'admission', revision: '1', digest: 'd' },
-      }),
+      await source.prepare({ ...input, definition: described.definition }),
       'prepare',
     ) as ToolInvokeRequest
     expect(okOf(judgeToolInvokeRequest(request), 'judge')).toBeDefined()

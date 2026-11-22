@@ -270,9 +270,9 @@ describe('createAgentContextPlugin on real Cordis (SPEC「测量事件」)', () 
   it('makes the tool lookup once from the context of the plugin and reads the sixth group through it', async () => {
     const made: Context[] = []
     const asked: string[] = []
-    const lookup: ToolLookup<unknown> = async ({ binding }) => {
-      asked.push(binding.name)
-      return { kind: 'unavailable', diagnostic: `scripted: ${binding.name}` }
+    const lookup: ToolLookup<unknown> = async ({ bindings }) => {
+      asked.push(...bindings.map(binding => binding.name))
+      return { kind: 'unavailable', diagnostic: `scripted: ${asked.join(', ')}` }
     }
     const Plugin = createAgentContextPlugin({
       toolLookup: ctx => {

@@ -47,7 +47,6 @@ const WEEKLY = {
 }
 const DETAIL = {
   ...MONTHLY,
-  basis: { kind: 'blanket', scope: 'standing' },
   createdAt: instant('2026-11-17T03:00:00Z'),
   definition: {},
 }
@@ -220,8 +219,8 @@ it('D1 picking one opens its record: the name, who made it and how long ago, its
   expect(facts).toContain('状态生效')
   expect(facts).toContain('能否运行能按时运行')
   expect(facts).toContain('下一次2026-11-30 17:00（cn-legal-holidays，版本 2026.1）')
-  expect(facts).toContain('凭什么生效你的全权同意（始终放行）')
   expect(facts).toContain('修订2')
+  expect(facts).not.toContain('凭什么生效')
   expect(screen.getByLabelText('时间表').children).toHaveLength(2)
   expect(screen.getByText('只列出了能确定的几次。')).toBeTruthy()
   expect(screen.queryByText('选一个日程看它的安排。')).toBeNull()
@@ -237,16 +236,20 @@ it('D1b a schedule that is not normal says the row’s word as its state', async
 })
 
 it.each([
-  [{ kind: 'owner' }, '你本人的操作'],
-  [{ kind: 'blanket', scope: 'session' }, '你的全权同意（只在那个会话里）'],
-  [{ kind: 'granular' }, '你对这一次的放行'],
-  [{ kind: 'none' }, '无：还没有生效'],
-])('D2 the basis %o reads as a sentence', async (basis, text) => {
-  const fake = await listed([MONTHLY])
-  const { read } = await picked(fake)
-  await answer(read, { outcome: 'succeeded', body: { ...DETAIL, basis } })
-  expect(screen.getByLabelText('日程详情').textContent).toContain(text)
-})
+  [{ kind: 'human' }, '你建的'],
+  [{ kind: 'agent', session: 'ses_2' }, 'agent（会话 ses_2）建的'],
+  [{ kind: 'system' }, '系统建的'],
+])(
+  'D2 the author %o reads in the byline as who made it, and no fact says what it took effect on',
+  async (author, text) => {
+    const fake = await listed([MONTHLY])
+    const { read } = await picked(fake)
+    await answer(read, { outcome: 'succeeded', body: { ...DETAIL, author } })
+    const byline = screen.getByRole('heading', { level: 2 }).nextElementSibling
+    expect(byline?.textContent?.startsWith(text)).toBe(true)
+    expect(screen.getByLabelText('日程详情').textContent).not.toContain('凭什么生效')
+  },
+)
 
 it('D3 a schedule that is not visible any more, and a preview the calendar cannot answer, say so without a retry', async () => {
   const fake = await listed([MONTHLY])

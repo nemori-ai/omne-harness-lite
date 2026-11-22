@@ -189,7 +189,13 @@ describe('a failed Run returns the inputs it took and did not answer', () => {
     expect((await s.read()).unanswered).toEqual(['first'])
     await reply(s, 'answer', '2')
     await interpret(s, '2', [
-      { kind: 'ended', outcome: 'completed', cause: null, disposition: evidence('complete') },
+      {
+        kind: 'ended',
+        outcome: 'completed',
+        cause: null,
+        disposition: evidence('complete'),
+        end: null,
+      },
     ])
     const after = await s.read()
     expect(after.run).toMatchObject({ kind: 'terminal', terminal: { outcome: 'completed' } })
@@ -284,7 +290,7 @@ describe('a failed Run returns the inputs it took and did not answer', () => {
     )
     const before = s.port.controls.entriesOf(s.access.tenant, s.access.session).length
     await interpret(s, '2', [
-      { kind: 'ended', outcome: 'failed', cause: null, disposition: evidence('failed') },
+      { kind: 'ended', outcome: 'failed', cause: null, disposition: evidence('failed'), end: null },
     ])
     const release = s.port.controls
       .entriesOf(s.access.tenant, s.access.session)

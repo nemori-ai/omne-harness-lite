@@ -1,9 +1,5 @@
 import { UNMAPPED_PERMISSION_SNAPSHOT } from './unmapped-permission-snapshot.ts'
 import {
-  SESSION_AUTHORIZATION_GUARD,
-  SESSION_LOG_PARTICIPANTS,
-} from '@omne-harness/session-storage-sql/participants'
-import {
   SETTINGS_CHECKPOINT_PARTICIPANTS,
   SETTINGS_COMMIT_PARTICIPANTS,
   SETTINGS_READY_PARTICIPANTS,
@@ -19,7 +15,7 @@ import { SUPPORT_PARTICIPANT } from './permission-protocol.ts'
 import { ADOPTION_CURRENT_PARTICIPANT } from './adoption-current.ts'
 import { CATALOG_CURRENT_PARTICIPANT } from './catalog-current.ts'
 import { TARGET_SNAPSHOT } from './target-snapshot.ts'
-import { PERMISSION_BASIS, PERMISSION_BASIS_GUARD } from './permission-basis.ts'
+import { PERMISSION_BASIS } from './permission-basis.ts'
 import { sessionPermissionBasisProducer } from './session-permission-basis.ts'
 import { tenantSettingsCurrentParticipant } from './tenant-settings-current.ts'
 import { heldSettingsCurrentParticipant } from './held-settings-current.ts'
@@ -39,16 +35,6 @@ const snapshot = [
   'settings.value-projection',
   TARGET_SNAPSHOT.participant,
 ]
-const basisRead = [...snapshot, ...SESSION_LOG_PARTICIPANTS, 'session-permission-guard']
-const unmappedBasisRead = [
-  'assets.settings',
-  'harness.tool-permission-release',
-  SUPPORT_PARTICIPANT.participant,
-  'governance.selected-definition-projection',
-  UNMAPPED_PERMISSION_SNAPSHOT.participant,
-  ...SESSION_LOG_PARTICIPANTS,
-  'session-permission-guard',
-]
 export const PROJECTION_READ_MEMBERS = [
   ...snapshot,
   'governance.selected-definition-projection',
@@ -57,15 +43,6 @@ export const PROJECTION_READ_MEMBERS = [
   PERMISSION_BASIS.participant,
   CATALOG_CURRENT_PARTICIPANT.participant,
   'governance.catalog-snapshot',
-]
-const startCondition = (read: readonly string[]) => [
-  ...read,
-  'governance.activation',
-  'governance.metadata-plan',
-  PERMISSION_BASIS.participant,
-  PERMISSION_BASIS_GUARD.participant,
-  SESSION_AUTHORIZATION_GUARD,
-  'tool',
 ]
 const permissionWrite = (mode: 'clear' | 'unmapped' | 'mapped') => [
   'execution-record',
@@ -91,8 +68,6 @@ export const VERSION_DIGEST_LENGTH = 16
 
 export function governanceStorageCombinations(catalog: SqlMaterialCatalog) {
   const definitions = {
-    toolStart: startCondition(basisRead),
-    toolStartUnmapped: startCondition(unmappedBasisRead),
     metadata: ['governance.metadata-plan', 'governance.activation'],
     mutation: ['governance.mutation-plan', 'governance.activation'],
     assets: [...publications, ADOPTION_CURRENT_PARTICIPANT.participant],
@@ -172,8 +147,6 @@ export function governanceStorageCombinations(catalog: SqlMaterialCatalog) {
     }
   }
   return {
-    toolStart: build('toolStart'),
-    toolStartUnmapped: build('toolStartUnmapped'),
     metadata: build('metadata'),
     mutation: build('mutation'),
     assets: build('assets'),

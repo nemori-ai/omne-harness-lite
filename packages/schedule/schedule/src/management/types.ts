@@ -4,7 +4,6 @@ import type {
   ScheduleCallContext,
   ScheduleCandidate,
   ScheduleCommand,
-  ScheduleConsentAdoption,
   ScheduleCreateRequest,
   ScheduleDefinition,
   ScheduleDomainError,
@@ -73,17 +72,8 @@ export type ManagementAuthority = Readonly<{
   authorityVersion: Ref
   guardRef: Ref
 }>
-export type ConsentObservation =
-  | Readonly<{ kind: 'notRequired'; guardRef: Ref }>
-  | Readonly<{
-      kind: 'adopt'
-      adoption: ScheduleConsentAdoption
-      guardRef: Ref
-    }>
-  | Readonly<{ kind: 'retain'; adoption: ScheduleConsentAdoption | null; guardRef: Ref }>
 export type ManagementAccess = Readonly<{
   authority: ManagementAuthority
-  consent: ConsentObservation
   currentStanding: ScheduleStanding
 }>
 export interface ManagementAuthorizer {

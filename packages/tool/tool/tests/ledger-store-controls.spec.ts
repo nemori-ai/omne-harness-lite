@@ -49,6 +49,10 @@ describe('missing controls are independent and checked before any IO', () => {
             io += 1
             return original.store.due(tenant, now, limit)
           },
+          definition: (tenant, adoption) => {
+            io += 1
+            return original.store.definition(tenant, adoption)
+          },
           read: domain => {
             io += 1
             return original.store.read(domain)

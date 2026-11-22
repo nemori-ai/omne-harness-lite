@@ -83,7 +83,15 @@ export type {
   ResidentTool,
   ToolReloadResult,
 } from './dynamics.ts'
-export { judgeFixedToolRequest, judgeToolInvokeRequest } from './judge-request.ts'
+export { judgeFixedToolRequest, judgeToolCall, judgeToolInvokeRequest } from './judge-request.ts'
+export {
+  fixToolRequest,
+  fixedRequestReference,
+  namesDefinition,
+  toolAvailabilityOf,
+  toolAvailabilityReference,
+  toolInvokeRequestOf,
+} from './request-reference.ts'
 export { judgePreparationFact } from './judge-preparation.ts'
 export { judgeConsumerRef, judgeHandoff } from './judge-release.ts'
 export { judgeToolState } from './judge-state.ts'
@@ -229,15 +237,7 @@ export type {
   ToolStartAuthority,
   ToolTask,
 } from './records.ts'
-export type {
-  ToolPermitConsumption,
-  ToolPermitRef,
-  ToolStartAcceptance,
-  ToolStartFence,
-  ToolStartRelease,
-  ToolStartReleaseReading,
-  ToolStartReleases,
-} from './records.ts'
+export type { ToolStartAcceptance, ToolStartFence } from './records.ts'
 export type {
   ToolAccounts,
   ToolUsageFact,

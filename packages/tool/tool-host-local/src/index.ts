@@ -72,28 +72,18 @@ export {
   createLocalToolLedgerGuards,
   localArgumentLimits,
   type LocalToolLedgerGuardsInput,
-  type ConditionalLedgerCommit,
-  type RequestAccessVerdict,
-  type StartCondition,
   type ToolHostAccess,
-  type ToolRequestAccess,
+  type ToolTargetAvailability,
 } from './ledger-guards.ts'
 export {
   createLocalInvocationSource,
-  createLocalInvocationQualifier,
   createLocalOperationIdentities,
   type LocalInvocationSource,
   type LocalInvocationSourceInput,
   type PrincipalCodec,
   type PrincipalJson,
 } from './invocation-source.ts'
-export type {
-  LocalInvocationQualifier,
-  InvocationQualification,
-  InvocationOrigin,
-  InvocationQualificationRequest,
-  InvocationRecordObservation,
-} from './invocation-qualification.ts'
+export type { LocalCurrentDefinitions } from './definition-resolution.ts'
 export { createLocalGrantVerifiers, type LocalGrantScope } from './grant-verifiers.ts'
 export {
   createLocalStartGuard,

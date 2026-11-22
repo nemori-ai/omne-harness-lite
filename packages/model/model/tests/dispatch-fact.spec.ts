@@ -22,6 +22,7 @@ function dispatchOf(record: Record<string, unknown>, logicalTerminal: Terminatio
       send: 'started',
       terminal: null,
       account: null,
+      materialization: null,
       ...record,
     },
     logicalTerminal,
@@ -86,6 +87,14 @@ describe('the fact of one dispatch', () => {
     expect(dispatchFactOf(callOf(f.admit.request), dispatchOf({ send: 'not-sent' })).send).toBe(
       'not-sent',
     )
+  })
+
+  it('a prepared dispatch whose request is materialized may already be out: its send is unknown, never not-sent', () => {
+    const materialization = { receipt: { digest: 'sha256:body' }, source: { owner: 'model' } }
+    expect(
+      dispatchFactOf(callOf(f.admit.request), dispatchOf({ send: 'prepared', materialization }))
+        .send,
+    ).toBe('unknown')
   })
 })
 

@@ -71,10 +71,11 @@ export function viewOf(view: NotificationView): NotificationViewBody {
   return { ...summaryOf(view), subject, at: instantOf(at), body, locator }
 }
 
-/** Why a subscription holds, without the authorization reference: the client has no use for it. */
-function basisOf(basis: Subscription['basis']): NotificationSubscriptionBody['basis'] {
-  if (basis.kind === 'blanket') return { kind: 'blanket', scope: basis.scope }
-  return { kind: basis.kind }
+/** Who made a subscription, as a schedule's author is shown: an agent by its session. */
+function creatorOf(creator: Subscription['creator']): NotificationSubscriptionBody['creator'] {
+  return creator.kind === 'agent'
+    ? { kind: 'agent', session: creator.originatingSessionRef }
+    : { kind: creator.kind }
 }
 
 export function subscriptionOf(subscription: Subscription): NotificationSubscriptionBody {
@@ -82,7 +83,7 @@ export function subscriptionOf(subscription: Subscription): NotificationSubscrip
   return {
     ...subscription,
     term: term.kind === 'until' ? { kind: 'until', at: instantOf(term.at) } : term,
-    basis: basisOf(subscription.basis),
+    creator: creatorOf(subscription.creator),
   }
 }
 

@@ -29,7 +29,6 @@ import {
   type GuardCommand,
   type HistoryEntry,
   type OperationRecord,
-  type ResidentTool,
   type SessionCommand,
   type SessionFailure,
   type WorkSnapshot,
@@ -43,6 +42,7 @@ import {
 } from '@omne-harness/sql-contract/worker'
 import { decodeValue, encodeValue, plainOf } from '../codec.ts'
 import { runChecks } from './check.ts'
+import { maintainResidents } from './resident-index.ts'
 import { commandReads, journalOf } from './command-reads.ts'
 import { judgeEntries, type EntriesBatch } from './entries.ts'
 import { admittedInputs, writeInputs } from './input-rows.ts'
@@ -280,25 +280,6 @@ function autoArchiveResult(snapshot: WorkSnapshot): string {
   }).kind
 }
 
-type ResidentRow = Readonly<{ key: string; capability: string; shape: ResidentTool['shape'] }>
-
-const shapeText = (row: ResidentRow): string => JSON.stringify(encodeValue(row.shape))
-
-function residentRows(snapshot: WorkSnapshot | null): ReadonlyMap<string, ResidentRow> {
-  const rows = new Map<string, ResidentRow>()
-  if (snapshot === null || snapshot.lifecycle === 'archived') return rows
-  for (const pair of snapshot.residentKeys ?? []) {
-    const resident = snapshot.residents.find(item => item.capability === pair.capability)
-    if (resident !== undefined)
-      rows.set(JSON.stringify([pair.key, pair.capability]), {
-        key: pair.key,
-        capability: pair.capability,
-        shape: resident.shape,
-      })
-  }
-  return rows
-}
-
 export function maintainDerived(
   port: ParticipantPort,
   tenant: string,
@@ -322,23 +303,7 @@ export function maintainDerived(
         reason,
         session,
       ])
-  const indexed = residentRows(previous)
-  const residents = residentRows(snapshot)
-  for (const [id, row] of indexed)
-    if (!residents.has(id))
-      port.execute(
-        'DELETE FROM sl_resident_idx WHERE resident_key = ? AND tenant = ? AND session = ? AND capability = ?',
-        [row.key, tenant, session, row.capability],
-      )
-  for (const [id, row] of residents) {
-    const old = indexed.get(id)
-    if (old !== undefined && (old.shape === row.shape || shapeText(old) === shapeText(row)))
-      continue
-    port.execute(
-      'INSERT OR REPLACE INTO sl_resident_idx (resident_key, tenant, session, capability, shape) VALUES (?, ?, ?, ?, ?)',
-      [row.key, tenant, session, row.capability, shapeText(row)],
-    )
-  }
+  maintainResidents(port, tenant, session, previous, snapshot)
   port.execute('DELETE FROM sl_released_scope_idx WHERE tenant = ? AND session = ?', [
     tenant,
     session,
@@ -424,30 +389,25 @@ function runQuery(
     return { kind: 'participated', response: { kind: 'no-session' } }
   const row = oneRow(
     port,
-    'SELECT form, receipt, result FROM sl_operation WHERE tenant = ? AND session = ? AND operation = ? LIMIT 1',
+    'SELECT input_digest, form, receipt, result FROM sl_operation WHERE tenant = ? AND session = ? AND operation = ? LIMIT 1',
     [tenant, session, operation],
   )
-  const stored =
-    row === undefined
-      ? undefined
-      : oneRow(
-          port,
-          'SELECT evidence FROM sl_operation_evidence WHERE tenant = ? AND session = ? AND operation = ? LIMIT 1',
-          [tenant, session, operation],
-        )
+  if (row === undefined) return { kind: 'participated', response: { kind: 'unknown' } }
+  const stored = oneRow(
+    port,
+    'SELECT evidence FROM sl_operation_evidence WHERE tenant = ? AND session = ? AND operation = ? LIMIT 1',
+    [tenant, session, operation],
+  )
   return {
     kind: 'participated',
-    response:
-      row === undefined
-        ? { kind: 'unknown' }
-        : {
-            kind: 'operation',
-            form: text(row['form']),
-            receipt: JSON.parse(packed(row['receipt'])) as JsonValue,
-            result: JSON.parse(packed(row['result'])) as JsonValue,
-            evidence:
-              stored === undefined ? null : (JSON.parse(text(stored['evidence'])) as JsonValue),
-          },
+    response: {
+      kind: 'operation',
+      digest: text(row['input_digest']),
+      form: text(row['form']),
+      receipt: JSON.parse(packed(row['receipt'])) as JsonValue,
+      result: JSON.parse(packed(row['result'])) as JsonValue,
+      evidence: stored === undefined ? null : (JSON.parse(text(stored['evidence'])) as JsonValue),
+    },
   }
 }
 

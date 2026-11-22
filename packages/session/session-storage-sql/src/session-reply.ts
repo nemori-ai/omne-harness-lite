@@ -9,6 +9,7 @@ import { decodeValue, isCount } from './codec.ts'
 import type { WorkFold } from './work-cache.ts'
 
 export const SESSION_PARTICIPANT = 'session'
+export const EXECUTION_RECORD_PARTICIPANT = 'execution-record'
 
 export type SessionParticipation =
   | Readonly<{

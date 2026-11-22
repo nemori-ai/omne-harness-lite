@@ -9,6 +9,7 @@ import {
   configuration,
   guards,
   invokeAuthority,
+  knownDefinition,
   snapshotTestPrincipal,
   testHost,
   type Principal,
@@ -22,6 +23,7 @@ export function testAssembly(overrides: Partial<TestToolDependenciesInput<Princi
   const source = createTestInvocationSource<Principal>({
     authority: invokeAuthority(),
     snapshotPrincipal: snapshotTestPrincipal,
+    definition: knownDefinition,
   })
   const host = testHost({ calls: new Map() }, identities.instanceIdentities)
   const config = configuration()
@@ -29,7 +31,7 @@ export function testAssembly(overrides: Partial<TestToolDependenciesInput<Princi
     configuration: config,
     guards: { ...guards(), sources: source.guard, policy: defaultResultPolicy },
     instances: host,
-    catalog: { inspect: missing, usage: missing, search: missing },
+    catalog: { inspect: missing, inspectEach: missing, usage: missing, search: missing },
     children: {
       reserve: missing,
       admitted: missing,

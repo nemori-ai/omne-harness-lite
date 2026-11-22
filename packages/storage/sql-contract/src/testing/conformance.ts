@@ -278,10 +278,10 @@ const SCENARIOS: readonly Scenario[] = [
         await storage.commit(commitRequest(materials, { ...all, identity: never })),
       )
       same(first.identity, never, 'the result carries the identity of the request')
-      same(
-        await storage.query(never),
-        { kind: 'not_recallable', identity: never },
-        'query does not recognize a commit that is never recalled',
+      const asked = await storage.query(never)
+      expect(
+        asked.kind === 'settled',
+        `query does not recognize a commit that is never recalled, got ${asked.kind}`,
       )
       const again = await storage.commit(
         commitRequest(materials, {
@@ -321,6 +321,126 @@ const SCENARIOS: readonly Scenario[] = [
       expect(
         kindOf(other) === 'rejected_before_accept/field_missing',
         `an unknown recall value is refused, got ${kindOf(other)}`,
+      )
+    },
+  },
+  {
+    id: 'C26',
+    title:
+      'a query of an identity that is never recalled answers only whether its commit is in flight',
+    async run({ storage, materials }) {
+      await registerAll(storage, materials)
+      const all = { combinationVersion: 'all-v1' }
+      const never = identity({ operationKey: 'settles', recall: 'never' })
+      committed(await storage.commit(commitRequest(materials, { ...all, identity: never })))
+      same(
+        await storage.query(never),
+        {
+          kind: 'settled',
+          identity: never,
+          proofs: {
+            writerGenerationExcluded: true,
+            oldTransactionTerminated: true,
+            databaseRecoveryFinished: true,
+            authoritativeReadSucceeded: true,
+            operationNotQueued: true,
+          },
+        },
+        'a settled identity carries all five proofs and no receipt',
+      )
+      const recallable = await storage.query(identity({ operationKey: 'settles' }))
+      expect(
+        recallable.kind === 'not_committed',
+        `the commit left no receipt under its key, got ${recallable.kind}`,
+      )
+      const flying = identity({ operationKey: 'flying', recall: 'never' })
+      const sent = storage.commit(commitRequest(materials, { ...all, identity: flying }))
+      const asked = await storage.query(flying)
+      expect(asked.kind === 'unknown', `a commit in flight is unknown, got ${asked.kind}`)
+      committed(await sent)
+    },
+  },
+  {
+    id: 'C25',
+    title: 'a commit releases earlier receipts of its own domain',
+    async run({ storage, materials }) {
+      await registerAll(storage, materials)
+      const all = { combinationVersion: 'all-v1' }
+      const early = identity({ operationKey: 'early' })
+      const first = committed(
+        await storage.commit(commitRequest(materials, { ...all, identity: early })),
+      )
+      const stopped = await storage.commit(
+        commitRequest(materials, {
+          ...all,
+          identity: identity({ operationKey: 'stopped' }),
+          commands: [command('session'), command('probe', { mode: 'conflict' })],
+          releases: [early],
+        }),
+      )
+      expect(stopped.kind === 'rolled_back', `a conflict reply rolls back, got ${kindOf(stopped)}`)
+      same(await storage.query(early), stored(first), 'a rollback releases nothing')
+      for (const foreign of [
+        identity({ operationKey: 'early', transactionDomain: 'other-domain' }),
+        identity({ operationKey: 'early', scope: TENANT_B }),
+      ]) {
+        const refused = await storage.commit(
+          commitRequest(materials, {
+            ...all,
+            identity: identity({ operationKey: 'foreign' }),
+            releases: [early, foreign],
+          }),
+        )
+        expect(
+          kindOf(refused) === 'rejected_before_accept/release_outside_domain',
+          `a release outside the domain refuses the whole commit, got ${kindOf(refused)}`,
+        )
+      }
+      const malformed = await storage.commit(
+        commitRequest(materials, {
+          ...all,
+          identity: identity({ operationKey: 'malformed' }),
+          releases: [{ ...early, operationKey: '' }],
+        }),
+      )
+      expect(
+        kindOf(malformed) === 'rejected_before_accept/field_missing',
+        `a malformed release is refused, got ${kindOf(malformed)}`,
+      )
+      same(await storage.query(early), stored(first), 'a refused commit releases nothing')
+      const release = commitRequest(materials, {
+        ...all,
+        identity: identity({ operationKey: 'release' }),
+        releases: [early, identity({ operationKey: 'absent' })],
+      })
+      const released = committed(await storage.commit(release))
+      expect(released.recalled === false, 'the releasing commit runs')
+      const gone = await storage.query(early)
+      expect(gone.kind === 'not_committed', `a released receipt is gone, got ${gone.kind}`)
+      const again = committed(
+        await storage.commit(commitRequest(materials, { ...all, identity: early })),
+      )
+      expect(again.recalled === false, 'the released identity runs again as a new operation')
+      const recognised = await storage.commit({ ...release, releases: [] })
+      expect(
+        recalled(recognised) === true,
+        `releases are not part of the input, got ${kindOf(recognised)}`,
+      )
+      expect(recalled(await storage.commit(release)) === true, 'the same commit is recognised')
+      same(await storage.query(early), stored(again), 'a recognised commit releases nothing')
+      committed(
+        await storage.commit(
+          commitRequest(materials, {
+            ...all,
+            identity: identity({ operationKey: 'never-release' }),
+            releases: [{ ...early, recall: 'never' }],
+          }),
+        ),
+      )
+      same(
+        await storage.query(early),
+        stored(again),
+        'an identity that is never recalled has no receipt to release',
       )
     },
   },

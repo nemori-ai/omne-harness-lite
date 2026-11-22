@@ -115,7 +115,11 @@ export function createReleaseCatalogView(
           revision: canonicalDigest({
             adopted: work.ok.definition.adopted,
             lifecycle: work.ok.lifecycle,
-            entries,
+            entries: entries.map(entry => ({
+              key: entry.key,
+              resident: entry.resident,
+              knownDefinition: entry.knownDefinition?.adoption ?? null,
+            })),
           }),
           entries,
         })

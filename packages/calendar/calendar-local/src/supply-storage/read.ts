@@ -37,7 +37,7 @@ function health(input: Extract<Read, { kind: 'health' }>, port: ReadPort): JsonV
     params,
   ).rows[0]
   const failures = port.execute(
-    "SELECT count(*) FROM ca_supply_runs WHERE scope = ? AND calendar = ? AND sequence > ? AND outcome IN ('withheld','rejected') LIMIT 1",
+    "SELECT count(*) FROM ca_supply_runs WHERE scope = ? AND calendar = ? AND sequence > ? AND outcome IN ('withheld','rejected','refused') LIMIT 1",
     [...params, success?.[0] ?? 0],
   ).rows[0]
   return {
@@ -62,6 +62,18 @@ function read(input: Read, port: ReadPort): JsonValue {
             storedSchema,
           ),
         )
+    case 'run': {
+      const row = port.execute(
+        'SELECT record, completion FROM ca_supply_runs WHERE scope = ? AND operation_ref = ? LIMIT 1',
+        [input.systemScopeRef, input.operationRef],
+      ).rows[0]
+      return row === undefined
+        ? null
+        : {
+            state: row[1] === null ? 'pending' : 'completed',
+            run: z.json().parse(JSON.parse(z.string().parse(row[0]))),
+          }
+    }
     case 'pending':
       return records(
         port,

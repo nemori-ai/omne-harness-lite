@@ -137,6 +137,15 @@ export type ToolAvailability =
       layer: SourceLayer
     }>
   | Readonly<{ kind: 'known-unavailable'; definition: ToolDefinition; reason: string }>
+export type ToolAvailabilityReference =
+  | Readonly<{
+      kind: 'available'
+      definition: Adoption
+      name: string
+      executor: Adoption
+      layer: SourceLayer
+    }>
+  | Readonly<{ kind: 'known-unavailable'; definition: Adoption; name: string; reason: string }>
 export type ToolArguments = Readonly<{
   original: string
   effective: string
@@ -154,9 +163,7 @@ export type ToolCallDirectory = Readonly<{
   workspace: Readonly<{ id: WorkspaceId; instance: string }> | null
   files?: FilesScope
 }>
-export type FixedToolRequest = Readonly<{
-  availability: ToolAvailability
-  invocation: ToolInvocation
+export type ToolCallFields = Readonly<{
   command: string | null
   arguments: ToolArguments
   /** How a person and the model recognise the call. No admission, permission or approval reads it. */
@@ -166,7 +173,6 @@ export type FixedToolRequest = Readonly<{
   workspace: WorkspaceId | null
   /** Given by the request source when the call is accepted; it does not change afterwards. */
   directory?: ToolCallDirectory
-  environment: ToolEnvironmentDeclaration | null
   requesterScope: ScopeRef
   resources: readonly Adoption[]
   scope: ResourceScope
@@ -180,3 +186,7 @@ export type FixedToolRequest = Readonly<{
     backgroundAfterMs: number | null
   }>
 }>
+export type FixedToolRequest = ToolCallFields &
+  Readonly<{ availability: ToolAvailability; invocation: ToolInvocation }>
+export type ToolInvokeRequest = ToolCallFields &
+  Readonly<{ availability: ToolAvailabilityReference }>

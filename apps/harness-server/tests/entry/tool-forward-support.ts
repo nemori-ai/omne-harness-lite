@@ -82,7 +82,6 @@ export async function forwardWorld() {
       settings: entry.settings,
       context: RELEASE_REQUEST_CONTEXT,
       workspace: null,
-      environment: definition.declarations.environment,
       requesterScope: okOf(decodeScopeRef({ ref: 'forward-test-scope' }), 'scope'),
       resources: [],
       scope: runToolScope(tenant, consumer),
@@ -92,15 +91,19 @@ export async function forwardWorld() {
       limits: { concurrency: 1, scopeBudget: null, foregroundMs: 234, backgroundAfterMs: null },
     }
   }
+  const inspect: ToolCatalog<unknown>['inspect'] = async input =>
+    input.name === 'Files' ||
+    input.name === 'Shell' ||
+    input.name === 'Tools' ||
+    input.name === 'ToyEcho' ||
+    input.name === 'Ask'
+      ? { ok: request(input.name).availability }
+      : { failure: { kind: 'invalid', field: 'name', reason: 'unknown' } }
   const catalog: ToolCatalog<unknown> = {
-    inspect: async input =>
-      input.name === 'Files' ||
-      input.name === 'Shell' ||
-      input.name === 'Tools' ||
-      input.name === 'ToyEcho' ||
-      input.name === 'Ask'
-        ? { ok: request(input.name).availability }
-        : { failure: { kind: 'invalid', field: 'name', reason: 'unknown' } },
+    inspect,
+    inspectEach: async input => ({
+      ok: await Promise.all(input.names.map(name => inspect({ ...input, name, command: null }))),
+    }),
     search: async () => ({
       failure: { kind: 'unavailable', dependency: 'fixture', diagnostic: 'unused' },
     }),

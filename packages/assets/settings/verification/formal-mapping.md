@@ -100,11 +100,13 @@
 
 ## StandingRequestSettlement
 
-| 性质                     | 规格规则                               | 实现                                                                         | 用例                                                                    |
-| ------------------------ | -------------------------------------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| NoLateHold               | 已结算之后迟到的预留不新建 held        | `identity-sql/coordination.ts`；`settings-local/source-retention-records.ts` | `identity-sql/standing-reservations`；`settings-local/source-retention` |
-| TerminalBeforeCompletion | 目的终态之前不完成结算                 | 同上                                                                         | 同上；`settings-local/source-service`                                   |
-| BoundCompletion          | 完成必须绑定原请求                     | 同上                                                                         | 同上                                                                    |
-| Completion               | 弱公平结算且目的地可用时原请求最终完成 | 同上                                                                         | 同上                                                                    |
+| 性质                     | 规格规则                                      | 实现                                                                                                             | 用例                                                                    |
+| ------------------------ | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| NoLateHold               | 已结算之后迟到的预留不新建 held；释放之后也不 | `identity-sql/coordination.ts`；`settings-local/source-retention-records.ts`                                     | `identity-sql/standing-reservations`；`settings-local/source-retention` |
+| TerminalBeforeCompletion | 目的终态之前不完成结算                        | 同上                                                                                                             | 同上；`settings-local/source-service`                                   |
+| BoundCompletion          | 完成必须绑定原请求                            | 同上                                                                                                             | 同上                                                                    |
+| ReleaseOnlySettled       | 只释放已结算的预留，held 的拒绝               | `identity-sql/worker/standing.ts` 的 `releaseRequest`                                                            | `identity-sql/standing-reservations`                                    |
+| Completion               | 弱公平结算且目的地可用时原请求最终完成        | 同上                                                                                                             | 同上                                                                    |
+| Released                 | 持有方窗口结束后，用完的预留最终释放          | `governance-local/standing-coordinator.ts` 的 `release`；`settings-local/catalog-cleanup.ts` 的 `releaseCapture` | `governance-local/reclamation`；`settings-local/catalog`                |
 
-源端缺行对应模型的 absent，held 行对应 held，settled 行对应 settled；缺行时只能建立 aborted 终态。
+源端缺行对应模型的 absent，held 行对应 held，settled 行对应 settled；缺行时只能建立 aborted 终态。`Release` 是持有方的释放：只在源端是 settled、而且这次请求已经没有在途的预留时成立，删掉 settled 行，回到 absent。持有方在自己的窗口结束时才释放，这时它不会再为这个请求发预留，所以模型用「没有在途的预留」表达窗口已结束。负控 `early-release` 在预留还在途时释放，迟到的预留重新建出 held，命中 `NoLateHold`；`release-held` 释放 held 行，命中 `ReleaseOnlySettled`；`no-release` 从不释放，命中 `Released`。

@@ -101,6 +101,12 @@ export function decideControl(
         snapshot,
         { run: scope.cancelsRun, outcome: 'cancelled', evidence: source },
         source,
+        {
+          sequence: null,
+          cause: null,
+          disposition: source,
+          end: { conclusion: 'cancelled', failure: null },
+        },
       ),
     )
   if (archive) {

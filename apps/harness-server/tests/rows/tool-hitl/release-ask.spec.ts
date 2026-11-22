@@ -11,6 +11,7 @@ import {
   toolCallsByRequest,
   toolCallsThenText,
   toolRecords,
+  unsettledExecutions,
 } from '../../support/release-tree.ts'
 import { savedTenant } from '../../r9/support.ts'
 
@@ -140,6 +141,7 @@ describe('Ask on the release tree puts its cards before a person and parks its c
           await sleep(250)
         );
         expect((await historyOf(world, session)).some(e => e.kind === 'run.terminal')).toBe(true)
+        expect(unsettledExecutions(world.storageRoot, session)).toBe(1)
         const at = await world.hitl.host?.tenant(savedTenant(world.home))
         if (at?.kind !== 'ready') throw new Error('no HITL application')
         const registered: unknown[] = []
@@ -161,6 +163,11 @@ describe('Ask on the release tree puts its cards before a person and parks its c
           'the cancelled execution to end',
           async () => (await world.cli(['read-session-diagnostics', '--session', session])).stdout,
           text => text.includes('reason: no-failure cancelled'),
+        )
+        await pollUntil(
+          'the cancelled execution to settle',
+          () => unsettledExecutions(world.storageRoot, session),
+          open => open === 0,
         )
       })
       expect(exit).toBe(0)

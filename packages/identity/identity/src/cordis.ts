@@ -104,6 +104,7 @@ export abstract class StandingReservationsService extends Service implements Sta
   abstract readonly observe: StandingReservations['observe']
   abstract readonly reserve: StandingReservations['reserve']
   abstract readonly settle: StandingReservations['settle']
+  abstract readonly release: StandingReservations['release']
   abstract readonly recover: StandingReservations['recover']
 }
 export const standingReservationsKey = StandingReservationsService.provide

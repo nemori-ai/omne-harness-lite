@@ -100,26 +100,37 @@ export function createRegister(core: Core): SqlStorage['registerCombination'] {
         if (!sameScope(entry.scope, spec.scope)) return rejection('domain_occupied')
         if (core.lifecycle.closing) return unknown('withdrawn_before_start')
         if (entry.wal.state === 'write-stopped') return rejection('domain_unavailable')
-        let reply: RegisterReply
-        const resume = await core.readers.pauseForMigration(transactionDomain)
-        if (core.lifecycle.closing) {
-          resume()
-          return unknown('withdrawn_before_start')
-        }
-        try {
-          reply = await observeReply(
-            () => entry.client.request<RegisterReply>({ kind: 'register', registration: spec }),
+        const send = (readersPaused: boolean): Promise<RegisterReply> =>
+          observeReply(
+            () =>
+              entry.client.request<RegisterReply>({
+                kind: 'register',
+                registration: spec,
+                readersPaused,
+              }),
             core.replyObservationMs,
             () => expire('reply_wait_expired'),
           )
+        let reply: RegisterReply
+        try {
+          reply = await send(false)
+          if (reply.kind === 'migration_pending') {
+            const resume = await core.readers.pauseForMigration(transactionDomain)
+            try {
+              if (core.lifecycle.closing) return unknown('withdrawn_before_start')
+              reply = await send(true)
+            } finally {
+              resume()
+            }
+          }
         } catch (error) {
           return unknown(error instanceof WorkerExited ? 'worker_exited' : 'provider_error')
-        } finally {
-          resume()
         }
         switch (reply.kind) {
           case 'registered':
             return registered(spec.scope)
+          case 'migration_pending':
+            return unknown('provider_error')
           case 'conflict':
             return rejection('registration_conflict')
           case 'unavailable':

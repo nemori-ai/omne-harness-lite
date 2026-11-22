@@ -78,6 +78,7 @@ export function createModelTelling<P, B extends Book>(ports: ModelTellingPorts<P
       domain,
       combination: ports.combination,
       operation: command.input.operation,
+      recall: 'never',
       commands: sessionCommitCommands([sessionCommandFacts(command, [])]),
       generations: ports.generations,
     })

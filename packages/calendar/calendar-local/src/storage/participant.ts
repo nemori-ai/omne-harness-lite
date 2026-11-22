@@ -13,29 +13,25 @@ import {
   digest,
   operationRef,
 } from './encoding.ts'
-import { record } from './records.ts'
 import { publicationDecision, savePublication } from './publication.ts'
 import {
   AUTHORITY_FACT,
   PARTICIPANT,
   PROTOCOL,
   RESULT_FACT,
-  candidateRecordSchema,
+  candidateRowSchema,
   workerCommandSchema,
   type WorkerCommand,
 } from './schema.ts'
+import { readVersion, saveSnapshot, storedCommand } from './snapshots.ts'
 
 function conflict(reason: string): ParticipantReply {
   return { kind: 'conflict', basis: { reason } }
 }
 function currentSnapshot(command: CalendarDispositionCommand, port: ParticipantPort) {
-  return record(
-    port.execute(
-      'SELECT v.snapshot FROM ca_current c JOIN ca_versions v ON v.calendar_id = c.calendar_id AND v.version_id = c.version_id WHERE c.calendar_id = ?',
-      [command.address.calendarId],
-    ),
-    calendarSnapshotSchema,
-  )
+  return calendarSnapshotSchema
+    .nullable()
+    .parse(readVersion(port, command.address.calendarId, { kind: 'current' }))
 }
 function checkAuthority(input: WorkerCommand, port: ParticipantPort): boolean {
   const fact = z
@@ -75,32 +71,35 @@ function publish(
 }
 function disposition(command: CalendarDispositionCommand, port: ParticipantPort): ParticipantReply {
   const ref = operationRef(command.address)
-  const previous = record(
-    port.execute('SELECT record FROM ca_candidates WHERE operation_ref = ?', [ref]),
-    candidateRecordSchema,
-  )
-  if (previous !== null) {
-    if (canonical(previous.command) !== canonical(command)) return conflict('operationKeyConflict')
+  const stored = storedCommand(command)
+  const previous = port.execute(
+    'SELECT canonical_command, record FROM ca_candidates WHERE operation_ref = ?',
+    [ref],
+  ).rows[0]
+  if (previous !== undefined) {
+    if (previous[0] !== stored) return conflict('operationKeyConflict')
     return {
       kind: 'participated',
       response: {
         action: 'disposition',
         commandDigest: digest(command),
-        receipt: previous.receipt,
+        receipt: candidateRowSchema.parse(JSON.parse(z.string().parse(previous[1]))).receipt,
       },
     }
   }
   const result = publish(command, port)
   if ('kind' in result) return result
-  const candidate = { candidateRef: ref, command, receipt: result }
+  const snapshot =
+    command.candidate.snapshot === null ? null : saveSnapshot(port, command.candidate.snapshot)
   port.execute(
-    'INSERT INTO ca_candidates(operation_ref, calendar_id, fingerprint, canonical_command, record) VALUES (?, ?, ?, ?, ?)',
+    'INSERT INTO ca_candidates(operation_ref, calendar_id, fingerprint, snapshot_digest, canonical_command, record) VALUES (?, ?, ?, ?, ?, ?)',
     [
       ref,
       command.address.calendarId,
       command.expectedFingerprint,
-      canonical(command),
-      canonical(candidate),
+      snapshot,
+      stored,
+      canonical({ candidateRef: ref, receipt: result }),
     ],
   )
   return {

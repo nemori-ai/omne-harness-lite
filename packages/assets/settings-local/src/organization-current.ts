@@ -134,6 +134,7 @@ function createStandaloneSettingsCurrent(
           operation: `settings.${rule}-current`,
           protocolVersion: '2',
           operationKey: randomUUID(),
+          recall: 'never',
         },
         ...capture,
         commands: [

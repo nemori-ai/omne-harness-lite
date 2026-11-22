@@ -93,7 +93,6 @@ describe('a tool with two gates', () => {
     const read = {
       request: null,
       reading: null,
-      condition: null,
       authorizations: {
         session: {
           capabilityId: 'tool.Files',

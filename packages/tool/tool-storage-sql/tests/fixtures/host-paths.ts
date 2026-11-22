@@ -14,6 +14,7 @@ import {
   type DurableEvidence,
   type FixedToolRequest,
   type ToolCallId,
+  type ToolDefinition,
   type ToolForwardIntent,
   type ToolInvokeRequest,
   type ToolOperationId,
@@ -22,9 +23,10 @@ import {
 import {
   decodeToolInstanceId,
   decodeToolRevision,
+  toolInvokeRequestOf,
   type PreparationRecord,
 } from '@omne-harness/tool-contract/provider'
-import type { PrincipalJson } from '@omne-harness/tool-host-local'
+import type { LocalCurrentDefinitions, PrincipalJson } from '@omne-harness/tool-host-local'
 import { fixedRequest } from './ledger.ts'
 
 export type Principal = Readonly<{ subject: string; session: string }>
@@ -73,15 +75,49 @@ export const targetIntent: ToolForwardIntent = {
   arguments: { kind: 'object', entries: [] },
 }
 
-export function targetRequest(): Omit<ToolInvokeRequest, 'invocation'> {
+export function targetCall(): Omit<FixedToolRequest, 'invocation'> {
   const { invocation: _entry, ...request } = fixedRequest()
   return request
 }
 
-export function parentRequest(index: number): ToolInvokeRequest {
-  const base = targetRequest()
-  const definition = base.availability.definition
+export function targetRequest(): ToolInvokeRequest {
+  return toolInvokeRequestOf(targetCall())
+}
+
+export function toolsDefinition(): ToolDefinition {
+  const definition = targetCall().availability.definition
   if (definition.kind !== 'function') throw new Error('the fixture target is a function tool')
+  return {
+    name: 'Tools',
+    adoption: adoption('Tools'),
+    description: definition.description,
+    requiredCapabilities: [],
+    backgroundAllowed: false,
+    declarations: definition.declarations,
+    kind: 'commands',
+    encoding: 'wrapped',
+    commands: [
+      {
+        name: 'execute',
+        summary: 'Execute one target',
+        parameters: { kind: 'executor-owned' },
+        returns: definition.returns,
+      },
+    ],
+  }
+}
+
+export const currentDefinitions: LocalCurrentDefinitions<unknown> = {
+  current: async ({ name }) =>
+    succeed(
+      [targetCall().availability.definition, toolsDefinition()].find(
+        definition => definition.name === name,
+      ) ?? null,
+    ),
+}
+
+export function parentCall(index: number): Omit<FixedToolRequest, 'invocation'> {
+  const base = targetCall()
   const text = JSON.stringify({
     command: 'execute',
     params: { name: targetIntent.name, command: null, arguments: {} },
@@ -91,28 +127,12 @@ export function parentRequest(index: number): ToolInvokeRequest {
     consumer: { ...base.consumer, work: `work-${width(index)}` },
     command: 'execute',
     arguments: { original: text, effective: text, complete: true },
-    availability: {
-      ...base.availability,
-      definition: {
-        name: 'Tools',
-        adoption: adoption('Tools'),
-        description: definition.description,
-        requiredCapabilities: [],
-        backgroundAllowed: false,
-        declarations: definition.declarations,
-        kind: 'commands',
-        encoding: 'wrapped',
-        commands: [
-          {
-            name: 'execute',
-            summary: 'Execute one target',
-            parameters: { kind: 'executor-owned' },
-            returns: definition.returns,
-          },
-        ],
-      },
-    },
+    availability: { ...base.availability, definition: toolsDefinition() },
   }
+}
+
+export function parentRequest(index: number): ToolInvokeRequest {
+  return toolInvokeRequestOf(parentCall(index))
 }
 
 export const isParent = (request: FixedToolRequest): boolean =>

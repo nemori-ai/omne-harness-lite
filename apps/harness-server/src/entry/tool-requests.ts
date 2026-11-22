@@ -38,7 +38,10 @@ import {
   type ToolInvokeRequest,
   type ToolDefinition,
 } from '@omne-harness/tool-contract'
-import { commandAddedModalities } from '@omne-harness/tool-contract/provider'
+import {
+  commandAddedModalities,
+  toolAvailabilityReference,
+} from '@omne-harness/tool-contract/provider'
 import { toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
 import type { FilesScope } from '@omne-harness/execution-environment-contract'
 import type { OutsideFiles } from '@omne-harness/workspace-local'
@@ -481,7 +484,7 @@ export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolR
     )
     if ('failure' in limits) return unavailable(limits.failure)
     const request: ToolInvokeRequest = {
-      availability,
+      availability: toolAvailabilityReference(availability),
       command,
       arguments: args,
       label,
@@ -489,7 +492,6 @@ export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolR
       context: RELEASE_REQUEST_CONTEXT,
       workspace: null,
       ...pinned(directory),
-      environment: availability.definition.declarations.environment,
       requesterScope: scope.ok,
       resources: [],
       scope: runToolScope(input.tenant, input.consumer),

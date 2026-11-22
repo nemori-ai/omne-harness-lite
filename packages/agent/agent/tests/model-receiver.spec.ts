@@ -103,6 +103,61 @@ async function setup() {
 }
 
 describe('host Model receiver', () => {
+  it('answers saved with the pushed key and the settlement evidence when the consuming execution has settled, without reading or writing, and still refuses an execution it never knew', async () => {
+    const s = await setup()
+    const settlement = evidence('settled')
+    const touched: string[] = []
+    const received = s.dependencies.provider.received
+    if (!received) throw new Error('joint provider expected')
+    const receiver = createAgentModelReceiver(
+      {
+        ...s.dependencies,
+        provider: {
+          ...s.dependencies.provider,
+          materials: {
+            ...s.dependencies.provider.materials,
+            read: input => {
+              touched.push('materials.read')
+              return s.dependencies.provider.materials.read(input)
+            },
+          },
+          received: {
+            ...received,
+            commit: input => {
+              touched.push('received.commit')
+              return received.commit(input)
+            },
+            query: input => {
+              touched.push('received.query')
+              return received.query(input)
+            },
+          },
+        },
+        targets: {
+          forExecution: input => s.dependencies.targets.forExecution(input),
+          resolve: async input =>
+            input.execution === execution()
+              ? { ok: { kind: 'settled', evidence: settlement } }
+              : { failure: { kind: 'denied', action: 'resolve' } },
+        },
+      },
+      createModelReceiverState<string>(),
+    )
+    const signal = new AbortController().signal
+    expect(await receiver.push({ access: alice, delivery: s.delivery, signal })).toEqual({
+      ok: { key: s.delivery.key, evidence: settlement },
+    })
+    const foreign = { ...s.delivery.consumer, owner: 'another-owner' }
+    expect(
+      await receiver.push({
+        access: alice,
+        delivery: { ...s.delivery, consumer: foreign },
+        signal,
+      }),
+    ).toEqual({ failure: { kind: 'denied' } })
+    expect(touched).toEqual([])
+  })
+
   it('routes standalone material by explicit execution and retains its access boundary', async () => {
     const s = await setup()
     const consumer = {
@@ -660,6 +715,7 @@ it.each(['same', 'different'] as const)(
         consumer: later.position,
       }),
     )
+    if ('kind' in target) throw new Error('a target expected')
     expect(target.execution).toBe(execution())
     expect(target.pending).toEqual(s.pending)
     const foreignTarget = ok(
@@ -669,6 +725,7 @@ it.each(['same', 'different'] as const)(
         consumer: later.position,
       }),
     )
+    if ('kind' in foreignTarget) throw new Error('a target expected')
     expect(foreignTarget.pending.reference).toBe(foreignReference)
     expect(foreignTarget.pending.consumption).toBe(later.consumption)
     expect(foreignReference).toBe(s.pending.reference)

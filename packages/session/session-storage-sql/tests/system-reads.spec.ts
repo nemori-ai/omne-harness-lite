@@ -30,12 +30,18 @@ const resident = (
   session: string,
   key: string,
   capability: string,
-) =>
+) => {
   a.provider.seed(
     domain,
-    'INSERT INTO sl_resident_idx (resident_key, tenant, session, capability, shape) VALUES (?, ?, ?, ?, ?)',
-    [key, textOf(tenant), session, capability, JSON.stringify({ capability })],
+    'INSERT OR IGNORE INTO sl_resident_shape (tenant, digest, shape) VALUES (?, ?, ?)',
+    [textOf(tenant), `shape-${capability}`, JSON.stringify({ capability })],
   )
+  a.provider.seed(
+    domain,
+    'INSERT INTO sl_resident_idx (resident_key, tenant, session, capability, shape_digest) VALUES (?, ?, ?, ?, ?)',
+    [key, textOf(tenant), session, capability, `shape-${capability}`],
+  )
+}
 const released = (a: App, domain: string, tenant: TenantId, session: string, scope: string) =>
   a.provider.seed(
     domain,
@@ -268,6 +274,7 @@ describe('a directory entry whose domain is not the domain of its tenant', () =>
         'not-a-tenant',
         's9',
       ])
+      a.provider.seed('dom_unminted', 'UPDATE sl_resident_shape SET tenant = ?', ['not-a-tenant'])
       released(a, 'dom_unminted', TENANT_B, 's9', 'scope-9')
       a.provider.seed(
         'dom_unminted',

@@ -29,7 +29,7 @@ export async function settingsWorld(
           'Calendar Settings environment and Schedule environment bridge',
         ],
         fixtures: [
-          'domain access, consent, quota and basis SQL guard',
+          'domain access, quota and basis SQL guard',
           'empty execution history',
           'fixed clock and trusted deployment declaration',
         ],

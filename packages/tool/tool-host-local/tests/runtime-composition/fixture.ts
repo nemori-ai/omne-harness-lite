@@ -22,6 +22,8 @@ import {
   defineFunctionTool,
   defineCommandTool,
   defineToolOperation,
+  toolAvailabilityReference,
+  toolInvokeRequestOf,
   type CheckpointedToolExecutor,
   type ToolBindings,
   type ToolDecisionBridge,
@@ -49,7 +51,7 @@ import { createLocalToolLoader } from '../../src/author-loader.ts'
 import { createLocalToolBindingRegistry } from '../../src/bindings.ts'
 import { createLocalToolCatalog } from '../../src/catalog.ts'
 import { createLocalToolClock } from '../../src/clock.ts'
-import type { ToolRequestAccess } from '@omne-harness/tool-host-local'
+import type { ToolTargetAvailability } from '@omne-harness/tool-host-local'
 import { createLocalGrantVerifiers } from '../../src/grant-verifiers.ts'
 import { createLocalInvocationSource } from '../../src/invocation-source.ts'
 import type { ToolEnvironmentValue } from '../../src/author-environment.ts'
@@ -123,7 +125,7 @@ export async function fixture(
   receiver?: ToolResultReceiver<unknown, ToolMessageContentBlock>,
   capacity = 32,
   enableForwarding = false,
-  requestAccess?: ToolRequestAccess<unknown>,
+  target?: ToolTargetAvailability<unknown>,
   forwardingPreparation?: () => Promise<void>,
   body?: Readonly<{
     declaration: ToolBodyDeclaration
@@ -144,6 +146,7 @@ export async function fixture(
     read: memory.read,
     readRecord: memory.readRecord,
     due: memory.due,
+    definition: memory.definition,
     commit: memory.commit,
     scanPending: memory.scanPending,
     usage: memory.usage,
@@ -188,7 +191,7 @@ export async function fixture(
   const access = {
     guard: { qualify },
     start: { qualify },
-    ...(requestAccess === undefined ? {} : { request: requestAccess }),
+    ...(target === undefined ? {} : { target }),
   }
   const sources = createLocalInvocationSource({
     store,
@@ -203,6 +206,14 @@ export async function fixture(
         }
       : {}),
     commitAttempts: 8,
+    definitions: {
+      current: async ({ name }) =>
+        succeed(
+          [loaded.definition, toolsLoaded?.definition].find(
+            definition => definition?.name === name,
+          ) ?? null,
+        ),
+    },
     authority: {
       qualify,
       samePrincipal: async input =>
@@ -438,7 +449,6 @@ export async function fixture(
   const input: LocalToolRuntimeInput = {
     store,
     bodies: createMemoryToolBodies(),
-    conditionalCommit: { commit: async ({ ledger }) => store.commit(ledger) },
     content: null,
     ...(body === undefined ? {} : { bodySchemas: body.schemas }),
     sources,
@@ -620,15 +630,14 @@ export async function fixture(
   await consumer
   const api = root.toolRuntime
   function invocation(value: string, tenant = tenantA): Parameters<typeof api.invoke>[0] {
-    const { invocation: _invocation, ...base } = fixed
     const request: ToolInvokeRequest = {
-      ...base,
-      availability: {
+      ...toolInvokeRequestOf(fixed),
+      availability: toolAvailabilityReference({
         kind: 'available',
         layer: loaded.key.layer,
         definition: loaded.definition,
         executor: loaded.executor,
-      },
+      }),
       consumer: { ...fixed.consumer, position: value },
       limits: { ...fixed.limits, concurrency: 8 },
       arguments: {
@@ -759,12 +768,12 @@ export async function fixture(
           ...base.request,
           command: 'execute',
           arguments: { original: text, effective: text, complete: true },
-          availability: {
-            kind: 'available' as const,
+          availability: toolAvailabilityReference({
+            kind: 'available',
             layer: toolsLoaded.key.layer,
             definition: toolsLoaded.definition,
             executor: toolsLoaded.executor,
-          },
+          }),
           limits: { ...base.request.limits, concurrency: 1 },
         },
       }
