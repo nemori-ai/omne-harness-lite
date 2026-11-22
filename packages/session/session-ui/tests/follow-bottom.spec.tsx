@@ -3,7 +3,12 @@ import { cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { useFollowBottom } from '../src/view/scroll.ts'
 
-type Observed = { callback: () => void; target: Element | null; disconnected: boolean }
+type Observed = {
+  callback: () => void
+  target: Element | null
+  targets: Element[]
+  disconnected: boolean
+}
 
 let observed: Observed[] = []
 
@@ -14,11 +19,12 @@ beforeEach(() => {
     class {
       readonly #entry: Observed
       constructor(callback: () => void) {
-        this.#entry = { callback, target: null, disconnected: false }
+        this.#entry = { callback, target: null, targets: [], disconnected: false }
         observed.push(this.#entry)
       }
       observe(target: Element): void {
-        this.#entry.target = target
+        this.#entry.target ??= target
+        this.#entry.targets.push(target)
       }
       disconnect(): void {
         this.#entry.disconnected = true
@@ -35,6 +41,15 @@ afterEach(() => {
 function Transcript({ rows = 0 }: { readonly rows?: number }) {
   const { scroller, onScroll } = useFollowBottom(rows)
   return <div data-testid="transcript" ref={scroller} onScroll={onScroll} />
+}
+
+function WithEnd({ rows = 0 }: { readonly rows?: number }) {
+  const { scroller, onScroll, end } = useFollowBottom(rows)
+  return (
+    <div data-testid="transcript" ref={scroller} onScroll={onScroll}>
+      <div data-testid="end" ref={end} />
+    </div>
+  )
 }
 
 function sized(element: HTMLElement, scrollHeight: number, clientHeight: number): void {
@@ -59,6 +74,31 @@ it('keeps the end of the transcript in view when its own box gets smaller', () =
   observed[0]!.callback()
 
   expect(element.scrollTop).toBe(900)
+})
+
+it('watches what stands at the end of the transcript, so the end stays in view when it grows', () => {
+  const view = render(<WithEnd />)
+  const element = view.getByTestId('transcript')
+  expect(observed).toHaveLength(1)
+  expect(observed[0]!.targets).toEqual([element, view.getByTestId('end')])
+  followedAt(element, 900, 300)
+
+  sized(element, 1300, 300)
+  observed[0]!.callback()
+
+  expect(element.scrollTop).toBe(1300)
+})
+
+it('leaves a reader who scrolled up where he was when what stands at the end grows', () => {
+  const element = render(<WithEnd />).getByTestId('transcript')
+  followedAt(element, 900, 300)
+  element.scrollTop = 200
+  fireEvent.scroll(element)
+
+  sized(element, 1300, 300)
+  observed[0]!.callback()
+
+  expect(element.scrollTop).toBe(200)
 })
 
 it('leaves the transcript where the reader scrolled it when its box changes size', () => {

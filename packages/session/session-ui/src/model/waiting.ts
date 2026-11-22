@@ -138,9 +138,8 @@ const CAUSES: Readonly<Record<string, string>> = {
   guard: '守卫停下了这一轮。',
 }
 
+/** The reason in words a person reads; the diagnosis is not in it, it goes under 详情. */
 export function causeSentence(cause: Cause | null): string {
   if (cause === null) return '这一轮失败了。'
-  const known = CAUSES[cause.kind]
-  const sentence = known ?? `这一轮失败了，原因是「${cause.kind}」。`
-  return cause.detail === null ? sentence : `${sentence}诊断：${cause.detail}`
+  return CAUSES[cause.kind] ?? `这一轮失败了，原因是「${cause.kind}」。`
 }

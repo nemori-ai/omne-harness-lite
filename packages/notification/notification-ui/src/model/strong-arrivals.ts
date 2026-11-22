@@ -26,13 +26,13 @@ export function arrivals(
   return { ledger: new Set([...ledger, ...unknown.map(keyOf)]), strong: unknown.filter(announced) }
 }
 
+/** Told in the notification's own words, its title: the source and type are identifiers, shown on the panel only. */
 export function arrivalToast(entry: Entry, page: string): Toast {
   const key = keyOf(entry)
   return {
     id: key,
     tone: 'attention',
     title: entry.title,
-    body: `${entry.source} · ${entry.type}`,
     action: { label: '去看看', page, subject: key },
   }
 }

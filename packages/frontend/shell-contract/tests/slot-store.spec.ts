@@ -3,7 +3,7 @@ import { ShellAssemblyError, createSlotStore } from '@omne-harness/shell-contrac
 
 const render = (): null => null
 const gate = (id: string) => ({ id, render })
-const page = (id: string, order = 0) => ({ id, title: id, order, render })
+const page = (id: string, order = 0) => ({ id, title: id, order, icon: 'topics', render })
 const side = (id: string, order = 0) => ({ id, order, render })
 const attached = (id: string, anchor: string, order = 0) => ({ id, order, anchor, render })
 const spots = (items: readonly { id: string; anchor: string }[]) =>

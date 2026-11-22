@@ -7,7 +7,8 @@ import { GlideMenu } from '../patterns/ai/glide-menu.tsx'
 import * as React from 'react'
 import { cn } from '../lib/utils.ts'
 import { DropdownMenu as DropdownMenuPrimitive } from 'radix-ui'
-import { DisclosureIcon, DoneIcon } from '../icons/index.ts'
+import { DoneIcon } from '../icons/index.ts'
+import { DisclosureIcon } from '../icons/kit-only.ts'
 
 function DropdownMenu({ ...props }: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
   return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" {...props} />
@@ -40,7 +41,7 @@ function DropdownMenuContent({
         data-slot="dropdown-menu-content"
         sideOffset={sideOffset}
         className={cn(
-          'z-50 max-h-(--radix-dropdown-menu-content-available-height) min-w-[8rem] origin-(--radix-dropdown-menu-content-transform-origin) overflow-x-hidden overflow-y-auto bg-surface-overlay p-1 text-ink-primary',
+          'z-(--omne-layer-menu) max-h-(--radix-dropdown-menu-content-available-height) min-w-[8rem] origin-(--radix-dropdown-menu-content-transform-origin) overflow-x-hidden overflow-y-auto bg-surface-overlay p-1 text-ink-primary',
           className,
         )}
         {...props}
@@ -132,7 +133,7 @@ function DropdownMenuRadioItem({
     >
       <span className="pointer-events-none absolute left-2 flex size-3.5 items-center justify-center">
         <DropdownMenuPrimitive.ItemIndicator>
-          <span aria-hidden="true" className="size-2 rounded-full bg-current" />
+          <DoneIcon className="size-4" />
         </DropdownMenuPrimitive.ItemIndicator>
       </span>
       {children}
@@ -221,7 +222,7 @@ function DropdownMenuSubContent({
       ref={presenceRef}
       data-slot="dropdown-menu-sub-content"
       className={cn(
-        'z-50 min-w-[8rem] origin-(--radix-dropdown-menu-content-transform-origin) overflow-hidden bg-surface-overlay p-1 text-ink-primary',
+        'z-(--omne-layer-menu) min-w-[8rem] origin-(--radix-dropdown-menu-content-transform-origin) overflow-hidden bg-surface-overlay p-1 text-ink-primary',
         className,
       )}
       {...props}

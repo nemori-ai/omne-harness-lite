@@ -1,5 +1,6 @@
 import { defineIcon, type Icon } from './glyph.ts'
 import { GLYPHS } from './glyphs.ts'
+import { DisclosureIcon } from './kit-only.ts'
 
 export { type Icon } from './glyph.ts'
 export { MOTIONS } from './glyphs.ts'
@@ -24,7 +25,6 @@ export const AboutIcon = defineIcon('about', GLYPHS.about)
 export const CloseIcon = defineIcon('close', GLYPHS.close)
 export const AddIcon = defineIcon('add', GLYPHS.add)
 export const MoreIcon = defineIcon('more', GLYPHS.more)
-export const DisclosureIcon = defineIcon('disclosure', GLYPHS.disclosure)
 export const RetryIcon = defineIcon('retry', GLYPHS.retry)
 export const SendIcon = defineIcon('send', GLYPHS.send)
 export const OpenIcon = defineIcon('open', GLYPHS.open)

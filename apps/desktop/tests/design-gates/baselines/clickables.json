@@ -1,0 +1,8 @@
+{
+  "gate": "clickables",
+  "entries": {
+    "packages/frontend/ui-kit/src/prose/prose.tsx | unmarked <a>": 1,
+    "packages/session/session-ui/src/view/session-list-panel.tsx | native <button>": 1,
+    "packages/usage/usage-ui/src/view/panel.tsx | native <select>": 3
+  }
+}

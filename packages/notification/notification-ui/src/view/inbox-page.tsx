@@ -1,17 +1,25 @@
 import type { TenantId } from '@omne-harness/public-contract'
 import {
-  Button,
   EmptyState,
+  GlideMenu,
   InlineNotice,
   LoadingState,
   PageColumn,
   PageHeader,
+  RetryIcon,
   Segmented,
 } from '@omne-harness/ui-kit'
 import type { JSX, ReactNode } from 'react'
 import type { InboxDriver } from '../model/inbox-driver.ts'
 import type { InboxHub } from '../model/inbox-hub.ts'
-import { keyOf, sectionsOf, type Entry, type Filter, type State } from '../model/inbox-machine.ts'
+import {
+  keyOf,
+  labelOf,
+  sectionsOf,
+  type Entry,
+  type Filter,
+  type State,
+} from '../model/inbox-machine.ts'
 import { EntryRow } from './entry-row.tsx'
 import { useInbox, useTenant } from './use-inbox.ts'
 
@@ -53,30 +61,20 @@ function Inbox({ hub, tenant, sections, focus }: InboxProps): JSX.Element {
   const { driver, state } = useInbox(hub, tenant)
   return (
     <PageColumn className="notification-page">
-      <PageHeader
-        title="通知"
-        description="来源发给你的事件。办完或划掉之后不再提醒，随时可以恢复。"
-        actions={
-          <>
-            <Segmented
-              label="显示哪些通知"
-              value={state.filter}
-              options={FILTERS}
-              onValueChange={filter => driver.filter(filter)}
-            />
-            <Button
-              variant="outline"
-              disabled={state.read.kind === 'reading'}
-              onClick={() => driver.refresh()}
-            >
-              刷新
-            </Button>
-          </>
-        }
-      />
-      <LiveLine state={state} />
-      <Body state={state} driver={driver} focus={focus} />
-      {sections}
+      <PageHeader title="通知" description="来源发给你的事件。" />
+      <div className="notification-column">
+        <div className="notification-scope">
+          <Segmented
+            label="显示哪些通知"
+            value={state.filter}
+            options={FILTERS}
+            onValueChange={filter => driver.filter(filter)}
+          />
+        </div>
+        <LiveLine state={state} />
+        <Body state={state} driver={driver} focus={focus} />
+        {sections}
+      </div>
     </PageColumn>
   )
 }
@@ -112,17 +110,20 @@ function Section({
       <h3 className="notification-section-title">
         {title}（{entries.length}）
       </h3>
-      <ul className="notification-list">
-        {entries.map(entry => (
-          <EntryRow
-            key={keyOf(entry)}
-            entry={entry}
-            state={state}
-            driver={driver}
-            focused={keyOf(entry) === focus}
-          />
-        ))}
-      </ul>
+      <GlideMenu>
+        <ul className="notification-list">
+          {entries.map(entry => (
+            <EntryRow
+              key={keyOf(entry)}
+              entry={entry}
+              source={labelOf(state, entry.source)}
+              state={state}
+              driver={driver}
+              focused={keyOf(entry) === focus}
+            />
+          ))}
+        </ul>
+      </GlideMenu>
     </section>
   )
 }
@@ -137,14 +138,14 @@ function Body({ state, driver, focus }: BodyProps): JSX.Element {
         <InlineNotice
           tone="caution"
           role="status"
-          action={{ label: '重试', onClick: () => driver.refresh() }}
+          action={{ label: '重试', icon: RetryIcon, onClick: () => driver.refresh() }}
         >
           <p>{empty ? '收件箱现在读不出。' : '收件箱现在读不出，下面是上一次读到的。'}</p>
         </InlineNotice>
       ) : null}
       {read.kind === 'ready' && read.more ? (
         <InlineNotice tone="caution" role="status">
-          <p>通知太多，这里没有列全。办完或划掉一些之后再刷新。</p>
+          <p>通知太多，这里没有列全。</p>
         </InlineNotice>
       ) : null}
       <Section title="未了结" entries={open} state={state} driver={driver} focus={focus} />

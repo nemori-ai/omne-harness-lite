@@ -1,0 +1,11 @@
+{
+  "gate": "rings",
+  "entries": {
+    "apps/desktop/src/page/styles.css | .shell-sidebar overflow: hidden": 1,
+    "packages/frontend/ui-kit/src/controls/dropdown-menu.tsx | class overflow-hidden": 1,
+    "packages/frontend/ui-kit/src/controls/dropdown-menu.tsx | class overflow-x-hidden": 1,
+    "packages/frontend/ui-kit/src/controls/select.tsx | class overflow-x-hidden": 1,
+    "packages/frontend/ui-kit/src/styles/prose.css | .omne-prose [data-streamdown='table-wrapper'] > div:has(> [data-streamdown='table']) overflow: hidden": 1,
+    "packages/frontend/ui-kit/src/styles/prose.css | .omne-prose [data-streamdown='table-wrapper'] overflow: hidden": 1
+  }
+}

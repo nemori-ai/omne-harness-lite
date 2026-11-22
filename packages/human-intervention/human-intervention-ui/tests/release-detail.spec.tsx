@@ -97,7 +97,7 @@ async function shown(detail: Detail | undefined, drawing: Drawing) {
 }
 
 const looksAt = (card: Awaited<ReturnType<typeof shown>>) => ({
-  arguments: card.queryByText('参数') !== null,
+  arguments: card.queryByRole('button', { name: '详情' }) !== null,
   missing: card.queryByText('工具没能给出这次调用的详情') !== null,
   rows: card.queryByText('收件人') !== null,
   drawn: card.queryByText('工具的画法：T') !== null,
@@ -133,12 +133,22 @@ describe('the detail part of a release card, by what the server holds and what t
     },
   )
 
-  it('lets the person switch from the view of the kind to the rows and back', async () => {
+  it('lets the person switch from the view of the kind to the rows and back with a segmented control', async () => {
     const card = await shown(DETAILS.typed, 'draws')
-    fireEvent.click(card.getByRole('button', { name: '看条目' }))
+    const faces = within(card.getByRole('group', { name: '详情的画法' }))
+    expect(faces.getByRole('button', { name: '工具的画法' }).getAttribute('aria-pressed')).toBe(
+      'true',
+    )
+    fireEvent.click(faces.getByRole('button', { name: '条目' }))
     expect(looksAt(card)).toMatchObject({ rows: true, drawn: false })
-    fireEvent.click(card.getByRole('button', { name: '看工具的画法' }))
+    expect(faces.getByRole('button', { name: '条目' }).getAttribute('aria-pressed')).toBe('true')
+    fireEvent.click(faces.getByRole('button', { name: '工具的画法' }))
     expect(looksAt(card)).toMatchObject({ rows: false, drawn: true })
+  })
+
+  it('offers no switch where only the rows can be drawn', async () => {
+    const card = await shown(DETAILS.typed, 'none')
+    expect(card.queryByRole('group', { name: '详情的画法' })).toBeNull()
   })
 
   it('draws the rows of a typed detail where no shell hosts the views of kinds', async () => {

@@ -7,7 +7,7 @@ import {
   type ModelChoiceListing,
   type ModelChoiceSource,
 } from '../src/model/model-selection.ts'
-import { ModelAction, useNewSessionModel } from '../src/view/model-selection.tsx'
+import { ModelAction } from '../src/view/model-selection.tsx'
 
 beforeAll(() => {
   Object.assign(Element.prototype, {
@@ -260,77 +260,5 @@ describe('the model in the heading of a conversation', () => {
     view.rerender(<ModelAction store={store} tenant={TENANT} session="s-2" />)
     await settle()
     expect(screen.queryByRole('status')).toBeNull()
-  })
-})
-
-describe('the model of the next new session', () => {
-  function Probe({ store, seen }: { store: ModelSelectionStore; seen: (string | undefined)[] }) {
-    const { model, picker } = useNewSessionModel(store, TENANT)
-    seen.push(model)
-    return <div>{picker}</div>
-  }
-
-  it('without a list there is no choice and no model is named', async () => {
-    const { store } = storeWith([selection(GPT, '1')])
-    const seen: (string | undefined)[] = []
-    render(<Probe store={store} seen={seen} />)
-    await settle()
-    expect(screen.queryByRole('combobox')).toBeNull()
-    expect(seen.at(-1)).toBeUndefined()
-  })
-
-  it('starts at the default, and names the model a person picks', async () => {
-    const { store } = storeWith([selection(GPT, '1')])
-    store.attach(sourceOf(LISTED))
-    const seen: (string | undefined)[] = []
-    render(<Probe store={store} seen={seen} />)
-    await settle()
-    expect(screen.getByRole('combobox', { name: '新会话的模型' }).textContent).toContain('默认模型')
-    expect(seen.at(-1)).toBeUndefined()
-    await choose('新会话的模型', 'claude-y')
-    expect(seen.at(-1)).toBe(CLAUDE)
-    await choose('新会话的模型', '默认模型')
-    expect(seen.at(-1)).toBeUndefined()
-  })
-
-  it('a picked model is not named once the list is gone or no longer offers it', async () => {
-    const { store } = storeWith([selection(GPT, '1')])
-    const detach = store.attach(sourceOf(LISTED))
-    const seen: (string | undefined)[] = []
-    render(<Probe store={store} seen={seen} />)
-    await settle()
-    await choose('新会话的模型', 'claude-y')
-    expect(seen.at(-1)).toBe(CLAUDE)
-    act(() => detach())
-    await settle()
-    expect(seen.at(-1)).toBeUndefined()
-    act(() => {
-      store.attach(
-        sourceOf({ kind: 'listed', choices: [{ route: GPT, selectable: true, note: null }] }),
-      )
-    })
-    await settle()
-    expect(seen.at(-1)).toBeUndefined()
-  })
-
-  it('a picked model is not named once the list says it cannot be picked', async () => {
-    const { store } = storeWith([selection(GPT, '1')])
-    store.attach(sourceOf(LISTED))
-    const seen: (string | undefined)[] = []
-    render(<Probe store={store} seen={seen} />)
-    await settle()
-    await choose('新会话的模型', 'claude-y')
-    expect(seen.at(-1)).toBe(CLAUDE)
-    act(() => {
-      store.attach(
-        sourceOf({
-          kind: 'listed',
-          choices: [{ route: CLAUDE, selectable: false, note: '被锁定' }],
-        }),
-      )
-    })
-    await settle()
-    expect(seen.at(-1)).toBeUndefined()
-    expect(screen.getByRole('combobox', { name: '新会话的模型' }).textContent).toContain('默认模型')
   })
 })

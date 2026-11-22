@@ -62,9 +62,12 @@ const option = z.strictObject({
   label: text(256),
   description: text(4096),
 })
+// A card keeps the role its issuer gives an option as given and never reads it. A tool asking a
+// person through the decision contract gives none.
+const cardOption = option.extend({ role: z.enum(['approve', 'reject']).optional() })
 // A release card shows every option of the issuer; one it does not offer now cannot be answered.
 // The issuer marks which options last beyond this call, so the card body groups them apart.
-const releaseOption = option.extend({ offered: z.boolean(), lasting: z.boolean() })
+const releaseOption = cardOption.extend({ offered: z.boolean(), lasting: z.boolean() })
 // What the lasting options of a release card are about: the gate, as it stood when the card was made.
 const releaseGate = z.strictObject({
   capabilityId: HitlIdentifierSchema,
@@ -112,12 +115,12 @@ export const QuestionSchema = z
     z.strictObject({
       ...questionFields,
       kind: z.literal('question'),
-      options: z.array(option.readonly()).min(1).max(64).readonly(),
+      options: z.array(cardOption.readonly()).min(1).max(64).readonly(),
     }),
     z.strictObject({
       ...questionFields,
       kind: z.literal('extension'),
-      options: z.array(option.readonly()).max(64).readonly(),
+      options: z.array(cardOption.readonly()).max(64).readonly(),
     }),
     z.strictObject({
       ...questionFields,

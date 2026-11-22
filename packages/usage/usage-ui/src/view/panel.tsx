@@ -1,5 +1,15 @@
 import type { AttachedEntry, PointHost } from '@omne-harness/shell-contract'
-import { Button, Segmented, type SegmentedOption } from '@omne-harness/ui-kit'
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  IconButton,
+  MoreIcon,
+  Segmented,
+  type SegmentedOption,
+} from '@omne-harness/ui-kit'
 import { Component, useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   addTo,
@@ -207,6 +217,31 @@ function EditBar({
   )
 }
 
+/** The occasional actions at the top of a panel, behind one `⋯` (A2): editing the panel, and reading it again. */
+function PanelMenu({
+  editing,
+  onEdit,
+  onRefresh,
+}: {
+  readonly editing: boolean
+  readonly onEdit: () => void
+  readonly onRefresh: () => void
+}): ReactNode {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <IconButton label="更多操作" tooltipSide="bottom">
+          <MoreIcon aria-hidden="true" />
+        </IconButton>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onSelect={onEdit}>{editing ? '完成' : '编辑面板'}</DropdownMenuItem>
+        <DropdownMenuItem onSelect={onRefresh}>刷新</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
 export function Panel({
   shell,
   reads,
@@ -255,12 +290,11 @@ export function Panel({
               onValueChange={setRange}
               options={RANGE_OPTIONS}
             />
-            <Button variant="ghost" onClick={() => reads.refresh()}>
-              刷新
-            </Button>
-            <Button variant="ghost" aria-pressed={editing} onClick={() => setEditing(on => !on)}>
-              {editing ? '完成' : '编辑面板'}
-            </Button>
+            <PanelMenu
+              editing={editing}
+              onEdit={() => setEditing(on => !on)}
+              onRefresh={() => reads.refresh()}
+            />
           </header>
         )}
         {usageWidget.slot(shell, position, subject, entries => {

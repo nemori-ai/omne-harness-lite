@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
 import {
+  ASKED_AT_MIGRATION,
   REQUEST_HANDLER,
   REQUEST_MIGRATION,
   REQUEST_PLANNER,
@@ -37,7 +38,8 @@ export function hitlSqlMaterials(): Pick<
     planner = material('joint-plan'),
     writer = material('request-write')
   const terminalMigration = material('terminal-tables'),
-    requestMigration = material('request-tables')
+    requestMigration = material('request-tables'),
+    askedAtMigration = material('request-asked-at')
   const reader = material('terminal-read'),
     requestReader = material('request-read'),
     poolReader = material('pool-read')
@@ -94,6 +96,12 @@ export function hitlSqlMaterials(): Pick<
         requires: [],
       },
       {
+        ...ASKED_AT_MIGRATION,
+        moduleUrl: askedAtMigration.moduleUrl,
+        checksum: askedAtMigration.digest,
+        requires: [REQUEST_MIGRATION],
+      },
+      {
         ...TERMINAL_MIGRATION,
         moduleUrl: terminalMigration.moduleUrl,
         checksum: terminalMigration.digest,
@@ -108,7 +116,7 @@ export function hitlSqlMaterials(): Pick<
         codeDigest: poolReader.digest,
         ordering: 'snapshot',
         readTables: [...requestTables],
-        requiresMigrations: [REQUEST_MIGRATION],
+        requiresMigrations: [REQUEST_MIGRATION, ASKED_AT_MIGRATION],
         maxRowsRead: 1117,
         maxOutputBytes: 8388608,
       },
@@ -119,7 +127,7 @@ export function hitlSqlMaterials(): Pick<
         codeDigest: requestReader.digest,
         ordering: 'snapshot',
         readTables: [...requestTables],
-        requiresMigrations: [REQUEST_MIGRATION],
+        requiresMigrations: [REQUEST_MIGRATION, ASKED_AT_MIGRATION],
         maxRowsRead: 65,
         maxOutputBytes: 8388608,
       },

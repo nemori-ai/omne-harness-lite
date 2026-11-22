@@ -410,6 +410,7 @@ export type ReleaseCardOption = Readonly<{
     scope: string;
     offered: boolean;
     lasting: boolean;
+    role: 'approve' | 'reject';
 }>;
 export type ReleaseCard = Readonly<{
     title: string;

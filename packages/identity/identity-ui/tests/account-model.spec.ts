@@ -152,14 +152,14 @@ describe('账号块的模型：状态乘事件', () => {
       })
     })
     it.each([
-      ['denied', FAILED_TEXT.denied],
-      ['uncertain', FAILED_TEXT.uncertain],
-      ['unavailable', FAILED_TEXT.unavailable],
-      ['stage-not-provided', FAILED_TEXT.unavailable],
-    ])('%s：查不到，显示原因', async (outcome, text) => {
+      ['denied', FAILED_TEXT.denied, 'neutral'],
+      ['uncertain', FAILED_TEXT.uncertain, 'neutral'],
+      ['unavailable', FAILED_TEXT.unavailable, 'caution'],
+      ['stage-not-provided', FAILED_TEXT.unavailable, 'caution'],
+    ])('%s：查不到，显示原因；结果不知道时是中性的语气', async (outcome, text, tone) => {
       const t = await reach('reading')
       await t.answer(answered(outcome))
-      expect(t.model.current()).toEqual({ kind: 'failed', text })
+      expect(t.model.current()).toEqual({ kind: 'failed', text, tone })
       expect(t.scopes).toEqual([])
     })
   })

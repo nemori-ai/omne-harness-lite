@@ -7,7 +7,13 @@ import {
 import type { ReadHandlerModule } from '@omne-harness/sql-contract/worker'
 import { json } from './encoding.ts'
 import { REQUEST_HANDLER, REQUEST_PROTOCOL } from './request-schema.ts'
-import { readCard, readRequest, readRequestHeader, readRequestRoute } from './request-record.ts'
+import {
+  itemOf,
+  readCard,
+  readRequest,
+  readRequestHeader,
+  readRequestRoute,
+} from './request-record.ts'
 import { itemBytes, READ_BYTES, readLimited } from './read-budget.ts'
 export const RequestReadSchema = z.discriminatedUnion('kind', [
   z.strictObject({
@@ -40,10 +46,7 @@ export default {
     }
     const request = readRequestHeader(port, query.ref.request, query.actorRef)
     const card = request ? readCard(port, request, query.ref.cardId) : undefined
-    const item =
-      request && card
-        ? { card: card.card, origin: request.origin, displayContext: request.displayContext }
-        : null
+    const item = request && card ? { card: card.card, ...itemOf(request) } : null
     return { kind: 'read', output: json(itemBytes(item) > READ_BYTES ? readLimited : item) }
   },
 } satisfies ReadHandlerModule

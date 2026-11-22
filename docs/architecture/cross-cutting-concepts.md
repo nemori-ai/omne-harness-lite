@@ -307,7 +307,7 @@ OTel的forceFlush完成不自动表示每条记录导出成功。提供者核对
 | 冲突时                   | 同名的第二份抛装配错误，原来的一份不动                   | 同左                                       | 同左                                   | 同键不同摘要的第二份抛装配错误   |
 | 是不是 Cordis 上的效应   | 是                                                       | 是                                         | 是                                     | 是                               |
 
-客户端另有两处：通知面板的栏 `notification.inbox-sections` 是一个附着位置；外壳的瞬时提示是宿主交给贡献方的口，不是拓展点，见[外壳契约](../../packages/frontend/SPEC.md#外壳契约)。
+客户端另有两处：通知面板的栏 `notification.inbox-sections` 是一个附着位置；外壳的瞬时提示与[形口](../../.meta_harness/design/ubiquitous_language/terms/interaction-and-dispatch.md#ul-figure-port--形口--figure-port)是宿主交给贡献方的口，不是拓展点，见[外壳契约](../../packages/frontend/SPEC.md#外壳契约)。
 
 会话的受理前处理 `session.before-intake` 与解析器 `session.utterance-resolver` 只有正文，没有贡献方，没有列进表里。
 

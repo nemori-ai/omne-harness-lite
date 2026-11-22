@@ -68,6 +68,9 @@ describe('Ask on the release tree puts its cards before a person and parks its c
           expect(item.card.kind).toBe('pending')
           expect(item.origin).toMatchObject({ kind: 'tool', sessionRef: ask })
         }
+        const moments = [...new Set(asked.map(item => item.askedAt))]
+        expect(moments).toHaveLength(1)
+        expect(moments[0]).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)
         expect(await world.cards({})).toEqual(asked)
 
         let tool = toolRecords(world.storageRoot)

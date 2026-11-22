@@ -52,7 +52,10 @@ export function useObjectTransition(): (
       const transition = document.startViewTransition(() => {
         travelling(from, false)
         flushSync(update)
-        to = document.querySelector(`[data-object-view="${CSS.escape(identity)}"]`)
+        to =
+          [...document.querySelectorAll(`[data-object-view="${CSS.escape(identity)}"]`)].find(
+            view => view.closest('[inert]') === null,
+          ) ?? null
         travelling(to, true)
       })
       const settle = (): void => {

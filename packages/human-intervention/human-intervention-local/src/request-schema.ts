@@ -29,10 +29,13 @@ export const REQUEST_WRITER = 'hitl.requests'
 export const REQUEST_PROTOCOL = 'hitl-sql/2'
 export const REQUEST_HANDLER = 'hitl.request-read'
 export const REQUEST_MIGRATION = { owner: REQUEST_WRITER, id: 'hitl-requests-1' }
+export const ASKED_AT_MIGRATION = { owner: REQUEST_WRITER, id: 'hitl-requests-asked-at-1' }
 export const LOCAL_PROTOCOL = 'hitl-local-commit/2'
 export const WAIT_BASIS_FACT = { key: 'hitl.wait-plan', protocol: 'independent-wait/2' }
 export const PLAN_FACT = { key: 'hitl.local-plan', protocol: LOCAL_PROTOCOL }
 export const WAIT_ACCEPTED_FACT = { key: 'hitl.wait-accepted', protocol: 'independent-wait/2' }
+/** The moment a batch was registered, as the clock read it: an ISO 8601 UTC instant. */
+export const AskedAtSchema = z.iso.datetime().max(64)
 const methodSchema = z.enum([
   'registerRequest',
   'submitReply',
@@ -46,6 +49,7 @@ export const RequestRecordSchema = z
     origin: OriginSchema,
     displayContext: HitlTextSchema,
     actionBasis: ActionBasisSchema.optional(),
+    askedAt: AskedAtSchema.exactOptional(),
     cards: z.array(CardSchema).min(1).max(64).readonly(),
   })
   .refine(record => record.cards.every(card => equal(card.ref.request, record.ref)), {

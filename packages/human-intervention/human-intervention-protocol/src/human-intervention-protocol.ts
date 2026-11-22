@@ -70,6 +70,7 @@ const option = {
   id: { rule: text },
   label: { rule: text },
   description: { rule: text },
+  role: { rule: literal('approve', 'reject'), optional: true },
 } as const
 const releaseRow = object({
   label: { rule: text },
@@ -200,6 +201,7 @@ const item = object({
   card: { rule: card },
   origin: { rule: origin },
   displayContext: { rule: text },
+  askedAt: { rule: text, optional: true },
 })
 
 const cardPage = object({

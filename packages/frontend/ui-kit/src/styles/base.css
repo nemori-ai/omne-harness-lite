@@ -64,7 +64,7 @@
     font-variant-numeric: tabular-nums;
   }
   :where(a) {
-    text-underline-offset: 3px;
+    text-underline-offset: var(--omne-underline-offset-text);
     text-underline-position: from-font;
     text-decoration-skip-ink: auto;
   }
@@ -78,16 +78,16 @@
     scrollbar-width: auto;
     scrollbar-color: auto;
     --omne-scrollbar-thumb: color-mix(in srgb, var(--omne-ink-faint) 27%, transparent);
-    --omne-scrollbar-thumb-border: 3px;
+    --omne-scrollbar-thumb-border: var(--omne-scrollbar-gap);
   }
   *:hover,
   *:focus-within {
     --omne-scrollbar-thumb: color-mix(in srgb, var(--omne-ink-faint) 48%, transparent);
-    --omne-scrollbar-thumb-border: 2px;
+    --omne-scrollbar-thumb-border: var(--omne-scrollbar-gap-hover);
   }
   *::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: var(--omne-scrollbar-size);
+    height: var(--omne-scrollbar-size);
   }
   *::-webkit-scrollbar-track {
     background: transparent;
@@ -118,7 +118,7 @@
 @keyframes omne-fade-up {
   from {
     opacity: 0;
-    translate: 0 4px;
+    translate: 0 var(--omne-motion-travel);
   }
   to {
     opacity: 1;
@@ -181,8 +181,8 @@
   input[type='datetime-local'],
   input[type='month']
 )::-webkit-calendar-picker-indicator {
-  margin-inline-start: 4px;
-  padding: 2px;
+  margin-inline-start: var(--spacing);
+  padding: calc(var(--spacing) * 0.5);
   border-radius: var(--radius-chip);
   opacity: 0.45;
   cursor: pointer;

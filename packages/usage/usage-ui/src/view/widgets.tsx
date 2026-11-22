@@ -1,5 +1,14 @@
 import type { PointContributor } from '@omne-harness/shell-contract'
-import { formatAmount, formatNumber, formatPercent, StatBlock } from '@omne-harness/ui-kit'
+import {
+  CHART_COPY,
+  FactList,
+  FactRow,
+  formatAmount,
+  formatNumber,
+  formatPercent,
+  StatBlock,
+  UNKNOWN_TEXT,
+} from '@omne-harness/ui-kit'
 import { encodeInstant, type Instant } from '@omne-harness/utc-instant'
 import type { Layouts, Position, Width } from '../model/layout.ts'
 import { windowOf, type RangeWindow } from '../model/range.ts'
@@ -73,50 +82,79 @@ const costOf = (result: QueryResult): string | null => {
     : sums.map(sum => formatAmount(sum.known, sum.unit)).join(' + ')
 }
 
-function Summary({ subject }: { readonly subject: WidgetSubject }): React.JSX.Element {
+type Figure = Readonly<{ label: string; value: string | null; detail?: string }>
+
+function figuresOf(result: QueryResult): readonly Figure[] {
+  const model = result.groups.find(cell => cell.key[0] === 'model')?.measures
+  const { tokens, rates, duration, cost } = result.total
+  const total = [tokens.input, tokens.output].map(valueOf)
+  return [
+    {
+      label: '费用',
+      value: costOf(result),
+      ...(cost.unknown > 0 ? { detail: `${cost.unknown} 笔未知` } : {}),
+    },
+    {
+      label: 'Token（输入与输出）',
+      value: total.every(part => part === null)
+        ? null
+        : formatNumber(
+            total.reduce<number>((sum, part) => sum + (part ?? 0), 0),
+            { compact: true },
+          ),
+    },
+    { label: '模型请求', value: formatNumber(model?.calls ?? 0) },
+    {
+      label: '缓存命中率',
+      value: rates.cacheHit.kind === 'known' ? formatPercent(Number(rates.cacheHit.value)) : null,
+    },
+    {
+      label: '首字延迟（中位）',
+      value:
+        duration.toFirstContent.p50 === null
+          ? null
+          : `${formatNumber(duration.toFirstContent.p50)} 毫秒`,
+    },
+  ]
+}
+
+/** On the page, a row of figures. */
+const figureRow = (figures: readonly Figure[]): React.JSX.Element => (
+  <div className="usage-summary" role="group" aria-label="概览">
+    {figures.map(({ label, value, detail }) => (
+      <StatBlock
+        key={label}
+        label={label}
+        value={value}
+        {...(detail === undefined ? {} : { detail })}
+      />
+    ))}
+  </div>
+)
+
+/** In a session's side, a table of facts on the page's own ground. */
+const factTable = (figures: readonly Figure[]): React.JSX.Element => (
+  <FactList className="usage-facts" aria-label="概览">
+    {figures.map(({ label, value, detail }) => (
+      <FactRow key={label} term={label}>
+        {value ?? <span aria-label={CHART_COPY.unknownValue}>{UNKNOWN_TEXT}</span>}
+        {detail === undefined ? null : <span className="usage-fact-detail">{detail}</span>}
+      </FactRow>
+    ))}
+  </FactList>
+)
+
+function Summary({
+  subject,
+  draw,
+}: {
+  readonly subject: WidgetSubject
+  readonly draw: (figures: readonly Figure[]) => React.JSX.Element
+}): React.JSX.Element {
   const { loaded } = useQuery(subject, ['source'])
   return (
     <Waiting loaded={loaded} label="概览">
-      {result => {
-        const model = result.groups.find(cell => cell.key[0] === 'model')?.measures
-        const { tokens, rates, duration, cost } = result.total
-        const total = [tokens.input, tokens.output].map(valueOf)
-        return (
-          <div className="usage-summary" role="group" aria-label="概览">
-            <StatBlock
-              label="费用"
-              value={costOf(result)}
-              {...(cost.unknown > 0 ? { detail: `${cost.unknown} 笔未知` } : {})}
-            />
-            <StatBlock
-              label="Token（输入与输出）"
-              value={
-                total.every(part => part === null)
-                  ? null
-                  : formatNumber(
-                      total.reduce<number>((sum, part) => sum + (part ?? 0), 0),
-                      { compact: true },
-                    )
-              }
-            />
-            <StatBlock label="模型请求" value={formatNumber(model?.calls ?? 0)} />
-            <StatBlock
-              label="缓存命中率"
-              value={
-                rates.cacheHit.kind === 'known' ? formatPercent(Number(rates.cacheHit.value)) : null
-              }
-            />
-            <StatBlock
-              label="首字延迟（中位）"
-              value={
-                duration.toFirstContent.p50 === null
-                  ? null
-                  : `${formatNumber(duration.toFirstContent.p50)} 毫秒`
-              }
-            />
-          </div>
-        )
-      }}
+      {result => draw(figuresOf(result))}
     </Waiting>
   )
 }
@@ -165,6 +203,7 @@ function ByModel({ subject }: { readonly subject: WidgetSubject }): React.JSX.El
   )
 }
 
+/** Only what is known is drawn: a read on its way, a refused read and an occupancy with no figure draw nothing. */
 function Occupancy({ subject }: { readonly subject: WidgetSubject }): React.JSX.Element | null {
   const { reads, tenant } = usePanel()
   const session = subject.session
@@ -173,17 +212,12 @@ function Occupancy({ subject }: { readonly subject: WidgetSubject }): React.JSX.
       ? Promise.resolve({ kind: 'refused' as const, text: '没有会话。' })
       : reads.occupancy(tenant, session),
   )
-  return (
-    <Waiting loaded={loaded} label="上下文">
-      {answer => (
-        <Present
-          shape="reading"
-          fallback="usage.meter"
-          label="上下文"
-          data={occupancyReading(answer, at => momentLabel.format(dateOf(at)))}
-        />
-      )}
-    </Waiting>
+  const reading =
+    loaded.kind === 'ready'
+      ? occupancyReading(loaded.value, at => momentLabel.format(dateOf(at)))
+      : null
+  return reading === null ? null : (
+    <Present shape="reading" fallback="usage.percent" label="上下文" data={reading} />
   )
 }
 
@@ -198,7 +232,11 @@ const summary: NativeWidget = {
   id: 'usage.summary',
   label: '概览',
   width: 3,
-  draw: subject => <Summary subject={subject} />,
+  draw: subject => <Summary subject={subject} draw={figureRow} />,
+}
+const sessionSummary: NativeWidget = {
+  ...summary,
+  draw: subject => <Summary subject={subject} draw={factTable} />,
 }
 const series = (
   id: string,
@@ -234,7 +272,7 @@ const occupancy: NativeWidget = {
 
 export const NATIVE_WIDGETS: Readonly<Record<Position, readonly NativeWidget[]>> = {
   tenant: [summary, tokens, byModel, cache, latency, tools],
-  session: [summary, tokens, byModel, cache, latency, tools],
+  session: [sessionSummary, tokens, byModel, cache, latency, tools],
   status: [occupancy],
 }
 

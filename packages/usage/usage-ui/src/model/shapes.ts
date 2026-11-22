@@ -11,12 +11,7 @@ export type Occupancy = ValueOf<Operations['read-context-occupancy']['outcomes']
 
 export type SeriesData = Readonly<{ series: readonly ChartSeries[]; rows: readonly ChartRow[] }>
 export type BreakdownData = Readonly<{ parts: readonly SharePart[] }>
-export type ReadingData = Readonly<{
-  percent: number | null
-  mark: number | null
-  caption?: string
-  unknownReason?: string
-}>
+export type ReadingData = Readonly<{ percent: number; mark: number | null; caption: string }>
 export type ShapeData = Readonly<{
   series: SeriesData
   breakdown: BreakdownData
@@ -121,16 +116,12 @@ export function tokensByModel(result: QueryResult): BreakdownData {
   }
 }
 
-const UNKNOWN_REASONS: Readonly<Record<'usage-unknown' | 'window-unknown', string>> = {
-  'usage-unknown': '这一次请求的用量未知',
-  'window-unknown': '这个型号的窗口未知',
-}
-
-export function occupancyReading(answer: Occupancy, timeOf: (at: unknown) => string): ReadingData {
-  if (answer.kind === 'none-yet')
-    return { percent: null, mark: null, unknownReason: '还没有收场的请求' }
-  if (answer.kind === 'unknown')
-    return { percent: null, mark: null, unknownReason: UNKNOWN_REASONS[answer.reason] }
+/** Only a known occupancy is a reading: none yet, an unknown usage and an unknown window are none at all. */
+export function occupancyReading(
+  answer: Occupancy,
+  timeOf: (at: unknown) => string,
+): ReadingData | null {
+  if (answer.kind !== 'known') return null
   const model = answer.asOf.model === null ? '' : ` · ${answer.asOf.model}`
   return {
     percent: Number(answer.percent),

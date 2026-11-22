@@ -1,9 +1,12 @@
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import type { ReactNode } from 'react'
 import {
+  createFigureStore,
   createSlotStore,
   createToastStore,
   type AttachedLayout,
+  type FigureBoard,
+  type FigureStore,
   type ItemOf,
   type ScopeSource,
   type ShellLogin,
@@ -34,6 +37,7 @@ export class ReferenceShell extends ShellService implements ShellSlots {
     durationMs: 1000,
     schedule: () => () => undefined,
   })
+  readonly figureStore: FigureStore = createFigureStore()
 
   items<K extends SlotName>(slot: K): readonly ItemOf<K>[] {
     return this.store.items(slot)
@@ -71,6 +75,10 @@ export class ReferenceShell extends ShellService implements ShellSlots {
 
   protected override toasts(): ToastBoard {
     return this.toastStore
+  }
+
+  protected override figures(): FigureBoard {
+    return this.figureStore
   }
 }
 
