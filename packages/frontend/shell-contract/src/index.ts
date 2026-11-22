@@ -24,6 +24,8 @@ export { ShellAssemblyError, slots } from './slots.ts'
 export { shellContracts } from './placement.ts'
 export { defineKeyedPoint, definePoint } from './point.ts'
 export {
+  LAYOUT_POINT,
+  RENDER_POINT,
   STYLE_POINT,
   TOKENS_POINT,
   changesOn,
@@ -31,9 +33,11 @@ export {
   valueFault,
   type Changes,
   type Conflict,
+  type LayoutItem,
   type PartState,
   type PartStyle,
   type Refused,
+  type RenderItem,
   type Standing,
   type StyleItem,
   type TokensItem,
@@ -49,7 +53,9 @@ export {
   type PartDeclaration,
   type PartDeclarer,
   type PartDepth,
+  type PartDrawer,
   type PartProps,
+  type PartRender,
   type PartsRead,
 } from './part.ts'
 export { serviceKey, type ServiceKey } from './service-key.ts'

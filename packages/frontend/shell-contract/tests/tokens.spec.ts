@@ -128,6 +128,8 @@ describe('tokens put on a part', () => {
       ],
       refused: [],
       conflicts: [],
+      renders: new Map(),
+      layouts: {},
     })
   })
 
@@ -417,6 +419,8 @@ describe('tokens put on a part', () => {
       standing: [],
       refused: [],
       conflicts: [],
+      renders: new Map(),
+      layouts: {},
     })
   })
 
@@ -428,7 +432,14 @@ describe('tokens put on a part', () => {
       }
     }
     const { shell } = await startShellOf(Partial)
-    expect(shell.changes()).toEqual({ css: LAYER(''), standing: [], refused: [], conflicts: [] })
+    expect(shell.changes()).toEqual({
+      css: LAYER(''),
+      standing: [],
+      refused: [],
+      conflicts: [],
+      renders: new Map(),
+      layouts: {},
+    })
   })
 
   it('nobody signed in, or a tenant with no text, asks as the deployment', () => {

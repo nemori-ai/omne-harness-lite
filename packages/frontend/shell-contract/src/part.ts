@@ -5,6 +5,7 @@ import {
   type Registry,
   type Unavailable,
 } from '@omne-harness/dynamis'
+import type { ReactNode } from 'react'
 
 export const PARTS_POINT = 'shell.parts'
 export const PART_ATTRIBUTE = 'data-omne-part'
@@ -26,11 +27,21 @@ export type PartDeclaration = Readonly<{
 
 export type PartDeclarer = Readonly<{ declarePart: (declaration: PartDeclaration) => void }>
 
-export type Part = Readonly<{
+/** A drawing put on a part: what the host gives, the name to carry, and the drawing it stands in for. */
+export type PartRender<P = never> = (
+  given: Readonly<{ props: P; part: PartProps; builtIn: () => ReactNode }>,
+) => ReactNode
+
+export type PartDrawer = Readonly<{
+  drawn: (part: string, builtIn: () => ReactNode, props: unknown) => ReactNode
+}>
+
+export type Part<P = undefined> = Readonly<{
   name: string
   declaration: PartDeclaration
   props: PartProps
   declare: (shell: PartDeclarer) => void
+  draw: (shell: PartDrawer, builtIn: () => ReactNode, props: P) => ReactNode
 }>
 
 type PartItem = Readonly<{
@@ -132,12 +143,13 @@ export function partEntry(declaration: PartDeclaration): Entry<PartItem> {
   }
 }
 
-export function definePart(declaration: PartDeclaration): Part {
+export function definePart<P = undefined>(declaration: PartDeclaration): Part<P> {
   return {
     name: declaration.name,
     declaration,
     props: { [PART_ATTRIBUTE]: declaration.name },
     declare: shell => shell.declarePart(declaration),
+    draw: (shell, builtIn, props) => shell.drawn(declaration.name, builtIn, props),
   }
 }
 

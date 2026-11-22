@@ -84,11 +84,11 @@ session.search.hit | 搜到的一条 | 搜到的一段记录 | session.search | 
 session.side | 侧边区 | 对话旁边的面板 | – | tokens style | 打开一段会话且有内容时 | session-ui
 session.side.background-call | 后台调用 | 一项在后台跑的调用 | session.side | tokens style | 后台有调用时 | session-ui
 session.transcript | 转写区 | 对话往下滚的地方 | – | tokens style | 打开一段会话时 | session-ui
-session.transcript.agent-message | Agent 的回复 | Agent 说的一条话 | session.transcript | tokens style | 有回复时 | session-ui
+session.transcript.agent-message | Agent 的回复 | Agent 说的一条话 | session.transcript | tokens style render | 有回复时 | session-ui
 session.transcript.failure | 失败的通知 | 一轮失败了，可以重试 | session.transcript | tokens style | 一轮失败时 | session-ui
 session.transcript.reasoning | 推理行 | Agent 想的过程 | session.transcript | tokens style | 有推理内容时 | session-ui
 session.transcript.tool-call | 工具调用行 | 一次工具调用的过程行 | session.transcript | tokens style | 有工具调用时 | session-ui
-session.transcript.user-message | 你的消息 | 你说的一条话 | session.transcript | tokens style | 有消息时 | session-ui
+session.transcript.user-message | 你的消息 | 你说的一条话 | session.transcript | tokens style render | 有消息时 | session-ui
 shell.app | 整个应用 | 窗口里的一切 | – | tokens style | 一直在 | DesktopShell
 shell.gate | 登录门 | 没登录时屏幕中间的一块 | shell.app | tokens style | 没登录时 | DesktopShell
 shell.sidebar | 侧栏 | 左边放家、导航与账号的一列 | shell.app | tokens style | 登录之后 | DesktopShell

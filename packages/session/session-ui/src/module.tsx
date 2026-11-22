@@ -41,6 +41,7 @@ import { FigureReport } from './view/figure-report.tsx'
 import { ReadBlock } from './view/read-block.tsx'
 import { HistorySearch } from './view/history-search.tsx'
 import { ModelAction } from './view/model-selection.tsx'
+import { PartDrawContext } from './view/part-draw.ts'
 import { EntryFocusContext } from './view/shown-entry.ts'
 import { PermissionModeAction } from './view/permission-mode.tsx'
 import { SessionWork } from './view/session-work.tsx'
@@ -112,6 +113,11 @@ function waitingCallsOf(held: SessionWorkStore) {
   }
 }
 
+const shownOn = (shell: ShellService) => ({
+  get: () => shell.page.get() === CONVERSATION_PAGE,
+  subscribe: (listener: () => void) => shell.page.subscribe(listener),
+})
+
 const needsOf = (options: SessionUiOptions) => ({
   session: needProtocol<ClientOf<SessionProtocol>>(sessionProtocol),
   modelChoices: needPoint(options.modelChoices, { optional: true }),
@@ -145,10 +151,7 @@ const apply: UiModuleDefinition<ReturnType<typeof needsOf>>['apply'] = (
   const search = new HistorySearchStore(client)
   const focus = new EntryFocus()
   const figure = new SessionFigure(report => shell.figure(report))
-  const conversationShown = {
-    get: () => shell.page.get() === CONVERSATION_PAGE,
-    subscribe: (listener: () => void) => shell.page.subscribe(listener),
-  }
+  const conversationShown = shownOn(shell)
   sessionDock.contribute(shell, {
     id: 'background-calls',
     order: 10,
@@ -185,64 +188,66 @@ const apply: UiModuleDefinition<ReturnType<typeof needsOf>>['apply'] = (
     icon: 'conversation',
     render: ({ scope }) => (
       <EntryFocusContext.Provider value={focus}>
-        <FigureReport
-          workspaces={workspaces}
-          scope={scope}
-          background={background}
-          figure={figure}
-        />
-        <ConversationPage
-          workspaces={workspaces}
-          scope={scope}
-          work={(session, revision) =>
-            scope === undefined ? null : (
-              <SessionWork store={held} tenant={scope} session={session} revision={revision} />
-            )
-          }
-          heading={session =>
-            scope === undefined ? null : (
-              <>
-                <ModelAction store={models} tenant={scope} session={session} />
-                <WorkspaceAction store={places} tenant={scope} session={session} />
-                <PermissionModeAction store={modes} tenant={scope} session={session} />
-              </>
-            )
-          }
-          more={(session, say) =>
-            scope === undefined ? null : (
-              <ArchiveAction
-                store={archive}
-                workspaces={workspaces}
-                tenant={scope}
-                session={session}
-                say={say}
-              />
-            )
-          }
-          waitingCalls={waitingCalls}
-          dock={session => sessionDock.slot(shell, { session }, fragments)}
-          status={session => sessionStatus.slot(shell, { session }, fragments)}
-          drafts={drafts}
-          attachments={(session, draft) =>
-            sessionComposerAttachments.slot(shell, { session, draft }, fragments)
-          }
-          block={blockDrawer(shell, reads, scope)}
-          side={session =>
-            sessionSide.slot(shell, { session }, entries =>
-              scope === undefined ? (
-                <SidePanel entries={entries} />
-              ) : (
-                <SideWithBackground
-                  entries={entries}
-                  store={background}
+        <PartDrawContext.Provider value={shell}>
+          <FigureReport
+            workspaces={workspaces}
+            scope={scope}
+            background={background}
+            figure={figure}
+          />
+          <ConversationPage
+            workspaces={workspaces}
+            scope={scope}
+            work={(session, revision) =>
+              scope === undefined ? null : (
+                <SessionWork store={held} tenant={scope} session={session} revision={revision} />
+              )
+            }
+            heading={session =>
+              scope === undefined ? null : (
+                <>
+                  <ModelAction store={models} tenant={scope} session={session} />
+                  <WorkspaceAction store={places} tenant={scope} session={session} />
+                  <PermissionModeAction store={modes} tenant={scope} session={session} />
+                </>
+              )
+            }
+            more={(session, say) =>
+              scope === undefined ? null : (
+                <ArchiveAction
+                  store={archive}
+                  workspaces={workspaces}
                   tenant={scope}
                   session={session}
-                  detail={call => sessionCallDetail.slot(shell, { session, call }, fragments)}
+                  say={say}
                 />
-              ),
-            )
-          }
-        />
+              )
+            }
+            waitingCalls={waitingCalls}
+            dock={session => sessionDock.slot(shell, { session }, fragments)}
+            status={session => sessionStatus.slot(shell, { session }, fragments)}
+            drafts={drafts}
+            attachments={(session, draft) =>
+              sessionComposerAttachments.slot(shell, { session, draft }, fragments)
+            }
+            block={blockDrawer(shell, reads, scope)}
+            side={session =>
+              sessionSide.slot(shell, { session }, entries =>
+                scope === undefined ? (
+                  <SidePanel entries={entries} />
+                ) : (
+                  <SideWithBackground
+                    entries={entries}
+                    store={background}
+                    tenant={scope}
+                    session={session}
+                    detail={call => sessionCallDetail.slot(shell, { session, call }, fragments)}
+                  />
+                ),
+              )
+            }
+          />
+        </PartDrawContext.Provider>
       </EntryFocusContext.Provider>
     ),
   })

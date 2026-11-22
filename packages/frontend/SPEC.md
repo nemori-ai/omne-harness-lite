@@ -148,7 +148,7 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 
 | 入口 | 内容 |
 | --- | --- |
-| `.` | 运行时有二十样：常量表 `slots`、外壳自己三个位置的规矩 `shellContracts`、错误 `ShellAssemblyError`、声明带类型的拓展点的两个函数 `definePoint` 与 `defineKeyedPoint`、声明部位的 `definePart` 与它的核法 `partFault`、读现在声明着哪些部位的 `partsOn`、部位的点名 `PARTS_POINT` 与元素上的属性名 `PART_ATTRIBUTE`、令牌与样式的点名 `TOKENS_POINT`、`STYLE_POINT`、算改动的 `changesOn`、值的核法 `valueFault`、租户的作用域 `tenantScope`、造带类型的键的 `serviceKey`、写需要的 `needProtocol` 与 `needPoint`、跟读口的 `attachWhile`、协议的需要指着的点名 `PROTOCOLS_POINT`（另有瞬时提示与形口的两个工厂，见各自一节）。其余是类型：带类型的键 `ServiceKey`，一处冲突 `SlotConflict`，四种位置的一项 `GateItem`、`PageItem`、`SidebarItem`、`AttachedItem`，位置名 `SlotName`，按位置取项的类型 `ItemOf`，渲染函数的属性 `GateProps`、`ScopedProps`、`AttachedProps`，宿主排版时拿到的一项 `AttachedEntry` 与排版函数 `AttachedLayout`，带类型的拓展点的类型（见「带类型的拓展点」），外壳一侧读位置的接口 `ShellSlots`，租户的形状 `ScopeSource`，登录的端口 `ShellLogin`、登录状态 `ShellLoginState`、凭据与结果 `LoginCredentials`、`LoginResult`、`LogoutResult` |
+| `.` | 运行时有二十二样：常量表 `slots`、外壳自己三个位置的规矩 `shellContracts`、错误 `ShellAssemblyError`、声明带类型的拓展点的两个函数 `definePoint` 与 `defineKeyedPoint`、声明部位的 `definePart` 与它的核法 `partFault`、读现在声明着哪些部位的 `partsOn`、部位的点名 `PARTS_POINT` 与元素上的属性名 `PART_ATTRIBUTE`、令牌、样式、画法与布局的点名 `TOKENS_POINT`、`STYLE_POINT`、`RENDER_POINT`、`LAYOUT_POINT`、算改动的 `changesOn`、值的核法 `valueFault`、租户的作用域 `tenantScope`、造带类型的键的 `serviceKey`、写需要的 `needProtocol` 与 `needPoint`、跟读口的 `attachWhile`、协议的需要指着的点名 `PROTOCOLS_POINT`（另有瞬时提示与形口的两个工厂，见各自一节）。其余是类型：带类型的键 `ServiceKey`，一处冲突 `SlotConflict`，四种位置的一项 `GateItem`、`PageItem`、`SidebarItem`、`AttachedItem`，位置名 `SlotName`，按位置取项的类型 `ItemOf`，渲染函数的属性 `GateProps`、`ScopedProps`、`AttachedProps`，宿主排版时拿到的一项 `AttachedEntry` 与排版函数 `AttachedLayout`，带类型的拓展点的类型（见「带类型的拓展点」），外壳一侧读位置的接口 `ShellSlots`，租户的形状 `ScopeSource`，登录的端口 `ShellLogin`、登录状态 `ShellLoginState`、凭据与结果 `LoginCredentials`、`LoginResult`、`LogoutResult` |
 | `./cordis` | 服务 `shell` 的抽象类 `ShellService`、它的键 `shellKey`、界面模块的助手 `defineUiModule` 与它的类型 `UiModuleDefinition`、提供服务的函数类型 `Provide`。根入口的源码闭包不含 Cordis 绑定 |
 | `./testing` | 给界面模块的用例用的参考外壳 `ReferenceShell`，与起一棵带登记表和外壳的树的 `startShell`、`startShellOf(外壳的类, 可选的配置)`。它只存不画。另有像连接与别的模块那样往树上放东西的帮手：`serveProtocol(根, 协议, 客户端)`、`servePoint(根, 规矩, 一项)`、`provideOn(根, 键, 值)`，各返回一个 fiber，撤掉它就是收回；它们的插件形是 `protocolsPoint`、`servedProtocol`、`servedPoint`。`providedOn(外壳, 键)` 读一个键下现在提供的值 |
 
@@ -282,7 +282,7 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 
 #### 改一个部位的样子
 
-样子的改动是放在登记表上的条目，键是部位的名字。外壳把现在算数的条目变成一张样式表，写在 `omne-changes` 这一层里；条目撤掉，下一次生成里就没有它，自带的样子原样回来。
+样子的改动是放在登记表上的条目，键是部位的名字。改法有三种：令牌、样式、画法。外壳把现在算数的令牌与样式变成一张样式表，写在 `omne-changes` 这一层里；条目撤掉，下一次生成里就没有它，自带的样子原样回来。页面的次序另有一个点，写在本节末尾。
 
 - 第一种改法是令牌：点 `shell.tokens`，每键一项，键取自 `shell.parts`，一项是数据 `{ tokens: { 令牌名: 值 } }`。`shell.putTokens(部位, 令牌, 作用域)` 放一项，返回撤掉它的函数；放它的模块卸载时也跟着撤掉。
 - 写到哪：键是 `shell.app` 的，写成页面根上的自定义属性；别的部位，写在带着这个名字的元素上（`[data-omne-part="<名字>"]`），所以只有那一块和它里面的东西读到新值。
@@ -297,8 +297,16 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 - 样式写在带着这个部位名字的元素上；`shell.app` 写在页面的根上。每一格一条规则，状态用固定的选择器：`hover`、`focus-visible`、`active` 是同名的伪类；`selected` 是 `aria-selected`、`data-selected`、`aria-current="page"`、`aria-pressed` 为真，或 `data-state` 是 `active`、`checked`；`open` 是 `data-state="open"` 或 `aria-expanded` 为真；`disabled` 是 `:disabled`、`aria-disabled` 为真或带 `data-disabled`。规则按这个先后写出，所以几种状态同时成立时后面的盖过前面的，`disabled` 最后。
 - 样式不合规矩的情形：部位没有开 `style`；状态不是这六种之一；属性名不是小写字母与连字符（以 `--` 开头的是令牌，要放到 `shell.tokens`）；值过不了上面那一条值的核法。不合规矩的一项整份不算数。
 - 改动的那一层盖过自带的全部规则，包括共用件的状态规则：给一个部位写了平常的底色而没有写悬停的，悬停时显示的就是平常的那个。要悬停时不一样，就把 `hover` 那一格也写上。
-- `changesOn(登记表, 发问者的作用域, 认不认得这个令牌)` 是纯函数，给出样式表的文字、每个键上现在是谁、不算数的各项与原因、冲突的各项。`shell.changes()` 按外壳正在显示的租户问它。点没有声明时给出空的一层，不抛出。
-- 桌面应用把这张表作为可构造的样式表挂在页面自己的样式之后；登记表或租户一变就重写。不算数的与冲突的各写一行警告。
+- 第三种改法是画法：点 `shell.part-render`，每键一项，键取自 `shell.parts`，一项是 `{ render }`，`render` 是一个渲染函数。`shell.putRender(部位, 画法, 作用域)` 放一项，返回撤掉它的函数。谁算数、撤掉，和令牌相同；同一层有两份画法就是冲突，两份都不算数。
+- 开了 `render` 的部位由声明它的模块经 `part.draw(外壳, 自带的画法, 给画法的东西)` 画。没有算数的画法时给出自带的画法的结果。有时调那份画法，给它三样：`props` 是模块给的东西，类型是 `definePart<P>` 的 `P`；`part` 是要写在根元素上的名字，就是 `part.props`；`builtIn` 是自带的画法，一个函数，画法可以包着它画。
+- 画法抛出时，这个部位落回自带的画法，别的部位不受影响。调用时抛出的由 `shell.drawn` 落回；外壳的实现重写 `drawn`，把渲染当中才抛出的也落回。
+- 画法不合规矩的情形：键不是声明过的部位；部位没有开 `render`；`render` 不是函数。外壳自己的部位不开 `render`：声明里写了的当场抛 `ShellAssemblyError`。
+- 页面的次序是一份布局：点 `shell.layout`，每键一项，键只有 `shell.pages`，一项是数据 `{ order: [页面的标识, …] }`。`shell.putLayout('shell.pages', 次序, 作用域)` 放一项，返回撤掉它的函数。谁算数、冲突、撤掉，和令牌相同。
+- 布局里写到的页面排在前面，照布局的先后；没写到的照各模块给的次序排在后面；写到而不在的标识略过。`shell.items('pages')` 给出的是排过的次序，次序变了照常通知订阅者。没有算数的布局时是各模块给的次序。布局只排页面，别的位置不动。
+- 布局不合规矩的情形：键不是 `shell.pages`；次序里有一项不是文字或是空的；同一个标识写了两次。
+- `changesOn(登记表, 发问者的作用域, 认不认得这个令牌)` 是纯函数，给出样式表的文字、算数的画法（按部位）与布局（按键）、每个键上现在是谁、不算数的各项与原因、冲突的各项。`shell.changes()` 按外壳正在显示的租户问它；登记表与租户都没变时给出同一份。点没有声明时给出空的一层，不抛出。
+- `shell.watchChanges(监听)` 在登记表变了、或外壳显示的租户变了时通知，返回停止的函数。租户变了由外壳的实现调受保护的 `rescope()` 告诉抽象类：页面的次序与改动都照新的租户重算。
+- 桌面应用把这张表作为可构造的样式表挂在页面自己的样式之后；登记表或租户一变就重写。不算数的与冲突的各写一行警告。开了画法的部位画在一层错误边界里，画法换了就重画。
 
 #### 界面模块
 

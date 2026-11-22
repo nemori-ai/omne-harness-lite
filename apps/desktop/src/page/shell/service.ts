@@ -12,6 +12,7 @@ import {
 } from '@omne-harness/shell-contract'
 import { ShellService } from '@omne-harness/shell-contract/cordis'
 import { Arranged, Attached } from './attached.tsx'
+import { Drawn, type DrawingSource } from './drawn.tsx'
 import { lackOf, type Lack, type LackSlot, type Standing } from './lacks.ts'
 import { shellParts } from './parts.ts'
 import type { ShellState } from './state.ts'
@@ -26,6 +27,10 @@ export class DesktopShell extends ShellService {
   private readonly state: ShellState
   private problems: ReadonlySet<string> = new Set()
   private unsound: ReadonlySet<string> = new Set()
+  private readonly drawings: DrawingSource = {
+    renderOf: part => this.changes().renders.get(part),
+    watch: listener => this.watchChanges(listener),
+  }
   private standing: Standing = UNTOLD
   private readonly lackWatchers = new Set<() => void>()
 
@@ -43,7 +48,7 @@ export class DesktopShell extends ShellService {
       )
     ctx.on('dynamis-cordis/changed', registry => this.reportProblems(registry))
     ctx.on('dynamis-cordis/changed', () => this.restyle())
-    ctx.effect(() => state.scope.subscribe(() => this.restyle()), 'desktop-shell.sheet')
+    ctx.effect(() => state.scope.subscribe(() => this.rescoped()), 'desktop-shell.sheet')
     this.restyle()
     ctx.effect(
       () =>
@@ -94,6 +99,11 @@ export class DesktopShell extends ShellService {
 
   protected override knowsToken(name: string): boolean {
     return this.state.knowsToken(name)
+  }
+
+  private rescoped(): void {
+    this.rescope()
+    this.restyle()
   }
 
   private restyle(): void {
@@ -162,6 +172,10 @@ export class DesktopShell extends ShellService {
       anchor,
       subject,
     })
+  }
+
+  override drawn(part: string, builtIn: () => ReactNode, props: unknown): ReactNode {
+    return createElement(Drawn, { source: this.drawings, part, builtIn, given: props })
   }
 
   arranged(anchor: string, subject: string, layout: AttachedLayout): ReactNode {

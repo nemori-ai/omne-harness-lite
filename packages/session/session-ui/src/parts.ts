@@ -1,4 +1,8 @@
 import { definePart } from '@omne-harness/shell-contract'
+import type { ReactNode } from 'react'
+
+/** What the drawing of a message is given: who spoke, whether it is still being written, and its content drawn. */
+export type MessageDrawing = Readonly<{ role: string; live: boolean; content: ReactNode }>
 
 export const sessionList = definePart({
   name: 'session.list',
@@ -103,21 +107,21 @@ export const sessionTranscript = definePart({
   when: '打开一段会话时',
 })
 
-export const sessionTranscriptUserMessage = definePart({
+export const sessionTranscriptUserMessage = definePart<MessageDrawing>({
   name: 'session.transcript.user-message',
   label: '你的消息',
   summary: '你说的一条话',
   within: 'session.transcript',
-  depths: ['tokens', 'style'],
+  depths: ['tokens', 'style', 'render'],
   when: '有消息时',
 })
 
-export const sessionTranscriptAgentMessage = definePart({
+export const sessionTranscriptAgentMessage = definePart<MessageDrawing>({
   name: 'session.transcript.agent-message',
   label: 'Agent 的回复',
   summary: 'Agent 说的一条话',
   within: 'session.transcript',
-  depths: ['tokens', 'style'],
+  depths: ['tokens', 'style', 'render'],
   when: '有回复时',
 })
 

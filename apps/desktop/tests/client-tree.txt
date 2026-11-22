@@ -38,7 +38,11 @@ system
           session-ui#1  [effective]
         shell.gate
           DesktopShell#1  [effective]
+        shell.layout
+          DesktopShell#1  [effective]
         shell.pages
+          DesktopShell#1  [effective]
+        shell.part-render
           DesktopShell#1  [effective]
         shell.part-style
           DesktopShell#1  [effective]
@@ -122,6 +126,7 @@ system
     shell
       shell.gate  [one, build]
         identity-ui#1  [effective]
+      shell.layout  [keyed-one]
       shell.pages  [list, build]
         conversation  [effective, session-ui#1]
         history-search  [effective, session-ui#1]

@@ -14,6 +14,11 @@ import { DynamisRefused, type Made } from '@omne-harness/dynamis-cordis/cordis'
 import type { ReactNode } from 'react'
 import {
   changesOn,
+  laidOut,
+  layoutContract,
+  layoutEntry,
+  renderContract,
+  renderEntry,
   styleContract,
   styleEntry,
   tenantScope,
@@ -32,7 +37,15 @@ import {
   type BoundOf,
   type Need,
 } from './needs.ts'
-import { partEntry, partFault, partHostOf, partsContract, type PartDeclaration } from './part.ts'
+import {
+  PART_ATTRIBUTE,
+  partEntry,
+  partFault,
+  partHostOf,
+  partsContract,
+  type PartDeclaration,
+  type PartRender,
+} from './part.ts'
 import type { ServiceKey } from './service-key.ts'
 import { entryOf, sameView, shellContracts, viewOf, type SlotView } from './placement.ts'
 import {
@@ -86,8 +99,18 @@ function adoptOn(registry: Registry, references: Readonly<Record<string, Referen
   return { kind: 'adopted', bindings: { ...made.bindings, ...empty } }
 }
 
+const CONTRACTS = [
+  ...shellContracts,
+  partsContract,
+  tokensContract,
+  styleContract,
+  renderContract,
+  layoutContract,
+]
+
 function checkedPart(declaration: PartDeclaration, host: string): Entry {
-  const fault = partFault(declaration, host)
+  const drawn = host === 'shell' && declaration.depths.includes('render')
+  const fault = drawn ? 'a part of the shell does not open render' : partFault(declaration, host)
   if (fault !== null) throw new ShellAssemblyError('attached', declaration.name, 'invalid', fault)
   return partEntry(declaration)
 }
@@ -106,17 +129,17 @@ export abstract class ShellService extends Service implements ShellSlots {
   private readonly watchers = new Set<Watcher>()
   private readonly required = new Map<string, Readonly<Record<string, Reference>>>()
   private readonly adoptionWatchers = new Set<() => void>()
+  private readonly changeWatchers = new Set<() => void>()
+  private read:
+    | Readonly<{ registry: Registry; tenant: string | undefined; changes: Changes }>
+    | undefined
   private adopted: Readonly<{ registry: Registry; of: Map<string, Adoption> }> | undefined
 
   constructor(ctx: Context) {
     super(ctx, ShellService.provide)
     const { dynamis } = ctx
     for (const slot of SLOT_NAMES) this.views.set(slot, viewOf(dynamis.registry(), slot))
-    dynamis.put(
-      [...shellContracts, partsContract, tokensContract, styleContract].map(contract =>
-        declare(contract),
-      ),
-    )
+    dynamis.put(CONTRACTS.map(contract => declare(contract)))
     ctx.on('dynamis-cordis/changed', registry => this.follow(registry))
   }
 
@@ -154,8 +177,43 @@ export abstract class ShellService extends Service implements ShellSlots {
     return this.ctx.dynamis.put([styleEntry(part, style, scope)])
   }
 
+  putRender<P>(part: string, render: PartRender<P>, scope: Scope = []): () => unknown {
+    return this.ctx.dynamis.put(instance => [
+      renderEntry(part, render as PartRender, scope, `${instance.fiber}#${instance.generation}`),
+    ])
+  }
+
+  putLayout(key: string, order: readonly string[], scope: Scope = []): () => unknown {
+    return this.ctx.dynamis.put([layoutEntry(key, order, scope)])
+  }
+
   changes(): Changes {
-    return changesOn(this.registry(), tenantScope(this.scope.get()), name => this.knowsToken(name))
+    const registry = this.registry()
+    const tenant = this.scope.get()
+    if (this.read?.registry !== registry || this.read.tenant !== tenant) {
+      const known = (name: string): boolean => this.knowsToken(name)
+      this.read = { registry, tenant, changes: changesOn(registry, tenantScope(tenant), known) }
+    }
+    return this.read.changes
+  }
+
+  drawn(part: string, builtIn: () => ReactNode, props: unknown): ReactNode {
+    const render = this.changes().renders.get(part)
+    if (render === undefined) return builtIn()
+    try {
+      return render({ props: props as never, part: { [PART_ATTRIBUTE]: part }, builtIn })
+    } catch {
+      return builtIn()
+    }
+  }
+
+  watchChanges(listener: () => void): () => void {
+    this.changeWatchers.add(listener)
+    return () => void this.changeWatchers.delete(listener)
+  }
+
+  protected rescope(): void {
+    this.follow(this.registry())
   }
 
   protected knowsToken(_name: string): boolean {
@@ -242,8 +300,10 @@ export abstract class ShellService extends Service implements ShellSlots {
   }
 
   private follow(registry: Registry): void {
+    const order = this.changes().layouts['shell.pages']
     const changed = SLOT_NAMES.filter(slot => {
-      const fresh = viewOf(registry, slot)
+      const read = viewOf(registry, slot)
+      const fresh = slot === 'pages' ? { ...read, items: laidOut(read.items, order) } : read
       if (sameView(this.views.get(slot) as SlotView, fresh)) return false
       this.views.set(slot, fresh)
       return true
@@ -261,6 +321,13 @@ export abstract class ShellService extends Service implements ShellSlots {
         listener()
       } catch {
         this.ctx.logger.warn('shell: a watcher of the adoptions threw')
+      }
+    }
+    for (const listener of Array.from(this.changeWatchers)) {
+      try {
+        listener()
+      } catch {
+        this.ctx.logger.warn('shell: a watcher of the changes threw')
       }
     }
   }

@@ -15,6 +15,7 @@ import { memo, useContext, useId, useState, type ReactNode } from 'react'
 import type { Item, Part } from '../model/conversation.ts'
 import { isRecord, type Plain } from '../model/plain.ts'
 import { BlockSlotContext } from './block-slot.ts'
+import { PartDrawContext } from './part-draw.ts'
 import {
   sessionTranscriptAgentMessage,
   sessionTranscriptReasoning,
@@ -343,6 +344,20 @@ export function speakerOf(item: Item): 'user' | 'agent' | undefined {
 const messagePart = (role: string): typeof sessionTranscriptUserMessage =>
   role === 'user' ? sessionTranscriptUserMessage : sessionTranscriptAgentMessage
 
+function Message({ item }: { readonly item: Extract<Item, { kind: 'message' }> }) {
+  const drawer = useContext(PartDrawContext)
+  const part = messagePart(item.role)
+  const content = <Parts parts={item.parts} live={item.live} bubble />
+  const builtIn = (): ReactNode => (
+    <article className="omne-message" data-role={item.role} data-live={item.live} {...part.props}>
+      <span className="omne-message-speaker">{SPEAKER[item.role]}</span>
+      {content}
+    </article>
+  )
+  if (drawer === null) return builtIn()
+  return part.draw(drawer, builtIn, { role: item.role, live: item.live === true, content })
+}
+
 export const ItemView = memo(function ItemView({
   item,
   failed = false,
@@ -353,17 +368,7 @@ export const ItemView = memo(function ItemView({
 }) {
   switch (item.kind) {
     case 'message':
-      return (
-        <article
-          className="omne-message"
-          data-role={item.role}
-          data-live={item.live}
-          {...messagePart(item.role).props}
-        >
-          <span className="omne-message-speaker">{SPEAKER[item.role]}</span>
-          <Parts parts={item.parts} live={item.live} bubble />
-        </article>
-      )
+      return <Message item={item} />
     case 'note':
       return (
         <ProcessLine name={item.label} light>

@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
-import { cleanup } from '@testing-library/react'
-import { tenantScope } from '@omne-harness/shell-contract'
-import { afterEach, describe, expect, it } from 'vitest'
+import { act, cleanup, render } from '@testing-library/react'
+import { definePart, tenantScope } from '@omne-harness/shell-contract'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { adoptChanges, tokenOf } from '../src/page/shell/changes-sheet.ts'
-import { settle, setup } from './support/shell-setup.tsx'
+import { CHAT, SETTINGS, settle, setup } from './support/shell-setup.tsx'
 
 const ALICE = '{"organization":"org_1","account":"acc_alice"}'
 const BOB = '{"organization":"org_1","account":"acc_bob"}'
@@ -77,5 +77,91 @@ describe('the sheet of the changes', () => {
     expect(knows('--kami-ink')).toBe(false)
     document.documentElement.style.removeProperty('--omne-accent')
     document.documentElement.style.removeProperty('--kami-ink')
+  })
+})
+
+describe('the drawing of a part in the desktop shell', () => {
+  const note = definePart<{ words: string }>({
+    name: 'notes.message',
+    label: '一条笔记',
+    summary: '写下的一条',
+    depths: ['render'],
+  })
+  const shown = () => document.querySelector('[data-note]')?.getAttribute('data-note')
+
+  function Broken(): never {
+    throw new Error('this drawing is broken')
+  }
+
+  it('is the one put on it for the tenant on show; one that throws while it is drawn falls back to what shipped', async () => {
+    const t = await setup({ login: 'signed-in' })
+    const host = await t.module('notes-ui')
+    note.declare(host.shell)
+    await act(async () => {
+      t.state.scope.set(ALICE)
+      await settle()
+    })
+    render(
+      <>
+        {note.draw(
+          t.service,
+          () => (
+            <p data-note="built-in" />
+          ),
+          { words: 'abc' },
+        )}
+      </>,
+    )
+    expect(shown()).toBe('built-in')
+    const brand = await t.module('brand')
+    let take: (() => unknown) | undefined
+    await act(async () => {
+      take = brand.shell.putRender<{ words: string }>(
+        'notes.message',
+        ({ props, part }) => <p data-note={`mine:${props.words}`} {...part} />,
+        tenantScope(ALICE),
+      )
+      await settle()
+    })
+    expect(shown()).toBe('mine:abc')
+    expect(document.querySelector('[data-note]')?.getAttribute('data-omne-part')).toBe(
+      'notes.message',
+    )
+    await act(async () => {
+      t.state.scope.set(BOB)
+      await settle()
+    })
+    expect(shown()).toBe('built-in')
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    await act(async () => {
+      t.state.scope.set(ALICE)
+      await take?.()
+      brand.shell.putRender('notes.message', () => <Broken />, tenantScope(ALICE))
+      await settle()
+    })
+    expect(shown()).toBe('built-in')
+    quiet.mockRestore()
+  })
+
+  it('the pages follow the layout of the tenant on show', async () => {
+    const t = await setup({ login: 'signed-in' })
+    await t.provide(CHAT)
+    await t.provide(SETTINGS)
+    const ids = () => t.service.items('pages').map(page => page.id)
+    const drawn = () =>
+      Array.from(document.querySelectorAll('.shell-page'), page => page.getAttribute('data-page'))
+    expect(ids()).toEqual(['chat', 'settings'])
+    const brand = await t.module('brand')
+    await act(async () => {
+      brand.shell.putLayout('shell.pages', ['settings', 'chat'], tenantScope(ALICE))
+      await settle()
+    })
+    expect(ids()).toEqual(['chat', 'settings'])
+    await act(async () => {
+      t.state.scope.set(ALICE)
+      await settle()
+    })
+    expect(ids()).toEqual(['settings', 'chat'])
+    expect(drawn()).toEqual(['settings', 'chat'])
   })
 })
