@@ -7,6 +7,7 @@ import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { declare } from '@omne-harness/dynamis'
 import { availabilitySource } from '../src/availability/availability.ts'
 import { AccessRegistryProvider } from '../src/registry/cordis.ts'
+import { createStandaloneRegistry } from '../src/registry/desk.ts'
 import { protocolsContract } from '../src/registry/table.ts'
 import { settleCall } from '../src/settle/settle.ts'
 import { manualClock } from './support/manual-clock.ts'
@@ -444,5 +445,131 @@ describe('the point of the protocols cannot be read', () => {
     expect(again.protocols.map(protocol => protocol.name)).toEqual(['notes'])
     await rival.dispose()
     expect('refused' in registry.enter(NOTES, 'read-note')).toBe(false)
+  })
+})
+
+describe('several instances on the registry, each with its own', () => {
+  const NOTES_TWO = { name: 'notes', major: 2 } as const
+
+  async function two() {
+    const root = new Context()
+    await root.plugin(DynamisService)
+    await root.plugin(AccessRegistryProvider)
+    const registry = root.accessRegistry as unknown as AccessRegistryProvider
+    const load = (name: string, major: number) =>
+      root.plugin({
+        name,
+        inject: ['accessRegistry'],
+        apply: (ctx: Context) => void ctx.accessRegistry.mount(notesContribution(name, major)),
+      })
+    const first = await load('notes-access', 1)
+    const second = await load('notes-two-access', 2)
+    return { root, registry, first, second, load }
+  }
+
+  it('one unloads: only its own call is aborted, and it waits for its own call alone', async () => {
+    const { registry, second } = await two()
+    const other = mustEnter(registry, NOTES, 'save-note')
+    const own = mustEnter(registry, NOTES_TWO, 'save-note')
+    let gone = false
+    const leaving = second.dispose().then(() => {
+      gone = true
+    })
+    await flush()
+    expect(own.signal.aborted).toBe(true)
+    expect(other.signal.aborted).toBe(false)
+    other.leave()
+    await flush()
+    expect(gone).toBe(false)
+    own.leave()
+    await leaving
+    expect(gone).toBe(true)
+    expect(registry.enter(NOTES_TWO, 'save-note')).toEqual({ refused: 'not-mounted' })
+    mustEnter(registry, NOTES, 'save-note').leave()
+  })
+
+  it('one with nothing in flight unloads at once, whatever another one still runs', async () => {
+    const { registry, first } = await two()
+    const running = mustEnter(registry, NOTES_TWO, 'save-note')
+    await first.dispose()
+    expect(running.signal.aborted).toBe(false)
+    expect(registry.enter(NOTES, 'save-note')).toEqual({ refused: 'not-mounted' })
+    running.leave()
+  })
+
+  it('a protocol taken down is not in the snapshot sent again for the points', async () => {
+    const { root, registry, first } = await two()
+    const opened = await availabilitySource(registry, 4)(
+      {
+        principal: undefined as never,
+        messageId: 'm-1',
+        revision: 2,
+        signal: new AbortController().signal,
+      },
+      {},
+    )
+    if (opened.outcome !== 'succeeded') throw new Error(opened.outcome)
+    const next = async () =>
+      (await opened.frames.next()).value as { kind: string; protocols?: { major: number }[] }
+    expect((await next()).protocols?.map(protocol => protocol.major)).toEqual([1, 2])
+    await first.dispose()
+    const tags = { ...protocolsContract, name: 'notes.tags', arity: 'keyed-list', keys: 'public' }
+    await root.plugin({
+      name: 'notes-host',
+      inject: ['dynamis'],
+      apply: (ctx: Context) => void ctx.dynamis.put([declare(tags as never)]),
+    })
+    const again = await next()
+    expect(again.kind).toBe('snapshot')
+    expect(again.protocols?.map(protocol => protocol.major)).toEqual([2])
+  })
+
+  it('built on a context that is already running: the point it declared is not news to a subscriber', () => {
+    const root = new Context()
+    new DynamisService(root)
+    const registry = new AccessRegistryProvider(root)
+    const seen: string[] = []
+    registry.subscribe(change => void seen.push(change.change))
+    registry.own(notesContribution('own'))
+    expect(seen).toEqual(['mounted'])
+  })
+
+  it('the provider waits for the registry service of the tree', async () => {
+    const root = new Context()
+    const fiber = root.plugin(AccessRegistryProvider)
+    await flush()
+    expect(root.get('accessRegistry')).toBeUndefined()
+    await root.plugin(DynamisService)
+    await fiber
+    expect(root.get('accessRegistry')).toBeDefined()
+  })
+})
+
+describe("the entry's own protocol, put and taken back by hand", () => {
+  it('is served at once; taking it back aborts what it runs and removes it', async () => {
+    const root = new Context()
+    await root.plugin(DynamisService)
+    await root.plugin(AccessRegistryProvider)
+    const registry = root.accessRegistry as unknown as AccessRegistryProvider
+    const take = registry.own(notesContribution('own'))
+    const entered = mustEnter(registry, NOTES, 'save-note')
+    expect(entered.signal.aborted).toBe(false)
+    await take()
+    expect(entered.signal.aborted).toBe(true)
+    entered.leave()
+    expect(registry.enter(NOTES, 'save-note')).toEqual({ refused: 'not-mounted' })
+  })
+})
+
+describe('the registry with no Cordis under it', () => {
+  it('a listener that throws does not keep the change from the next one, with no handler given', () => {
+    const registry = createStandaloneRegistry()
+    const heard: string[] = []
+    registry.subscribe(() => {
+      throw new Error('listener')
+    })
+    registry.subscribe(change => void heard.push(change.change))
+    registry.mount(notesContribution('first'))
+    expect(heard).toEqual(['mounted'])
   })
 })

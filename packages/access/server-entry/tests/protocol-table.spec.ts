@@ -44,6 +44,7 @@ const host: Instance = { fiber: 'entry', generation: 1 }
 const a1: Instance = { fiber: 'notes-access', generation: 1 }
 const a2: Instance = { fiber: 'notes-access', generation: 2 }
 const b1: Instance = { fiber: 'other-access', generation: 1 }
+const host2: Instance = { fiber: 'notes-host', generation: 1 }
 const KEY = 'notes/v1'
 
 function installed(
@@ -120,6 +121,25 @@ describe('进入', () => {
 
   it('两份在：冲突，写明是哪两家，两份都不被调用，账不变', () => {
     expect(enter(clashing(), noCalls, KEY, 'read')).toEqual({ kind: 'conflict', by: [a1, b1] })
+  })
+
+  it('两份在，后放的那一家名字排在前：写明的两家次序不看谁先放', () => {
+    const reversed = installed(
+      installed(declared(), b1, entryOf(contribution, b1)),
+      a1,
+      entryOf(contribution, a1),
+    )
+    expect(enter(reversed, noCalls, KEY, 'read')).toEqual({ kind: 'conflict', by: [a1, b1] })
+  })
+
+  it('点的规矩：一项的字段钉住，每一句说明不留空', () => {
+    expect(protocolsContract.item).toEqual({
+      kind: 'effect',
+      fields: { contribution: 'object', revision: 'number', controller: 'object' },
+    })
+    const texts = Object.values(protocolsContract).filter(value => typeof value === 'string')
+    expect(texts.length).toBeGreaterThan(8)
+    expect(texts.every(text => text !== '')).toBe(true)
   })
 
   it('两份在，一份撤了：另一份立刻服务', () => {
@@ -302,6 +322,10 @@ describe('这棵树声明的点，与公开的点现在的键', () => {
     const first = points(base)
     const other = installed(base, a1, entryOf(contribution, a1))
     expect(points(other, first)).toBe(first)
+    // The same holds once a public point has keys: what is put on other points still reads nothing.
+    const tagged = installed(other, host2, tag('k') as never)
+    const held = points(tagged)
+    expect(points(installed(tagged, b1, entryOf(contribution, b1)), held)).toBe(held)
     const keyed = installed(other, b1, tag('x') as never)
     const next = points(keyed, first)
     expect(next).not.toBe(first)
