@@ -5,6 +5,7 @@ import {
   projectRule,
   revisionOf,
   ruleCodec,
+  type ProtocolContract,
   type Rule,
 } from '@omne-harness/public-contract'
 
@@ -153,6 +154,23 @@ describe('projectRule', () => {
     expect(projectRule(noteRule, 3)).toEqual(noteRule)
   })
 
+  it('projects inside arrays and inside every choice of a one-of', () => {
+    const inner = {
+      kind: 'object',
+      fields: {
+        id: { rule: { kind: 'text' } },
+        note: { rule: { kind: 'text' }, optional: true, since: 2 },
+      },
+    } as const satisfies Rule
+    const at1 = { kind: 'object', fields: { id: { rule: { kind: 'text' } } } }
+    expect(projectRule({ kind: 'array', item: inner }, 1)).toEqual({ kind: 'array', item: at1 })
+    expect(projectRule({ kind: 'one-of', rules: [{ kind: 'null' }, inner] }, 1)).toEqual({
+      kind: 'one-of',
+      rules: [{ kind: 'null' }, at1],
+    })
+    expect(projectRule({ kind: 'array', item: inner }, 2)).toEqual({ kind: 'array', item: inner })
+  })
+
   it('carries the rule on the codec it was built from', () => {
     expect(note.rule).toBe(noteRule)
   })
@@ -164,7 +182,15 @@ describe('a rule that cannot be', () => {
   const build = ruleCodec as unknown as (rule: Rule) => unknown
 
   it('refuses a required field that came later: an older writer could not have written it', () => {
-    expect(() => build(field({ since: 2 }))).toThrow(TypeError)
+    expect(() => build(field({ since: 2 }))).toThrow(
+      'field a came at revision 2 and is not optional',
+    )
+  })
+
+  it('says which field has a since that is not a revision', () => {
+    expect(() => build(field({ optional: true, since: 0 }))).toThrow(
+      'the since of field a is not a positive integer',
+    )
   })
 
   it.each([0, -1, 1.5, Number.NaN, '2'])('refuses since %s', since => {
@@ -198,6 +224,20 @@ describe('revisionOf', () => {
       name: 'test',
       major: 1,
       operations: { get: { ...base, outcomes: { succeeded: body } } },
+      observations: {},
+    })
+    expect(revisionOf(protocol)).toBe(1)
+  })
+
+  it('counts an outcome that has no body, and a codec written by hand, as saying nothing', () => {
+    const handmade = { read: () => ({ ok: false }), write: () => ({ ok: false }) } as never
+    const define = defineProtocol as unknown as (protocol: object) => ProtocolContract
+    const protocol = define({
+      name: 'test',
+      major: 1,
+      operations: {
+        get: { ...base, body: handmade, outcomes: { succeeded: body, 'protocol-rejected': true } },
+      },
       observations: {},
     })
     expect(revisionOf(protocol)).toBe(1)
