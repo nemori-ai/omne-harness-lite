@@ -21,7 +21,14 @@ import { nextText, stateNote, type ScheduleCard, type Succeeded } from '../model
 import { Drawn } from './drawn.tsx'
 import { ReadOnEnd } from './read-on-end.tsx'
 import { ScheduleDetailView, type Picked } from './schedule-detail.tsx'
-import { scheduleFilter, scheduleRefresh } from '../parts.ts'
+import {
+  scheduleFilter,
+  scheduleList,
+  scheduleListRow,
+  schedulePage,
+  scheduleReading,
+  scheduleRefresh,
+} from '../parts.ts'
 
 type Client = ClientOf<ScheduleProtocol>
 type Page = Succeeded<'list-schedules'>
@@ -39,7 +46,12 @@ export function SchedulePage({ client, tenant }: SchedulePageProps): JSX.Element
   const id = readTenantText(tenant)
   if (id === undefined)
     return (
-      <ListReadingPage title={TITLE} description={DESCRIPTION} detail={false}>
+      <ListReadingPage
+        title={TITLE}
+        description={DESCRIPTION}
+        detail={false}
+        {...schedulePage.props}
+      >
         <ReadingState>
           <InlineNotice tone="danger">读不懂当前的租户。</InlineNotice>
         </ReadingState>
@@ -70,6 +82,7 @@ function Schedules({
       title={TITLE}
       description={DESCRIPTION}
       detail={open}
+      {...schedulePage.props}
       actions={
         <IconButton
           label="刷新"
@@ -82,6 +95,7 @@ function Schedules({
     >
       <ListReadingWorkspace detail={open} empty={empty}>
         <ListReadingDirectory
+          {...scheduleList.props}
           search={
             <div className="schedule-span" {...scheduleFilter.props}>
               <Segmented
@@ -100,7 +114,7 @@ function Schedules({
             {page => <Pages first={page} readPage={readPage} picked={picked} onPick={setPicked} />}
           </Drawn>
         </ListReadingDirectory>
-        <ListReadingMain>
+        <ListReadingMain {...scheduleReading.props}>
           {picked === undefined ? (
             <ReadingState>
               <EmptyState
@@ -188,6 +202,7 @@ function Rows({
       {items.map(item => (
         <ListReadingRow
           key={item.schedule}
+          {...scheduleListRow.props}
           mark={<TimeIcon />}
           title={item.label ?? '未命名'}
           facts={stateNote(item)?.word}

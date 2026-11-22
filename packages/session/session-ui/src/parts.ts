@@ -207,6 +207,14 @@ export const sessionSearch = definePart({
   depths: ['tokens', 'style'],
 })
 
+export const sessionSearchHit = definePart({
+  name: 'session.search.hit',
+  label: '搜到的一条',
+  summary: '搜到的一段记录',
+  within: 'session.search',
+  depths: ['tokens', 'style'],
+  when: '搜到东西时',
+})
 export const sessionParts = [
   sessionList,
   sessionListNew,
@@ -232,4 +240,5 @@ export const sessionParts = [
   sessionSide,
   sessionSideBackgroundCall,
   sessionSearch,
+  sessionSearchHit,
 ] as const

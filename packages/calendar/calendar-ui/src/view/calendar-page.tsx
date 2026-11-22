@@ -19,7 +19,13 @@ import {
 } from '@omne-harness/ui-kit'
 import { useState, type JSX } from 'react'
 import { READING, readOnce, useReading, type Reading } from '../model/reading.ts'
-import { calendarLookup, calendarLookupAsk, calendarPage } from '../parts.ts'
+import {
+  calendarEnvironment,
+  calendarLookup,
+  calendarLookupAsk,
+  calendarPage,
+  calendarShipped,
+} from '../parts.ts'
 import { Drawn, ReadNotice } from './drawn.tsx'
 import { ShippedCalendars, type SupplyHealth } from './shipped-calendars.tsx'
 
@@ -79,7 +85,7 @@ function CalendarFacts({
     calendars.kind === 'read' ? calendars.value.calendars.map(item => item.calendar) : []
   return (
     <>
-      <Section id="calendar-environment" title="生效的日历">
+      <Section id="calendar-environment" title="生效的日历" {...calendarEnvironment.props}>
         <Drawn
           reading={environment}
           reread={rereadEnvironment}
@@ -94,7 +100,7 @@ function CalendarFacts({
           )}
         </Drawn>
       </Section>
-      <Section id="calendar-shipped" title="供应的日历">
+      <Section id="calendar-shipped" title="供应的日历" {...calendarShipped.props}>
         <Drawn reading={calendars} reread={rereadCalendars} refused={() => '读不出日历清单。'}>
           {value => (
             <ShippedCalendars

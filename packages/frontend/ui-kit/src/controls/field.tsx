@@ -1,3 +1,4 @@
+import { type DataAttributes } from '../patterns/ai/data-attributes.ts'
 import { Label } from './label.tsx'
 
 export function Field({
@@ -27,14 +28,15 @@ export function Section({
   title,
   badge,
   children,
-}: {
+  ...data
+}: DataAttributes & {
   readonly id: string
   readonly title: string
   readonly badge?: React.ReactNode
   readonly children: React.ReactNode
 }): React.JSX.Element {
   return (
-    <section id={id} aria-labelledby={`${id}-heading`} className="omne-section">
+    <section {...data} id={id} aria-labelledby={`${id}-heading`} className="omne-section">
       <div className="omne-section-heading">
         <h3 id={`${id}-heading`} className="omne-section-title">
           {title}

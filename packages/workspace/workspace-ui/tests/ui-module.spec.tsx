@@ -74,7 +74,7 @@ it('a change made on the page is told to whoever listens to the list of instance
   expect(told).toBe(1)
 })
 
-it('M4 declares its three parts', async () => {
+it('M4 declares its six parts', async () => {
   const { root, shell } = await startShell()
   const client = createFakeClient<ClientOf<WorkspaceProtocol>>(OPERATIONS).client
   await serveProtocol(root, workspaceProtocol, client)
@@ -82,8 +82,11 @@ it('M4 declares its three parts', async () => {
   const read = partsOn(shell.registry())
   expect(read.kind === 'read' && read.conflicts).toEqual([])
   expect(read.kind === 'read' && read.parts.map(part => [part.name, part.within])).toEqual([
-    ['workspace.instance', 'workspace.page'],
-    ['workspace.item', 'workspace.page'],
+    ['workspace.detail', 'workspace.page'],
+    ['workspace.instance', 'workspace.detail'],
+    ['workspace.item', 'workspace.list'],
+    ['workspace.list', 'workspace.page'],
     ['workspace.page', 'shell.workspace.page'],
+    ['workspace.register', 'workspace.page'],
   ])
 })

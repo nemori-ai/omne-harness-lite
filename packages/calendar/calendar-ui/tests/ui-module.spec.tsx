@@ -72,14 +72,17 @@ it('M4 a tenant: the page reads the environment and the calendars of that tenant
   expect(calendars.body).toEqual(environment.body)
 })
 
-it('M4 declares its three parts, whether or not the protocol is served', async () => {
+it('M4 declares its six parts, whether or not the protocol is served', async () => {
   const { root, shell } = await startShell()
   await root.plugin(calendarUiModule)
   const read = partsOn(shell.registry())
   expect(read.kind === 'read' && read.conflicts).toEqual([])
   expect(read.kind === 'read' && read.parts.map(part => [part.name, part.within])).toEqual([
+    ['calendar.environment', 'calendar.page'],
     ['calendar.lookup', 'calendar.page'],
     ['calendar.lookup.ask', 'calendar.lookup'],
     ['calendar.page', 'shell.workspace.page'],
+    ['calendar.shipped', 'calendar.page'],
+    ['calendar.shipped.item', 'calendar.shipped'],
   ])
 })

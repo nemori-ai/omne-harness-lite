@@ -164,11 +164,17 @@ system
           assets-ui#1  [effective]
         assets.tabs.tab
           assets-ui#1  [effective]
+        calendar.environment
+          calendar-ui#1  [effective]
         calendar.lookup
           calendar-ui#1  [effective]
         calendar.lookup.ask
           calendar-ui#1  [effective]
         calendar.page
+          calendar-ui#1  [effective]
+        calendar.shipped
+          calendar-ui#1  [effective]
+        calendar.shipped.item
           calendar-ui#1  [effective]
         human-intervention.page
           human-intervention-ui#1  [effective]
@@ -242,6 +248,14 @@ system
           schedule-ui#1  [effective]
         schedule.filter
           schedule-ui#1  [effective]
+        schedule.list
+          schedule-ui#1  [effective]
+        schedule.list.row
+          schedule-ui#1  [effective]
+        schedule.page
+          schedule-ui#1  [effective]
+        schedule.reading
+          schedule-ui#1  [effective]
         schedule.refresh
           schedule-ui#1  [effective]
         schedule.title
@@ -279,6 +293,8 @@ system
         session.queue
           session-ui#1  [effective]
         session.search
+          session-ui#1  [effective]
+        session.search.hit
           session-ui#1  [effective]
         session.side
           session-ui#1  [effective]
@@ -336,11 +352,17 @@ system
           usage-ui#1  [effective]
         usage.panel.menu
           usage-ui#1  [effective]
+        workspace.detail
+          workspace-ui#1  [effective]
         workspace.instance
           workspace-ui#1  [effective]
         workspace.item
           workspace-ui#1  [effective]
+        workspace.list
+          workspace-ui#1  [effective]
         workspace.page
+          workspace-ui#1  [effective]
+        workspace.register
           workspace-ui#1  [effective]
       shell.sidebar  [list, build]
         session-list  [effective, session-ui#1]

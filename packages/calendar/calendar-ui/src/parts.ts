@@ -24,4 +24,35 @@ export const calendarLookupAsk = definePart({
   depths: ['tokens', 'style'],
 })
 
-export const calendarParts = [calendarPage, calendarLookup, calendarLookupAsk] as const
+export const calendarEnvironment = definePart({
+  name: 'calendar.environment',
+  label: '生效的日历',
+  summary: '现在用哪份日历与时区',
+  within: 'calendar.page',
+  depths: ['tokens', 'style'],
+})
+
+export const calendarShipped = definePart({
+  name: 'calendar.shipped',
+  label: '供应的日历',
+  summary: '部署给出的日历清单',
+  within: 'calendar.page',
+  depths: ['tokens', 'style'],
+})
+
+export const calendarShippedItem = definePart({
+  name: 'calendar.shipped.item',
+  label: '一份日历',
+  summary: '清单里的一份日历',
+  within: 'calendar.shipped',
+  depths: ['tokens', 'style'],
+  when: '清单里有日历时',
+})
+export const calendarParts = [
+  calendarPage,
+  calendarLookup,
+  calendarLookupAsk,
+  calendarEnvironment,
+  calendarShipped,
+  calendarShippedItem,
+] as const

@@ -33,7 +33,7 @@ import type { SessionWorkspaces } from '../model/session-workspaces.ts'
 import { ReadOnEnd } from './read-on-end.tsx'
 import { useSession } from './use-session.ts'
 import type { SessionDriver } from '../model/session-driver.ts'
-import { sessionSearch } from '../parts.ts'
+import { sessionSearch, sessionSearchHit } from '../parts.ts'
 
 type Listed = Extract<SearchView, { kind: 'listed' }>
 
@@ -74,6 +74,7 @@ function HitRow({
   return (
     <li>
       <ListReadingRow
+        {...sessionSearchHit.props}
         mark={<ConversationIcon aria-hidden="true" />}
         title={name ?? hit.session.slice(0, 8)}
         facts={
