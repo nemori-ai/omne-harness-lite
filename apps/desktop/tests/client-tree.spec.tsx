@@ -3,7 +3,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
 import { deployment, render, tree } from '@omne-harness/dynamis'
 import type { ShellLogin } from '@omne-harness/shell-contract'
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
 import { assembly } from '../src/page/assembly.tsx'
 import { shellPlugin } from '../src/page/shell/service.ts'
 import { createShellState } from '../src/page/shell/state.ts'
@@ -87,4 +87,26 @@ it('往没有声明的点上放东西：它不生效，树的问题一栏写出�
   expect(tree(root.dynamis.registry(), deployment).problems).toEqual([
     { kind: 'stray', point: 'ghost.point', detail: 'forgetful' },
   ])
+})
+
+it('树上每出现一个问题，外壳往日志里记一条错误，同一个问题只记一次', async () => {
+  const root = new Context()
+  const logged = vi.spyOn(root.logger, 'error').mockImplementation(() => undefined)
+  await root.plugin(shellPlugin(createShellState(login)))
+  const stray = (name: string, id: string) =>
+    root.plugin({
+      name,
+      inject: ['shell'],
+      apply: ctx =>
+        ctx.shell.contribute('attached', {
+          id,
+          order: 0,
+          anchor: 'ghost.point',
+          render: () => null,
+        }),
+    })
+  await stray('forgetful', 'x')
+  await stray('other', 'y')
+  const problems = logged.mock.calls.map(([text]) => text).filter(text => text.includes('ghost'))
+  expect(problems).toEqual(['shell: the point ghost.point has a problem (stray): forgetful'])
 })

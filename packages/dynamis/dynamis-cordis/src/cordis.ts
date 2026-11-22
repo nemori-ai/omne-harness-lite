@@ -65,11 +65,10 @@ export class DynamisService extends Service {
     const changed = next.registry !== this.seats.registry
     this.seats = next
     if (!changed) return
-    try {
-      this.ctx.emit('dynamis-cordis/changed', next.registry)
-    } catch {
-      this.ctx.logger.warn('dynamis: a listener of dynamis-cordis/changed threw')
-    }
+    const { logger } = this.ctx
+    this.ctx
+      .parallel('dynamis-cordis/changed', next.registry)
+      .catch(() => logger.warn('dynamis: a listener of dynamis-cordis/changed threw'))
   }
 }
 
@@ -81,8 +80,9 @@ declare module '@deepseek-ai/cordis' {
   }
   interface Events {
     /**
-     * The registry changed.
-     * @mode emit
+     * The registry changed. Every listener is called at once, in order; one that throws does not
+     * keep the change from the others.
+     * @mode parallel
      * @param registry the registry after the change
      */
     'dynamis-cordis/changed'(registry: Registry): void

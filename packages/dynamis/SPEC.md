@@ -147,8 +147,8 @@ Dynamis 包组回答一个问题：一个领域让别的领域拓展自己时，
 - 名字取调用方的插件名。两个活着的 fiber 同名时，后占的加后缀（`session-ui~2`）；先占的走了，名字空出来。后缀看谁先占，答案的内容不看名字。代数按名字只增。
 - 服务的 `put(条目)` 先用状态机算出结果，被拒绝就抛 `DynamisRefused`，不留效应；合法才登记成调用方 fiber 上的效应，返回撤这一批的函数。调用方已经就绪时，这一批直接在位。条目可以写成实例的函数：放之前就问得出自己是谁的哪一代（`instanceFor`）。
 - 服务监听 Cordis 的 `internal/status`：fiber 到 `ACTIVE` 时就绪，到 `UNLOADING` 时离开。效应的撤除是兜底。所以 `apply` 里放的几批在 fiber 就绪时一起出现，`apply` 抛错的 fiber 放的从不出现，卸载时一起消失。
-- 登记表的值变了，服务发事件 `dynamis-cordis/changed`（`emit`，载荷是变化之后的登记表）。备着的座位怎样变都不发。监听者抛错只记一条诊断。
-- 它站在 Cordis 文档没写的三条行为上：`apply` 里登记的效应先于就绪的状态事件；开始卸载的状态事件先于效应被撤，`apply` 抛错时也是；依赖丢了再回来是同一个 fiber 对象重跑。三条各有一份探针用例在 `packages/assembly/kernel-basis/tests`，Cordis 升版时由它们守。
+- 登记表的值变了，服务发事件 `dynamis-cordis/changed`（`parallel`，载荷是变化之后的登记表）。备着的座位怎样变都不发。用 `parallel` 不用 `emit`：`emit` 遇到一个监听者抛错就不再调后面的，一个坏监听者会让别人收不到这次变化；`parallel` 在调用的那一刻同步、按次序调每一个，各自的错互不相挡。监听者抛错只记一条诊断，登记表已经更新。
+- 它站在 Cordis 文档没写的三条行为上：`apply` 里登记的效应先于就绪的状态事件；开始卸载的状态事件先于效应被撤，`apply` 抛错时也是；依赖丢了再回来是同一个 fiber 对象重跑。三条各有一份探针用例在 `packages/assembly/kernel-basis/tests`，Cordis 升版时由它们守。`parallel` 同步调每个监听者这一条也有一份探针。
 
 ## 原则与约束
 

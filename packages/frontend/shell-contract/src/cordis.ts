@@ -85,8 +85,14 @@ export abstract class ShellService extends Service implements ShellSlots {
       this.views.set(slot, fresh)
       return true
     })
-    for (const watcher of Array.from(this.watchers))
-      if (changed.includes(watcher.slot)) watcher.listener()
+    for (const watcher of Array.from(this.watchers)) {
+      if (!changed.includes(watcher.slot)) continue
+      try {
+        watcher.listener()
+      } catch {
+        this.ctx.logger.warn(`shell: a watcher of ${watcher.slot} threw`)
+      }
+    }
   }
 
   /** Best effort and without a result: a toast shown is not a toast a person saw. */

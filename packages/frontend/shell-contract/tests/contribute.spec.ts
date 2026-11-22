@@ -259,6 +259,18 @@ describe('contribute', () => {
     expect(backward.shell.items('attached').map(item => item.anchor)).toEqual(anchors)
   })
 
+  it('tells the other watchers of a slot when one of them throws', async () => {
+    const { root, shell } = await startShell()
+    let told = 0
+    shell.subscribe('pages', () => {
+      throw new Error('watcher')
+    })
+    shell.subscribe('pages', () => (told += 1))
+    await place(root, 'a', ctx => ctx.shell.contribute('pages', page('chat')))
+    expect(told).toBe(1)
+    expect(shell.items('pages').map(item => item.id)).toEqual(['chat'])
+  })
+
   it('keeps ids apart per slot', async () => {
     const { root, shell } = await startShell()
     await place(root, 'a', ctx => {

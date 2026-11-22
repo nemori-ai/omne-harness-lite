@@ -219,14 +219,18 @@ describe('服务 dynamis（DC-1、DC-2、DC-3）', () => {
     expect(dynamis.registry().placed[0]?.digest).toBe('mod#1')
   })
 
-  it('监听者抛错不改变已经放上的东西', async () => {
+  it('监听者抛错不改变已经放上的东西，也不挡排在它后面的监听者', async () => {
     const { ctx, dynamis } = await tree()
     ctx.on('dynamis-cordis/changed', () => {
       throw new Error('listener')
     })
+    const later: Registry[] = []
+    ctx.on('dynamis-cordis/changed', registry => void later.push(registry))
     const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation(() => undefined)
     await ctx.plugin(mod('mod', inner => void inner.dynamis.put([a1])))
+    await settle()
     expect(ids(dynamis.registry())).toEqual(['a1'])
+    expect(later.map(ids)).toEqual([['a1']])
     expect(warn).toHaveBeenCalledWith('dynamis: a listener of dynamis-cordis/changed threw')
   })
 

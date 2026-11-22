@@ -1,5 +1,6 @@
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { createElement, type ReactNode } from 'react'
+import { deployment, tree, type Registry } from '@omne-harness/dynamis'
 import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import {
   type AttachedLayout,
@@ -20,6 +21,7 @@ export class DesktopShell extends ShellService {
   readonly login: ShellLogin
   readonly scope: ScopeSource
   private readonly state: ShellState
+  private problems: ReadonlySet<string> = new Set()
 
   constructor(ctx: Context, state: ShellState) {
     super(ctx)
@@ -32,6 +34,19 @@ export class DesktopShell extends ShellService {
         () => this.subscribe(slot, () => this.reportConflicts(slot)),
         'desktop-shell.conflicts',
       )
+    ctx.on('dynamis-cordis/changed', registry => this.reportProblems(registry))
+  }
+
+  /** A point nobody declared, or one declared twice, shows nothing: the log says which point. */
+  private reportProblems(registry: Registry): void {
+    const now = new Set<string>()
+    for (const { kind, point, detail } of tree(registry, deployment).problems) {
+      const key = `${kind} ${point}`
+      now.add(key)
+      if (this.problems.has(key)) continue
+      this.ctx.logger.error(`shell: the point ${point} has a problem (${kind}): ${detail}`)
+    }
+    this.problems = now
   }
 
   /** A conflict is an assembly mistake nobody threw: the log names the spot and who put there. */
@@ -51,10 +66,9 @@ export class DesktopShell extends ShellService {
     this.ctx.effect(() => {
       pageOwners.set(item.id, [...(pageOwners.get(item.id) ?? []), owner])
       return () => {
-        pageOwners.set(
-          item.id,
-          (pageOwners.get(item.id) ?? []).filter(held => held !== owner),
-        )
+        const left = (pageOwners.get(item.id) ?? []).filter(held => held !== owner)
+        if (left.length === 0) pageOwners.delete(item.id)
+        else pageOwners.set(item.id, left)
       }
     }, 'desktop-shell.page-owner')
   }
