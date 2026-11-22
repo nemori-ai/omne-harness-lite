@@ -1,5 +1,5 @@
 import { assetsProtocol, type AssetsProtocol } from '@omne-harness/assets-protocol'
-import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
+import { protocolServiceName, type Connection } from '@omne-harness/client-assembly/cordis'
 import type { AttachedLayout } from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import type { ClientOf } from '@omne-harness/sdk/core'
@@ -13,6 +13,9 @@ import { boundRow } from './view/setting-row.tsx'
 import { SettingsPage } from './view/settings-page.tsx'
 
 const ASSETS = protocolServiceName({ name: assetsProtocol.name, major: assetsProtocol.major })
+const CONNECTION = 'connection'
+
+type Services = Readonly<Record<string, unknown>>
 
 export const ASSETS_PAGE_ORDER = 15
 export const SETTINGS_PAGE_ORDER = 20
@@ -20,14 +23,15 @@ export const SETTINGS_PAGE_ORDER = 20
 const inOrder: AttachedLayout = entries =>
   entries.map(entry => <Fragment key={entry.id}>{entry.node}</Fragment>)
 
-export const assetsUiModule = defineUiModule<Record<string, ClientOf<AssetsProtocol>>>({
+export const assetsUiModule = defineUiModule<Services>({
   name: 'assets-ui',
-  inject: [ASSETS],
+  inject: [ASSETS, CONNECTION],
   apply(shell, services, provide) {
     for (const point of [assetsCategoryPage, assetsCategory, assetsHolding]) point.declare(shell)
-    const client = services[ASSETS]!
+    const client = services[ASSETS] as ClientOf<AssetsProtocol>
+    const { availability } = services[CONNECTION] as Pick<Connection, 'availability'>
     const governance = createGovernance({ client })
-    const categoryNames = createCategoryNames(client)
+    const categoryNames = createCategoryNames(client, availability)
     provide(assetGovernanceKey, governancePort(governance, boundRow))
     shell.contribute('pages', {
       id: 'assets',

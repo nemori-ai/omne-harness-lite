@@ -8,6 +8,7 @@ import {
   type ServerEntryConfig,
 } from './config.ts'
 import { accessContribution } from './availability/availability.ts'
+import type { RegistryForEntry } from './registry/registry.ts'
 import { writeBare } from './pipeline/answer.ts'
 import {
   createPipeline,
@@ -18,7 +19,9 @@ import {
 
 export type Listening = Readonly<{ address: string; port: number }>
 
-export type ServerEntryAccess = PipelineAccess
+export type ServerEntryAccess = Omit<PipelineAccess, 'registry'> & {
+  readonly registry: RegistryForEntry
+}
 
 export interface ServerEntry {
   start(): Promise<Listening>
@@ -108,7 +111,7 @@ export function createServerEntry(input: {
       stopping = false
       const access = input.access
       try {
-        takeDownAccess = access?.registry.mount(
+        takeDownAccess = access?.registry.own(
           accessContribution(access.registry, access.availabilityBacklog),
         )
       } catch (error) {

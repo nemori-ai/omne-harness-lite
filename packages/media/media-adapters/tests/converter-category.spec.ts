@@ -1,6 +1,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import { readBodyText, type JsonValue } from '@omne-harness/assets'
 import { assetCategoriesPlugin } from '@omne-harness/assets-cordis-contract/cordis'
+import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import {
   CONVERTER_CATEGORY,
   converterBodyContract,
@@ -125,6 +126,7 @@ describe('the body of a converter definition', () => {
 describe('the converter category', () => {
   it('is listed as data that can be made, while its plugin is in the tree', async () => {
     const root = new Context()
+    await root.plugin(DynamisService)
     await root.plugin(assetCategoriesPlugin)
     const scope = root.plugin(converterCategoryPlugin)
     await scope

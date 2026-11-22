@@ -4,6 +4,7 @@ import {
   assetCategoriesPlugin,
   categoryContributionPlugin,
 } from '@omne-harness/assets-cordis-contract/cordis'
+import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { mcpCategoryPlugin } from '@omne-harness/mcp-host-local/cordis'
 import { converterCategoryPlugin } from '@omne-harness/media-adapters/cordis'
 import { modelProviderCategoryPlugin } from '@omne-harness/model-host-local/cordis'
@@ -13,6 +14,7 @@ import { expect, it } from 'vitest'
 
 it('six domains contribute into one extension point, each with the name it declares', async () => {
   const root = new Context()
+  await root.plugin(DynamisService)
   await root.plugin(assetCategoriesPlugin)
   await root.plugin(skillCategoryPlugin)
   await root.plugin(mcpCategoryPlugin)

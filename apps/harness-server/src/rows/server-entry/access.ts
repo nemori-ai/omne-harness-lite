@@ -36,6 +36,8 @@ const CODES = [
   'access.content-type-rejected',
   'access.not-mounted',
   'access.not-offered',
+  'access.protocol-conflict',
+  'access.registry-unavailable',
   'access.busy',
   'access.message-id-rejected',
   'access.revision-rejected',
@@ -68,6 +70,7 @@ export const accessDiagnosticDefinition = defineEvent({
     code: { kind: 'enum', values: CODES },
     path: { kind: 'ref', owner: OWNER, maxBytes: 256, optional: true },
     operation: { kind: 'ref', owner: OWNER, maxBytes: 128, optional: true },
+    by: { kind: 'ref', owner: OWNER, maxBytes: 256, optional: true },
   },
 })
 
@@ -75,12 +78,15 @@ type AccessFields = Fields<typeof accessDiagnosticDefinition.schema>
 
 function fieldsOf(event: AccessDiagnostic): AccessFields {
   const { code, path, operation } = event
+  // The instances that hold one protocol at once, as one reference: a reference has no spaces.
+  const by = event.by?.join(',')
   const admits = (fields: AccessFields): boolean =>
     validateFields(accessDiagnosticDefinition, fields).kind === 'ok'
   return {
     code,
     ...(path !== undefined && admits({ code, path }) && { path }),
     ...(operation !== undefined && admits({ code, operation }) && { operation }),
+    ...(by !== undefined && admits({ code, by }) && { by }),
   }
 }
 
@@ -102,7 +108,7 @@ export function entryAccess(
 ): ServerEntryAccess {
   const diagnostics = accessDiagnostics(telemetry)
   return {
-    registry: new AccessRegistryProvider(ctx, { diagnostics }).registry,
+    registry: new AccessRegistryProvider(ctx, { diagnostics }),
     identity,
     graceMs: GRACE_MS,
     frameQueueBytes: FRAME_QUEUE_BYTES,

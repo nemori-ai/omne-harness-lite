@@ -46,6 +46,11 @@
       "config": {}
     },
     {
+      "id": "dynamis",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "asset-categories",
       "plugin": "stubPlugin",
       "config": {}

@@ -51,6 +51,7 @@
   },
   "devDependencies": {
     "@omne-harness/agent-context": "workspace:*",
+    "@omne-harness/dynamis-cordis": "workspace:*",
     "@omne-harness/message": "workspace:*",
     "@omne-harness/request-context": "workspace:*",
     "@omne-harness/request-context-contract": "workspace:*",

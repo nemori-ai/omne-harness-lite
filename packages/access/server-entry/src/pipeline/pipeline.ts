@@ -13,7 +13,7 @@ import {
   type ObservationHub,
 } from '../observation-hub/hub.ts'
 import type { LoginCheck } from '../observation-hub/records.ts'
-import type { AccessRegistry, Entered, RegistryForPipeline } from '../registry/registry.ts'
+import type { Entered, RegistryForPipeline } from '../registry/registry.ts'
 import {
   settleCall,
   systemClock,
@@ -23,14 +23,14 @@ import {
   type SettleNote,
 } from '../settle/settle.ts'
 import { parseAddress, pathOf, type Address } from './address.ts'
-import { EMPTY_BODY, writeAnswer, writeBare, writeNotOffered } from './answer.ts'
+import { EMPTY_BODY, writeAnswer, writeBare, writeNotExecuted, type NotExecuted } from './answer.ts'
 import { readBody } from './body.ts'
 import { contentTypeAccepted, countHeader, hostAccepted } from './headers.ts'
 import { establish, type Established, type SignedIn } from './identity-rule.ts'
 import { watchCall, type CallWatch, type Interruption } from './watch.ts'
 
 export type PipelineAccess = Readonly<{
-  registry: AccessRegistry
+  registry: RegistryForPipeline
   identity: AccessIdentity
   graceMs: number
   frameQueueBytes: number
@@ -50,6 +50,8 @@ export type PipelineDiagnosticCode =
   | 'access.content-type-rejected'
   | 'access.not-mounted'
   | 'access.not-offered'
+  | 'access.protocol-conflict'
+  | 'access.registry-unavailable'
   | 'access.busy'
   | 'access.message-id-rejected'
   | 'access.revision-rejected'
@@ -72,6 +74,8 @@ export type PipelineDiagnostic = Readonly<{
   protocol?: string
   major?: number
   operation?: string
+  /** On a conflict: the instances that hold the protocol at once. */
+  by?: readonly string[]
 }>
 
 export type PipelineSettings = Readonly<{
@@ -91,6 +95,8 @@ export type Admission =
       code: PipelineDiagnosticCode
       path: string
       address?: Address
+      notExecuted?: NotExecuted
+      by?: readonly string[]
     }>
   | Readonly<{ kind: 'entered'; address: Address; entered: Entered }>
 
@@ -115,18 +121,34 @@ export function admit(
   if (!contentTypeAccepted(req)) return refused(415, 'access.content-type-rejected')
   const key = { name: address.protocol, major: address.major }
   const entered = registry.enter(key, address.name)
-  if (entered === undefined)
-    return refused(404, registry.mounts(key) ? 'access.not-offered' : 'access.not-mounted')
-  return { kind: 'entered', address, entered }
+  if (!('refused' in entered)) return { kind: 'entered', address, entered }
+  return {
+    kind: 'refused',
+    status: 404,
+    code: NOT_EXECUTED_CODE[entered.refused],
+    path: address.path,
+    address,
+    notExecuted: entered.refused,
+    ...(entered.by !== undefined && { by: entered.by }),
+  }
 }
+
+const NOT_EXECUTED_CODE = {
+  'not-mounted': 'access.not-mounted',
+  'not-offered': 'access.not-offered',
+  conflict: 'access.protocol-conflict',
+  unavailable: 'access.registry-unavailable',
+} as const satisfies Readonly<Record<NotExecuted, PipelineDiagnosticCode>>
 
 function eventOf(
   code: PipelineDiagnosticCode,
   path: string,
   address?: Address,
+  by?: readonly string[],
 ): PipelineDiagnostic {
   if (address === undefined) return { code, path }
-  return { code, path, protocol: address.protocol, major: address.major, operation: address.name }
+  const { protocol, major, name: operation } = address
+  return { code, path, protocol, major, operation, ...(by !== undefined && { by }) }
 }
 
 const MESSAGE_ID = /^[\x21-\x7e]{1,128}$/
@@ -169,7 +191,7 @@ function openingOf(req: IncomingMessage, entered: Entered): Opening {
 }
 
 function refuse(res: ServerResponse, refusal: Extract<Admission, { kind: 'refused' }>): void {
-  if (refusal.code === 'access.not-offered') return writeNotOffered(res)
+  if (refusal.notExecuted !== undefined) return writeNotExecuted(res, refusal.notExecuted)
   writeBare(res, refusal.status, refusal.status === 405 ? { allow: 'POST' } : {})
 }
 
@@ -411,7 +433,7 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
   async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const admission = admit(req, access.registry, settings.loopback)
     if (admission.kind === 'refused') {
-      diagnose(eventOf(admission.code, admission.path, admission.address))
+      diagnose(eventOf(admission.code, admission.path, admission.address, admission.by))
       return refuse(res, admission)
     }
     const release = settings.slots.take(res)

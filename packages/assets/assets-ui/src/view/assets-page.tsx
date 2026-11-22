@@ -32,13 +32,20 @@ function useCategories(source: CategoryNames | undefined): [Categories, () => vo
       setCategories(NONE)
       return
     }
-    let live = true
+    // Every read takes a turn; only the answer of the last turn is shown.
+    let turn = 0
+    const read = (): void => {
+      const mine = ++turn
+      void source.read().then(found => {
+        if (mine === turn) setCategories(found)
+      })
+    }
     setCategories(READING)
-    void source.read().then(found => {
-      if (live) setCategories(found)
-    })
+    read()
+    const stop = source.changed?.(read)
     return () => {
-      live = false
+      turn = -1
+      stop?.()
     }
   }, [source, round])
   return [categories, () => setRound(count => count + 1)]
@@ -134,13 +141,18 @@ type TabsProps = Readonly<{
 function Tabs({ entries, data, reading, chosen, choose, extras, generic }: TabsProps) {
   const contributed = new Map(entries.map(entry => [entry.id, entry]))
   const ids = [...contributed.keys(), ...data.filter(category => !contributed.has(category))]
-  if (ids.length === 0)
+  const shown = chosen !== null && ids.includes(chosen) ? chosen : ids[0]
+  // The first one shown counts as chosen: a category that arrives later does not take the pane away.
+  useEffect(() => {
+    if (chosen === null && shown !== undefined) choose(shown)
+  }, [shown, chosen, choose])
+  if (shown === undefined)
     return reading ? (
       <LoadingState label="正在读取资产……" />
     ) : (
       <EmptyState title="这一层还没有可以管的资产，也没有类别带来自己的页面。" />
     )
-  const selected = chosen !== null && ids.includes(chosen) ? chosen : ids[0]!
+  const selected = shown
   const labelOf = (category: string) => contributed.get(category)?.label ?? extras.label(category)
   return (
     <div className="assets-page-body">

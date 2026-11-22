@@ -6,6 +6,7 @@
 
 ## 入口 `.` · `index.d.ts`
 
+- `ASSET_CATEGORIES_POINT` · `index.d.ts`
 - `assetCategoriesKey` · `index.d.ts`
 - `assetChangesKey` · `index.d.ts`
 - `assetManagementKey` · `index.d.ts`
@@ -35,6 +36,7 @@ export declare class AssetCategoriesService extends Service {
     static readonly provide = "assetCategories";
     readonly view: CategoryView;
     protected readonly point: CategoryPoint;
+    private readonly place;
     constructor(ctx: Context);
     contribute(contribution: CategoryContribution): void;
 }
@@ -91,4 +93,5 @@ export declare const assetPublishingKey = "assetPublishing";
 export declare const assetManagementKey = "assetManagement";
 export declare const assetChangesKey = "assetChanges";
 export declare const independentSettingsKey = "independentSettings";
+export declare const ASSET_CATEGORIES_POINT = "assets.categories";
 ```

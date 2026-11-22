@@ -10,6 +10,7 @@
     "session-before-intake",
     "session-history-index",
     "session-search",
+    "dynamis",
     "asset-categories",
     "tenant-assets",
     "governance",

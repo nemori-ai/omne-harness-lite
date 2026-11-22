@@ -48,6 +48,7 @@
   },
   "devDependencies": {
     "@omne-harness/call-account": "workspace:*",
+    "@omne-harness/dynamis-cordis": "workspace:*",
     "@omne-harness/model-storage-sql": "workspace:*",
     "@omne-harness/settings-local": "workspace:*",
     "@types/node": "catalog:",

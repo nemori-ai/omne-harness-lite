@@ -6,7 +6,7 @@
 
 | 模型               | 性质                                                 | 含义                                                               | 规格不变式 |
 | ------------------ | ---------------------------------------------------- | ------------------------------------------------------------------ | ---------- |
-| AccessRegistry     | `Unique`                                             | 同名协议至多挂着一份                                               | I-3        |
+| AccessRegistry     | `Unique`                                             | 同名协议至多一份在服务：没有调用或观察是在另有同名贡献挂着时被接进来的 | I-3        |
 | AccessRegistry     | `AbortReachesInFlight`                               | 属于一份已不在表里的贡献的在途调用一定已收到中止                   | I-4        |
 | AccessRegistry     | `HonestAnswer`                                       | 处理函数已经开始的提交类调用不会被答成「依据不可用」               | I-8        |
 | AccessRegistry     | `GoneMeansSettled`                                   | 撤下完成时这份贡献的在途调用都答复了，观察都结束了                 | I-4        |
@@ -28,7 +28,7 @@
 | 配置                                | 模型               | 改坏了什么                                 | 预期                        |
 | ----------------------------------- | ------------------ | ------------------------------------------ | --------------------------- |
 | `reg-correct`                       | MCRegistry         | 无                                         | 无错误                      |
-| `reg-noUniqueness`                  | MCRegistry         | 挂上时不查同名                             | 违反 `Unique`               |
+| `reg-noUniqueness`                  | MCRegistry         | 同名挂了两份时仍取其中一份来服务           | 违反 `Unique`               |
 | `reg-noAbort`                       | MCRegistry         | 撤下时不给在途调用发中止                   | 违反 `AbortReachesInFlight` |
 | `reg-nonAtomicLookup`               | MCRegistry         | 查表与登记成在途分成两步                   | 违反 `AbortReachesInFlight` |
 | `reg-wrongAnswer`                   | MCRegistry         | 提交类调用在中止后失败，答成「依据不可用」 | 违反 `HonestAnswer`         |

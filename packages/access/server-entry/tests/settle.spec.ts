@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { AccessContribution } from '@omne-harness/access-cordis-contract'
-import { createAccessRegistry } from '../src/registry/registry.ts'
+import { createStandaloneRegistry } from '../src/registry/desk.ts'
 import { settleCall, type SettledAnswer } from '../src/settle/settle.ts'
 import { manualClock } from './support/manual-clock.ts'
 import { NOTES, notesProtocol, type NotesProtocol } from './support/test-contribution.ts'
+import { mustEnter } from './support/enter.ts'
 
 const limits = {
   maxBytes: 4096,
@@ -19,7 +20,7 @@ const EMPTY: JsonValue = { kind: 'object', entries: [] }
 type Handlers = AccessContribution<NotesProtocol>['operations']
 
 function setup(name: 'read-note' | 'save-note', handlers: Partial<Handlers> = {}) {
-  const registry = createAccessRegistry()
+  const registry = createStandaloneRegistry()
   const steps: string[] = []
   let handlerStarted = false
   const contribution: AccessContribution<NotesProtocol> = {
@@ -41,7 +42,7 @@ function setup(name: 'read-note' | 'save-note', handlers: Partial<Handlers> = {}
     observations: { 'watch-note': async () => ({ outcome: 'basis-unavailable' }) },
   }
   const takeDown = registry.mount(contribution)
-  const entered = registry.enter(NOTES, name)
+  const entered = mustEnter(registry, NOTES, name)
   if (entered === undefined) throw new Error('not mounted')
   const tracked = {
     ...entered,
@@ -248,7 +249,7 @@ describe('answers by the contract', () => {
   it('leaves even when writing the answer fails', async () => {
     const call = setup('read-note')
     const steps: string[] = []
-    const registry = createAccessRegistry()
+    const registry = createStandaloneRegistry()
     const takeDown = registry.mount({
       protocol: notesProtocol(),
       operations: {
@@ -257,7 +258,7 @@ describe('answers by the contract', () => {
       },
       observations: { 'watch-note': async () => ({ outcome: 'basis-unavailable' }) },
     })
-    const entered = registry.enter(NOTES, 'read-note')
+    const entered = mustEnter(registry, NOTES, 'read-note')
     if (entered === undefined) throw new Error('not mounted')
     const settled = settleCall({
       entered,
@@ -278,7 +279,7 @@ describe('answers by the contract', () => {
   })
 
   it('refuses an observation, which the hub settles', async () => {
-    const registry = createAccessRegistry()
+    const registry = createStandaloneRegistry()
     registry.mount({
       protocol: notesProtocol(),
       operations: {
@@ -287,7 +288,7 @@ describe('answers by the contract', () => {
       },
       observations: { 'watch-note': async () => ({ outcome: 'basis-unavailable' }) },
     })
-    const entered = registry.enter(NOTES, 'watch-note')
+    const entered = mustEnter(registry, NOTES, 'watch-note')
     if (entered === undefined) throw new Error('not mounted')
     await expect(
       settleCall({

@@ -64,14 +64,21 @@ const drafts = defineProtocol({
   },
   observations: {},
 })
+/** How many reads reached the handler; a read of the id `count` answers it as its title. */
+let reads = 0
 if (process.argv.includes('--drafts'))
   fixture.log.registry.mount({
     protocol: drafts,
     operations: {
-      read: async (_call, body) => ({
-        outcome: 'succeeded',
-        body: { id: body.id, title: body.lang ?? 'T', colour: 'red' },
-      }),
+      read: async (_call, body) => {
+        if (body.id === 'count')
+          return { outcome: 'succeeded', body: { id: body.id, title: String(reads) } }
+        reads += 1
+        return {
+          outcome: 'succeeded',
+          body: { id: body.id, title: body.lang ?? 'T', colour: 'red' },
+        }
+      },
     },
     observations: {},
   })

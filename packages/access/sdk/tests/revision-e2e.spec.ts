@@ -54,13 +54,14 @@ function draftsAt(revision: 1 | 2 | 3): ProtocolContract {
 
 type Loose = Record<string, (body: Record<string, string>) => Promise<unknown>>
 
-async function clientOf(revision: 1 | 2 | 3): Promise<Loose> {
+async function clientOf(revision: 1 | 2 | 3, peerRevision?: number): Promise<Loose> {
   const peer = await startPeer(['--drafts'])
   peers.push(peer)
   const protocol = draftsAt(revision)
   expect(revisionOf(protocol)).toBe(revision)
   const transport = createHttpProtocolTransport({ origin: peer.origin })
-  return createClient(protocol, transport) as unknown as Loose
+  const settings = peerRevision === undefined ? {} : { peerRevision: () => peerRevision }
+  return createClient(protocol, transport, settings) as unknown as Loose
 }
 
 const clientAt = async (revision: 1 | 2 | 3) => (await clientOf(revision))['read']!
@@ -98,5 +99,29 @@ describe('two ends at different revisions of one major, over real HTTP (V1, V2)'
   it('a newer client that calls an operation the older server does not have learns for certain that nothing ran (V3)', async () => {
     const client = await clientOf(3)
     expect(await client['pin']!({})).toEqual({ outcome: 'unavailable' })
+  })
+})
+
+describe('a newer client that knows what the older server is at (V2, the other half)', () => {
+  it('does not send what the server does not know: the call is unavailable here, and the server never sees it', async () => {
+    const client = await clientOf(3, 2)
+    expect(await client['read']!({ id: 'd-1', deep: 'x' })).toEqual({ outcome: 'unavailable' })
+    expect(await client['pin']!({})).toEqual({ outcome: 'unavailable' })
+    expect(await client['read']!({ id: 'seen' })).toEqual({
+      outcome: 'succeeded',
+      body: { id: 'seen', title: 'T', colour: 'red' },
+    })
+    expect(await client['read']!({ id: 'count' })).toEqual({
+      outcome: 'succeeded',
+      body: { id: 'count', title: '1' },
+    })
+  })
+
+  it('keeps to what the server knows and is served as before', async () => {
+    const client = await clientOf(3, 2)
+    expect(await client['read']!({ id: 'd-1', lang: 'zh' })).toEqual({
+      outcome: 'succeeded',
+      body: { id: 'd-1', title: 'zh', colour: 'red' },
+    })
   })
 })

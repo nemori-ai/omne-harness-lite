@@ -723,6 +723,9 @@ importers:
       '@omne-harness/dispatch-tools':
         specifier: workspace:*
         version: link:../../packages/dispatch/dispatch-tools
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../packages/dynamis/dynamis-cordis
       '@omne-harness/exchange-refs':
         specifier: workspace:*
         version: link:../../packages/common/exchange-refs
@@ -1199,6 +1202,12 @@ importers:
       '@omne-harness/access-cordis-contract':
         specifier: workspace:*
         version: link:../access-cordis-contract
+      '@omne-harness/dynamis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
@@ -1390,6 +1399,9 @@ importers:
       '@omne-harness/agent-context':
         specifier: workspace:*
         version: link:../../context/agent-context
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
       '@omne-harness/message':
         specifier: workspace:*
         version: link:../../common/message
@@ -1553,6 +1565,12 @@ importers:
       '@omne-harness/assets':
         specifier: workspace:*
         version: link:../assets
+      '@omne-harness/dynamis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
       '@omne-harness/settings':
         specifier: workspace:*
         version: link:../settings
@@ -3724,6 +3742,9 @@ importers:
       '@modelcontextprotocol/server-everything':
         specifier: 'catalog:'
         version: 2.1.0(supports-color@7.2.0)
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
@@ -3881,6 +3902,9 @@ importers:
         specifier: workspace:*
         version: link:../../tool/tool-cordis-contract
     devDependencies:
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
@@ -4324,6 +4348,9 @@ importers:
       '@omne-harness/call-account':
         specifier: workspace:*
         version: link:../../common/call-account
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
       '@omne-harness/model-storage-sql':
         specifier: workspace:*
         version: link:../model-storage-sql
@@ -5200,6 +5227,9 @@ importers:
         specifier: workspace:*
         version: link:../../common/utc-instant
     devDependencies:
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
       '@omne-harness/identity':
         specifier: workspace:*
         version: link:../../identity/identity
@@ -5832,6 +5862,9 @@ importers:
       '@omne-harness/assets-local':
         specifier: workspace:*
         version: link:../../assets/assets-local
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
       '@omne-harness/settings-local':
         specifier: workspace:*
         version: link:../../assets/settings-local

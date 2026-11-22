@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { request } from 'node:http'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -118,6 +119,29 @@ describe('server-entry row: the new address', () => {
 })
 
 describe('server-entry row: the access it gives the entry', () => {
+  it('a protocol conflict carries the two instances that hold the protocol, as one reference', () => {
+    const capture = createCapturingTelemetry()
+    const sink = accessDiagnostics(capture.port)
+    sink({
+      code: 'access.protocol-conflict',
+      path: '/api/notes/v1/read-note',
+      operation: 'read-note',
+      by: ['notes-access#1', 'notes-access~2#1'],
+    })
+    sink({ code: 'access.protocol-conflict', by: ['a'.repeat(300), 'b'] })
+    expect(
+      capture.records().map(record => (record.kind === 'event' ? record.fields : null)),
+    ).toStrictEqual([
+      {
+        code: 'access.protocol-conflict',
+        path: '/api/notes/v1/read-note',
+        operation: 'read-note',
+        by: 'notes-access#1,notes-access~2#1',
+      },
+      { code: 'access.protocol-conflict' },
+    ])
+  })
+
   it('leaves out a reference the event refuses, and keeps the code', () => {
     const capture = createCapturingTelemetry()
     const sink = accessDiagnostics(capture.port)
@@ -143,14 +167,16 @@ describe('server-entry row: the access it gives the entry', () => {
       actFor: async () => ({ outcome: 'denied' }),
       reportAccess: async () => {},
     }
-    const { identity } = entryAccess(new Context(), createCapturingTelemetry().port, port)
+    const root = new Context()
+    new DynamisService(root)
+    const { identity } = entryAccess(root, createCapturingTelemetry().port, port)
     expect(identity).toBe(port)
   })
 
   it('gives the entry a clock, and the clock schedules and cancels on the time source it adapts', () => {
-    expect(
-      entryAccess(new Context(), createCapturingTelemetry().port, NO_IDENTITY).clock,
-    ).toBeDefined()
+    const root = new Context()
+    new DynamisService(root)
+    expect(entryAccess(root, createCapturingTelemetry().port, NO_IDENTITY).clock).toBeDefined()
     const time = simulatedTime()
     const clock = accessClockOf(time.source)
     const ran: string[] = []
@@ -163,14 +189,16 @@ describe('server-entry row: the access it gives the entry', () => {
     expect([ran, time.pending()]).toEqual([['heartbeat'], 0])
   })
 
-  it('writes access.listener-fault when an availability listener throws', () => {
+  it('writes access.listener-fault when an availability listener throws', async () => {
     const capture = createCapturingTelemetry()
-    const { registry } = entryAccess(new Context(), capture.port, NO_IDENTITY)
+    const root = new Context()
+    await root.plugin(DynamisService)
+    const { registry } = entryAccess(root, capture.port, NO_IDENTITY)
     registry.subscribe(() => {
       throw new Error('listener')
     })
     const protocol = defineProtocol({ name: 'empty', major: 1, operations: {}, observations: {} })
-    registry.mount({ protocol, operations: {}, observations: {} } as never)
+    registry.own({ protocol, operations: {}, observations: {} } as never)
     expect(
       capture.records().map(record => (record.kind === 'event' ? record.fields : null)),
     ).toStrictEqual([{ code: 'access.listener-fault' }])

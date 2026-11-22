@@ -7,13 +7,15 @@ import {
   defineAccessPlugin,
 } from '@omne-harness/access-cordis-contract/cordis'
 
+/** A registry that keeps what a plugin mounted for as long as that plugin is loaded. */
 class KeepingRegistry extends AccessRegistryService {
   readonly mounted = new Map<string, AccessContribution<ProtocolContract>>()
-  protected attach(contribution: AccessContribution<ProtocolContract>): () => Promise<void> {
-    this.mounted.set(contribution.protocol.name, contribution)
-    return async () => {
-      this.mounted.delete(contribution.protocol.name)
-    }
+  mount(contribution: never): void {
+    const { name } = (contribution as AccessContribution<ProtocolContract>).protocol
+    this.ctx.effect(() => {
+      this.mounted.set(name, contribution)
+      return () => void this.mounted.delete(name)
+    }, 'test.mount')
   }
 }
 

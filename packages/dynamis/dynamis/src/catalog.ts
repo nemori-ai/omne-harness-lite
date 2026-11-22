@@ -28,6 +28,7 @@ const ARITIES = ['one', 'list', 'keyed-one', 'keyed-list'] as const
 const ITEM_KINDS = ['data', 'pure', 'effect'] as const
 const RESOLVES = ['conflict', 'most-specific'] as const
 const BINDINGS = ['build', 'run'] as const
+const KEYS = ['private', 'public'] as const
 
 export type FieldKind = (typeof FIELD_KINDS)[number]
 
@@ -44,6 +45,8 @@ export type Contract = Readonly<{
   onError: string
   version: number
   revision: number
+  /** Whether the keys now on this point are told to the other tree. It tells nothing of the items. */
+  keys: (typeof KEYS)[number]
   conformance: string | null
   summary: string
 }>
@@ -61,6 +64,7 @@ export const catalogContract: Contract = Object.freeze({
   onError: 'a point whose declaration cannot be read answers unavailable',
   version: 1,
   revision: 1,
+  keys: 'private',
   conformance: null,
   summary: 'The catalog: one item declares one extension point and carries its contract.',
 })
@@ -168,6 +172,7 @@ const CONTRACT_RULES: readonly (readonly [
     contract => Number.isInteger(contract['revision']) && (contract['revision'] as number) >= 1,
     'the revision is not a positive integer',
   ],
+  [contract => isOneOf(KEYS, contract['keys']), 'whether the keys are public is unknown'],
   [
     contract => contract['conformance'] === null || isText(contract['conformance']),
     'conformance is neither text nor null',

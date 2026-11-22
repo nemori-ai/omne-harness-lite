@@ -1,8 +1,16 @@
+import { createHash } from 'node:crypto'
 import { connect, createServer, type AddressInfo } from 'node:net'
 import { afterEach, describe, expect, it } from 'vitest'
-import type { AvailabilityFrame } from '@omne-harness/public-contract'
+import {
+  accessProtocol,
+  revisionOf,
+  type AvailabilityFrame,
+  type ProtocolContract,
+} from '@omne-harness/public-contract'
+import { contractDigest } from '@omne-harness/public-contract/snapshot'
 import { accessContribution, availabilitySource } from '../src/availability/availability.ts'
-import { createAccessRegistry, type AccessRegistry } from '../src/registry/registry.ts'
+import { createStandaloneRegistry } from '../src/registry/desk.ts'
+import type { StandaloneRegistry as AccessRegistry } from '../src/registry/registry.ts'
 import type { SseClient } from './support/entry.ts'
 import { openStream, startEntry } from './support/entry.ts'
 import {
@@ -19,6 +27,24 @@ type View = { revision: number; protocols: Set<string> }
 type Key = { readonly name: string; readonly major: number }
 
 const text = (key: Key): string => `${key.name}/v${key.major}`
+
+const sha256 = (bytes: Uint8Array): Uint8Array => createHash('sha256').update(bytes).digest()
+
+/** A served protocol as a caller at revision 2 is told of it: with what its contract is at. */
+/** The one point the entry declares, as a caller at revision 2 is told of it: its keys are not public. */
+const PROTOCOLS_POINT = {
+  name: 'access.protocols',
+  major: 1,
+  revision: 1,
+  digest: expect.stringMatching(/^sha256:[0-9a-f]{64}$/) as unknown as string,
+}
+
+const served = (protocol: ProtocolContract) => ({
+  name: protocol.name,
+  major: protocol.major,
+  revision: revisionOf(protocol),
+  digest: contractDigest(protocol, revisionOf(protocol), sha256),
+})
 
 function apply(view: View | undefined, frame: AvailabilityFrame): View {
   if (frame.kind === 'snapshot')
@@ -42,7 +68,7 @@ function registryView(registry: AccessRegistry): View {
 }
 
 function entryRegistry(backlog: number): AccessRegistry {
-  const registry = createAccessRegistry()
+  const registry = createStandaloneRegistry()
   registry.mount(accessContribution(registry, backlog))
   return registry
 }
@@ -56,7 +82,7 @@ type Subscriber = {
 function open(registry: AccessRegistry, backlog: number) {
   const controller = new AbortController()
   const opened = availabilitySource(registry, backlog)(
-    { principal: undefined as never, messageId: 'm-1', signal: controller.signal },
+    { principal: undefined as never, messageId: 'm-1', revision: 2, signal: controller.signal },
     {},
   )
   return { opened, controller }
@@ -122,6 +148,7 @@ describe('availability is a projection of the registry', () => {
       revision: registryView(registry).revision,
       added: [],
       removed: [{ name: 'notes', major: 6 }],
+      conflicts: [],
     })
     await a.close()
   })
@@ -142,21 +169,20 @@ describe('availability is a projection of the registry', () => {
     expect(again.frames[0]).toEqual({
       kind: 'snapshot',
       revision: 4,
-      protocols: [
-        { name: 'access', major: 1 },
-        { name: 'notes', major: 2 },
-      ],
+      protocols: [served(accessProtocol), served(notesContribution('b', 2).protocol)],
+      conflicts: [],
+      points: [PROTOCOLS_POINT],
     })
     await again.close()
   })
 
   it('wakes only a subscriber that waits: a change while a frame is held leaves no listener fault', async () => {
     const faults: unknown[] = []
-    const registry = createAccessRegistry({ onListenerError: error => faults.push(error) })
+    const registry = createStandaloneRegistry({ onListenerError: error => faults.push(error) })
     registry.mount(accessContribution(registry, 4))
     const controller = new AbortController()
     const opened = await availabilitySource(registry, 4)(
-      { principal: undefined as never, messageId: 'm-1', signal: controller.signal },
+      { principal: undefined as never, messageId: 'm-1', revision: 2, signal: controller.signal },
       {},
     )
     if (opened.outcome !== 'succeeded') throw new Error('not opened')
@@ -271,7 +297,7 @@ describe('availability at the entry', () => {
     const busy = createServer()
     await new Promise<void>(resolve => busy.listen(0, '127.0.0.1', resolve))
     const port = (busy.address() as AddressInfo).port
-    const registry = createAccessRegistry()
+    const registry = createStandaloneRegistry()
     try {
       await expect(
         startEntry({
@@ -322,6 +348,60 @@ describe('availability at the entry', () => {
     ])
     expect(fixture.accessIdentity.calls).toEqual([])
     for (const client of clients) client.close()
+  })
+
+  it('a caller at revision 2 also gets what each contract is at, and the protocols in conflict (C8)', async () => {
+    const fixture = await entry()
+    const old = watchAvailability(fixture.port)
+    const now = openStream(fixture.port, '{}', {
+      path: AVAILABILITY,
+      headers: { 'omne-message-id': 'm-1', 'omne-contract-revision': '2' },
+    })
+    for (const client of [old, now]) await client.waitForEvents(1)
+    const takeSecond = fixture.log.registry.mount(notesContribution('second'))
+    for (const client of [old, now]) await client.waitForEvents(2)
+    await takeSecond()
+    for (const client of [old, now]) await client.waitForEvents(3)
+
+    // That this is the digest the snapshot of access/v1 records is held where the snapshot is.
+    const recorded = contractDigest(accessProtocol, 2, sha256)
+    const notes = served(fixture.notes.contribution.protocol)
+    const access = served(accessProtocol)
+    expect(notes.digest).toMatch(/^sha256:[0-9a-f]{64}$/)
+    expect(access).toEqual({ name: 'access', major: 1, revision: 2, digest: recorded })
+    expect(now.events().map(event => (event as { frame?: unknown }).frame ?? event)).toEqual([
+      {
+        kind: 'snapshot',
+        revision: 2,
+        protocols: [notes, access],
+        conflicts: [],
+        points: [PROTOCOLS_POINT],
+      },
+      {
+        kind: 'change',
+        revision: 3,
+        added: [],
+        removed: [{ name: 'notes', major: 1 }],
+        conflicts: [{ name: 'notes', major: 1 }],
+      },
+      { kind: 'change', revision: 4, added: [notes], removed: [], conflicts: [] },
+    ])
+    expect(old.events().map(event => (event as { frame?: unknown }).frame ?? event)).toEqual([
+      {
+        kind: 'snapshot',
+        revision: 2,
+        protocols: [
+          { name: 'notes', major: 1 },
+          { name: 'access', major: 1 },
+        ],
+      },
+      { kind: 'change', revision: 3, added: [], removed: [{ name: 'notes', major: 1 }] },
+      { kind: 'change', revision: 4, added: [{ name: 'notes', major: 1 }], removed: [] },
+    ])
+    expect(eventText(old, 1)).toBe(
+      'data: {"kind":"frame","frame":{"kind":"snapshot","revision":2,"protocols":[{"name":"notes","major":1},{"name":"access","major":1}]}}',
+    )
+    for (const client of [old, now]) client.close()
   })
 
   it('asks the identity port only for an observation whose contract says login', async () => {
