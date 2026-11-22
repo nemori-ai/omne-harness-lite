@@ -169,6 +169,21 @@ describe('tree：点、键、条目排成一棵树', () => {
     expect(render(tree(mounted, deployment).root)).toContain(`${PAGE}  [keyed-one, client, build]`)
   })
 
+  it('规矩不在 1.1 的点，节点上写明主版本与修订号；在 1.1 的不写', () => {
+    const registry = registryOf([
+      'shell',
+      [
+        declare(contract(PAGES, { arity: 'list', tree: 'client', revision: 3 })),
+        declare(contract(CATEGORIES, { version: 2 })),
+        declare(contract(HOLDINGS, { arity: 'keyed-list' })),
+      ],
+    ])
+    const root = tree(registry, deployment).root
+    expect(find(root, `client/shell/${PAGES}`)?.note).toBe('list, v1.3')
+    expect(render(root)).toContain(`${CATEGORIES}  [keyed-one, v2.1]`)
+    expect(render(root)).toContain(`${HOLDINGS}  [keyed-list]`)
+  })
+
   it('读不出的点：点在树上，写明读不出，它自己的条目一个都不列；键取自它的点照常在', () => {
     const registry = withUnread(registryOf(...parts()), [
       { point: CATEGORIES, source: 'tenant-layer', scope: [] },

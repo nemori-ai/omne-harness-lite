@@ -127,7 +127,7 @@ test('contribute refuses an item that belongs to another slot', () => {
   shell.contribute('gate', { id: 'g', render })
   shell.contribute('pages', { id: 'p', title: 'P', order: 0, icon: 'topics', render })
   shell.contribute('sidebar', { id: 's', order: 0, render })
-  shell.contribute('attached', { id: 'a', order: 0, anchor: 'x', render })
+  shell.contribute('attached', { id: 'a', order: 0, anchor: 'test.x', render })
   // @ts-expect-error an attached item needs an anchor
   shell.contribute('attached', { id: 'a', order: 0, render })
   // @ts-expect-error a gate item has no title and order

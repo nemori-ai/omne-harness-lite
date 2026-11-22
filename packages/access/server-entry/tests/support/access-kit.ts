@@ -194,6 +194,7 @@ export function recordingRegistry(inner: AccessRegistry): RegistryLog {
     registry: {
       mount: contribution => inner.mount(contribution),
       subscribe: listener => inner.subscribe(listener),
+      mounts: key => inner.mounts(key),
       enter: (key, name) => {
         const entered = inner.enter(key, name)
         if (entered === undefined) return undefined

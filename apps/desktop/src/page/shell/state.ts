@@ -1,11 +1,13 @@
 import {
   createFigureStore,
-  createSlotStore,
   type FigureStore,
+  type ItemOf,
   type LogoutResult,
   type ScopeSource,
   type ShellLogin,
-  type SlotStore,
+  type ShellSlots,
+  type SlotConflict,
+  type SlotName,
   type Toast,
   type ToastBoard,
 } from '@omne-harness/shell-contract'
@@ -57,12 +59,51 @@ export type ToldBoard = ToastBoard & {
   room(open: boolean): void
 }
 
+/** What the page reads the slots through: the shell on the tree stands behind it once it loaded. */
+export type SlotRelay = ShellSlots & { bind(source: ShellSlots): () => void }
+
+type SlotWatcher = { slot: SlotName; listener: () => void; stop: () => void }
+
+const NOTHING: readonly never[] = Object.freeze([])
+const idle = (): void => undefined
+
+function slotRelay(): SlotRelay {
+  let source: ShellSlots | undefined
+  const watchers = new Set<SlotWatcher>()
+  const follow = (next: ShellSlots | undefined): void => {
+    source = next
+    for (const watcher of Array.from(watchers)) {
+      watcher.stop()
+      watcher.stop = next?.subscribe(watcher.slot, watcher.listener) ?? idle
+      watcher.listener()
+    }
+  }
+  return {
+    items: <K extends SlotName>(slot: K): readonly ItemOf<K>[] => source?.items(slot) ?? NOTHING,
+    conflicts: (slot): readonly SlotConflict[] => source?.conflicts(slot) ?? NOTHING,
+    subscribe(slot, listener) {
+      const watcher = { slot, listener, stop: source?.subscribe(slot, listener) ?? idle }
+      watchers.add(watcher)
+      return () => {
+        watcher.stop()
+        watchers.delete(watcher)
+      }
+    },
+    bind(next) {
+      follow(next)
+      return () => {
+        if (source === next) follow(undefined)
+      }
+    },
+  }
+}
+
 export type ShellState = {
-  readonly slots: SlotStore
+  readonly slots: SlotRelay
   readonly told: ToldBoard
   readonly figure: FigureStore
-  /** Which module placed each page, by page id: the module in front is the one whose page is on show. */
-  readonly pageOwners: Map<string, object>
+  /** The modules that put each page, by page id. A page on show has one: that module is in front. */
+  readonly pageOwners: Map<string, readonly object[]>
   readonly login: ShellLogin
   readonly scope: ScopeSource
   readonly page: PageChoice
@@ -84,7 +125,7 @@ function cell<T>(initial: T): Watched<T> & { set(value: T): void } {
   }
 }
 
-function pageChoice(slots: SlotStore): PageChoice & { dispose(): void } {
+function pageChoice(slots: ShellSlots): PageChoice & { dispose(): void } {
   const chosen = cell<string | undefined>(undefined)
   const shown = cell<string | undefined>(undefined)
   const focus = cell<PageFocus | undefined>(undefined)
@@ -165,7 +206,7 @@ export function createShellState(
     notices?: (show: (text: string) => void) => () => void
   }> = {},
 ): ShellState {
-  const slots = createSlotStore()
+  const slots = slotRelay()
   const told = createToldBoard()
   const scopeCell = cell<string | undefined>(undefined)
   const notice = cell<string | undefined>(undefined)

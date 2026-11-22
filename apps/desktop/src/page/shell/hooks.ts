@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
-import type { ItemOf, ShellSlots, SlotName } from '@omne-harness/shell-contract'
+import type { ItemOf, ShellSlots, SlotConflict, SlotName } from '@omne-harness/shell-contract'
 import type { Watched } from './state.ts'
 
 export function useWatched<T>(source: Watched<T>): T {
@@ -16,4 +16,13 @@ export function useSlot<K extends SlotName>(slots: ShellSlots, slot: K): readonl
     return slots.subscribe(slot, () => setItems(slots.items(slot)))
   }, [slots, slot])
   return items
+}
+
+export function useConflicts(slots: ShellSlots, slot: SlotName): readonly SlotConflict[] {
+  const [conflicts, setConflicts] = useState(() => slots.conflicts(slot))
+  useEffect(() => {
+    setConflicts(slots.conflicts(slot))
+    return slots.subscribe(slot, () => setConflicts(slots.conflicts(slot)))
+  }, [slots, slot])
+  return conflicts
 }

@@ -5,7 +5,7 @@ import { definePoint, serviceKey, type AttachedEntry } from '@omne-harness/shell
 import { createMcpUiModule, type McpGovernance } from '../src/cordis.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { TENANT, fakeGovernance, readOf } from './fixtures/fake-governance.tsx'
-import { startShell, type ReferenceShell } from './fixtures/reference-shell.ts'
+import { startShell as startBare, type ReferenceShell } from './fixtures/reference-shell.ts'
 
 beforeAll(stubAnimation)
 
@@ -15,6 +15,13 @@ const page = definePoint<Readonly<{ host: string }>>({
   name: 'test.category-page',
   subject: { encode: subject => subject.host, decode: host => ({ host }) },
 })
+
+/** The host of these points is not on this tree: the case stands in for it and declares them. */
+async function startShell() {
+  const started = await startBare()
+  for (const point of [page]) point.declare(started.shell)
+  return started
+}
 const governanceKey = serviceKey<McpGovernance>('test.governance')
 const mcpUiModule = createMcpUiModule({ page, governance: governanceKey })
 

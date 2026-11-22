@@ -1,20 +1,16 @@
-import { Context, type Fiber } from '@deepseek-ai/cordis'
 import type { ReactNode } from 'react'
 import {
-  createSlotStore,
   createToastStore,
   type AttachedLayout,
-  type ItemOf,
   type ScopeSource,
   type ShellLogin,
-  type ShellSlots,
-  type SlotName,
   type ToastBoard,
   type ToastStore,
 } from '@omne-harness/shell-contract'
+import { startShellOf, type Started } from '@omne-harness/shell-contract/testing'
 import { ShellService } from '@omne-harness/shell-contract/cordis'
 
-export class ReferenceShell extends ShellService implements ShellSlots {
+export class ReferenceShell extends ShellService {
   readonly navigated: string[] = []
   tenant: string | undefined = undefined
   readonly login: ShellLogin = {
@@ -32,7 +28,6 @@ export class ReferenceShell extends ShellService implements ShellSlots {
       return () => this.scopeListeners.delete(listener)
     },
   }
-  private readonly store = createSlotStore()
   /** Holds every toast until the test looks; nothing times out. */
   readonly toastStore: ToastStore = createToastStore({
     visible: 100,
@@ -44,14 +39,6 @@ export class ReferenceShell extends ShellService implements ShellSlots {
   setTenant(tenant: string | undefined): void {
     this.tenant = tenant
     for (const listener of Array.from(this.scopeListeners)) listener(tenant)
-  }
-
-  items<K extends SlotName>(slot: K): readonly ItemOf<K>[] {
-    return this.store.items(slot)
-  }
-
-  subscribe(slot: SlotName, listener: () => void): () => void {
-    return this.store.subscribe(slot, listener)
   }
 
   navigate(pageId: string): void {
@@ -76,24 +63,11 @@ export class ReferenceShell extends ShellService implements ShellSlots {
     )
   }
 
-  protected place<K extends SlotName>(slot: K, item: ItemOf<K>): () => void {
-    return this.store.place(slot, item)
-  }
-
   protected override toasts(): ToastBoard {
     return this.toastStore
   }
 }
 
-export async function startShell(): Promise<{
-  root: Context
-  shell: ReferenceShell
-  host: Fiber
-}> {
-  const root = new Context()
-  const host = root.plugin(ReferenceShell)
-  await host
-  return { root, shell: root.shell as unknown as ReferenceShell, host }
-}
+export const startShell = (): Promise<Started<ReferenceShell>> => startShellOf(ReferenceShell)
 
 export const render = (): null => null

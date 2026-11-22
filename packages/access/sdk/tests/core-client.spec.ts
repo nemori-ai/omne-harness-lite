@@ -47,6 +47,7 @@ describe('a client from one protocol contract', () => {
     expect(requests[0]!.protocol).toEqual({ name: 'notes', major: 1 })
     expect(requests[0]!.operation).toBe('read-note')
     expect(requests[0]!.messageId).toBe('m-1')
+    expect(requests[0]!.revision).toBe(1)
     expect(writeJsonText(requests[0]!.body)).toBe('{"noteId":"n-1"}')
     expect(Object.hasOwn(requests[0]!, 'signal')).toBe(false)
   })

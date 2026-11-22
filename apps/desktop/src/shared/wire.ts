@@ -62,6 +62,19 @@ function protocolOf(value: JsonValue | undefined): ProtocolKey | undefined {
   return Number.isSafeInteger(parsed) && parsed > 0 ? { name, major: parsed } : undefined
 }
 
+/** The contract revision the page's client was built with. It rides in the message: the forwarding
+ * layer is a client of its own, so no header of the page reaches the server. */
+const revisionValue = (revision: number | undefined): Readonly<Record<string, JsonValue>> =>
+  revision === undefined ? {} : { revision: number(revision) }
+
+type Revision = Readonly<{ ok: true; revision?: number }> | Readonly<{ ok: false }>
+
+function revisionOf(value: JsonValue | undefined): Revision {
+  if (value === undefined) return { ok: true }
+  const parsed = value.kind === 'number' ? Number(value.lexeme) : Number.NaN
+  return Number.isSafeInteger(parsed) && parsed > 0 ? { ok: true, revision: parsed } : { ok: false }
+}
+
 export type CallMessage = Omit<CallRequest, 'signal'>
 
 export function writeCall(request: CallMessage): string {
@@ -70,6 +83,7 @@ export function writeCall(request: CallMessage): string {
       protocol: protocolValue(request.protocol),
       operation: string(request.operation),
       messageId: string(request.messageId),
+      ...revisionValue(request.revision),
       body: request.body,
     }),
   )
@@ -81,8 +95,11 @@ export function readCall(text: string): CallMessage | undefined {
   const operation = textOf(member(value, 'operation'))
   const messageId = textOf(member(value, 'messageId'))
   const body = member(value, 'body')
+  const revision = revisionOf(member(value, 'revision'))
   if (protocol === undefined || operation === undefined || messageId === undefined) return undefined
-  return body === undefined ? undefined : { protocol, operation, messageId, body }
+  if (body === undefined || !revision.ok) return undefined
+  const { ok: _, ...carried } = revision
+  return { protocol, operation, messageId, ...carried, body }
 }
 
 export function writeReport(report: CallReport): string {
@@ -113,6 +130,7 @@ export function writeObserve(request: ObserveMessage): string {
       protocol: protocolValue(request.protocol),
       observation: string(request.observation),
       messageId: string(request.messageId),
+      ...revisionValue(request.revision),
       open: request.open,
     }),
   )
@@ -124,9 +142,12 @@ export function readObserve(text: string): ObserveMessage | undefined {
   const observation = textOf(member(value, 'observation'))
   const messageId = textOf(member(value, 'messageId'))
   const open = member(value, 'open')
+  const revision = revisionOf(member(value, 'revision'))
   if (protocol === undefined || observation === undefined || messageId === undefined)
     return undefined
-  return open === undefined ? undefined : { protocol, observation, messageId, open }
+  if (open === undefined || !revision.ok) return undefined
+  const { ok: _, ...carried } = revision
+  return { protocol, observation, messageId, ...carried, open }
 }
 
 export type ObserveEvent = { readonly frame: JsonValue } | { readonly end: ObserveEnd }

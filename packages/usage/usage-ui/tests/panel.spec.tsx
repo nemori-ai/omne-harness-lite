@@ -223,15 +223,44 @@ describe('each item of a layout by the rows of T8 (C28)', () => {
     expect(card('usage.summary')?.textContent).toContain('0.0123 USD')
   })
 
-  it('two widgets of one id on one position are an assembly error', async () => {
-    const { shell } = await page()
-    expect(() =>
-      usageWidget.contribute(shell, 'tenant', {
+  it('a widget another module puts under an id the panel holds is a conflict: neither is drawn, the others stay', async () => {
+    const { shell } = await page({}, undefined, ctx =>
+      usageWidget.contribute(ctx.shell, 'tenant', {
         id: 'usage.summary',
         order: 0,
         render: () => null,
       }),
-    ).toThrow(ShellAssemblyError)
+    )
+    expect(shell.conflicts('attached')).toEqual([
+      {
+        slot: 'attached',
+        anchor: 'usage.widget:tenant',
+        id: 'usage.summary',
+        by: ['extra', 'usage-ui'],
+      },
+    ])
+    expect(card('usage.summary')?.textContent ?? '').not.toContain('0.0123 USD')
+    expect(card('usage.tokens')?.querySelector('svg')).not.toBeNull()
+  })
+
+  it('a second widget of one id from the same module is an assembly error', async () => {
+    let thrown: unknown
+    await page({}, undefined, ctx => {
+      const put = () =>
+        usageWidget.contribute(ctx.shell, 'tenant', {
+          id: 'test.twice',
+          order: 0,
+          render: () => null,
+        })
+      put()
+      try {
+        put()
+      } catch (error) {
+        thrown = error
+      }
+    })
+    expect(thrown).toBeInstanceOf(ShellAssemblyError)
+    expect(thrown).toMatchObject({ slot: 'attached', id: 'test.twice', reason: 'duplicate' })
   })
 })
 

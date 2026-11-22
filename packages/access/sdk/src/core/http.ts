@@ -66,6 +66,19 @@ type EventReader = ReadableStreamDefaultReader<string>
 
 const ABORTED: ObserveEnd = Object.freeze({ kind: 'aborted' })
 const STOPPED: ObserveEnd = Object.freeze({ kind: 'uncertain' })
+const NOT_SENT = Object.freeze({ kind: 'not-sent' as const })
+
+/** The server says its mounted protocol has no such name. Nothing ran, so it is as if nothing was sent. */
+function notOffered(response: Response, source: string, limits: JsonLimits): boolean {
+  if (response.status !== 404) return false
+  const read = readJsonText(source, limits)
+  if (read.kind !== 'ok' || read.value.kind !== 'object' || read.value.entries.length !== 2)
+    return false
+  return (
+    text(member(read.value, 'kind')) === 'not-executed' &&
+    text(member(read.value, 'reason')) === 'not-offered'
+  )
+}
 
 function eventOf(
   data: string,
@@ -82,17 +95,20 @@ function eventOf(
   return kind === 'frame' && frame !== undefined ? { frame } : { end: STOPPED }
 }
 
+type Sent = Readonly<{ messageId: string; revision?: number }>
+
 export function createHttpProtocolTransport(options: HttpProtocolTransportOptions): Transport {
   const origin = originOf(options.origin)
   const limits = options.limits ?? defaultLimits
   const urlOf = (protocol: ProtocolKey, name: string): URL =>
     new URL(`/api/${protocol.name}/v${protocol.major}/${name}`, origin)
 
-  async function headersOf(messageId: string): Promise<Record<string, string>> {
+  async function headersOf(sent: Sent): Promise<Record<string, string>> {
     const credentials = (await options.credentials?.()) ?? {}
     return {
       'content-type': 'application/json',
-      'omne-message-id': messageId,
+      'omne-message-id': sent.messageId,
+      ...(sent.revision === undefined ? {} : { 'omne-contract-revision': String(sent.revision) }),
       ...(credentials.proof === undefined ? {} : { authorization: `Bearer ${credentials.proof}` }),
       ...(credentials.tenant === undefined ? {} : { 'omne-acting-tenant': credentials.tenant }),
     }
@@ -100,12 +116,12 @@ export function createHttpProtocolTransport(options: HttpProtocolTransportOption
 
   async function send(
     url: URL,
-    messageId: string,
+    sent: Sent,
     payload: JsonValue,
     signal: AbortSignal | undefined,
   ): Promise<Response | 'not-sent' | 'uncertain'> {
     if (signal?.aborted === true) return 'not-sent'
-    const headers = await headersOf(messageId)
+    const headers = await headersOf(sent)
     try {
       return await fetch(url, {
         method: 'POST',
@@ -122,14 +138,15 @@ export function createHttpProtocolTransport(options: HttpProtocolTransportOption
 
   async function call(request: CallRequest): Promise<CallReport> {
     const url = urlOf(request.protocol, request.operation)
-    const response = await send(url, request.messageId, request.body, request.signal)
+    const response = await send(url, request, request.body, request.signal)
     if (typeof response === 'string') return { kind: response }
     try {
       if (mediaType(response) !== 'application/json') {
         await response.body?.cancel()
         return UNCERTAIN
       }
-      return answerOf(await response.text(), limits)
+      const source = await response.text()
+      return notOffered(response, source, limits) ? NOT_SENT : answerOf(source, limits)
     } catch {
       return UNCERTAIN
     }
@@ -138,10 +155,12 @@ export function createHttpProtocolTransport(options: HttpProtocolTransportOption
   async function opening(request: ObserveRequest): Promise<EventReader | ObserveEnd> {
     const { signal } = request
     const url = urlOf(request.protocol, request.observation)
-    const response = await send(url, request.messageId, request.open, signal)
+    const response = await send(url, request, request.open, signal)
     if (typeof response === 'string') return signal.aborted ? ABORTED : { kind: response }
     if (mediaType(response) === 'application/json') {
-      const refused = answerOf(await response.text(), limits)
+      const source = await response.text()
+      if (notOffered(response, source, limits)) return NOT_SENT
+      const refused = answerOf(source, limits)
       return refused.kind === 'answered' ? { kind: 'refused', outcome: refused.outcome } : STOPPED
     }
     const body = response.body

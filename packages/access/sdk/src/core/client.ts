@@ -1,9 +1,10 @@
 import type { JsonLimits } from '@omne-harness/json-text'
-import type {
-  Codec,
-  ObservationContract,
-  OperationContract,
-  ProtocolContract,
+import {
+  revisionOf,
+  type Codec,
+  type ObservationContract,
+  type OperationContract,
+  type ProtocolContract,
 } from '@omne-harness/public-contract'
 import { defaultLimits } from '../limits.ts'
 import type { CallReport, CallRequest, ObserveEnd, ProtocolKey, Transport } from './transport.ts'
@@ -125,6 +126,7 @@ export function createClient<P extends ProtocolContract>(
 ): ClientOf<P> {
   const limits = settings.limits ?? defaultLimits
   const key: ProtocolKey = { name: protocol.name, major: protocol.major }
+  const revision = revisionOf(protocol)
   const target = (name: string): string => `${key.name}/v${key.major}/${name}`
   if (Object.hasOwn(protocol.operations, 'observe'))
     throw new TypeError(
@@ -151,6 +153,7 @@ export function createClient<P extends ProtocolContract>(
       protocol: key,
       operation: name,
       messageId: options.messageId ?? crypto.randomUUID(),
+      revision,
       body: written.value,
       ...(options.signal === undefined ? {} : { signal: options.signal }),
     }
@@ -182,6 +185,7 @@ export function createClient<P extends ProtocolContract>(
       protocol: key,
       observation: name,
       messageId: options.messageId ?? crypto.randomUUID(),
+      revision,
       open: written.value,
       signal: options.signal,
     })

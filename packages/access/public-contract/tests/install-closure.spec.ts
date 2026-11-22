@@ -242,6 +242,11 @@ it('installs only the pure tarball closure and consumes both ends through dist e
     ) as { exports: unknown; dependencies: Record<string, string> }
     expect(manifest.exports).toEqual({
       '.': { source: './src/index.ts', types: './dist/index.d.ts', import: './dist/index.js' },
+      './snapshot': {
+        source: './src/snapshot.ts',
+        types: './dist/snapshot.d.ts',
+        import: './dist/snapshot.js',
+      },
     })
     expect(Object.keys(manifest.dependencies).sort()).toEqual([
       '@omne-harness/json-text',

@@ -112,6 +112,7 @@ describe('the summary widget writes what is unknown as unknown, never as zero', 
 it('the example presentation draws a sparkline a series long, an unknown point left out of the line', async () => {
   const { root, shell } = await startShell()
   shell.tenant = TENANT
+  usagePresentation.declare(shell)
   await root.plugin(usageExampleModule)
   const drawn = render(
     <>

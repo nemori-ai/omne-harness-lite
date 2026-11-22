@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ShellService } from '@omne-harness/shell-contract/cordis'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
+import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { ReferenceShell, startShell } from './reference-shell.ts'
 
 /** A shell that shows pages: the one on show is whatever the test puts in front. */
@@ -37,6 +38,7 @@ describe('the page on show (shell.page)', () => {
   it('a UI module reads the page on show through the service and follows it, without a way to change it', async () => {
     const { Context } = await import('@deepseek-ai/cordis')
     const root = new Context()
+    await root.plugin(DynamisService)
     await root.plugin(PagedShell)
     const host = root.shell as unknown as PagedShell
     const seen: (string | undefined)[] = []

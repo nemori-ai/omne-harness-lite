@@ -19,6 +19,19 @@ export function writeBare(
   res.end()
 }
 
+const NOT_OFFERED = Buffer.from('{"kind":"not-executed","reason":"not-offered"}')
+
+/** The mounted protocol has no such name: nothing ran, and the caller can know that for certain. */
+export function writeNotOffered(res: ServerResponse): void {
+  res.writeHead(404, {
+    'content-type': 'application/json; charset=utf-8',
+    'cache-control': 'no-store',
+    'content-length': String(NOT_OFFERED.byteLength),
+    connection: 'close',
+  })
+  res.end(NOT_OFFERED)
+}
+
 export type WrittenAnswer = Readonly<{
   outcome: Outcome
   body: JsonValue
