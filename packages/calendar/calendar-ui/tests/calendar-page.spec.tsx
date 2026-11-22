@@ -103,6 +103,18 @@ function rowOf(name: string): HTMLElement {
 const wordOf = (row: HTMLElement) =>
   row.querySelector('.setting-row-control [data-state-word]')?.textContent ?? null
 
+it('P0 each part of the page is on its own element', async () => {
+  const { fake } = await opened()
+  await answer(await fake.next('read-environment'), { outcome: 'succeeded', body: ENVIRONMENT })
+  await answer(await fake.next('list-calendars'), { outcome: 'succeeded', body: CALENDARS })
+  const on = (name: string) => document.querySelectorAll(`[data-part="${name}"]`)
+  expect(on('calendar.page')).toHaveLength(1)
+  expect(on('calendar.page')[0]?.classList.contains('calendar-page')).toBe(true)
+  expect(on('calendar.lookup')[0]?.classList.contains('calendar-lookup')).toBe(true)
+  expect(on('calendar.lookup.ask')[0]?.textContent).toBe('查')
+  expect(on('calendar.lookup.ask')[0]?.closest('[data-part="calendar.lookup"]')).not.toBeNull()
+})
+
 it('P1 draws the effective calendar as facts, and every shipped calendar as one setting row', async () => {
   const { fake } = await opened()
   await answer(await fake.next('read-environment'), { outcome: 'succeeded', body: ENVIRONMENT })

@@ -5,6 +5,7 @@ import {
   standingOf,
   type Adoption,
   type Contract,
+  type Entry,
   type Reference,
   type Registry,
 } from '@omne-harness/dynamis'
@@ -74,6 +75,12 @@ function adoptOn(registry: Registry, references: Readonly<Record<string, Referen
   return { kind: 'adopted', bindings: { ...made.bindings, ...empty } }
 }
 
+function checkedPart(declaration: PartDeclaration, host: string): Entry {
+  const fault = partFault(declaration, host)
+  if (fault !== null) throw new ShellAssemblyError('attached', declaration.name, 'invalid', fault)
+  return partEntry(declaration)
+}
+
 /** @owner packages/frontend/shell-contract */
 export abstract class ShellService extends Service implements ShellSlots {
   static readonly provide = 'shell'
@@ -107,12 +114,13 @@ export abstract class ShellService extends Service implements ShellSlots {
   }
 
   declarePart(declaration: PartDeclaration): void {
-    this.put('attached', declaration.name, instance => {
-      const fault = partFault(declaration, partHostOf(instance.fiber))
-      if (fault !== null)
-        throw new ShellAssemblyError('attached', declaration.name, 'invalid', fault)
-      return [partEntry(declaration)]
-    })
+    this.put('attached', declaration.name, instance => [
+      checkedPart(declaration, partHostOf(instance.fiber)),
+    ])
+  }
+
+  protected declareOwn(declarations: readonly PartDeclaration[]): void {
+    this.ctx.dynamis.put(declarations.map(declaration => checkedPart(declaration, 'shell')))
   }
 
   items<K extends SlotName>(slot: K): readonly ItemOf<K>[] {

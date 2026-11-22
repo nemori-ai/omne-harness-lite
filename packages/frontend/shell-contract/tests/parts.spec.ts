@@ -10,6 +10,7 @@ import {
   partsOn,
   type PartDeclaration,
 } from '@omne-harness/shell-contract'
+import { ReferenceShell, startShellOf } from '@omne-harness/shell-contract/testing'
 import { startShell } from './reference-shell.ts'
 
 const composer: PartDeclaration = {
@@ -100,6 +101,13 @@ describe('the declaration of a part, checked against the module that makes it', 
     expect(partFault({ ...composer, depths: [] }, 'notes')).toBeNull()
   })
 
+  it('takes a note of the one state a part is drawn in, and refuses an empty one', () => {
+    expect(partFault({ ...composer, when: '一轮在跑时' }, 'notes')).toBeNull()
+    expect(partFault({ ...composer, when: ' ' }, 'notes')).toBe(
+      'the note of when it is drawn is empty',
+    )
+  })
+
   it('refuses a part with no label or no summary', () => {
     expect(partFault({ ...composer, label: ' ' }, 'notes')).toBe('the label is empty')
     expect(partFault({ ...composer, summary: '' }, 'notes')).toBe('the summary is empty')
@@ -122,8 +130,8 @@ describe('a part a view module declares', () => {
     expect(partsOn(shell.registry())).toEqual({
       kind: 'read',
       parts: [
-        { ...composer, within: null, by: ['notes-ui'] },
-        { ...send, by: ['notes-ui'] },
+        { ...composer, within: null, when: null, by: ['notes-ui'] },
+        { ...send, when: null, by: ['notes-ui'] },
       ],
       conflicts: [],
     })
@@ -173,6 +181,54 @@ describe('a part a view module declares', () => {
       kind: 'unavailable',
       reason: 'undeclared',
     })
+  })
+
+  it('carries the note of the one state it is drawn in, and null when it is always there', async () => {
+    const { root, shell } = await startShell()
+    await place(root, 'notes-ui', ctx => {
+      definePart(composer).declare(ctx.shell)
+      definePart({ ...send, when: '写了字之后' }).declare(ctx.shell)
+    })
+    const read = partsOn(shell.registry())
+    expect(read.kind === 'read' && read.parts.map(part => part.when)).toEqual([null, '写了字之后'])
+  })
+
+  it('the shell declares its own parts under shell, and a view module cannot', async () => {
+    const frame: PartDeclaration = {
+      name: 'shell.app',
+      label: '整个应用',
+      summary: '窗口里的一切',
+      depths: ['tokens'],
+    }
+    class Framed extends ReferenceShell {
+      constructor(ctx: Context) {
+        super(ctx)
+        this.declareOwn([frame])
+      }
+    }
+    const { root, shell } = await startShellOf(Framed)
+    const read = partsOn(shell.registry())
+    expect(read.kind === 'read' && read.parts).toEqual([
+      { ...frame, within: null, when: null, by: ['Framed'] },
+    ])
+    const error = await failure(root, 'shell-extras-ui', ctx =>
+      definePart({ ...frame, name: 'shell.sidebar' }).declare(ctx.shell),
+    )
+    expect((error as Error).message).toContain(
+      'the name is under shell, this module declares under shell-extras',
+    )
+  })
+
+  it('a shell that declares a part of its own outside shell does not start', async () => {
+    class Stray extends ReferenceShell {
+      constructor(ctx: Context) {
+        super(ctx)
+        this.declareOwn([{ ...composer }])
+      }
+    }
+    await expect(startShellOf(Stray)).rejects.toThrow(
+      'the name is under notes, this module declares under shell',
+    )
   })
 
   it('goes from the point when the module that declared it unloads', async () => {

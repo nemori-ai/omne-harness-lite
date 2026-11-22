@@ -4,6 +4,7 @@ import { afterEach, beforeAll, expect, it } from 'vitest'
 import { calendarProtocol, type CalendarProtocol } from '@omne-harness/calendar-protocol'
 import { readTenantText } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
+import { partsOn } from '@omne-harness/shell-contract'
 import { serveProtocol } from '@omne-harness/shell-contract/testing'
 import { calendarUiModule } from '../src/cordis.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
@@ -69,4 +70,16 @@ it('M4 a tenant: the page reads the environment and the calendars of that tenant
   const calendars = await fake.next('list-calendars')
   expect(environment.body).toEqual({ tenant: readTenantText(TENANT) })
   expect(calendars.body).toEqual(environment.body)
+})
+
+it('M4 declares its three parts, whether or not the protocol is served', async () => {
+  const { root, shell } = await startShell()
+  await root.plugin(calendarUiModule)
+  const read = partsOn(shell.registry())
+  expect(read.kind === 'read' && read.conflicts).toEqual([])
+  expect(read.kind === 'read' && read.parts.map(part => [part.name, part.within])).toEqual([
+    ['calendar.lookup', 'calendar.page'],
+    ['calendar.lookup.ask', 'calendar.lookup'],
+    ['calendar.page', 'shell.workspace.page'],
+  ])
 })

@@ -18,6 +18,7 @@ export type PartDeclaration = Readonly<{
   summary: string
   within?: string | null
   depths: readonly PartDepth[]
+  when?: string | null
 }>
 
 export type PartDeclarer = Readonly<{ declarePart: (declaration: PartDeclaration) => void }>
@@ -34,6 +35,7 @@ type PartItem = Readonly<{
   summary: string
   within: string | null
   depths: readonly PartDepth[]
+  when: string | null
 }>
 
 export type DeclaredPart = PartItem & Readonly<{ name: string; by: readonly string[] }>
@@ -98,6 +100,8 @@ export function partFault(declaration: PartDeclaration, host: string): string | 
   const depths = depthsFault(declaration.depths)
   if (depths !== null) return depths
   if (declaration.label.trim() === '') return 'the label is empty'
+  if (typeof declaration.when === 'string' && declaration.when.trim() === '')
+    return 'the note of when it is drawn is empty'
   return declaration.summary.trim() === '' ? 'the summary is empty' : null
 }
 
@@ -112,6 +116,7 @@ export function partEntry(declaration: PartDeclaration): Entry<PartItem> {
     summary: declaration.summary,
     within: declaration.within ?? null,
     depths: [...declaration.depths],
+    when: declaration.when ?? null,
   }
   return {
     point: PARTS_POINT,
@@ -119,7 +124,7 @@ export function partEntry(declaration: PartDeclaration): Entry<PartItem> {
     id: '',
     scope: [],
     rank: 0,
-    digest: JSON.stringify([item.label, item.summary, item.within, item.depths]),
+    digest: JSON.stringify([item.label, item.summary, item.within, item.depths, item.when]),
     item,
   }
 }

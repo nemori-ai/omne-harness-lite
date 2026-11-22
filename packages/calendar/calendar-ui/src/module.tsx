@@ -2,6 +2,7 @@ import { calendarProtocol, type CalendarProtocol } from '@omne-harness/calendar-
 import { needProtocol } from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import type { ClientOf } from '@omne-harness/sdk/core'
+import { calendarParts } from './parts.ts'
 import { CalendarPage } from './view/calendar-page.tsx'
 
 export const CALENDAR_PAGE_ID = 'calendar'
@@ -12,6 +13,7 @@ export const calendarUiModule = defineUiModule({
   name: 'calendar-ui',
   needs: { calendar: needProtocol<ClientOf<CalendarProtocol>>(calendarProtocol) },
   apply(shell, { calendar: client }) {
+    for (const part of calendarParts) part.declare(shell)
     shell.contribute('pages', {
       id: CALENDAR_PAGE_ID,
       title: '日历',

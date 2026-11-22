@@ -19,6 +19,7 @@ import {
 } from '@omne-harness/ui-kit'
 import { useState, type JSX } from 'react'
 import { READING, readOnce, useReading, type Reading } from '../model/reading.ts'
+import { calendarLookup, calendarLookupAsk, calendarPage } from '../parts.ts'
 import { Drawn, ReadNotice } from './drawn.tsx'
 import { ShippedCalendars, type SupplyHealth } from './shipped-calendars.tsx'
 
@@ -48,7 +49,7 @@ export type CalendarPageProps = Readonly<{ client: Client; tenant: string }>
 export function CalendarPage({ client, tenant }: CalendarPageProps): JSX.Element {
   const id = readTenantText(tenant)
   return (
-    <PageColumn className="calendar-page">
+    <PageColumn className="calendar-page" {...calendarPage.props}>
       <PageHeader title="日历" description="日期计算与日程用哪套日历、哪个时区；改在「设置」页。" />
       {id === undefined ? (
         <InlineNotice tone="danger">读不懂当前的租户。</InlineNotice>
@@ -138,7 +139,7 @@ function DayLookup({
     )
   }
   return (
-    <div className="calendar-lookup">
+    <div className="calendar-lookup" {...calendarLookup.props}>
       <form
         className="calendar-lookup-form"
         onSubmit={event => {
@@ -173,7 +174,7 @@ function DayLookup({
             onChange={event => setVersion(event.target.value)}
           />
         )}
-        <Button type="submit" disabled={date.trim() === '' || asking}>
+        <Button type="submit" disabled={date.trim() === '' || asking} {...calendarLookupAsk.props}>
           {asking && <LoadingIndicator size="sm" />}查
         </Button>
       </form>
