@@ -12,7 +12,16 @@ import {
 } from '@omne-harness/dynamis'
 import { DynamisRefused, type Made } from '@omne-harness/dynamis-cordis/cordis'
 import type { ReactNode } from 'react'
-import { changesOn, tenantScope, tokensContract, tokensEntry, type Changes } from './change.ts'
+import {
+  changesOn,
+  styleContract,
+  styleEntry,
+  tenantScope,
+  tokensContract,
+  tokensEntry,
+  type Changes,
+  type PartStyle,
+} from './change.ts'
 import type { FigureBoard, FigureReport } from './figure-store.ts'
 import type { ScopeSource, ShellLogin } from './host.ts'
 import {
@@ -104,7 +113,9 @@ export abstract class ShellService extends Service implements ShellSlots {
     const { dynamis } = ctx
     for (const slot of SLOT_NAMES) this.views.set(slot, viewOf(dynamis.registry(), slot))
     dynamis.put(
-      [...shellContracts, partsContract, tokensContract].map(contract => declare(contract)),
+      [...shellContracts, partsContract, tokensContract, styleContract].map(contract =>
+        declare(contract),
+      ),
     )
     ctx.on('dynamis-cordis/changed', registry => this.follow(registry))
   }
@@ -137,6 +148,10 @@ export abstract class ShellService extends Service implements ShellSlots {
     scope: Scope = [],
   ): () => unknown {
     return this.ctx.dynamis.put([tokensEntry(part, tokens, scope)])
+  }
+
+  putStyle(part: string, style: PartStyle, scope: Scope = []): () => unknown {
+    return this.ctx.dynamis.put([styleEntry(part, style, scope)])
   }
 
   changes(): Changes {

@@ -7,6 +7,7 @@ it('exports the toast store, the figure store, the assembly error, the slot tabl
     'PARTS_POINT',
     'PART_ATTRIBUTE',
     'PROTOCOLS_POINT',
+    'STYLE_POINT',
     'ShellAssemblyError',
     'TOKENS_POINT',
     'attachWhile',

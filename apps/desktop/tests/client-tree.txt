@@ -40,6 +40,8 @@ system
           DesktopShell#1  [effective]
         shell.pages
           DesktopShell#1  [effective]
+        shell.part-style
+          DesktopShell#1  [effective]
         shell.parts
           DesktopShell#1  [effective]
         shell.sidebar

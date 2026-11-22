@@ -24,14 +24,18 @@ export { ShellAssemblyError, slots } from './slots.ts'
 export { shellContracts } from './placement.ts'
 export { defineKeyedPoint, definePoint } from './point.ts'
 export {
+  STYLE_POINT,
   TOKENS_POINT,
   changesOn,
   tenantScope,
   valueFault,
   type Changes,
   type Conflict,
+  type PartState,
+  type PartStyle,
   type Refused,
   type Standing,
+  type StyleItem,
   type TokensItem,
 } from './change.ts'
 export {

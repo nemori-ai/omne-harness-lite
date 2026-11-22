@@ -148,7 +148,7 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 
 | 入口 | 内容 |
 | --- | --- |
-| `.` | 运行时有十九样：常量表 `slots`、外壳自己三个位置的规矩 `shellContracts`、错误 `ShellAssemblyError`、声明带类型的拓展点的两个函数 `definePoint` 与 `defineKeyedPoint`、声明部位的 `definePart` 与它的核法 `partFault`、读现在声明着哪些部位的 `partsOn`、部位的点名 `PARTS_POINT` 与元素上的属性名 `PART_ATTRIBUTE`、令牌的点名 `TOKENS_POINT`、算改动的 `changesOn`、值的核法 `valueFault`、租户的作用域 `tenantScope`、造带类型的键的 `serviceKey`、写需要的 `needProtocol` 与 `needPoint`、跟读口的 `attachWhile`、协议的需要指着的点名 `PROTOCOLS_POINT`（另有瞬时提示与形口的两个工厂，见各自一节）。其余是类型：带类型的键 `ServiceKey`，一处冲突 `SlotConflict`，四种位置的一项 `GateItem`、`PageItem`、`SidebarItem`、`AttachedItem`，位置名 `SlotName`，按位置取项的类型 `ItemOf`，渲染函数的属性 `GateProps`、`ScopedProps`、`AttachedProps`，宿主排版时拿到的一项 `AttachedEntry` 与排版函数 `AttachedLayout`，带类型的拓展点的类型（见「带类型的拓展点」），外壳一侧读位置的接口 `ShellSlots`，租户的形状 `ScopeSource`，登录的端口 `ShellLogin`、登录状态 `ShellLoginState`、凭据与结果 `LoginCredentials`、`LoginResult`、`LogoutResult` |
+| `.` | 运行时有二十样：常量表 `slots`、外壳自己三个位置的规矩 `shellContracts`、错误 `ShellAssemblyError`、声明带类型的拓展点的两个函数 `definePoint` 与 `defineKeyedPoint`、声明部位的 `definePart` 与它的核法 `partFault`、读现在声明着哪些部位的 `partsOn`、部位的点名 `PARTS_POINT` 与元素上的属性名 `PART_ATTRIBUTE`、令牌与样式的点名 `TOKENS_POINT`、`STYLE_POINT`、算改动的 `changesOn`、值的核法 `valueFault`、租户的作用域 `tenantScope`、造带类型的键的 `serviceKey`、写需要的 `needProtocol` 与 `needPoint`、跟读口的 `attachWhile`、协议的需要指着的点名 `PROTOCOLS_POINT`（另有瞬时提示与形口的两个工厂，见各自一节）。其余是类型：带类型的键 `ServiceKey`，一处冲突 `SlotConflict`，四种位置的一项 `GateItem`、`PageItem`、`SidebarItem`、`AttachedItem`，位置名 `SlotName`，按位置取项的类型 `ItemOf`，渲染函数的属性 `GateProps`、`ScopedProps`、`AttachedProps`，宿主排版时拿到的一项 `AttachedEntry` 与排版函数 `AttachedLayout`，带类型的拓展点的类型（见「带类型的拓展点」），外壳一侧读位置的接口 `ShellSlots`，租户的形状 `ScopeSource`，登录的端口 `ShellLogin`、登录状态 `ShellLoginState`、凭据与结果 `LoginCredentials`、`LoginResult`、`LogoutResult` |
 | `./cordis` | 服务 `shell` 的抽象类 `ShellService`、它的键 `shellKey`、界面模块的助手 `defineUiModule` 与它的类型 `UiModuleDefinition`、提供服务的函数类型 `Provide`。根入口的源码闭包不含 Cordis 绑定 |
 | `./testing` | 给界面模块的用例用的参考外壳 `ReferenceShell`，与起一棵带登记表和外壳的树的 `startShell`、`startShellOf(外壳的类, 可选的配置)`。它只存不画。另有像连接与别的模块那样往树上放东西的帮手：`serveProtocol(根, 协议, 客户端)`、`servePoint(根, 规矩, 一项)`、`provideOn(根, 键, 值)`，各返回一个 fiber，撤掉它就是收回；它们的插件形是 `protocolsPoint`、`servedProtocol`、`servedPoint`。`providedOn(外壳, 键)` 读一个键下现在提供的值 |
 
@@ -293,6 +293,10 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
   - 令牌名不是界面的令牌。界面的令牌由外壳的实现说了算（`knowsToken`）；桌面应用里是 `--omne-` 开头、页面根上有值的名字；
   - 值不是文字，是空的，或有不许有的东西。
 - 值是数据，里面没有能执行、能引外部东西的写法。值里只许有字母、数字、空格与 `# % . , ( ) + * / _ -`；只许调用 `var`、`calc`、`min`、`max`、`clamp` 与写颜色的函数（`rgb`、`rgba`、`hsl`、`hsla`、`hwb`、`lab`、`lch`、`oklab`、`oklch`、`color`、`color-mix`、`light-dark`）。所以 `url(`、`@`、分号、花括号、尖括号、引号、反斜杠、`!` 都进不来。核法是纯函数 `valueFault(值)`。
+- 第二种改法是样式：点 `shell.part-style`，每键一项，键取自 `shell.parts`，一项是数据 `{ style: { base, hover, focus-visible, active, selected, open, disabled } }`，每一格是一组「属性: 值」，哪一格都可以不写。`shell.putStyle(部位, 样式, 作用域)` 放一项，返回撤掉它的函数。谁算数、冲突、撤掉，和令牌相同。
+- 样式写在带着这个部位名字的元素上；`shell.app` 写在页面的根上。每一格一条规则，状态用固定的选择器：`hover`、`focus-visible`、`active` 是同名的伪类；`selected` 是 `aria-selected`、`data-selected`、`aria-current="page"`、`aria-pressed` 为真，或 `data-state` 是 `active`、`checked`；`open` 是 `data-state="open"` 或 `aria-expanded` 为真；`disabled` 是 `:disabled`、`aria-disabled` 为真或带 `data-disabled`。规则按这个先后写出，所以几种状态同时成立时后面的盖过前面的，`disabled` 最后。
+- 样式不合规矩的情形：部位没有开 `style`；状态不是这六种之一；属性名不是小写字母与连字符（以 `--` 开头的是令牌，要放到 `shell.tokens`）；值过不了上面那一条值的核法。不合规矩的一项整份不算数。
+- 改动的那一层盖过自带的全部规则，包括共用件的状态规则：给一个部位写了平常的底色而没有写悬停的，悬停时显示的就是平常的那个。要悬停时不一样，就把 `hover` 那一格也写上。
 - `changesOn(登记表, 发问者的作用域, 认不认得这个令牌)` 是纯函数，给出样式表的文字、每个键上现在是谁、不算数的各项与原因、冲突的各项。`shell.changes()` 按外壳正在显示的租户问它。点没有声明时给出空的一层，不抛出。
 - 桌面应用把这张表作为可构造的样式表挂在页面自己的样式之后；登记表或租户一变就重写。不算数的与冲突的各写一行警告。
 
