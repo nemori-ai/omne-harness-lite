@@ -1,16 +1,17 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import type { Context, Plugin } from '@deepseek-ai/cordis'
+import type { Plugin } from '@deepseek-ai/cordis'
 import type { ReactNode } from 'react'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
+import { protocolsPoint, servedPoint, servedProtocol } from '@omne-harness/shell-contract/testing'
 import { assetsProtocol } from '@omne-harness/assets-protocol'
 import {
   assetGovernanceKey,
   assetsCategoryPage,
   assetsUiModule,
 } from '@omne-harness/assets-ui/cordis'
-import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
+import { serverPointsContract } from '@omne-harness/client-assembly'
 import { createMcpUiModule } from '@omne-harness/mcp-ui/cordis'
 import { ITEM_FAILED_TEXT } from '../src/page/shell/item.tsx'
 import { NO_LOGIN_TEXT } from '../src/page/shell/shell.tsx'
@@ -30,6 +31,13 @@ import {
 } from './support/shell-setup.tsx'
 
 afterEach(() => cleanup())
+
+/** The assets protocol served by a client, and a server that tells nothing of its points: what the assets module needs. */
+const served = (client: object): readonly Plugin.Object[] => [
+  protocolsPoint,
+  servedProtocol(assetsProtocol, client),
+  servedPoint(serverPointsContract, { keys: () => undefined, subscribe: () => () => undefined }),
+]
 
 const TENANT_TEXT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
@@ -717,7 +725,6 @@ describe('外壳：一项坏了只坏这一项', () => {
       animate: () => ({ cancel: () => undefined, finished: Promise.resolve() }),
     })
     onTestFinished(() => void Object.assign(Element.prototype, { animate }))
-    const assets = protocolServiceName({ name: assetsProtocol.name, major: assetsProtocol.major })
     const client = {
       'list-settings': async () => ({
         outcome: 'succeeded',
@@ -735,7 +742,7 @@ describe('外壳：一项坏了只坏这一项', () => {
     const t = await setup({
       login: 'signed-in',
       modules: [
-        { name: 'fake-assets', apply: (ctx: Context) => void ctx.reflect.provide(assets, client) },
+        ...served(client),
         assetsUiModule,
         categoryPage('bad', 0, boom),
         categoryPage('good', 1, () => <p data-category="good">好的类别</p>),
@@ -961,7 +968,6 @@ describe('外壳：读位置的快照', () => {
 })
 
 describe('资产页：类别带来自己的页面（MCP）', () => {
-  const ASSETS = protocolServiceName({ name: assetsProtocol.name, major: assetsProtocol.major })
   const CONTEXT7 = { kind: 'asset', category: 'mcp', name: 'context7' }
   const declaration = (title: string) => ({
     title,
@@ -1002,61 +1008,57 @@ describe('资产页：类别带来自己的页面（MCP）', () => {
       editable: { kind: 'no', reason: 'locked' },
     },
   ]
-  const fakeAssets: Plugin.Object = {
-    name: 'fake-assets',
-    apply: (ctx: Context) =>
-      void ctx.reflect.provide(ASSETS, {
-        'list-settings': async () => ({
-          outcome: 'succeeded',
-          body: { items, next: null, completeness: 'complete' },
-        }),
-        'list-categories': async () => ({
-          outcome: 'succeeded',
-          body: {
-            items: [{ category: 'mcp', title: 'mcp', summary: '', creation: 'none' }],
-            next: null,
+  const fakeAssets = served({
+    'list-settings': async () => ({
+      outcome: 'succeeded',
+      body: { items, next: null, completeness: 'complete' },
+    }),
+    'list-categories': async () => ({
+      outcome: 'succeeded',
+      body: {
+        items: [{ category: 'mcp', title: 'mcp', summary: '', creation: 'none' }],
+        next: null,
+      },
+    }),
+    'describe-category': async () => ({
+      outcome: 'succeeded',
+      body: {
+        category: 'mcp',
+        title: 'mcp',
+        summary: '',
+        hint: null,
+        creation: { kind: 'none' },
+      },
+    }),
+    'list-assets': async () => ({
+      outcome: 'succeeded',
+      body: {
+        items: [
+          {
+            category: CONTEXT7.category,
+            name: CONTEXT7.name,
+            version: 'sha256:00',
+            selection: 'follow',
+            enabled: true,
+            holding: 'held-context7',
+            origin: 'customized',
+            summary: null,
           },
-        }),
-        'describe-category': async () => ({
-          outcome: 'succeeded',
-          body: {
-            category: 'mcp',
-            title: 'mcp',
-            summary: '',
-            hint: null,
-            creation: { kind: 'none' },
-          },
-        }),
-        'list-assets': async () => ({
-          outcome: 'succeeded',
-          body: {
-            items: [
-              {
-                category: CONTEXT7.category,
-                name: CONTEXT7.name,
-                version: 'sha256:00',
-                selection: 'follow',
-                enabled: true,
-                holding: 'held-context7',
-                origin: 'customized',
-                summary: null,
-              },
-            ],
-            next: null,
-            completeness: 'complete',
-          },
-        }),
-        observe: {
-          'observe-assets': async function* (_open: unknown, options: { signal: AbortSignal }) {
-            yield { kind: 'changed' }
-            await new Promise(resolve =>
-              options.signal.addEventListener('abort', resolve, { once: true }),
-            )
-            return { kind: 'aborted' }
-          },
-        },
-      }),
-  }
+        ],
+        next: null,
+        completeness: 'complete',
+      },
+    }),
+    observe: {
+      'observe-assets': async function* (_open: unknown, options: { signal: AbortSignal }) {
+        yield { kind: 'changed' }
+        await new Promise(resolve =>
+          options.signal.addEventListener('abort', resolve, { once: true }),
+        )
+        return { kind: 'aborted' }
+      },
+    },
+  })
   const mcpUiModule = createMcpUiModule({
     page: assetsCategoryPage,
     governance: assetGovernanceKey,
@@ -1085,7 +1087,7 @@ describe('资产页：类别带来自己的页面（MCP）', () => {
   const shownPanel = () => page().querySelector('[role=tabpanel]:not([hidden])')!
 
   it('MCP 的界面模块在：MCP 这一类画它自己的页面，不画通用的；权限它自己画，别的设置项用默认部件', async () => {
-    await opened([fakeAssets, assetsUiModule, mcpUiModule])
+    await opened([...fakeAssets, assetsUiModule, mcpUiModule])
     expect(tabTexts()).toEqual(['MCP'])
     const panel = shownPanel()
     expect(panel.querySelector('.mcp-page')).not.toBeNull()
@@ -1101,7 +1103,7 @@ describe('资产页：类别带来自己的页面（MCP）', () => {
   })
 
   it('MCP 的界面模块撤下：这一类回到通用的页面；它回来，又画它自己的', async () => {
-    const t = await opened([fakeAssets, assetsUiModule])
+    const t = await opened([...fakeAssets, assetsUiModule])
     expect(tabTexts()).toEqual(['mcp'])
     expect(shownPanel().querySelector('.assets-category')).not.toBeNull()
     const fiber = t.root.plugin(mcpUiModule)
@@ -1121,14 +1123,14 @@ describe('资产页：类别带来自己的页面（MCP）', () => {
   })
 
   it('资产协议、资产的界面模块、MCP 的界面模块按三种次序加载，资产页逐字相同', async () => {
-    const modules = [fakeAssets, assetsUiModule, mcpUiModule]
+    const modules = [fakeAssets, [assetsUiModule], [mcpUiModule]]
     const markups: string[] = []
     for (const order of [
       [0, 1, 2],
       [2, 1, 0],
       [1, 2, 0],
     ]) {
-      await opened(order.map(index => modules[index]!))
+      await opened(order.flatMap(index => modules[index]!))
       markups.push(page().outerHTML)
       cleanup()
     }

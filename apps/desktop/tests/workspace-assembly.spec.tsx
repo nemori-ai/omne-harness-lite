@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { Context, type Plugin } from '@deepseek-ai/cordis'
 import { act, cleanup, render, screen } from '@testing-library/react'
-import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
+import { serveProtocol } from '@omne-harness/shell-contract/testing'
 import { sessionProtocol } from '@omne-harness/session-protocol'
 import type { ShellLogin } from '@omne-harness/shell-contract'
 import { workspaceProtocol } from '@omne-harness/workspace-protocol'
@@ -62,8 +62,8 @@ async function mounted(modules: readonly Plugin.Object[], withWorkspace: boolean
   const root = new Context()
   await root.plugin(DynamisService)
   await root.plugin(shellPlugin(createShellState(login)))
-  root.reflect.provide(protocolServiceName(sessionProtocol), silent())
-  if (withWorkspace) root.reflect.provide(protocolServiceName(workspaceProtocol), workspaceClient())
+  await serveProtocol(root, sessionProtocol, silent())
+  if (withWorkspace) await serveProtocol(root, workspaceProtocol, workspaceClient())
   for (const module of modules) await root.plugin(module)
   const shell = root.get('shell') as unknown as DesktopShell
   const sidebar = shell.items('sidebar').find(item => item.id === 'session-list')!
@@ -109,12 +109,22 @@ describe('the desktop assembly and the workspace', () => {
     expect(shell.items('pages').map(page => page.id)).toEqual(['conversation', 'history-search'])
   })
 
-  it('the module listed but the protocol not mounted: the session interface is as before', async () => {
+  it('the module listed but the protocol not mounted: the session interface is as before, and the workspaces page is there as what it lacks', async () => {
     const shell = await mounted(
       sessionParts(() => true),
       false,
     )
     expect(screen.queryByRole('combobox', { name: '新会话的工作区' })).toBeNull()
-    expect(shell.items('pages').map(page => page.id)).toEqual(['conversation', 'history-search'])
+    expect(shell.items('pages').map(page => page.id)).toEqual([
+      'conversation',
+      'history-search',
+      'workspaces',
+    ])
+    expect(shell.lacks('pages', 'conversation')).toEqual([])
+    expect(shell.lacks('pages', 'workspaces')).toHaveLength(1)
+    expect(shell.adoption('workspace-ui')).toMatchObject({
+      kind: 'unavailable',
+      missing: [{ slot: 'workspace', reference: { anyOf: ['workspace/v1'] } }],
+    })
   })
 })

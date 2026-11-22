@@ -10,6 +10,8 @@ system
           assets-ui#1  [effective]
         connection.protocols
           served-protocols#1  [effective]
+        connection.server-points
+          served:connection.server-points#1  [effective]
         human-intervention.release-detail
           human-intervention-ui#1  [effective]
         notification.inbox-sections
@@ -70,6 +72,8 @@ system
           served:usage/v1#1  [effective]
         workspace/v1
           served:workspace/v1#1  [effective]
+      connection.server-points  [one]
+        served:connection.server-points#1  [effective]
     human-intervention
       human-intervention.release-detail  [keyed-list]
         schedule.activation@1
