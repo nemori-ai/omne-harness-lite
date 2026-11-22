@@ -262,21 +262,33 @@ describe('defineKeyedPoint', () => {
       summary: 'What a holding shows beside itself.',
       key: 'the category of the holding',
     })
-    expect(plain.contract).toMatchObject({
-      name: 'session.side',
+    const shared = {
       tree: 'client',
+      keyFrom: null,
+      gives: 'the tenant scope and the subject the host shows',
+      item: { kind: 'pure', fields: { render: 'function' } },
+      resolve: 'conflict',
+      binding: 'run',
+      onError: 'only this item shows that it cannot be read',
+      version: 1,
+      conformance: null,
+    }
+    expect(plain.contract).toEqual({
+      ...shared,
+      name: 'session.side',
       arity: 'list',
       key: 'none',
-      binding: 'run',
       summary: 'The point session.side.',
     })
-    expect(keyed.contract).toMatchObject({
+    expect(keyed.contract).toEqual({
+      ...shared,
       name: 'assets.holding',
       arity: 'keyed-list',
       key: 'the category of the holding',
-      item: { kind: 'pure', fields: { render: 'function' } },
       summary: 'What a holding shows beside itself.',
     })
+    const bare = defineKeyedPoint<Holding>({ name: 'assets.category', subject: holdingCodec })
+    expect(bare.contract.key).toBe('the key the host shows')
   })
 
   it('throws when one module declares the same point twice', async () => {

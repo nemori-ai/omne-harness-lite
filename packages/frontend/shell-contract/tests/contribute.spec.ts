@@ -108,6 +108,9 @@ describe('contribute', () => {
       await place(backward.root, 'b', second)
       await place(backward.root, 'a', first)
       expect(forward.shell.conflicts('pages')).toEqual(backward.shell.conflicts('pages'))
+      expect(forward.shell.conflicts('pages')).toEqual([
+        { slot: 'pages', anchor: undefined, id: 'chat', by: ['a', 'b'] },
+      ])
       expect(forward.shell.items('pages')).toEqual([])
       expect(backward.shell.items('pages')).toEqual([])
     })
@@ -185,6 +188,75 @@ describe('contribute', () => {
       definePoint({ name: 'test.chat', subject: text }).declare(root.shell)
       expect(shell.items('attached').map(item => item.id)).toEqual(['card'])
     })
+  })
+
+  it('tells the watchers of a slot when only its conflict changed, and names all who put there', async () => {
+    const { root, shell } = await startShell()
+    await place(root, 'a', ctx => ctx.shell.contribute('gate', gate('one')))
+    await place(root, 'b', ctx => ctx.shell.contribute('gate', gate('two')))
+    let notified = 0
+    const stop = shell.subscribe('gate', () => (notified += 1))
+    await place(root, 'c', ctx => ctx.shell.contribute('gate', gate('three')))
+    expect(shell.items('gate')).toEqual([])
+    expect(shell.conflicts('gate')).toEqual([
+      { slot: 'gate', anchor: undefined, id: '', by: ['a', 'b', 'c'] },
+    ])
+    expect(notified).toBe(1)
+    stop()
+    await place(root, 'd', ctx => ctx.shell.contribute('gate', gate('four')))
+    expect(notified).toBe(1)
+  })
+
+  it('passes on what Cordis throws when the caller already unloaded, as it is', async () => {
+    const { root, shell } = await startShell()
+    let late: Context | undefined
+    const fiber = await place(root, 'a', ctx => void (late = ctx))
+    await fiber.dispose()
+    let thrown: unknown
+    try {
+      late?.shell.contribute('pages', page('chat'))
+    } catch (error) {
+      thrown = error
+    }
+    expect(thrown).toBeInstanceOf(Error)
+    expect(thrown).not.toBeInstanceOf(ShellAssemblyError)
+    expect(shell.items('pages')).toEqual([])
+  })
+
+  it('writes an attached item under its point, and under the key after the first colon', async () => {
+    const { root } = await startShell()
+    await place(root, 'a', ctx => {
+      ctx.shell.contribute('attached', attached('plain', 'test.chat'))
+      ctx.shell.contribute('attached', attached('keyed', 'test.chat:mcp'))
+      ctx.shell.contribute('attached', attached('colons', 'test.chat:a:b', 3))
+      ctx.shell.contribute('pages', page('p', 7))
+      ctx.shell.contribute('gate', gate('g'))
+    })
+    const spots = root.dynamis
+      .registry()
+      .placed.filter(placed => placed.instance.fiber === 'a')
+      .map(placed => [placed.point, placed.key, placed.id, placed.rank, placed.digest])
+    expect(spots).toEqual([
+      ['shell.gate', '', '', 0, 'a#1'],
+      ['shell.pages', '', 'p', 7, 'a#1'],
+      ['test.chat', '', 'plain', 0, 'a#1'],
+      ['test.chat', 'a:b', 'colons', 3, 'a#1'],
+      ['test.chat', 'mcp', 'keyed', 0, 'a#1'],
+    ])
+  })
+
+  it('orders two attached items of one order and id by the name of their place, whoever came first', async () => {
+    const forward = await startShell()
+    const backward = await startShell()
+    const one = (ctx: Context): void => ctx.shell.contribute('attached', attached('same', 'test.b'))
+    const two = (ctx: Context): void => ctx.shell.contribute('attached', attached('same', 'test.a'))
+    await place(forward.root, 'x', one)
+    await place(forward.root, 'y', two)
+    await place(backward.root, 'y', two)
+    await place(backward.root, 'x', one)
+    const anchors = ['test.a', 'test.b']
+    expect(forward.shell.items('attached').map(item => item.anchor)).toEqual(anchors)
+    expect(backward.shell.items('attached').map(item => item.anchor)).toEqual(anchors)
   })
 
   it('keeps ids apart per slot', async () => {

@@ -35,17 +35,13 @@ export abstract class ShellService extends Service implements ShellSlots {
   private readonly toastCallers = new WeakSet<object>()
   private readonly figureCallers = new WeakSet<object>()
 
-  private readonly registry: () => Registry
   private readonly views = new Map<SlotName, SlotView>()
   private readonly watchers = new Set<Watcher>()
-  private seen: Registry
 
   constructor(ctx: Context) {
     super(ctx, ShellService.provide)
     const { dynamis } = ctx
-    this.registry = () => dynamis.registry()
-    this.seen = this.registry()
-    for (const slot of SLOT_NAMES) this.views.set(slot, viewOf(this.seen, slot))
+    for (const slot of SLOT_NAMES) this.views.set(slot, viewOf(dynamis.registry(), slot))
     dynamis.put(shellContracts.map(contract => declare(contract)))
     ctx.on('dynamis-cordis/changed', registry => this.follow(registry))
   }
@@ -59,11 +55,11 @@ export abstract class ShellService extends Service implements ShellSlots {
   }
 
   items<K extends SlotName>(slot: K): readonly ItemOf<K>[] {
-    return (this.view(slot) as SlotView<K>).items
+    return (this.views.get(slot) as SlotView<K>).items
   }
 
   conflicts(slot: SlotName): readonly SlotConflict[] {
-    return this.view(slot).conflicts
+    return (this.views.get(slot) as SlotView).conflicts
   }
 
   subscribe(slot: SlotName, listener: () => void): () => void {
@@ -82,14 +78,6 @@ export abstract class ShellService extends Service implements ShellSlots {
     }
   }
 
-  private view(slot: SlotName): SlotView {
-    const held = this.views.get(slot) as SlotView
-    const registry = this.registry()
-    if (registry === this.seen) return held
-    const fresh = viewOf(registry, slot)
-    return sameView(held, fresh) ? held : fresh
-  }
-
   private follow(registry: Registry): void {
     const changed = SLOT_NAMES.filter(slot => {
       const fresh = viewOf(registry, slot)
@@ -97,7 +85,6 @@ export abstract class ShellService extends Service implements ShellSlots {
       this.views.set(slot, fresh)
       return true
     })
-    this.seen = registry
     for (const watcher of Array.from(this.watchers))
       if (changed.includes(watcher.slot)) watcher.listener()
   }

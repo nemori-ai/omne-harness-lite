@@ -45,6 +45,7 @@ describe('unloading the caller', () => {
     await first
     await first.dispose()
     expect(shell.items('gate')).toEqual([])
+    expect(shell.conflicts('gate')).toEqual([])
     await root.plugin({
       name: 'second',
       inject: ['shell'],

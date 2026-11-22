@@ -103,9 +103,9 @@ export type SlotView<K extends SlotName = SlotName> = Readonly<{
 const NOTHING: SlotView<never> = { items: [], conflicts: [] }
 
 function conflictOf(slot: SlotName, entries: readonly Placed[]): SlotConflict {
-  const [first] = entries as readonly [Placed, ...Placed[]]
-  const anchor = slot === 'attached' ? (first.item as AttachedItem).anchor : undefined
-  return { slot, anchor, id: first.id, by: entries.map(entry => entry.instance.fiber) }
+  const [first] = entries as readonly [Placed<Partial<AttachedItem>>, ...Placed[]]
+  const by = entries.map(entry => entry.instance.fiber)
+  return { slot, anchor: first.item.anchor, id: first.id, by }
 }
 
 function gateView(registry: Registry): SlotView<'gate'> {

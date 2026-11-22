@@ -28,16 +28,40 @@ it('declares four slots, three of them lists', () => {
 
 it('declares the three points of the shell itself as fixed when the application is built', async () => {
   const { shellContracts } = await import('@omne-harness/shell-contract')
-  expect(
-    shellContracts.map(contract => [
-      contract.name,
-      contract.arity,
-      contract.binding,
-      contract.tree,
-    ]),
-  ).toEqual([
-    ['shell.gate', 'one', 'build', 'client'],
-    ['shell.pages', 'list', 'build', 'client'],
-    ['shell.sidebar', 'list', 'build', 'client'],
+  const shared = {
+    tree: 'client',
+    keyFrom: null,
+    key: 'none',
+    item: { kind: 'pure', fields: { render: 'function' } },
+    resolve: 'conflict',
+    binding: 'build',
+    version: 1,
+    conformance: null,
+  }
+  expect(shellContracts).toEqual([
+    {
+      ...shared,
+      name: 'shell.gate',
+      arity: 'one',
+      gives: 'nothing',
+      onError: 'the gate shows that this item cannot be read',
+      summary: 'The login gate: all the shell shows while nobody is signed in.',
+    },
+    {
+      ...shared,
+      name: 'shell.pages',
+      arity: 'list',
+      gives: 'the tenant scope, and a subject when the page is brought up on one',
+      onError: 'only this page shows that it cannot be read',
+      summary: 'The pages of the shell, in the order of their order and id.',
+    },
+    {
+      ...shared,
+      name: 'shell.sidebar',
+      arity: 'list',
+      gives: 'the tenant scope',
+      onError: 'only this section shows that it cannot be read',
+      summary: 'The sections of the sidebar, in the order of their order and id.',
+    },
   ])
 })
