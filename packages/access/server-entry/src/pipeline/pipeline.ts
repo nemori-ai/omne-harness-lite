@@ -6,7 +6,7 @@ import type {
   LoginResult,
 } from '@omne-harness/access-cordis-contract'
 import { readJsonBytes, type JsonLimits } from '@omne-harness/json-text'
-import type { Codec, OperationContract } from '@omne-harness/public-contract'
+import { livesAt, type Codec, type OperationContract } from '@omne-harness/public-contract'
 import {
   createObservationHub,
   type HubDiagnosticCode,
@@ -163,7 +163,7 @@ function openingOf(req: IncomingMessage, entered: Entered): Opening {
   if (messageId === undefined)
     return { kind: 'refused', code: 'access.message-id-rejected', carried: {} }
   const claimed = claimedRevision(req)
-  if (claimed === undefined || (entered.member.contract.since ?? 1) > claimed)
+  if (claimed === undefined || !livesAt(entered.member.contract.since, claimed))
     return { kind: 'refused', code: 'access.revision-rejected', carried: { messageId } }
   return { kind: 'opened', messageId, revision: Math.min(entered.revision, claimed) }
 }

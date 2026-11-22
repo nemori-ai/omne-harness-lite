@@ -179,6 +179,11 @@ describe('a rule that cannot be', () => {
     expect(() => build(deep)).toThrow(TypeError)
   })
 
+  it('refuses a since past the largest revision a caller can name, and takes that largest one', () => {
+    expect(() => build(field({ optional: true, since: 1_000_000_000 }))).toThrow(TypeError)
+    expect(() => build(field({ optional: true, since: 999_999_999 }))).not.toThrow()
+  })
+
   it('takes since 1 on any field: it says what was always so', () => {
     expect(() => build(field({ since: 1 }))).not.toThrow()
   })

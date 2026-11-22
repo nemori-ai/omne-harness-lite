@@ -5,8 +5,11 @@ import type { Rule } from './rule.ts'
 export const livesAt = (since: number | undefined, revision: number | undefined): boolean =>
   revision === undefined || (since ?? 1) <= revision
 
+/** The largest revision the header of a call can carry: nine digits. */
+export const MAX_REVISION = 999_999_999
+
 export const isRevision = (value: unknown): value is number =>
-  Number.isInteger(value) && (value as number) >= 1
+  Number.isInteger(value) && (value as number) >= 1 && (value as number) <= MAX_REVISION
 
 type Field = Extract<Rule, { kind: 'object' }>['fields'][string]
 

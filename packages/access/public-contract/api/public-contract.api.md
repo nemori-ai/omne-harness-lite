@@ -32,6 +32,7 @@
 - `encodeLoginStateIdText` · `identity-text.d.ts`
 - `encodeOrganizationIdText` · `identity-text.d.ts`
 - `encodeTenantText` · `identity-text.d.ts`
+- `livesAt` · `revision.d.ts`
 - `projectRule` · `revision.d.ts`
 - `readAccountIdText` · `identity-text.d.ts`
 - `readLoginStateIdText` · `identity-text.d.ts`
@@ -216,7 +217,7 @@ export type { FixedOutcome, Outcome } from './outcome.ts';
 export { ruleCodec } from './rule-codec.ts';
 export type { Codec, CodecResult, RuleValue } from './rule-codec.ts';
 export type { FieldRule, LeafKind, Rule } from './rule.ts';
-export { projectRule, revisionOf } from './revision.ts';
+export { livesAt, projectRule, revisionOf } from './revision.ts';
 export { defineProtocol } from './protocol.ts';
 export { accessProtocol } from './access-protocol.ts';
 export type { AccessProtocol, AvailabilityFrame } from './access-protocol.ts';
@@ -354,6 +355,7 @@ export {};
 import type { ProtocolContract } from './protocol.ts';
 import type { Rule } from './rule.ts';
 export declare const livesAt: (since: number | undefined, revision: number | undefined) => boolean;
+export declare const MAX_REVISION = 999999999;
 export declare const isRevision: (value: unknown) => value is number;
 export declare function checkRule(rule: Rule): void;
 export declare function projectRule(rule: Rule, revision: number): Rule;

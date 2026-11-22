@@ -1,5 +1,5 @@
 import type { ObservationContract, OperationContract, ProtocolContract } from './protocol.ts'
-import { livesAt, revisionOf } from './revision.ts'
+import { isRevision, livesAt, revisionOf } from './revision.ts'
 import type { Rule } from './rule.ts'
 
 type Plain = string | number | boolean | null | readonly Plain[] | { readonly [key: string]: Plain }
@@ -132,6 +132,7 @@ function isSnapshot(value: unknown, protocol: ProtocolContract): value is Contra
   return (
     held.name === protocol.name &&
     held.major === protocol.major &&
+    isRevision(held.revision) &&
     typeof digests === 'object' &&
     digests !== null &&
     Object.entries(digests).every(
@@ -146,11 +147,17 @@ async function judged(protocol: ProtocolContract, recorded: ContractSnapshot): P
   const title = `${protocol.name}/v${protocol.major}`
   const current = revisionOf(protocol)
   const broken: string[] = []
-  for (const key of Object.keys(recorded.digests)) {
-    const revision = Number(key)
+  const upTo = Array.from({ length: recorded.revision }, (_, index) => index + 1)
+  const held = new Set([...upTo, ...Object.keys(recorded.digests).map(Number)])
+  for (const revision of [...held].sort((left, right) => left - right)) {
+    const key = String(revision)
     if (revision > current)
       broken.push(
         `${title}: revision ${revision} was recorded and the contract is now at ${current}; a revision cannot go down`,
+      )
+    else if (!Object.hasOwn(recorded.digests, key))
+      broken.push(
+        `${title}: revision ${revision} is recorded and its digest is gone; a recorded revision is never taken out`,
       )
     else if ((await digestOf(protocol, revision)) !== recorded.digests[key])
       broken.push(
