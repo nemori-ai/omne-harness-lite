@@ -1,5 +1,4 @@
 import type { Context } from '@deepseek-ai/cordis'
-import type { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import type { AccessIdentity } from '@omne-harness/access-cordis-contract'
 import { systemScope } from '@omne-harness/legal-identity'
 import type {
@@ -101,14 +100,10 @@ export function entryAccess(
   ctx: Context,
   telemetry: TelemetryPort,
   identity: AccessIdentity,
-  dynamis?: DynamisService,
 ): ServerEntryAccess {
   const diagnostics = accessDiagnostics(telemetry)
   return {
-    registry: new AccessRegistryProvider(ctx, {
-      diagnostics,
-      ...(dynamis !== undefined && { dynamis }),
-    }),
+    registry: new AccessRegistryProvider(ctx, { diagnostics }),
     identity,
     graceMs: GRACE_MS,
     frameQueueBytes: FRAME_QUEUE_BYTES,

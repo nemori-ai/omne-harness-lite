@@ -82,7 +82,8 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['runtimeContextTenantBlocks', 'tenantIndependentSettings'],
     phase: 'composition',
   },
-  'asset-categories': { provides: ['assetCategories'] },
+  dynamis: { provides: ['dynamis'] },
+  'asset-categories': { provides: ['assetCategories'], injects: ['dynamis'] },
   'tenant-assets': {
     provides: ['tenantAssets', 'assetPublishing', 'assetManagement', 'assetChanges'],
     injects: [
@@ -460,8 +461,8 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['session', 'modelStreamReferences', 'modelStreamObservation'],
   },
   'server-entry': {
-    provides: ['accessRegistry', 'dynamis'],
-    injects: ['principalIssuer', 'telemetry'],
+    provides: ['accessRegistry'],
+    injects: ['principalIssuer', 'telemetry', 'dynamis'],
     phase: 'entry',
   },
   'identity-access': { injects: ['accessRegistry'] },

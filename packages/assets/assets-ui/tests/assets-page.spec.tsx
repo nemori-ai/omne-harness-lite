@@ -5,12 +5,13 @@ import type { AssetRowView } from '@omne-harness/assets-protocol'
 import { readTenantText } from '@omne-harness/public-contract'
 import type { AttachedEntry, AttachedLayout } from '@omne-harness/shell-contract'
 import { useEffect, type ReactNode } from 'react'
-import { createCategoryNames } from '../src/model/category-names.ts'
+import { CATEGORIES_POINT, createCategoryNames } from '../src/model/category-names.ts'
 import { AssetsPage, createGovernance, type GovernanceModel } from '../src/index.ts'
 import { assetRow, serveAssetReads } from './fixtures/asset-reads.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient, type FakeClient } from './fixtures/fake-client.ts'
 import { namesOf } from './fixtures/names.ts'
+import { fakeKeys, type FakeKeys } from './fixtures/server-keys.ts'
 
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
@@ -271,4 +272,113 @@ it('A8 类别的列表读不出：照实说并给「重试」；贡献的页面�
   await settle()
   expect(tabTexts()).toEqual(['MCP', '工具'])
   expect(screen.queryByRole('alert')).toBeNull()
+})
+
+type Pair = readonly [string, string]
+
+const listed = (pairs: readonly Pair[]) => ({
+  outcome: 'succeeded',
+  body: { items: pairs.map(categoryItem), next: null },
+})
+
+const categoryReads = (fake: FakeClient): number =>
+  fake.calls.filter(call => call.operation === 'list-categories').length
+
+/** The page open on a server that tells the keys of its categories point. */
+async function following(first: readonly Pair[]): Promise<{ fake: FakeClient; keys: FakeKeys }> {
+  const fake = createFakeClient()
+  serveSettings(fake)
+  serveAssetReads(fake, [])
+  const keys = fakeKeys()
+  keys.set(
+    CATEGORIES_POINT,
+    first.map(([category]) => category),
+  )
+  render(
+    <AssetsPage
+      governance={createGovernance({ client: fake.client })}
+      tenant={TENANT}
+      categoryNames={createCategoryNames(fake.client, keys.source)}
+    />,
+  )
+  ;(await fake.next('list-categories')).answer(listed(first))
+  await settle()
+  return { fake, keys }
+}
+
+it('K1 页面开着，服务端多了一个类别：重读一次，页签多出来，中间不说正在读，选中的不变', async () => {
+  const { fake, keys } = await following([['tool', '工具']])
+  expect(tabTexts()).toEqual(['工具'])
+  await act(async () => keys.set(CATEGORIES_POINT, ['skill', 'tool']))
+  const again = await fake.next('list-categories')
+  expect(screen.queryByText('正在读取资产……')).toBeNull()
+  expect(tabTexts()).toEqual(['工具'])
+  again.answer(
+    listed([
+      ['skill', '技能'],
+      ['tool', '工具'],
+    ]),
+  )
+  await settle()
+  expect(tabTexts()).toEqual(['技能', '工具'])
+  expect(selected()).toEqual(['工具'])
+  expect(categoryReads(fake)).toBe(2)
+})
+
+it('K2 页面开着，服务端少了一个类别：重读一次，页签少掉', async () => {
+  const { fake, keys } = await following([
+    ['skill', '技能'],
+    ['tool', '工具'],
+  ])
+  expect(tabTexts()).toEqual(['技能', '工具'])
+  await act(async () => keys.set(CATEGORIES_POINT, ['tool']))
+  ;(await fake.next('list-categories')).answer(listed([['tool', '工具']]))
+  await settle()
+  expect(tabTexts()).toEqual(['工具'])
+  expect(categoryReads(fake)).toBe(2)
+})
+
+it('K3 那条观察来了别的变化，类别的键没变：不重读', async () => {
+  const { fake, keys } = await following([['tool', '工具']])
+  await act(async () => {
+    keys.touch()
+    keys.set('some.other-point', ['x'])
+    keys.set(CATEGORIES_POINT, ['tool'])
+  })
+  await settle()
+  expect(categoryReads(fake)).toBe(1)
+})
+
+it('K4 连着变两次，先发的重读后到：以后发的那一次为准', async () => {
+  const { fake, keys } = await following([['tool', '工具']])
+  await act(async () => keys.set(CATEGORIES_POINT, ['skill', 'tool']))
+  const first = await fake.next('list-categories')
+  await act(async () => keys.set(CATEGORIES_POINT, ['mcp', 'skill', 'tool']))
+  const second = await fake.next('list-categories')
+  second.answer(
+    listed([
+      ['mcp', 'MCP'],
+      ['skill', '技能'],
+      ['tool', '工具'],
+    ]),
+  )
+  await settle()
+  first.answer(
+    listed([
+      ['skill', '技能'],
+      ['tool', '工具'],
+    ]),
+  )
+  await settle()
+  expect(tabTexts()).toEqual(['MCP', '技能', '工具'])
+})
+
+it('K5 页面关了就不再跟：没有订阅留下，之后的变化不发调用', async () => {
+  const { fake, keys } = await following([['tool', '工具']])
+  expect(keys.listeners()).toBe(1)
+  cleanup()
+  expect(keys.listeners()).toBe(0)
+  keys.set(CATEGORIES_POINT, ['skill', 'tool'])
+  await settle()
+  expect(categoryReads(fake)).toBe(1)
 })

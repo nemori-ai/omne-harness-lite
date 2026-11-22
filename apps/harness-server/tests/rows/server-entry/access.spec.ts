@@ -145,21 +145,15 @@ describe('server-entry row: the access it gives the entry', () => {
       reportAccess: async () => {},
     }
     const root = new Context()
-    const { identity } = entryAccess(
-      root,
-      createCapturingTelemetry().port,
-      port,
-      new DynamisService(root),
-    )
+    new DynamisService(root)
+    const { identity } = entryAccess(root, createCapturingTelemetry().port, port)
     expect(identity).toBe(port)
   })
 
   it('gives the entry a clock, and the clock schedules and cancels on the time source it adapts', () => {
     const root = new Context()
-    const dynamis = new DynamisService(root)
-    expect(
-      entryAccess(root, createCapturingTelemetry().port, NO_IDENTITY, dynamis).clock,
-    ).toBeDefined()
+    new DynamisService(root)
+    expect(entryAccess(root, createCapturingTelemetry().port, NO_IDENTITY).clock).toBeDefined()
     const time = simulatedTime()
     const clock = accessClockOf(time.source)
     const ran: string[] = []

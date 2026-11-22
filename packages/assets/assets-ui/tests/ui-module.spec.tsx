@@ -18,10 +18,13 @@ import {
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
 import { startShell } from './fixtures/reference-shell.ts'
+import { startShell as startWithoutConnection } from '@omne-harness/shell-contract/testing'
 
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
 const SERVICE = protocolServiceName({ name: assetsProtocol.name, major: assetsProtocol.major })
+
+const PENDING = 0
 
 beforeAll(stubAnimation)
 
@@ -174,5 +177,31 @@ it('U8 the tabs of contributed pages follow order and identifier, not the order 
 it('U5 without the protocol client the module does not load', async () => {
   const { root } = await startShell()
   await root.plugin(assetsUiModule)
+  expect(pageIds(root)).toEqual([])
+})
+
+it('U10 the page follows what the connection tells of the categories point: a changed key reads the categories again', async () => {
+  const { root, shell, keys } = await startShell()
+  const fake = createFakeClient()
+  root.reflect.provide(SERVICE, fake.client)
+  await root.plugin(assetsUiModule)
+  const page = shell.items('pages')[0]!
+  render(<>{page.render({ scope: TENANT })}</>)
+  const first = await fake.next('list-categories')
+  await act(async () => {
+    first.answer({ outcome: 'succeeded', body: { items: [], next: null } })
+    await new Promise(resolve => setTimeout(resolve, 0))
+  })
+  await act(async () => keys.set('assets.categories', ['tool']))
+  const again = await fake.next('list-categories')
+  expect(again.body).toEqual({ after: null, limit: 100 })
+})
+
+it('U11 a tree without the connection: the module waits, it does not place a page that cannot follow', async () => {
+  const { root } = await startWithoutConnection()
+  root.reflect.provide(SERVICE, createFakeClient().client)
+  const fiber = root.plugin(assetsUiModule)
+  await new Promise(resolve => setTimeout(resolve, 0))
+  expect(fiber.state).toBe(PENDING)
   expect(pageIds(root)).toEqual([])
 })
