@@ -1,4 +1,5 @@
 import { Context, type Plugin } from '@deepseek-ai/cordis'
+import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import {
   connectionPlugin,
   defineProtocolClient,
@@ -24,6 +25,8 @@ export async function startClientTree(options: {
   readonly protocols: readonly ProtocolContract[]
 }): Promise<ClientTree> {
   const root = new Context()
+  // The registry of this tree: the connection, the protocol clients and the shell all put on it.
+  await root.plugin(DynamisService)
   await root.plugin(
     connectionPlugin({
       transport: options.transport,

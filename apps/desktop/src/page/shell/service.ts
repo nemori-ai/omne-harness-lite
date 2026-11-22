@@ -1,7 +1,6 @@
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { createElement, type ReactNode } from 'react'
 import { deployment, tree, type Registry } from '@omne-harness/dynamis'
-import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import {
   type AttachedLayout,
   type FigureBoard,
@@ -115,7 +114,6 @@ export function shellPlugin(state: ShellState): Plugin.Object {
   return {
     name: 'desktop-shell',
     apply(ctx: Context) {
-      ctx.plugin(DynamisService)
       ctx.plugin(DesktopShell, state)
     },
   }

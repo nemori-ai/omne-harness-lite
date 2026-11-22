@@ -7,6 +7,7 @@ import type { ShellLogin } from '@omne-harness/shell-contract'
 import { workspaceProtocol } from '@omne-harness/workspace-protocol'
 import { afterEach, describe, expect, it } from 'vitest'
 import { assembly } from '../src/page/assembly.tsx'
+import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { DesktopShell, shellPlugin } from '../src/page/shell/service.ts'
 import { createShellState } from '../src/page/shell/state.ts'
 import { domainProtocols } from '../src/shared/protocols.ts'
@@ -59,6 +60,7 @@ const workspaceClient = () => ({
 
 async function mounted(modules: readonly Plugin.Object[], withWorkspace: boolean) {
   const root = new Context()
+  await root.plugin(DynamisService)
   await root.plugin(shellPlugin(createShellState(login)))
   root.reflect.provide(protocolServiceName(sessionProtocol), silent())
   if (withWorkspace) root.reflect.provide(protocolServiceName(workspaceProtocol), workspaceClient())

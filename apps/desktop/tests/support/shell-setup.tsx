@@ -15,6 +15,7 @@ import {
   type ThemeChoice,
 } from '@omne-harness/ui-kit'
 import type { Connectivity } from '../../src/page/connectivity.ts'
+import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { DesktopShell, shellPlugin } from '../../src/page/shell/service.ts'
 import { Shell } from '../../src/page/shell/shell.tsx'
 import { createShellState } from '../../src/page/shell/state.ts'
@@ -96,6 +97,7 @@ export async function setup(
   }
   const state = createShellState(inner)
   const root = new Context()
+  await root.plugin(DynamisService)
   await root.plugin(shellPlugin(state))
   root.reflect.provide('connection', quietConnection)
   for (const name of TEST_POINTS) definePoint({ name, subject: TEXT }).declare(root.shell)
