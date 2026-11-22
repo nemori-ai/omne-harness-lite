@@ -28,6 +28,7 @@ export type {
 export type * from './result.ts'
 export { faultIsTransient } from './result.ts'
 export { accountUndelivered, costLookupOf, type CostLookupState } from './cost-lookup.ts'
+export { dispatchSend } from './dispatch-facts.ts'
 export type * from './result-delivery-values.ts'
 export type * from './result-delivery.ts'
 export type * from './result-delivery-judge.ts'

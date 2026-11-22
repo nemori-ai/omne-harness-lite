@@ -172,6 +172,22 @@ describe('group boundaries (SPEC 7.3)', () => {
     expect(results.map(result => result.kind)).toEqual(['committed', 'committed', 'committed'])
     expect(probed(results[2] as CommitResultV2)).toEqual({ rows: 1, receipts: 2 })
   })
+
+  it('an operation that releases receipts is its own group', async () => {
+    const { storage } = await ready()
+    const early = op(built, 'x', [seqCommand({ tag: 'x' })])
+    expect((await storage.commit(early)).kind).toBe('committed')
+    const results = await Promise.all([
+      storage.commit(op(built, 'a', [seqCommand({ tag: 'a' })])),
+      storage.commit({
+        ...op(built, 'r', [seqCommand({ tag: 'r' })]),
+        releases: [early.identity],
+      }),
+      storage.commit(probeOp('p')),
+    ])
+    expect(results.map(result => result.kind)).toEqual(['committed', 'committed', 'committed'])
+    expect(probed(results[2] as CommitResultV2)).toEqual({ rows: 3, receipts: 2 })
+  })
 })
 
 describe('C21: grouping eligibility', () => {

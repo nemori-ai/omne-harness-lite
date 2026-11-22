@@ -210,6 +210,7 @@ export interface DecisionCards<P> {
   ): Reply<
     readonly Readonly<{ card: DurableEvidence; reply: Exclude<CardReply, { kind: 'pending' }> }>[]
   >
+  changes(input: Access<P> & Readonly<{ signal: AbortSignal }>): AsyncIterable<void>
 }
 export type DenialCategory = 'rule' | 'not-released' | 'prohibited' | 'card-closed' | 'guidance'
 export type AdmissionDecision =
@@ -371,6 +372,7 @@ export type MaterialDescription = Readonly<{
   size: number
   kind: Material<ContentBlock>['kind']
 }>
+export type MaterialReaders = 'after-release' | 'until-release'
 export interface AgentMaterials<P, B extends ContentBlock> {
   preserve(
     input: Access<P> &
@@ -379,6 +381,7 @@ export interface AgentMaterials<P, B extends ContentBlock> {
         identity: string
         consumer: ConsumerRef
         value: Material<B>
+        readers?: MaterialReaders
       }>,
   ): Reply<DurableEvidence>
   read(input: Access<P> & Readonly<{ source: DurableEvidence }>): Reply<Material<B>>

@@ -5,14 +5,6 @@ import type {
   ScheduleView,
 } from '@omne-harness/schedule-contract'
 
-/** Why a schedule is in effect: the consent it adopted, else the owner's own act; a draft has none. */
-export function basisOf(view: ScheduleView): string {
-  const adoption = view.consentAdoption
-  if (adoption?.adoptionKind === 'blanket') return `blanket scope=${adoption.scope}`
-  if (adoption?.adoptionKind === 'granular') return 'granular'
-  return view.control === 'draft' ? 'none' : 'owner'
-}
-
 export function upcomingOf(candidate: ScheduleCandidate) {
   return {
     at: candidate.scheduledAt,
@@ -29,8 +21,10 @@ export function summaryOf(view: ScheduleView) {
     label: view.definition.label,
     control: view.control,
     revision: view.revision,
-    author: author.kind === 'agent' ? `agent session=${author.originatingSessionRef}` : author.kind,
-    basis: basisOf(view),
+    author:
+      author.kind === 'agent'
+        ? `agent session=${author.originatingSessionRef} call=${author.originatingCallRef}`
+        : author.kind,
     next: view.nextOccurrence === null ? null : upcomingOf(view.nextOccurrence),
   }
 }

@@ -90,10 +90,7 @@ it('assembles all commands and queries through the public factory and closes bor
       limit: 10,
     }),
   ).toMatchObject({ kind: 'unavailable' })
-  expect(await w.services().sql.lookup(w.binding('one').ref)).toMatchObject({
-    kind: 'found',
-    record: { state: 'committed' },
-  })
+  expect(await w.services().sql.lookup(w.binding('one').ref)).toEqual({ kind: 'absent' })
   expect(await w.identity.standing.read({ tenant: w.principal.tenant })).toMatchObject({
     kind: 'member',
   })

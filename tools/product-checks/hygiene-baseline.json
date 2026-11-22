@@ -73,15 +73,15 @@
       "packages/agent/agent-contract/src/testing-journal-finishing.ts": 4101,
       "packages/agent/agent-contract/src/testing-received-conformance.ts": 1055,
       "packages/agent/agent-host-local/src/host.ts": 1037,
-      "packages/agent/agent/src/loop/coordinator.ts": 3305,
+      "packages/agent/agent/src/loop/coordinator.ts": 3288,
       "packages/agent/agent/src/testing/journal.ts": 3589,
       "packages/execution/execution-environment-contract/src/testing/environment-conformance.ts": 1055,
       "packages/execution/execution-environment/src/registry.ts": 1040,
       "packages/identity/identity/src/testing/governance-contract.ts": 2224,
       "packages/mcp/mcp-contract/src/testing-transport.ts": 2360,
-      "packages/model/model-storage-sql/src/commit.ts": 1109,
+      "packages/model/model-storage-sql/src/commit.ts": 1097,
       "packages/model/model/src/commands/commands.ts": 1054,
-      "packages/session/session-adapters/src/cordis/agent-journal.ts": 1763,
+      "packages/session/session-adapters/src/cordis/agent-journal.ts": 1676,
       "packages/session/session-adapters/src/cordis/context-holder.ts": 1148,
       "packages/session/session-adapters/src/cordis/context-input.ts": 1109,
       "packages/session/session-adapters/src/testing/factory.ts": 1239,
@@ -89,10 +89,10 @@
       "packages/session/session-adapters/src/testing/journal.ts": 4190,
       "packages/session/session-adapters/src/testing/session.ts": 1194,
       "packages/session/session-contract/src/testing-transactions.ts": 2468,
-      "packages/session/session-storage-sql/src/worker/participant.ts": 1066,
+      "packages/session/session-storage-sql/src/worker/participant.ts": 1026,
       "packages/tool/tool-contract/src/testing-executor-binding.ts": 1022,
       "packages/tool/tool-cordis-contract/src/testing.ts": 1388,
-      "packages/tool/tool-host-local/src/start-coordinator.ts": 1055,
+      "packages/tool/tool-host-local/src/start-coordinator.ts": 1037,
       "packages/tool/tool/src/ledger.ts": 2012,
       "tools/repo-toolchain/src/arch/extract.ts": 1098
     },
@@ -163,15 +163,15 @@
       },
       "packages/agent/agent/src/loop/coordinator.ts": {
         "count": 1,
-        "longest": 2828
+        "longest": 2814
       },
       "packages/agent/agent/src/provider.ts": {
         "count": 1,
-        "longest": 623
+        "longest": 616
       },
       "packages/agent/agent/src/receiving.ts": {
         "count": 1,
-        "longest": 318
+        "longest": 312
       },
       "packages/agent/agent/src/testing/journal-finishing.ts": {
         "count": 1,
@@ -191,11 +191,11 @@
       },
       "packages/agent/agent/src/tool-receiving.ts": {
         "count": 1,
-        "longest": 374
+        "longest": 370
       },
       "packages/assets/settings-local/src/catalog.ts": {
         "count": 1,
-        "longest": 234
+        "longest": 179
       },
       "packages/assets/settings/src/tenant-settings.ts": {
         "count": 1,
@@ -379,7 +379,7 @@
       },
       "packages/identity/identity-sql/src/provider.ts": {
         "count": 1,
-        "longest": 286
+        "longest": 280
       },
       "packages/identity/identity/src/testing/governance-double.ts": {
         "count": 1,
@@ -455,7 +455,7 @@
       },
       "packages/model/model-storage-sql/src/commit.ts": {
         "count": 1,
-        "longest": 298
+        "longest": 286
       },
       "packages/model/model/src/commands/commands.ts": {
         "count": 2,
@@ -499,11 +499,11 @@
       },
       "packages/session/session-adapters/src/cordis/agent-journal-provider.ts": {
         "count": 1,
-        "longest": 261
+        "longest": 242
       },
       "packages/session/session-adapters/src/cordis/agent-journal.ts": {
         "count": 1,
-        "longest": 1131
+        "longest": 1115
       },
       "packages/session/session-adapters/src/cordis/context-holder.ts": {
         "count": 1,
@@ -511,7 +511,7 @@
       },
       "packages/session/session-adapters/src/cordis/message-handoff.ts": {
         "count": 1,
-        "longest": 424
+        "longest": 423
       },
       "packages/session/session-adapters/src/cordis/tool-log-consumption.ts": {
         "count": 1,
@@ -527,11 +527,11 @@
       },
       "packages/session/session-adapters/src/testing/journal-receiving.ts": {
         "count": 1,
-        "longest": 584
+        "longest": 576
       },
       "packages/session/session-adapters/src/testing/journal.ts": {
         "count": 6,
-        "longest": 3423
+        "longest": 3422
       },
       "packages/session/session-adapters/src/testing/root.ts": {
         "count": 1,
@@ -543,7 +543,7 @@
       },
       "packages/session/session-contract/src/projection.ts": {
         "count": 1,
-        "longest": 174
+        "longest": 173
       },
       "packages/session/session-contract/src/testing-delegated.ts": {
         "count": 1,
@@ -625,10 +625,6 @@
         "count": 2,
         "longest": 299
       },
-      "packages/tool/tool-contract/src/testing-start-authority.ts": {
-        "count": 1,
-        "longest": 186
-      },
       "packages/tool/tool-cordis-contract/src/testing.ts": {
         "count": 2,
         "longest": 318
@@ -647,7 +643,7 @@
       },
       "packages/tool/tool-host-local/src/catalog.ts": {
         "count": 1,
-        "longest": 193
+        "longest": 177
       },
       "packages/tool/tool-host-local/src/control-subject-adapter.ts": {
         "count": 1,
@@ -667,11 +663,11 @@
       },
       "packages/tool/tool-host-local/src/invocation-forwarding.ts": {
         "count": 1,
-        "longest": 297
+        "longest": 281
       },
       "packages/tool/tool-host-local/src/invocation-source.ts": {
         "count": 1,
-        "longest": 292
+        "longest": 244
       },
       "packages/tool/tool-host-local/src/recovery-scans.ts": {
         "count": 1,
@@ -703,7 +699,7 @@
       },
       "packages/tool/tool-host-local/src/start-coordinator.ts": {
         "count": 1,
-        "longest": 486
+        "longest": 471
       },
       "packages/tool/tool-host-local/src/tool-forwarding.ts": {
         "count": 2,
@@ -735,7 +731,7 @@
       },
       "packages/tool/tool/src/runtime.ts": {
         "count": 1,
-        "longest": 160
+        "longest": 155
       },
       "packages/tool/tool/src/stream-facade.ts": {
         "count": 1,
@@ -743,7 +739,7 @@
       },
       "packages/tool/tool/src/testing-ledger-assembly.ts": {
         "count": 1,
-        "longest": 190
+        "longest": 187
       },
       "packages/tool/tool/src/testing-ledger-composition-cases.ts": {
         "count": 1,
@@ -763,11 +759,11 @@
       },
       "packages/tool/tool/src/testing-source.ts": {
         "count": 1,
-        "longest": 177
+        "longest": 175
       },
       "packages/tool/tool/src/testing-store.ts": {
         "count": 1,
-        "longest": 185
+        "longest": 184
       },
       "tools/product-checks/src/rules/model-credential-boundary.ts": {
         "count": 1,

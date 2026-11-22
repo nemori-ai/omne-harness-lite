@@ -5,7 +5,7 @@ import {
   sameTerm,
   scopeMatches,
   subjectAccepted,
-  type Basis,
+  type Creator,
   type Scope,
   type Subscription,
   type Term,
@@ -57,23 +57,26 @@ describe('two subscriptions are the same only when every stored part agrees', ()
     level: 'weak',
     note: null,
     term: { kind: 'standing' },
-    basis: { kind: 'owner' },
+    creator: { kind: 'human', actorRef: 'owner' },
     expired: false,
   } as unknown as Subscription
-  const bases = [
-    { kind: 'owner' },
-    { kind: 'blanket', scope: 'standing', grant: 'g1' },
-    { kind: 'blanket', scope: 'session', grant: 'g1' },
-    { kind: 'blanket', scope: 'standing', grant: 'g2' },
-    { kind: 'granular', grant: 'g1' },
-    { kind: 'granular', grant: 'g2' },
-    { kind: 'granular', grant: 'undefined' },
-  ] as readonly Basis[]
+  const agent = (session: string, call: string, actorRef = 'p') =>
+    ({ kind: 'agent', actorRef, originatingSessionRef: session, originatingCallRef: call }) as const
+  const creators = [
+    { kind: 'human', actorRef: 'owner' },
+    { kind: 'human', actorRef: 'p' },
+    { kind: 'system', principalRef: 'owner' },
+    { kind: 'system', principalRef: 'p' },
+    agent('s1', 'c1'),
+    agent('s1', 'c1', 'q'),
+    agent('s1', 'c2'),
+    agent('s2', 'c1'),
+  ] as readonly Creator[]
 
-  it.each(bases.flatMap((a, i) => bases.map((b, j) => [a, b, i === j] as const)))(
-    'basis %j and %j: %s',
+  it.each(creators.flatMap((a, i) => creators.map((b, j) => [a, b, i === j] as const)))(
+    'creator %j and %j: %s',
     (a, b, same) => {
-      expect(sameSubscription({ ...base, basis: a }, { ...base, basis: b })).toBe(same)
+      expect(sameSubscription({ ...base, creator: a }, { ...base, creator: b })).toBe(same)
     },
   )
 

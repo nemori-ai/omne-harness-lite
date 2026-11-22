@@ -12,7 +12,15 @@ import {
   readyProvider,
   summary,
 } from './read-support.ts'
-import { DOMAIN, TENANT_A, leases, makeWorkspace, type Built, type Workspace } from './support.ts'
+import {
+  DOMAIN,
+  TENANT_A,
+  leases,
+  makeWorkspace,
+  registration,
+  type Built,
+  type Workspace,
+} from './support.ts'
 
 let workspace: Workspace
 let built: Built
@@ -215,6 +223,31 @@ describe('reply matching (SPEC 9.5)', () => {
     expect((await pending).kind).toBe('ready')
     expect(client.receive({ generation: 7, seq: 1, token: 'tok', reply: stale })).toBe(false)
     await client.close()
+  })
+})
+
+describe('registration without a migration (SPEC 登记)', () => {
+  async function keepsReaders(input: ReturnType<typeof registration>): Promise<void> {
+    const { storage } = await readyProvider(workspace, built, {}, 0)
+    expect(summary(await storage.read(readRequest('page')))).toBe('read')
+    const before = { readers: readerLeases().length, released: leases.released }
+    expect((await storage.registerCombination(input)).kind).toBe('registered')
+    expect(summary(await storage.read(readRequest('page')))).toBe('read')
+    expect({ readers: readerLeases().length, released: leases.released }).toEqual(before)
+  }
+
+  it('keeps the readers and their connections when the same registration comes again', async () => {
+    await keepsReaders(registration(built))
+  })
+
+  it('keeps the readers when a new version needs no migration', async () => {
+    await keepsReaders(
+      registration(built, {
+        combinationVersion: 'v2',
+        participants: ['ledger'],
+        manifestDigest: built.digest(['ledger']),
+      }),
+    )
   })
 })
 

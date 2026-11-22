@@ -35,6 +35,25 @@ export const noReplyWithFault = (): FailureCandidate => ({
   fault: { cause: 'upstream-unavailable', upstreamStatus: '504', diagnostic: 'gateway timeout' },
 })
 
+export const nodeFailed = (): FailureCandidate => ({
+  step: null,
+  at: '2026-11-05T00:00:00Z',
+  source: evidence('failure/node'),
+  kind: 'node-failed',
+  node: 'E4',
+  category: 'invariant',
+  failureKind: 'unavailable',
+})
+
+export const cannotFit = (): FailureCandidate => ({
+  step: null,
+  at: '2026-11-05T00:00:00Z',
+  source: evidence('failure/cannot-fit'),
+  kind: 'cannot-fit',
+  reason: 'protected-floor',
+  context: evidence('context/cannot-fit'),
+})
+
 export async function endWithFailure(
   s: SqlScene,
   journal: AgentJournal<string>,

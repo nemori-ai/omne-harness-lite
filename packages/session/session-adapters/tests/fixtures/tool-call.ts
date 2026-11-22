@@ -11,6 +11,7 @@ import {
   sampleReceivedToolAccount,
 } from '@omne-harness/agent-contract/testing'
 import { resolveToolInvocationRef } from '@omne-harness/tool-contract'
+import { toolInvokeRequestOf } from '@omne-harness/tool-contract/provider'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
@@ -29,6 +30,7 @@ export function toolCall(tenant: TenantId, name = 'tool') {
     purpose: 'action',
     association: 'associated',
     reference,
+    acceptance: 'unknown',
     action,
     consumption: entry.consumption,
     position: entry.consumer,
@@ -152,7 +154,7 @@ export async function keptToolCall(
 
 function request(consumer: PendingCall['position']): ToolInvokeRequest {
   const adoption = (name: string) => ({ owner: 'test', name, revision: '1', digest: name })
-  return {
+  return toolInvokeRequestOf({
     availability: {
       kind: 'available',
       layer: { kind: 'official' },
@@ -189,10 +191,6 @@ function request(consumer: PendingCall['position']): ToolInvokeRequest {
     settings: adoption('settings'),
     context: adoption('context'),
     workspace: null,
-    environment: {
-      adoption: adoption('environment'),
-      value: { kind: 'string', value: 'declared requirement' },
-    },
     requesterScope: ok(decodeScopeRef({ ref: 'test-requester-scope' })),
     resources: [],
     scope: { owner: 'test', key: 'scope', grant: evidence('scope') },
@@ -200,5 +198,5 @@ function request(consumer: PendingCall['position']): ToolInvokeRequest {
     batchDecision: null,
     mode: 'foreground',
     limits: { concurrency: 1, scopeBudget: null, foregroundMs: null, backgroundAfterMs: null },
-  }
+  })
 }

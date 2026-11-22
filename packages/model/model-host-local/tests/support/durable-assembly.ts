@@ -356,7 +356,8 @@ function sqliteStorage(): SqlStorage {
     commit(request): Promise<CommitResult> {
       const domain = domainOf(request.identity.transactionDomain)
       const key = keyOf(request.identity)
-      const existing = domain.receipts.get(key)
+      const keeps = request.identity.recall !== 'never'
+      const existing = keeps ? domain.receipts.get(key) : undefined
       if (existing !== undefined)
         return Promise.resolve(
           existing.inputDigest ===
@@ -365,10 +366,12 @@ function sqliteStorage(): SqlStorage {
             : { kind: 'identity_conflict', identity: request.identity, existing },
         )
       const receipt = executeCommit(domain, request)
-      domain.receipts.set(key, receipt)
+      if (keeps) domain.receipts.set(key, receipt)
       return Promise.resolve({ ...receipt, recalled: false })
     },
     query(identity) {
+      if (identity.recall === 'never')
+        return Promise.resolve({ kind: 'settled', identity, proofs: NOT_COMMITTED_PROOFS })
       const found = domainOf(identity.transactionDomain).receipts.get(keyOf(identity))
       return Promise.resolve(
         found ?? { kind: 'not_committed', identity, proofs: NOT_COMMITTED_PROOFS },

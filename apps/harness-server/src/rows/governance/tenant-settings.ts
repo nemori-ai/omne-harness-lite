@@ -24,7 +24,7 @@ const WRITE_DESTINATIONS = new Set([
 
 export function prepareTenantGovernanceWithSettings(
   options: Omit<TenantGovernanceOptions, 'settings'> &
-    Pick<SettingsCatalogOptions, 'registry' | 'clock' | 'cursorLifetimeMs'>,
+    Pick<SettingsCatalogOptions, 'registry' | 'clock' | 'cursorLifetimeMs' | 'warn'>,
 ) {
   const { combinationVersion, manifestDigest } = governanceStorageCombinations(
     options.materials,
@@ -47,6 +47,7 @@ export function prepareTenantGovernanceWithSettings(
       releaseToolTargets(options.permissionRelease?.(), options.scope.tenantRef),
     clock: options.clock,
     cursorLifetimeMs: options.cursorLifetimeMs,
+    ...(options.warn === undefined ? {} : { warn: options.warn }),
     project: binding => [
       assetsSettingsProjectionCommand(binding, options.capture()),
       standaloneSettingsProjectionCommand(binding),
@@ -101,6 +102,7 @@ export function prepareTenantGovernanceWithSettings(
   return {
     readSettings,
     settings: { read: readSettings, writer: write.writer },
+    releaseSettings: { observe: write.observe, rebase: write.rebase },
     destination: {
       seal: (reservation: Parameters<typeof settingsDestination.seal>[0]) =>
         reservation.binding.owner !== 'settings'

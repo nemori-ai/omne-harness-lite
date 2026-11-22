@@ -8,7 +8,7 @@ import {
   type SqlStorage,
 } from '@omne-harness/sql-contract'
 import { type Core, identityKey, sameScope } from './core.ts'
-import { decodeIdentity, isDigest, isName } from './fields.ts'
+import { decodeIdentity, decodeReleases, isDigest, isName } from './fields.ts'
 import { canonicalJson, isStrictJson, jsonShape, utf8Length } from './json.ts'
 import type { CommitReply } from './worker/protocol.ts'
 import type { Acquired, Granted } from './waiting.ts'
@@ -46,14 +46,25 @@ function judge(core: Core, input: CommitRequestV2, signal: AbortSignal | undefin
   if (signal?.aborted === true) return rejected('cancelled')
   const decoded = decodeIdentity((input as Partial<CommitRequestV2> | null)?.identity)
   const commands: unknown = input?.commands
+  const releases = decodeReleases(input?.releases)
   if (
     decoded.fields === null ||
     !isName(input.combinationVersion) ||
     !isDigest(input.manifestDigest) ||
-    !commandsValid(commands)
+    !commandsValid(commands) ||
+    releases === null
   )
     return rejected('field_missing')
   if (decoded.protocol !== '2' || decoded.identity === null) return rejected('unsupported_protocol')
+  const { identity } = decoded
+  if (
+    releases.some(
+      item =>
+        !sameScope(item.scope, identity.scope) ||
+        item.transactionDomain !== identity.transactionDomain,
+    )
+  )
+    return rejected('release_outside_domain')
   if (new Set(commands.map(command => command.participant)).size !== commands.length)
     return rejected('participant_repeated')
   if (!commands.every(command => isStrictJson(command.facts))) return rejected('facts_not_json')
@@ -72,7 +83,7 @@ function judge(core: Core, input: CommitRequestV2, signal: AbortSignal | undefin
   if (requestBytes > config.maxRequestBytes) return rejected('command_limit')
   return {
     kind: 'accepted',
-    identity: decoded.identity,
+    identity,
     requestBytes,
     inputDigest: inputDigestV2(input),
   }

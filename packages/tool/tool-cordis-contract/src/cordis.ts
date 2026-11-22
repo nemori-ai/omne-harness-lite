@@ -36,7 +36,6 @@ import {
   type ToolResourceResponses,
   type ToolStartAuthority,
   type ToolStartFence,
-  type ToolStartReleases,
   type ToolShape,
 } from '@omne-harness/tool-contract/provider'
 
@@ -447,6 +446,7 @@ export abstract class ToolCatalogService<P> extends Service implements ToolCatal
     super(ctx, ToolCatalogService.provide)
   }
   abstract readonly inspect: ToolCatalog<P>['inspect']
+  abstract readonly inspectEach: ToolCatalog<P>['inspectEach']
   abstract readonly usage: ToolCatalog<P>['usage']
   abstract readonly search: ToolCatalog<P>['search']
 }
@@ -491,16 +491,6 @@ export abstract class ToolStartFenceService<P> extends Service implements ToolSt
   abstract readonly invalidate: ToolStartFence<P>['invalidate']
 }
 export const toolStartFenceKey = ToolStartFenceService.provide
-
-/** @owner packages/tool/tool-cordis-contract */
-export abstract class ToolStartReleasesService<P> extends Service implements ToolStartReleases<P> {
-  static readonly provide = 'toolStartReleases'
-  constructor(ctx: Context) {
-    super(ctx, ToolStartReleasesService.provide)
-  }
-  abstract readonly releaseOf: ToolStartReleases<P>['releaseOf']
-}
-export const toolStartReleasesKey = ToolStartReleasesService.provide
 
 /** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolResourceResponsesService<P>

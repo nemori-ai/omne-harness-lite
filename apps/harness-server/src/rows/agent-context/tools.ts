@@ -20,19 +20,23 @@ type NoValue = Exclude<SourceRead<never>, { kind: 'value' }>
 
 const unavailable = (diagnostic: string): NoValue => ({ kind: 'unavailable', diagnostic })
 
-function readOfFailure(failure: ToolFailure, name: string): NoValue {
+function readOfFailure(failure: ToolFailure): NoValue {
   switch (failure.kind) {
     case 'denied':
       return { kind: 'denied' }
     case 'invalid':
-      return failure.field === 'name' && failure.reason === 'unknown-tool'
-        ? unavailable(`tool-unknown: ${name}`)
-        : unavailable(`tool-invalid: ${failure.field}: ${failure.reason}`)
+      return unavailable(`tool-invalid: ${failure.field}: ${failure.reason}`)
     case 'unavailable':
       return unavailable(`tool-unavailable: ${failure.dependency}: ${failure.diagnostic}`)
     default:
       return unavailable(`tool-catalog: ${failure.kind}`)
   }
+}
+
+function readOfPosition(failure: ToolFailure, name: string): NoValue {
+  return failure.kind === 'invalid' && failure.field === 'name' && failure.reason === 'unknown-tool'
+    ? unavailable(`tool-unknown: ${name}`)
+    : readOfFailure(failure)
 }
 
 function consumerOf(ctx: Context): ToolConsumerProfile | NoValue {
@@ -60,33 +64,38 @@ async function heldBy(
   return 'failure' in view ? view : succeed(heldConditions(view.ok.interaction))
 }
 
-// The command table the model is given is cut by the same declaration that judges each call.
-async function offered(
-  ctx: Context,
-  access: Access<unknown>,
-  availability: ToolAvailabilityRead,
-): Promise<SourceRead<ToolAvailabilityRead | null>> {
-  if (!declaresConditions(availability.definition)) return { kind: 'value', value: availability }
-  const held = await heldBy(ctx, access)
-  if ('failure' in held) return unavailable(`tool-conditions: ${held.failure}`)
-  const definition = offeredDefinition(availability.definition, held.ok)
-  return { kind: 'value', value: definition === null ? null : { ...availability, definition } }
-}
-
 export function catalogToolLookup(ctx: Context): ToolLookup<unknown> {
-  return async ({ access, binding }): Promise<SourceRead<ToolAvailabilityRead | null>> => {
+  return async ({
+    access,
+    bindings,
+  }): Promise<SourceRead<readonly (ToolAvailabilityRead | null)[]>> => {
     const service: unknown = ctx.get(toolCatalogKey, false)
     if (!(service instanceof ToolCatalogService)) return unavailable('tool-catalog-absent')
     const catalog = service as ToolCatalogService<unknown>
     const consumer = consumerOf(ctx)
     if ('kind' in consumer) return consumer
+    const names = bindings.map(binding => binding.name)
     let answer
     try {
-      answer = await catalog.inspect({ ...access, name: binding.name, command: null, consumer })
+      answer = await catalog.inspectEach({ ...access, names, consumer })
     } catch {
       return unavailable('tool-catalog-failed')
     }
-    if (!('ok' in answer)) return readOfFailure(answer.failure, binding.name)
-    return offered(ctx, access, answer.ok)
+    if (!('ok' in answer)) return readOfFailure(answer.failure)
+    // The command table the model is given is cut by the same declaration that judges each call.
+    let held: Outcome<ReadonlySet<string>, string> | undefined
+    const offered: (ToolAvailabilityRead | null)[] = []
+    for (const [index, one] of answer.ok.entries()) {
+      if ('failure' in one) return readOfPosition(one.failure, names[index]!)
+      if (!declaresConditions(one.ok.definition)) {
+        offered.push(one.ok)
+        continue
+      }
+      held ??= await heldBy(ctx, access)
+      if ('failure' in held) return unavailable(`tool-conditions: ${held.failure}`)
+      const definition = offeredDefinition(one.ok.definition, held.ok)
+      offered.push(definition === null ? null : { ...one.ok, definition })
+    }
+    return { kind: 'value', value: offered }
   }
 }

@@ -19,7 +19,7 @@ import {
   fakeAuthority,
   fakeChannel,
   fakeClock,
-  fakeConsent,
+  fakeCreators,
   fakeHints,
   fakeStanding,
 } from '@omne-harness/notification/testing'
@@ -48,12 +48,12 @@ const sending = createSending({
   defaults,
 })
 const inbox = createInbox({ authority, store, clock, pageLimit: 50 })
-const consent = fakeConsent()
+const creators = fakeCreators()
 const subscriptions = createSubscriptions({
   authority,
   store,
   sources,
-  consent,
+  creators,
   clock,
   defaults,
   beatRange: { min: 5, max: 1440 },
@@ -190,7 +190,7 @@ const strongForRepo = {
 } as const
 const ownerSet = await subscriptions.set(owner, strongForRepo)
 show('订阅：owner 把 repo/ 开头的构建结果设成强', strongForRepo, ownerSet)
-assert.equal(ownerSet.kind === 'done' && ownerSet.value.basis.kind, 'owner')
+assert.equal(ownerSet.kind === 'done' && ownerSet.value.creator.kind, 'human')
 
 await sending.send(owner, request('build-42', '构建 42 失败'))
 const afterSubscription = await inbox.read(owner, {
@@ -214,25 +214,19 @@ const asTriager = {
   call: 'call-17',
 }
 const agentChange = { ...strongForRepo, recipient: triager, note: '失败了就开一张卡' } as const
-const without = await subscriptions.set(asTriager, agentChange)
-show('受托的 agent 给自己订，这次调用的放行没带同意：拒绝，不写', agentChange, without)
-assert.deepEqual(without, { kind: 'refused', reason: 'consent-required' })
-
-const once = '{"holder":"session-triage","via":"once"}'
-consent.set({ kind: 'consented', basis: { kind: 'granular', scope: 'session', grant: once } })
+const byAgent = {
+  kind: 'agent',
+  actorRef: 'session-triage',
+  originatingSessionRef: 'session-triage',
+  originatingCallRef: 'call-17',
+}
 const agreed = await subscriptions.set(asTriager, agentChange)
-show('这次调用凭一笔单次授权放行：成立，依据是逐条，存着授权引用', once, agreed)
-assert.deepEqual(agreed.kind === 'done' && agreed.value.basis, { kind: 'granular', grant: once })
+show('受托的 agent 给自己订：直接成立，记下 agent、它的会话和这次调用', agentChange, agreed)
+assert.deepEqual(agreed.kind === 'done' && agreed.value.creator, byAgent)
 
-const standing = '{"holder":"tenant-demo","layer":"tenant","via":"verdict"}'
-consent.set({ kind: 'consented', basis: { kind: 'blanket', scope: 'standing', grant: standing } })
 const lowered = await subscriptions.set(asTriager, { ...agentChange, level: 'weak' })
-show('agent 自己调低也是一次订阅：凭裁定放行，依据换成持续的全权', '强改弱', lowered)
-assert.deepEqual(lowered.kind === 'done' && lowered.value.basis, {
-  kind: 'blanket',
-  scope: 'standing',
-  grant: standing,
-})
+show('agent 自己调低也是一次订阅：直接成立，创建者仍是这次调用', '强改弱', lowered)
+assert.deepEqual(lowered.kind === 'done' && lowered.value.creator, byAgent)
 
 // 合并
 const tenant = owner.tenant

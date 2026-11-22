@@ -21,6 +21,8 @@ import type {
   listLookupSchema,
   listResultSchema,
   versionLookupSchema,
+  versionsLookupSchema,
+  versionsResultSchema,
 } from './schema.ts'
 export type AssetsLocalOptions = Readonly<{
   storage: SqlStorage
@@ -55,6 +57,8 @@ export type AssetsVersionResult = z.infer<typeof versionResultSchema>
 export type AssetsSummaryResult = z.infer<typeof summaryResultSchema>
 export type AssetsListRequest = z.input<typeof listLookupSchema>
 export type AssetsListResult = z.infer<typeof listResultSchema>
+export type AssetsVersionsRequest = z.input<typeof versionsLookupSchema>
+export type AssetsVersionsResult = z.infer<typeof versionsResultSchema>
 export interface AssetsLocal {
   readAsset(input: z.infer<typeof assetLookupSchema>): Promise<AssetsReadResult>
   publish(input: AssetsPublish): Promise<AssetsMutationResult>
@@ -65,6 +69,7 @@ export interface AssetsLocal {
   readVersion(input: z.infer<typeof versionLookupSchema>): Promise<AssetsVersionResult>
   readHeldCapability(input: { capability: CapabilityId }): Promise<AssetsHoldingResult>
   listHeld(input: AssetsListRequest): Promise<AssetsListResult>
+  listVersions(input: AssetsVersionsRequest): Promise<AssetsVersionsResult>
   /** The asset summary stored with one version; a version is never rewritten, so neither is it. */
   readSummary(input: z.infer<typeof versionLookupSchema>): Promise<AssetsSummaryResult>
   readonly packages: LocalPackages

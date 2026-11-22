@@ -23,7 +23,7 @@ it('publishes the actual Tool release and reads the exact held publication throu
         publicationRef: w.publication.publicationRef,
         definitionRef: {
           providerId: w.entry.governance.declaration.settings[0]?.providerId,
-          version: w.entry.governance.declaration.reference.version,
+          version: w.entry.governance.declaration.settings[0]?.version,
           digest: canonicalDigest(w.entry.governance.declaration.settings[0]).slice(7),
         },
       },

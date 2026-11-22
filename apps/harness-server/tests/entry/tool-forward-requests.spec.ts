@@ -26,9 +26,11 @@ describe('trusted forwarding target preparation', () => {
       if ('failure' in result) throw new Error(JSON.stringify(result))
       const target = result.ok
       expect(target.command).toBe('info')
-      expect(
-        commandArguments(target.availability.definition, target.command, target.arguments),
-      ).toMatchObject({ ok: { effective: '{}' } })
+      const echo = world.request('ToyEcho').availability.definition
+      expect(target.availability).toMatchObject({ definition: echo.adoption, name: echo.name })
+      expect(commandArguments(echo, target.command, target.arguments)).toMatchObject({
+        ok: { effective: '{}' },
+      })
       for (const key of [
         'context',
         'workspace',
@@ -40,7 +42,7 @@ describe('trusted forwarding target preparation', () => {
       ] as const)
         expect(target[key]).toEqual(world.parent.request[key])
       expect(target.settings).toEqual(world.request('ToyEcho').settings)
-      expect(target.environment).toEqual(world.request('ToyEcho').environment)
+      expect(target).not.toHaveProperty('environment')
       expect(target.batchDecision).toBeNull()
       expect(target).not.toHaveProperty('invocation')
       // A parent pinned to no directory gives its target none: the member is absent.

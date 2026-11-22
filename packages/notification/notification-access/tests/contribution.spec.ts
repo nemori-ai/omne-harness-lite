@@ -244,7 +244,6 @@ describe('what the plugin does not let through', () => {
     ['scope-does-not-fit', { outcome: 'invalid', body: { reason: 'scope-does-not-fit' } }],
     ['not-permitted', { outcome: 'denied' }],
     ['not-own-recipient', { outcome: 'denied' }],
-    ['consent-required', { outcome: 'denied' }],
   ] as const)('a subscription the domain refuses as %s has one answer', async (reason, answer) => {
     const w = world()
     const subscriptions = {
@@ -558,7 +557,7 @@ describe('subscriptions and the beat', () => {
       note: 'watch it',
       term: { kind: 'until', at: '2026-11-19T00:00:00.000Z' },
     }
-    const stored = { ...until, basis: { kind: 'owner' }, expired: false }
+    const stored = { ...until, creator: { kind: 'human' }, expired: false }
     expect(await w.call('set-subscription', until)).toEqual({ outcome: 'succeeded', body: stored })
     expect(await w.call('set-subscription', until)).toEqual({ outcome: 'no-change', body: stored })
     expect(await w.call('list-subscriptions', { recipient: person })).toEqual({
@@ -574,6 +573,13 @@ describe('subscriptions and the beat', () => {
     expect(await w.call('list-subscriptions', { recipient: person })).toMatchObject({
       body: { subscriptions: [] },
     })
+  })
+
+  it('answers a subscription with who created it, and with no consent', async () => {
+    const w = world()
+    const answer = await w.call('set-subscription', change)
+    expect(answer).toMatchObject({ outcome: 'succeeded', body: { creator: { kind: 'human' } } })
+    expect((answer as { body: object }).body).not.toHaveProperty('basis')
   })
 
   it('names why a subscription is not valid', async () => {
@@ -620,7 +626,7 @@ describe('subscriptions and the beat', () => {
     })
   })
 
-  it('denies what the authority denies, and an agent context that brings no consent', async () => {
+  it('denies what the authority denies, and an agent context acting for another recipient', async () => {
     const w = world()
     w.authority.answer(() => 'denied')
     for (const name of ['set-subscription', 'remove-subscription', 'list-subscriptions'] as const)
@@ -629,8 +635,12 @@ describe('subscriptions and the beat', () => {
       expect(await w.call(name, SAMPLES[name]), name).toEqual({ outcome: 'denied' })
     w.authority.answer(() => 'allowed')
     w.state.actor = { kind: 'agent', recipient: agent('a') }
-    const own = { ...change, recipient: agent('a') }
-    expect(await w.call('set-subscription', own)).toEqual({ outcome: 'denied' })
+    w.creators.set({
+      kind: 'agent',
+      actorRef: 'p',
+      originatingSessionRef: 'a',
+      originatingCallRef: 'call-1',
+    })
     expect(await w.call('set-subscription', change)).toEqual({ outcome: 'denied' })
     expect(await w.call('remove-subscription', key)).toEqual({ outcome: 'denied' })
     expect(w.store.commits()).toBe(0)

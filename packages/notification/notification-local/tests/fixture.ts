@@ -19,7 +19,7 @@ import {
   fakeAuthority,
   fakeChannel,
   fakeClock,
-  fakeConsent,
+  fakeCreators,
   fakeStanding,
 } from '@omne-harness/notification/testing'
 import { openSqlWorld, type SqlWorld } from './storage/world.ts'
@@ -123,7 +123,7 @@ export async function openApplication(
 ) {
   const world = options.world ?? (await openSqlWorld())
   const authority = fakeAuthority()
-  const consent = fakeConsent()
+  const creators = fakeCreators()
   const standing = fakeStanding()
   const clock = fakeClock('2026-11-18T06:01:00.000Z')
   const manual = manualTimers()
@@ -138,7 +138,7 @@ export async function openApplication(
   const local: NotificationLocalOptions = {
     policy: options.policy ?? policy({ recipients }),
     sql: sqlStore,
-    ports: { authority, consent, standing },
+    ports: { authority, creators, standing },
     clock,
     timers: manual.timers,
     report: error => void reported.push(error),
@@ -156,7 +156,7 @@ export async function openApplication(
     world,
     application,
     authority,
-    consent,
+    creators,
     standing,
     clock,
     manual,

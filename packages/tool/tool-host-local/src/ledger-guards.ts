@@ -1,8 +1,6 @@
 import {
   createToolFactAcknowledgementGuard,
   type AccessVerdict,
-  type LedgerCommit,
-  type LedgerCommitInput,
   type ToolAccessGuard,
   type ToolAccountsGuard,
   type ToolGrantVerifier,
@@ -10,12 +8,7 @@ import {
   type ToolLedgerGuards,
 } from '@omne-harness/tool'
 import type { FixedToolRequest } from '@omne-harness/tool-contract'
-import type {
-  CallAccess,
-  ToolBindings,
-  ToolPermitConsumption,
-  ToolStartRelease,
-} from '@omne-harness/tool-contract/provider'
+import type { CallAccess, ToolBindings } from '@omne-harness/tool-contract/provider'
 import {
   defaultResultPolicy,
   type ToolMessageContentBlock,
@@ -34,35 +27,14 @@ export const localArgumentLimits: ToolLedgerBudgets['arguments'] = Object.freeze
   maxNumberLength: 32,
 })
 
-export type StartCondition = Readonly<Record<string, unknown>>
-
-export type RequestAccessVerdict =
-  | Readonly<{
-      kind: 'allowed'
-      condition: StartCondition | null
-      /** The once authorizations this start consumes; recorded with its acceptance. */
-      authorizations?: readonly ToolPermitConsumption[]
-      /** What the start was released on; recorded with its acceptance. */
-      release?: ToolStartRelease
-    }>
-  | Exclude<AccessVerdict, { kind: 'allowed' }>
-
-export interface ToolRequestAccess<P> {
-  qualify(
-    input: CallAccess<P> & Readonly<{ request: FixedToolRequest }>,
-  ): Promise<RequestAccessVerdict>
-}
-
-export interface ConditionalLedgerCommit {
-  commit(
-    input: Readonly<{ condition: StartCondition; ledger: LedgerCommitInput }>,
-  ): Promise<LedgerCommit | Readonly<{ kind: 'condition-failed' }>>
+export interface ToolTargetAvailability<P> {
+  qualify(input: CallAccess<P> & Readonly<{ request: FixedToolRequest }>): Promise<AccessVerdict>
 }
 
 export type ToolHostAccess<P> = Readonly<{
   guard: ToolAccessGuard<P>
   start: StartCoordinatorAccess<P>
-  request?: ToolRequestAccess<P>
+  target?: ToolTargetAvailability<P>
   /** Who may list the usage of a tenant; without it the list answers unavailable. */
   accounts?: ToolAccountsGuard<P>
 }>
@@ -113,7 +85,7 @@ export function createLocalToolLedgerGuards<P, E = unknown>(
     grants,
     starts: createLocalStartGuard<P>({
       access: access.start,
-      ...(access.request === undefined ? {} : { requestAccess: access.request }),
+      ...(access.target === undefined ? {} : { target: access.target }),
     }),
     results: createLocalTextResults(),
     policy: defaultResultPolicy,

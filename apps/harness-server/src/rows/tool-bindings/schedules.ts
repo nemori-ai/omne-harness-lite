@@ -59,7 +59,7 @@ export function attachReleaseScheduleReads(
 }
 
 /** Attaches the schedule services per call with the session agent's context; the call's access stays
- * registered while its scope is open, so the schedule authority can read what this call was released on. */
+ * registered while its scope is open, so the schedule authority can name the session and the call. */
 export function bindReleaseSchedules(
   ctx: Context,
   parent: Parent,

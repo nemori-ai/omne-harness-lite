@@ -1,4 +1,3 @@
-import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 import {
   agentToolDeliverySchema,
   createAgentRuntime,
@@ -9,7 +8,6 @@ import {
   type Access,
   type AgentExecutionId,
   type DurableEvidence,
-  type EventPage,
   type ExecutionSnapshot,
   type Material,
   type PendingCall,
@@ -19,6 +17,7 @@ import {
   testCancellationPolicyInstallation,
 } from '@omne-harness/agent-contract/testing'
 import type { ContentBlock } from '@omne-harness/content-block'
+import type { Message } from '@omne-harness/message'
 import { tenantEquals } from '@omne-harness/legal-identity'
 import { agentToolReceptionTargetsKey } from '@omne-harness/agent-cordis-contract/cordis'
 import {
@@ -30,6 +29,7 @@ import {
   type ResultPart,
 } from '@omne-harness/model-contract'
 import { historySessionOf } from '@omne-harness/session-adapters'
+import type { ModelViewRead, RunEnd, SessionHistory } from '@omne-harness/session-contract'
 import {
   createSessionAgentJournalPlugin,
   createSessionHistorySource,
@@ -214,28 +214,8 @@ function fixedToolRequest(consumer: ToolInvokeRequest['consumer']): ToolInvokeRe
         kind: 'available',
         executor: adoption('executor'),
         layer: { kind: 'official' },
-        definition: {
-          adoption: adoption('read_file'),
-          name: 'read_file',
-          description: 'Read a file.',
-          requiredCapabilities: [],
-          backgroundAllowed: false,
-          declarations: {
-            adoption: adoption('tool-declarations'),
-            environment: null,
-            attachments: [],
-            inputModalities: [],
-            outputModalities: [],
-            settings: null,
-          },
-          kind: 'function',
-          parameters: {
-            schema: { kind: 'object', entries: [] },
-            vocabulary: adoption('json-schema'),
-            descriptions: [],
-          },
-          returns: ordinaryReturnFixture(adoption('codec')),
-        },
+        definition: adoption('read_file'),
+        name: 'read_file',
       },
       command: null,
       arguments: { original: '{}', effective: '{}', complete: true },
@@ -243,7 +223,6 @@ function fixedToolRequest(consumer: ToolInvokeRequest['consumer']): ToolInvokeRe
       settings: adoption('settings'),
       context: adoption('context'),
       workspace: null,
-      environment: null,
       requesterScope: { ref: 'tool-scope' },
       resources: [],
       scope: {
@@ -341,6 +320,7 @@ export async function openW2World(options: W2Options) {
   const receivedFailures: unknown[] = []
   const toolPushes: Promise<unknown>[] = []
   const toolLatePushes: Promise<unknown>[] = []
+  const toolResults: ToolDelivery<ContentBlock>[] = []
   let recorder: StageRecorder | null = null
 
   let roundsComplete = 0
@@ -715,6 +695,7 @@ export async function openW2World(options: W2Options) {
       },
       account: null,
     }
+    toolResults.push(delivery)
     const answer = await pushed(delivery)
     if (answer !== null && 'ok' in answer) {
       counters.receive('tool')
@@ -788,6 +769,7 @@ export async function openW2World(options: W2Options) {
   }
 
   async function createSession(name: string): Promise<void> {
+    await w.probeLog.load({ ...agentAccess, execution: executionOf('exec-w2-probe-opening') })
     w.bindings.controls.bind(TENANT, sessionId(SESSION))
     ok(
       await w.intake.management.create({
@@ -830,26 +812,6 @@ export async function openW2World(options: W2Options) {
     return loaded.checkpoint.calls.flatMap(call => (call.kind === 'model' ? [call.reference] : []))
   }
 
-  async function progress(
-    who: AgentExecutionId,
-  ): Promise<{ emitted: string; readThrough: string }> {
-    let emitted = '0'
-    const read = async (after: string | null): Promise<EventPage> =>
-      ok(await w.probeLog.output.read({ ...agentAccess, execution: who, after, limit: 100 }))
-    for (
-      let page = await read(null);
-      ;
-      page = await read(page.kind === 'page' ? page.next : null)
-    ) {
-      if (page.kind !== 'page') throw new Error('the output has a gap')
-      emitted = page.events.at(-1)?.sequence ?? emitted
-      if (page.caughtUp || page.events.length === 0) break
-    }
-    const work = ok(await w.probe.readWork(intakeAccess))
-    const held = work.executions?.find(item => item.execution.execution === String(who))
-    return { emitted, readThrough: held?.execution.readThrough ?? '0' }
-  }
-
   async function lastTerminal(): Promise<string | null> {
     const { run } = ok(await w.probe.readWork(intakeAccess))
     return run.kind === 'terminal' ? String(run.terminal.run) : null
@@ -860,7 +822,106 @@ export async function openW2World(options: W2Options) {
     return run.kind === 'terminal' ? run.terminal.outcome : null
   }
 
-  async function runRound(round: number, body: string, ms = 60_000) {
+  async function settled(who: AgentExecutionId): Promise<boolean> {
+    const read = await w.probeLog.load({ ...agentAccess, execution: who })
+    return 'failure' in read && read.failure.kind === 'terminal'
+  }
+
+  let history: SessionHistory<string> | null = null
+  async function historyOf(): Promise<SessionHistory<string>> {
+    if (history !== null) return history
+    let seen: SessionHistory<string> | undefined
+    await w.mount({
+      name: 'w2-history-reader',
+      inject: { session: { caller: 'reader' } },
+      apply: (inner: { session: { history: SessionHistory<string> } }) => {
+        seen = inner.session.history
+      },
+    })
+    if (seen === undefined) throw new Error('the history reader did not run')
+    history = seen
+    return seen
+  }
+
+  async function readerAccess() {
+    const principal = ok(
+      await w.workPrincipals.forSession({
+        actor: 'coordinator',
+        tenant: intakeAccess.tenant,
+        session: intakeAccess.session,
+      }),
+    )
+    return { principal, tenant: intakeAccess.tenant, session: intakeAccess.session }
+  }
+
+  async function modelView(): Promise<Message[]> {
+    const reader = await historyOf()
+    const access = await readerAccess()
+    const messages: Message[] = []
+    let after: string | null = null
+    for (;;) {
+      const page: ModelViewRead = ok(
+        await reader.readModelView({ ...access, basis: null, after, pageBytes: 1_000_000 }),
+      )
+      if (page.kind !== 'page') throw new Error('the model view changed its epoch')
+      messages.push(...page.rows.map(row => row.message))
+      if (page.next === null) return messages
+      after = page.next
+    }
+  }
+
+  async function logOf(
+    kinds: readonly string[],
+  ): Promise<Readonly<{ kind: string; payload: unknown }>[]> {
+    const reader = await historyOf()
+    const access = await readerAccess()
+    const found: { kind: string; payload: unknown }[] = []
+    let page = ok(
+      await reader.begin({
+        ...access,
+        kinds: [...kinds],
+        from: null,
+        direction: 'forward',
+        pageBytes: 1_000_000,
+      }),
+    )
+    for (;;) {
+      found.push(
+        ...page.entries.map(entry => ({ kind: entry.kind, payload: plainJson(entry.payload) })),
+      )
+      if (page.next === null) return found
+      page = ok(await reader.next({ ...access, cursor: page.next }))
+    }
+  }
+
+  async function logEntries(kind: string): Promise<unknown[]> {
+    return (await logOf([kind])).map(entry => entry.payload)
+  }
+
+  async function runEnd(run: string): Promise<RunEnd | null> {
+    const terminals = (await logEntries('run.terminal')) as {
+      terminal?: { run?: unknown }
+      end?: RunEnd | null
+    }[]
+    const found = terminals.find(value => value?.terminal?.run === run)
+    if (found === undefined) throw new Error(`the session log holds no run.terminal of ${run}`)
+    return found.end ?? null
+  }
+
+  async function batchesTaken(run: string): Promise<readonly (readonly string[])[]> {
+    const taken = (await logEntries('run.batch-taken')) as {
+      run?: unknown
+      batch?: { ordered?: string[] }
+    }[]
+    return taken.filter(value => value?.run === run).map(value => value.batch?.ordered ?? [])
+  }
+
+  async function runRound(
+    round: number,
+    body: string,
+    ms = 60_000,
+    through: 'terminal' | 'settled' = 'terminal',
+  ) {
     counters.begin(round)
     budget = 0
     recorder?.beginRound(round, `round-${round}`)
@@ -871,6 +932,11 @@ export async function openW2World(options: W2Options) {
         const ended = await lastTerminal()
         return ended !== null && ended !== before && answeredTerminals.has(ended)
       }, ms)
+      if (through === 'settled') {
+        const ended = endedRuns.at(-1)
+        if (ended === undefined) throw new Error('no Run ended')
+        await until(() => settled(ended.execution), ms)
+      }
     } finally {
       counters.end()
     }
@@ -894,8 +960,12 @@ export async function openW2World(options: W2Options) {
     lastOutcome,
     endedRuns: (): readonly { run: string; execution: AgentExecutionId; outcome: string }[] =>
       endedRuns,
-    progress,
     modelReferences,
+    settled,
+    runEnd,
+    batchesTaken,
+    modelView,
+    logOf,
     runRound,
     createSession,
     accept,
@@ -906,6 +976,7 @@ export async function openW2World(options: W2Options) {
     receivedFailures,
     toolPushes,
     toolLatePushes,
+    toolResults,
     toolReceiver,
     toolState,
     execution,

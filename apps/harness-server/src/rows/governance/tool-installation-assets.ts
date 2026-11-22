@@ -97,24 +97,24 @@ async function select(
 ): Promise<ToolAssetInstallation> {
   if (current.holding.assetRef !== publication.assetRef)
     return { kind: 'unavailable', phase: 'holding' }
-  if (current.holding.state === 'removed' || !current.holding.enabled)
-    return { kind: 'inactive', target }
-  if (current.selected?.version === publication.pinned.version) return { kind: 'ready', target }
-  const command = {
-    holdingRef: target.holdingRef,
-    scopeRef: target.scopeRef,
-    expectedRevision: current.holding.revision,
-    change: {
-      kind: 'selectVersion' as const,
-      selection: { kind: 'pinned' as const, version: publication.pinned.version },
-    },
+  if (current.holding.state === 'removed') return { kind: 'inactive', target }
+  if (current.selected?.version !== publication.pinned.version) {
+    const command = {
+      holdingRef: target.holdingRef,
+      scopeRef: target.scopeRef,
+      expectedRevision: current.holding.revision,
+      change: {
+        kind: 'selectVersion' as const,
+        selection: { kind: 'pinned' as const, version: publication.pinned.version },
+      },
+    }
+    const result = await input.owner.changeHolding({
+      ...command,
+      operationId: canonicalDigest({ owner: TOOL_GOVERNANCE_OWNER, command }),
+    })
+    if (result.kind !== 'committed') return { kind: 'unavailable', phase: 'holding' }
   }
-  const result = await input.owner.changeHolding({
-    ...command,
-    operationId: canonicalDigest({ owner: TOOL_GOVERNANCE_OWNER, command }),
-  })
-  if (result.kind !== 'committed') return { kind: 'unavailable', phase: 'holding' }
-  return { kind: 'ready', target }
+  return current.holding.enabled ? { kind: 'ready', target } : { kind: 'inactive', target }
 }
 
 export async function installToolAsset(input: Installation): Promise<ToolAssetInstallation> {

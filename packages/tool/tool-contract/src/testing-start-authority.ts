@@ -4,15 +4,7 @@ import type { FixedToolRequest } from './definitions.ts'
 import type { Access, DurableEvidence, ToolCallId } from './identity.ts'
 import type { ToolStartRecord } from './ports.ts'
 import type { ToolFailure } from './results.ts'
-import type {
-  StartGuard,
-  StartPermit,
-  StartProgress,
-  ToolPermitConsumption,
-  ToolPermitRef,
-  ToolStartAcceptance,
-  ToolStartAuthority,
-} from './records.ts'
+import type { StartGuard, StartPermit, StartProgress, ToolStartAuthority } from './records.ts'
 import {
   completionOf,
   conformanceCase,
@@ -447,30 +439,7 @@ function strip(guard: StartGuard): { owner: string; resource: string; revision: 
   return { owner: guard.owner, resource: guard.resource, revision: guard.revision }
 }
 
-type MemoryStartAuthorization = Readonly<{
-  admitted(tenant: Tenant, call: ToolCallId): 'allowed' | 'denied' | 'unavailable'
-  consume(
-    tenant: Tenant,
-    call: ToolCallId,
-  ):
-    | Readonly<{ kind: 'consumed'; facts: readonly ToolPermitConsumption[] }>
-    | Readonly<{ kind: 'refused'; reason: string }>
-    | Readonly<{ kind: 'unavailable'; diagnostic: string }>
-}>
-
-type MemoryStartDomain<P> = Readonly<{
-  authority: MemoryToolStartAuthority<P>
-  acceptanceOf(acceptance: DurableEvidence): ToolStartAcceptance | null
-}>
-
 export function createMemoryToolStartAuthority<P>(): MemoryToolStartAuthority<P> {
-  return buildMemoryStartDomain<P>(null).authority
-}
-
-function buildMemoryStartDomain<P>(
-  authorization: MemoryStartAuthorization | null,
-): MemoryStartDomain<P> {
-  const acceptances = new Map<string, ToolStartAcceptance>()
   const fences = new Map<string, Guard>()
   const permits = new Map<string, string>()
   const accepted = new Map<string, DurableEvidence>()
@@ -563,40 +532,8 @@ function buildMemoryStartDomain<P>(
         rejected.set(start, refusal)
         return reply(succeed(refusal))
       }
-      let authorizations: readonly ToolPermitConsumption[] = []
-      if (authorization !== null) {
-        const verdict = authorization.admitted(input.tenant, input.call)
-        const consumed =
-          verdict === 'allowed'
-            ? authorization.consume(input.tenant, input.call)
-            : verdict === 'denied'
-              ? { kind: 'refused' as const, reason: 'the admission was revoked before the start' }
-              : { kind: 'unavailable' as const, diagnostic: 'the admission verdict is unavailable' }
-        if (consumed.kind === 'unavailable')
-          return reply(succeed({ kind: 'unknown', diagnostic: consumed.diagnostic }))
-        permits.delete(start)
-        if (consumed.kind === 'refused') {
-          const refusal: Refusal = {
-            kind: 'rejected',
-            reason: consumed.reason,
-            exclusion: mint('rejection', { start, reason: consumed.reason }),
-          }
-          rejected.set(start, refusal)
-          return reply(succeed(refusal))
-        }
-        authorizations = consumed.facts
-      } else permits.delete(start)
+      permits.delete(start)
       const acceptance = mint('acceptance', { start, receipt: input.executorReceipt })
-      acceptances.set(acceptance.record, {
-        tenant: input.tenant,
-        call: input.call,
-        start: input.permit.start,
-        permit: input.permit.request,
-        guards: input.permit.guards,
-        authorizations,
-        executorReceipt: input.executorReceipt,
-        acceptance,
-      })
       accepted.set(start, acceptance)
       acceptedCalls.add(callKey(input))
       return reply(succeed({ kind: 'started', acceptance }))
@@ -648,141 +585,7 @@ function buildMemoryStartDomain<P>(
       return reply(succeed(exclusion))
     },
   }
-  return Object.freeze({
-    authority: Object.freeze({ ...authority, durability: 'none' as const }),
-    acceptanceOf: (acceptance: DurableEvidence) => acceptances.get(acceptance.record) ?? null,
-  })
-}
-
-export type ToolPermitReading =
-  | Readonly<{ kind: 'open' }>
-  | Readonly<{ kind: 'consumed'; fact: ToolPermitConsumption }>
-  | Readonly<{ kind: 'unknown' }>
-  | Readonly<{ kind: 'unavailable' }>
-
-export interface ToolStartAuthorizationHandles<P> {
-  bind(
-    input: Readonly<{ access: Access<P>; call: ToolCallId; permit?: ToolPermitRef }>,
-  ): Promise<ToolPermitRef>
-  revoke(input: Readonly<{ access: Access<P>; call: ToolCallId }>): Promise<void>
-  read(permit: ToolPermitRef): Promise<ToolPermitReading>
-  outage?(
-    input: Readonly<{ access: Access<P>; call: ToolCallId; dependency: 'ledger' | 'admission' }>,
-  ): Promise<void>
-  restore?(
-    input: Readonly<{ access: Access<P>; call: ToolCallId; dependency: 'ledger' | 'admission' }>,
-  ): Promise<void>
-}
-
-export interface MemoryAuthorizedToolStartAuthority<P> extends MemoryToolStartAuthority<P> {
-  readonly authorization: ToolStartAuthorizationHandles<P>
-  acceptanceOf(acceptance: DurableEvidence): ToolStartAcceptance | null
-}
-
-const CONSUMER_OWNER = 'conformance-start-authority'
-
-type Entry = { readonly ref: ToolPermitRef; state: ToolPermitReading }
-
-export function createMemoryAuthorizedToolStartAuthority<
-  P,
->(): MemoryAuthorizedToolStartAuthority<P> {
-  const permits = new Map<string, Entry>()
-  const bindings = new Map<string, ToolPermitRef[]>()
-  const revoked = new Set<string>()
-  const outages = { ledger: new Set<string>(), admission: new Set<string>() }
-  let granted = 0
-
-  const callKey = (tenant: Tenant, call: ToolCallId): string =>
-    JSON.stringify([tenantKey(tenant), call])
-  const permitKey = (ref: ToolPermitRef): string =>
-    JSON.stringify([tenantKey(ref.tenant), ref.permit])
-  const ledgerDown = (ref: ToolPermitRef): boolean =>
-    [...bindings].some(
-      ([call, refs]) =>
-        outages.ledger.has(call) && refs.some(bound => permitKey(bound) === permitKey(ref)),
-    )
-
-  const domain = buildMemoryStartDomain<P>({
-    admitted: (tenant, call) =>
-      outages.admission.has(callKey(tenant, call))
-        ? 'unavailable'
-        : revoked.has(callKey(tenant, call))
-          ? 'denied'
-          : 'allowed',
-    consume: (tenant, call) => {
-      if (outages.ledger.has(callKey(tenant, call)))
-        return { kind: 'unavailable', diagnostic: 'the permit ledger cannot be read' }
-      const consumer = { owner: CONSUMER_OWNER, work: call, position: 'start' }
-      const own = (fact: ToolPermitConsumption): boolean =>
-        fact.consumer.owner === consumer.owner &&
-        fact.consumer.work === consumer.work &&
-        fact.consumer.position === consumer.position &&
-        tenantKey(fact.permit.tenant) === tenantKey(tenant)
-      const bound = bindings.get(callKey(tenant, call)) ?? []
-      for (const ref of bound) {
-        if (tenantKey(ref.tenant) !== tenantKey(tenant))
-          return { kind: 'refused', reason: 'the permit belongs to another tenant' }
-        const entry = permits.get(permitKey(ref))
-        if (entry === undefined) return { kind: 'refused', reason: 'the permit is unknown' }
-        if (entry.state.kind === 'consumed' && !own(entry.state.fact))
-          return { kind: 'refused', reason: 'the permit was consumed by another call' }
-      }
-      const facts: ToolPermitConsumption[] = []
-      for (const ref of bound) {
-        const entry = permits.get(permitKey(ref)) as Entry
-        if (entry.state.kind === 'consumed') {
-          facts.push(entry.state.fact)
-          continue
-        }
-        const fact: ToolPermitConsumption = Object.freeze({
-          permit: ref,
-          consumer: Object.freeze(consumer),
-          evidence: mintEvidence(`permit-consumption/${permitKey(ref)}`, { ref, consumer }),
-        })
-        entry.state = Object.freeze({ kind: 'consumed', fact })
-        facts.push(fact)
-      }
-      return { kind: 'consumed', facts }
-    },
-  })
-
-  const authorization: ToolStartAuthorizationHandles<P> = {
-    bind: input => {
-      let ref = input.permit
-      if (ref === undefined) {
-        granted += 1
-        ref = Object.freeze({ tenant: input.access.tenant, permit: `permit-${granted}` })
-        permits.set(permitKey(ref), { ref, state: Object.freeze({ kind: 'open' }) })
-      }
-      const key = callKey(input.access.tenant, input.call)
-      bindings.set(key, [...(bindings.get(key) ?? []), ref])
-      return Promise.resolve(ref)
-    },
-    revoke: input => {
-      revoked.add(callKey(input.access.tenant, input.call))
-      return Promise.resolve()
-    },
-    read: permit =>
-      Promise.resolve(
-        ledgerDown(permit)
-          ? Object.freeze({ kind: 'unavailable' as const })
-          : (permits.get(permitKey(permit))?.state ?? Object.freeze({ kind: 'unknown' as const })),
-      ),
-    outage: input => {
-      outages[input.dependency].add(callKey(input.access.tenant, input.call))
-      return Promise.resolve()
-    },
-    restore: input => {
-      outages[input.dependency].delete(callKey(input.access.tenant, input.call))
-      return Promise.resolve()
-    },
-  }
-
-  return Object.freeze({
-    ...domain.authority,
-    authorization: Object.freeze(authorization),
-    acceptanceOf: domain.acceptanceOf,
-  })
+  return Object.freeze({ ...authority, durability: 'none' as const })
 }
 
 export function memoryToolStartAuthorityFixture(): ToolStartAuthorityFixture<string> {

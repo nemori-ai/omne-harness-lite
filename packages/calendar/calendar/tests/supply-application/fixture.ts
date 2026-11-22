@@ -16,9 +16,11 @@ import type {
 } from '../../src/persistence.ts'
 import type {
   CalendarSupplyDependencies,
+  CalendarJournalRun,
   CalendarPreparedRun,
   CalendarStoredMaterial,
   CalendarJournalHealth,
+  CalendarRunCompletion,
 } from '../../src/supply-application/ports.ts'
 import { materialHash } from '../../src/supply-application/materials.ts'
 import { supplyDigest } from '../../src/supply-application/encoding.ts'
@@ -47,6 +49,7 @@ export function world() {
   if (!policy) throw new Error('US policy missing')
   const runs = new Map<string, CalendarPreparedRun>()
   const completed = new Map<string, string>()
+  const completions = new Map<string, CalendarRunCompletion>()
   const receipts = new Map<string, CalendarPublicationReceipt>()
   const snapshots = new Map<string, CalendarSnapshot>()
   const raw = new Map<string, CalendarStoredMaterial>()
@@ -69,6 +72,27 @@ export function world() {
   let lastSuccess: typeof at | null = null
   const key = (query: CalendarOperationQuery) => supplyDigest(query.address)
   const operationRef = (query: CalendarOperationQuery) => `calendar-operation:${key(query)}`
+  const journalRun = (run: CalendarPreparedRun): CalendarJournalRun => {
+    if (!completed.has(key(run.command))) return { state: 'pending', run }
+    const { candidate, disposition } = run.command
+    return {
+      state: 'completed',
+      run: {
+        ...run,
+        command: {
+          ...run.command,
+          candidate: {
+            ...candidate,
+            snapshot: candidate.snapshot === null ? null : supplyDigest(candidate.snapshot),
+          },
+          disposition:
+            disposition.kind === 'publish'
+              ? { kind: 'publish', snapshot: supplyDigest(disposition.snapshot) }
+              : disposition,
+        },
+      },
+    }
+  }
   const sourceBytes = (id: string): Uint8Array => {
     if (id === 'usc-6103-computed-rules')
       return new TextEncoder().encode(JSON.stringify({ start: '2025-01-01', end: '2026-12-31' }))
@@ -167,21 +191,18 @@ export function world() {
     },
     journal: {
       async findRun({ systemScopeRef, operationRef: ref }) {
-        return {
-          kind: 'ok',
-          value:
-            [...runs.values()].find(
-              run =>
-                run.command.address.systemScopeRef === systemScopeRef &&
-                operationRef(run.command) === ref,
-            ) ?? null,
-        }
+        const found = [...runs.values()].find(
+          run =>
+            run.command.address.systemScopeRef === systemScopeRef &&
+            operationRef(run.command) === ref,
+        )
+        return { kind: 'ok', value: found === undefined ? null : journalRun(found) }
       },
       async readRun(query) {
         const existing = runs.get(key(query))
         return existing && existing.command.expectedFingerprint !== query.expectedFingerprint
           ? { kind: 'conflict', reason: 'fingerprint' }
-          : { kind: 'ok', value: existing ?? null }
+          : { kind: 'ok', value: existing === undefined ? null : journalRun(existing) }
       },
       async prepareRun(run) {
         const previous = runs.get(key(run.command))
@@ -193,8 +214,17 @@ export function world() {
       async completeRun(input) {
         if (flags.journalFails) return { kind: 'unavailable', reason: 'injected outage' }
         if (!completed.has(key(input))) {
-          completed.set(key(input), input.operationRef)
-          if (input.disposition === 'published' || input.disposition === 'noChange') {
+          if (input.kind === 'refused') {
+            const prepared = runs.get(key(input))
+            if (prepared?.command.expectedFingerprint !== input.expectedFingerprint)
+              return { kind: 'conflict', reason: 'fingerprint' }
+          }
+          completed.set(key(input), input.kind === 'recorded' ? input.operationRef : 'refused')
+          completions.set(key(input), input)
+          if (
+            input.kind === 'recorded' &&
+            (input.disposition === 'published' || input.disposition === 'noChange')
+          ) {
             failures = 0
             lastSuccess = input.completedAt
           } else failures++
@@ -378,6 +408,7 @@ export function world() {
     calls,
     flags,
     runs,
+    completions,
     raw,
     pending,
     receipts,

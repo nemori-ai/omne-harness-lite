@@ -176,7 +176,7 @@ describe('the startRun commit writes the index in its own transaction', () => {
       failure: { kind: 'invalid', field: 'storage', reason: 'execution-indexed' },
     })
     const stop = a.provider.calls.filter(call => call.kind === 'commit').at(-1)
-    const receipt = stop === undefined ? undefined : await a.provider.storage.query(stop.identity)
+    const receipt = stop === undefined ? undefined : a.provider.ran(stop.identity)
     const reply = receipt?.kind === 'rolled_back' ? receipt.responses.at(-1)?.reply : undefined
     expect(reply).toMatchObject({
       kind: 'conflict',

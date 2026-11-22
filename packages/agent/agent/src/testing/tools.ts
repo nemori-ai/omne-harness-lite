@@ -96,6 +96,10 @@ export function createScriptedToolRuntime<P>(): ScriptedToolRuntime<P> {
   const catalogInspect = scriptedMethod<In<R['catalog']['inspect']>, Out<R['catalog']['inspect']>>(
     failing(),
   )
+  const catalogInspectEach = scriptedMethod<
+    In<R['catalog']['inspectEach']>,
+    Out<R['catalog']['inspectEach']>
+  >(failing())
   const usage = scriptedMethod<In<R['catalog']['usage']>, Out<R['catalog']['usage']>>(failing())
   const search = scriptedMethod<In<R['catalog']['search']>, Out<R['catalog']['search']>>(failing())
 
@@ -119,7 +123,12 @@ export function createScriptedToolRuntime<P>(): ScriptedToolRuntime<P> {
       observation: { observe: input => deferred(observe.call(input)) },
       content: { read: read.call },
       body: { read: bodyRead.call },
-      catalog: { inspect: catalogInspect.call, usage: usage.call, search: search.call },
+      catalog: {
+        inspect: catalogInspect.call,
+        inspectEach: catalogInspectEach.call,
+        usage: usage.call,
+        search: search.call,
+      },
     },
     invoke: invoke.script,
     inspect: inspect.script,
@@ -139,6 +148,11 @@ export function createScriptedToolRuntime<P>(): ScriptedToolRuntime<P> {
     observation: { observe: observe.script },
     content: { read: read.script },
     body: { read: bodyRead.script },
-    catalog: { inspect: catalogInspect.script, usage: usage.script, search: search.script },
+    catalog: {
+      inspect: catalogInspect.script,
+      inspectEach: catalogInspectEach.script,
+      usage: usage.script,
+      search: search.script,
+    },
   }
 }

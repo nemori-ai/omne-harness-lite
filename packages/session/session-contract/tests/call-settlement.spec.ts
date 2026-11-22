@@ -145,6 +145,30 @@ describe('a fact about a call that left the snapshot', () => {
   })
 })
 
+describe('the final delivery of a call', () => {
+  it.each(['model', 'tool'] as const)(
+    'a %s call leaves once its final delivery is in the log, though the Agent never processed it',
+    async kind => {
+      const s = await callScene(false, kind)
+      succeeded(await s.deliver('deliver'), 'deliver')
+      expect(held(await s.read(), s.consumption)).toEqual(gone)
+    },
+  )
+
+  it('a Model call that a stop refers to stays after its final delivery, while the stop is not reconciled', async () => {
+    const s = await callScene(false, 'model')
+    succeeded(
+      await s.commit({
+        kind: 'stopCall',
+        input: { ...s.base, operation: operationId('stop'), producer: s.binding.producer },
+      }),
+      'stop',
+    )
+    succeeded(await s.deliver('deliver'), 'deliver')
+    expect(held(await s.read(), s.consumption)).toEqual(there)
+  })
+})
+
 describe('a stop of a call that left the snapshot', () => {
   it('answers that no such call is out, writes no control, and the call stays out', async () => {
     const s = await callScene()

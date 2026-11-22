@@ -40,10 +40,11 @@ const term = oneOf(
   object({ kind: kind('once') }),
   object({ kind: kind('until'), at: { rule: instant } }),
 )
-const basis = oneOf(
-  object({ kind: kind('owner') }),
-  object({ kind: kind('blanket'), scope: { rule: literal('standing', 'session') } }),
-  object({ kind: kind('granular') }),
+/** Who made a subscription: a person, an agent in one session, or the system. */
+const creator = oneOf(
+  object({ kind: kind('human') }),
+  object({ kind: kind('agent'), session: { rule: text } }),
+  object({ kind: kind('system') }),
 )
 const cause = oneOf(
   object({ kind: kind('named') }),
@@ -93,7 +94,7 @@ const subscriptionChange = {
 } as const
 const subscription = object({
   ...subscriptionChange,
-  basis: { rule: basis },
+  creator: { rule: creator },
   expired: { rule: boolean },
 })
 const beat = oneOf(
@@ -161,7 +162,7 @@ const commit = {
 /** Every commit is idempotent on the state it leaves: after `unknown`, the same body again is recalled as `no-change`. */
 export const notificationProtocol = defineProtocol({
   name: 'notification',
-  major: 1,
+  major: 2,
   operations: {
     /** The owner hands one event over under a source. When it happened is the server's time, not the body's. */
     send: {

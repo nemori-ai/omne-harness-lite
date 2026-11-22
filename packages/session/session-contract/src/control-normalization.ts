@@ -162,6 +162,22 @@ function waitEnded(rule: Rule, producer: ProducerRef): boolean {
   )
 }
 
+// A cancel stops each foreground call with a control of that call's own; the producer answers on that one.
+const STOPS: readonly SessionControlRecordEvidence['command'][] = [
+  'withdraw-tool',
+  'interrupt-tool',
+  'interrupt-model',
+]
+
+function cancelsHere(rule: Rule, current: ControlProgress, origin: SessionControlOrigin): boolean {
+  if (origin.execution !== rule.execution) return false
+  if (current.intent.kind === 'auto-archive') return true
+  return (
+    current.intent.kind === 'control' &&
+    (current.intent.value.kind === 'cancel-run' || current.intent.value.kind === 'archive')
+  )
+}
+
 function confirms(
   rule: Rule,
   current: ControlProgress,
@@ -189,7 +205,9 @@ function confirms(
       reached(record, 'intent-established') &&
       settled(['background'], null)
     )
-  if (record.command === 'background-tool' || !direct) return false
+  if (record.command === 'background-tool') return false
+  if (!direct && !(cancelsHere(rule, current, origin) && STOPS.includes(record.command)))
+    return false
   return (
     reached(record, 'producer-confirmed') ||
     reached(record, 'physically-stopped') ||

@@ -9,7 +9,7 @@ import type {
 } from './root.ts'
 import type { CallAccount } from '@omne-harness/call-account'
 import type { ModelFault, Reply } from './result.ts'
-import type { DispatchInstants } from './call-surface.ts'
+import type { DispatchInstants, DispatchRecord } from './call-surface.ts'
 import type { CostLookupState } from './cost-lookup.ts'
 
 /** One real dispatch as Model shows it outside: numbers and identities only, never a body. */
@@ -31,6 +31,21 @@ export type ModelDispatchFact = Readonly<{
   account: CallAccount | null
   costLookup: CostLookupState
 }>
+/** A materialized request may already be out: until its start is recorded, its send is unknown, never not-sent. */
+export function dispatchSend(
+  record: Pick<DispatchRecord, 'send' | 'materialization'>,
+): ModelDispatchFact['send'] {
+  switch (record.send) {
+    case 'started':
+      return 'sent'
+    case 'unknown':
+      return 'unknown'
+    case 'not-sent':
+      return 'not-sent'
+    case 'prepared':
+      return record.materialization === null ? 'not-sent' : 'unknown'
+  }
+}
 export type ModelDispatchFactsQuery = Readonly<{
   /** By the prepared moment, both ends included; null takes every dated dispatch. */
   range: Readonly<{ from: string; to: string }> | null

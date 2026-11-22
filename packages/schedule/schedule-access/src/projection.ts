@@ -65,19 +65,9 @@ export function cardOf(view: ScheduleView) {
   }
 }
 
-/** Why the schedule is in effect: a consent it adopted, else the owner's own act; a draft has none. */
-function basisOf(view: ScheduleView) {
-  const adoption = view.consentAdoption
-  if (adoption?.adoptionKind === 'blanket')
-    return { kind: 'blanket' as const, scope: adoption.scope }
-  if (adoption?.adoptionKind === 'granular') return { kind: 'granular' as const }
-  return view.control === 'draft' ? { kind: 'none' as const } : { kind: 'owner' as const }
-}
-
 export function detailOf(view: ScheduleView) {
   return {
     ...cardOf(view),
-    basis: basisOf(view),
     createdAt: instantOf(view.createdAt),
     definition: treeOf(view.definition),
   }
@@ -109,7 +99,6 @@ const UNSUPPORTED = new Set([
   'unknown_calendar_version',
   'coverage_insufficient',
   'search_limit',
-  'consent_required',
 ])
 const CONFLICT = new Set([
   'revision_conflict',

@@ -42,6 +42,7 @@ import type {
   SessionTransactionPort,
 } from '@omne-harness/session-contract'
 import type { SessionAdoptedRequests } from './adopted-request.ts'
+import type { SessionExecutionLog } from './execution-log.ts'
 import type { SessionCursorSigning } from './cursor-signing.ts'
 import type { SessionReplayFacts, SessionScopeLookup } from './context-facts.ts'
 
@@ -430,8 +431,19 @@ export abstract class SessionAdoptedRequestsService<P = unknown>
     super(ctx, SessionAdoptedRequestsService.provide)
   }
   abstract readonly readAdoptedRequest: SessionAdoptedRequests<P>['readAdoptedRequest']
+  abstract readonly readRequestChoices: SessionAdoptedRequests<P>['readRequestChoices']
 }
 export const sessionAdoptedRequestsKey = SessionAdoptedRequestsService.provide
+
+/** @owner packages/session/session-cordis-contract */
+export abstract class SessionExecutionLogService extends Service implements SessionExecutionLog {
+  static readonly provide = 'sessionExecutionLog'
+  constructor(ctx: Context) {
+    super(ctx, SessionExecutionLogService.provide)
+  }
+  abstract readonly openTenant: SessionExecutionLog['openTenant']
+}
+export const sessionExecutionLogKey = SessionExecutionLogService.provide
 
 /**
  * The registration point `session.input-sources`: a deployment's declared input sources, keyed by
@@ -548,6 +560,7 @@ declare module '@deepseek-ai/cordis' {
     sessionReplayFacts: SessionReplayFactsService
     sessionScopeLookup: SessionScopeLookupService
     sessionAdoptedRequests: SessionAdoptedRequestsService<unknown>
+    sessionExecutionLog: SessionExecutionLogService
   }
   interface Events {
     /**

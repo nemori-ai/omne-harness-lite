@@ -443,6 +443,7 @@ function decideFinishRun(
         cause: bounded.kind === 'drive-refused' ? basis.evidence : null,
         disposition: null,
         bounded,
+        end: null,
       },
       sessionOrigin(source),
     ),

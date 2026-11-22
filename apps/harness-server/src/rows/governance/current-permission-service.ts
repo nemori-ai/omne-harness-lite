@@ -24,7 +24,6 @@ function snapshot(input: ToolPermissionAction): ToolPermissionAction {
 const unavailable = (): CurrentPermissionRead => ({
   request: null,
   reading: { kind: 'unavailable', sourceRef: 'harness.current-permission' },
-  condition: null,
 })
 
 export class CurrentPermissionService extends Service implements CurrentPermissionSource {

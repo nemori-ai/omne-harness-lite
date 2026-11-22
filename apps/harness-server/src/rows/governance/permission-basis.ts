@@ -12,16 +12,11 @@ import {
   sessionPermissionGuardFacts,
 } from '@omne-harness/session-storage-sql/participants'
 import type { FactCommandV2, SqlMaterialCatalog } from '@omne-harness/sql-contract'
-import { canonicalDigest } from '@omne-harness/tool'
 import { sessionPermissionObservationSchema } from './permission-session-current.ts'
 import { targetSnapshotCommands, targetSnapshotFact } from './target-snapshot.ts'
 import { unmappedPermissionSnapshotCommands } from './unmapped-permission-snapshot.ts'
 
 export const PERMISSION_BASIS = { participant: 'harness.permission-basis', protocol: '1' }
-export const PERMISSION_BASIS_GUARD = {
-  participant: 'harness.permission-basis-guard',
-  protocol: '1',
-}
 export const permissionBasisFact = { key: 'harness.permission-basis', protocol: '1' }
 
 export const permissionBasisRequestSchema = z.strictObject({
@@ -39,8 +34,6 @@ export const permissionBasisSchema = z.strictObject({
 })
 export type PermissionBasis = z.infer<typeof permissionBasisSchema>
 
-export const permissionBasisGuardSchema = z.strictObject({ digest: z.string() })
-
 export function permissionBasisCommands(
   request: PermissionBasisRequest,
   configuration: 'mapped' | 'unmapped',
@@ -52,13 +45,6 @@ export function permissionBasisCommands(
     sessionPermissionGuardFacts(request.session),
     { participant: PERMISSION_BASIS.participant, facts: { request: z.json().parse(request) } },
   ]
-}
-
-export function permissionBasisGuardCommand(basis: PermissionBasis): FactCommandV2 {
-  return {
-    participant: PERMISSION_BASIS_GUARD.participant,
-    facts: { digest: canonicalDigest(basis) },
-  }
 }
 
 type Participant = SqlMaterialCatalog['participants'][number]
@@ -86,10 +72,4 @@ export const permissionBasisParticipant = (): Participant =>
   participant(PERMISSION_BASIS, 'permission-basis-participant', {
     requiresFacts: [targetSnapshotFact, SESSION_PERMISSION_CURRENT_FACT],
     providesFacts: [permissionBasisFact],
-  })
-
-export const permissionBasisGuardParticipant = (): Participant =>
-  participant(PERMISSION_BASIS_GUARD, 'permission-basis-guard-participant', {
-    requiresFacts: [permissionBasisFact],
-    providesFacts: [],
   })

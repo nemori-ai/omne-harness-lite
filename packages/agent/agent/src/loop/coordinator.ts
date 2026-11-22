@@ -125,11 +125,11 @@ import {
   toolCallOf,
   toolIntentOf,
   placeholderCandidate,
-  isToolReturnOf,
+  anyToolReceived,
   passingSlot,
   receivedSlot,
-  toolReceivedOf,
-  type ReceivedToolDelivery,
+  RETURN_KINDS,
+  toolDeliveryOf,
   toolCallAnswerOf,
   toolResultCandidate,
   openToolCalls,
@@ -137,13 +137,12 @@ import {
   refusedTool,
   toolCall,
   unsent,
-  type AssociatedToolCall,
+  associationOf,
 } from './tools.ts'
 import { contactMainCall } from './contact.ts'
 import { sameAuthority, sameRecipient } from './same.ts'
 import { cancelCompaction } from './compaction.ts'
 import { contactToolCalls } from './tool-contact.ts'
-import { readToolDeliveryMaterial } from '../tool-receiving-material.ts'
 import {
   historyCaller,
   required,
@@ -298,8 +297,6 @@ function heldAfter(
   const emitted = BigInt(through) + BigInt(events)
   return { revision, emittedThrough: emitted === 0n ? null : String(emitted) }
 }
-
-const RETURN_KINDS = ['placeholder', 'result'] as const
 
 // An admission chain still asking ends with the Run once its cards are withdrawn; an extension's does not.
 function pendingPassage(passages: readonly Passage[]): Failure | null {
@@ -533,6 +530,7 @@ function coordinate<P>(
   let yieldedWait = false
   let savedWait = false
   let waking = false
+  let changedAt: ExecutionRevision | null = null
   let resumeState: OpenState = state
   let reconciliationOperations: readonly AgentOperationId[] = []
   let recheckDependency: ((read: ExecutionSnapshot) => Promise<Outcome<unknown, Failure>>) | null =
@@ -608,7 +606,7 @@ function coordinate<P>(
       finish: write.finish ?? null,
     })
     if ('failure' in committed) {
-      if (committed.failure.kind === 'changed') {
+      if (committed.failure.kind === 'changed' && write.exactCursor !== true) {
         const latest = await load()
         if ('failure' in latest) return latest
         if (advancementOf(latest.ok).kind !== 'current') return fail({ kind: 'stale-advance' })
@@ -1424,6 +1422,10 @@ function coordinate<P>(
       const original =
         pendingCommit?.operation ?? reconciliationOperations[0] ?? snapshot?.unresolved[0]
       if (original !== undefined) return fail({ kind: 'commit-unknown', operation: original })
+      if (changedAt !== null && changedAt === revision) {
+        yieldedWait = true
+        return step('unsaved-wait', null)
+      }
       if (
         snapshot?.state.kind === 'waiting' &&
         canonical(snapshot.state.waits) === canonical(waits)
@@ -1435,6 +1437,7 @@ function coordinate<P>(
       const saved = await commit('W0', required(checkpoint, 'checkpoint').position, {
         state: { kind: 'waiting', waits },
         events: [{ kind: 'waiting', waits }],
+        exactCursor: true,
       })
       if ('failure' in saved) {
         if (saved.failure.kind === 'unavailable') {
@@ -1442,6 +1445,7 @@ function coordinate<P>(
           return step('unsaved-wait', null)
         }
         if (saved.failure.kind !== 'changed') return saved
+        changedAt = revision
         waking = true
         return step('reconciled', null)
       }
@@ -1693,28 +1697,10 @@ function coordinate<P>(
     return read
   }
 
-  async function receivedToolDelivery<K extends 'result' | 'placeholder'>(
-    action: Action,
+  const receivedToolDelivery = <K extends 'result' | 'placeholder'>(
+    a: Action,
     kinds: readonly K[],
-  ): Promise<Outcome<ReceivedToolDelivery<K> | null, Failure>> {
-    const pending = toolCall(action)
-    if (pending === null) return succeed(null)
-    const received = await receivedOfConsumption(pending.consumption)
-    if ('failure' in received) return received
-    const found = toolReceivedOf(received.ok, pending, kinds)
-    if (found === undefined) return succeed(null)
-    const { material: source, ...expected } = found
-    const material = await ports.materials.read({ ...access, source })
-    if ('failure' in material) return material
-    const delivery = readToolDeliveryMaterial(access, material.ok, expected)
-    if (!isToolReturnOf(delivery, kinds, found))
-      return fail({
-        kind: 'invalid',
-        field: 'received.material',
-        reason: 'invalid schema or original binding',
-      })
-    return succeed({ entry: found, delivery, pending })
-  }
+  ) => toolDeliveryOf(ports, access, execution, a, kinds)
 
   type Sent = Readonly<{
     batch: ActionBatch
@@ -1804,21 +1790,21 @@ function coordinate<P>(
     unacceptedToolActions.delete(action.id)
     if (result.kind === 'association-unknown') return succeed({ batch: next, progressed: false })
     if (result.kind === 'accepted') heldTools.add(action.id)
-    return associate(next, action, pending, result.reference)
+    return associate(next, action, pending, associationOf(result))
   }
 
   async function associate(
     batch: ActionBatch,
     action: Action,
     pending: PendingCall,
-    reference: AssociatedToolCall['reference'],
+    sent: ReturnType<typeof associationOf>,
   ): Promise<Outcome<Sent, Failure>> {
     const associated: PendingCall = {
       ...pending,
       kind: 'tool',
       purpose: 'action',
       association: 'associated',
-      reference,
+      ...sent,
     }
     const next = replaceSlot(replaceAction(batch, { ...action, call: associated }), {
       kind: 'dispatched',
@@ -2254,15 +2240,10 @@ function coordinate<P>(
       const read = await advancing()
       if ('failure' in read) return read
       const batch = currentBatch()
-      const dispatched = batch.actions.filter(
-        action => slotOf(batch, action.id)?.kind === 'dispatched',
-      )
-      for (const action of dispatched) {
-        const received = await receivedToolDelivery(action, RETURN_KINDS)
-        if ('failure' in received) return received
-        if (received.ok !== null) return step('received', null)
-      }
-      if (dispatched.length === 0) return step('received', null)
+      const received = await anyToolReceived(ports, access, execution, batch)
+      if ('failure' in received) return received
+      if (received.ok || !batch.slots.some(slot => slot.kind === 'dispatched'))
+        return step('received', null)
       return toolWait('T0', batch)
     },
     async T1() {
@@ -2310,7 +2291,9 @@ function coordinate<P>(
       if (complete)
         return step(batch.slots.some(slot => slot.kind !== 'denied') ? 'batch' : 'admit', null)
       if (unsent(batch, unacceptedToolActions).length > 0) return step('dispatch', null)
-      return toolWait('T3', batch)
+      const received = await anyToolReceived(ports, access, execution, batch)
+      if ('failure' in received) return received
+      return received.ok ? step('received', null) : toolWait('T3', batch)
     },
     async T4() {
       return step('proceed', { checkpoint: { batch: { ...currentBatch(), batchPass: [] } } })

@@ -22,7 +22,7 @@ import type { CheckpointedToolExecutor } from './checkpointed-author.ts'
 import type { TextRenderer, ToolExecutor } from './execution.ts'
 import type { Access, Adoption, DurableEvidence, ToolCallId } from './identity.ts'
 import type { ToolReleaseDescriber } from './release-detail.ts'
-import type { Reply, ToolRenderedResult } from './results.ts'
+import type { Reply, ToolFailure, ToolRenderedResult } from './results.ts'
 
 export type ToolDeclarations = Readonly<{
   adoption: Adoption
@@ -72,6 +72,9 @@ export type ToolPresentation = Readonly<{
 export type ToolCatalogSearchEntry = ToolAvailability & Readonly<{ resident: boolean }>
 export interface ToolCatalog<P> {
   inspect(input: ToolInspection<P>): Reply<ToolAvailability>
+  inspectEach(
+    input: Access<P> & Readonly<{ names: readonly string[]; consumer: ToolConsumerProfile }>,
+  ): Reply<readonly Outcome<ToolAvailability, ToolFailure>[]>
   usage(input: ToolInspection<P> & Readonly<{ adoption: Adoption }>): Reply<ToolUsage>
   search(
     input: Access<P> &

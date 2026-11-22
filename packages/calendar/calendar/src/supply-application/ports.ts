@@ -10,11 +10,13 @@ import type {
   Instant,
 } from '@omne-harness/calendar-contract'
 import type {
+  CalendarCandidate,
   CalendarDispositionCommand,
   CalendarReactionAcknowledgement,
   CalendarOperationQuery,
   CalendarPendingReaction,
   CalendarPersistence,
+  CalendarPersistenceFailure,
   CalendarReadResult,
   CalendarRepository,
 } from '../persistence.ts'
@@ -76,14 +78,32 @@ export type CalendarPreparedRun = Readonly<{
   command: CalendarDispositionCommand
   preparedAt: Instant
 }>
+export type CalendarSettledCommand = Omit<CalendarDispositionCommand, 'candidate' | 'disposition'> &
+  Readonly<{
+    candidate: Omit<CalendarCandidate, 'snapshot'> & Readonly<{ snapshot: string | null }>
+    disposition:
+      | Readonly<{ kind: 'publish'; snapshot: string }>
+      | Readonly<{ kind: 'noChange' | 'withheld' | 'rejected' }>
+  }>
+export type CalendarSettledRun = Readonly<{ command: CalendarSettledCommand; preparedAt: Instant }>
+export type CalendarJournalRun =
+  | Readonly<{ state: 'pending'; run: CalendarPreparedRun }>
+  | Readonly<{ state: 'completed'; run: CalendarSettledRun }>
 export type CalendarJournalResult<T> =
   | Readonly<{ kind: 'ok'; value: T }>
   | Readonly<{ kind: 'conflict' | 'unavailable' | 'unknown'; reason: string }>
-export type CalendarRunCompletion = Readonly<{
-  operationRef: string
-  completedAt: Instant
-  disposition: 'published' | 'noChange' | 'withheld' | 'rejected'
-}>
+export type CalendarRunCompletion =
+  | Readonly<{
+      kind: 'recorded'
+      operationRef: string
+      completedAt: Instant
+      disposition: 'published' | 'noChange' | 'withheld' | 'rejected'
+    }>
+  | Readonly<{
+      kind: 'refused'
+      completedAt: Instant
+      reason: Exclude<CalendarPersistenceFailure['reason'], 'providerUnavailable'>
+    }>
 export type CalendarJournalHealth = Readonly<{
   sources: readonly CalendarSourceStanding[]
   consecutiveFailures: number
@@ -99,8 +119,8 @@ export interface CalendarSupplyJournal {
   ): Promise<CalendarJournalResult<CalendarReactionAcknowledgement>>
   findRun(
     input: Readonly<{ systemScopeRef: string; operationRef: string }>,
-  ): Promise<CalendarJournalResult<CalendarPreparedRun | null>>
-  readRun(query: CalendarOperationQuery): Promise<CalendarJournalResult<CalendarPreparedRun | null>>
+  ): Promise<CalendarJournalResult<CalendarJournalRun | null>>
+  readRun(query: CalendarOperationQuery): Promise<CalendarJournalResult<CalendarJournalRun | null>>
   prepareRun(run: CalendarPreparedRun): Promise<CalendarJournalResult<CalendarPreparedRun>>
   completeRun(
     input: CalendarOperationQuery & CalendarRunCompletion,

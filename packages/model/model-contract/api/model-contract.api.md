@@ -166,6 +166,7 @@
 - `decodeRevision` · `identity-values.d.ts`
 - `deriveGuardControlOperation` · `guard-control.d.ts`
 - `diffModelStream` · `model-stream-values.d.ts`
+- `dispatchSend` · `dispatch-facts.d.ts`
 - `encodeModelInvocationRef` · `reference.d.ts`
 - `encodeModelOutputV1` · `model-output-v1.d.ts`
 - `faultIsTransient` · `result.d.ts`
@@ -1174,7 +1175,7 @@ export interface ModelDiagnostics<P> {
 import type { Access, Adoption, ConsumerRef, ContextWindow, DispatchId, ModelCallId, Supplier } from './root.ts';
 import type { CallAccount } from '@omne-harness/call-account';
 import type { ModelFault, Reply } from './result.ts';
-import type { DispatchInstants } from './call-surface.ts';
+import type { DispatchInstants, DispatchRecord } from './call-surface.ts';
 import type { CostLookupState } from './cost-lookup.ts';
 export type ModelDispatchFact = Readonly<{
     call: ModelCallId;
@@ -1201,6 +1202,7 @@ export type ModelDispatchFact = Readonly<{
     account: CallAccount | null;
     costLookup: CostLookupState;
 }>;
+export declare function dispatchSend(record: Pick<DispatchRecord, 'send' | 'materialization'>): ModelDispatchFact['send'];
 export type ModelDispatchFactsQuery = Readonly<{
     range: Readonly<{
         from: string;
@@ -1304,6 +1306,7 @@ export type { Access, Admit, Adoption, CallAccess, ConsumerRef, ContextWindow, D
 export type * from './result.ts';
 export { faultIsTransient } from './result.ts';
 export { accountUndelivered, costLookupOf, type CostLookupState } from './cost-lookup.ts';
+export { dispatchSend } from './dispatch-facts.ts';
 export type * from './result-delivery-values.ts';
 export type * from './result-delivery.ts';
 export type * from './result-delivery-judge.ts';

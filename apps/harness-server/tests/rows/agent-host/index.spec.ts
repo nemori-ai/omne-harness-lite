@@ -1,4 +1,3 @@
-import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 // @module-tag slow
 import { afterEach, describe, expect, it } from 'vitest'
 import { agentEvaluator, type AgentMeasureEvent } from '@omne-harness/agent'
@@ -294,30 +293,10 @@ function fixedRequest(consumer: ToolInvokeRequest['consumer']): ToolInvokeReques
   const judged = judgeToolInvokeRequest({
     availability: {
       kind: 'available',
+      definition: adoption('read_file'),
+      name: 'read_file',
       executor: adoption('executor'),
       layer: { kind: 'official' },
-      definition: {
-        adoption: adoption('read_file'),
-        name: 'read_file',
-        description: 'Read a file.',
-        requiredCapabilities: [],
-        backgroundAllowed: false,
-        declarations: {
-          adoption: adoption('tool-declarations'),
-          environment: null,
-          attachments: [],
-          inputModalities: [],
-          outputModalities: [],
-          settings: null,
-        },
-        kind: 'function',
-        parameters: {
-          schema: { kind: 'object', entries: [] },
-          vocabulary: adoption('json-schema'),
-          descriptions: [],
-        },
-        returns: ordinaryReturnFixture(adoption('codec')),
-      },
     },
     command: null,
     arguments: { original: '{}', effective: '{}', complete: true },
@@ -325,7 +304,6 @@ function fixedRequest(consumer: ToolInvokeRequest['consumer']): ToolInvokeReques
     settings: adoption('settings'),
     context: adoption('context'),
     workspace: null,
-    environment: null,
     requesterScope: { ref: 'tool-scope' },
     resources: [],
     scope: { owner: 'test-scope', key: 'one', grant: evidence('scope-grant') },

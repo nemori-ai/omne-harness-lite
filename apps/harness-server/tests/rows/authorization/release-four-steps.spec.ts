@@ -69,7 +69,7 @@ const script = toolCallsByRequest(body =>
   ),
 )
 
-async function basisOf(tree: ReleaseTree, label: string) {
+async function authorOf(tree: ReleaseTree, label: string) {
   const listed = bodyOf(await tree.cli(['schedule', 'list'])) as {
     items: { schedule: string; label: string }[]
   }
@@ -77,9 +77,9 @@ async function basisOf(tree: ReleaseTree, label: string) {
   if (found === undefined) return undefined
   return (
     bodyOf(await tree.cli(['schedule', 'show', '--schedule', found.schedule])) as {
-      basis: unknown
+      author: unknown
     }
-  ).basis
+  ).author
 }
 
 async function changeMode(tree: ReleaseTree, session: string, mode: string) {
@@ -133,13 +133,13 @@ describe('one session in auto_permission, step by step', () => {
         })
         await answerCard(tree, card, ['--option', 'allow-once'], 'four-once')
         await endedRuns(tree, other, 1)
-        expect(await basisOf(tree, 'once')).toEqual({ kind: 'granular' })
+        expect(await authorOf(tree, 'once')).toEqual({ kind: 'agent', session: other })
 
         await changeMode(tree, other, 'bypass-permissions')
         await sendInput(tree, other, 'four: bypass')
         await endedRuns(tree, other, 2)
         expect(await tree.cards({ sessionRef: other, states: ['pending'] })).toEqual([])
-        expect(await basisOf(tree, 'bypass')).toEqual({ kind: 'blanket', scope: 'session' })
+        expect(await authorOf(tree, 'bypass')).toEqual({ kind: 'agent', session: other })
       })
       expect(exit).toBe(0)
     },

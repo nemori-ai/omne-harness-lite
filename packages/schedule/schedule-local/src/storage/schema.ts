@@ -5,7 +5,6 @@ import {
   ScheduleCallContextSchema,
   ScheduleCandidateSchema,
   ScheduleCommandSchema,
-  ScheduleConsentAdoptionSchema,
   ScheduleCreateRequestSchema,
   ScheduleDefinitionSchema,
   ScheduleDomainErrorSchema,
@@ -88,19 +87,6 @@ const requestSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('create'), input: ScheduleCreateRequestSchema }),
   z.strictObject({ kind: z.literal('execute'), input: ScheduleCommandSchema }),
 ])
-const consentSchema = z.discriminatedUnion('kind', [
-  z.strictObject({ kind: z.literal('notRequired'), guardRef: ref }),
-  z.strictObject({
-    kind: z.literal('adopt'),
-    guardRef: ref,
-    adoption: ScheduleConsentAdoptionSchema,
-  }),
-  z.strictObject({
-    kind: z.literal('retain'),
-    guardRef: ref,
-    adoption: ScheduleConsentAdoptionSchema.nullable(),
-  }),
-])
 const accessSchema = z.strictObject({
   authority: z.strictObject({
     scope: recoveryScopeSchema,
@@ -109,7 +95,6 @@ const accessSchema = z.strictObject({
     authorityVersion: ref,
     guardRef: ref,
   }),
-  consent: consentSchema,
   currentStanding: ScheduleStandingSchema,
 })
 const definitionSchema = z.discriminatedUnion('kind', [

@@ -1,7 +1,6 @@
 // @module-tag slow
 // Restarts the release tree at the points between a person's release and the start of the call.
-import { expect, it } from 'vitest'
-import { toolTargetPolicyOf } from '../../../src/rows/authorization/tool-target-policy.ts'
+import { expect, it, vi } from 'vitest'
 import {
   historyOf,
   hostRecords,
@@ -14,7 +13,40 @@ import {
   toolResults,
   type ReleaseTree,
 } from '../../support/release-tree.ts'
-import { ONCE, answerCard, pendingCard, perMessageShell } from './release-flow-support.ts'
+import {
+  ONCE,
+  admittedReleases,
+  answerCard,
+  pendingCard,
+  perMessageShell,
+} from './release-flow-support.ts'
+
+const residency = vi.hoisted(() => ({ on: false, asked: 0, entered: 0 }))
+
+vi.mock('../../../src/entry/tool-target-residency.ts', async importOriginal => {
+  const original =
+    await importOriginal<typeof import('../../../src/entry/tool-target-residency.ts')>()
+  return {
+    ...original,
+    targetResidency: async (...args: Parameters<typeof original.targetResidency>) => {
+      const [, , target] = args
+      if (residency.on && target.kind === 'available' && target.definition.name === 'Shell') {
+        residency.asked += 1
+        if (residency.asked > 1) {
+          residency.entered += 1
+          return {
+            failure: {
+              kind: 'unavailable' as const,
+              dependency: 'toolCatalogView',
+              diagnostic: 'test: not reachable before the restart',
+            },
+          }
+        }
+      }
+      return original.targetResidency(...args)
+    },
+  }
+})
 
 const options = {
   script: perMessageShell,
@@ -50,6 +82,12 @@ const toolSide = (tree: ReleaseTree) =>
   })
 
 async function ranOnce(tree: ReleaseTree, session: string, label: string) {
+  const once = await pollUntil(
+    `the admission of ${label} to hold the release it used`,
+    () => admittedReleases(tree.storageRoot).filter(release => release.by === 'once'),
+    rows => rows.length > 0,
+  )
+  expect(once).toHaveLength(1)
   const { entries } = await pollUntil(
     `the Run of ${label} to end after the restart`,
     async () => ({
@@ -61,7 +99,7 @@ async function ranOnce(tree: ReleaseTree, session: string, label: string) {
   expect(toolResults(entries).join('\n')).toContain(`${label}-done`)
   expect(entries.filter(entry => entry.kind === ONCE)).toHaveLength(1)
   expect(toolCalls(tree.storageRoot).filter(row => row.tool === 'Shell')).toHaveLength(1)
-  expect(startAcceptances(tree.storageRoot).filter(row => 'authorizations' in row)).toHaveLength(1)
+  expect(startAcceptances(tree.storageRoot).filter(row => 'authorizations' in row)).toHaveLength(0)
 }
 
 // The working directory of a session is recovered from its log: a card answered after a restart
@@ -120,13 +158,13 @@ it(
         const stopped = counted()
         Object.assign(runtime, {
           invoke: async (input: Parameters<typeof invoke>[0]) => {
-            if (input.request.availability.definition.name !== 'Shell') return invoke(input)
+            if (input.request.availability.name !== 'Shell') return invoke(input)
             stopped.enter()
             const failure = { kind: 'unavailable', dependency: 'toolRuntime', diagnostic: NOT_NOW }
             return { kind: 'rejected', failure } as Awaited<ReturnType<typeof invoke>>
           },
         })
-        session = await releaseOnce(tree, 'handed', () => {})
+        session = await releaseOnce(tree, 'slow-handed', () => {})
         await pollUntil(
           'the Agent to hand the call over',
           async () => stopped.entered(),
@@ -136,7 +174,7 @@ it(
         expect(entries.filter(entry => entry.kind === ONCE)).toHaveLength(1)
         expect(toolCalls(tree.storageRoot).filter(row => row.tool === 'Shell')).toHaveLength(0)
       },
-      tree => ranOnce(tree, session, 'handed'),
+      tree => ranOnce(tree, session, 'slow-handed'),
     ])
   },
 )
@@ -148,31 +186,21 @@ it(
   { timeout: 180_000 },
   async () => {
     let session = ''
-    await onReleaseTreeRuns(options, [
+    Object.assign(residency, { on: false, asked: 0, entered: 0 })
+    const restarted = {
+      ...options,
+      beforeRun: async (run: number) => {
+        if (run > 0) residency.on = false
+      },
+    }
+    await onReleaseTreeRuns(restarted, [
       async tree => {
-        const policy = toolTargetPolicyOf(tree.scope)
-        if (policy === undefined) throw new Error('no target policy installed')
-        const qualify = policy.qualify.bind(policy)
-        const stopped = counted()
-        let released = false
-        let asked = 0
-        // Once released, the Tool asks when it takes the call, then again when it would start it.
-        Object.assign(policy, {
-          qualify: (input: Parameters<typeof qualify>[0]) => {
-            if (!released || input.request.availability.definition.name !== 'Shell')
-              return qualify(input)
-            asked += 1
-            if (asked === 1) return qualify(input)
-            stopped.enter()
-            return { kind: 'unavailable', diagnostic: NOT_NOW } as const
-          },
-        })
         session = await releaseOnce(tree, 'taken', () => {
-          released = true
+          residency.on = true
         })
         await pollUntil(
           'the Tool to reach the start',
-          async () => stopped.entered(),
+          async () => residency.entered,
           n => n > 0,
         )
         expect(toolCalls(tree.storageRoot).filter(row => row.tool === 'Shell')).toHaveLength(1)

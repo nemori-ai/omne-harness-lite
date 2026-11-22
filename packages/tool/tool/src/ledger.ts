@@ -96,7 +96,7 @@ import {
 } from './facts-boundary.ts'
 import { checkFactAcknowledgement, decideFactAcknowledgement } from './ledger-fact-ack.ts'
 import { checkFactBatch, decideReceiveFacts, readSavedFact } from './ledger-facts.ts'
-import { digestOf, nextRevision, sameFactValue } from './evidence.ts'
+import { digestOf, fixedDigest, nextRevision, sameFactValue } from './evidence.ts'
 import {
   decideAdmit,
   stateRevision,
@@ -752,7 +752,7 @@ export function createToolLedger<P, B extends ContentBlock>(
       if ('failure' in granted) return granted
       const queue = await queueLoad(checked.ok, request)
       if ('failure' in queue) return queue
-      const command = { ...checked.ok, request, inputDigest: digestOf(request), queue: queue.ok }
+      const command = { ...checked.ok, request, inputDigest: fixedDigest(request), queue: queue.ok }
       const admitted = await settleSynthetic(
         checked.ok,
         'admit',

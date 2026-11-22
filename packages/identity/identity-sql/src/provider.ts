@@ -58,7 +58,12 @@ import {
   sha256Hex,
   type IdentifierSource,
 } from './identifiers.ts'
-import { IDENTITY_DOMAIN, IDENTITY_SCOPE, identitySqlCombination } from './materials.ts'
+import {
+  IDENTITY_DOMAIN,
+  IDENTITY_SCOPE,
+  identitySqlCombination,
+  type IdentitySqlCombination,
+} from './materials.ts'
 import {
   IdentitySqlResultUnknown,
   readReason,
@@ -257,6 +262,24 @@ function decodeLogin(row: NonNullable<LoginByProofOutput['login']>): LoginRecord
     maxDeadline: parseInstant(row.maxDeadline),
     idleDeadline: parseInstant(row.idleDeadline),
   }
+}
+
+function coordinationCommit(
+  storage: SqlStorage,
+  combination: Pick<IdentitySqlCombination, 'combinationVersion' | 'manifestDigest'>,
+) {
+  return (
+    facts: Readonly<Record<string, JsonValue>>,
+    identity: SqlIdentity,
+    releases?: readonly SqlIdentity[],
+  ) =>
+    storage.commit({
+      identity,
+      combinationVersion: combination.combinationVersion,
+      manifestDigest: combination.manifestDigest,
+      commands: [{ participant: IDENTITY_PARTICIPANT, facts }],
+      ...(releases === undefined ? {} : { releases }),
+    })
 }
 
 export function createIdentitySql(input: IdentitySqlInput): IdentitySql {
@@ -510,13 +533,7 @@ export function createIdentitySql(input: IdentitySqlInput): IdentitySql {
   const coordination = coordinationOver({
     stopped: () => stopped,
     readTime: () => readTime(),
-    commit: (facts, identity) =>
-      storage.commit({
-        identity,
-        combinationVersion: combination.combinationVersion,
-        manifestDigest: combination.manifestDigest,
-        commands: [{ participant: IDENTITY_PARTICIPANT, facts }],
-      }),
+    commit: coordinationCommit(storage, combination),
     query: identity => storage.query(identity),
     read: input => read('identity.coordination', input),
     ...(input.principalVerifier === undefined ? {} : { verifier: input.principalVerifier }),

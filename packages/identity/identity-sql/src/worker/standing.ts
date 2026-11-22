@@ -166,6 +166,31 @@ function settleRequest(raw: Record<string, unknown>, port: ParticipantPort): Par
   return reply('settled', { terminal: f.terminal })
 }
 
+function releaseRequest(raw: Record<string, unknown>, port: ParticipantPort): ParticipantReply {
+  const fields = ['id', 'operationRef', 'binding', 'required'] as const
+  if (!fields.every(field => isText(raw[field])))
+    return { kind: 'unsupported', basis: 'standing-release-request' }
+  const f = raw as Record<(typeof fields)[number], string>
+  const saved = oneRow(
+    port,
+    'SELECT reservation_id, binding, required, state FROM id_standing_reservation WHERE operation_ref = ? LIMIT 1',
+    [f.operationRef],
+  )
+  if (saved === undefined) return reply('released')
+  if (
+    text(saved['reservation_id']) !== f.id ||
+    text(saved['binding']) !== f.binding ||
+    text(saved['required']) !== f.required
+  )
+    return { kind: 'conflict', basis: { outcome: 'operation-conflict' } }
+  if (text(saved['state']) !== 'settled') return { kind: 'conflict', basis: { outcome: 'held' } }
+  port.execute(
+    `DELETE FROM id_standing_reservation WHERE reservation_id = ? AND state = 'settled'`,
+    [f.id],
+  )
+  return reply('released')
+}
+
 export type Govern = (
   facts: GovernanceFacts,
   port: ParticipantPort,
@@ -290,6 +315,8 @@ export function standingCommand(
       return reservation(raw, port)
     case 'standing-settle-request':
       return settleRequest(raw, port)
+    case 'standing-release':
+      return releaseRequest(raw, port)
     case 'membership-admit':
       return admitIntent(raw, port, govern, parse)
     case 'membership-prepare':

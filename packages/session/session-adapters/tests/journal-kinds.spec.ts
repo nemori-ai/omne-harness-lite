@@ -21,7 +21,7 @@ import {
   SESSION_WORK_HANDLER,
   decodeSessionWork,
 } from '@omne-harness/session-storage-sql/participants'
-import { readExecutionInterpretation } from '../src/cordis/agent-journal.ts'
+import { readExecutionInterpretation } from '../src/cordis/journal-state.ts'
 import { evidence, ok, operation, submitInput } from './fixtures/common-journal.ts'
 import { handed, sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
 

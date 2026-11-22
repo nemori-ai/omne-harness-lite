@@ -24,6 +24,7 @@ import type {
   InitializationResult,
   Participation,
   RecoveryTask,
+  RunEnd,
   RunTerminal,
   SessionCreation,
   ResidentAdoption,
@@ -187,6 +188,7 @@ export type SessionEntry =
       cause: DurableEvidence | null
       disposition: DurableEvidence | null
       bounded: BoundedClose | null
+      end: RunEnd | null
     }>
   | Readonly<{ kind: 'session.tool-resident-admitted'; resident: ResidentTool }>
   | Readonly<{
@@ -242,6 +244,8 @@ export type SessionEntry =
       fact: import('./faces.ts').ProducerFact
       consumption?: ConsumptionId
       result?: ProducedResult | null
+      /** The call whose final delivery this execution fact writes into the log. */
+      delivered?: ConsumptionId
     }>
   | Readonly<{
       kind: 'call.result-preserved'

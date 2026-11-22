@@ -44,7 +44,7 @@ import { monotonicClock } from '../../shutdown.ts'
 import { createScheduleAuthorizers } from './authorizer.ts'
 import { SCHEDULE_PARTICIPANTS, scheduleGuards } from './guard.ts'
 import { tenantDomainOf } from './tenant-domain.ts'
-import { callConsent } from '../tool-bindings/call-consent.ts'
+import { liveCallOrigin } from '../tool-bindings/live-calls.ts'
 
 const OWNER = 'harness-server.schedule'
 
@@ -104,7 +104,7 @@ function createTenantHost(ctx: Context): Host {
     })
     if (registered.kind !== 'registered') return undefined
     const calendar = ctx.get(calendarQueryKey) as CalendarQueries
-    const authorizers = createScheduleAuthorizers({ consent: callConsent(ctx), now })
+    const authorizers = createScheduleAuthorizers({ origin: liveCallOrigin(ctx), now })
     return createScheduleLocalApplication({
       sql: {
         storage,

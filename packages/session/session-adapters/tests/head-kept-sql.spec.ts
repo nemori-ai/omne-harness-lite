@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { readExecutionInterpretation } from '../src/cordis/agent-journal.ts'
+import { readExecutionInterpretation } from '../src/cordis/journal-state.ts'
 import { evidence, ok, operation } from './fixtures/common-journal.ts'
 import { sqlScene } from './fixtures/sql-scene.ts'
 import { keptToolCall } from './fixtures/tool-call.ts'

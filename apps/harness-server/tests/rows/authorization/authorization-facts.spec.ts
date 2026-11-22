@@ -22,12 +22,11 @@ const read = (once: unknown, asked: unknown = consumer) =>
   ({
     request: null,
     reading: null,
-    condition: null,
     authorizations: { revision: '1', once, session: null },
     consumer: asked,
   }) as never
 
-describe('the once authorization a start may rest on', () => {
+describe('the once authorization an admission may rest on', () => {
   it('names the Agent action as its consumer, and the adoption of the tool as its target', () => {
     expect(agentActionConsumer({ execution: 'exe-1', action: 'act-1' } as never)).toEqual(consumer)
     expect(onceTarget(definition)).toBe(
@@ -43,7 +42,7 @@ describe('the once authorization a start may rest on', () => {
   it.each([
     ['no authorization is held', read(null)],
     ['the read names no consumer', read(held, null)],
-    ['the read carries no authorizations', { request: null, reading: null, condition: null }],
+    ['the read carries no authorizations', { request: null, reading: null }],
     ['another owner asks', read(held, { ...consumer, owner: 'tool' })],
     ['another work asks', read(held, { ...consumer, work: 'exe-2' })],
     ['another position asks', read(held, { ...consumer, position: 'act-2' })],
@@ -60,7 +59,6 @@ describe('the basis of a release for the session', () => {
     ({
       request: null,
       reading: null,
-      condition: null,
       authorizations: { revision: '1', once: null, session },
     }) as never
   const grant = {
@@ -78,7 +76,7 @@ describe('the basis of a release for the session', () => {
     ['nothing is held', granted(null)],
     ['it is held for another capability', granted({ ...grant, capabilityId: 'tool.Files' })],
     ['it is held for another gate key', granted({ ...grant, enforcementKey: 'tool.other' })],
-    ['the read carries no authorizations', { request: null, reading: null, condition: null }],
+    ['the read carries no authorizations', { request: null, reading: null }],
   ])('is none when %s', (_what, current) => {
     expect(sessionGrantFor(request, current as never)).toBeNull()
   })

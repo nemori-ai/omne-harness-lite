@@ -51,7 +51,6 @@ function permission(tiers: Readonly<Record<string, Tier>>, mode: Mode) {
           : { kind, revision: '1' }
       return permissionDecisionOf(verdict, inquiry, input.carrier === true, {
         evidence,
-        condition: null,
         holders: { tenant: 'tenant', session: 'session' },
         gateRef: { capability: input.definition.name, key: input.gate.id },
       })
@@ -247,7 +246,7 @@ describe('one judging pass over a batch reads the session once', () => {
       const check: ToolPermissionCheck = {
         async check(input) {
           await inquiry(input)
-          return { kind: 'allow', evidence, condition: null, release: VERDICT_RELEASE }
+          return { kind: 'allow', evidence, release: VERDICT_RELEASE }
         },
       }
       const admission = createActionAdmission({

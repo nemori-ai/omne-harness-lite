@@ -7,7 +7,7 @@ import {
   type CallContext,
   type ChannelContribution,
   type ChannelDelivery,
-  type ConsentAnswer,
+  type Creator,
   type DeliveryResult,
   type Disclosure,
   type Instant,
@@ -20,7 +20,7 @@ import type {
   ClockHints,
   NotificationAuthority,
   StandingItems,
-  SubscriptionConsents,
+  SubscriptionCreators,
 } from '../ports.ts'
 
 export type FakeAuthority = NotificationAuthority &
@@ -77,22 +77,29 @@ export function context(tenant = 't1', actor: Actor = { kind: 'owner' }): CallCo
   return { tenant: tenantIdSchema.parse(tenant), subject: { test: tenant }, actor }
 }
 
-export type FakeConsent = SubscriptionConsents &
-  Readonly<{ set(answer: ConsentAnswer | 'throw'): void; asked: readonly CallContext[] }>
+export type FakeCreators = SubscriptionCreators &
+  Readonly<{ set(answer: Creator | null | 'throw'): void; asked: readonly CallContext[] }>
 
-/** What the call was released on. The default is no consent. */
-export function fakeConsent(): FakeConsent {
-  let current: ConsentAnswer | 'throw' = { kind: 'none' }
+function namedIn(ctx: CallContext): Creator | null {
+  if (ctx.actor.kind === 'owner') return { kind: 'human', actorRef: 'owner' }
+  const { ref } = ctx.actor.recipient
+  return ctx.call === undefined
+    ? null
+    : { kind: 'agent', actorRef: ref, originatingSessionRef: ref, originatingCallRef: ctx.call }
+}
+
+export function fakeCreators(): FakeCreators {
+  let fixed: Creator | null | 'throw' | undefined
   const asked: CallContext[] = []
   return {
     asked,
     set(answer) {
-      current = answer
+      fixed = answer
     },
-    async consent(ctx) {
+    async creatorOf(ctx) {
       asked.push(ctx)
-      if (current === 'throw') throw new Error('the release cannot be read')
-      return current
+      if (fixed === 'throw') throw new Error('the creator cannot be named')
+      return fixed === undefined ? namedIn(ctx) : fixed
     },
   }
 }

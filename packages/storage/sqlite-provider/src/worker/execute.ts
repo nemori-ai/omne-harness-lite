@@ -48,6 +48,18 @@ export function insertReceipt(db: DatabaseSync, receipt: ReceiptV2): void {
   )
 }
 
+export function recordCommitted(
+  db: DatabaseSync,
+  request: CommitRequestV2,
+  receipt: ReceiptV2,
+  keep: boolean,
+): void {
+  const remove = db.prepare('delete from _sql_receipt where operation = ? and operation_key = ?')
+  for (const released of request.releases ?? [])
+    if (released.recall !== 'never') remove.run(released.operation, released.operationKey)
+  if (keep) insertReceipt(db, receipt)
+}
+
 export function receiptOf(
   kind: 'committed' | 'rolled_back',
   request: CommitRequestV2,
@@ -65,6 +77,7 @@ export function receiptOf(
 }
 
 export function runQuery(state: WorkerState, identity: SqlIdentity): QueryReply {
+  if (identity.recall === 'never') return { kind: 'none' }
   const receipt = readReceipt(state.db as DatabaseSync, identity)
   return receipt === null ? { kind: 'none' } : { kind: 'receipt', receipt }
 }

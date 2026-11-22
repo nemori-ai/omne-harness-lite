@@ -39,7 +39,6 @@ import {
   systemActionAuthorizationKey,
 } from './system-action-service.ts'
 import { authorizationConfig } from './action-rules.ts'
-import { createToolTargetPolicy, installToolTargetPolicy } from './tool-target-policy.ts'
 import { sessionAuthorizationWriter } from './session-authorization-writer.ts'
 import { createTenantPicks } from './tenant-picks.ts'
 import { permissionDeclarationsOf } from '../../entry/permission-declarations.ts'
@@ -143,15 +142,6 @@ const plugin: Plugin.Object = {
       settings: () => ctx.get(tenantSettingsKey, false),
     })
     const readPermission = () => (active ? permission : undefined)
-    installToolTargetPolicy(
-      ctx,
-      createToolTargetPolicy(
-        actionRules,
-        () => (active ? ports.admission : undefined),
-        readPermission,
-        () => (active ? resolution : undefined),
-      ),
-    )
     new SystemActionAuthorizationImpl(ctx, ports.systemActions, () => active)
     new SessionAccessCheckImpl(ctx, createSessionAccessCheck(ports))
     new AgentAccessCheckImpl(ctx, createAgentAccessCheck(ports))

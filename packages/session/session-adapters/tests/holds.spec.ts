@@ -60,6 +60,32 @@ it('a checkpoint holds its calls, its batch, the hand-offs of its slots and the 
   )
 })
 
+it.each([
+  ['not sent', true, null],
+  ['an intent', true, { association: 'intent' }],
+  ['associated, the commit unknown', true, { association: 'associated', acceptance: 'unknown' }],
+  ['associated and accepted', false, { association: 'associated', acceptance: 'accepted' }],
+] as const)('the request of an allowed action that is %s is held: %s', (_, held, sent) => {
+  const request = source('request')
+  const pending =
+    sent === null
+      ? null
+      : { ...call('sent'), kind: 'tool', action: 'action-sent', fixed: request, ...sent }
+  const checkpoint = checkpointOf({
+    calls: pending === null ? [] : [pending],
+    batch: {
+      actions: [
+        { id: 'action-sent', judgment: { kind: 'allowed', request }, call: pending },
+        { id: 'action-other', judgment: { kind: 'allowed', request: source('other') } },
+      ],
+      slots: [],
+    },
+  })
+  const materials = texts(heldBy(checkpoint)).filter(text => text.startsWith('material/'))
+  expect(materials.includes(`material/${materialHold(canonical(request))}`)).toBe(held)
+  expect(materials).toContain(`material/${materialHold(canonical(source('other')))}`)
+})
+
 it('a checkpoint that holds nothing names nothing', () => {
   expect(heldBy(checkpointOf({}))).toEqual([])
 })

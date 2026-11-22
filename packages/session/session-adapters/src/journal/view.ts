@@ -15,6 +15,7 @@ import type {
   HandoffReference,
   InputBatch,
   InputId,
+  MaterialReaders,
   ModelReplyAdmission,
   PassageId,
   PendingCall,
@@ -77,6 +78,7 @@ export type MaterialView = Readonly<{
   source: DurableEvidence
   value: Ref
   consumer: ConsumerRef
+  readers: MaterialReaders
   pub: number
 }>
 

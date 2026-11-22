@@ -173,6 +173,10 @@ async function world(configured = true) {
         identityOf(TENANT_A, app.domainOf(TENANT_A), operationId(name), attempt),
       ),
     )
+  const recorded = async (name: string) => {
+    const resolved = await app.port.queryOperation({ ...access, operation: operationId(name) })
+    return 'ok' in resolved ? resolved.ok.kind : resolved.failure.kind
+  }
   const loseSight = () => {
     app.storage.query = identity =>
       Promise.resolve({ kind: 'unknown', identity, diagnostic: 'queued' })
@@ -185,6 +189,7 @@ async function world(configured = true) {
     plan,
     commit,
     kindOf,
+    recorded,
     loseSight,
     use: (next: Source) => {
       source = next
@@ -225,10 +230,11 @@ it('answers the failure of the source, keeps nothing, and decides the same opera
   const commits = w.app.opCount()
   expect(await w.commit(command)).toEqual({ failure: unavailable })
   expect(w.app.opCount()).toBe(commits)
-  expect(await w.kindOf('later', 1)).toBe('not_committed')
+  expect(await w.kindOf('later', 1)).toBe('settled')
+  expect(await w.recorded('later')).toBe('unknown')
   w.use(w.plan(true))
   expect(await w.commit(command)).toMatchObject({ ok: { recovered: false } })
-  expect(await w.kindOf('later', 1)).toBe('committed')
+  expect(await w.recorded('later')).toBe('committed')
 }, 30_000)
 
 it('recalls a delivery that committed while the source could not form the basis', async () => {
@@ -245,18 +251,18 @@ it('recalls a delivery that committed while the source could not form the basis'
   })
 }, 30_000)
 
-it('uses up one generation when the producer stops the transaction, then commits the operation', async () => {
+it('keeps nothing when the producer stops the transaction, then commits the operation', async () => {
   const w = await world()
   const command = w.assignment('stopped', 'allow')
   w.use(w.plan(false))
   expect(await w.commit(command)).toMatchObject({ failure: { kind: 'unavailable' } })
-  expect(await w.kindOf('stopped', 1)).toBe('rolled_back')
+  expect(await w.recorded('stopped')).toBe('unknown')
   expect(await w.app.port.readWork(w.access)).toMatchObject({
     ok: { permissions: { revision: '0', assignments: [] } },
   })
   w.use(w.plan(true))
   expect(await w.commit(command)).toMatchObject({ ok: { recovered: false } })
-  expect(await w.kindOf('stopped', 2)).toBe('committed')
+  expect(await w.recorded('stopped')).toBe('committed')
 }, 30_000)
 
 it('denies an assignment that access did not qualify and does not ask the source', async () => {
@@ -303,7 +309,8 @@ it('answers unavailable when the source throws', async () => {
   expect(await w.commit(w.assignment('thrown', 'allow'))).toMatchObject({
     failure: { kind: 'unavailable', diagnostic: 'the protected basis source threw: source down' },
   })
-  expect(await w.kindOf('thrown', 1)).toBe('not_committed')
+  expect(await w.kindOf('thrown', 1)).toBe('settled')
+  expect(await w.recorded('thrown')).toBe('unknown')
 }, 30_000)
 
 it('answers commit-unknown when the storage cannot place the operation, and asks no source', async () => {
@@ -351,7 +358,7 @@ it('refuses a permission assignment in the ordinary producer when no source is c
   const w = await world(false)
   const answer = await w.commit(w.assignment('no-source', 'allow'))
   expect(answer).toHaveProperty('failure')
-  expect(await w.kindOf('no-source', 1)).toBe('rolled_back')
+  expect(await w.recorded('no-source')).toBe('unknown')
   expect(await w.app.port.readWork(w.access)).toMatchObject({
     ok: { permissions: { revision: '0', assignments: [] } },
   })

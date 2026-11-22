@@ -112,6 +112,7 @@ describe('14 queries (P01)', () => {
       scanPending: input => assembly.store.scanPending(input),
       usage: query => assembly.store.usage(query),
       due: assembly.store.due,
+      definition: assembly.store.definition,
       readRecord: async (domain, key) => {
         const read = await assembly.store.readRecord(domain, key)
         return read.kind === 'complete' && read.record !== null

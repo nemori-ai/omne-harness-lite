@@ -3,6 +3,7 @@ import type { Outcome } from '@omne-harness/operation-result'
 import {
   decodeToolOperationId,
   type DurableEvidence,
+  type FixedToolRequest,
   type ToolCallId,
   type ToolDeliveryId,
   type ToolResultVersion,
@@ -12,6 +13,7 @@ import {
   decodeToolDeliveryId,
   decodeToolResultVersion,
   decodeToolRevision,
+  fixedRequestReference,
 } from '@omne-harness/tool-contract/provider'
 import type { TenantId } from './ledger-store.ts'
 
@@ -50,6 +52,10 @@ function canonicalObject(value: object): Record<string, unknown> {
 
 export function digestOf(value: unknown): string {
   return `sha256:${createHash('sha256').update(canonicalJson(value)).digest('hex')}`
+}
+
+export function fixedDigest(request: FixedToolRequest): string {
+  return digestOf(fixedRequestReference(request))
 }
 
 export type EvidenceKind =

@@ -43,7 +43,7 @@ async function resumeSeed(
       outcome: await finishRun(deps, query, observed, control.now()),
       warnings:
         retained.kind === 'ok' && retained.value
-          ? retained.value.command.candidate.reasons.filter(
+          ? retained.value.run.command.candidate.reasons.filter(
               reason => reason.includes(':failed:warning:') || reason.includes(':unknown:warning:'),
             )
           : ['Seed warning evidence unavailable'],
@@ -56,15 +56,25 @@ async function resumeSeed(
       outcome: { kind: 'rejected', reason: 'invalid', message: `Seed journal ${previous.kind}` },
       warnings: [],
     }
+  if (previous.value?.state === 'completed')
+    return {
+      calendarId,
+      outcome: {
+        kind: 'rejected',
+        reason: 'invalid',
+        message: 'Seed run completed before its operation',
+      },
+      warnings: [],
+    }
   if (previous.value) {
-    const resumed = await commitPrepared(deps, context, previous.value, control, signal)
+    const resumed = await commitPrepared(deps, context, previous.value.run, control, signal)
     return {
       calendarId,
       outcome:
         resumed.kind === 'ok'
           ? resumed.value
           : { kind: 'rejected', reason: resumed.error.code, message: resumed.error.message },
-      warnings: previous.value.command.candidate.reasons.filter(
+      warnings: previous.value.run.command.candidate.reasons.filter(
         reason => reason.includes(':failed:warning:') || reason.includes(':unknown:warning:'),
       ),
     }

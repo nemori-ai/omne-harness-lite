@@ -5,7 +5,11 @@ import { beforeAll, expect, it } from 'vitest'
 import { definePermission, projectPermissionSettings } from '@omne-harness/permissions'
 import { toolPermissionRelease } from '../../src/entry/tool-permission-release.ts'
 import { loadProductionRelease, productionReleaseInput } from '../../src/entry/tool-release.ts'
-import { loadToolRelease, type ToolReleaseSnapshot } from '../../src/entry/tool-release-manifest.ts'
+import {
+  loadToolRelease,
+  type ReleaseToolName,
+  type ToolReleaseSnapshot,
+} from '../../src/entry/tool-release-manifest.ts'
 import { createToolGovernanceDefinitionSource } from '../../src/rows/governance/tool-definition-source.ts'
 import { resolvePermissionInterpretation } from '../../src/rows/governance/permission-interpretation.ts'
 
@@ -108,6 +112,50 @@ it('changes governance and implementation identities when the same named Tool im
   )
   expect(redirected.declaration.enforcementBindings).not.toEqual(
     entry.governance.declaration.enforcementBindings,
+  )
+})
+
+it('gives every tool, gated or not, another version when its asset body changes', () => {
+  for (const entry of release.manifest.entries) {
+    const input = {
+      name: entry.asset.name as ReleaseToolName,
+      adoption: entry.asset.adoption,
+      module: entry.module,
+      definition: entry.definition,
+      gates: entry.gates,
+    }
+    const rebuilt = toolPermissionRelease({
+      ...input,
+      module: { ...input.module, artifacts: `sha256:${'0'.repeat(64)}` },
+    })
+    expect(rebuilt.declaration.reference.version, entry.asset.name).not.toBe(
+      entry.governance.declaration.reference.version,
+    )
+    expect(rebuilt.declaration.settings, entry.asset.name).toEqual(
+      entry.governance.declaration.settings,
+    )
+  }
+})
+
+it('gives the permission settings another version only when their content changes', () => {
+  const entry = release.manifest.entries.find(item => item.asset.name === 'Shell')
+  if (entry === undefined) throw new Error('Shell not published')
+  const input = {
+    name: 'Shell' as const,
+    adoption: entry.asset.adoption,
+    module: entry.module,
+    definition: entry.definition,
+    gates: entry.gates,
+  }
+  const retitled = toolPermissionRelease({
+    ...input,
+    gates: input.gates.map(gate => ({ ...gate, title: `${gate.title}（新）` })),
+  })
+  const [before] = entry.governance.declaration.settings
+  const [after] = retitled.declaration.settings
+  expect(after?.version).not.toBe(before?.version)
+  expect(retitled.declaration.permissions.map(value => value.settings?.version)).toEqual(
+    retitled.declaration.permissions.map(() => after?.version),
   )
 })
 

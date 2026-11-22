@@ -53,6 +53,8 @@ export type {
   ResidentTool,
   ResultConsumption,
   RoutedInput,
+  RunEnd,
+  RunFailure,
   RunState,
   RunTerminal,
   ScopeReleaseDisposition,
@@ -296,6 +298,8 @@ export type {
   SessionUninterpretedCall,
 } from './history-values.ts'
 export { uninterpretedCalls } from './uninterpreted-calls.ts'
+export { boundConsumptions, committedBindings, withoutCommitted } from './committed-bindings.ts'
+export type { CommittedBinding } from './committed-bindings.ts'
 export type { SessionCallRegistration, SessionCallRecord, SessionCallWait } from './call-values.ts'
 export {
   bindingOf,

@@ -12,6 +12,7 @@ import { type ToolInvocationRef, type ToolState } from '@omne-harness/tool-contr
 import {
   defaultResultPolicy,
   readToolInvocationRef,
+  toolInvokeRequestOf,
   type ToolDriver,
   type ToolExecutorBinding,
   type ToolLiveExecution,
@@ -71,6 +72,7 @@ function assembly(
   const consume = options.consume?.(authority.consume) ?? authority.consume
   const identities = createTestToolIdentities()
   const source = createTestInvocationSource<Principal>({
+    definition: () => request().availability.definition,
     snapshotPrincipal: principal => ({
       subject: principal.subject,
       tenants: [...principal.tenants],
@@ -338,11 +340,10 @@ function assembly(
     return { principal: principalA, tenant: tenantA, call: readToolInvocationRef(reference).call }
   }
   const admit = async () => {
-    const { invocation: _invocation, ...payload } = request()
     const outcome = await runtime.invoke({
       principal: principalA,
       tenant: tenantA,
-      request: payload,
+      request: toolInvokeRequestOf(request()),
     })
     if (outcome.kind === 'accepted' || outcome.kind === 'commit-unknown')
       reference = outcome.reference
@@ -434,6 +435,7 @@ describe('the local start coordinator under the runtime', () => {
         usage: query => memory.usage(query),
         readRecord: (domain, key) => memory.readRecord(domain, key),
         due: (tenant, now, limit) => memory.due(tenant, now, limit),
+        definition: (tenant, adoption) => memory.definition(tenant, adoption),
         read: domain => memory.read(domain),
         commit: input => {
           if (

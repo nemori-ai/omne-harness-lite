@@ -2,7 +2,7 @@ import type { JsonValue } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { evaluateSettings } from '@omne-harness/settings'
 import { backgroundAllowed } from '@omne-harness/tool'
-import type { ToolInvokeRequest } from '@omne-harness/tool-contract'
+import type { FixedToolRequest, ToolInvokeRequest } from '@omne-harness/tool-contract'
 import { officialHolding, toolAsset } from '../assets/official-holdings.ts'
 
 /** Settings items that, when a tool declares them, give the time limits of its calls. */
@@ -24,7 +24,7 @@ function milliseconds(
 // The limits of one call, read before admission: the threshold only for a call that may go to
 // the background, the foreground limit for any. Unreadable settings admit nothing.
 export function toolLimitsOf(
-  request: Pick<ToolInvokeRequest, 'availability' | 'command' | 'arguments'>,
+  request: Pick<FixedToolRequest, 'availability' | 'command' | 'arguments'>,
   operator: () => Readonly<Record<string, unknown>> | undefined,
 ): Outcome<Limits, string> {
   const { definition } = request.availability

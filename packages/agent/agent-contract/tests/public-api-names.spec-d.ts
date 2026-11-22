@@ -510,6 +510,7 @@ describe('the discriminants of the evaluation chapter', () => {
       | 'busy'
       | 'changed'
       | 'unsupported'
+      | 'reclaimed'
       | 'commit-unknown'
       | 'conflict'
     >()
@@ -1405,12 +1406,15 @@ describe('Tool association and control references', () => {
       purpose: 'action'
       association: 'associated'
       reference: T.ToolInvocationRef
+      acceptance: 'accepted' | 'unknown'
     }>
 
   it('allows intent before identity and requires the Tool reference after association', () => {
     expectTypeOf<Intent>().toExtend<PendingCall>()
     expectTypeOf<Associated>().toExtend<PendingCall>()
     expectTypeOf<Omit<Associated, 'reference'>>().not.toExtend<PendingCall>()
+    expectTypeOf<Omit<Associated, 'acceptance'>>().not.toExtend<PendingCall>()
+    expectTypeOf<Intent & { acceptance: 'accepted' }>().not.toExtend<PendingCall>()
     expectTypeOf<Intent & { call: T.ToolCallId }>().not.toExtend<PendingCall>()
     expectTypeOf<Intent & { admission: T.ToolOperationId }>().not.toExtend<PendingCall>()
     expectTypeOf<Intent & { reference: T.ToolInvocationRef }>().not.toExtend<PendingCall>()

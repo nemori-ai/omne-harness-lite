@@ -159,13 +159,14 @@ function sqliteStorage() {
         held.set(key, { request, domain, key })
         return { kind: 'unknown', identity: request.identity, diagnostic: null }
       }
-      const existing = domain.receipts.get(key)
+      const keeps = request.identity.recall !== 'never'
+      const existing = keeps ? domain.receipts.get(key) : undefined
       if (existing !== undefined)
         return existing.inputDigest === inputDigestV2(request)
           ? { ...existing, recalled: true }
           : { kind: 'identity_conflict', identity: request.identity, existing }
       const receipt = execute(domain, request)
-      domain.receipts.set(key, receipt)
+      if (keeps) domain.receipts.set(key, receipt)
       if (hooks.loseNextReply) {
         hooks.loseNextReply = false
         return { kind: 'unknown', identity: request.identity, diagnostic: null }
@@ -175,20 +176,16 @@ function sqliteStorage() {
     query(identity) {
       if (held.has(keyOf(identity)))
         return Promise.resolve({ kind: 'unknown', identity, diagnostic: null })
+      const proofs = {
+        writerGenerationExcluded: true,
+        oldTransactionTerminated: true,
+        databaseRecoveryFinished: true,
+        authoritativeReadSucceeded: true,
+        operationNotQueued: true,
+      } as const
+      if (identity.recall === 'never') return Promise.resolve({ kind: 'settled', identity, proofs })
       const found = domainOf(identity.transactionDomain).receipts.get(keyOf(identity))
-      return Promise.resolve(
-        found ?? {
-          kind: 'not_committed',
-          identity,
-          proofs: {
-            writerGenerationExcluded: true,
-            oldTransactionTerminated: true,
-            databaseRecoveryFinished: true,
-            authoritativeReadSucceeded: true,
-            operationNotQueued: true,
-          },
-        },
-      )
+      return Promise.resolve(found ?? { kind: 'not_committed', identity, proofs })
     },
     read(request) {
       const handler = HANDLERS.get(request.handler)
@@ -213,8 +210,10 @@ function sqliteStorage() {
     hooks,
     commits: () => commits,
     release() {
-      for (const item of held.values())
-        item.domain.receipts.set(item.key, execute(item.domain, item.request))
+      for (const item of held.values()) {
+        const receipt = execute(item.domain, item.request)
+        if (item.request.identity.recall !== 'never') item.domain.receipts.set(item.key, receipt)
+      }
       held.clear()
     },
     rows: (domain: string, sql: string, params: readonly SqlValue[] = []) =>
@@ -638,7 +637,7 @@ describe('operation identity', () => {
     expect(sqlite.commits()).toBe(before)
   })
 
-  it('reads again when the storage recalls an earlier commit of the generation, and writes nothing twice', async () => {
+  it('reads again when the participant recognises an earlier commit of the generation, and writes nothing twice', async () => {
     const sqlite = sqliteStorage()
     let first = true
     const racing: SqlStorage = {
@@ -648,7 +647,7 @@ describe('operation identity', () => {
           first = false
           await sqlite.storage.commit(request, options)
           const answer = await sqlite.storage.commit(request, options)
-          expect(answer).toMatchObject({ kind: 'committed', recalled: true })
+          expect(answer).toMatchObject({ kind: 'rolled_back', recalled: false })
           return answer
         }
         return sqlite.storage.commit(request, options)
@@ -662,7 +661,7 @@ describe('operation identity', () => {
     expect(sqlite.rows('domain-a', 'SELECT count(*) FROM md_call')).toEqual([[1n]])
   })
 
-  it('passes a generation that an earlier run rolled back with another input', async () => {
+  it('commits again under a generation that an earlier run rolled back, since the rollback left no receipt', async () => {
     const sqlite = sqliteStorage()
     const keys: string[] = []
     const answers: string[] = []
@@ -712,8 +711,8 @@ describe('operation identity', () => {
     ).toEqual({
       ok: 'written',
     })
-    expect(keys).toEqual(['mop_edit#1', 'mop_edit#1', 'mop_edit#2'])
-    expect(answers).toEqual(['rolled_back', 'identity_conflict', 'committed'])
+    expect(keys).toEqual(['mop_edit#1', 'mop_edit#1'])
+    expect(answers).toEqual(['rolled_back', 'committed'])
     expect((await stored(b, call)).record?.document.requestDigest).toBe('b')
   })
 
@@ -755,7 +754,7 @@ describe('operation identity', () => {
     expect((await stored(store, call)).record?.document.requestDigest).toBe('other')
   })
 
-  it('remembers a generation spent on a conflict, so a later run asks from the next one', async () => {
+  it('remembers a generation it saw rolled back, so its next commit and query of the operation use the next one', async () => {
     const sqlite = sqliteStorage()
     const queried: string[] = []
     let race: (() => Promise<unknown>) | null = null
@@ -769,9 +768,7 @@ describe('operation identity', () => {
         const racing = race
         race = null
         if (racing !== null && request.identity.operationKey === 'mop_edit#1') await racing()
-        const answer = await sqlite.storage.commit(request, options)
-        if (answer.kind === 'identity_conflict') sqlite.hooks.holdNextCommit = true
-        return answer
+        return sqlite.storage.commit(request, options)
       },
     }
     const call = callId('spent-then-held')
@@ -790,10 +787,10 @@ describe('operation identity', () => {
       opId('edit'),
       edit(doc => (doc.requestDigest = 'a')),
     )
-    const b = createSqlModelStorage(options(watching))
+    sqlite.hooks.holdNextCommit = true
     expect(
       await write(
-        b,
+        a,
         call,
         opId('edit'),
         edit(doc => (doc.requestDigest = 'b')),
@@ -803,7 +800,7 @@ describe('operation identity', () => {
     })
     queried.length = 0
     await write(
-      b,
+      a,
       call,
       opId('edit'),
       edit(doc => (doc.requestDigest = 'b')),
@@ -811,17 +808,27 @@ describe('operation identity', () => {
     expect(queried).toEqual(['mop_edit#2'])
   })
 
-  it('takes a recalled read-progress commit as written, and publishes once', async () => {
+  it('keeps no receipt for a read-progress commit: a resent copy is refused by the version guard, and the run publishes again from what it reads', async () => {
     const sqlite = sqliteStorage()
     let resent = false
+    const sends: string[] = []
     const resending: SqlStorage = {
       ...sqlite.storage,
       commit: async (request, options) => {
-        if (!resent && request.identity.operationKey.includes('#read@')) {
-          resent = true
-          await sqlite.storage.commit(request, options)
+        if (!request.identity.operationKey.includes('#read@'))
+          return sqlite.storage.commit(request, options)
+        const answer = async () => {
+          const result = await sqlite.storage.commit(request, options)
+          sends.push(
+            `${request.identity.recall ?? 'recallable'} ${result.kind}${'recalled' in result && result.recalled ? ' recalled' : ''}`,
+          )
+          return result
         }
-        return sqlite.storage.commit(request, options)
+        if (!resent) {
+          resent = true
+          await answer()
+        }
+        return answer()
       },
     }
     const store = createSqlModelStorage(options(resending))
@@ -846,7 +853,10 @@ describe('operation identity', () => {
     )
     expect(result).toEqual({ failure: { kind: 'denied', action: 'content' } })
     expect(resent).toBe(true)
-    expect((await stored(store, call)).record?.version).toBe(2)
+    expect(sends).toEqual(['never committed', 'never rolled_back', 'never committed'])
+    const kept = (await stored(store, call)).record
+    expect(kept?.version).toBe(3)
+    expect(kept?.document.reads.get(read)).toMatchObject({ furthest: 2 })
   })
 
   it('answers commit-unknown when the reply is lost, then shows the committed original', async () => {
@@ -1142,7 +1152,7 @@ describe('attempt generations', () => {
     ])
   })
 
-  it('commits from #1 in a new process, passing each recalled rollback without a query', async () => {
+  it('commits from #1 in a new process without a query, since the rollbacks left no receipts', async () => {
     const f = heldShare()
     await write(f.store, callId('c1'), opId('a1'), () => admitted(callId('c1'), opId('a1')))
     for (let refused = 0; refused < 9; refused += 1) expect(await f.second()).toMatchObject(full)
@@ -1150,16 +1160,14 @@ describe('attempt generations', () => {
     f.committed.length = 0
     expect(await f.second(f.open())).toEqual({ ok: 'written' })
     expect(f.queried).toEqual([])
-    expect(f.committed.filter(key => key.startsWith('mop_a2#'))).toEqual(
-      Array.from({ length: 10 }, (_, at) => `mop_a2#${at + 1}`),
-    )
+    expect(f.committed.filter(key => key.startsWith('mop_a2#'))).toEqual(['mop_a2#1'])
     expect(f.sqlite.rows('domain-a', 'SELECT call FROM md_call ORDER BY call')).toEqual([
       ['mcall_c1'],
       ['mcall_c2'],
     ])
   })
 
-  it('passes a generation whose rollback the storage recalls for the same input', async () => {
+  it('runs a generation again after an earlier send of it rolled back, since no receipt recalls it', async () => {
     const f = heldShare()
     await write(f.store, callId('c1'), opId('a1'), () => admitted(callId('c1'), opId('a1')))
     const answers: string[] = []
@@ -1180,7 +1188,7 @@ describe('attempt generations', () => {
       },
     }
     expect(await f.second(createSqlModelStorage(options(watching)))).toMatchObject(full)
-    expect(answers).toEqual(['mop_a2#1 rolled_back recalled', 'mop_a2#2 rolled_back'])
+    expect(answers).toEqual(['mop_a2#1 rolled_back'])
   })
 
   it('bounds the rounds of one run by attemptLimit, and the next run of the operation writes', async () => {

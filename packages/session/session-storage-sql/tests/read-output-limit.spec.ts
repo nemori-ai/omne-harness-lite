@@ -57,7 +57,7 @@ async function stateOfSize(pad: number) {
     handler: 'execution-record.blob',
     protocol: '1',
     requestKey: `blob-${String(pad)}`,
-    input: { tenant: textOf(TENANT_A), digest },
+    input: { tenant: textOf(TENANT_A), execution: 'exe_1', digest },
   })
 }
 

@@ -284,6 +284,7 @@ describe('the queue entry of a call whose decision was accepted', () => {
         usage: query => memory.usage(query),
         readRecord: memory.readRecord,
         due: memory.due,
+        definition: memory.definition,
         read: domain => memory.read(domain),
         commit: async input => {
           for (const write of input.writes)

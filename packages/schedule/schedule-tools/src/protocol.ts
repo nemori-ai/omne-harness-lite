@@ -14,7 +14,7 @@ export const schedulesAdoption = describedAdoption({
   name: 'schedules-protocol',
   revision: '2',
   changes:
-    'One declaration with the command named in the call; definitions follow the user environment; consent through an inquiry card.',
+    'One declaration with the command named in the call; definitions follow the user environment.',
 })
 const vocabulary = describedAdoption({
   owner: '@omne-harness/schedule-tools',
@@ -129,7 +129,7 @@ export const schedulesSummaries: Readonly<Record<SchedulesCommandName, string>> 
   create: 'Create a schedule that takes effect now.',
   draft: 'Save a schedule as a draft: it does not run until it is promoted. Give a reason.',
   list: 'List schedules, newest first.',
-  show: 'One schedule: definition, state, author, the consent it took effect on, and the next time.',
+  show: 'One schedule: definition, state, author and the next time.',
   history: 'The revisions of one schedule.',
   update: 'Rename a schedule or change its instruction text. Give the revision you read.',
   revise: 'Rewrite a draft. Give the revision you read.',

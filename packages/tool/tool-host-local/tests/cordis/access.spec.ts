@@ -10,8 +10,9 @@ import {
 import { describe, expect, it } from 'vitest'
 import {
   callId,
+  currentDefinitions,
   evidence,
-  invokeRequest,
+  request,
   samePrincipalBySubject,
   subjectCodec,
   tenantA,
@@ -26,6 +27,7 @@ function assemble(access: ToolHostAccess<Subject>) {
       samePrincipal: samePrincipalBySubject,
     },
     principalCodec: subjectCodec,
+    definitions: currentDefinitions(),
     commitAttempts: 2,
   })
   return createLocalToolLedgerGuards({
@@ -53,13 +55,12 @@ describe('existing ToolHostAccess consumption', () => {
     const input = { principal: { subject: 'alice' }, tenant: tenantA, call: callId('qualified') }
     expect(guards.access).toBe(adapter)
     expect(await guards.access.qualify({ ...input, action: 'lookup' })).toEqual({ kind: 'allowed' })
-    const request = {
-      ...invokeRequest(),
-      invocation: { kind: 'direct' as const, source: evidence('source') },
-    }
-    expect(await guards.starts.qualifyStart({ ...input, request })).toEqual({ kind: 'allowed' })
+    const fixed = request({ invocation: { kind: 'direct' as const, source: evidence('source') } })
+    expect(await guards.starts.qualifyStart({ ...input, request: fixed })).toEqual({
+      kind: 'allowed',
+    })
     verdict = { kind: 'unavailable', diagnostic: 'source withdrawn' }
-    expect(await guards.starts.qualifyStart({ ...input, request })).toEqual(verdict)
+    expect(await guards.starts.qualifyStart({ ...input, request: fixed })).toEqual(verdict)
     expect(await guards.access.qualify({ ...input, action: 'lookup' })).toEqual(verdict)
     expect(calls).toEqual(['lookup', 'start', 'start', 'lookup'])
   })
@@ -77,7 +78,7 @@ describe('existing ToolHostAccess consumption', () => {
         principal: { subject: 'alice' },
         tenant: tenantA,
         call: callId('refused'),
-        request: { ...invokeRequest(), invocation: { kind: 'direct', source: evidence('source') } },
+        request: request({ invocation: { kind: 'direct', source: evidence('source') } }),
       })
       expect(answer.kind).toBe(mode === 'denied' ? 'refused' : 'unavailable')
       expect(JSON.stringify(answer)).not.toContain('secret input')

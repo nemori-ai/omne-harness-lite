@@ -58,7 +58,7 @@ agent 已选到方法，希望只读取眼前需要的内容。前提是本次�
 
 用户或 agent 希望运行选中方法目录里的某个脚本。`Skills` 没有执行命令。脚本和参考资料、模板一样，是第三层的文件，用 `read_file` 读。读到脚本源码不运行它。
 
-运行归 Shell。资产一定先加载到本地。单机装配下，一个 Skill 的目录就在本机的文件系统里，agent 用 Shell 直接运行里面的脚本。agent 从 `Skills` 的读取结果里知道这个目录在本机的位置。这个位置是单机装配下的一个事实，不是包的读口给的路径；Skill 读内容仍经包的读口。这是一次普通的 Shell 工具调用：准入、权限、环境与落点、等待、前后台、取消、结果保管，全照[工具执行](../tool-execution/design.md)与[执行环境](../execution-environments/design.md)的规则。
+运行归 Shell。资产一定先加载到本地。单机装配下，一个 Skill 的目录就在本机的文件系统里，agent 用 Shell 直接运行里面的脚本。agent 从 `Skills` 的读取结果里知道这个目录在本机的位置。这个位置是单机装配下的一个事实，不是包的读口给的路径；Skill 读内容仍经包的读口。这是一次普通的 Shell 工具调用：许不许照[动作放行](../meta-capabilities/design.md#动作放行与环境准入)；受理、环境与落点、等待、前后台、取消、结果保管，全照[工具执行](../tool-execution/design.md)与[执行环境](../execution-environments/design.md)的规则。
 
 Skill 不持有执行权。没有按某个 Skill 判的脚本执行许可，没有脚本桥接，也没有「只能运行包内脚本」这条规则。Shell 的许可不因为脚本来自某个 Skill 而放宽，也不因此收紧。能读一个 Skill，不等于能运行任何命令。
 

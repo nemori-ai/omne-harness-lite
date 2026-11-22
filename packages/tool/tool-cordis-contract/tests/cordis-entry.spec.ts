@@ -41,7 +41,6 @@ const documentedPairs = {
   toolReleaseDetailsKey: 'ToolReleaseDetailsService',
   toolStartAuthorityKey: 'ToolStartAuthorityService',
   toolStartFenceKey: 'ToolStartFenceService',
-  toolStartReleasesKey: 'ToolStartReleasesService',
   toolResourceResponsesKey: 'ToolResourceResponsesService',
   toolChildrenKey: 'ToolChildrenService',
   toolAccountsKey: 'ToolAccountsService',
@@ -58,10 +57,10 @@ const serviceClasses = exported.filter(
 )
 
 describe('service keys', () => {
-  it('exports 24 unique keys, one per documented pair', () => {
+  it('exports 23 unique keys, one per documented pair', () => {
     const keys = keyConstants.map(([, value]) => value)
-    expect(keys).toHaveLength(24)
-    expect(new Set(keys).size).toBe(24)
+    expect(keys).toHaveLength(23)
+    expect(new Set(keys).size).toBe(23)
     expect(keyConstants.map(([name]) => name).sort()).toEqual(Object.keys(documentedPairs).sort())
   })
 
@@ -76,8 +75,8 @@ describe('service keys', () => {
   )
 
   it('has one service class per key, no more', () => {
-    expect(serviceClasses).toHaveLength(24)
-    expect(new Set(serviceClasses.map(([, type]) => type.provide)).size).toBe(24)
+    expect(serviceClasses).toHaveLength(23)
+    expect(new Set(serviceClasses.map(([, type]) => type.provide)).size).toBe(23)
   })
 
   it('names the two G7 keys of RFC-0012 as the docs/cordis.md table does', () => {

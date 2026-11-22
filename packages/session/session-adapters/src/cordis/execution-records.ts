@@ -4,7 +4,7 @@ import type { SessionId } from '@omne-harness/session-contract'
 import { handoffKey, type AttachmentView, type HandoffView } from '../journal/index.ts'
 import type { HandoffRecord, MemoryExecution } from '../testing/journal.ts'
 import { attachmentsOf, handoffParts, handoffRefs } from '../testing/journal-records.ts'
-import { resolvedOf, type JournalStateSource } from './agent-journal.ts'
+import { resolvedOf, type JournalStateSource } from './journal-state.ts'
 import { fetchBlobClosure } from './block-read.ts'
 import { readItems, readOpenItems, type ItemScope } from './item-read.ts'
 import { blobRowDigest } from './journal-batch.ts'
@@ -26,10 +26,10 @@ type RequestRead =
 const isRef = (ref: unknown): ref is Readonly<{ digest: string }> =>
   typeof (ref as { digest?: unknown } | null)?.digest === 'string'
 
-async function requestOf(read: Reader, tenant: string, item: HandoffView): Promise<RequestRead> {
+async function requestOf(read: Reader, scope: ItemScope, item: HandoffView): Promise<RequestRead> {
   const digests = handoffRefs(item).flatMap(ref => (isRef(ref) ? [ref.digest] : []))
   const payloads = new Map<string, string>()
-  const missing = await fetchBlobClosure(read, tenant, digests.map(blobRowDigest), payloads)
+  const missing = await fetchBlobClosure(read, scope, digests.map(blobRowDigest), payloads)
   if (missing !== null)
     return { kind: 'unavailable', diagnostic: `the content block ${missing} is not readable` }
   try {
@@ -55,6 +55,7 @@ export async function readExecutionRecords(
   for (let attempt = 0; attempt < READ_ATTEMPTS; attempt += 1) {
     const own = await readOpenItems(resolved.read, scope, ['exec', 'attachment'])
     if (own.kind === 'unavailable') return own
+    if (own.kind === 'settled') return { kind: 'read', execution: null }
     const exec = own.items.find(item => item.family === 'exec')?.body as
       | Readonly<{ opened: unknown }>
       | undefined
@@ -77,7 +78,7 @@ export async function readExecutionRecords(
     const request =
       item === undefined
         ? ({ kind: 'read', request: null } as const)
-        : await requestOf(resolved.read, resolved.tenant, item)
+        : await requestOf(resolved.read, scope, item)
     if (request.kind === 'unavailable') return request
     return {
       kind: 'read',

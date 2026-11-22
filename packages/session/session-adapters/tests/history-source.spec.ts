@@ -28,6 +28,7 @@ import type {
   SessionAdoptedRequest,
   SessionAdoptedRequestRead,
   SessionAdoptedRequests,
+  SessionRequestChoicesRead,
 } from '@omne-harness/session-cordis-contract'
 import {
   SessionAdoptedRequestsService,
@@ -41,8 +42,10 @@ import {
   samplePrefix,
   type FixedValues,
 } from './fixtures/adopted-request.ts'
+import { adopt, endAndSettle, openHanded } from './fixtures/adopted-settled.ts'
 import { ok, scene, type SceneQualification } from './fixtures/common-journal.ts'
 import { take } from './fixtures/progression.ts'
+import { cordisScene, sqlScene } from './fixtures/sql-scene.ts'
 
 type Call = Readonly<{ method: string; caller: unknown; principal: unknown }>
 type Faults = {
@@ -303,6 +306,8 @@ function scriptedAdoptedRequests() {
       if (state.answer === 'throw') throw new Error('the provider read threw')
       return state.answer ?? { kind: 'value', value: state.saved }
     }
+    readonly readRequestChoices = (): Promise<SessionRequestChoicesRead> =>
+      Promise.resolve({ kind: 'value', value: null })
   }
   return { state, Plugin }
 }
@@ -964,6 +969,37 @@ describe('the narrow adoption source reads the a part of the session', () => {
       kind: 'value',
       value: { order: '1', committed: ready.source, candidate: 'action-1' },
     })
+  })
+
+  it('the request the journal keeps after its execution settled reads as the same fact as while it lived', async () => {
+    const { w, target, source } = await adoptedWorld()
+    const s = await sqlScene('history-retained')
+    disposers.push(() => s.close())
+    const c = await cordisScene(s)
+    disposers.push(() => c.dispose())
+    const requests = c.ctx.get(sessionAdoptedRequestsKey) as SessionAdoptedRequests<unknown>
+    const read = async () => {
+      const answer = await requests.readAdoptedRequest({
+        access: s.access,
+        session: s.access.session,
+      })
+      if (answer.kind !== 'value' || answer.value === null) throw new Error(JSON.stringify(answer))
+      return answer.value
+    }
+    const opened = await openHanded(s, c.journal())
+    await adopt(s, c.journal(), opened, target, '1')
+    const live = await read()
+    w.provider.state.saved = live
+    const before = await source()
+    expect(before).toMatchObject({
+      kind: 'value',
+      value: { order: live.order, committed: live.fixed },
+    })
+    await endAndSettle(s, c.journal(), opened)
+    const retained = await read()
+    expect(retained).toEqual(live)
+    w.provider.state.saved = retained
+    expect(await source()).toEqual(before)
   })
 })
 

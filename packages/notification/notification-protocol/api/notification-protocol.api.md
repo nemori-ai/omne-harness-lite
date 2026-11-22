@@ -796,7 +796,7 @@ declare const subscription: {
                 ];
             };
         };
-        readonly basis: {
+        readonly creator: {
             rule: {
                 readonly kind: 'one-of';
                 readonly rules: readonly [
@@ -807,7 +807,7 @@ declare const subscription: {
                                 rule: {
                                     readonly kind: 'literal';
                                     readonly values: readonly [
-                                        "owner"
+                                        "human"
                                     ];
                                 };
                             };
@@ -820,17 +820,13 @@ declare const subscription: {
                                 rule: {
                                     readonly kind: 'literal';
                                     readonly values: readonly [
-                                        "blanket"
+                                        "agent"
                                     ];
                                 };
                             };
-                            readonly scope: {
+                            readonly session: {
                                 rule: {
-                                    readonly kind: 'literal';
-                                    readonly values: readonly [
-                                        "standing",
-                                        "session"
-                                    ];
+                                    readonly kind: 'text';
                                 };
                             };
                         };
@@ -842,7 +838,7 @@ declare const subscription: {
                                 rule: {
                                     readonly kind: 'literal';
                                     readonly values: readonly [
-                                        "granular"
+                                        "system"
                                     ];
                                 };
                             };
@@ -1411,13 +1407,13 @@ export declare const notificationProtocol: {
             readonly outcomes: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{
                     readonly subscriptions: readonly {
-                        readonly basis: {
-                            readonly kind: "owner";
+                        readonly creator: {
+                            readonly kind: "human";
                         } | {
-                            readonly kind: "blanket";
-                            readonly scope: "session" | "standing";
+                            readonly kind: "agent";
+                            readonly session: string;
                         } | {
-                            readonly kind: "granular";
+                            readonly kind: "system";
                         };
                         readonly expired: boolean;
                         readonly level: "off" | "strong" | "weak";
@@ -1473,13 +1469,13 @@ export declare const notificationProtocol: {
         readonly 'set-subscription': {
             readonly outcomes: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{
-                    readonly basis: {
-                        readonly kind: "owner";
+                    readonly creator: {
+                        readonly kind: "human";
                     } | {
-                        readonly kind: "blanket";
-                        readonly scope: "session" | "standing";
+                        readonly kind: "agent";
+                        readonly session: string;
                     } | {
-                        readonly kind: "granular";
+                        readonly kind: "system";
                     };
                     readonly expired: boolean;
                     readonly level: "off" | "strong" | "weak";
@@ -1511,13 +1507,13 @@ export declare const notificationProtocol: {
                     readonly type: string;
                 }>;
                 readonly 'no-change': import("@omne-harness/public-contract").Codec<{
-                    readonly basis: {
-                        readonly kind: "owner";
+                    readonly creator: {
+                        readonly kind: "human";
                     } | {
-                        readonly kind: "blanket";
-                        readonly scope: "session" | "standing";
+                        readonly kind: "agent";
+                        readonly session: string;
                     } | {
-                        readonly kind: "granular";
+                        readonly kind: "system";
                     };
                     readonly expired: boolean;
                     readonly level: "off" | "strong" | "weak";
@@ -1951,7 +1947,7 @@ export declare const notificationProtocol: {
         };
     };
     readonly name: "notification";
-    readonly major: 1;
+    readonly major: 2;
     readonly observations: {
         readonly 'observe-changes': {
             readonly identity: "login";

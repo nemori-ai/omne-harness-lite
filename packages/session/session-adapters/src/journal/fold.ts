@@ -519,6 +519,7 @@ function foldMaterialPreserved(
       source: fact.source,
       value: fact.value,
       consumer: fact.consumer,
+      readers: fact.readers,
       pub,
     })
 }

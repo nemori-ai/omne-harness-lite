@@ -1,4 +1,11 @@
-import { isItemKey, itemOutput, itemScope, pageLength } from './item-rows.ts'
+import {
+  ITEM_COLUMNS,
+  ITEM_FROM,
+  isItemKey,
+  itemOutput,
+  itemScope,
+  pageLength,
+} from './item-rows.ts'
 import { handler, PAGE_ROWS, rowsOf } from './support.ts'
 
 const MAX_FAMILIES = 8
@@ -31,14 +38,14 @@ export default handler('execution-record.open-items', (input, port) => {
   const named = itemScope(input, port)
   if (named.kind === 'answer') return named.answer
   const { scope, execution, published } = named
-  const only = families === null ? '' : ` AND family IN (${families.map(() => '?').join(', ')})`
-  const within = under === null ? '' : ' AND item >= ? AND item < ?'
+  const only = families === null ? '' : ` AND i.family IN (${families.map(() => '?').join(', ')})`
+  const within = under === null ? '' : ' AND i.item >= ? AND i.item < ?'
   const rows = rowsOf(
     port,
-    `SELECT family, item, open, pub, body FROM er_item
-      WHERE tenant = ? AND execution = ?${all ? '' : ' AND open = 1'}${only}${within}
-        AND (family > ? OR (family = ? AND item > ?))
-      ORDER BY family, item LIMIT ?`,
+    `SELECT ${ITEM_COLUMNS} FROM ${ITEM_FROM}
+      WHERE i.tenant = ? AND i.execution = ?${all ? '' : ' AND i.open = 1'}${only}${within}
+        AND (i.family > ? OR (i.family = ? AND i.item > ?))
+      ORDER BY i.family, i.item LIMIT ?`,
     [
       scope.tenant,
       execution,

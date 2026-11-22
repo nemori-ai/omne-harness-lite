@@ -4,9 +4,7 @@ import type {
   ActionSlot,
   PendingCall,
   CommandReceipt,
-  DurableEvidence,
 } from '@omne-harness/agent-contract'
-import type { JsonValue } from '@omne-harness/json-text'
 import type { CallBinding } from '@omne-harness/session-contract'
 import { resolveToolInvocationRef } from '@omne-harness/tool-contract'
 import type { CommonRoot } from './root.ts'
@@ -31,16 +29,6 @@ const evidence = (value: unknown) =>
       typeof value[key as keyof typeof value] === 'string' &&
       String(value[key as keyof typeof value]).length > 0,
   )
-function backgroundAllowed(root: CommonRoot, request: DurableEvidence): boolean {
-  const kept = root.receiving.materials.get(canonical(request))
-  if (kept === undefined || kept.value.kind !== 'facts') return false
-  let node: JsonValue | undefined = kept.value.value
-  for (const key of ['availability', 'definition', 'backgroundAllowed']) {
-    if (node?.kind !== 'object') return false
-    node = node.entries.find(entry => entry.key === key)?.value
-  }
-  return node?.kind === 'boolean' && node.value
-}
 
 export function captureBackground(
   root: CommonRoot,
@@ -65,7 +53,6 @@ export function captureBackground(
     const action = actions[0]!
     if (
       action.judgment.kind !== 'allowed' ||
-      (slot.kind === 'background' && !backgroundAllowed(root, action.judgment.request)) ||
       batch.barrier.kind !== 'open' ||
       !batch.barrier.approved.includes(action.id)
     )

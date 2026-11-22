@@ -6,11 +6,18 @@ import {
   onReleaseTree,
   pollUntil,
   startAcceptances,
+  toolCalls,
   toolCallsThenText,
   toolResults,
   type ReleaseTree,
 } from '../../support/release-tree.ts'
-import { answerCard, pendingCard, setGate } from '../authorization/release-flow-support.ts'
+import {
+  admittedReleases,
+  answerCard,
+  holdStart,
+  pendingCard,
+  setGate,
+} from '../authorization/release-flow-support.ts'
 
 const SCHEDULES = { kind: 'asset', category: 'tool', name: 'Schedules' } as const
 const DEFINITION = {
@@ -60,7 +67,8 @@ async function settled(tree: ReleaseTree, session: string, what: string) {
   return toolResults(entries).join('\n')
 }
 
-async function basisOf(tree: ReleaseTree, label: string) {
+/** A schedule as the owner sees it: its state, who created it, and whether a consent column is there. */
+async function shownOf(tree: ReleaseTree, label: string) {
   const listed = bodyOf(await tree.cli(['schedule', 'list'])) as {
     items: { schedule: string; label: string }[]
   }
@@ -68,46 +76,79 @@ async function basisOf(tree: ReleaseTree, label: string) {
   if (found === undefined) return undefined
   const shown = bodyOf(await tree.cli(['schedule', 'show', '--schedule', found.schedule])) as {
     control: string
-    basis: unknown
+    author: unknown
   }
-  return { control: shown.control, basis: shown.basis }
+  return { control: shown.control, author: shown.author, consent: Object.hasOwn(shown, 'basis') }
+}
+const byAgentOf = (session: string) => ({
+  control: 'active',
+  author: { kind: 'agent', session },
+  consent: false,
+})
+
+/** Who created the schedule, as the result of the create call shows it to the agent. */
+function authorIn(result: string): unknown {
+  const [head, body] = result.split('\n')
+  if (head !== 'done Schedules create' || body === undefined) return result
+  return (JSON.parse(body) as { author: unknown }).author
 }
 
 describe('the Schedules tool on the release tree', () => {
   it(
-    'a call forwarded through Tools takes effect on its own release, not on the carrier',
+    'names the agent, its session and the call that created a schedule',
     { tags: ['slow'], timeout: 300_000 },
     async () => {
-      const exit = await onReleaseTree({ script, nonresident: ['Schedules'] }, async tree => {
-        await settled(tree, await tree.startSession('schedules: forwarded'), 'it')
-        const shown = await pollUntil(
-          'the forwarded schedule',
-          () => basisOf(tree, 'forwarded'),
-          value => value !== undefined,
-        )
-        expect(shown).toEqual({ control: 'active', basis: { kind: 'blanket', scope: 'standing' } })
-        const releases = startAcceptances(tree.storageRoot).map(row => row['release'])
-        expect(releases).toEqual(
-          expect.arrayContaining([
-            { by: 'carrier', grant: null },
-            { by: 'verdict', grant: expect.stringContaining('"layer":"tenant"') },
-          ]),
-        )
+      const exit = await onReleaseTree({ script, permission: 'auto_permission' }, async tree => {
+        const session = await tree.startSession('schedules: traced')
+        const result = await settled(tree, session, 'traced')
+        const calls = toolCalls(tree.storageRoot).filter(row => row.tool === 'Schedules')
+        expect(calls).toHaveLength(1)
+        expect(authorIn(result)).toBe(`agent session=${session} call=${calls[0]?.call}`)
       })
       expect(exit).toBe(0)
     },
   )
 
   it(
-    'takes effect on the standing permission; once the activate gate asks, the answer to the release card is the consent',
+    'a call forwarded through Tools takes effect on its own release, not on the carrier',
+    { tags: ['slow'], timeout: 300_000 },
+    async () => {
+      const exit = await onReleaseTree({ script, nonresident: ['Schedules'] }, async tree => {
+        const hold = holdStart(tree, 'Schedules')
+        const forwarded = await tree.startSession('schedules: forwarded')
+        await pollUntil(
+          'the Tool to reach the start',
+          async () => hold.held(),
+          n => n > 0,
+        )
+        const releases = admittedReleases(tree.storageRoot)
+        hold.go()
+        await settled(tree, forwarded, 'it')
+        const shown = await pollUntil(
+          'the forwarded schedule',
+          () => shownOf(tree, 'forwarded'),
+          value => value !== undefined,
+        )
+        expect(shown).toEqual(byAgentOf(forwarded))
+        expect(startAcceptances(tree.storageRoot).filter(row => 'release' in row)).toEqual([])
+        expect(releases).toContainEqual({
+          by: 'verdict',
+          grant: expect.objectContaining({ layer: 'tenant' }),
+        })
+        expect(releases).not.toContainEqual(expect.objectContaining({ by: 'carrier' }))
+      })
+      expect(exit).toBe(0)
+    },
+  )
+
+  it(
+    'takes effect on the standing permission; once the activate gate asks, the answer to the release card lets it through',
     { tags: ['slow'], timeout: 300_000 },
     async () => {
       const exit = await onReleaseTree({ script, permission: 'auto_permission' }, async tree => {
-        await settled(tree, await tree.startSession('schedules: standing'), 'standing')
-        expect(await basisOf(tree, 'standing')).toEqual({
-          control: 'active',
-          basis: { kind: 'blanket', scope: 'standing' },
-        })
+        const standing = await tree.startSession('schedules: standing')
+        await settled(tree, standing, 'standing')
+        expect(await shownOf(tree, 'standing')).toEqual(byAgentOf(standing))
 
         await setGate(tree, SCHEDULES, 'activate', 'ask', 'schedules-activate-asks')
         const once = await tree.startSession('schedules: once')
@@ -138,10 +179,7 @@ describe('the Schedules tool on the release tree', () => {
         })
         await answerCard(tree, card, ['--option', 'allow-once'], 'reply-once')
         await settled(tree, once, 'once')
-        expect(await basisOf(tree, 'once')).toEqual({
-          control: 'active',
-          basis: { kind: 'granular' },
-        })
+        expect(await shownOf(tree, 'once')).toEqual(byAgentOf(once))
 
         const session = await tree.startSession('schedules: session')
         await answerCard(
@@ -151,10 +189,7 @@ describe('the Schedules tool on the release tree', () => {
           'reply-session',
         )
         await settled(tree, session, 'session')
-        expect(await basisOf(tree, 'session')).toEqual({
-          control: 'active',
-          basis: { kind: 'blanket', scope: 'session' },
-        })
+        expect(await shownOf(tree, 'session')).toEqual(byAgentOf(session))
 
         const denied = await tree.startSession('schedules: denied')
         await answerCard(
@@ -164,7 +199,7 @@ describe('the Schedules tool on the release tree', () => {
           'reply-denied',
         )
         await settled(tree, denied, 'denied')
-        expect(await basisOf(tree, 'denied')).toBeUndefined()
+        expect(await shownOf(tree, 'denied')).toBeUndefined()
       })
       expect(exit).toBe(0)
     },

@@ -6,6 +6,7 @@ import {
   type RunTerminal,
 } from '@omne-harness/session-contract'
 import { operationId, succeeded } from '@omne-harness/session-contract/testing'
+import { decodeEntry } from '../src/entries.ts'
 import { open } from './scene.ts'
 
 async function cancelledBy(control: 'cancel-run' | 'archive') {
@@ -28,10 +29,23 @@ async function cancelledBy(control: 'cancel-run' | 'archive') {
   )
   const snapshot = await s.read()
   if (snapshot.run.kind !== 'terminal') throw new Error(`the Run is ${snapshot.run.kind}`)
-  return { snapshot, terminal: snapshot.run.terminal, operation, run: run.run }
+  const row = s.port.controls
+    .entriesOf(s.access.tenant, s.access.session)
+    .findLast(entry => entry.kind === 'run.terminal')
+  const decoded = row === undefined ? null : decodeEntry(row)
+  const written = decoded !== null && 'ok' in decoded ? decoded.ok : decoded
+  return { snapshot, terminal: snapshot.run.terminal, operation, run: run.run, written }
 }
 
 describe('the control behind a cancelled Run', () => {
+  it.each(['cancel-run', 'archive'] as const)(
+    'a Run that %s ended records its end as cancelled with no failure',
+    async control => {
+      const { written } = await cancelledBy(control)
+      expect(written).toMatchObject({ end: { conclusion: 'cancelled', failure: null } })
+    },
+  )
+
   it.each(['cancel-run', 'archive'] as const)(
     'a Run that %s ended names that control, and no other',
     async control => {

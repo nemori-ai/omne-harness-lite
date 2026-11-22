@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { SettingsStateSchema } from '@omne-harness/settings'
+import { SettingsDefinitionRefSchema, SettingsStateSchema } from '@omne-harness/settings'
 import type { FactCommandV2 } from '@omne-harness/sql-contract'
 import {
   SettingsProjectionBindingSchema,
@@ -31,7 +31,16 @@ export const SettingsValueProjectionSchema = z.strictObject({
         z.strictObject({
           presence: z.literal('unavailable'),
           view: SettingsTargetProjectionSchema,
-          reason: failureSchema.shape.reason,
+          reason: z.literal('definition_changed'),
+          stored: z.strictObject({
+            definitionRef: SettingsDefinitionRefSchema,
+            state: SettingsStateSchema,
+          }),
+        }),
+        z.strictObject({
+          presence: z.literal('unavailable'),
+          view: SettingsTargetProjectionSchema,
+          reason: failureSchema.shape.reason.exclude(['definition_changed']),
         }),
       ]),
     )

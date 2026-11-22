@@ -11,18 +11,18 @@ const failureOf = (value: unknown): Record<string, unknown> => {
   return (value as { failure: Record<string, unknown> }).failure
 }
 
-async function diagnosticOf(a: App, operation: string): Promise<string> {
-  const receipt = await a.provider.storage.query({
+function diagnosticOf(a: App, operation: string): string {
+  const receipt = a.provider.ran({
     scope: { kind: 'tenant', tenant: textOf(TENANT_A) },
     transactionDomain: DOMAIN,
     operation: operationId(operation),
     protocolVersion: '2',
     operationKey: JSON.stringify(['session-1', operationId(operation), 1]),
   })
-  const stop = receipt.kind === 'rolled_back' ? receipt.responses.at(-1)?.reply : undefined
+  const stop = receipt?.kind === 'rolled_back' ? receipt.responses.at(-1)?.reply : undefined
   return stop?.kind === 'conflict'
     ? String((stop.basis as Readonly<Record<string, unknown>>)['diagnostic'])
-    : `no conflict: ${receipt.kind}`
+    : `no conflict: ${receipt?.kind ?? 'none'}`
 }
 const ok = <T>(value: unknown): T => {
   expect(value, JSON.stringify(value)).toHaveProperty('ok')
@@ -50,7 +50,7 @@ describe('a commit whose in-transaction read would pass its bound', () => {
       [textOf(TENANT_A)],
     )
     expect(failureOf(await a.accept(TENANT_A, 'session-1', 'two'))).toEqual(READ_BOUND)
-    expect(await diagnosticOf(a, 'accept-two')).toContain('history index')
+    expect(diagnosticOf(a, 'accept-two')).toContain('history index')
     expect(ok<{ revision: string }>(await a.port.readWork(a.access(TENANT_A))).revision).toBe(
       before.revision,
     )
@@ -83,7 +83,7 @@ describe('a commit whose in-transaction read would pass its bound', () => {
     expect(
       failureOf(await a.port.commit({ access: a.access(TENANT_A), command, guards: [] })),
     ).toEqual(READ_BOUND)
-    expect(await diagnosticOf(a, 'complete-1')).toContain('operation receipts')
+    expect(diagnosticOf(a, 'complete-1')).toContain('operation receipts')
     expect(ok<{ revision: string }>(await a.port.readWork(a.access(TENANT_A))).revision).toBe(
       before.revision,
     )

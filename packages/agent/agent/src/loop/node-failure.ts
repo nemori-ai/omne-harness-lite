@@ -27,6 +27,7 @@ function snapshotFailure(failure: Failure): Failure {
     case 'busy':
     case 'changed':
     case 'unsupported':
+    case 'reclaimed':
       return { kind: failure.kind }
     default: {
       const exhaustive: never = failure
@@ -43,6 +44,8 @@ export function nodeFailureCategory(failure: Failure): NodeFailureCategory | nul
     case 'unsupported':
     case 'conflict':
       return 'rejected'
+    case 'reclaimed':
+      return 'invariant'
     default:
       return null
   }

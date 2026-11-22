@@ -1,5 +1,6 @@
 import {
   costLookupOf,
+  dispatchSend,
   type Adoption,
   type ContextWindow,
   type ModelDispatchFact,
@@ -11,13 +12,6 @@ import type { CallDocument, DispatchDocument } from './types.ts'
 /** The fact of a dispatch; the profile and window are null once the call released its request. */
 export type DispatchFactDraft = Omit<ModelDispatchFact, 'profile' | 'contextWindow'> &
   Readonly<{ profile: Adoption | null; contextWindow: ContextWindow | null }>
-
-const SEND_OF = {
-  prepared: 'not-sent',
-  started: 'sent',
-  unknown: 'unknown',
-  'not-sent': 'not-sent',
-} as const satisfies Readonly<Record<DispatchDocument['record']['send'], ModelDispatchFact['send']>>
 
 export function dispatchOutcome(terminal: Termination | null): ModelDispatchFact['outcome'] {
   if (terminal === null) return { kind: 'pending' }
@@ -45,7 +39,7 @@ export function dispatchFactOf(call: CallDocument, dispatch: DispatchDocument): 
     supplier: record.supplier,
     contextWindow: call.request?.contextWindow ?? null,
     instants: record.instants ?? NO_INSTANTS,
-    send: SEND_OF[record.send],
+    send: dispatchSend(record),
     outcome: dispatchOutcome(dispatch.logicalTerminal ?? record.terminal),
     connectRetries: record.connectRetries?.length ?? 0,
     account: record.account,

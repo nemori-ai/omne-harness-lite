@@ -72,7 +72,7 @@ export function subscription(
     level: 'strong',
     note: null,
     term: { kind: 'standing' },
-    basis: { kind: 'owner' },
+    creator: { kind: 'human', actorRef: 'owner' },
     expired: false,
     ...overrides,
   }

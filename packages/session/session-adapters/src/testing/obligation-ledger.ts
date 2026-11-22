@@ -46,6 +46,22 @@ const obligationFact = (
   settled: boolean,
 ): FactOf<'finish.obligation'> => ({ kind: 'finish.obligation', id, category, item, settled })
 
+export function acknowledgedFacts(
+  ledger: ReadonlyMap<string, Readonly<{ category: string; item: Ref | null; settled: boolean }>>,
+  through: number,
+): (FactOf<'ack.through'> | FactOf<'finish.obligation'>)[] {
+  const facts: (FactOf<'ack.through'> | FactOf<'finish.obligation'>)[] = [
+    { kind: 'ack.through', sequence: through },
+  ]
+  for (const [id, entry] of ledger) {
+    if (entry.category !== 'output' || entry.settled) continue
+    const [, key] = JSON.parse(id) as [string, string]
+    const emitted = Number(/^output\/1-(\d+)$/u.exec(key)?.[1] ?? Number.NaN)
+    if (emitted <= through) facts.push(obligationFact(id, entry.category, entry.item, true))
+  }
+  return facts
+}
+
 export function obligationChanges(
   items: readonly FinishObligation[],
   ledger: ObligationLedger,

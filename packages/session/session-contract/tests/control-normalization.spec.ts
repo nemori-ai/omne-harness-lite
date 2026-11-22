@@ -371,3 +371,187 @@ describe('an urgent input reconciles its control once the Agent released each fo
     })
   })
 })
+
+describe('a cancel checks each foreground producer on the stop the Agent made for that call', () => {
+  const TOOL = { kind: 'tool', call: 'tool-ref-1' } as const
+  const MODEL = { kind: 'model', call: 'model-ref-1' } as const
+
+  type Stop = Readonly<{
+    command: 'withdraw-tool' | 'interrupt-tool' | 'interrupt-model' | 'background-tool' | null
+    reached: readonly string[]
+    names?: string
+    settledAt?: string
+    model?: true
+    intent?: ControlProgress['intent']
+    origin?: string
+  }>
+
+  const STOPPED = { command: 'withdraw-tool', reached: ['accepted', 'physically-stopped'] } as const
+
+  function decideCancel(stop: Stop) {
+    const producer = stop.model ? MODEL : TOOL
+    const progress: ControlProgress = {
+      operation: OPERATION,
+      target: { kind: 'run', run: RUN },
+      intent: stop.intent ?? {
+        kind: 'control',
+        value: { kind: 'cancel-run', run: RUN, urgency: 'force' },
+      },
+      state: 'propagating',
+      pending: [producer],
+      pendingUnassociatedWaiting: [],
+    }
+    const binding = { producer, initiatingAttempt: ATTEMPT }
+    const snapshot = {
+      controls: [progress],
+      run: { kind: 'none' },
+      workEntryIndex: { controls: [{ operation: OPERATION, selected: [] }] },
+      callRegistrations: [
+        { consumption: 'consumption-1', registration: { kind: 'associated', binding } },
+      ],
+    } as unknown as WorkSnapshot
+    const name = stop.names ?? producer.call
+    return decideControlConsequences({
+      snapshot,
+      execution: EXECUTION,
+      run: RUN,
+      attempts: [
+        {
+          run: RUN,
+          attempt: ATTEMPT,
+          execution: EXECUTION,
+          ordinal: '1',
+          started: evidence('attempt-started'),
+        },
+      ],
+      origins: [{ operation: OPERATION, execution: stop.origin ?? EXECUTION }],
+      evidence: {
+        through: '9',
+        records: [
+          {
+            operation: deriveDriveOperation({
+              kind: 'control',
+              execution: EXECUTION,
+              control: OPERATION,
+            }),
+            command: 'cancel',
+            references: [],
+            invocation: null,
+            reached: ['intent-established', 'qualification-revoked'],
+            accepted: '2',
+          },
+          ...(stop.command === null
+            ? []
+            : [
+                {
+                  operation: 'aop_stop',
+                  command: stop.command,
+                  references: [name],
+                  invocation: stop.model ? null : name,
+                  reached: stop.reached as never,
+                  accepted: '4',
+                },
+              ]),
+        ],
+        settled:
+          stop.settledAt === undefined
+            ? []
+            : [
+                {
+                  kind: stop.model ? 'model' : 'result',
+                  binding: binding as never,
+                  revision: stop.settledAt,
+                },
+              ],
+        urgent: [],
+      },
+    })
+  }
+
+  it.each([
+    {
+      name: 'the withdraw of the Tool call is physically stopped',
+      stop: { command: 'withdraw-tool', reached: ['accepted', 'physically-stopped'] },
+      answer: reconciled,
+    },
+    {
+      name: 'Tool confirmed the withdraw of the call',
+      stop: { command: 'withdraw-tool', reached: ['accepted', 'producer-confirmed'] },
+      answer: reconciled,
+    },
+    {
+      name: 'an interrupt of the Tool call that stopped it',
+      stop: { command: 'interrupt-tool', reached: ['accepted', 'physically-stopped'] },
+      answer: reconciled,
+    },
+    {
+      name: 'the interrupt of the model call is confirmed',
+      stop: {
+        command: 'interrupt-model',
+        reached: ['accepted', 'producer-confirmed'],
+        model: true,
+      },
+      answer: reconciled,
+    },
+    {
+      name: 'the call ended with its result before the withdraw was accepted',
+      stop: { command: 'withdraw-tool', reached: ['accepted'], settledAt: '3' },
+      answer: reconciled,
+    },
+    {
+      name: 'the withdraw is only accepted: Tool has not confirmed or stopped yet',
+      stop: { command: 'withdraw-tool', reached: ['accepted'] },
+      answer: unchanged,
+    },
+    {
+      name: 'the withdraw names another call',
+      stop: {
+        command: 'withdraw-tool',
+        reached: ['accepted', 'physically-stopped'],
+        names: 'tool-ref-2',
+      },
+      answer: unchanged,
+    },
+    {
+      name: 'moving the call to the background is no stop',
+      stop: { command: 'background-tool', reached: ['accepted', 'producer-confirmed'] },
+      answer: unchanged,
+    },
+    {
+      name: 'the Agent made no stop for the call',
+      stop: { command: null, reached: [] },
+      answer: unchanged,
+    },
+    {
+      name: 'an archive checks the producer on the same stop',
+      stop: { ...STOPPED, intent: { kind: 'control', value: { kind: 'archive' } } },
+      answer: reconciled,
+    },
+    {
+      name: 'an automatic archive checks the producer on the same stop',
+      stop: {
+        ...STOPPED,
+        intent: { kind: 'auto-archive', idleEvidence: evidence('idle') },
+      },
+      answer: reconciled,
+    },
+    {
+      name: 'the cancel was made on another execution: the stop of this one is not its answer',
+      stop: { ...STOPPED, origin: 'execution-b' },
+      answer: unchanged,
+    },
+    {
+      name: 'a control that stops one named call is not answered by the stop of another call',
+      stop: {
+        ...STOPPED,
+        intent: { kind: 'control', value: { kind: 'stop-call', producer: MODEL } as never },
+      },
+      answer: unchanged,
+    },
+  ] as const satisfies readonly { name: string; stop: Stop; answer: unknown }[])(
+    '$name',
+    ({ stop, answer }) => {
+      expect(decideCancel(stop)).toEqual(answer)
+    },
+  )
+})

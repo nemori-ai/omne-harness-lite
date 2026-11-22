@@ -1,7 +1,6 @@
 // @module-tag slow
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, describe, expect, it } from 'vitest'
-import { WORK_BASIS_BYTES } from '../src/worker/participant.ts'
 import { openRealApp, TENANT_A, type RealApp } from './fixtures/real-provider.ts'
 
 const opened: RealApp[] = []
@@ -10,7 +9,7 @@ afterEach(async () => {
 })
 
 describe('a basis past the response bound of the provider', () => {
-  it('the commit still commits, and its receipt holds no basis', async () => {
+  it('the commit still commits, and no receipt is kept for it', async () => {
     const a = await openRealApp()
     opened.push(a)
     expect(a.storageRoot).toBeTruthy()
@@ -24,10 +23,7 @@ describe('a basis past the response bound of the provider', () => {
     expect(await a.accept(TENANT_A, 'session-1', 'input-last')).toHaveProperty('ok')
     const db = new DatabaseSync(a.domainFile(a.domainOf(TENANT_A)), { readOnly: true })
     try {
-      const row = db.prepare('SELECT MAX(LENGTH(receipt)) AS n FROM _sql_receipt').get() as {
-        n: number
-      }
-      expect(row.n).toBeLessThan(WORK_BASIS_BYTES + 16 * 1024)
+      expect(db.prepare('SELECT COUNT(*) AS n FROM _sql_receipt').get()).toEqual({ n: 0 })
     } finally {
       db.close()
     }

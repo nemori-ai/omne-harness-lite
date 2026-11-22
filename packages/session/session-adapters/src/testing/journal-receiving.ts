@@ -1,5 +1,5 @@
 import { SharedMap } from '../journal/shared-map.ts'
-import { MaterialTable } from './material-table.ts'
+import { MaterialTable, type Stored } from './material-table.ts'
 import { pendingCalls } from './pending.ts'
 import { createHash } from 'node:crypto'
 import type {
@@ -18,6 +18,7 @@ import type {
   Failure,
   JournalEntryRecord,
   Material,
+  MaterialReaders,
   ReceivedCommitInput,
   ReceivedCommitValue,
   ReceivedCommitResult,
@@ -50,6 +51,7 @@ import {
   type Blob,
   type ExecutionView,
   blobOf,
+  materialReleased,
   refOf,
   stampOfReceipt,
   type FactBody,
@@ -66,6 +68,7 @@ import {
   preservedSource,
   receivedMaterialSource,
   type Kept,
+  type ReleasedMaterial,
 } from './received-records.ts'
 import {
   bindTarget,
@@ -370,6 +373,45 @@ const materialOf = <P>(hooks: Hooks<P>, access: Access<P>, source: DurableEviden
   hooks.state().materials.get(canonical(source)) ??
   closedMaterial(hooks.closed(), mintOf(hooks), access.tenant, source, need)
 
+type Preserve<P> = Parameters<AgentMaterials<P, ContentBlock>['preserve']>[0]
+
+const readersOf = (held: Readonly<{ readers?: MaterialReaders }>): MaterialReaders =>
+  held.readers ?? 'after-release'
+
+function sameMaterial<P>(old: Stored | ReleasedMaterial, input: Preserve<P>): boolean {
+  if ('released' in old)
+    return readersOf(input) === 'until-release' && old.released.digest === refOf(input.value).digest
+  return readersOf(old) === readersOf(input) && canonical(old.value) === canonical(input.value)
+}
+
+function sameContentOf<P>(hooks: Hooks<P>, input: Preserve<P>): string | undefined {
+  if (readersOf(input) === 'until-release') return undefined
+  const content = canonical(input.value)
+  return hooks.state().materials.sameContent(tenantText(input.tenant), input.execution, content)
+}
+
+const preservedFact = <P>(source: DurableEvidence, input: Preserve<P>): FactBody => ({
+  kind: 'material.preserved',
+  source,
+  value: refOf(input.value),
+  consumer: structuredClone(input.consumer),
+  readers: readersOf(input),
+})
+
+function released<P>(hooks: Hooks<P>, stored: Stored, source: DurableEvidence): boolean {
+  if (stored.readers !== 'until-release') return false
+  const key = canonical(source)
+  const view = hooks.viewOf(stored.execution)
+  const item = view.materials.get(key)
+  return item === undefined || materialReleased(item, view, key)
+}
+
+function readable<P>(hooks: Hooks<P>, stored: Stored | ReleasedMaterial, source: DurableEvidence) {
+  if ('released' in stored || released(hooks, stored, source))
+    return fail({ kind: 'reclaimed' as const })
+  return succeed(structuredClone(stored.value))
+}
+
 export function createJournalReceiving<P>(hooks: Hooks<P>) {
   const qualifications = new Map<string, Map<P, Qualification>>()
   const pauses = new Map<
@@ -402,7 +444,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
       return fail(unavailable('material-unreadable'))
     const check = qualified({ ...access, execution: stored.execution }, false)
     if ('failure' in check) return check
-    return succeed(structuredClone(stored.value))
+    return readable(hooks, stored, source)
   }
   const rich = (access: Access<P>, kept: Kept): Outcome<ReceivedCommitValue, Failure> => {
     const material = readMaterial(access, kept.entry.material)
@@ -709,6 +751,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
         identity: input.identity,
         consumer: input.consumer,
         value: input.value,
+        readers: readersOf(input),
       })
       const mutation: ExecutionMutation<P> = {
         principal: input.principal,
@@ -722,26 +765,16 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
           value,
         })
         const old = materialOf(hooks, input, source, false)
-        if (old && canonical(old.value) !== canonical(input.value))
-          return answer(fail(invalid('identity')))
+        if (old && !sameMaterial(old, input)) return answer(fail(invalid('identity')))
         const permission = qualified(input)
         if ('failure' in permission) return answer(permission)
         if (old) return answer(succeed(source))
-        const kept = hooks
-          .state()
-          .materials.sameContent(tenantText(input.tenant), input.execution, canonical(input.value))
+        const kept = sameContentOf(hooks, input)
         if (kept !== undefined && hooks.viewOf(input.execution).materials.has(kept))
           return answer(succeed(materialSourceOf(kept)))
         return {
           kind: 'batch',
-          facts: [
-            {
-              kind: 'material.preserved',
-              source,
-              value: refOf(input.value),
-              consumer: structuredClone(input.consumer),
-            },
-          ],
+          facts: [preservedFact(source, input)],
           blobs: [blobOf(input.value)],
           kinds: [],
           derive: () => source,
@@ -750,6 +783,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
               tenant: tenantText(input.tenant),
               execution: input.execution,
               value: structuredClone(input.value),
+              readers: readersOf(input),
             })
           },
         }

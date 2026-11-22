@@ -7,6 +7,7 @@ import type {
 import { z } from 'zod'
 import { bootstrapSchema, type Bootstrap } from './operation-schema.ts'
 import { digest, scopeKey, equal, json } from './encoding.ts'
+import { ENDED_STAGES } from './sql-stage-schema.ts'
 const stateSchema = z.tuple([
   z.string(),
   z.enum(['isolated', 'open', 'closed']),
@@ -101,6 +102,11 @@ export function closeScope(port: ParticipantPort, raw: z.infer<typeof closeScope
   port.execute(
     "UPDATE gc_contribution SET state='released' WHERE scope_key=? AND epoch=? AND state IN ('active','closing')",
     [key, input.epoch],
+  )
+  port.execute(
+    `DELETE FROM gc_sql_stage WHERE scope_key=? AND stage IN (${ENDED_STAGES.map(() => '?').join(',')}) AND (command_owner,principal_ref,operation_id) IN (
+    SELECT command_owner,principal_ref,operation_id FROM gc_operation WHERE scope_key=? AND accepted_epoch=? AND state IN ('accepted','submitted'))`,
+    [key, ...ENDED_STAGES, key, input.epoch],
   )
   port.execute(
     "UPDATE gc_operation SET state='aborted',result_json=? WHERE scope_key=? AND accepted_epoch=? AND state IN ('accepted','submitted')",

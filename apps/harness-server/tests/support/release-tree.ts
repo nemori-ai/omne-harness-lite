@@ -233,12 +233,12 @@ function withObservationPolicy(
   return { ops: [...ops, { kind: 'replace', id: 'session-observation', config: { policy } }] }
 }
 
-function withAgentWaitInterval(layer: unknown): unknown {
+function withAgentWaitInterval(layer: unknown, delays: readonly number[] = [50]): unknown {
   const { ops } = layer as { ops: Readonly<{ kind: string; id: string; config?: object }>[] }
   return {
     ops: ops.map(op =>
       op.id === 'agent-host'
-        ? { ...op, config: { ...op.config, reconciliationDelaysMs: [50] } }
+        ? { ...op, config: { ...op.config, reconciliationDelaysMs: delays } }
         : op,
     ),
   }
@@ -302,7 +302,7 @@ export async function history(
   return []
 }
 
-function sqliteFiles(storageRoot: string): string[] {
+export function sqliteFiles(storageRoot: string): string[] {
   const files: string[] = []
   const walk = (dir: string) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -313,6 +313,32 @@ function sqliteFiles(storageRoot: string): string[] {
   }
   walk(storageRoot)
   return files
+}
+
+/** Agent executions, of one session or of all, whose record is not settled yet: a Run that ended logically may still be closing. */
+export function unsettledExecutions(storageRoot: string, session?: string): number {
+  let open = 0
+  for (const file of sqliteFiles(storageRoot)) {
+    const db = new DatabaseSync(file, { readOnly: true })
+    try {
+      const held = db
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'er_execution'")
+        .get()
+      if (held === undefined) continue
+      const row =
+        session === undefined
+          ? db.prepare('SELECT COUNT(*) AS n FROM er_execution WHERE settled IS NULL').get()
+          : db
+              .prepare(
+                'SELECT COUNT(*) AS n FROM er_execution WHERE settled IS NULL AND session = ?',
+              )
+              .get(session)
+      open += Number(row?.['n'] ?? 0)
+    } finally {
+      db.close()
+    }
+  }
+  return open
 }
 
 type LedgerRow = Readonly<{ kind: string; name: string; record: Record<string, unknown> }>
@@ -329,7 +355,7 @@ export function executionFailures(storageRoot: string): readonly unknown[] {
       )
         continue
       for (const row of db
-        .prepare('SELECT tenant, body FROM er_fact ORDER BY pub DESC, ord DESC LIMIT 12')
+        .prepare('SELECT tenant, execution, body FROM er_fact ORDER BY pub DESC, ord DESC LIMIT 12')
         .all()) {
         const text = unpackText(row['body'] as Uint8Array)
         if (!text.includes('node-failed') && !text.includes('compaction-failed')) continue
@@ -339,9 +365,16 @@ export function executionFailures(storageRoot: string): readonly unknown[] {
           const digest = detail.digest.startsWith('sha256:')
             ? detail.digest
             : `sha256:${detail.digest}`
-          const blob = db
-            .prepare('SELECT payload FROM sl_blob WHERE tenant = ? AND digest = ?')
-            .get(String(row['tenant']), digest)
+          const tenant = String(row['tenant'])
+          const blob =
+            db
+              .prepare(
+                'SELECT payload FROM er_block WHERE tenant = ? AND execution = ? AND digest = ?',
+              )
+              .get(tenant, String(row['execution']), digest) ??
+            db
+              .prepare('SELECT payload FROM sl_blob WHERE tenant = ? AND digest = ?')
+              .get(tenant, digest)
           if (blob !== undefined)
             failures.push(JSON.parse(unpackText(blob['payload'] as Uint8Array)))
         }
@@ -363,16 +396,35 @@ function ledgerRows(storageRoot: string): readonly LedgerRow[] {
         .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'tl_record'`)
         .get()
       if (table === undefined) continue
-      for (const row of db.prepare(`SELECT kind, name, record, fixed FROM tl_record`).all()) {
+      const definitions = new Map<string, unknown>()
+      for (const row of db.prepare(`SELECT tenant, digest, body FROM tl_definition`).all())
+        definitions.set(`${String(row['tenant'])} ${String(row['digest'])}`, unpacked(row['body']))
+      const joined = (tenant: string, request: unknown): unknown => {
+        const fixed = request as { availability: { definition: unknown } }
+        const digest = fixed.availability.definition
+        return typeof digest !== 'string'
+          ? fixed
+          : {
+              ...fixed,
+              availability: {
+                ...fixed.availability,
+                definition: definitions.get(`${tenant} ${digest}`),
+              },
+            }
+      }
+      for (const row of db
+        .prepare(`SELECT tenant, kind, name, record, fixed FROM tl_record`)
+        .all()) {
         const record = unpacked(row['record']) as Record<string, unknown>
         const call = record['call']
+        const tenant = String(row['tenant'])
         rows.push({
           kind: String(row['kind']),
           name: String(row['name']),
           record:
             row['fixed'] === null || typeof call !== 'object' || call === null
               ? record
-              : { ...record, call: { ...call, request: unpacked(row['fixed']) } },
+              : { ...record, call: { ...call, request: joined(tenant, unpacked(row['fixed'])) } },
         })
       }
     } finally {
@@ -644,6 +696,8 @@ export type ReleaseTreeOptions = Readonly<{
   addedRows?: readonly AddedRow[]
   /** The screen backend the host row is given; absent: the one of the machine the test runs on. */
   hostScreen?: NonNullable<Parameters<typeof runServe>[0]['hostScreen']>
+  /** The fallback checks of a waiting Agent; absent: every 50 ms, so no test waits on the clock. */
+  reconciliationDelaysMs?: readonly number[]
 }>
 
 export type AddedRow = Readonly<{
@@ -794,6 +848,7 @@ async function serveOnce(
               ),
               options.queueCapacity,
             ),
+            options.reconciliationDelaysMs,
           ),
           options.observationPolicy,
         ),
@@ -938,9 +993,25 @@ async function serveOnce(
     controller.abort('test: stop')
     exitCode = (await finished.catch(() => undefined))?.exitCode
     if (exitCode !== undefined && exitCode !== 0)
-      process.stderr.write(`release tree, server exit ${String(exitCode)}: ${unsettled(records)}\n`)
+      process.stderr.write(
+        `release tree, server exit ${String(exitCode)}: ${unsettled(records)}${warnings(records)}\n`,
+      )
   }
   return exitCode
+}
+
+function warnings(records: readonly S0Record[]): string {
+  const lines = records
+    .filter(
+      record => record['signal'] === 'log' && ['warn', 'error'].includes(String(record['level'])),
+    )
+    .map(
+      record =>
+        `${String(record['time'])} ${String(record['component'])}: ${String((record['fields'] as { text?: unknown } | undefined)?.text)}`,
+    )
+  return lines.length === 0
+    ? ''
+    : `\nserver warnings, last ${Math.min(lines.length, STDERR_TAIL_LINES)} of ${lines.length}:\n${lines.slice(-STDERR_TAIL_LINES).join('\n')}`
 }
 
 // What a shutdown left unsettled, row by row: a server that exits non-zero names its own cause.

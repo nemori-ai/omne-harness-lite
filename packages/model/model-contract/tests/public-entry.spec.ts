@@ -42,6 +42,7 @@ it('the root entry exports exactly the runtime values of the consumer face', asy
       'decodeRevision',
       'deriveGuardControlOperation',
       'diffModelStream',
+      'dispatchSend',
       'encodeModelInvocationRef',
       'encodeModelOutputV1',
       'faultIsTransient',

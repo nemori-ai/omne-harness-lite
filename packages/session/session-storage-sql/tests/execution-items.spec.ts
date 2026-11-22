@@ -33,6 +33,7 @@ function nth(n: number, items: readonly ExecutionItemRecord[]): ExecutionRecordW
     tenant: TENANT_A,
     session: sessionId(SESSION),
     execution: EXECUTION,
+    settledBy: null,
     expected: n === 1 ? null : String(n - 1),
     revision: String(n),
     published: String(n - 1),
@@ -47,6 +48,7 @@ function nth(n: number, items: readonly ExecutionItemRecord[]): ExecutionRecordW
         revision: String(n),
         receipt: evidence(`agent/${EXECUTION}/${String(n)}`),
         emittedThrough: '0',
+        acknowledged: '0',
         ended: null,
       },
     ],
@@ -121,6 +123,7 @@ describe('the migration execution-record/007-item', () => {
     expect(descriptor?.requires).toEqual([{ owner: 'execution-record', id: '006-fact-blob' }])
     const owner = materials.participants.find(item => item.participant === 'execution-record')
     expect(owner?.ownedTables).toContain('er_item')
+    expect(owner?.ownedTables).toContain('er_item_content')
   })
 })
 
@@ -382,6 +385,34 @@ describe('the content blocks by digest', () => {
       })),
       missing: [absent],
       rest: [],
+    })
+  })
+
+  it('keeps the content of an item by its key, outside the shared blocks, until a publication discards it', async () => {
+    const a = await session()
+    const payload = '{"request":"r1"}'
+    const content = { family: 'material', item: 'm1', payload }
+    await publish(a, { ...nth(1, [opened('material', 'm1')]), contents: [content] })
+    const rows = (sql: string) => Number(a.provider.select('dom_0', sql).rows[0]?.[0] ?? -1)
+    expect(rows('SELECT COUNT(*) FROM er_item_content')).toBe(1)
+    expect(rows(`SELECT COUNT(*) FROM sl_blob WHERE digest = '${blobDigest(payload)}'`)).toBe(0)
+    expect(await itemsOf(a, [{ family: 'material', item: 'm1' }])).toMatchObject({
+      items: [{ family: 'material', item: 'm1', open: true, content: payload }],
+    })
+    expect(await openItems(a)).toMatchObject({ items: [{ item: 'm1', content: payload }] })
+    await publish(a, {
+      ...nth(2, [changed('material', 'm1', false)]),
+      discards: [{ family: 'material', item: 'm1' }],
+    })
+    expect(rows('SELECT COUNT(*) FROM er_item_content')).toBe(0)
+    expect(rows(`SELECT COUNT(*) FROM er_item WHERE item = 'm1'`)).toBe(1)
+    const read = await itemsOf(a, [{ family: 'material', item: 'm1' }])
+    expect(read?.kind === 'items' ? read.items[0] : null).toEqual({
+      family: 'material',
+      item: 'm1',
+      open: false,
+      pub: '2',
+      body: { item: 'm1', open: false },
     })
   })
 })

@@ -19,7 +19,6 @@ import {
   agentMaterialsKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
-import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { WorkSnapshot } from '@omne-harness/session-contract'
 import type { SessionFaces, SessionTransactionPort } from '@omne-harness/session-contract'
@@ -30,69 +29,8 @@ import {
 } from '@omne-harness/session-cordis-contract/cordis'
 import { createSessionModelLogConsumptionPlugin } from '../src/cordis/model-log-consumption.ts'
 import { evidence, ok, operation, operationId, scene } from './fixtures/common-journal.ts'
-
-const SCHEMA = {
-  owner: 'agent',
-  name: 'received-model-delivery',
-  revision: '1',
-  digest: 'agent:received-model-delivery/1',
-}
-type Json = Extract<Material<ContentBlock>, { kind: 'facts' }>['value']
-type Draft = Omit<ReceivedEntry, 'material'>
-
-function json(value: unknown): Json {
-  if (value === null) return { kind: 'null' }
-  if (typeof value === 'string') return { kind: 'string', value }
-  if (typeof value === 'boolean') return { kind: 'boolean', value }
-  if (typeof value === 'number') return { kind: 'number', lexeme: String(value) }
-  if (Array.isArray(value)) return { kind: 'array', items: value.map(json) }
-  if (typeof value === 'object')
-    return {
-      kind: 'object',
-      entries: Object.entries(value)
-        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-        .map(([key, member]) => ({ key, value: json(member) })),
-    }
-  throw new Error(`fixture: no JSON for ${typeof value}`)
-}
-
-function textOf(tenant: TenantId): string {
-  const encoded = tenantCodec.encode(tenant)
-  if (!encoded.ok) throw new Error('fixture: tenant')
-  return encoded.value
-}
-
-function deliveryOf(draft: Draft): Record<string, unknown> {
-  const { delivery } = draft
-  if (delivery.producer !== 'model') throw new Error('fixture: a Model entry')
-  return 'accounts' in delivery
-    ? {
-        kind: 'result',
-        key: delivery.key,
-        consumer: draft.consumer,
-        settlement: {
-          version: delivery.key.result,
-          termination: { kind: 'completed' },
-          cursor: { kind: 'end' },
-          source: evidence('settlement'),
-        },
-        parts: [],
-        accounts: delivery.accounts,
-      }
-    : { kind: 'account', key: delivery.key, consumer: draft.consumer, account: delivery.account }
-}
-
-function materialOf(
-  tenant: TenantId,
-  draft: Draft,
-  change: (value: Record<string, unknown>) => Record<string, unknown> = value => value,
-): Material<ContentBlock> {
-  return {
-    kind: 'facts',
-    schema: SCHEMA,
-    value: json(change({ tenant: textOf(tenant), delivery: deliveryOf(draft) })),
-  }
-}
+import { SCHEMA, materialOf, type Draft } from './fixtures/model-delivery.ts'
+import { textOf } from './fixtures/tool-delivery.ts'
 
 async function modelScene(name: string, bind = true) {
   const s = await scene(name)
@@ -163,6 +101,7 @@ function entriesKinds(s: ModelScene): string[] {
 
 type Wraps = Partial<{
   load: AgentJournal<string>['load']
+  acknowledge: AgentJournal<string>['acknowledge']
   entries: AgentJournalEntries<string>['read']
   read: AgentMaterials<string, ContentBlock>['read']
   commitEntries: SessionTransactionPort<string>['commitEntries']
@@ -215,6 +154,8 @@ async function assembled(
       reads.load += 1
       return (wraps.load ?? s.view.journal.load)(input)
     }
+    readonly acknowledge: AgentJournal<string>['acknowledge'] = input =>
+      (wraps.acknowledge ?? s.view.journal.acknowledge)(input)
   }
   class Entries extends Service {
     constructor(scope: Context) {
@@ -347,6 +288,51 @@ describe('a Model received entry becomes one entries-channel Session batch', () 
   })
 })
 
+describe('after a commit', () => {
+  // The Session as it reads once the Run ended and no call is held: it has received all.
+  const receivedEverything = (snapshot: WorkSnapshot): WorkSnapshot => {
+    if (snapshot.run.kind !== 'active') return snapshot
+    const { run, execution } = snapshot.run
+    return {
+      ...snapshot,
+      run: { kind: 'none' } as WorkSnapshot['run'],
+      executions: [{ run, execution, terminal: {} as never }],
+      consumptions: [],
+    }
+  }
+
+  it('acknowledges the execution through the consumption position once the Session received all of it', async () => {
+    const s = await modelScene('acknowledge')
+    await receive(s, s.result, 'result')
+    const acknowledged: string[] = []
+    let through = ''
+    const f = await assembled(s, {
+      work: snapshot => {
+        if (snapshot.run.kind === 'active') through = snapshot.run.execution.readThrough
+        return receivedEverything(snapshot)
+      },
+      load: async input => {
+        const loaded = await s.view.journal.load(input)
+        return 'ok' in loaded
+          ? succeed({
+              ...loaded.ok,
+              output: { emittedThrough: through, acknowledgedThrough: null },
+            })
+          : loaded
+      },
+      acknowledge: async input => {
+        acknowledged.push(input.through)
+        return fail({ kind: 'unavailable', owner: 'test', diagnostic: 'recorded only' })
+      },
+    })
+
+    expect(ok(await f.consume()).committed).toBe(true)
+    expect(acknowledged).toEqual([through])
+    expect(ok(await f.consume()).committed).toBe(false)
+    expect(acknowledged).toEqual([through])
+  })
+})
+
 describe('a call that left the work snapshot', () => {
   // The snapshot the adapter reads holds no call: Session answers the binding of the producer by its own read.
   const left = (snapshot: WorkSnapshot): WorkSnapshot => ({
@@ -433,6 +419,33 @@ describe('trigger: the event of the Journal plugin wakes the consumption', () =>
     expect(warned()).toHaveLength(3)
   })
 
+  it('the execution changes while its entries are read: that round commits nothing and warns nothing, and the round the change wakes commits the entries', async () => {
+    const s = await modelScene('trigger-moved')
+    let loads = 0
+    const f = await assembled(s, {
+      load: async input => {
+        loads += 1
+        const loaded = await s.view.journal.load(input)
+        return 'ok' in loaded && loads === 2
+          ? succeed({ ...loaded.ok, revision: `${loaded.ok.revision}-moved` as never })
+          : loaded
+      },
+    })
+    const warned = () => f.logged.filter(line => line.type === 'warn').map(line => line.text)
+    await receive(s, s.result, 'trigger-moved')
+    await published(f, s)
+    await settle()
+    expect(loads).toBe(2)
+    expect(f.commits).toHaveLength(0)
+    expect(warned()).toEqual([])
+
+    await published(f, s)
+    await settle()
+    expect(f.commits).toHaveLength(1)
+    expect(await progressOf(s)).toMatchObject({ through: '1', execution: s.execution })
+    expect(warned()).toEqual([])
+  })
+
   it('a stopped plugin does not consume after the event', async () => {
     const s = await modelScene('trigger-stopped')
     const f = await assembled(s)
@@ -499,7 +512,8 @@ describe('reading again', () => {
     const answer = ok(await f.consume())
 
     expect(answer).toMatchObject({ committed: true, progress: { through: '1' } })
-    expect(f.reads.work).toBe(2)
+    // Two rounds, and the read of acknowledgeReceived after the commit.
+    expect(f.reads.work).toBe(3)
   })
 })
 

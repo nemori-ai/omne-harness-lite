@@ -5,10 +5,10 @@ import { open, participation } from './scene.ts'
 type Opened = Awaited<ReturnType<typeof open>>
 type Active = Awaited<ReturnType<Opened['active']>>
 
-/** One Tool call of the active Run (or one bound from outside a Run), with the steps of its result. */
-export async function callScene(external = false) {
+/** One call of the active Run (or one bound from outside a Run), with the steps of its result. */
+export async function callScene(external = false, kind: 'tool' | 'model' = 'tool') {
   const s = await open()
-  return callOn(s, await s.active(), external, 'original', 1, '2')
+  return callOn(s, await s.active(), external, 'original', 1, '2', kind)
 }
 
 /** Several calls of one session, each with its own identities: what is said about one must not touch another. */
@@ -30,11 +30,13 @@ async function callOn(
   tag: string,
   n: number,
   written: string,
+  kind: 'tool' | 'model' = 'tool',
 ) {
+  const purpose = kind === 'model' ? 'main' : 'action'
   const binding: CallBinding = {
-    producer: { kind: 'tool', call: `${tag}-call` },
+    producer: { kind, call: `${tag}-call` },
     action: 'action',
-    consumer: { owner: 'session', work: 'work', position: `${tag}-position`, purpose: 'action' },
+    consumer: { owner: 'session', work: 'work', position: `${tag}-position`, purpose },
     request: evidence('request'),
     initiatingAttempt: external ? null : advance.attempt,
   }
@@ -68,11 +70,18 @@ async function callOn(
             {
               kind: 'call-registration',
               consumption,
-              registration: {
-                kind: 'associated',
-                binding: { ...binding, producer: { kind: 'tool', call: binding.producer.call } },
-                purpose: 'action',
-              },
+              registration:
+                kind === 'model'
+                  ? {
+                      kind: 'associated',
+                      binding: { ...binding, producer: { kind, call: binding.producer.call } },
+                      purpose: 'main',
+                    }
+                  : {
+                      kind: 'associated',
+                      binding: { ...binding, producer: { kind, call: binding.producer.call } },
+                      purpose: 'action',
+                    },
             },
             {
               kind: 'waiting',
@@ -157,6 +166,42 @@ async function callOn(
         fact: { kind: 'release', consumption, result, source: evidence('confirmed') },
       },
     })
+  // The entries consumption of the producer writes the final delivery of the call: its execution fact.
+  const deliver = (operation: string) => {
+    const channel = kind === 'model' ? 'model-received' : 'tool-received'
+    const execution = run.execution.execution
+    return s.port.commitEntries({
+      observation: {
+        tenant: s.base.tenant,
+        session: s.base.session,
+        run: run.run,
+        execution,
+        channel,
+        operation: operationId(operation),
+        after: '0',
+        through: '1',
+        position: '1',
+        boundary: {
+          execution,
+          channel,
+          revision: '1',
+          executionEvidence: evidence('agent/head/1'),
+          count: '1',
+        },
+        items: [
+          {
+            ordinal: '1',
+            key: `${tag}-final`,
+            fact: evidence(`agent/entry/${tag}`),
+            interpretation: [
+              { kind: 'execution', producer: binding.producer, source: evidence('delivery') },
+            ],
+          },
+        ],
+      },
+      start: { kind: 'initial' },
+    })
+  }
   return {
     ...s,
     run,
@@ -168,6 +213,7 @@ async function callOn(
     processExternal,
     cancel,
     release,
+    deliver,
   }
 }
 

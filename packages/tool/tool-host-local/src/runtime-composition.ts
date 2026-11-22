@@ -33,7 +33,7 @@ import type {
 } from './execution-environment.ts'
 import type { LocalInstanceInput } from './instance-host.ts'
 import { createLocalOperationIdentities, type LocalInvocationSource } from './invocation-source.ts'
-import type { ConditionalLedgerCommit, ToolHostAccess } from './ledger-guards.ts'
+import type { ToolHostAccess } from './ledger-guards.ts'
 import type { LocalStartCoordinatorInput } from './start-coordinator.ts'
 import type { RuntimeRecords } from './runtime-records.ts'
 import { createAbsentToolPorts } from './absent-ports.ts'
@@ -43,7 +43,6 @@ type Bindings = ToolBindings<unknown, ToolEnvironmentValue>
 export type RuntimeEnvironment = ToolEnvironment<unknown, ToolEnvironmentValue>
 export type LocalToolRuntimeInput = Readonly<{
   store: ToolLedgerStore
-  conditionalCommit: ConditionalLedgerCommit
   bodies: NonNullable<ToolLedgerPorts<unknown>['bodies']>
   content: ToolLedgerPorts<unknown>['content']
   bodySchemas?: ToolLedgerPorts<unknown>['bodySchemas']
@@ -145,6 +144,8 @@ export function createRuntimeStages(
     },
     catalog: {
       inspect: request => input.catalog()?.inspect(request) ?? runtimeUnavailable('toolCatalog'),
+      inspectEach: request =>
+        input.catalog()?.inspectEach(request) ?? runtimeUnavailable('toolCatalog'),
       usage: request => input.catalog()?.usage(request) ?? runtimeUnavailable('toolCatalog'),
       search: request => input.catalog()?.search(request) ?? runtimeUnavailable('toolCatalog'),
     },

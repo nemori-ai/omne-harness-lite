@@ -69,6 +69,7 @@ export function coverageDigest(coverage: Coverage): string {
 export type FixedValues = Readonly<{
   candidate?: string
   continuation?: ContinuationPrefix
+  representations?: readonly unknown[]
 }>
 
 /** A prefix as Request Context records it for a request built on the history up to row 2. */
@@ -91,7 +92,10 @@ export function fixedRecord(target: ContextTarget, tag = '1', values: FixedValue
     schema: 'request-context/fixed-request/1',
     target,
     candidate: must(decodeCandidateRef(values.candidate ?? `candidate:${tag}`)),
-    coverage: sampleCoverage(target, tag),
+    coverage: {
+      ...sampleCoverage(target, tag),
+      representations: (values.representations ?? []) as Coverage['representations'],
+    },
     continuation: values.continuation ?? null,
   }
   const encoded = encodeFixedRequestRecord(record) as JsonValue

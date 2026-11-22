@@ -161,6 +161,47 @@ describe('operations whose outcome stays unknown', () => {
   })
 })
 
+describe('an unknown write is decided from md_operation once the storage settles', () => {
+  it('recognizes an admission that landed while the storage was asked, and neither commits nor writes again', async () => {
+    const { commands, sqlite, admit, count } = setup()
+    sqlite.hooks.landLate = true
+    expect(await commands.admit(admit)).toEqual({
+      failure: { kind: 'commit-unknown', operation: ADMISSION },
+    })
+    expect(count('md_operation')).toEqual([[0n]])
+    const commits = sqlite.commits()
+    const retried = await commands.admit(admit)
+    expect('ok' in retried && retried.ok).toMatchObject({
+      call: CALL,
+      revision: '1',
+      recovered: true,
+    })
+    expect(sqlite.asked).toEqual(['never settled'])
+    expect(sqlite.commits()).toBe(commits)
+    expect(count('md_call')).toEqual([[1n]])
+    expect(count('md_operation')).toEqual([[1n]])
+  })
+
+  it('keeps an admission still in flight unknown, and lets it go once the storage settles without a binding', async () => {
+    const { commands, sqlite, admit, count } = setup()
+    sqlite.hooks.rejectNext = 'writer_not_current'
+    expect(await commands.admit(admit)).toEqual({
+      failure: { kind: 'commit-unknown', operation: ADMISSION },
+    })
+    const query = sqlite.storage.query.bind(sqlite.storage)
+    sqlite.storage.query = identity =>
+      Promise.resolve({ kind: 'unknown', identity, diagnostic: 'queued' })
+    expect(await commands.admit(admit)).toEqual({
+      failure: { kind: 'commit-unknown', operation: ADMISSION },
+    })
+    sqlite.storage.query = query
+    const retried = await commands.admit(admit)
+    expect('ok' in retried && retried.ok.recovered).toBe(false)
+    expect(sqlite.asked).toEqual(['never settled'])
+    expect(count('md_operation')).toEqual([[1n]])
+  })
+})
+
 describe('a commit outside the operation of its run', () => {
   async function commitIn(scope: Readonly<{ operation?: string }>) {
     const subject = setup()

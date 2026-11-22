@@ -1,5 +1,5 @@
 import type { DurableEvidence, RunId, SessionOperationId } from './identity.ts'
-import type { WorkSnapshot, ResidentAdoption, RunTerminal } from './values.ts'
+import type { WorkSnapshot, ResidentAdoption, RunEnd, RunTerminal } from './values.ts'
 import type { HistoryEntry, SessionFailure } from './faces.ts'
 import { encodeEntry } from './entries.ts'
 import { deriveDriveOperation, digestOf } from './operations.ts'
@@ -101,6 +101,7 @@ export function terminalEntries(
     sequence: string | null
     cause: DurableEvidence | null
     disposition: DurableEvidence
+    end: RunEnd | null
   }>,
 ): EncodedEntry[] {
   const out: EncodedEntry[] = closingEntries(snapshot, terminal, source, originOf(source))
@@ -125,6 +126,7 @@ export function terminalEntries(
         cause: interpretation?.cause ?? null,
         disposition: interpretation?.disposition ?? source,
         bounded: null,
+        end: interpretation?.end ?? null,
       },
       originOf(source),
     ),

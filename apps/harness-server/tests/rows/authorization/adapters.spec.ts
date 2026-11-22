@@ -1280,7 +1280,6 @@ describe('agentActionAdmission', () => {
           return {
             kind: 'allow',
             evidence: decisionEvidence('permission-fixture', '1', request.operation),
-            condition: null,
             release: VERDICT_RELEASE,
           }
         },
@@ -1382,7 +1381,6 @@ describe('agentActionAdmission', () => {
       readPermission: () => ({
         check: async input => ({
           kind: 'allow',
-          condition: null,
           release: VERDICT_RELEASE,
           evidence: decisionEvidence('permission-fixture', '1', {
             operation: input.operation,
@@ -1596,7 +1594,8 @@ describe('Tool access qualification', () => {
     const w = world()
     const guard = createToolAccessGuard(() => w.ports.admission)
     const input = { principal: w.login(), tenant: A, call: toolCallId('tc_auth') }
-    for (const action of ['lookup', 'read-result', 'read-output'] as const) {
+    const reads = ['lookup', 'read-result', 'read-output', 'account', 'read-diagnostics'] as const
+    for (const action of reads) {
       expect(await guard.qualify({ ...input, action })).toEqual({ kind: 'allowed' })
       expect(w.seen.admissions.at(-1)).toMatchObject({
         access: { principal: input.principal, tenant: A },
@@ -1610,7 +1609,6 @@ describe('Tool access qualification', () => {
       'control',
       'read-content',
       'release-delivery',
-      'account',
       'recover',
       'write',
       'start',
@@ -1619,13 +1617,14 @@ describe('Tool access qualification', () => {
         kind: 'denied',
         reason: 'session-work-and-call-required',
       })
-    expect(await guard.qualify({ ...input, tenant: B, action: 'lookup' })).toMatchObject({
-      kind: 'denied',
-    })
-    for (const action of ['read-result', 'read-output'] as const)
+    for (const action of reads) {
+      expect(await guard.qualify({ ...input, tenant: B, action })).toMatchObject({
+        kind: 'denied',
+      })
       expect(await guard.qualify({ ...input, principal: w.foreign(), action })).toMatchObject({
         kind: 'denied',
       })
+    }
     for (const action of ['lookup', 'read-result', 'read-output'] as const)
       expect(
         await guard.qualify({ ...input, principal: w.system('sessionWorkPrincipals'), action }),

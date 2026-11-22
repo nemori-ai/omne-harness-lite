@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "The Notifications tool: an agent posts for people, reads and disposes its own inbox, and subscribes on the consent its call was released on",
+  "description": "The Notifications tool: an agent posts for people, reads and disposes its own inbox, and subscribes for itself",
   "engines": {
     "node": ">=24"
   },

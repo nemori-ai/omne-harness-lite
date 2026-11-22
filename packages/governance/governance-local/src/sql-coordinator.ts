@@ -29,7 +29,12 @@ import {
   operationReferenceObservationSchema,
 } from './operation-reference-read.ts'
 import { OPERATION_HANDLER, observationSchema } from './operation-read.ts'
-import { stageIdentity } from './sql-stage-binding.ts'
+import {
+  ACCEPT_OPERATION,
+  RETIRE_OPERATION,
+  custodyOperation,
+  stageIdentity,
+} from './sql-stage-binding.ts'
 import { STAGE_HANDLER } from './sql-stage-read.ts'
 import {
   stageRequestSchema,
@@ -168,7 +173,7 @@ export class SqlOperationCoordinator {
   async uncommittedAcceptance(ref: GovernanceOperationRef) {
     return this.notCommitted(ref, {
       ...operationIdentity(this.domain.transactionDomain, ref),
-      operation: 'governance.meta.accept',
+      operation: ACCEPT_OPERATION,
     })
   }
   private async notCommitted(ref: GovernanceOperationRef, identity: SqlIdentity) {
@@ -267,7 +272,7 @@ export class SqlOperationCoordinator {
       return undefined
     return this.envelope(
       binding,
-      'governance.meta.accept',
+      ACCEPT_OPERATION,
       { kind: 'accept', input },
       {
         combinationVersion: receipt.combinationVersion,
@@ -285,7 +290,7 @@ export class SqlOperationCoordinator {
     }
     if (!this.inDomain(binding) || input.transactionDomain !== this.domain.transactionDomain)
       return unavailable()
-    const envelope = this.envelope(binding, 'governance.meta.accept', { kind: 'accept', input })
+    const envelope = this.envelope(binding, ACCEPT_OPERATION, { kind: 'accept', input })
     const observed = await this.observe(binding)
     if (observed.kind !== 'absent') return observed
     const prior = await querySql(this.storage, envelope.identity)
@@ -304,7 +309,7 @@ export class SqlOperationCoordinator {
     const input = persistStageSchema.parse(raw)
     if (!equal(raw, input)) return unavailable()
     if (!this.inDomain(input.binding)) return unavailable()
-    const envelope = this.envelope(input.binding, 'governance.custody.' + input.stage, {
+    const envelope = this.envelope(input.binding, custodyOperation(input.stage), {
       kind: 'persist-stage',
       input,
     })
@@ -355,7 +360,7 @@ export class SqlOperationCoordinator {
     if (original.kind !== 'found') return original
     return submitSql(
       this.storage,
-      this.envelope(binding, 'governance.meta.retire-contribution', {
+      this.envelope(binding, RETIRE_OPERATION, {
         kind: 'retire-contribution',
         binding,
       }),
