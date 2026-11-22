@@ -19,6 +19,8 @@ import {
   CONNECTION_PROTOCOLS_POINT,
   protocolsContract,
   servedEntry,
+  serverPointsContract,
+  serverPointsEntry,
   type ServedProtocol,
 } from './protocols-point.ts'
 
@@ -255,9 +257,17 @@ export function connectionPlugin(options: ConnectionOptions): Plugin.Object {
 
 const protocolsPointPlugin: Plugin.Object = {
   name: 'connection-protocols',
-  inject: ['dynamis'],
+  inject: ['dynamis', 'connection'],
   apply(ctx: Context) {
-    ctx.get('dynamis')?.put([declare(protocolsContract)])
+    const { availability } = ctx.connection
+    ctx.get('dynamis')?.put([
+      declare(protocolsContract),
+      declare(serverPointsContract),
+      serverPointsEntry({
+        keys: point => availability.keys(point),
+        subscribe: listener => availability.subscribe(() => listener()),
+      }),
+    ])
   },
 }
 

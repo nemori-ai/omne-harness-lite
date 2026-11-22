@@ -1,4 +1,4 @@
-import { Context, type Fiber } from '@deepseek-ai/cordis'
+import { Context, type Fiber, type Plugin } from '@deepseek-ai/cordis'
 import { declare, type Contract } from '@omne-harness/dynamis'
 import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import type { ReactNode } from 'react'
@@ -82,39 +82,52 @@ const PROTOCOLS: Contract = {
   summary: 'The protocols a case serves to the modules on this tree.',
 }
 
-const pointed = new WeakSet<Context>()
+/** Declares the point the served protocols are put on; a case that lists its plugins puts this one first. */
+export const protocolsPoint: Plugin.Object = {
+  name: 'served-protocols',
+  inject: ['dynamis'],
+  apply: (ctx: Context) => void ctx.dynamis.put([declare(PROTOCOLS)]),
+}
 
-/** Serves one protocol to the modules on a tree, as a connection does: its client is on the point until the fiber goes. */
-export async function serveProtocol(
-  root: Context,
-  protocol: Readonly<{ name: string; major: number }>,
-  client: object,
-): Promise<Fiber> {
-  if (!pointed.has(root)) {
-    pointed.add(root)
-    await root.plugin({
-      name: 'served-protocols',
-      inject: ['dynamis'],
-      apply: (ctx: Context) => void ctx.dynamis.put([declare(PROTOCOLS)]),
-    })
-  }
+type Key = Readonly<{ name: string; major: number }>
+
+/** One protocol served to the modules on a tree, as a connection does: its client is on the point while this plugin is. */
+export function servedProtocol(protocol: Key, client: object): Plugin.Object {
   const key = `${protocol.name}/v${protocol.major}`
-  const fiber = root.plugin({
+  const item = { protocol: protocol.name, major: protocol.major, client }
+  const entry = { point: PROTOCOLS_POINT, key, id: '', scope: [], rank: 0, digest: key, item }
+  return {
     name: `served:${key}`,
     inject: ['dynamis'],
-    apply: (ctx: Context) =>
-      void ctx.dynamis.put([
-        {
-          point: PROTOCOLS_POINT,
-          key,
-          id: '',
-          scope: [],
-          rank: 0,
-          digest: key,
-          item: { protocol: protocol.name, major: protocol.major, client },
-        },
-      ]),
-  })
+    apply: (ctx: Context) => void ctx.dynamis.put([entry]),
+  }
+}
+
+/** A point that holds one item, declared with the item on it, as the module that owns the point does. */
+export function servedPoint(contract: Contract, item: object): Plugin.Object {
+  const { name } = contract
+  const entry = { point: name, key: '', id: '', scope: [], rank: 0, digest: name, item }
+  return {
+    name: `served:${name}`,
+    inject: ['dynamis'],
+    apply: (ctx: Context) => void ctx.dynamis.put([declare(contract), entry]),
+  }
+}
+
+const pointed = new WeakSet<Context>()
+
+export async function serveProtocol(root: Context, protocol: Key, client: object): Promise<Fiber> {
+  if (!pointed.has(root)) {
+    pointed.add(root)
+    await root.plugin(protocolsPoint)
+  }
+  const fiber = root.plugin(servedProtocol(protocol, client))
+  await fiber
+  return fiber
+}
+
+export async function servePoint(root: Context, contract: Contract, item: object): Promise<Fiber> {
+  const fiber = root.plugin(servedPoint(contract, item))
   await fiber
   return fiber
 }

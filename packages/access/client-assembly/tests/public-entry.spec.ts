@@ -4,11 +4,13 @@ it('exports the availability step, the default backoff, the key text, the standi
   const root = (await import('@omne-harness/client-assembly')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual([
     'CONNECTION_PROTOCOLS_POINT',
+    'CONNECTION_SERVER_POINTS',
     'applyFrame',
     'defaultBackoff',
     'keyText',
     'needStanding',
     'protocolStanding',
     'protocolsContract',
+    'serverPointsContract',
   ])
 })

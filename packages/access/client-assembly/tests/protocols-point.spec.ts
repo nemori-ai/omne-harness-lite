@@ -3,7 +3,12 @@ import { ask, list, standingOf } from '@omne-harness/dynamis'
 import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import type { AvailabilityFrame } from '@omne-harness/public-contract'
 import { afterEach, describe, expect, it } from 'vitest'
-import { CONNECTION_PROTOCOLS_POINT, needStanding } from '@omne-harness/client-assembly'
+import {
+  CONNECTION_PROTOCOLS_POINT,
+  CONNECTION_SERVER_POINTS,
+  needStanding,
+  type ServerPoints,
+} from '@omne-harness/client-assembly'
 import {
   connectionPlugin,
   defineProtocolClient,
@@ -90,6 +95,30 @@ describe('the point connection.protocols on the client tree', () => {
     const t = await tree()
     await t.push(snapshot(1, [ACCESS, NOTES_2]))
     expect(t.keys()).toEqual([])
+  })
+})
+
+describe('the point connection.server-points on the client tree', () => {
+  it('holds one reading of what the server tells of its tree: the public keys of a point, and their changes', async () => {
+    const t = await tree()
+    const answer = ask<ServerPoints>(t.root.dynamis.registry(), CONNECTION_SERVER_POINTS, '', [])
+    if (answer.kind !== 'one') throw new Error(`the point answers ${answer.kind}`)
+    const reading = answer.entry.item
+    expect(reading.keys('assets.categories')).toBeUndefined()
+    let heard = 0
+    const stop = reading.subscribe(() => {
+      heard += 1
+    })
+    const categories = { name: 'assets.categories', major: 1, revision: 1, digest: 'sha256:c' }
+    const told = (keys: string[]) =>
+      ({ ...snapshot(1, [ACCESS]), points: [{ ...categories, keys }] }) as AvailabilityFrame
+    await t.push(told(['skill']))
+    expect(reading.keys('assets.categories')).toEqual(['skill'])
+    expect(reading.keys('access.protocols')).toBeUndefined()
+    expect(heard).toBe(1)
+    stop()
+    await t.push(told(['skill', 'tool']))
+    expect(heard).toBe(1)
   })
 })
 

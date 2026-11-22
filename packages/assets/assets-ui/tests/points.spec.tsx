@@ -2,8 +2,8 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeAll, expect, it } from 'vitest'
+import { serveProtocol } from '@omne-harness/shell-contract/testing'
 import { assetsProtocol, type SettingView } from '@omne-harness/assets-protocol'
-import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
 import {
   ASSETS_CATEGORY,
   ASSETS_HOLDING,
@@ -19,7 +19,6 @@ import { ordinaryView, permissionView, secretView } from './fixtures/views.ts'
 
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
-const SERVICE = protocolServiceName({ name: assetsProtocol.name, major: assetsProtocol.major })
 
 beforeAll(stubAnimation)
 
@@ -36,7 +35,7 @@ async function shown(items: readonly SettingView[], contribute: (ctx: Context) =
   const { root, shell } = await startShell()
   const fake = createFakeClient()
   serveAssetReads(fake, assetsOf(items))
-  root.reflect.provide(SERVICE, fake.client)
+  await serveProtocol(root, assetsProtocol, fake.client)
   await root.plugin(assetsUiModule)
   await root.plugin({ name: 'contributor', inject: ['shell'], apply: contribute })
   shell.tenant = TENANT
@@ -149,7 +148,7 @@ it('贡献可以先于它的类别放进去：列表里没有这一类时它不�
 it('对象编成文本再解回来不走样：名字里带冒号与数字也一样；读不懂的文本不画这一项', async () => {
   const trickyAsset = { category: '12:ab', name: ':7:x' }
   const { root, shell } = await startShell()
-  root.reflect.provide(SERVICE, createFakeClient().client)
+  await serveProtocol(root, assetsProtocol, createFakeClient().client)
   await root.plugin(assetsUiModule)
   const received: unknown[] = []
   await root.plugin({

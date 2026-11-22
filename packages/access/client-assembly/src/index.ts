@@ -10,8 +10,11 @@ export {
 } from './availability.ts'
 export {
   CONNECTION_PROTOCOLS_POINT,
+  CONNECTION_SERVER_POINTS,
   needStanding,
   protocolsContract,
+  serverPointsContract,
+  type ServerPoints,
   type Need,
   type NeedStanding,
   type ServedProtocol,

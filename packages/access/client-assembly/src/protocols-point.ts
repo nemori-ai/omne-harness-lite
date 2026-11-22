@@ -27,6 +27,48 @@ export const protocolsContract: Contract = Object.freeze({
   summary: 'The protocols this client can call now: served by the server, and held by this client.',
 })
 
+export const CONNECTION_SERVER_POINTS = 'connection.server-points'
+
+/** What the server tells of its own tree, for a module that follows a point of it. */
+export type ServerPoints = Readonly<{
+  keys(point: string): readonly string[] | undefined
+  subscribe(listener: () => void): () => void
+}>
+
+export const serverPointsContract: Contract = Object.freeze({
+  name: CONNECTION_SERVER_POINTS,
+  tree: 'client',
+  arity: 'one',
+  keyFrom: null,
+  key: 'none',
+  gives: 'a reading of the keys the server makes public on its points, and a way to follow them',
+  item: Object.freeze({
+    kind: 'pure',
+    fields: Object.freeze({ keys: 'function', subscribe: 'function' }),
+  }),
+  resolve: 'conflict',
+  binding: 'run',
+  onError: 'a module that follows a point of the server does not follow it',
+  version: 1,
+  revision: 1,
+  keys: 'private',
+  conformance: null,
+  summary:
+    'What the server tells of its own tree: the keys now on each point that makes them public.',
+})
+
+export function serverPointsEntry(reading: ServerPoints): Entry<ServerPoints> {
+  return {
+    point: CONNECTION_SERVER_POINTS,
+    key: '',
+    id: '',
+    scope: [],
+    rank: 0,
+    digest: 'connection',
+    item: Object.freeze({ ...reading }),
+  }
+}
+
 export type ServedProtocol = Readonly<{
   protocol: string
   major: number
