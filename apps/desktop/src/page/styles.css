@@ -1,6 +1,7 @@
 @import '@omne-harness/ui-kit/styles.css';
 @source '.';
 
+@layer omne-builtin {
 html,
 body,
 #root {
@@ -523,4 +524,5 @@ body,
   .shell-connecting {
     animation: none;
   }
+}
 }

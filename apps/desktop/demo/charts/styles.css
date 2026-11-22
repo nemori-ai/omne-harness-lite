@@ -1,6 +1,7 @@
 @import '@omne-harness/ui-kit/styles.css';
 @source '.';
 
+@layer omne-builtin {
 body {
   margin: 0;
   background: var(--omne-surface-page);
@@ -14,4 +15,5 @@ body {
 }
 .gallery .probe {
   color: var(--omne-chart-1);
+}
 }

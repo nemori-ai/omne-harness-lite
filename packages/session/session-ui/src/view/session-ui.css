@@ -1,3 +1,6 @@
+@import '@omne-harness/ui-kit/layers.css';
+
+@layer omne-builtin {
 .omne-session-sidebar {
   display: flex;
   flex-direction: column;
@@ -940,4 +943,5 @@
 .omne-search-detail {
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-caption);
+}
 }

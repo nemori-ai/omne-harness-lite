@@ -1,3 +1,6 @@
+@import '@omne-harness/ui-kit/layers.css';
+
+@layer omne-builtin {
 .notification-page {
   min-height: 0;
   overflow-y: auto;
@@ -173,4 +176,5 @@
   display: grid;
   gap: var(--omne-space-block);
   min-width: 0;
+}
 }

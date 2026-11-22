@@ -61,7 +61,15 @@
 | 墨迹：Agent 形、形座位、一程、墨框、告知笺 | `src/ink/` |
 | 图表：堆叠柱、折线、面积、占比条、读数表、迷你图、数字块，与数字的格式化 | `src/charts/` |
 
-成员导出一个根入口、一份汇总样式 `./styles.css`、字体 `./fonts/*`。汇总样式按次序引入 token、字体、基线、动效、图标、控件与通用件的样式和 Markdown 的样式，并带 `@source`，让用它的应用在构建时扫到成员的类名。
+成员导出一个根入口、一份汇总样式 `./styles.css`、层的次序 `./layers.css`、字体 `./fonts/*`。汇总样式按次序引入 token、字体、基线、动效、图标、控件与通用件的样式和 Markdown 的样式，并带 `@source`，让用它的应用在构建时扫到成员的类名。
+
+#### 样式的层
+
+- 界面的每一条样式规则都在层叠层里。次序只写在一处，`src/styles/layers.css`：Tailwind 自己的层（`properties`、`theme`、`base`、`components`、`utilities`），自带的一层 `omne-builtin`，改动的一层 `omne-changes`。
+- 共用件、每个界面模块、应用页面的样式都在 `omne-builtin` 里。汇总样式把它引入的每一份放进这一层；界面模块与应用的样式文件自己先引入 `@omne-harness/ui-kit/layers.css`，再把全部规则写在 `@layer omne-builtin` 里。
+- 自带的样式只用一层，不按共用件、模块、应用分开。共用件的悬停、按下、选中这套状态规则靠选择器的优先级压过各处的底色规则；分成几层之后层的先后压过优先级，上层的一条底色声明会让下层的状态失效。
+- `omne-changes` 是最后一层，自带的样式不往里写。放在它里面的规则盖过自带的，不用提高选择器的优先级；拿掉之后自带的原样回来。
+- 不在任何层里的规则比所有层都优先，所以层外不许有规则（FE-I40）。
 
 #### 页的骨架
 
@@ -337,3 +345,4 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 | FE-I37 | 每个抬起的件连同它的投影与焦点环的余地，都在裁切它的每个祖先的可见范围里；件本身滚出视野的不算 | 钮与字段贴着容器的边被切掉边线与投影，看起来像坏了 | 判法的用例 `apps/desktop/tests/raised-edges.spec.ts`；观感走查 `apps/desktop/demo/visual-walk.mjs` 每张截图核一次 |
 | FE-I38 | 一个模块放的东西整份出现、整份消失：`apply` 里放的各项在它就绪时一起可见，`apply` 抛错的模块放的东西从不出现；一个位置的项没变时读到的是同一个数组，别的位置的变化不通知它的订阅者 | 界面闪出半截的页面；一处变了，全部订阅者重画 | `shell-contract/tests/contribute.spec.ts` 的「shows all a module put at once」「shows nothing of a module whose apply throws」「gives the same array」；`dynamis-cordis/tests/service.spec.ts` |
 | FE-I39 | 应用装配出的客户端树上，外壳的三个位置与每个界面拓展点都由它的宿主声明进了目录，树的问题一栏是空的；往没有声明的点上放东西不生效，并在问题一栏写出这个点 | 一个点没有声明，放在上面的东西不出声地不见了 | `apps/desktop/tests/client-tree.spec.tsx` 与它钉住的树 `apps/desktop/tests/client-tree.txt` |
+| FE-I40 | 共用件、装配进来的每个界面模块与应用页面的每一条样式规则都在层里；层的次序只写在一处，改动的那一层在最后 | 一条规则落在层外，它盖过所有的层，放进改动那一层的东西对它不生效 | `apps/desktop/tests/design-gates/layers.spec.ts` |

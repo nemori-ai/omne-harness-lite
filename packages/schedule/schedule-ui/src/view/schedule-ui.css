@@ -1,3 +1,6 @@
+@import '@omne-harness/ui-kit/layers.css';
+
+@layer omne-builtin {
 .schedule-span {
   margin: var(--list-inset) var(--list-inset) calc(var(--spacing) * 3);
 }
@@ -38,4 +41,5 @@
 
 .schedule-note {
   margin: calc(var(--spacing) * 2) 0 0;
+}
 }

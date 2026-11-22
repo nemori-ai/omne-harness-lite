@@ -1,3 +1,6 @@
+@import '@omne-harness/ui-kit/layers.css';
+
+@layer omne-builtin {
 .hitl-decisions {
   min-height: 0;
   overflow-y: auto;
@@ -348,4 +351,5 @@
 
 .hitl-arming > strong {
   font-weight: var(--omne-weight-strong);
+}
 }

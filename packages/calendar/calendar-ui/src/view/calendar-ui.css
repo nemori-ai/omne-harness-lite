@@ -1,3 +1,6 @@
+@import '@omne-harness/ui-kit/layers.css';
+
+@layer omne-builtin {
 /* Requests, answers and failures keep the decision measure (source routes/settings/settings.css, .settings-pane-body [data-inline-notice]). */
 .calendar-page [data-inline-notice] {
   max-width: var(--omne-measure-decision);
@@ -29,4 +32,5 @@
 
 .calendar-lookup-form [data-slot='input'] {
   flex: 1 1 calc(var(--spacing) * 44);
+}
 }

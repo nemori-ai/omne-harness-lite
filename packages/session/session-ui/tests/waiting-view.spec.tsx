@@ -77,7 +77,9 @@ it('失败通知：只有说事实的那一句带失败色，后面说条数与�
   const sheet = document.createElement('style')
   sheet.textContent = `:root { --omne-ink-primary: rgb(1, 2, 3); --omne-ink-muted: rgb(4, 5, 6); }
 [data-inline-notice][data-tone='danger'] { color: rgb(150, 63, 54); }
-${readFileSync(join(import.meta.dirname, '../src/view/session-ui.css'), 'utf8')}`
+${readFileSync(join(import.meta.dirname, '../src/view/session-ui.css'), 'utf8')
+  .replace(/^@import[^;]*;\s*@layer omne-builtin \{/u, '')
+  .replace(/\}\s*$/u, '')}`
   document.head.append(sheet)
   try {
     const fake = createFakeClient()
