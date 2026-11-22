@@ -42,7 +42,7 @@ function reporter(id: string, order: number, seat = false) {
   const held: { shell?: ShellService } = {}
   const plugin = defineUiModule({
     name: `reporter-${id}`,
-    inject: [],
+    needs: {},
     apply(shell) {
       held.shell = shell
       shell.contribute('pages', {

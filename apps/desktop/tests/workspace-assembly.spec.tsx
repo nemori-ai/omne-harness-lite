@@ -14,8 +14,7 @@ import { domainProtocols } from '../src/shared/protocols.ts'
 
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
-const HAND_OVER = 'hand-over:workspace.choices->session.workspace-choices'
-const WORKSPACE_PARTS = new Set(['workspace-ui', HAND_OVER])
+const WORKSPACE_PARTS = new Set(['workspace-ui'])
 
 afterEach(cleanup)
 
@@ -79,10 +78,10 @@ const sessionParts = (keep: (name: string) => boolean) =>
   })
 
 describe('the desktop assembly and the workspace', () => {
-  it('lists the workspace module, the hand-over of its list and its protocol', () => {
-    expect(assembly.modules.map(module => module.name)).toEqual(
-      expect.arrayContaining(['workspace-ui', HAND_OVER]),
-    )
+  it('lists the workspace module and its protocol, and no plugin that hands things over', () => {
+    const names = assembly.modules.map(module => module.name ?? '')
+    expect(names).toContain('workspace-ui')
+    expect(names.filter(name => name.startsWith('hand-over'))).toEqual([])
     expect(domainProtocols).toContain(workspaceProtocol)
   })
 

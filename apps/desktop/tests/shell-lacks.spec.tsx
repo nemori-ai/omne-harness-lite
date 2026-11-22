@@ -1,13 +1,9 @@
 // @vitest-environment happy-dom
 import { act, cleanup } from '@testing-library/react'
 import type { Context } from '@deepseek-ai/cordis'
-import {
-  protocolsContract,
-  type ProtocolKey,
-  type ProtocolStanding,
-} from '@omne-harness/client-assembly'
-import { declare, type Entry } from '@omne-harness/dynamis'
-import { needProtocol } from '@omne-harness/shell-contract'
+import type { ProtocolKey, ProtocolStanding } from '@omne-harness/client-assembly'
+import type { Entry } from '@omne-harness/dynamis'
+import { PROTOCOLS_POINT, needProtocol } from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import { useEffect } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -45,7 +41,7 @@ function notesModule(mounts: { count: number }) {
 
 /** The item of a protocol the server serves and this client holds a client of. */
 const served = (key: ProtocolKey, revision: number | undefined): Entry => ({
-  point: protocolsContract.name,
+  point: PROTOCOLS_POINT,
   key: `${key.name}/v${key.major}`,
   id: '',
   scope: [],
@@ -76,14 +72,6 @@ async function world(initial: ProtocolStanding, login: 'signed-in' | 'signed-out
     modules: [chatPage, notesModule(mounts)],
   })
   await shell.provide(CHAT)
-  await act(async () => {
-    await shell.root.plugin({
-      name: 'connection-protocols',
-      inject: ['dynamis'],
-      apply: (ctx: Context) => void ctx.dynamis.put([declare(protocolsContract)]),
-    })
-    await settle()
-  })
   /** The server serves the protocol and this client holds its client: the item is on the point. */
   const serve = async (key: ProtocolKey, revision?: number) => {
     const fiber = shell.root.plugin({

@@ -59,15 +59,19 @@ it('每个点由一个宿主声明，点的名字以宿主开头', async () => {
   expect(points.toSorted()).toEqual([
     'assets.category',
     'assets.category-page',
+    'assets.governance',
     'assets.holding',
     'connection.protocols',
     'connection.server-points',
     'dynamis.points',
     'human-intervention.release-detail',
+    'model.choices',
     'notification.inbox-sections',
     'session.block',
+    'session.block-reads-source',
     'session.call-detail',
     'session.composer-attachments',
+    'session.composer-intake',
     'session.dock',
     'session.side',
     'session.status',
@@ -76,6 +80,7 @@ it('每个点由一个宿主声明，点的名字以宿主开头', async () => {
     'shell.sidebar',
     'usage.presentation',
     'usage.widget',
+    'workspace.choices',
   ])
 })
 

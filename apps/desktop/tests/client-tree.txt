@@ -6,6 +6,8 @@ system
           assets-ui#1  [effective]
         assets.category-page
           assets-ui#1  [effective]
+        assets.governance
+          assets-ui#1  [effective]
         assets.holding
           assets-ui#1  [effective]
         connection.protocols
@@ -14,13 +16,19 @@ system
           served:connection.server-points#1  [effective]
         human-intervention.release-detail
           human-intervention-ui#1  [effective]
+        model.choices
+          model-ui#1  [effective]
         notification.inbox-sections
           notification-ui#1  [effective]
         session.block
           session-ui#1  [effective]
+        session.block-reads-source
+          session-reads-ui#1  [effective]
         session.call-detail
           session-ui#1  [effective]
         session.composer-attachments
+          session-ui#1  [effective]
+        session.composer-intake
           session-ui#1  [effective]
         session.dock
           session-ui#1  [effective]
@@ -38,10 +46,14 @@ system
           usage-ui#1  [effective]
         usage.widget
           usage-ui#1  [effective]
+        workspace.choices
+          workspace-ui#1  [effective]
   client
     assets
       assets.category-page  [list]
         mcp  [effective, mcp-ui#1]
+      assets.governance  [one]
+        assets-ui#1  [effective]
       assets.category  [keyed-list]
       assets.holding  [keyed-list]
     connection
@@ -78,15 +90,22 @@ system
       human-intervention.release-detail  [keyed-list]
         schedule.activation@1
           schedule-activation  [effective, schedule-ui#1]
+    model
+      model.choices  [one]
+        model-ui#1  [effective]
     notification
       notification.inbox-sections  [list]
     session
       session.block  [list]
         media  [effective, media-ui#1]
+      session.block-reads-source  [one]
+        session-reads-ui#1  [effective]
       session.call-detail  [list]
         tool-call-output  [effective, tool-ui#1]
       session.composer-attachments  [list]
         media  [effective, media-ui#1]
+      session.composer-intake  [one]
+        session-ui#1  [effective]
       session.dock  [list]
         decisions-in-session  [effective, human-intervention-ui#1]
         background-calls  [effective, session-ui#1]
@@ -140,3 +159,6 @@ system
           usage.cache  [effective, usage-ui#1]
           usage.latency  [effective, usage-ui#1]
           usage.tools  [effective, usage-ui#1]
+    workspace
+      workspace.choices  [one]
+        workspace-ui#1  [effective]

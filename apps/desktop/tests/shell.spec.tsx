@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { Plugin } from '@deepseek-ai/cordis'
 import type { ReactNode } from 'react'
+import { needProtocol } from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import { protocolsPoint, servedPoint, servedProtocol } from '@omne-harness/shell-contract/testing'
 import { assetsProtocol } from '@omne-harness/assets-protocol'
@@ -54,7 +55,7 @@ describe('外壳：登录之外', () => {
   it('登录门来了两份：两份都不画，那里写明是哪两家；一份撤了，另一份立刻显示', async () => {
     const second = defineUiModule({
       name: 'other-gate',
-      inject: [],
+      needs: {},
       apply: shell =>
         shell.contribute('gate', { id: 'other.gate', render: () => <p>另一个登录门</p> }),
     })
@@ -289,7 +290,7 @@ describe('外壳：附着位置与页面标记', () => {
   const attachedItem = (id: string, anchor: string, order = 0) =>
     defineUiModule({
       name: `attached-${id}`,
-      inject: [],
+      needs: {},
       apply(shell) {
         shell.contribute('attached', {
           id,
@@ -306,7 +307,7 @@ describe('外壳：附着位置与页面标记', () => {
   const hostPage = (anchor: string, subject: string) =>
     defineUiModule({
       name: 'host-page',
-      inject: [],
+      needs: {},
       apply(shell) {
         shell.contribute('pages', {
           id: 'host',
@@ -389,7 +390,7 @@ describe('外壳：附着位置与页面标记', () => {
     let text: string | null = '还有 2 张'
     const module = defineUiModule({
       name: 'badged',
-      inject: [],
+      needs: {},
       apply(shell) {
         shell.contribute('pages', {
           id: 'first',
@@ -433,7 +434,7 @@ describe('外壳：宿主自己排版', () => {
   const labelled = (id: string, anchor: string, order: number, label?: string) =>
     defineUiModule({
       name: `arranged-${id}`,
-      inject: [],
+      needs: {},
       apply(shell) {
         shell.contribute('attached', {
           id,
@@ -451,7 +452,7 @@ describe('外壳：宿主自己排版', () => {
   const tabsPage = (anchor: string, subject: string) =>
     defineUiModule({
       name: 'tabs-page',
-      inject: [],
+      needs: {},
       apply(shell) {
         shell.contribute('pages', {
           id: 'host',
@@ -520,7 +521,7 @@ describe('外壳：宿主自己排版', () => {
     const DEPENDED = 'fake:contributor-protocol'
     const dependent = defineUiModule({
       name: 'dependent-contributor',
-      inject: [DEPENDED],
+      needs: { depended: needProtocol({ name: DEPENDED, major: 1 }) },
       apply(shell) {
         shell.contribute('attached', {
           id: 'dependent',
@@ -595,7 +596,7 @@ describe('外壳：一项坏了只坏这一项', () => {
   const attachedModule = (id: string, anchor: string, order: number, render: () => ReactNode) =>
     defineUiModule({
       name: `attached-${id}`,
-      inject: [],
+      needs: {},
       apply(shell) {
         shell.contribute('attached', { id, order, anchor, render })
       },
@@ -608,7 +609,7 @@ describe('外壳：一项坏了只坏这一项', () => {
   const pageModule = (id: string, order: number, render: () => ReactNode) =>
     defineUiModule({
       name: `page-${id}`,
-      inject: [],
+      needs: {},
       apply(shell) {
         shell.contribute('pages', { id, title: `页${id}`, order, icon: 'topics', render })
       },
@@ -623,7 +624,7 @@ describe('外壳：一项坏了只坏这一项', () => {
         pageModule('host', 0, () => null),
         defineUiModule({
           name: 'host-attached',
-          inject: [],
+          needs: {},
           apply(shell) {
             shell.contribute('sidebar', {
               id: 'host',
@@ -650,7 +651,7 @@ describe('外壳：一项坏了只坏这一项', () => {
         pageModule('host', 0, () => null),
         defineUiModule({
           name: 'host-attached',
-          inject: [],
+          needs: {},
           apply(shell) {
             shell.contribute('sidebar', {
               id: 'host',
@@ -673,7 +674,7 @@ describe('外壳：一项坏了只坏这一项', () => {
         attachedModule('good', 'test.a', 1, good('good')),
         defineUiModule({
           name: 'host-arranged',
-          inject: [],
+          needs: {},
           apply(shell) {
             shell.contribute('pages', {
               id: 'host',
@@ -734,7 +735,7 @@ describe('外壳：一项坏了只坏这一项', () => {
     const categoryPage = (id: string, order: number, render: () => ReactNode) =>
       defineUiModule({
         name: `category-${id}`,
-        inject: [],
+        needs: {},
         apply(shell) {
           assetsCategoryPage.contribute(shell, { id, order, label: id, render })
         },
@@ -782,7 +783,7 @@ describe('外壳：一项坏了只坏这一项', () => {
       modules: [
         defineUiModule({
           name: 'bad-side',
-          inject: [],
+          needs: {},
           apply(shell) {
             shell.contribute('sidebar', { id: 'bad', order: 0, render: boom })
           },
@@ -804,7 +805,7 @@ describe('外壳：一项坏了只坏这一项', () => {
       modules: [
         defineUiModule({
           name: 'bad-gate',
-          inject: [],
+          needs: {},
           apply(shell) {
             shell.contribute('gate', { id: 'bad.gate', render: boom })
           },
@@ -824,7 +825,7 @@ describe('外壳：一项坏了只坏这一项', () => {
       modules: [
         defineUiModule({
           name: 'bad-badge',
-          inject: [],
+          needs: {},
           apply(shell) {
             shell.contribute('pages', {
               id: 'first',
@@ -858,7 +859,7 @@ describe('外壳：一项坏了只坏这一项', () => {
       modules: [
         defineUiModule({
           name: 'picky-real',
-          inject: [],
+          needs: {},
           apply(shell) {
             shell.contribute('attached', {
               id: 'real',
@@ -893,7 +894,7 @@ describe('外壳：一项坏了只坏这一项', () => {
         pageModule('host', 0, () => null),
         defineUiModule({
           name: 'tenant-picky',
-          inject: [],
+          needs: {},
           apply(shell) {
             shell.contribute('sidebar', {
               id: 'picky',
@@ -942,7 +943,7 @@ describe('外壳：读位置的快照', () => {
     let renders = 0
     const counted = defineUiModule({
       name: 'counted',
-      inject: [CHAT],
+      needs: { chat: needProtocol({ name: CHAT, major: 1 }) },
       apply(shell) {
         shell.contribute('sidebar', {
           id: 'counted',

@@ -72,7 +72,7 @@ afterEach(() => {
 const pages = (seen: (string | undefined)[]) =>
   defineUiModule({
     name: 'pages',
-    inject: [],
+    needs: {},
     apply(shell) {
       shell.contribute('pages', {
         id: 'first',
@@ -97,7 +97,7 @@ const pages = (seen: (string | undefined)[]) =>
 /** A page whose header holds a seat of its own, the way a conversation page does. */
 const headed = defineUiModule({
   name: 'headed',
-  inject: [],
+  needs: {},
   apply(shell) {
     shell.contribute('pages', {
       id: 'headed',

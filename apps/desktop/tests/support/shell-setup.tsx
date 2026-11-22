@@ -19,7 +19,8 @@ import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { DesktopShell, shellPlugin } from '../../src/page/shell/service.ts'
 import { Shell } from '../../src/page/shell/shell.tsx'
 import { createShellState } from '../../src/page/shell/state.ts'
-import { fakeGate, fakePage } from './fake-modules.tsx'
+import { serveProtocol } from '@omne-harness/shell-contract/testing'
+import { fakeGate, fakePage, type Gated } from './fake-modules.tsx'
 
 export const CHAT = 'fake:chat'
 export const SETTINGS = 'fake:settings'
@@ -107,8 +108,12 @@ export async function setup(
   await root.plugin(shellPlugin(state))
   root.reflect.provide('connection', options.connection ?? quietConnection)
   for (const name of TEST_POINTS) definePoint({ name, subject: TEXT }).declare(root.shell)
-  for (const module of options.modules ?? [fakeGate(), chatPage, settingsPage])
-    await root.plugin(module)
+  const gated = new Map<string, Plugin.Object[]>()
+  for (const module of options.modules ?? [fakeGate(), chatPage, settingsPage]) {
+    const gate = (module as Partial<Gated>).gatedBy
+    if (gate === undefined) await root.plugin(module)
+    else gated.set(gate, [...(gated.get(gate) ?? []), module])
+  }
   const theme = {
     initial: options.theme ?? ('system' as ThemeChoice),
     select(choice: ThemeChoice): ResolvedTheme {
@@ -130,15 +135,17 @@ export async function setup(
         : { missingAtForwarding: options.missingAtForwarding })}
     />,
   )
+  /** Gives the named thing: the protocol of that name is served, and the modules gated by it are loaded. */
   const provide = async (name: string) => {
-    let withdraw: () => void = () => {}
+    let given: Fiber[] = []
     await act(async () => {
-      withdraw = root.reflect.provide(name, {})
+      const served = await serveProtocol(root, { name, major: 1 }, {})
+      given = [served, ...(gated.get(name) ?? []).map(module => root.plugin(module))]
       await settle()
     })
     return async () => {
       await act(async () => {
-        withdraw()
+        for (const fiber of given) await fiber.dispose()
         await settle()
       })
     }

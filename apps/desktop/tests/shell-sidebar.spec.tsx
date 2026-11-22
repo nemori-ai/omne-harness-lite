@@ -31,7 +31,7 @@ type Side = Pick<SidebarItem, 'id' | 'order'> &
 const pagesOf = (...pages: readonly Page[]) =>
   defineUiModule({
     name: `pages-${pages.map(page => page.id).join('-')}`,
-    inject: [],
+    needs: {},
     apply(shell) {
       for (const page of pages)
         shell.contribute('pages', {
@@ -45,7 +45,7 @@ const pagesOf = (...pages: readonly Page[]) =>
 const sideOf = (...items: readonly Side[]) =>
   defineUiModule({
     name: `side-${items.map(item => item.id).join('-')}`,
-    inject: [],
+    needs: {},
     apply(shell) {
       for (const { text, rail, ...item } of items)
         shell.contribute('sidebar', {
@@ -502,7 +502,7 @@ describe('外壳：外观', () => {
 describe('外壳：键盘', () => {
   const sided = defineUiModule({
     name: 'sided',
-    inject: [],
+    needs: {},
     apply(shell) {
       shell.contribute('pages', {
         id: 'first',
