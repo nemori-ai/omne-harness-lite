@@ -13,7 +13,6 @@ import { useEffect } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { lackOf, lackText } from '../src/page/shell/lacks.ts'
 import { chatPage, section, navTitles, settle, setup, CHAT } from './support/shell-setup.tsx'
-import { fakeGate } from './support/fake-modules.tsx'
 
 afterEach(cleanup)
 
@@ -39,6 +38,7 @@ function notesModule(mounts: { count: number }) {
         icon: 'conversation',
         render: () => <NotesPage />,
       })
+      shell.contribute('gate', { id: 'notes.gate', render: () => <p data-notes-gate="">登录卡</p> })
     },
   })
 }
@@ -55,7 +55,7 @@ const served = (key: ProtocolKey, revision: number | undefined): Entry => ({
 })
 
 /** A connection that says where each protocol stands, and the point the served ones are put on. */
-async function world(initial: ProtocolStanding) {
+async function world(initial: ProtocolStanding, login: 'signed-in' | 'signed-out' = 'signed-in') {
   const standings = new Map<string, ProtocolStanding>([['notes/v1', initial]])
   const listeners = new Set<() => void>()
   const connection = {
@@ -71,9 +71,9 @@ async function world(initial: ProtocolStanding) {
   }
   const mounts = { count: 0 }
   const shell = await setup({
-    login: 'signed-in',
+    login,
     connection,
-    modules: [fakeGate(), chatPage, notesModule(mounts)],
+    modules: [chatPage, notesModule(mounts)],
   })
   await shell.provide(CHAT)
   await act(async () => {
@@ -199,6 +199,60 @@ describe('a page whose module lacks a protocol it needs', () => {
     expect(w.said()).toEqual([])
     expect(w.notes()?.querySelector('[data-notes]')).not.toBeNull()
     expect(w.mounts.count).toBe(2)
+  })
+})
+
+describe('the login gate of a module that lacks a protocol it needs', () => {
+  const card = () => document.querySelector('.shell-gate-card')
+
+  it('waits while the connection has not told what is served, then says what is missing, then is the gate', async () => {
+    const w = await world({ kind: 'connecting' }, 'signed-out')
+    expect(card()?.querySelector('[data-notes-gate]')).toBeNull()
+    expect(card()?.querySelector('.shell-connecting')?.textContent).toContain('正在连接服务')
+    await w.tell(NOTES, { kind: 'absent' })
+    expect(
+      [...(card()?.querySelectorAll('.shell-page-lack') ?? [])].map(e => e.textContent),
+    ).toEqual(['登录现在用不了：服务端没有提供它要用的 notes/v1。'])
+    await w.serve(NOTES)
+    expect(card()?.querySelector('[data-notes-gate]')).not.toBeNull()
+    expect(card()?.querySelector('.shell-page-lack')).toBeNull()
+  })
+})
+
+describe('the page on show', () => {
+  it('stays on show when its protocol goes and when it is back', async () => {
+    const w = await world({ kind: 'absent' })
+    const withdraw = await w.serve(NOTES)
+    await act(async () => {
+      w.shell.state.page.choose('notes')
+      await settle()
+    })
+    expect(w.notes()?.hidden).toBe(false)
+    await withdraw({ kind: 'absent' })
+    expect(w.notes()?.hidden).toBe(false)
+    expect(w.said()).toHaveLength(1)
+    await w.serve(NOTES)
+    expect(w.notes()?.hidden).toBe(false)
+    expect(w.notes()?.querySelector('[data-notes]')).not.toBeNull()
+  })
+
+  it('is given up when its page is still gone after the turn', async () => {
+    const w = await world({ kind: 'absent' })
+    await w.serve(NOTES)
+    await act(async () => {
+      w.shell.state.page.choose('notes')
+      await settle()
+    })
+    await act(async () => {
+      w.shell.state.slots.bind({
+        items: () => [],
+        conflicts: () => [],
+        subscribe: () => () => undefined,
+      } as never)
+      await settle()
+      await settle()
+    })
+    expect(w.shell.state.page.get()).toBeUndefined()
   })
 })
 

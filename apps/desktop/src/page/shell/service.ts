@@ -12,7 +12,7 @@ import {
 } from '@omne-harness/shell-contract'
 import { ShellService } from '@omne-harness/shell-contract/cordis'
 import { Arranged, Attached } from './attached.tsx'
-import { lackOf, type Lack, type Standing } from './lacks.ts'
+import { lackOf, type Lack, type LackSlot, type Standing } from './lacks.ts'
 import type { ShellState } from './state.ts'
 
 const SLOT_NAMES: readonly SlotName[] = ['gate', 'pages', 'sidebar', 'attached']
@@ -40,7 +40,11 @@ export class DesktopShell extends ShellService {
       )
     ctx.on('dynamis-cordis/changed', registry => this.reportProblems(registry))
     ctx.effect(
-      () => state.lacks.bind({ of: id => this.lacks(id), subscribe: l => this.watchLacks(l) }),
+      () =>
+        state.lacks.bind({
+          of: (slot, id) => this.lacks(slot, id),
+          subscribe: listener => this.watchLacks(listener),
+        }),
       'desktop-shell.lacks',
     )
     ctx.plugin({
@@ -65,9 +69,9 @@ export class DesktopShell extends ShellService {
     }
   }
 
-  /** What the module that put this page lacks now: the page is drawn as that, not as itself. */
-  lacks(pageId: string): readonly Lack[] {
-    const module = this.owner('pages', pageId)
+  /** What the module that put this page or gate lacks now: the item is drawn as that, not as itself. */
+  lacks(slot: LackSlot, id: string): readonly Lack[] {
+    const module = this.owner(slot, id)
     const adoption = module === undefined ? undefined : this.adoption(module)
     if (adoption?.kind !== 'unavailable') return NO_LACKS
     return adoption.missing.map(missing => lackOf(missing, this.standing))

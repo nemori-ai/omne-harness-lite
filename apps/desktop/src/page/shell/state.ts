@@ -11,7 +11,7 @@ import {
   type Toast,
   type ToastBoard,
 } from '@omne-harness/shell-contract'
-import type { Lack, PageLacks } from './lacks.ts'
+import type { Lack, LackSlot, PageLacks } from './lacks.ts'
 
 export const LOGIN_EXPIRED_TEXT = '登录已经失效，请重新登录。'
 export const LOGOUT_UNKNOWN_TEXT = '本机已经退出。服务端是否已注销这次登录，没有得到确认。'
@@ -112,7 +112,7 @@ function lackRelay(): LackRelay {
     changed.emit(undefined)
   }
   return {
-    of: (pageId): readonly Lack[] => source?.of(pageId) ?? NOTHING,
+    of: (slot: LackSlot, id: string): readonly Lack[] => source?.of(slot, id) ?? NOTHING,
     subscribe: listener => changed.add(() => listener()),
     bind(next) {
       follow(next)
@@ -156,14 +156,25 @@ function pageChoice(slots: ShellSlots): PageChoice & { dispose(): void } {
   const shown = cell<string | undefined>(undefined)
   const focus = cell<PageFocus | undefined>(undefined)
   const pages = () => slots.items('pages')
+  let grace: ReturnType<typeof setTimeout> | undefined
+  const there = (id: string | undefined): boolean => pages().some(page => page.id === id)
+  const giveUp = (): void => {
+    grace = undefined
+    if (there(chosen.get())) return
+    chosen.set(undefined)
+    settle()
+  }
   const settle = (): void => {
-    const ids = pages().map(page => page.id)
     const current = chosen.get()
-    if (current !== undefined && !ids.includes(current)) chosen.set(undefined)
-    shown.set(chosen.get() ?? ids[0])
+    if (current !== undefined && !there(current)) grace ??= setTimeout(giveUp, 0)
+    shown.set(current ?? pages()[0]?.id)
     if (focus.get()?.page !== shown.get()) focus.set(undefined)
   }
-  const stop = slots.subscribe('pages', settle)
+  const unsubscribe = slots.subscribe('pages', settle)
+  const stop = (): void => {
+    unsubscribe()
+    clearTimeout(grace)
+  }
   settle()
   return {
     get: shown.get,

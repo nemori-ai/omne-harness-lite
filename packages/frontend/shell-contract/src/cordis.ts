@@ -251,8 +251,68 @@ export type InjectingUiModule<S extends Record<string, unknown>> = Readonly<{
 export type UiModuleDefinition<N extends Readonly<Record<string, Need>>> = Readonly<{
   name: string
   needs: N
-  apply: (shell: ShellService, bound: BoundOf<N>, provide: Provide) => void
+  apply: (shell: ShellService, bound: BoundOf<N>, provide: Provide) => void | (() => void)
 }>
+
+type NeedsModule = UiModuleDefinition<Record<string, Need>>
+
+function lacking(shell: ShellService): ShellService {
+  return new Proxy(shell, {
+    get(target, key) {
+      if (key === 'contribute')
+        return (slot: SlotName, item: never) => {
+          if (slot === 'pages' || slot === 'gate') target.contribute(slot, item)
+        }
+      const value: unknown = Reflect.get(target, key)
+      return typeof value === 'function' ? value.bind(target) : value
+    },
+  })
+}
+
+function turnOf(definition: NeedsModule, bound: object, whole: boolean): Plugin.Object {
+  return {
+    name: definition.name,
+    inject: [ShellService.provide],
+    apply(ctx: Context) {
+      const provide: Provide = (key, value) => {
+        if (whole) ctx.effect(() => ctx.reflect.provide(key, value), 'ui-module.provide')
+      }
+      const shell = whole ? ctx.shell : lacking(ctx.shell)
+      const back = definition.apply(shell, bound as BoundOf<Record<string, Need>>, provide)
+      if (back !== undefined) ctx.effect(() => back, 'ui-module.apply')
+    },
+  }
+}
+
+function followAdoption(ctx: Context, definition: NeedsModule, bound: object): void {
+  const { shell } = ctx
+  let mark: string | undefined
+  let turn: { dispose(): Promise<void> } | undefined
+  let turning: Promise<void> = Promise.resolve()
+  let gone = false
+  const settle = (): void => {
+    const adoption = shell.adoption(definition.name)
+    const next = JSON.stringify(adoption)
+    if (next === mark) return
+    mark = next
+    const last = turn
+    turn = undefined
+    turning = turning
+      .then(() => last?.dispose())
+      .then(() => {
+        if (gone || mark !== next) return
+        turn = ctx.plugin(turnOf(definition, bound, adoption?.kind === 'adopted'))
+      })
+  }
+  ctx.effect(() => {
+    const stop = shell.watchAdoptions(settle)
+    return () => {
+      gone = true
+      stop()
+    }
+  }, 'ui-module.adoption')
+  settle()
+}
 
 function boundOf(shell: ShellService, registry: () => Registry, needs: Record<string, Need>) {
   const bound: Record<string, unknown> = {}
@@ -293,8 +353,7 @@ export function defineUiModule(
       ctx.shell.require(definition.name, referencesOf(definition.needs))
       const { shell } = ctx
       const registry = (): Registry => shell.registry()
-      const bound = boundOf(ctx.shell, registry, definition.needs) as BoundOf<Record<string, Need>>
-      definition.apply(ctx.shell, bound, provide)
+      followAdoption(ctx, definition, boundOf(shell, registry, definition.needs))
     },
   }
 }

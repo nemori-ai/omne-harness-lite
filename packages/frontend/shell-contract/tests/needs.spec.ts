@@ -1,7 +1,13 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { declare, type Contract, type Entry } from '@omne-harness/dynamis'
 import { describe, expect, it } from 'vitest'
-import { needPoint, needProtocol, type Need } from '@omne-harness/shell-contract'
+import {
+  definePoint,
+  needPoint,
+  needProtocol,
+  serviceKey,
+  type Need,
+} from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import { render, startShell } from './reference-shell.ts'
 
@@ -200,5 +206,86 @@ describe('a view module that declares its needs', () => {
     expect(w.shell.adoption('nobody')).toBeUndefined()
     await fiber.dispose()
     expect(w.shell.adoption('notes-ui')).toBeUndefined()
+  })
+
+  const settled = async () => {
+    for (let round = 0; round < 8; round += 1) await new Promise(resolve => setTimeout(resolve, 0))
+  }
+
+  it('applies once for each adoption: what it made for the last one is taken back before the next', async () => {
+    const w = await world()
+    const log: string[] = []
+    await w.root.plugin(
+      defineUiModule({
+        name: 'notes-ui',
+        needs: { notes: needProtocol<Notes>(NOTES) },
+        apply(shell) {
+          const turn = log.filter(line => line.startsWith('apply')).length + 1
+          log.push(`apply ${turn}`)
+          shell.contribute('pages', {
+            id: 'notes',
+            title: '笔记',
+            order: 0,
+            icon: 'topics',
+            render,
+          })
+          return () => void log.push(`back ${turn}`)
+        },
+      }),
+    )
+    await settled()
+    expect(log).toEqual(['apply 1'])
+    const serving = await w.serve('notes', 1)
+    await settled()
+    expect(log).toEqual(['apply 1', 'back 1', 'apply 2'])
+    await w.serve('tasks', 1)
+    await settled()
+    expect(log).toHaveLength(3)
+    await serving.dispose()
+    await settled()
+    expect(log).toEqual(['apply 1', 'back 1', 'apply 2', 'back 2', 'apply 3'])
+    expect(w.shell.items('pages').map(page => page.id)).toEqual(['notes'])
+    expect(w.shell.owner('pages', 'notes')).toBe('notes-ui')
+  })
+
+  it('while a required need is missing it puts its pages and its gate, nothing on the sidebar or an attached point, and provides nothing', async () => {
+    const w = await world()
+    const offered = serviceKey<string>('notes.offer')
+    const spot = definePoint({
+      name: 'test.a',
+      subject: { encode: (value: string) => value, decode: (value: string) => value },
+    })
+    await w.root.plugin(
+      defineUiModule({
+        name: 'notes-ui',
+        needs: { notes: needProtocol<Notes>(NOTES) },
+        apply(shell, _bound, provide) {
+          shell.contribute('pages', {
+            id: 'notes',
+            title: '笔记',
+            order: 0,
+            icon: 'topics',
+            render,
+          })
+          shell.contribute('gate', { id: 'notes.gate', render })
+          shell.contribute('sidebar', { id: 'notes.side', order: 0, render })
+          spot.contribute(shell, { id: 'notes.attached', order: 0, render })
+          provide(offered, 'the offer')
+        },
+      }),
+    )
+    await settled()
+    const lookup = w.root as unknown as { get(name: string): unknown }
+    const there = () => ({
+      pages: w.shell.items('pages').length,
+      gate: w.shell.items('gate').length,
+      sidebar: w.shell.items('sidebar').length,
+      attached: w.shell.items('attached').length,
+      offered: lookup.get(offered),
+    })
+    expect(there()).toEqual({ pages: 1, gate: 1, sidebar: 0, attached: 0, offered: undefined })
+    await w.serve('notes', 1)
+    await settled()
+    expect(there()).toEqual({ pages: 1, gate: 1, sidebar: 1, attached: 1, offered: 'the offer' })
   })
 })

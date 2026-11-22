@@ -3,6 +3,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
 import { deployment, render, tree } from '@omne-harness/dynamis'
 import type { ShellLogin } from '@omne-harness/shell-contract'
+import { serveProtocol } from '@omne-harness/shell-contract/testing'
 import { expect, it, vi } from 'vitest'
 import { assembly } from '../src/page/assembly.tsx'
 import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
@@ -31,8 +32,10 @@ async function clientTree() {
   await root.plugin(DynamisService)
   await root.plugin(shellPlugin(createShellState(login)))
   root.reflect.provide('connection', quietConnection)
-  for (const protocol of assembly.protocols)
+  for (const protocol of assembly.protocols) {
     root.reflect.provide(protocolServiceName(protocol), silent())
+    await serveProtocol(root, protocol, silent())
+  }
   for (const module of assembly.modules) await root.plugin(module)
   await settle()
   return tree(root.dynamis.registry(), deployment)
@@ -56,6 +59,7 @@ it('每个点由一个宿主声明，点的名字以宿主开头', async () => {
     'assets.category',
     'assets.category-page',
     'assets.holding',
+    'connection.protocols',
     'dynamis.points',
     'human-intervention.release-detail',
     'notification.inbox-sections',

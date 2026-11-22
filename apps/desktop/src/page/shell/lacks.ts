@@ -19,8 +19,11 @@ export type Lack =
       majors: readonly number[]
     }>
 
+/** The slots whose item is drawn as what its module lacks; an item of another slot is not put at all. */
+export type LackSlot = 'pages' | 'gate'
+
 export type PageLacks = Readonly<{
-  of(pageId: string): readonly Lack[]
+  of(slot: LackSlot, id: string): readonly Lack[]
   subscribe(listener: () => void): () => void
 }>
 
@@ -56,7 +59,7 @@ export function lackOf(missing: Missing, standing: Standing): Lack {
   }
 }
 
-const LEAD = '这一页现在用不了：'
+const WHAT: Readonly<Record<LackSlot, string>> = { pages: '这一页', gate: '登录' }
 
 const WHY: Readonly<Record<Why, (wanted: string) => string>> = {
   absent: wanted => `服务端没有提供它要用的 ${wanted}。`,
@@ -72,7 +75,11 @@ function olderSide(served: readonly number[], majors: readonly number[]): string
 }
 
 /** The one sentence a page that lacks something is drawn as. A connecting page is drawn as loading, with no sentence. */
-export function lackText(lack: Exclude<Lack, { kind: 'connecting' }>): string {
+export function lackText(
+  lack: Exclude<Lack, { kind: 'connecting' }>,
+  slot: LackSlot = 'pages',
+): string {
+  const LEAD = `${WHAT[slot]}现在用不了：`
   if (lack.kind === 'point') return `${LEAD}它要用的 ${lack.point} 没有人提供。`
   if (lack.why !== 'other-major') return `${LEAD}${WHY[lack.why](lack.wanted)}`
   const served = lack.served.map(major => `v${major}`).join('、')
