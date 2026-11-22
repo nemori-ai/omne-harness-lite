@@ -202,7 +202,15 @@ describe('registrySources: the layers of one tenant, read from the points of the
       page: { items: [], next: null, completeness: 'complete' },
     })
     expect(w.listed).toEqual(['tenant-a:gadget'])
+    expect(await w.sources('tenant-a')[0]?.list(request)).toEqual({
+      layer: 'official',
+      state: 'not-applicable',
+    })
     const closed = await world({ opens: () => false })
+    expect(await closed.sources('tenant-a')[1]?.list(request)).toEqual({
+      layer: 'tenant',
+      state: 'unavailable',
+    })
     expect(await listAssets(closed.sources('tenant-a'), request)).toEqual({
       state: 'unavailable',
       layer: 'tenant',

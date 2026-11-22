@@ -58,6 +58,8 @@ type Options = {
   publish?: TenantPublishOutcome | 'throws'
   uploads?: Partial<StoreUploads>
   recall?: Awaited<ReturnType<TenantLayerStore['recall']>>
+  /** A second contribution of the directory category: it is a conflict and gives no contract. */
+  rival?: true
 }
 
 function setup(options: Options = {}) {
@@ -74,6 +76,8 @@ function setup(options: Options = {}) {
     generalCreation: 'closed',
     point: 'tool.items',
   })
+  if (options.rival === true)
+    categories.contribute({ contract: directory, display, point: 'bundle.rival' })
   const published: TenantPublishRequest<Principal>[] = []
   const discarded: string[] = []
   const calls: string[] = []
@@ -219,6 +223,12 @@ describe('beginning an upload', () => {
   ])('%s is refused before the store', async (_label, capability, answer) => {
     const s = setup()
     expect(await s.management.beginUpload(begin(capability))).toEqual(answer)
+    expect(s.calls).toEqual([])
+  })
+
+  it('a category that is a conflict is unavailable, and nothing is begun', async () => {
+    const s = setup({ rival: true })
+    expect(await s.management.beginUpload(begin())).toEqual({ kind: 'unavailable' })
     expect(s.calls).toEqual([])
   })
 

@@ -121,6 +121,16 @@ describe('the layers of one tenant', () => {
     expect(opened).toEqual([tenantText])
   })
 
+  it('answers nothing when the layers of the tenant cannot be had', async () => {
+    const { local } = assets({ kind: 'absent' })
+    expect(
+      await converterLayersOf(
+        async () => local,
+        () => undefined,
+      )(tenant),
+    ).toBeUndefined()
+  })
+
   it('puts the official layer before the tenant one, and reads an official body without the assets', async () => {
     const { asked, local } = assets({ kind: 'absent' })
     const layers = await converterLayersOf(async () => local, twoLayers)(tenant)

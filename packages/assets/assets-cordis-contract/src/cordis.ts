@@ -109,7 +109,7 @@ export class AssetCategoriesService extends Service {
     this.view = view
     this.held = ({ category, name }, tenant) => {
       const listing = view.describe(category)
-      if (listing === undefined || 'unusable' in listing) return UNREAD
+      if (listing === undefined || !('point' in listing)) return UNREAD
       const asker = scopeOfLayer('tenant', tenant)
       const read = candidates<HeldItem>(tree.registry(), listing.point, name, asker)
       return read.kind === 'read' ? { kind: 'read', entries: read.entries } : UNREAD
@@ -137,7 +137,7 @@ export class AssetCategoriesService extends Service {
       put: entry => tree.put([entry]),
       pointOf(category) {
         const listing = view.describe(category)
-        return listing === undefined || 'unusable' in listing ? undefined : listing.point
+        return listing !== undefined && 'point' in listing ? listing.point : undefined
       },
       scope: scopeOfLayer('tenant', tenant),
       skipped,
