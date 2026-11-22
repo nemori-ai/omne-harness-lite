@@ -123,3 +123,67 @@ describe('an optional need for what another module provides', () => {
     expect(attached).toEqual(['on from the host', 'off from the host'])
   })
 })
+
+describe('attachWhile on a reader of its own', () => {
+  const readerOf = (initial: object | undefined) => {
+    let value = initial
+    const listeners = new Set<() => void>()
+    return {
+      reader: {
+        get: () => value,
+        subscribe: (listener: () => void) => {
+          listeners.add(listener)
+          return () => void listeners.delete(listener)
+        },
+      },
+      set(next: object | undefined) {
+        value = next
+        for (const listener of Array.from(listeners)) listener()
+      },
+      notify() {
+        for (const listener of Array.from(listeners)) listener()
+      },
+    }
+  }
+
+  it('a notice without a new value neither detaches nor attaches again', () => {
+    const one = {}
+    const source = readerOf(one)
+    let attached = 0
+    let detached = 0
+    attachWhile(source.reader, () => {
+      attached += 1
+      return () => void (detached += 1)
+    })
+    source.notify()
+    expect(attached).toBe(1)
+    expect(detached).toBe(0)
+  })
+
+  it('never attaches while there is nothing to attach', () => {
+    const source = readerOf(undefined)
+    let attached = 0
+    attachWhile(source.reader, () => {
+      attached += 1
+      return () => undefined
+    })
+    source.notify()
+    source.set(undefined)
+    expect(attached).toBe(0)
+  })
+
+  it('the function it returns detaches once and stops following the reader', () => {
+    const source = readerOf({})
+    let attached = 0
+    let detached = 0
+    const stop = attachWhile(source.reader, () => {
+      attached += 1
+      return () => void (detached += 1)
+    })
+    stop()
+    expect(detached).toBe(1)
+    source.set({})
+    expect(attached).toBe(1)
+    expect(detached).toBe(1)
+  })
+})

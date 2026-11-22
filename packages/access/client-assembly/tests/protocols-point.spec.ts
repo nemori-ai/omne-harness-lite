@@ -245,3 +245,92 @@ describe('the client that is always there: six standings of a need, four things 
     expect(fake.calls.map(call => call.operation)).toEqual(['ping'])
   })
 })
+
+describe('what the connection tells of the protocols the server serves', () => {
+  const NOTES_3 = { name: 'notes', major: 3 } as const
+  const withRevision = (revision: number, ...protocols: object[]) =>
+    ({ kind: 'snapshot', revision, protocols, conflicts: [] }) as AvailabilityFrame
+  const notesItem = (t: Awaited<ReturnType<typeof tree>>) => {
+    const answer = ask<Record<string, unknown>>(
+      t.root.dynamis.registry(),
+      CONNECTION_PROTOCOLS_POINT,
+      'notes/v1',
+      [],
+    )
+    if (answer.kind !== 'one') throw new Error(`the point answers ${answer.kind}`)
+    return answer.entry
+  }
+
+  it('lists the other majors of the name from the smallest, whatever order the frame wrote them in', async () => {
+    const t = await tree()
+    await t.push(snapshot(1, [ACCESS, NOTES_3, NOTES_2]))
+    expect(t.connection.availability.standing(NOTES)).toEqual({
+      kind: 'other-major',
+      served: [2, 3],
+    })
+  })
+
+  it('answers unavailable and sends nothing when the root has no registry', async () => {
+    const root = new Context()
+    roots.push(root)
+    const fake = fakeTransport()
+    await root.plugin(connectionPlugin({ transport: fake.transport, login: signedOut }))
+    await settle()
+    expect(await root.get('connection')!.client(notesProtocol).ping({})).toEqual({
+      outcome: 'unavailable',
+    })
+    expect(fake.calls).toEqual([])
+  })
+
+  it('the item follows the revision the peer is at while the protocol stays open: one item, with the new revision', async () => {
+    const t = await tree()
+    const served = { name: 'notes', major: 1, digest: 'sha256:n' }
+    await t.push(withRevision(1, ACCESS, { ...served, revision: 2 }))
+    const before = notesItem(t)
+    await t.push(withRevision(2, ACCESS, { ...served, revision: 3 }))
+    expect(t.keys()).toEqual(['notes/v1'])
+    expect(notesItem(t).item).toMatchObject({ peerRevision: 3 })
+    expect(notesItem(t).digest).toBe('notes/v1@3')
+    expect(notesItem(t).item.client).toBe(before.item.client)
+    await t.push(withRevision(3, ACCESS, { ...served, revision: 3 }))
+    expect(notesItem(t).digest).toBe('notes/v1@3')
+  })
+
+  it('keeps the revision the peer is at in the item and in the digest, and takes the new one when the protocol comes back', async () => {
+    const t = await tree()
+    const served = { name: 'notes', major: 1, digest: 'sha256:n' }
+    await t.push(withRevision(1, ACCESS, { ...served, revision: 2 }))
+    expect(notesItem(t).item).toMatchObject({ peerRevision: 2 })
+    expect(notesItem(t).digest).toBe('notes/v1@2')
+    await t.push(change(2, [], [NOTES]))
+    await t.push({
+      kind: 'change',
+      revision: 3,
+      added: [{ ...served, revision: 3 }],
+      removed: [],
+    } as AvailabilityFrame)
+    expect(notesItem(t).item).toMatchObject({ peerRevision: 3 })
+    expect(notesItem(t).digest).toBe('notes/v1@3')
+  })
+
+  it('has no peer revision in the item when the frame does not say it', async () => {
+    const t = await tree()
+    await t.push(withRevision(1, ACCESS, { name: 'notes', major: 1, digest: 'sha256:n' }))
+    const entry = notesItem(t)
+    expect('peerRevision' in entry.item).toBe(false)
+    expect(entry.digest).toBe('notes/v1@unsaid')
+  })
+})
+
+describe('needStanding of an optional need', () => {
+  const optional = { key: NOTES, optional: true } as const
+
+  it('only softens an absence', () => {
+    expect(needStanding(optional, { kind: 'connecting' })).toEqual({ kind: 'connecting' })
+    expect(needStanding(optional, { kind: 'conflict' })).toEqual({ kind: 'conflict' })
+    expect(needStanding(optional, { kind: 'other-major', served: [2] })).toEqual({
+      kind: 'other-major',
+      served: [2],
+    })
+  })
+})

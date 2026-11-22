@@ -2,8 +2,12 @@ import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { readTenantText } from '@omne-harness/public-contract'
-import { createHttpProtocolTransport, type Credentials } from '@omne-harness/sdk/core'
+import { accessProtocol, readTenantText } from '@omne-harness/public-contract'
+import {
+  createHttpProtocolTransport,
+  type Credentials,
+  type Transport,
+} from '@omne-harness/sdk/core'
 import { usageProtocol } from '@omne-harness/usage-protocol'
 import { openLink } from '../src/link.ts'
 import {
@@ -74,6 +78,81 @@ describe('a command whose protocol the server does not serve', () => {
     expect(result.stderr).toBe(
       'omne read-context-occupancy: the server serves usage/v2, this command speaks usage/v1\n',
     )
+  })
+
+  it('names every other major the server serves, the lowest first', async () => {
+    const t = await withoutUsage(
+      streamAnswer(
+        [frame([served('usage', 3), served('access', 1), served('usage', 2)])],
+        'aborted',
+      ),
+    )
+    const result = await t.cli(occupancy)
+    expect(result.stderr).toBe(
+      'omne read-context-occupancy: the server serves usage/v2, usage/v3, this command speaks usage/v1\n',
+    )
+  })
+
+  it('asks under a message id of its own', async () => {
+    const t = await withoutUsage(streamAnswer([frame([served('access', 1)])], 'aborted'))
+    await t.cli(occupancy)
+    const [asked] = t.asked()
+    expect(asked?.messageId).toMatch(/^id-\d+$/u)
+    expect(asked?.messageId).not.toBe(
+      t.service.seen.find(seen => seen.path.startsWith('/api/usage/'))?.messageId,
+    )
+  })
+
+  it('says nothing more when the first thing the server tells is not a whole view', async () => {
+    const change = { kind: 'change', revision: 2, added: [], removed: [], conflicts: [] }
+    const t = await withoutUsage(streamAnswer([change], 'aborted'))
+    const result = await t.cli(occupancy)
+    expect(result.code).toBe(4)
+    expect(result.stderr).toBe('')
+  })
+
+  it('leaves the subscription once it has the first frame', async () => {
+    const limits = {
+      maxBytes: 65_536,
+      maxDepth: 16,
+      maxItems: 1_024,
+      maxMembers: 64,
+      maxStringLength: 1_024,
+      maxNumberLength: 32,
+    }
+    const written = accessProtocol.observations.availability.frame.write(
+      frame([served('access', 1)]) as never,
+      limits,
+    )
+    if (!written.ok) throw new Error('the frame does not fit access/v1')
+    let left: AbortSignal | undefined
+    let asked = 0
+    const transport: Transport = {
+      call: async () => ({ kind: 'not-sent' }),
+      async *observe(request) {
+        asked += 1
+        left = request.signal
+        yield written.value
+        await new Promise(resolve => request.signal.addEventListener('abort', resolve))
+        return { kind: 'aborted' }
+      },
+    }
+    const opened = openLink(
+      { services: { createTransport: () => transport, newId: () => 'id-reason' } } as never,
+      'http://127.0.0.1:1',
+    )
+    if (opened.kind !== 'link') throw new Error('the link was refused')
+    const tenant = readTenantText(tenantText)
+    if (tenant === undefined) throw new Error('the tenant text does not read')
+    const answer = await opened.link.call(
+      usageProtocol,
+      'read-context-occupancy',
+      { tenant, session: SESSION },
+      'm-1',
+    )
+    expect(answer).toEqual({ kind: 'unavailable', reason: 'the server does not serve usage/v1' })
+    expect(asked).toBe(1)
+    expect(left?.aborted).toBe(true)
   })
 
   it('says that two parts of the server claim it', async () => {

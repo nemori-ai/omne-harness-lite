@@ -239,3 +239,59 @@ describe('页面读位置经过的那一层：外壳服务在它后面换', () =
     expect(heard).not.toHaveBeenCalled()
   })
 })
+
+describe('the relay of what a page lacks', () => {
+  const lacksRelay = () =>
+    createShellState({
+      state: () => 'signed-out',
+      subscribe: () => () => undefined,
+      login: async () => 'signed-in',
+      logout: async () => 'signed-out',
+    }).lacks
+
+  const lackSource = (tag: string) => {
+    const listeners = new Set<() => void>()
+    const stop = vi.fn(() => void listeners.delete(listener))
+    let listener: () => void = () => undefined
+    return {
+      stop,
+      tell: () => {
+        for (const each of Array.from(listeners)) each()
+      },
+      source: {
+        of: () => [{ kind: 'point', point: tag }] as const,
+        subscribe(next: () => void) {
+          listener = next
+          listeners.add(next)
+          return stop
+        },
+      },
+    }
+  }
+
+  it('follows the source it is bound to last, and leaves the one before', () => {
+    const lacks = lacksRelay()
+    const heard = vi.fn()
+    lacks.subscribe(heard)
+    const one = lackSource('one')
+    const two = lackSource('two')
+    lacks.bind(one.source)
+    lacks.bind(two.source)
+    expect(one.stop).toHaveBeenCalledTimes(1)
+    expect(lacks.of('pages', 'x')).toEqual([{ kind: 'point', point: 'two' }])
+    const before = heard.mock.calls.length
+    two.tell()
+    expect(heard).toHaveBeenCalledTimes(before + 1)
+  })
+
+  it('reads nothing once its source is unbound, and says so once', () => {
+    const lacks = lacksRelay()
+    const heard = vi.fn()
+    lacks.subscribe(heard)
+    const undo = lacks.bind(lackSource('one').source)
+    const before = heard.mock.calls.length
+    undo()
+    expect(lacks.of('pages', 'x')).toEqual([])
+    expect(heard).toHaveBeenCalledTimes(before + 1)
+  })
+})
