@@ -79,6 +79,7 @@ describe('standingOf：一个点的四种状态', () => {
       binding: 'run',
       onError: 'a point whose declaration cannot be read answers unavailable',
       version: 1,
+      revision: 1,
       conformance: null,
       summary: 'The catalog: one item declares one extension point and carries its contract.',
     })
@@ -172,6 +173,9 @@ describe('standingOf：一个点的四种状态', () => {
     ['绑定时刻没写', { ...host(), item: { ...good, binding: undefined } }],
     ['主版本不是正整数', { ...host(), item: { ...good, version: 0 } }],
     ['主版本不是整数', { ...host(), item: { ...good, version: 1.5 } }],
+    ['修订号不是正整数', { ...host(), item: { ...good, revision: 0 } }],
+    ['修订号不是整数', { ...host(), item: { ...good, revision: 1.5 } }],
+    ['修订号没写', { ...host(), item: { ...good, revision: undefined } }],
     ['符合性用例既不是文字也不是空', { ...host(), item: { ...good, conformance: 3 } }],
   ]
   const why: Readonly<Record<string, string>> = {
@@ -200,6 +204,9 @@ describe('standingOf：一个点的四种状态', () => {
     绑定时刻没写: 'the binding time is unknown',
     主版本不是正整数: 'the version is not a positive integer',
     主版本不是整数: 'the version is not a positive integer',
+    修订号不是正整数: 'the revision is not a positive integer',
+    修订号不是整数: 'the revision is not a positive integer',
+    修订号没写: 'the revision is not a positive integer',
     符合性用例既不是文字也不是空: 'conformance is neither text nor null',
   }
   it.each(Object.keys(why))('不合法的声明不算数：%s', name => {
@@ -248,6 +255,22 @@ describe('candidates 与 ask：读一个点的前置', () => {
       reason: 'ambiguous',
       detail: 'fork, host',
     })
+  })
+
+  it('两份声明只差修订号：是内容不同的两份，同样答被声明了两次', () => {
+    const fork = declare(contract(POINT, { revision: 2 }))
+    expect(ask(hosted(['fork', [fork]]), POINT, 'graph', deployment)).toEqual({
+      kind: 'unavailable',
+      reason: 'ambiguous',
+      detail: 'fork, host',
+    })
+  })
+
+  it('修订号进声明的摘要：同一份规矩升了修订号，摘要就变', () => {
+    const one = declare(contract(POINT))
+    const two = declare(contract(POINT, { revision: 2 }))
+    expect(two.digest).not.toBe(one.digest)
+    expect(declare(contract(POINT, { revision: 1 })).digest).toBe(one.digest)
   })
 
   it('目录读不出：依据不可用 unread', () => {
