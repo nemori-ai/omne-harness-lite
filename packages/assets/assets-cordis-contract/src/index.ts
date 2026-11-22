@@ -48,8 +48,8 @@ export function createHeldSync(placing: HeldPlacing): (holdings: readonly HeldHo
     }
     for (const [spot, held] of placed) {
       if (wanted.get(spot)?.digest === held.digest) continue
-      placed.delete(spot)
       held.take()
+      placed.delete(spot)
     }
     for (const [spot, entry] of wanted)
       if (!placed.has(spot)) placed.set(spot, { digest: entry.digest, take: placing.put(entry) })

@@ -76,12 +76,13 @@ async function world(options: { opens?: (tenant: string) => boolean } = {}) {
     },
   })
   const stale = new Set<string>()
+  const waiting = new Set<string>()
   const listed: string[] = []
   const sources = (tenant: string) =>
     registrySources(
       {
         held: root.assetCategories.held,
-        current: ref => !stale.has(ref),
+        current: (ref, capability) => !stale.has(ref) && !waiting.has(capability.category),
         async listing(ref) {
           if (options.opens?.(ref) === false) return undefined
           return async request => {
@@ -98,7 +99,7 @@ async function world(options: { opens?: (tenant: string) => boolean } = {}) {
     )
   const hold = (tenant: string, holdings: readonly HeldHolding[]) =>
     (syncs.get(tenant) as Sync)(holdings)
-  return { root, gadget, official, sources, hold, stale, listed }
+  return { root, gadget, official, sources, hold, stale, waiting, listed }
 }
 
 const layersOf = (sources: readonly AssetLayerSource[], name: string) =>
@@ -160,6 +161,18 @@ describe('registrySources: the layers of one tenant, read from the points of the
       state: 'unavailable',
     })
     w.stale.delete('tenant-a')
+    expect((await layersOf(w.sources('tenant-a'), 'spanner'))[1]).toMatchObject({ state: 'read' })
+  })
+
+  it('what the tenant holds in this category waits for a point: the tenant layer of that category is unavailable', async () => {
+    const w = await world()
+    w.waiting.add('gadget')
+    expect((await layersOf(w.sources('tenant-a'), 'spanner'))[1]).toEqual({
+      layer: 'tenant',
+      state: 'unavailable',
+    })
+    w.waiting.clear()
+    w.waiting.add('widget')
     expect((await layersOf(w.sources('tenant-a'), 'spanner'))[1]).toMatchObject({ state: 'read' })
   })
 

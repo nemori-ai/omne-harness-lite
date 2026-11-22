@@ -21,10 +21,12 @@ export async function heldRegistry(categories: readonly Plugin.Object[]): Promis
     name: 'tenant-assets',
     inject: ['assetCategories'],
     apply(ctx: Context) {
-      held = heldOnRegistry(
+      const made = heldOnRegistry(
         () => ctx.assetCategories,
         () => undefined,
       )
+      ctx.on('dynamis-cordis/changed', () => made.registryChanged())
+      held = made
     },
   })
   if (held === undefined) throw new Error('the keeper did not start')

@@ -10,8 +10,8 @@ type TenantListing = AssetLayerSource['list']
 export type RegistrySourcePorts = Readonly<{
   /** What one tenant sees on the point of a category under one name. */
   held(capability: CapabilityId, tenantRef: string): HeldReading
-  /** Whether everything the tenant holds was told to the registry at its last change. */
-  current(tenantRef: string): boolean
+  /** Whether what the tenant holds in the category of this capability is on the registry now. */
+  current(tenantRef: string, capability: CapabilityId): boolean
   /** The ledger listing of the tenant, once its assets are opened; undefined when they cannot be. */
   listing(tenantRef: string): Promise<TenantListing | undefined>
 }>
@@ -35,9 +35,8 @@ export function registrySources(
       tenant,
       async read(capability) {
         const opened = await ports.listing(tenant)
-        return opened !== undefined && ports.current(tenant)
-          ? ports.held(capability, tenant)
-          : UNREAD
+        const told = opened !== undefined && ports.current(tenant, capability)
+        return told ? ports.held(capability, tenant) : UNREAD
       },
       async list(request) {
         const listing = await ports.listing(tenant)

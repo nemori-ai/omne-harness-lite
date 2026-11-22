@@ -79,6 +79,7 @@ export const tenantAssetsRow = defineRow({
       () => ctx.assetCategories,
       message => logger.warn(message),
     )
+    ctx.on('dynamis-cordis/changed', () => held.registryChanged())
     const idleMs = config.uploads.idleSeconds * 1000
     const store = {
       storage: ctx.storage,

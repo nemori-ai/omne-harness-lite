@@ -1,6 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
-import { evaluate, layerInputsOf } from '@omne-harness/assets'
-import { assetCategoriesKey } from '@omne-harness/assets-cordis-contract'
+import { capabilityId, collectCandidates, evaluate } from '@omne-harness/assets'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { agentEvaluator } from '@omne-harness/agent'
 import {
@@ -18,25 +17,29 @@ import {
 import type { Adoption } from '@omne-harness/session-contract'
 import { AgentDefinitionCatalogService } from './definition-catalog.ts'
 import { officialAssetRef } from '../../assets/official-holdings.ts'
+import { tenantAssetsKey } from '../tenant-assets/service.ts'
 import type { MappingTable } from './table.ts'
 
 export const DEFINITION_CATEGORY = 'AgentDefinition'
 
-/** A tenant sees a definition of the table while, read as that tenant, the official one is the one in force under its name. */
+/** A tenant sees a definition of the table while, over its layers, the official one is the one in force under its name. */
 export class AgentDefinitionCatalogImpl extends AgentDefinitionCatalogService {
   private readonly listings: readonly AgentDefinitionListing[]
   constructor(ctx: Context, table: MappingTable) {
     super(ctx)
     this.listings = table.listings
   }
-  visibleTo(tenant: TenantId): readonly AgentDefinitionListing[] | undefined {
-    const categories = this.ctx.get(assetCategoriesKey)
+  async visibleTo(tenant: TenantId): Promise<readonly AgentDefinitionListing[] | undefined> {
     const encoded = tenantCodec.encode(tenant)
-    if (categories === undefined || !encoded.ok) return undefined
+    const sources = encoded.ok
+      ? this.ctx.get(tenantAssetsKey)?.layerSources(encoded.value)
+      : undefined
+    if (sources === undefined) return undefined
     const seen: AgentDefinitionListing[] = []
     for (const listing of this.listings) {
-      const capability = { category: DEFINITION_CATEGORY, name: listing.name }
-      const layers = layerInputsOf(categories.held(capability, encoded.value), encoded.value)
+      const capability = capabilityId(DEFINITION_CATEGORY, listing.name)
+      if (!capability.ok) return undefined
+      const layers = await collectCandidates(sources, capability.id)
       const answer = evaluate({ layers, eligible: () => 'yes' })
       if (answer.kind === 'unavailable') return undefined
       const official = officialAssetRef(DEFINITION_CATEGORY, listing.name)

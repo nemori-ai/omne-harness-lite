@@ -98,7 +98,7 @@ describe('who may ask dispatch for what on the release', () => {
 
 describe('the type of an Agent definition as a tenant sees it', () => {
   const catalog = {
-    visibleTo: (tenant: LegalTenant) =>
+    visibleTo: async (tenant: LegalTenant) =>
       textOf(tenant) === textOf(A)
         ? [{ name: 'coding', type: 'master' as const, summary: 's' }]
         : [],
@@ -116,7 +116,7 @@ describe('the type of an Agent definition as a tenant sees it', () => {
   })
 
   it('is unavailable while the catalogue cannot know what the tenant sees', async () => {
-    const unknown = { visibleTo: () => undefined }
+    const unknown = { visibleTo: async () => undefined }
     expect(await definitionsOf(() => unknown).typeOf(textOf(A) as TenantId, 'coding')).toEqual(
       await definitionsOf(() => undefined).typeOf(textOf(A) as TenantId, 'coding'),
     )
@@ -129,7 +129,7 @@ describe('the type of an Agent definition as a tenant sees it', () => {
   it('does not ask the catalogue for a tenant text that is no tenant', async () => {
     const asked: unknown[] = []
     const everything = {
-      visibleTo: (tenant: LegalTenant) => {
+      visibleTo: async (tenant: LegalTenant) => {
         asked.push(tenant)
         return [{ name: 'coding', type: 'master' as const, summary: 's' }]
       },

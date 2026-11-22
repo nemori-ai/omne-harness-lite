@@ -10,6 +10,7 @@ import {
   assetCategoriesPlugin,
   categoryContributionPlugin,
 } from '@omne-harness/assets-cordis-contract/cordis'
+import { createHeldSync } from '@omne-harness/assets-cordis-contract'
 import { candidates } from '@omne-harness/dynamis'
 import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { describe, expect, it } from 'vitest'
@@ -218,5 +219,33 @@ describe('what a tenant holds, kept on the points of the categories', () => {
     await keeper.dispose()
     const left = root.dynamis.registry().placed.filter(entry => entry.scope.length > 0)
     expect(left).toEqual([])
+  })
+
+  it('an entry that could not be taken is still known as put: the next sync takes it again before it puts', async () => {
+    const log: string[] = []
+    let refuse = true
+    const sync = createHeldSync({
+      put(entry) {
+        log.push(`put ${entry.key} ${entry.item.version}`)
+        return () => {
+          if (refuse) throw new Error('the registry is away')
+          log.push(`take ${entry.key} ${entry.item.version}`)
+        }
+      },
+      pointOf: () => 'gadget.items',
+      scope: scopeOfLayer('tenant', 'tenant-a'),
+      skipped: () => undefined,
+    })
+    const first = item('asset-alpha')
+    const second = { ...first, version: 'next' }
+    sync([held('gadget', 'alpha', first)])
+    expect(() => sync([held('gadget', 'alpha', second)])).toThrow('the registry is away')
+    refuse = false
+    sync([held('gadget', 'alpha', second)])
+    expect(log).toEqual([
+      `put alpha ${first.version}`,
+      `take alpha ${first.version}`,
+      'put alpha next',
+    ])
   })
 })
