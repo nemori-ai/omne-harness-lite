@@ -11,6 +11,7 @@ import {
   type Toast,
   type ToastBoard,
 } from '@omne-harness/shell-contract'
+import type { Lack, PageLacks } from './lacks.ts'
 
 export const LOGIN_EXPIRED_TEXT = '登录已经失效，请重新登录。'
 export const LOGOUT_UNKNOWN_TEXT = '本机已经退出。服务端是否已注销这次登录，没有得到确认。'
@@ -98,8 +99,33 @@ function slotRelay(): SlotRelay {
   }
 }
 
+export type LackRelay = PageLacks & { bind(source: PageLacks): () => void }
+
+function lackRelay(): LackRelay {
+  let source: PageLacks | undefined
+  const changed = listeners<undefined>()
+  let stop = idle
+  const follow = (next: PageLacks | undefined): void => {
+    stop()
+    source = next
+    stop = next?.subscribe(() => changed.emit(undefined)) ?? idle
+    changed.emit(undefined)
+  }
+  return {
+    of: (pageId): readonly Lack[] => source?.of(pageId) ?? NOTHING,
+    subscribe: listener => changed.add(() => listener()),
+    bind(next) {
+      follow(next)
+      return () => {
+        if (source === next) follow(undefined)
+      }
+    },
+  }
+}
+
 export type ShellState = {
   readonly slots: SlotRelay
+  readonly lacks: LackRelay
   readonly told: ToldBoard
   readonly figure: FigureStore
   /** The modules that put each page, by page id. A page on show has one: that module is in front. */
@@ -220,6 +246,7 @@ export function createShellState(
   })
   return {
     slots,
+    lacks: lackRelay(),
     told,
     figure: createFigureStore(),
     pageOwners: new Map(),

@@ -72,4 +72,5 @@ export {
   type PointNeed,
   type ProtocolNeed,
   type Reader,
+  PROTOCOLS_POINT,
 } from './needs.ts'

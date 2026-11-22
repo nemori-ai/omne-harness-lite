@@ -60,7 +60,11 @@ export const settle = () => new Promise(resolve => setTimeout(resolve, 0))
 
 /** A connection whose server tells nothing of its tree: the modules that follow it load and stay still. */
 export const quietConnection = {
-  availability: { keys: () => undefined, subscribe: () => () => undefined },
+  availability: {
+    keys: () => undefined,
+    standing: () => ({ kind: 'connecting' }) as const,
+    subscribe: () => () => undefined,
+  },
 }
 
 /** The places the cases attach to: a place counts only while a host declared it. */
@@ -75,6 +79,8 @@ export async function setup(
     connectivity?: Connectivity
     missingAtForwarding?: readonly string[]
     theme?: ThemeChoice
+    /** The connection of the tree, for a case that says where a protocol stands. */
+    connection?: object
   } = {},
 ) {
   const login = source<ShellLoginState>(options.login ?? 'signed-out')
@@ -99,7 +105,7 @@ export async function setup(
   const root = new Context()
   await root.plugin(DynamisService)
   await root.plugin(shellPlugin(state))
-  root.reflect.provide('connection', quietConnection)
+  root.reflect.provide('connection', options.connection ?? quietConnection)
   for (const name of TEST_POINTS) definePoint({ name, subject: TEXT }).declare(root.shell)
   for (const module of options.modules ?? [fakeGate(), chatPage, settingsPage])
     await root.plugin(module)

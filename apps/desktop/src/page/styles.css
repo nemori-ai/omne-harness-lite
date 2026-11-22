@@ -383,8 +383,13 @@ body,
   overflow: clip;
 }
 
-.shell-banner {
+.shell-banner,
+.shell-page-lack {
   margin: var(--omne-space-inline) var(--omne-space-block) 0;
+}
+
+.shell-page-lack {
+  max-width: var(--omne-measure-decision);
 }
 
 .shell-page {

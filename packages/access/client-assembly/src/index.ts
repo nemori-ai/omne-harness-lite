@@ -11,6 +11,7 @@ export {
 export {
   CONNECTION_PROTOCOLS_POINT,
   needStanding,
+  protocolsContract,
   type Need,
   type NeedStanding,
   type ServedProtocol,
