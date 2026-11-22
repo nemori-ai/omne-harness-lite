@@ -77,6 +77,8 @@ function thrownText(error: unknown): string {
   }
 }
 
+const UNENDING = new AbortController().signal
+
 function woken(signal: AbortSignal, listeners: Set<() => void>): Promise<void> {
   if (signal.aborted) return Promise.resolve()
   return new Promise(resolve => {
@@ -144,6 +146,14 @@ function drainingRefusal(operation: 'invoke' | 'resume'): Failure {
     kind: 'unavailable',
     owner: OWNER,
     diagnostic: `the runtime is draining after quiesce; a new ${operation} is not accepted`,
+  }
+}
+
+function rejectedOpen(operation: AgentOperationId): Failure {
+  return {
+    kind: 'unavailable',
+    owner: 'agentJournal',
+    diagnostic: `query answered rejected for the open operation ${operation}`,
   }
 }
 
@@ -230,10 +240,10 @@ export function createProvider<P, B extends ContentBlock>(
 
   function occupy(next: Slot): void {
     slot = next
+    for (const wake of listeners) wake()
     const state = stateOf(next)
     if (JSON.stringify(state) === JSON.stringify(current)) return
     current = state
-    for (const wake of listeners) wake()
     try {
       dependencies.registration?.report({ state })
     } catch {}
@@ -533,14 +543,6 @@ export function createProvider<P, B extends ContentBlock>(
     return succeed(handleOf(execution))
   }
 
-  function rejectedOpen(operation: InvokeInput<P>['operation']): Failure {
-    return {
-      kind: 'unavailable',
-      owner: 'agentJournal',
-      diagnostic: `query answered rejected for the open operation ${operation}`,
-    }
-  }
-
   async function retryUnresolved(
     input: InvokeInput<P>,
     held: Extract<Slot, { kind: 'reserved' }>,
@@ -737,6 +739,7 @@ export function createProvider<P, B extends ContentBlock>(
     held: Quiescing,
     access: Access<P>,
   ): Promise<Outcome<QuiesceResult, Failure>> {
+    while (slot.kind === 'reserved' && slot.acceptance === null) await woken(UNENDING, listeners)
     if (slot.kind === 'running') await askHandover(held)
     if (slot.kind !== 'free') return succeed(quiesceResult(held, 'unresolved', [slot.execution]))
     const withdrawn = await withdrawRegistration(held, access)
