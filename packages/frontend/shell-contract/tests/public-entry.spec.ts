@@ -8,7 +8,9 @@ it('exports the toast store, the figure store, the assembly error, the slot tabl
     'PART_ATTRIBUTE',
     'PROTOCOLS_POINT',
     'ShellAssemblyError',
+    'TOKENS_POINT',
     'attachWhile',
+    'changesOn',
     'createFigureStore',
     'createToastStore',
     'defineKeyedPoint',
@@ -21,6 +23,8 @@ it('exports the toast store, the figure store, the assembly error, the slot tabl
     'serviceKey',
     'shellContracts',
     'slots',
+    'tenantScope',
+    'valueFault',
   ])
 })
 

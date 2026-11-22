@@ -25,6 +25,7 @@ export class DesktopShell extends ShellService {
   readonly scope: ScopeSource
   private readonly state: ShellState
   private problems: ReadonlySet<string> = new Set()
+  private unsound: ReadonlySet<string> = new Set()
   private standing: Standing = UNTOLD
   private readonly lackWatchers = new Set<() => void>()
 
@@ -41,6 +42,9 @@ export class DesktopShell extends ShellService {
         'desktop-shell.conflicts',
       )
     ctx.on('dynamis-cordis/changed', registry => this.reportProblems(registry))
+    ctx.on('dynamis-cordis/changed', () => this.restyle())
+    ctx.effect(() => state.scope.subscribe(() => this.restyle()), 'desktop-shell.sheet')
+    this.restyle()
     ctx.effect(
       () =>
         state.lacks.bind({
@@ -86,6 +90,23 @@ export class DesktopShell extends ShellService {
       stop()
       this.lackWatchers.delete(listener)
     }
+  }
+
+  protected override knowsToken(name: string): boolean {
+    return this.state.knowsToken(name)
+  }
+
+  private restyle(): void {
+    const { css, refused, conflicts } = this.changes()
+    this.state.sheet.set(css)
+    const said = [
+      ...refused.map(
+        out => `${out.point} ${out.key} put by ${out.by} does not count: ${out.reason}`,
+      ),
+      ...conflicts.map(out => `${out.point} ${out.key} is put two ways by ${out.by.join(', ')}`),
+    ]
+    for (const text of said) if (!this.unsound.has(text)) this.ctx.logger.warn(`shell: ${text}`)
+    this.unsound = new Set(said)
   }
 
   /** A point nobody declared, or one declared twice, shows nothing: the log says which point. */

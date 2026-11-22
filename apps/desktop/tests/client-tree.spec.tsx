@@ -81,6 +81,7 @@ it('每个点由一个宿主声明，点的名字以宿主开头', async () => {
     'shell.pages',
     'shell.parts',
     'shell.sidebar',
+    'shell.tokens',
     'usage.presentation',
     'usage.widget',
     'workspace.choices',

@@ -44,6 +44,8 @@ system
           DesktopShell#1  [effective]
         shell.sidebar
           DesktopShell#1  [effective]
+        shell.tokens
+          DesktopShell#1  [effective]
         usage.presentation
           usage-ui#1  [effective]
         usage.widget
@@ -314,6 +316,8 @@ system
           session-ui#1  [effective]
         shell.app
           DesktopShell#1  [effective]
+          shell.tokens  [keyed-one]
+            DesktopShell#1  [effective]
         shell.gate
           DesktopShell#1  [effective]
         shell.sidebar

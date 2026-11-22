@@ -148,7 +148,7 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 
 | 入口 | 内容 |
 | --- | --- |
-| `.` | 运行时有十五样：常量表 `slots`、外壳自己三个位置的规矩 `shellContracts`、错误 `ShellAssemblyError`、声明带类型的拓展点的两个函数 `definePoint` 与 `defineKeyedPoint`、声明部位的 `definePart` 与它的核法 `partFault`、读现在声明着哪些部位的 `partsOn`、部位的点名 `PARTS_POINT` 与元素上的属性名 `PART_ATTRIBUTE`、造带类型的键的 `serviceKey`、写需要的 `needProtocol` 与 `needPoint`、跟读口的 `attachWhile`、协议的需要指着的点名 `PROTOCOLS_POINT`（另有瞬时提示与形口的两个工厂，见各自一节）。其余是类型：带类型的键 `ServiceKey`，一处冲突 `SlotConflict`，四种位置的一项 `GateItem`、`PageItem`、`SidebarItem`、`AttachedItem`，位置名 `SlotName`，按位置取项的类型 `ItemOf`，渲染函数的属性 `GateProps`、`ScopedProps`、`AttachedProps`，宿主排版时拿到的一项 `AttachedEntry` 与排版函数 `AttachedLayout`，带类型的拓展点的类型（见「带类型的拓展点」），外壳一侧读位置的接口 `ShellSlots`，租户的形状 `ScopeSource`，登录的端口 `ShellLogin`、登录状态 `ShellLoginState`、凭据与结果 `LoginCredentials`、`LoginResult`、`LogoutResult` |
+| `.` | 运行时有十九样：常量表 `slots`、外壳自己三个位置的规矩 `shellContracts`、错误 `ShellAssemblyError`、声明带类型的拓展点的两个函数 `definePoint` 与 `defineKeyedPoint`、声明部位的 `definePart` 与它的核法 `partFault`、读现在声明着哪些部位的 `partsOn`、部位的点名 `PARTS_POINT` 与元素上的属性名 `PART_ATTRIBUTE`、令牌的点名 `TOKENS_POINT`、算改动的 `changesOn`、值的核法 `valueFault`、租户的作用域 `tenantScope`、造带类型的键的 `serviceKey`、写需要的 `needProtocol` 与 `needPoint`、跟读口的 `attachWhile`、协议的需要指着的点名 `PROTOCOLS_POINT`（另有瞬时提示与形口的两个工厂，见各自一节）。其余是类型：带类型的键 `ServiceKey`，一处冲突 `SlotConflict`，四种位置的一项 `GateItem`、`PageItem`、`SidebarItem`、`AttachedItem`，位置名 `SlotName`，按位置取项的类型 `ItemOf`，渲染函数的属性 `GateProps`、`ScopedProps`、`AttachedProps`，宿主排版时拿到的一项 `AttachedEntry` 与排版函数 `AttachedLayout`，带类型的拓展点的类型（见「带类型的拓展点」），外壳一侧读位置的接口 `ShellSlots`，租户的形状 `ScopeSource`，登录的端口 `ShellLogin`、登录状态 `ShellLoginState`、凭据与结果 `LoginCredentials`、`LoginResult`、`LogoutResult` |
 | `./cordis` | 服务 `shell` 的抽象类 `ShellService`、它的键 `shellKey`、界面模块的助手 `defineUiModule` 与它的类型 `UiModuleDefinition`、提供服务的函数类型 `Provide`。根入口的源码闭包不含 Cordis 绑定 |
 | `./testing` | 给界面模块的用例用的参考外壳 `ReferenceShell`，与起一棵带登记表和外壳的树的 `startShell`、`startShellOf(外壳的类, 可选的配置)`。它只存不画。另有像连接与别的模块那样往树上放东西的帮手：`serveProtocol(根, 协议, 客户端)`、`servePoint(根, 规矩, 一项)`、`provideOn(根, 键, 值)`，各返回一个 fiber，撤掉它就是收回；它们的插件形是 `protocolsPoint`、`servedProtocol`、`servedPoint`。`providedOn(外壳, 键)` 读一个键下现在提供的值 |
 
@@ -279,6 +279,22 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 - 元素上的名字只经 `part.props` 写。共用件、界面模块与页面的源码和样式里不手写这个属性，自带的样式也不按它选元素（FE-I41）。
 - 名字只挂在已有的元素上，不为了挂名字加包裹的元素。一个位置的根是共用件时，靠那个共用件把调用方给的 `data-*` 带到自己的根上（见上面「页的骨架」）；不带的共用件画的位置没有名字：各处的分段选择、提示条、导航旁的数字、图表、告知笺现在是这样。
 - 应用装配出的全部部位钉在 `apps/desktop/tests/client-parts.txt`：名字、叫法、说明、上一级、开了哪几种、什么时候画出来、谁声明的。改一个名字就是改这份清单。
+
+#### 改一个部位的样子
+
+样子的改动是放在登记表上的条目，键是部位的名字。外壳把现在算数的条目变成一张样式表，写在 `omne-changes` 这一层里；条目撤掉，下一次生成里就没有它，自带的样子原样回来。
+
+- 第一种改法是令牌：点 `shell.tokens`，每键一项，键取自 `shell.parts`，一项是数据 `{ tokens: { 令牌名: 值 } }`。`shell.putTokens(部位, 令牌, 作用域)` 放一项，返回撤掉它的函数；放它的模块卸载时也跟着撤掉。
+- 写到哪：键是 `shell.app` 的，写成页面根上的自定义属性；别的部位，写在带着这个名字的元素上（`[data-omne-part="<名字>"]`），所以只有那一块和它里面的东西读到新值。
+- 谁算数：同一个键上作用域最深的一项。整个部署的作用域是空的；一个租户放的是 `['tenant', 租户]`（`tenantScope(租户)`），只有这个租户看得到，没登录时谁的都看不到。同一层有两项内容不同是冲突：两项都不算数，自带的样子显示，两家都列出来。
+- 自带的那一份：外壳在 `shell.app` 上放一项空的、标着 `builtIn` 的条目，作用域是整个部署。树上因此看得出整个应用现在是谁的样子。值不搬进条目，仍在 `tokens.css`。所以整个部署这一层再往 `shell.app` 上放一项，是和自带的冲突。
+- 不合规矩的条目不算数，并说出原因，更浅的一层里合规矩的那一项照常算数：
+  - 键不是声明过的部位，或那个部位没有开 `tokens`；
+  - 令牌名不是界面的令牌。界面的令牌由外壳的实现说了算（`knowsToken`）；桌面应用里是 `--omne-` 开头、页面根上有值的名字；
+  - 值不是文字，是空的，或有不许有的东西。
+- 值是数据，里面没有能执行、能引外部东西的写法。值里只许有字母、数字、空格与 `# % . , ( ) + * / _ -`；只许调用 `var`、`calc`、`min`、`max`、`clamp` 与写颜色的函数（`rgb`、`rgba`、`hsl`、`hsla`、`hwb`、`lab`、`lch`、`oklab`、`oklch`、`color`、`color-mix`、`light-dark`）。所以 `url(`、`@`、分号、花括号、尖括号、引号、反斜杠、`!` 都进不来。核法是纯函数 `valueFault(值)`。
+- `changesOn(登记表, 发问者的作用域, 认不认得这个令牌)` 是纯函数，给出样式表的文字、每个键上现在是谁、不算数的各项与原因、冲突的各项。`shell.changes()` 按外壳正在显示的租户问它。点没有声明时给出空的一层，不抛出。
+- 桌面应用把这张表作为可构造的样式表挂在页面自己的样式之后；登记表或租户一变就重写。不算数的与冲突的各写一行警告。
 
 #### 界面模块
 

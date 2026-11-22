@@ -24,6 +24,17 @@ export { ShellAssemblyError, slots } from './slots.ts'
 export { shellContracts } from './placement.ts'
 export { defineKeyedPoint, definePoint } from './point.ts'
 export {
+  TOKENS_POINT,
+  changesOn,
+  tenantScope,
+  valueFault,
+  type Changes,
+  type Conflict,
+  type Refused,
+  type Standing,
+  type TokensItem,
+} from './change.ts'
+export {
   PARTS_POINT,
   PART_ATTRIBUTE,
   definePart,
