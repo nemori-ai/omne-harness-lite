@@ -8,43 +8,33 @@ export const livesAt = (since: number | undefined, revision: number | undefined)
 export const isRevision = (value: unknown): value is number =>
   Number.isInteger(value) && (value as number) >= 1
 
-type Walk<T> = Readonly<{
-  field: (name: string, field: Extract<Rule, { kind: 'object' }>['fields'][string]) => T[]
-  join: (parts: T[]) => T[]
-}>
+type Field = Extract<Rule, { kind: 'object' }>['fields'][string]
 
-function walk<T>(rule: Rule, visit: Walk<T>): T[] {
-  if (rule.kind === 'array') return walk(rule.item, visit)
-  if (rule.kind === 'one-of') return visit.join(rule.rules.flatMap(option => walk(option, visit)))
+/** Every field of a rule, at any depth, with its name. */
+function fieldsOf(rule: Rule): (readonly [string, Field])[] {
+  if (rule.kind === 'array') return fieldsOf(rule.item)
+  if (rule.kind === 'one-of') return rule.rules.flatMap(fieldsOf)
   if (rule.kind !== 'object') return []
-  return visit.join(
-    Object.entries(rule.fields).flatMap(([name, field]) => [
-      ...visit.field(name, field),
-      ...walk(field.rule, visit),
-    ]),
-  )
+  return Object.entries(rule.fields).flatMap(([name, field]) => [
+    [name, field] as const,
+    ...fieldsOf(field.rule),
+  ])
 }
 
 /** A later field must be optional: a writer of an earlier revision could not have written it. */
 export function checkRule(rule: Rule): void {
-  const problems = walk<string>(rule, {
-    field: (name, field) => {
-      const since: unknown = field.since
-      if (since === undefined) return []
-      if (!isRevision(since)) return [`the since of field ${name} is not a positive integer`]
-      return since > 1 && field.optional !== true
-        ? [`field ${name} came at revision ${since} and is not optional`]
-        : []
-    },
-    join: parts => parts,
-  })
-  if (problems[0] !== undefined) throw new TypeError(problems[0])
+  for (const [name, field] of fieldsOf(rule)) {
+    const since: unknown = field.since
+    if (since === undefined) continue
+    if (!isRevision(since))
+      throw new TypeError(`the since of field ${name} is not a positive integer`)
+    if (since > 1 && field.optional !== true)
+      throw new TypeError(`field ${name} came at revision ${since} and is not optional`)
+  }
 }
 
 const latestIn = (rule: Rule | undefined): number =>
-  rule === undefined
-    ? 1
-    : Math.max(1, ...walk<number>(rule, { field: (_, field) => [field.since ?? 1], join: p => p }))
+  rule === undefined ? 1 : Math.max(1, ...fieldsOf(rule).map(([, field]) => field.since ?? 1))
 
 /** The rule as it was at a revision: the fields that came later are not in it. */
 export function projectRule(rule: Rule, revision: number): Rule {
