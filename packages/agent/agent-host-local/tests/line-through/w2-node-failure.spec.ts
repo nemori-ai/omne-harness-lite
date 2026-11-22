@@ -85,7 +85,7 @@ it('keeps a cancelled producer callback away from the next Run', async () => {
     if (replay === undefined) throw new Error('the cancelled Run did not keep its original result')
     await w.until(() => w.settled(firstExecution), 10_000)
     expect(await w.lastOutcome()).toBe('cancelled')
-    expect(await w.runEnd(String(run.run))).toBeNull()
+    expect(await w.runEnd(String(run.run))).toEqual({ conclusion: 'cancelled', failure: null })
 
     await w.accept('second', 'second question')
     await w.until(() => w.modelCalls.length === 2, 10_000)
