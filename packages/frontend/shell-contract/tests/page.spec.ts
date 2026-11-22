@@ -46,7 +46,7 @@ describe('the page on show (shell.page)', () => {
     await root.plugin(
       defineUiModule({
         name: 'reader-ui',
-        inject: [],
+        needs: {},
         apply(shell) {
           read = shell.page.get()
           shell.page.subscribe(page => seen.push(page))

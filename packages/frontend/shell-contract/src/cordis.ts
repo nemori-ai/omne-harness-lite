@@ -2,6 +2,7 @@ import { CordisError, Service, type Context, type Plugin } from '@deepseek-ai/co
 import {
   adopt,
   declare,
+  standingOf,
   type Adoption,
   type Contract,
   type Reference,
@@ -39,6 +40,38 @@ const NO_PAGE = { get: () => undefined, subscribe: () => () => undefined }
 const SLOT_NAMES = Object.keys(slots) as SlotName[]
 
 type Watcher = Readonly<{ slot: SlotName; listener: () => void }>
+
+const offered = (name: string): Contract => ({
+  name,
+  tree: 'client',
+  arity: 'one',
+  keyFrom: null,
+  key: 'none',
+  gives: 'what the view module that declares it provides to other view modules',
+  item: { kind: 'pure', fields: {} },
+  resolve: 'conflict',
+  binding: 'run',
+  onError: 'a module that needs it does without it, or is drawn as lacking it',
+  version: 1,
+  revision: 1,
+  keys: 'private',
+  conformance: null,
+  summary: `What one view module provides to the others under ${name}.`,
+})
+
+function adoptOn(registry: Registry, references: Readonly<Record<string, Reference>>): Adoption {
+  const absent = Object.entries(references)
+    .filter(
+      ([, { optional, point }]) =>
+        optional === true && standingOf(registry, point, []).kind === 'undeclared',
+    )
+    .map(([slot]) => slot)
+  const asked = Object.entries(references).filter(([slot]) => !absent.includes(slot))
+  const made = adopt(registry, Object.fromEntries(asked), [])
+  if (made.kind !== 'adopted' || absent.length === 0) return made
+  const empty = Object.fromEntries(absent.map(slot => [slot, null]))
+  return { kind: 'adopted', bindings: { ...made.bindings, ...empty } }
+}
 
 /** @owner packages/frontend/shell-contract */
 export abstract class ShellService extends Service implements ShellSlots {
@@ -108,9 +141,24 @@ export abstract class ShellService extends Service implements ShellSlots {
     if (this.adopted?.registry !== registry) this.adopted = { registry, of: new Map() }
     const known = this.adopted.of.get(module)
     if (known !== undefined) return known
-    const made = adopt(registry, references, [])
+    const made = adoptOn(registry, references)
     this.adopted.of.set(module, made)
     return made
+  }
+
+  offer<T>(key: ServiceKey<T>, value: NoInfer<T>): void {
+    this.ctx.dynamis.put(instance => [
+      declare(offered(key)),
+      {
+        point: key,
+        key: '',
+        id: '',
+        scope: [],
+        rank: 0,
+        digest: `${instance.fiber}#${instance.generation}`,
+        item: value,
+      },
+    ])
   }
 
   owner(slot: Exclude<SlotName, 'attached'>, id: string): string | undefined {
@@ -242,12 +290,6 @@ declare module '@deepseek-ai/cordis' {
 
 export type Provide = <T>(key: ServiceKey<T>, value: NoInfer<T>) => void
 
-export type InjectingUiModule<S extends Record<string, unknown>> = Readonly<{
-  name: string
-  inject: readonly (keyof S & string)[]
-  apply: (shell: ShellService, services: Readonly<S>, provide: Provide) => void
-}>
-
 export type UiModuleDefinition<N extends Readonly<Record<string, Need>>> = Readonly<{
   name: string
   needs: N
@@ -275,7 +317,7 @@ function turnOf(definition: NeedsModule, bound: object, whole: boolean): Plugin.
     inject: [ShellService.provide],
     apply(ctx: Context) {
       const provide: Provide = (key, value) => {
-        if (whole) ctx.effect(() => ctx.reflect.provide(key, value), 'ui-module.provide')
+        if (whole) ctx.shell.offer(key, value)
       }
       const shell = whole ? ctx.shell : lacking(ctx.shell)
       const back = definition.apply(shell, bound as BoundOf<Record<string, Need>>, provide)
@@ -290,9 +332,14 @@ function followAdoption(ctx: Context, definition: NeedsModule, bound: object): v
   let turn: { dispose(): Promise<void> } | undefined
   let turning: Promise<void> = Promise.resolve()
   let gone = false
+  const followed = Object.entries(definition.needs)
+    .filter(([, need]) => need.kind === 'point' && need.optional)
+    .map(([slot]) => slot)
+  const markOf = (adoption: Adoption | undefined): string =>
+    JSON.stringify(adoption, (key, value: unknown) => (followed.includes(key) ? undefined : value))
   const settle = (): void => {
     const adoption = shell.adoption(definition.name)
-    const next = JSON.stringify(adoption)
+    const next = markOf(adoption)
     if (next === mark) return
     mark = next
     const last = turn
@@ -328,32 +375,19 @@ function boundOf(shell: ShellService, registry: () => Registry, needs: Record<st
 
 export function defineUiModule<N extends Readonly<Record<string, Need>>>(
   definition: UiModuleDefinition<N>,
-): Plugin.Object
-export function defineUiModule<S extends Record<string, unknown> = Record<string, unknown>>(
-  definition: InjectingUiModule<S>,
-): Plugin.Object
-export function defineUiModule(
-  definition: UiModuleDefinition<Record<string, Need>> | InjectingUiModule<Record<string, unknown>>,
 ): Plugin.Object {
-  const injected = 'inject' in definition ? definition.inject : []
+  const module = definition as unknown as NeedsModule
   return {
-    name: definition.name,
-    inject: [ShellService.provide, ...injected],
+    name: module.name,
+    inject: [ShellService.provide],
     apply(ctx: Context) {
-      const provide: Provide = (key, value) => {
-        ctx.effect(() => ctx.reflect.provide(key, value), 'ui-module.provide')
-      }
-      if ('inject' in definition) {
-        const lookup = ctx as unknown as { get(name: string): unknown }
-        const services: Record<string, unknown> = {}
-        for (const name of definition.inject) services[name] = lookup.get(name)
-        definition.apply(ctx.shell, services, provide)
-        return
-      }
-      ctx.shell.require(definition.name, referencesOf(definition.needs))
       const { shell } = ctx
-      const registry = (): Registry => shell.registry()
-      followAdoption(ctx, definition, boundOf(shell, registry, definition.needs))
+      shell.require(module.name, referencesOf(module.needs))
+      followAdoption(
+        ctx,
+        module,
+        boundOf(shell, () => shell.registry(), module.needs),
+      )
     },
   }
 }

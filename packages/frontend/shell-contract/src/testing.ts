@@ -1,10 +1,11 @@
 import { Context, type Fiber, type Plugin } from '@deepseek-ai/cordis'
-import { declare, type Contract } from '@omne-harness/dynamis'
+import { ask, declare, type Contract } from '@omne-harness/dynamis'
 import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import type { ReactNode } from 'react'
 import { ShellService } from './cordis.ts'
 import type { ScopeSource, ShellLogin } from './host.ts'
 import { PROTOCOLS_POINT } from './needs.ts'
+import type { ServiceKey } from './service-key.ts'
 import type { AttachedLayout } from './slots.ts'
 
 /** A shell for the cases of a view module: it holds what modules put and draws nothing itself. */
@@ -82,7 +83,6 @@ const PROTOCOLS: Contract = {
   summary: 'The protocols a case serves to the modules on this tree.',
 }
 
-/** Declares the point the served protocols are put on; a case that lists its plugins puts this one first. */
 export const protocolsPoint: Plugin.Object = {
   name: 'served-protocols',
   inject: ['dynamis'],
@@ -91,7 +91,6 @@ export const protocolsPoint: Plugin.Object = {
 
 type Key = Readonly<{ name: string; major: number }>
 
-/** One protocol served to the modules on a tree, as a connection does: its client is on the point while this plugin is. */
 export function servedProtocol(protocol: Key, client: object): Plugin.Object {
   const key = `${protocol.name}/v${protocol.major}`
   const item = { protocol: protocol.name, major: protocol.major, client }
@@ -103,7 +102,6 @@ export function servedProtocol(protocol: Key, client: object): Plugin.Object {
   }
 }
 
-/** A point that holds one item, declared with the item on it, as the module that owns the point does. */
 export function servedPoint(contract: Contract, item: object): Plugin.Object {
   const { name } = contract
   const entry = { point: name, key: '', id: '', scope: [], rank: 0, digest: name, item }
@@ -128,6 +126,21 @@ export async function serveProtocol(root: Context, protocol: Key, client: object
 
 export async function servePoint(root: Context, contract: Contract, item: object): Promise<Fiber> {
   const fiber = root.plugin(servedPoint(contract, item))
+  await fiber
+  return fiber
+}
+
+export function providedOn<T>(shell: ShellService, key: ServiceKey<T>): T | undefined {
+  const answer = ask<T>(shell.registry(), key, '', [])
+  return answer.kind === 'one' ? answer.entry.item : undefined
+}
+
+export async function provideOn<T>(root: Context, key: ServiceKey<T>, value: T): Promise<Fiber> {
+  const fiber = root.plugin({
+    name: `provides:${key}`,
+    inject: [ShellService.provide],
+    apply: (ctx: Context) => ctx.shell.offer(key, value),
+  })
   await fiber
   return fiber
 }

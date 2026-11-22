@@ -6,6 +6,7 @@ it('exports the toast store, the figure store, the assembly error, the slot tabl
   expect(Object.keys(root).sort()).toEqual([
     'PROTOCOLS_POINT',
     'ShellAssemblyError',
+    'attachWhile',
     'createFigureStore',
     'createToastStore',
     'defineKeyedPoint',
@@ -13,7 +14,6 @@ it('exports the toast store, the figure store, the assembly error, the slot tabl
     'needPoint',
     'needProtocol',
     'serviceKey',
-    'serviceOf',
     'shellContracts',
     'slots',
   ])

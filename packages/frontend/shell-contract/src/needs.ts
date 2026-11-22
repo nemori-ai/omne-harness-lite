@@ -1,4 +1,5 @@
 import { resolve, type Reference, type Registry } from '@omne-harness/dynamis'
+import type { ServiceKey } from './service-key.ts'
 
 /** The point of the client tree a need for a protocol refers to. The shell names it; it does not know who declares it. */
 export const PROTOCOLS_POINT = 'connection.protocols'
@@ -35,11 +36,17 @@ export function needProtocol<C = unknown>(
   })
 }
 
+const NOWHERE = 'shell.nowhere'
+
 export function needPoint<T = unknown>(
-  point: string,
+  point: ServiceKey<T> | string | undefined,
   options: Readonly<{ optional?: true }> = {},
 ): PointNeed<T> {
-  return Object.freeze({ kind: 'point', point, optional: options.optional === true })
+  return Object.freeze({
+    kind: 'point',
+    point: point ?? NOWHERE,
+    optional: options.optional === true,
+  })
 }
 
 /** What is on a point now, for a module that needs it: nothing while it is not there. */
@@ -47,6 +54,24 @@ export type Reader<T> = Readonly<{
   get(): T | undefined
   subscribe(listener: () => void): () => void
 }>
+
+export function attachWhile<T>(reader: Reader<T>, attach: (given: T) => () => void): () => void {
+  let held: T | undefined
+  let detach: (() => void) | undefined
+  const settle = (): void => {
+    const now = reader.get()
+    if (now === held) return
+    detach?.()
+    held = now
+    detach = now === undefined ? undefined : attach(now)
+  }
+  const stop = reader.subscribe(settle)
+  settle()
+  return () => {
+    stop()
+    detach?.()
+  }
+}
 
 export type BoundOf<N> = {
   readonly [K in keyof N]: N[K] extends ProtocolNeed<infer C>

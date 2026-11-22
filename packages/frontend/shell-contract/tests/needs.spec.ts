@@ -1,5 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
-import { declare, type Contract, type Entry } from '@omne-harness/dynamis'
+import { ask, declare, type Contract, type Entry } from '@omne-harness/dynamis'
 import { describe, expect, it } from 'vitest'
 import {
   definePoint,
@@ -250,7 +250,7 @@ describe('a view module that declares its needs', () => {
 
   it('while a required need is missing it puts its pages and its gate, nothing on the sidebar or an attached point, and provides nothing', async () => {
     const w = await world()
-    const offered = serviceKey<string>('notes.offer')
+    const offered = serviceKey<{ text: string }>('notes.offer')
     const spot = definePoint({
       name: 'test.a',
       subject: { encode: (value: string) => value, decode: (value: string) => value },
@@ -270,22 +270,22 @@ describe('a view module that declares its needs', () => {
           shell.contribute('gate', { id: 'notes.gate', render })
           shell.contribute('sidebar', { id: 'notes.side', order: 0, render })
           spot.contribute(shell, { id: 'notes.attached', order: 0, render })
-          provide(offered, 'the offer')
+          provide(offered, { text: 'the offer' })
         },
       }),
     )
     await settled()
-    const lookup = w.root as unknown as { get(name: string): unknown }
     const there = () => ({
       pages: w.shell.items('pages').length,
       gate: w.shell.items('gate').length,
       sidebar: w.shell.items('sidebar').length,
       attached: w.shell.items('attached').length,
-      offered: lookup.get(offered),
+      offered: ask(w.shell.registry(), offered, '', []).kind,
     })
-    expect(there()).toEqual({ pages: 1, gate: 1, sidebar: 0, attached: 0, offered: undefined })
+    expect(there()).toMatchObject({ pages: 1, gate: 1, sidebar: 0, attached: 0 })
+    expect(there().offered).not.toBe('one')
     await w.serve('notes', 1)
     await settled()
-    expect(there()).toEqual({ pages: 1, gate: 1, sidebar: 1, attached: 1, offered: 'the offer' })
+    expect(there()).toEqual({ pages: 1, gate: 1, sidebar: 1, attached: 1, offered: 'one' })
   })
 })

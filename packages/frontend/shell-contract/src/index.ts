@@ -23,7 +23,7 @@ export {
 export { ShellAssemblyError, slots } from './slots.ts'
 export { shellContracts } from './placement.ts'
 export { defineKeyedPoint, definePoint } from './point.ts'
-export { serviceKey, serviceOf, type ServiceKey } from './service-key.ts'
+export { serviceKey, type ServiceKey } from './service-key.ts'
 export type {
   Declared,
   KeyedPoint,
@@ -65,6 +65,7 @@ export type {
   ShellLoginState,
 } from './host.ts'
 export {
+  attachWhile,
   needPoint,
   needProtocol,
   type BoundOf,
