@@ -125,11 +125,11 @@ import {
   toolCallOf,
   toolIntentOf,
   placeholderCandidate,
-  isToolReturnOf,
+  anyToolReceived,
   passingSlot,
   receivedSlot,
-  toolReceivedOf,
-  type ReceivedToolDelivery,
+  RETURN_KINDS,
+  toolDeliveryOf,
   toolCallAnswerOf,
   toolResultCandidate,
   openToolCalls,
@@ -143,7 +143,6 @@ import { contactMainCall } from './contact.ts'
 import { sameAuthority, sameRecipient } from './same.ts'
 import { cancelCompaction } from './compaction.ts'
 import { contactToolCalls } from './tool-contact.ts'
-import { readToolDeliveryMaterial } from '../tool-receiving-material.ts'
 import {
   historyCaller,
   required,
@@ -298,8 +297,6 @@ function heldAfter(
   const emitted = BigInt(through) + BigInt(events)
   return { revision, emittedThrough: emitted === 0n ? null : String(emitted) }
 }
-
-const RETURN_KINDS = ['placeholder', 'result'] as const
 
 // An admission chain still asking ends with the Run once its cards are withdrawn; an extension's does not.
 function pendingPassage(passages: readonly Passage[]): Failure | null {
@@ -1700,28 +1697,10 @@ function coordinate<P>(
     return read
   }
 
-  async function receivedToolDelivery<K extends 'result' | 'placeholder'>(
-    action: Action,
+  const receivedToolDelivery = <K extends 'result' | 'placeholder'>(
+    a: Action,
     kinds: readonly K[],
-  ): Promise<Outcome<ReceivedToolDelivery<K> | null, Failure>> {
-    const pending = toolCall(action)
-    if (pending === null) return succeed(null)
-    const received = await receivedOfConsumption(pending.consumption)
-    if ('failure' in received) return received
-    const found = toolReceivedOf(received.ok, pending, kinds)
-    if (found === undefined) return succeed(null)
-    const { material: source, ...expected } = found
-    const material = await ports.materials.read({ ...access, source })
-    if ('failure' in material) return material
-    const delivery = readToolDeliveryMaterial(access, material.ok, expected)
-    if (!isToolReturnOf(delivery, kinds, found))
-      return fail({
-        kind: 'invalid',
-        field: 'received.material',
-        reason: 'invalid schema or original binding',
-      })
-    return succeed({ entry: found, delivery, pending })
-  }
+  ) => toolDeliveryOf(ports, access, execution, a, kinds)
 
   type Sent = Readonly<{
     batch: ActionBatch
@@ -2261,15 +2240,10 @@ function coordinate<P>(
       const read = await advancing()
       if ('failure' in read) return read
       const batch = currentBatch()
-      const dispatched = batch.actions.filter(
-        action => slotOf(batch, action.id)?.kind === 'dispatched',
-      )
-      for (const action of dispatched) {
-        const received = await receivedToolDelivery(action, RETURN_KINDS)
-        if ('failure' in received) return received
-        if (received.ok !== null) return step('received', null)
-      }
-      if (dispatched.length === 0) return step('received', null)
+      const received = await anyToolReceived(ports, access, execution, batch)
+      if ('failure' in received) return received
+      if (received.ok || !batch.slots.some(slot => slot.kind === 'dispatched'))
+        return step('received', null)
       return toolWait('T0', batch)
     },
     async T1() {
@@ -2317,13 +2291,9 @@ function coordinate<P>(
       if (complete)
         return step(batch.slots.some(slot => slot.kind !== 'denied') ? 'batch' : 'admit', null)
       if (unsent(batch, unacceptedToolActions).length > 0) return step('dispatch', null)
-      for (const action of batch.actions) {
-        if (slotOf(batch, action.id)?.kind !== 'dispatched') continue
-        const received = await receivedToolDelivery(action, RETURN_KINDS)
-        if ('failure' in received) return received
-        if (received.ok !== null) return step('received', null)
-      }
-      return toolWait('T3', batch)
+      const received = await anyToolReceived(ports, access, execution, batch)
+      if ('failure' in received) return received
+      return received.ok ? step('received', null) : toolWait('T3', batch)
     },
     async T4() {
       return step('proceed', { checkpoint: { batch: { ...currentBatch(), batchPass: [] } } })

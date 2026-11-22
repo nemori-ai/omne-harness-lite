@@ -42,6 +42,7 @@ import type { AgentDependencies } from '../construction.ts'
 import { canonical } from '../canonical.ts'
 import { json, plain } from '../receiving-values.ts'
 import { agentEvidence, toolConsumption, type Message } from './identities.ts'
+import { readToolDeliveryMaterial } from '../tool-receiving-material.ts'
 
 type Ports<P> = Pick<AgentDependencies<P, ContentBlock>, 'admission' | 'toolRequests' | 'materials'>
 
@@ -457,6 +458,54 @@ export function isToolReturnOf<K extends ReturnKind>(
     delivery.kind === entry.delivery.key.kind &&
     (kinds as readonly string[]).includes(delivery.kind)
   )
+}
+
+export const RETURN_KINDS = ['placeholder', 'result'] as const
+
+type DeliveryPorts<P> = Pick<AgentDependencies<P, ContentBlock>, 'entries' | 'materials'>
+
+/** The kept delivery of the action's call, of one of the kinds and checked against its binding; null when none is kept. */
+export async function toolDeliveryOf<P, K extends ReturnKind>(
+  ports: DeliveryPorts<P>,
+  access: Access<P>,
+  execution: AgentExecutionId,
+  action: Action,
+  kinds: readonly K[],
+): Promise<Outcome<ReceivedToolDelivery<K> | null, Failure>> {
+  const pending = toolCall(action)
+  if (pending === null) return succeed(null)
+  const consumption = pending.consumption
+  const received = await ports.entries.receivedOf({ ...access, execution, consumption })
+  if ('failure' in received) return received
+  const found = toolReceivedOf(received.ok, pending, kinds)
+  if (found === undefined) return succeed(null)
+  const { material: source, ...expected } = found
+  const material = await ports.materials.read({ ...access, source })
+  if ('failure' in material) return material
+  const delivery = readToolDeliveryMaterial(access, material.ok, expected)
+  if (!isToolReturnOf(delivery, kinds, found))
+    return fail({
+      kind: 'invalid',
+      field: 'received.material',
+      reason: 'invalid schema or original binding',
+    })
+  return succeed({ entry: found, delivery, pending })
+}
+
+/** Whether a call the batch still waits on already has its placeholder or result kept. */
+export async function anyToolReceived<P>(
+  ports: DeliveryPorts<P>,
+  access: Access<P>,
+  execution: AgentExecutionId,
+  batch: ActionBatch,
+): Promise<Outcome<boolean, Failure>> {
+  for (const action of batch.actions) {
+    if (slotOf(batch, action.id)?.kind !== 'dispatched') continue
+    const received = await toolDeliveryOf(ports, access, execution, action, RETURN_KINDS)
+    if ('failure' in received) return received
+    if (received.ok !== null) return succeed(true)
+  }
+  return succeed(false)
 }
 
 /** The slot a kept placeholder or result fills, and the produced result it records. */
