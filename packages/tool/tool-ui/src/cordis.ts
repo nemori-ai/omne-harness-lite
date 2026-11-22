@@ -1,6 +1,1 @@
-export {
-  CALL_OUTPUT_ID,
-  createToolUiModule,
-  toolClientService,
-  type ToolUiOptions,
-} from './module.tsx'
+export { CALL_OUTPUT_ID, createToolUiModule, type ToolUiOptions } from './module.tsx'

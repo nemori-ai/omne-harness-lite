@@ -2,9 +2,9 @@
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, beforeAll, expect, it } from 'vitest'
 import { scheduleProtocol, type ScheduleProtocol } from '@omne-harness/schedule-protocol'
-import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
 import type { KeyedPointSink, PointItem } from '@omne-harness/shell-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
+import { serveProtocol } from '@omne-harness/shell-contract/testing'
 import type { JSX } from 'react'
 import { ACTIVATION_DETAIL_ID, createScheduleUiModule } from '../src/cordis.ts'
 import { readActivation } from '../src/model/activation.ts'
@@ -12,7 +12,6 @@ import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
 import { startShell } from './fixtures/reference-shell.ts'
 
-const SERVICE = protocolServiceName({ name: scheduleProtocol.name, major: scheduleProtocol.major })
 const OPERATIONS = Object.keys(scheduleProtocol.operations)
 const KIND = 'schedule.activation@1'
 
@@ -26,7 +25,11 @@ async function contributed() {
     contribute: (_shell, key, item) => void given.push({ key, item }),
   }
   const { root } = await startShell()
-  root.reflect.provide(SERVICE, createFakeClient<ClientOf<ScheduleProtocol>>(OPERATIONS).client)
+  await serveProtocol(
+    root,
+    scheduleProtocol,
+    createFakeClient<ClientOf<ScheduleProtocol>>(OPERATIONS).client,
+  )
   await root.plugin(createScheduleUiModule({ releaseDetail }))
   return given
 }

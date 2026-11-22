@@ -1,7 +1,6 @@
 export {
   CONVERSATION_PAGE,
   SESSION_LIST,
-  sessionClientService,
   sessionBlockReadsKey,
   sessionComposerIntakeKey,
   sessionModelChoicesKey,

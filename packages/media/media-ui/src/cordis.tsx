@@ -1,7 +1,6 @@
-import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
 import { mediaProtocol } from '@omne-harness/media-protocol'
 import { readTenantText, type TenantId } from '@omne-harness/public-contract'
-import { serviceKey, type PointSink } from '@omne-harness/shell-contract'
+import { needProtocol, serviceKey, type PointSink } from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import { useMemo, type ReactNode } from 'react'
 import type { Drafts } from './model/attachment-tray.ts'
@@ -37,7 +36,6 @@ export type DraftsHolder = Readonly<{ attach(given: Drafts): () => void }>
 /** Where the assembly hands over what takes the attachments of a draft; the module works without. */
 export const mediaComposerIntakeKey = serviceKey<DraftsHolder>('media.composer-intake')
 
-const MEDIA = protocolServiceName({ name: mediaProtocol.name, major: mediaProtocol.major })
 const ITEM = 'media'
 
 type ScopedProps = Readonly<{
@@ -52,11 +50,10 @@ function Scoped({ scope, children }: ScopedProps) {
 }
 
 export function createMediaUiModule(options: MediaUiOptions = {}) {
-  return defineUiModule<Record<string, MediaClient>>({
+  return defineUiModule({
     name: 'media-ui',
-    inject: [MEDIA],
-    apply(shell, services, provide) {
-      const client = services[MEDIA]!
+    needs: { media: needProtocol<MediaClient>(mediaProtocol) },
+    apply(shell, { media: client }, provide) {
       let given: Drafts | null = null
       const drafts = () => given
       provide(mediaComposerIntakeKey, {

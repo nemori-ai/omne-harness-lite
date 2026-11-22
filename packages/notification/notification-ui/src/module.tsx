@@ -1,30 +1,18 @@
-import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
 import {
   notificationProtocol,
   type NotificationProtocol,
 } from '@omne-harness/notification-protocol'
 import type { ClientOf } from '@omne-harness/sdk/core'
-import {
-  shellKey,
-  type defineUiModule,
-  type ShellService,
-} from '@omne-harness/shell-contract/cordis'
+import { needProtocol } from '@omne-harness/shell-contract'
+import { defineUiModule, type ShellService } from '@omne-harness/shell-contract/cordis'
 import { InboxHub } from './model/inbox-hub.ts'
 import { watchStrongArrivals } from './model/strong-arrivals.ts'
 import { inboxSections } from './points.ts'
 import { InboxPage } from './view/inbox-page.tsx'
 import { UnresolvedBadge } from './view/unresolved-badge.tsx'
 
-const NOTIFICATION = protocolServiceName({
-  name: notificationProtocol.name,
-  major: notificationProtocol.major,
-})
-
 export const PAGE_ID = 'notifications'
 export const PAGE_ORDER = 11
-
-type UiModule = ReturnType<typeof defineUiModule>
-type Lookup = { get(name: string): unknown }
 
 /** The sections other domains contributed, one after another, each under its label when it has one. */
 function sectionsOf(shell: ShellService) {
@@ -64,26 +52,23 @@ function contribute(shell: ShellService, hub: InboxHub): void {
   })
 }
 
-/** The notification page with its count, there while the `notification/v2` client is on the tree. */
-export const notificationUiModule: UiModule = {
+/** The notification page with its count, its page is there always, its count only while `notification/v2` is served. */
+export const notificationUiModule = defineUiModule({
   name: 'notification-ui',
-  inject: [shellKey, NOTIFICATION],
-  apply(ctx) {
-    const client = (ctx as unknown as Lookup).get(NOTIFICATION) as ClientOf<NotificationProtocol>
+  needs: { notification: needProtocol<ClientOf<NotificationProtocol>>(notificationProtocol) },
+  apply(shell, { notification: client }) {
     const hub = new InboxHub({ client })
-    ctx.effect(() => () => hub.dispose(), 'notification-ui.inbox')
-    inboxSections.declare(ctx.shell)
-    contribute(ctx.shell, hub)
-    const { shell } = ctx
-    ctx.effect(
-      () =>
-        watchStrongArrivals({
-          hub,
-          scope: shell.scope,
-          page: PAGE_ID,
-          toast: toast => shell.toast(toast),
-        }),
-      'notification-ui.arrivals',
-    )
+    inboxSections.declare(shell)
+    contribute(shell, hub)
+    const stopArrivals = watchStrongArrivals({
+      hub,
+      scope: shell.scope,
+      page: PAGE_ID,
+      toast: toast => shell.toast(toast),
+    })
+    return () => {
+      stopArrivals()
+      hub.dispose()
+    }
   },
-}
+})

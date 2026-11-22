@@ -3,7 +3,9 @@ import type { Context } from '@deepseek-ai/cordis'
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { definePoint } from '@omne-harness/shell-contract'
-import { CALL_OUTPUT_ID, createToolUiModule, toolClientService } from '../src/cordis.ts'
+import { serveProtocol } from '@omne-harness/shell-contract/testing'
+import { toolProtocol } from '@omne-harness/tool-protocol'
+import { CALL_OUTPUT_ID, createToolUiModule } from '../src/cordis.ts'
 import { CallOutputStore } from '../src/index.ts'
 import { startShell as startBare } from './fixtures/reference-shell.ts'
 
@@ -51,17 +53,17 @@ describe('the tool-ui module (C26)', () => {
     const { root } = await startShell()
     await root.plugin(createToolUiModule({ callDetail: detail }))
     expect(attached(root)).toEqual([])
-    const unprovide = root.reflect.provide(toolClientService, client([]).client)
+    const served = await serveProtocol(root, toolProtocol, client([]).client)
     await new Promise(resolve => setTimeout(resolve, 0))
     expect(attached(root)).toEqual([CALL_OUTPUT_ID])
-    unprovide()
+    await served.dispose()
     await new Promise(resolve => setTimeout(resolve, 0))
     expect(attached(root)).toEqual([])
   })
 
   it('without a point, it places nothing', async () => {
     const { root } = await startShell()
-    root.reflect.provide(toolClientService, client([]).client)
+    await serveProtocol(root, toolProtocol, client([]).client)
     await root.plugin(createToolUiModule())
     expect(attached(root)).toEqual([])
   })

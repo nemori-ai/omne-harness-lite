@@ -1,7 +1,7 @@
 import './dom.ts'
 import { act, render } from '@testing-library/react'
 import type { ClientOf } from '@omne-harness/sdk/core'
-import type { SessionProtocol } from '@omne-harness/session-protocol'
+import { sessionProtocol, type SessionProtocol } from '@omne-harness/session-protocol'
 import {
   type AttachedLayout,
   type FigureBoard,
@@ -11,10 +11,10 @@ import {
   type ShellLogin,
   type SlotName,
 } from '@omne-harness/shell-contract'
-import { startShellOf, type Started } from '@omne-harness/shell-contract/testing'
+import { serveProtocol, startShellOf, type Started } from '@omne-harness/shell-contract/testing'
 import { ShellService } from '@omne-harness/shell-contract/cordis'
 import { Fragment, StrictMode, useEffect, useState, type ReactNode } from 'react'
-import { sessionClientService, sessionUiModule } from '../../src/cordis.ts'
+import { sessionUiModule } from '../../src/cordis.ts'
 
 export class TestShell extends ShellService {
   readonly navigated: string[] = []
@@ -138,7 +138,7 @@ export async function mountModule(
   options: { readonly strict?: boolean } = {},
 ) {
   const { root, shell } = await startShell()
-  const withdraw = root.reflect.provide(sessionClientService, client)
+  const served = await serveProtocol(root, sessionProtocol, client)
   await root.plugin(sessionUiModule)
   shell.tenant = scope
   const tree = (next: string | undefined) =>
@@ -155,7 +155,7 @@ export async function mountModule(
     shell,
     withdraw: async () => {
       await act(async () => {
-        await withdraw()
+        await served.dispose()
       })
     },
     rerender: (next: string | undefined) => {

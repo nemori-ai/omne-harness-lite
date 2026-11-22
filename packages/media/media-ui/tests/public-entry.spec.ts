@@ -16,5 +16,5 @@ it('the ./cordis entry exports the module factory and the key of the holder of d
   const cordis = (await import('@omne-harness/media-ui/cordis')) as Record<string, unknown>
   expect(Object.keys(cordis).sort()).toEqual(['createMediaUiModule', 'mediaComposerIntakeKey'])
   const made = (cordis['createMediaUiModule'] as () => unknown)()
-  expect(made).toMatchObject({ name: 'media-ui', inject: ['shell', 'protocol:media/v1'] })
+  expect(made).toMatchObject({ name: 'media-ui' })
 })

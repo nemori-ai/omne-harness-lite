@@ -9,8 +9,9 @@ import {
   type ShellLogin,
 } from '@omne-harness/shell-contract'
 import { ShellService } from '@omne-harness/shell-contract/cordis'
-import { startShellOf } from '@omne-harness/shell-contract/testing'
-import { ACCOUNT_ID, GATE_ID, IDENTITY_CLIENT, identityUiModule } from '../src/module.tsx'
+import { serveProtocol, startShellOf } from '@omne-harness/shell-contract/testing'
+import { identityProtocol } from '@omne-harness/identity-protocol'
+import { ACCOUNT_ID, GATE_ID, identityUiModule } from '../src/module.tsx'
 import { TENANT_TEXT, deferred, loginSource, settle, tenantId } from './support.ts'
 
 afterEach(() => cleanup())
@@ -96,29 +97,31 @@ async function setup() {
 }
 
 describe('身份的界面模块', () => {
-  it('身份协议的客户端出现时往登录门与侧栏区各放一项，消失时一起撤掉', async () => {
+  it('登录门不依赖身份协议，一直在；协议的客户端出现时再放侧栏区一项，消失时撤掉', async () => {
     const t = await setup()
-    expect(t.shell.items('gate')).toEqual([])
-    const withdraw = t.root.reflect.provide(IDENTITY_CLIENT, t.client)
+    expect(t.shell.items('gate').map(item => item.id)).toEqual([GATE_ID])
+    expect(t.shell.items('sidebar')).toEqual([])
+    expect(t.shell.adoption('identity-ui')).toMatchObject({ kind: 'unavailable' })
+    const served = await serveProtocol(t.root, identityProtocol, t.client)
     await settle()
+    expect(t.shell.adoption('identity-ui')).toMatchObject({
+      kind: 'adopted',
+      bindings: { identity: { key: 'identity/v1' } },
+    })
     expect(t.shell.items('gate').map(item => item.id)).toEqual([GATE_ID])
     expect(t.shell.items('sidebar').map(item => [item.id, item.order])).toEqual([
       [ACCOUNT_ID, 1000],
     ])
     expect(t.shell.items('pages')).toEqual([])
-    withdraw()
+    await served.dispose()
     await settle()
-    expect(t.shell.items('gate')).toEqual([])
+    expect(t.shell.items('gate').map(item => item.id)).toEqual([GATE_ID])
     expect(t.shell.items('sidebar')).toEqual([])
-  })
-
-  it('服务名照客户端装配的取法', () => {
-    expect(IDENTITY_CLIENT).toBe('protocol:identity/v1')
   })
 
   it('登录门经外壳的登录交出凭据', async () => {
     const t = await setup()
-    t.root.reflect.provide(IDENTITY_CLIENT, t.client)
+    await serveProtocol(t.root, identityProtocol, t.client)
     await settle()
     render(<>{t.shell.items('gate')[0]!.render({})}</>)
     const field = (name: string) =>
@@ -133,7 +136,7 @@ describe('身份的界面模块', () => {
 
   it('账号块查到当前租户就设给外壳；控件是账号的字形加组织的短写，提示写租户的全文', async () => {
     const t = await setup()
-    t.root.reflect.provide(IDENTITY_CLIENT, t.client)
+    await serveProtocol(t.root, identityProtocol, t.client)
     await settle()
     await act(async () => {
       render(<>{t.shell.items('sidebar')[0]!.render({ scope: undefined })}</>)
@@ -148,7 +151,7 @@ describe('身份的界面模块', () => {
 
   it('账号块按下是平样式的菜单，里面的「退出登录」经外壳退出；按控件本身不退出', async () => {
     const t = await setup()
-    t.root.reflect.provide(IDENTITY_CLIENT, t.client)
+    await serveProtocol(t.root, identityProtocol, t.client)
     await settle()
     await act(async () => {
       render(<>{t.shell.items('sidebar')[0]!.render({ scope: undefined })}</>)
@@ -173,7 +176,7 @@ describe('身份的界面模块', () => {
   it('账号块查着时字形在，短写的位置上是活动标记，提示写正在读取；查到就换成短写', async () => {
     const t = await setup()
     const answer = deferred<unknown>()
-    t.root.reflect.provide(IDENTITY_CLIENT, { 'query-current-tenant': () => answer.promise })
+    await serveProtocol(t.root, identityProtocol, { 'query-current-tenant': () => answer.promise })
     await settle()
     await act(async () => {
       render(<>{t.shell.items('sidebar')[0]!.render({ scope: undefined })}</>)
@@ -194,7 +197,7 @@ describe('身份的界面模块', () => {
   it('账号块查不到时控件里只有字形，控件上面一行通知写原因带重试，菜单照样能退出；重试查到就显示', async () => {
     const t = await setup()
     let answers = 0
-    t.root.reflect.provide(IDENTITY_CLIENT, {
+    await serveProtocol(t.root, identityProtocol, {
       'query-current-tenant': async () =>
         (answers += 1) === 1
           ? { outcome: 'uncertain', body: {} }
@@ -224,7 +227,7 @@ describe('身份的界面模块', () => {
 
   it('账号块在侧栏底部的 utility 段；窄条里是一个圆：只有字形，提示写租户的全文，按下是同一个菜单；只画窄条时照样设租户', async () => {
     const t = await setup()
-    t.root.reflect.provide(IDENTITY_CLIENT, t.client)
+    await serveProtocol(t.root, identityProtocol, t.client)
     await settle()
     const [item] = t.shell.items('sidebar')
     expect(item?.group).toBe('utility')

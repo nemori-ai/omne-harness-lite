@@ -1,7 +1,6 @@
-import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import { sessionProtocol, type SessionProtocol } from '@omne-harness/session-protocol'
-import { serviceKey } from '@omne-harness/shell-contract'
+import { needProtocol, serviceKey } from '@omne-harness/shell-contract'
 import { defineUiModule, type ShellService } from '@omne-harness/shell-contract/cordis'
 import { Fragment, type ReactNode } from 'react'
 import { ArchiveStore } from './model/archive.ts'
@@ -38,11 +37,6 @@ import { SessionWork } from './view/session-work.tsx'
 import { SessionListPanel } from './view/session-list-panel.tsx'
 import { SidePanel } from './view/side-panel.tsx'
 import { WorkspaceAction } from './view/workspace-selection.tsx'
-
-export const sessionClientService = protocolServiceName({
-  name: sessionProtocol.name,
-  major: sessionProtocol.major,
-})
 
 export const CONVERSATION_PAGE = 'conversation'
 export const SESSION_LIST = 'session-list'
@@ -110,12 +104,11 @@ function waitingCallsOf(held: SessionWorkStore) {
   }
 }
 
-export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionProtocol>>>({
+export const sessionUiModule = defineUiModule({
   name: 'session-ui',
-  inject: [sessionClientService],
-  apply(shell, services, provide) {
+  needs: { session: needProtocol<ClientOf<SessionProtocol>>(sessionProtocol) },
+  apply(shell, { session: client }, provide) {
     for (const point of SESSION_POINTS) point.declare(shell)
-    const client = services[sessionClientService]!
     const models = new ModelSelectionStore(client)
     provide(sessionModelChoicesKey, models)
     const drafts = new ComposerDraftStore()
