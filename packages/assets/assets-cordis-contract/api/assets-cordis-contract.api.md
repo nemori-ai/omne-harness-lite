@@ -7,10 +7,12 @@
 ## 入口 `.` · `index.d.ts`
 
 - `ASSET_CATEGORIES_POINT` · `index.d.ts`
+- `HeldPlacing` · `index.d.ts`
 - `assetCategoriesKey` · `index.d.ts`
 - `assetChangesKey` · `index.d.ts`
 - `assetManagementKey` · `index.d.ts`
 - `assetPublishingKey` · `index.d.ts`
+- `createHeldSync` · `index.d.ts`
 - `heldEntry` · `index.d.ts`
 - `independentSettingsKey` · `index.d.ts`
 
@@ -32,7 +34,7 @@
 
 ```ts
 import { Service, type Context, type Plugin } from '@deepseek-ai/cordis';
-import { type CategoryContribution, type HeldItem, type HeldPoint, type CategoryView, type TenantManagement, type TenantPublishing, type TenantPublishOutcome, type TenantPublishRequest } from '@omne-harness/assets';
+import { type CategoryContribution, type HeldHolding, type HeldItem, type HeldPoint, type CategoryView, type TenantManagement, type TenantPublishing, type TenantPublishOutcome, type TenantPublishRequest } from '@omne-harness/assets';
 import { type DynamisService } from '@omne-harness/dynamis-cordis/cordis';
 import type { IndependentSettingsPoint, IndependentSettingsView, SettingDefinitions } from '@omne-harness/settings';
 export declare class AssetCategoriesService extends Service {
@@ -41,6 +43,7 @@ export declare class AssetCategoriesService extends Service {
     protected readonly tree: DynamisService;
     constructor(ctx: Context);
     contribute(category: Omit<CategoryContribution, 'point'>, point: HeldPoint): void;
+    holdingsOf(tenant: string, skipped: (holding: HeldHolding) => void): (holdings: readonly HeldHolding[]) => void;
     bring(point: string, held: readonly Readonly<{
         name: string;
         item: HeldItem;
@@ -98,7 +101,7 @@ export declare function categoryContributionPlugin(name: string, category: Omit<
 ## 声明文件 `index.d.ts`
 
 ```ts
-import type { HeldItem, HeldScope } from '@omne-harness/assets';
+import type { HeldHolding, HeldItem, HeldScope } from '@omne-harness/assets';
 import type { Entry } from '@omne-harness/dynamis';
 export declare const assetCategoriesKey = "assetCategories";
 export declare const assetPublishingKey = "assetPublishing";
@@ -107,4 +110,11 @@ export declare const assetChangesKey = "assetChanges";
 export declare const independentSettingsKey = "independentSettings";
 export declare const ASSET_CATEGORIES_POINT = "assets.categories";
 export declare function heldEntry(point: string, name: string, scope: HeldScope, held: HeldItem): Entry<HeldItem>;
+export type HeldPlacing = Readonly<{
+    put(entry: Entry<HeldItem>): () => unknown;
+    pointOf(category: string): string | undefined;
+    scope: HeldScope;
+    skipped(holding: HeldHolding): void;
+}>;
+export declare function createHeldSync(placing: HeldPlacing): (holdings: readonly HeldHolding[]) => void;
 ```

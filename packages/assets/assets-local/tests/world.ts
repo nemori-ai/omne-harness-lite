@@ -139,6 +139,7 @@ export async function openWorld(
     uploads?: Parameters<typeof createAssetsLocal>[0]['uploads']
     clock?: () => number
     onCommitted?: Parameters<typeof createAssetsLocal>[0]['onCommitted']
+    held?: Parameters<typeof createAssetsLocal>[0]['held']
   } = {},
 ) {
   const parent = fileURLToPath(
@@ -195,6 +196,7 @@ export async function openWorld(
     ...(options.uploads === undefined ? {} : { uploads: options.uploads }),
     ...(options.clock === undefined ? {} : { clock: options.clock }),
     ...(options.onCommitted === undefined ? {} : { onCommitted: options.onCommitted }),
+    ...(options.held === undefined ? {} : { held: options.held }),
   })
   async function setup() {
     const published = await owner.publish({

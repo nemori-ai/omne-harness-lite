@@ -8,6 +8,7 @@ it('the root entry exports only the service keys, the name of the categories poi
     'assetChangesKey',
     'assetManagementKey',
     'assetPublishingKey',
+    'createHeldSync',
     'heldEntry',
     'independentSettingsKey',
   ])

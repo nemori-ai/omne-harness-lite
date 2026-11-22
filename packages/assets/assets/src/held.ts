@@ -12,6 +12,14 @@ export type HeldItem = Readonly<{
 
 export type HeldScope = readonly string[]
 
+export type HeldHolding = Readonly<{ category: string; name: string; item: HeldItem }>
+
+/** Where a store tells all a tenant holds: after each commit that changed something, before the commit is answered. */
+export type HeldPort = Readonly<{
+  sync(holdings: readonly HeldHolding[]): void
+  missed(reason: 'unread' | 'failed'): void
+}>
+
 export type HeldPoint = Readonly<{
   name: string
   tree: 'server'

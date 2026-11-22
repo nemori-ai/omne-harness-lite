@@ -1,9 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import {
+  MAX_ASSET_PAGE,
   projectAssetSettings,
   summarizeVersion,
   type AssetSettingsProjection,
+  type HeldHolding,
+  type HeldPort,
 } from '@omne-harness/assets'
 import { SettingsIdSchema } from '@omne-harness/settings'
 import {
@@ -17,6 +20,7 @@ import {
   assetResultSchema,
   captureExcludedSchema,
   heldCapabilityLookupSchema,
+  heldResultSchema,
   changeHoldingSchema,
   domainSchema,
   HANDLER,
@@ -152,16 +156,19 @@ type ReadKind =
   | 'holding'
   | 'version'
   | 'heldCapability'
+  | 'held'
   | 'summary'
   | 'domain'
   | 'list'
   | 'versions'
 
+const LISTED: readonly ReadKind[] = ['list', 'versions', 'held']
+
 function storageRead(options: Pick<AssetsLocalOptions, 'storage' | 'domain'>) {
   return async (kind: ReadKind, lookup: unknown) => {
     const result = await options.storage.read({
       domain: options.domain,
-      handler: kind === 'list' || kind === 'versions' ? LIST_HANDLER : HANDLER,
+      handler: LISTED.includes(kind) ? LIST_HANDLER : HANDLER,
       protocol: PROTOCOL,
       requestKey: randomUUID(),
       input: json({ kind, domain: options.domain, lookup }),
@@ -188,10 +195,63 @@ function signal(options: Store, revision: number | undefined): void {
   }
 }
 
+type Read = ReturnType<typeof storageRead>
+type HeldSync = () => Promise<'synced' | 'missed'>
+
+function missed(held: HeldPort, reason: 'unread' | 'failed'): 'missed' {
+  try {
+    held.missed(reason)
+  } catch {
+    return 'missed'
+  }
+  return 'missed'
+}
+
+const heldItemOf = (asset: string, version: string, enabled: boolean) => ({
+  asset,
+  version,
+  disabled: !enabled,
+  immutable: false,
+  replaceLocked: false,
+})
+
+async function tellHeld(held: HeldPort, read: Read): Promise<'synced' | 'missed'> {
+  const holdings: HeldHolding[] = []
+  try {
+    let after: string | null = null
+    do {
+      const page = heldResultSchema.parse(await read('held', { after, limit: MAX_ASSET_PAGE }))
+      if (page.kind !== 'held') return missed(held, 'unread')
+      for (const { category, name, assetRef, version, enabled } of page.items)
+        holdings.push({ category, name, item: heldItemOf(assetRef, version, enabled) })
+      after = page.next
+    } while (after !== null)
+  } catch {
+    return missed(held, 'unread')
+  }
+  try {
+    held.sync(holdings)
+    return 'synced'
+  } catch {
+    return missed(held, 'failed')
+  }
+}
+
+/** One read and one sync at a time, in the order asked: a later sync never carries an older reading. */
+function heldSyncOf(held: HeldPort | undefined, read: Read): HeldSync {
+  let last: Promise<unknown> = Promise.resolve()
+  return () => {
+    const next = last.then(() => (held === undefined ? 'synced' : tellHeld(held, read)))
+    last = next
+    return next
+  }
+}
+
 async function commitMutation(
   options: Store,
   command: Mutation,
-  same: SameOperation = sameCommand(command),
+  same: SameOperation,
+  syncHeld: HeldSync,
 ): Promise<AssetsMutationResult> {
   try {
     const result = await options.storage.commit({
@@ -206,8 +266,10 @@ async function commitMutation(
       ],
     })
     const mapped = receiptResult(result, options.domain, command.operationId, same)
-    if (mapped.kind === 'committed' && mapped.changed)
+    if (mapped.kind === 'committed' && mapped.changed) {
+      await syncHeld()
       signal(options, freshDomainRevision(result, options.domain, command.operationId))
+    }
     return mapped.kind === 'not_found'
       ? { kind: 'unknown', operationId: command.operationId }
       : mapped
@@ -216,14 +278,22 @@ async function commitMutation(
   }
 }
 
-async function recallOperation(options: Store, operationId: string, same?: SameOperation) {
+/** A recall that finds a commit whose reply was lost is where its change is first known: it syncs. */
+async function recallOperation(
+  options: Store,
+  operationId: string,
+  syncHeld: HeldSync,
+  same?: SameOperation,
+) {
   try {
-    return receiptResult(
+    const recalled = receiptResult(
       await options.storage.query(identity(options.domain, operationId)),
       options.domain,
       operationId,
       same,
     )
+    if (recalled.kind === 'committed' && recalled.changed) await syncHeld()
+    return recalled
   } catch {
     return { kind: 'unknown' as const, operationId }
   }
@@ -248,13 +318,15 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
     void promise.then(() => active.delete(promise))
     return promise
   }
-  const commit = (command: Mutation, same?: SameOperation) => commitMutation(options, command, same)
+  const read = storageRead(options)
+  const syncHeld = heldSyncOf(options.held, read)
+  const commit = (command: Mutation, same: SameOperation = sameCommand(command)) =>
+    commitMutation(options, command, same, syncHeld)
   async function change(value: unknown): Promise<AssetsMutationResult> {
     if (!withinBudget(value)) return fail('limit_exceeded')
     const parsed = mutationSchema.safeParse(value)
     return parsed.success ? commit(parsed.data) : fail('invalid_input')
   }
-  const read = storageRead(options)
   function lookup<T>(kind: ReadKind, schema: z.ZodType, result: z.ZodType<T>) {
     return (input: unknown) =>
       run(async () => {
@@ -320,14 +392,16 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
     getOperation: operationId =>
       run(async () => {
         if (!SettingsIdSchema.safeParse(operationId).success) return fail('invalid_input')
-        return recallOperation(options, operationId)
+        return recallOperation(options, operationId, syncHeld)
       }),
     recallPublication: operationId =>
       run(async () => {
         if (!SettingsIdSchema.safeParse(operationId).success) return fail('invalid_input')
         try {
           const queried = await options.storage.query(identity(options.domain, operationId))
-          return publicationRecall(queried, options.domain, operationId)
+          const recalled = publicationRecall(queried, options.domain, operationId)
+          if (recalled.kind === 'published' && recalled.changed) await syncHeld()
+          return recalled
         } catch {
           return { kind: 'unknown' as const, operationId }
         }
@@ -338,12 +412,14 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
         return recallOperation(
           options,
           operationId,
+          syncHeld,
           recorded =>
             recorded.kind === 'changeHolding' &&
             recorded.holdingRef === holdingRef &&
             equal(recorded.change, change),
         )
       }),
+    syncHeld,
     close() {
       return (closed ??= Promise.allSettled(active).then(() => undefined))
     },

@@ -73,6 +73,14 @@ export const tenantAssetsRow = defineRow({
     const release = releaseOf(ctx)
     const categories = ctx.assetCategories.view
     const changes = createAssetChangeFeed()
+    const logger = ctx.logger('tenant-assets')
+    const heldOf = (tenant: string) => ({
+      sync: ctx.assetCategories.holdingsOf(tenant, ({ category, name }) =>
+        logger.warn('held %s:%s is not on a point: its category gives none', category, name),
+      ),
+      missed: (reason: string) =>
+        logger.warn('what a tenant holds was not told to the registry: %s', reason),
+    })
     const idleMs = config.uploads.idleSeconds * 1000
     const store = {
       storage: ctx.storage,
@@ -81,6 +89,7 @@ export const tenantAssetsRow = defineRow({
       categories,
       uploads: { idleMs, maxOpen: config.uploads.maxOpen, partBytes: config.uploads.partBytes },
       changed: changes.changed,
+      heldOf,
     }
     const host = new TenantAssetsHost({
       domains: ctx.tenantDomainLookup,

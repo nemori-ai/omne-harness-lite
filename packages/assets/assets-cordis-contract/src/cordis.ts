@@ -4,6 +4,7 @@ import {
   categoryViewOf,
   scopeOfLayer,
   type CategoryContribution,
+  type HeldHolding,
   type HeldItem,
   type HeldPoint,
   type CategoryReading,
@@ -34,6 +35,7 @@ import {
   assetChangesKey,
   assetManagementKey,
   assetPublishingKey,
+  createHeldSync,
   heldEntry,
   independentSettingsKey,
 } from './index.ts'
@@ -108,6 +110,23 @@ export class AssetCategoriesService extends Service {
       () => tree.put(by => [contributed(admitted, by), declare(point)]),
       'assetCategories.contribute',
     )
+  }
+
+  /** Keeps what one tenant holds on the points of the categories, at the scope of that tenant, put as the caller. */
+  holdingsOf(
+    tenant: string,
+    skipped: (holding: HeldHolding) => void,
+  ): (holdings: readonly HeldHolding[]) => void {
+    const { tree, view } = this
+    return createHeldSync({
+      put: entry => tree.put([entry]),
+      pointOf(category) {
+        const listing = view.describe(category)
+        return listing === undefined || 'unusable' in listing ? undefined : listing.point
+      },
+      scope: scopeOfLayer('tenant', tenant),
+      skipped,
+    })
   }
 
   /** The definitions the deployment itself brings: items of the whole deployment on the point of their category. */

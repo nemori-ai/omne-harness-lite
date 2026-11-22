@@ -1,5 +1,5 @@
 import type { z } from 'zod'
-import type { CapabilityId, CategoryView, PinnedBody } from '@omne-harness/assets'
+import type { CapabilityId, CategoryView, HeldPort, PinnedBody } from '@omne-harness/assets'
 import type { LocalPackages, PackageDurability, PackageStep } from './packages.ts'
 import type { PublicationRecall } from './results.ts'
 import type { LocalUploads, UploadPolicy } from './uploads.ts'
@@ -38,6 +38,7 @@ export type AssetsLocalOptions = Readonly<{
   clock?: () => number
   /** Called once after each new commit that changed something, before its result is answered. */
   onCommitted?: (signal: AssetsCommitted) => void
+  held?: HeldPort
 }>
 export type AssetsCommitted = Readonly<{ domain: DomainRef; revision: number }>
 export type AssetsPublish = Readonly<z.infer<typeof publishMetadataSchema> & { pinned: PinnedBody }>
@@ -86,5 +87,6 @@ export interface AssetsLocal {
       change: AssetsHoldingChange['change']
     }>,
   ): Promise<AssetsOperationResult>
+  syncHeld(): Promise<'synced' | 'missed'>
   close(): Promise<void>
 }

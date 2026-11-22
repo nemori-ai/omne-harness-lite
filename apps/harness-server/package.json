@@ -69,6 +69,7 @@
     "@omne-harness/dispatch-session": "workspace:*",
     "@omne-harness/dispatch-tool": "workspace:*",
     "@omne-harness/dispatch-tools": "workspace:*",
+    "@omne-harness/dynamis": "workspace:*",
     "@omne-harness/dynamis-cordis": "workspace:*",
     "@omne-harness/exchange-refs": "workspace:*",
     "@omne-harness/execution-environment": "workspace:*",
