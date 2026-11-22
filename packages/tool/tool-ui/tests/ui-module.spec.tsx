@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { definePoint } from '@omne-harness/shell-contract'
 import { CALL_OUTPUT_ID, createToolUiModule, toolClientService } from '../src/cordis.ts'
 import { CallOutputStore } from '../src/index.ts'
-import { startShell } from './fixtures/reference-shell.ts'
+import { startShell as startBare } from './fixtures/reference-shell.ts'
 
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
@@ -19,6 +19,13 @@ const detail = definePoint<{ readonly session: string; readonly call: string }>(
     },
   },
 })
+
+/** The host of these points is not on this tree: the case stands in for it and declares them. */
+async function startShell() {
+  const started = await startBare()
+  for (const point of [detail]) point.declare(started.shell)
+  return started
+}
 
 afterEach(cleanup)
 

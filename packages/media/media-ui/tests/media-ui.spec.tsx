@@ -13,7 +13,7 @@ import {
 } from '../src/cordis.tsx'
 import type { Microphone } from '../src/model/recorder.ts'
 import { fakeMedia, TENANT, TENANT_TEXT, type FakeMedia } from './fixtures/fake-media.ts'
-import { startShell } from './fixtures/reference-shell.ts'
+import { startShell as startBare } from './fixtures/reference-shell.ts'
 
 const SERVICE = protocolServiceName({ name: mediaProtocol.name, major: mediaProtocol.major })
 const json = <S,>() => ({
@@ -25,6 +25,13 @@ const attachments = definePoint<MediaDraftSubject>({
   subject: json(),
 })
 const block = definePoint<MediaBlockSubject>({ name: 'session.block', subject: json() })
+
+/** The host of these points is not on this tree: the case stands in for it and declares them. */
+async function startShell() {
+  const started = await startBare()
+  for (const point of [attachments, block]) point.declare(started.shell)
+  return started
+}
 const all = (entries: readonly { id: string; node: React.ReactNode }[]) =>
   entries.map(entry => <div key={entry.id}>{entry.node}</div>)
 
@@ -74,8 +81,8 @@ describe('界面模块', () => {
     root.reflect.provide(SERVICE, fakeMedia().client)
     await pending
     expect(shell.items('attached').map(item => [item.anchor, item.id])).toEqual([
-      ['session.composer-attachments', 'media'],
       ['session.block', 'media'],
+      ['session.composer-attachments', 'media'],
     ])
     expect(mediaComposerIntakeKey).toBe('media.composer-intake')
     expect(

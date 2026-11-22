@@ -1,10 +1,11 @@
 import { act, render } from '@testing-library/react'
 import { Context, type Fiber, type Plugin } from '@deepseek-ai/cordis'
-import type {
-  LoginCredentials,
-  LogoutResult,
-  ShellLogin,
-  ShellLoginState,
+import {
+  definePoint,
+  type LoginCredentials,
+  type LogoutResult,
+  type ShellLogin,
+  type ShellLoginState,
 } from '@omne-harness/shell-contract'
 import type { ShellService } from '@omne-harness/shell-contract/cordis'
 import {
@@ -56,6 +57,10 @@ export function source<T>(initial: T) {
 
 export const settle = () => new Promise(resolve => setTimeout(resolve, 0))
 
+/** The places the cases attach to: a place counts only while a host declared it. */
+const TEST_POINTS = ['test.a', 'test.b']
+const TEXT = { encode: (value: string) => value, decode: (value: string) => value }
+
 export async function setup(
   options: {
     login?: ShellLoginState
@@ -87,6 +92,7 @@ export async function setup(
   const state = createShellState(inner)
   const root = new Context()
   await root.plugin(shellPlugin(state))
+  for (const name of TEST_POINTS) definePoint({ name, subject: TEXT }).declare(root.shell)
   for (const module of options.modules ?? [fakeGate(), chatPage, settingsPage])
     await root.plugin(module)
   const theme = {

@@ -13,10 +13,10 @@ import {
 import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
 import { createMcpUiModule } from '@omne-harness/mcp-ui/cordis'
 import { ITEM_FAILED_TEXT } from '../src/page/shell/item.tsx'
-import { NO_LOGIN_TEXT } from '../src/page/shell/shell.tsx'
+import { NO_LOGIN_TEXT, gateConflictText } from '../src/page/shell/shell.tsx'
 import { RECONNECTING_TEXT } from '../src/page/shell/sidebar.tsx'
 import { LOGOUT_UNKNOWN_TEXT } from '../src/page/shell/state.ts'
-import { fakeSidebar } from './support/fake-modules.tsx'
+import { fakeGate, fakeSidebar } from './support/fake-modules.tsx'
 import {
   CHAT,
   SETTINGS,
@@ -41,6 +41,35 @@ describe('外壳：登录之外', () => {
     expect(screen.getByText('登录门占位')).toBeTruthy()
     expect(screen.queryByText('对话占位')).toBeNull()
     expect(document.querySelector('.shell-sidebar')).toBeNull()
+  })
+
+  it('登录门来了两份：两份都不画，那里写明是哪两家；一份撤了，另一份立刻显示', async () => {
+    const second = defineUiModule({
+      name: 'other-gate',
+      inject: [],
+      apply: shell =>
+        shell.contribute('gate', { id: 'other.gate', render: () => <p>另一个登录门</p> }),
+    })
+    const t = await setup({ modules: [fakeGate()] })
+    const warned = vi.spyOn(t.root.logger, 'error').mockImplementation(() => undefined)
+    let fiber: { dispose(): unknown } | undefined
+    await act(async () => {
+      fiber = await t.root.plugin(second)
+    })
+    expect(screen.queryByText('登录门占位')).toBeNull()
+    expect(screen.queryByText('另一个登录门')).toBeNull()
+    expect(screen.getByRole('alert').textContent).toBe(
+      gateConflictText(['fake-gate', 'other-gate']),
+    )
+    expect(warned).toHaveBeenCalledWith(
+      'shell: gate is put by fake-gate, other-gate; none of them is drawn',
+    )
+    await act(async () => {
+      await fiber?.dispose()
+      await settle()
+    })
+    expect(screen.getByText('登录门占位')).toBeTruthy()
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 
   it('登录门空着时显示那句话；还在连接时先说正在连接', async () => {
@@ -289,10 +318,10 @@ describe('外壳：附着位置与页面标记', () => {
     const t = await setup({
       login: 'signed-in',
       modules: [
-        attachedItem('late', 'a', 2),
-        attachedItem('other', 'b'),
-        attachedItem('early', 'a', 1),
-        hostPage('a', 's1'),
+        attachedItem('late', 'test.a', 2),
+        attachedItem('other', 'test.b'),
+        attachedItem('early', 'test.a', 1),
+        hostPage('test.a', 's1'),
       ],
     })
     act(() => t.state.scope.set('tenant-x'))
@@ -306,15 +335,15 @@ describe('外壳：附着位置与页面标记', () => {
   it('没有名字相同的项时什么都不渲染', async () => {
     const t = await setup({
       login: 'signed-in',
-      modules: [attachedItem('x', 'b'), hostPage('a', 's1')],
+      modules: [attachedItem('x', 'test.b'), hostPage('test.a', 's1')],
     })
     act(() => t.state.scope.set('tenant-x'))
     expect(document.querySelector('.shell-page')?.childElementCount).toBe(0)
   })
 
   it('项撤下后消失，放进来后出现', async () => {
-    const module = attachedItem('x', 'a')
-    const t = await setup({ login: 'signed-in', modules: [hostPage('a', 's1')] })
+    const module = attachedItem('x', 'test.a')
+    const t = await setup({ login: 'signed-in', modules: [hostPage('test.a', 's1')] })
     expect(attachedIds()).toEqual([])
     const fiber = t.root.plugin(module)
     await act(async () => {
@@ -330,7 +359,7 @@ describe('外壳：附着位置与页面标记', () => {
   it('租户变了，已经渲染的项跟着重渲染', async () => {
     const t = await setup({
       login: 'signed-in',
-      modules: [attachedItem('x', 'a'), hostPage('a', 's1')],
+      modules: [attachedItem('x', 'test.a'), hostPage('test.a', 's1')],
     })
     act(() => t.state.scope.set('t1'))
     expect(document.querySelector<HTMLElement>('[data-attached="x"]')?.dataset['scope']).toBe('t1')
@@ -339,8 +368,8 @@ describe('外壳：附着位置与页面标记', () => {
   })
 
   it('宿主不重渲染时，服务给出的元素自己也跟着租户的变化', async () => {
-    const t = await setup({ login: 'signed-in', modules: [attachedItem('x', 'a')] })
-    const view = render(<>{t.service.attached('a', 's1')}</>)
+    const t = await setup({ login: 'signed-in', modules: [attachedItem('x', 'test.a')] })
+    const view = render(<>{t.service.attached('test.a', 's1')}</>)
     const scopeOf = () =>
       view.container.querySelector<HTMLElement>('[data-attached="x"]')?.dataset['scope']
     expect(scopeOf()).toBe('')
@@ -443,10 +472,10 @@ describe('外壳：宿主自己排版', () => {
     const t = await setup({
       login: 'signed-in',
       modules: [
-        labelled('late', 'a', 2, '晚'),
-        labelled('other', 'b', 0),
-        labelled('early', 'a', 1),
-        tabsPage('a', 's1'),
+        labelled('late', 'test.a', 2, '晚'),
+        labelled('other', 'test.b', 0),
+        labelled('early', 'test.a', 1),
+        tabsPage('test.a', 's1'),
       ],
     })
     act(() => t.state.scope.set('tenant-x'))
@@ -457,15 +486,18 @@ describe('外壳：宿主自己排版', () => {
   })
 
   it('没有名字相同的项时排版函数收到空表', async () => {
-    await setup({ login: 'signed-in', modules: [labelled('x', 'b', 0), tabsPage('a', 's1')] })
+    await setup({
+      login: 'signed-in',
+      modules: [labelled('x', 'test.b', 0), tabsPage('test.a', 's1')],
+    })
     expect(document.querySelector<HTMLElement>('[data-tabs]')?.dataset['tabs']).toBe('0')
     expect(tabs()).toEqual([])
   })
 
   it('宿主画出之后放进一项、撤下一项，排版跟着重画', async () => {
-    const t = await setup({ login: 'signed-in', modules: [tabsPage('a', 's1')] })
+    const t = await setup({ login: 'signed-in', modules: [tabsPage('test.a', 's1')] })
     expect(tabs()).toEqual([])
-    const fiber = t.root.plugin(labelled('x', 'a', 0, '甲'))
+    const fiber = t.root.plugin(labelled('x', 'test.a', 0, '甲'))
     await act(async () => {
       await fiber
     })
@@ -485,7 +517,7 @@ describe('外壳：宿主自己排版', () => {
         shell.contribute('attached', {
           id: 'dependent',
           order: 1,
-          anchor: 'a',
+          anchor: 'test.a',
           label: '依赖协议的',
           render: () => <p data-attached="dependent">依赖协议的一项</p>,
         })
@@ -493,7 +525,7 @@ describe('外壳：宿主自己排版', () => {
     })
     const t = await setup({
       login: 'signed-in',
-      modules: [dependent, labelled('always', 'a', 2, '一直在'), tabsPage('a', 's1')],
+      modules: [dependent, labelled('always', 'test.a', 2, '一直在'), tabsPage('test.a', 's1')],
     })
     expect(tabs()).toEqual(['always:一直在'])
     const withdraw = await t.provide(DEPENDED)
@@ -507,9 +539,9 @@ describe('外壳：宿主自己排版', () => {
 
   it('三个插件按三种次序加载，排版出来逐字相同', async () => {
     const modules = [
-      labelled('one', 'a', 1, '一'),
-      labelled('two', 'a', 2, '二'),
-      tabsPage('a', 's1'),
+      labelled('one', 'test.a', 1, '一'),
+      labelled('two', 'test.a', 2, '二'),
+      tabsPage('test.a', 's1'),
     ]
     const markups: string[] = []
     for (const order of [
@@ -528,7 +560,7 @@ describe('外壳：宿主自己排版', () => {
   it('租户变了，排版里的项跟着重渲染', async () => {
     const t = await setup({
       login: 'signed-in',
-      modules: [labelled('x', 'a', 0), tabsPage('a', 's1')],
+      modules: [labelled('x', 'test.a', 0), tabsPage('test.a', 's1')],
     })
     act(() => t.state.scope.set('t1'))
     expect(document.querySelector<HTMLElement>('[data-attached="x"]')?.dataset['scope']).toBe('t1')
@@ -578,8 +610,8 @@ describe('外壳：一项坏了只坏这一项', () => {
     await setup({
       login: 'signed-in',
       modules: [
-        attachedModule('bad', 'a', 0, boom),
-        attachedModule('good', 'a', 1, good('good')),
+        attachedModule('bad', 'test.a', 0, boom),
+        attachedModule('good', 'test.a', 1, good('good')),
         pageModule('host', 0, () => null),
         defineUiModule({
           name: 'host-attached',
@@ -588,7 +620,7 @@ describe('外壳：一项坏了只坏这一项', () => {
             shell.contribute('sidebar', {
               id: 'host',
               order: 0,
-              render: () => shell.attached('a', 's1'),
+              render: () => shell.attached('test.a', 's1'),
             })
           },
         }),
@@ -605,8 +637,8 @@ describe('外壳：一项坏了只坏这一项', () => {
     await setup({
       login: 'signed-in',
       modules: [
-        attachedModule('bad', 'a', 0, () => <Boom />),
-        attachedModule('good', 'a', 1, good('good')),
+        attachedModule('bad', 'test.a', 0, () => <Boom />),
+        attachedModule('good', 'test.a', 1, good('good')),
         pageModule('host', 0, () => null),
         defineUiModule({
           name: 'host-attached',
@@ -615,7 +647,7 @@ describe('外壳：一项坏了只坏这一项', () => {
             shell.contribute('sidebar', {
               id: 'host',
               order: 0,
-              render: () => shell.attached('a', 's1'),
+              render: () => shell.attached('test.a', 's1'),
             })
           },
         }),
@@ -629,8 +661,8 @@ describe('外壳：一项坏了只坏这一项', () => {
     await setup({
       login: 'signed-in',
       modules: [
-        attachedModule('bad', 'a', 0, boom),
-        attachedModule('good', 'a', 1, good('good')),
+        attachedModule('bad', 'test.a', 0, boom),
+        attachedModule('good', 'test.a', 1, good('good')),
         defineUiModule({
           name: 'host-arranged',
           inject: [],
@@ -641,7 +673,7 @@ describe('外壳：一项坏了只坏这一项', () => {
               order: 0,
               icon: 'topics',
               render: (): ReactNode =>
-                shell.arranged('a', 's1', entries => (
+                shell.arranged('test.a', 's1', entries => (
                   <ul>
                     {entries.map(entry => (
                       <li key={entry.id} data-tab={entry.id}>
@@ -824,7 +856,7 @@ describe('外壳：一项坏了只坏这一项', () => {
             shell.contribute('attached', {
               id: 'real',
               order: 1,
-              anchor: 'a',
+              anchor: 'test.a',
               render: ({ subject }) => {
                 calls += 1
                 if (subject === 's1') throw new Error('boom')
@@ -835,13 +867,13 @@ describe('外壳：一项坏了只坏这一项', () => {
         }),
       ],
     })
-    const view = render(<>{t.service.attached('a', 's1')}</>)
+    const view = render(<>{t.service.attached('test.a', 's1')}</>)
     expect(view.container.querySelectorAll('.shell-item-failed')).toHaveLength(1)
     const afterFailure = calls
-    view.rerender(<>{t.service.attached('a', 's1')}</>)
+    view.rerender(<>{t.service.attached('test.a', 's1')}</>)
     expect(calls).toBe(afterFailure)
     expect(view.container.querySelectorAll('.shell-item-failed')).toHaveLength(1)
-    view.rerender(<>{t.service.attached('a', 's2')}</>)
+    view.rerender(<>{t.service.attached('test.a', 's2')}</>)
     expect(view.container.querySelector('[data-attached="real"]')?.textContent).toBe('s2')
     expect(view.container.querySelectorAll('.shell-item-failed')).toHaveLength(0)
   })

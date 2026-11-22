@@ -63,6 +63,15 @@ export const sessionBlockReadsKey = serviceKey<BlockReadsHolder>('session.block-
 export const sessionComposerIntakeKey = serviceKey<ComposerDrafts>('session.composer-intake')
 
 /** A block of a message drawn by whatever is put at its point, told what the model read of it. */
+const SESSION_POINTS = [
+  sessionDock,
+  sessionSide,
+  sessionStatus,
+  sessionCallDetail,
+  sessionComposerAttachments,
+  sessionBlock,
+]
+
 function blockDrawer(shell: ShellService, reads: BlockReads, scope: string | undefined) {
   return (session: string, source: BlockSource, fallback: ReactNode, revision: string | null) => (
     <ReadBlock
@@ -105,6 +114,7 @@ export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionPro
   name: 'session-ui',
   inject: [sessionClientService],
   apply(shell, services, provide) {
+    for (const point of SESSION_POINTS) point.declare(shell)
     const client = services[sessionClientService]!
     const models = new ModelSelectionStore(client)
     provide(sessionModelChoicesKey, models)

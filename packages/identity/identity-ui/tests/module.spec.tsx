@@ -4,14 +4,12 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { Context } from '@deepseek-ai/cordis'
 import type { ReactNode } from 'react'
 import {
-  createSlotStore,
   type AttachedLayout,
-  type ItemOf,
   type ScopeSource,
   type ShellLogin,
-  type SlotName,
 } from '@omne-harness/shell-contract'
 import { ShellService } from '@omne-harness/shell-contract/cordis'
+import { startShellOf } from '@omne-harness/shell-contract/testing'
 import { ACCOUNT_ID, GATE_ID, IDENTITY_CLIENT, identityUiModule } from '../src/module.tsx'
 import { TENANT_TEXT, deferred, loginSource, settle, tenantId } from './support.ts'
 
@@ -42,7 +40,6 @@ async function openMenu(trigger: HTMLElement): Promise<HTMLElement> {
 type Calls = { logins: unknown[]; logouts: number; scopes: (string | undefined)[] }
 
 class TestShell extends ShellService {
-  readonly store = createSlotStore()
   readonly login: ShellLogin
   readonly scope: ScopeSource
   constructor(ctx: Context, config: { login: ShellLogin; scope: ScopeSource }) {
@@ -52,15 +49,13 @@ class TestShell extends ShellService {
   }
   navigate(): void {}
   attached(anchor: string, subject: string): ReactNode {
-    return this.store
-      .items('attached')
+    return this.items('attached')
       .filter(item => item.anchor === anchor)
       .map(item => item.render({ scope: this.scope.get(), subject }))
   }
   arranged(anchor: string, subject: string, layout: AttachedLayout): ReactNode {
     return layout(
-      this.store
-        .items('attached')
+      this.items('attached')
         .filter(item => item.anchor === anchor)
         .map(item => ({
           id: item.id,
@@ -68,9 +63,6 @@ class TestShell extends ShellService {
           node: item.render({ scope: this.scope.get(), subject }),
         })),
     )
-  }
-  protected place<K extends SlotName>(slot: K, item: ItemOf<K>): () => void {
-    return this.store.place(slot, item)
   }
 }
 
@@ -94,9 +86,7 @@ async function setup() {
     set: value => void calls.scopes.push(value),
     subscribe: () => () => undefined,
   }
-  const root = new Context()
-  await root.plugin(TestShell, { login, scope })
-  const shell = root.get('shell') as unknown as TestShell
+  const { root, shell } = await startShellOf(TestShell, { login, scope })
   await root.plugin(identityUiModule)
   const client = {
     'query-current-tenant': async () => ({ outcome: 'succeeded', body: { tenantId: tenantId() } }),
@@ -108,18 +98,18 @@ async function setup() {
 describe('身份的界面模块', () => {
   it('身份协议的客户端出现时往登录门与侧栏区各放一项，消失时一起撤掉', async () => {
     const t = await setup()
-    expect(t.shell.store.items('gate')).toEqual([])
+    expect(t.shell.items('gate')).toEqual([])
     const withdraw = t.root.reflect.provide(IDENTITY_CLIENT, t.client)
     await settle()
-    expect(t.shell.store.items('gate').map(item => item.id)).toEqual([GATE_ID])
-    expect(t.shell.store.items('sidebar').map(item => [item.id, item.order])).toEqual([
+    expect(t.shell.items('gate').map(item => item.id)).toEqual([GATE_ID])
+    expect(t.shell.items('sidebar').map(item => [item.id, item.order])).toEqual([
       [ACCOUNT_ID, 1000],
     ])
-    expect(t.shell.store.items('pages')).toEqual([])
+    expect(t.shell.items('pages')).toEqual([])
     withdraw()
     await settle()
-    expect(t.shell.store.items('gate')).toEqual([])
-    expect(t.shell.store.items('sidebar')).toEqual([])
+    expect(t.shell.items('gate')).toEqual([])
+    expect(t.shell.items('sidebar')).toEqual([])
   })
 
   it('服务名照客户端装配的取法', () => {
@@ -130,7 +120,7 @@ describe('身份的界面模块', () => {
     const t = await setup()
     t.root.reflect.provide(IDENTITY_CLIENT, t.client)
     await settle()
-    render(<>{t.shell.store.items('gate')[0]!.render({})}</>)
+    render(<>{t.shell.items('gate')[0]!.render({})}</>)
     const field = (name: string) =>
       document.querySelector(`input[name="${name}"]`) as HTMLInputElement
     fireEvent.change(field('loginIdentifier'), { target: { value: 'alice' } })
@@ -146,7 +136,7 @@ describe('身份的界面模块', () => {
     t.root.reflect.provide(IDENTITY_CLIENT, t.client)
     await settle()
     await act(async () => {
-      render(<>{t.shell.store.items('sidebar')[0]!.render({ scope: undefined })}</>)
+      render(<>{t.shell.items('sidebar')[0]!.render({ scope: undefined })}</>)
     })
     expect(t.calls.scopes).toEqual([TENANT_TEXT])
     const control = screen.getByRole('button', { name: TENANT_TEXT })
@@ -161,7 +151,7 @@ describe('身份的界面模块', () => {
     t.root.reflect.provide(IDENTITY_CLIENT, t.client)
     await settle()
     await act(async () => {
-      render(<>{t.shell.store.items('sidebar')[0]!.render({ scope: undefined })}</>)
+      render(<>{t.shell.items('sidebar')[0]!.render({ scope: undefined })}</>)
     })
     const control = screen.getByRole('button', { name: TENANT_TEXT })
     fireEvent.click(control)
@@ -186,7 +176,7 @@ describe('身份的界面模块', () => {
     t.root.reflect.provide(IDENTITY_CLIENT, { 'query-current-tenant': () => answer.promise })
     await settle()
     await act(async () => {
-      render(<>{t.shell.store.items('sidebar')[0]!.render({ scope: undefined })}</>)
+      render(<>{t.shell.items('sidebar')[0]!.render({ scope: undefined })}</>)
     })
     const control = screen.getByRole('button', { name: '正在读取当前租户……' })
     expect(control.querySelector(GLYPH)).toBeTruthy()
@@ -212,7 +202,7 @@ describe('身份的界面模块', () => {
     })
     await settle()
     await act(async () => {
-      render(<>{t.shell.store.items('sidebar')[0]!.render({ scope: undefined })}</>)
+      render(<>{t.shell.items('sidebar')[0]!.render({ scope: undefined })}</>)
     })
     const reason = '没有收到可信的答复，读不到当前租户。'
     const notice = screen.getByText(reason).closest<HTMLElement>('[data-tone]')!
@@ -236,7 +226,7 @@ describe('身份的界面模块', () => {
     const t = await setup()
     t.root.reflect.provide(IDENTITY_CLIENT, t.client)
     await settle()
-    const [item] = t.shell.store.items('sidebar')
+    const [item] = t.shell.items('sidebar')
     expect(item?.group).toBe('utility')
     expect(item?.rail).toBeTypeOf('function')
     await act(async () => {

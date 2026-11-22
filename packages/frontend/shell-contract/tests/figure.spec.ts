@@ -2,6 +2,7 @@ import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import type { FigureReport } from '@omne-harness/shell-contract'
 import { ShellService } from '@omne-harness/shell-contract/cordis'
+import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { startShell, type ReferenceShell } from './reference-shell.ts'
 
 /** `owner` is the caller's own fiber, the key the shell holds its report under. */
@@ -96,11 +97,9 @@ describe('ShellService.figure', () => {
       arranged(): null {
         return null
       }
-      protected place(): () => void {
-        return () => undefined
-      }
     }
     const root = new Context()
+    await root.plugin(DynamisService)
     await root.plugin(Bare)
     const module = await caller(root, 'module')
     expect(() => module.shell.figure({ doing: 'thinking' })).not.toThrow()

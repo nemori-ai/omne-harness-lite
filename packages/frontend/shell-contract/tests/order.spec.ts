@@ -23,10 +23,10 @@ describe('a list slot', () => {
   it('orders the attached slot by order, then by id, not by anchor', async () => {
     const { root, shell } = await startShell()
     const entries: [string, number, string][] = [
-      ['c', 2, 'x'],
-      ['b', 1, 'y'],
-      ['a', 1, 'z'],
-      ['first', 0, 'z'],
+      ['c', 2, 'test.x'],
+      ['b', 1, 'test.a'],
+      ['a', 1, 'test.b'],
+      ['first', 0, 'test.b'],
     ]
     for (const [id, order, anchor] of entries)
       await root.plugin({
