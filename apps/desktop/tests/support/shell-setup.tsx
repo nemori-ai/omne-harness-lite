@@ -81,7 +81,7 @@ export async function setup(
     missingAtForwarding?: readonly string[]
     theme?: ThemeChoice
     /** The connection of the tree, for a case that says where a protocol stands. */
-    connection?: object
+    connection?: object | null
   } = {},
 ) {
   const login = source<ShellLoginState>(options.login ?? 'signed-out')
@@ -106,7 +106,8 @@ export async function setup(
   const root = new Context()
   await root.plugin(DynamisService)
   await root.plugin(shellPlugin(state))
-  root.reflect.provide('connection', options.connection ?? quietConnection)
+  if (options.connection !== null)
+    root.reflect.provide('connection', options.connection ?? quietConnection)
   for (const name of TEST_POINTS) definePoint({ name, subject: TEXT }).declare(root.shell)
   const gated = new Map<string, Plugin.Object[]>()
   for (const module of options.modules ?? [fakeGate(), chatPage, settingsPage]) {

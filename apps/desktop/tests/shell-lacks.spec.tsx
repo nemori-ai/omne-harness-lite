@@ -190,6 +190,34 @@ describe('a page whose module lacks a protocol it needs', () => {
   })
 })
 
+describe('a connection that comes after the page', () => {
+  it('draws loading while there is no connection, then says what the connection tells', async () => {
+    const shell = await setup({
+      login: 'signed-in',
+      connection: null,
+      modules: [chatPage, notesModule({ count: 0 })],
+    })
+    await shell.provide(CHAT)
+    expect(section('notes')?.querySelector('.shell-connecting')).not.toBeNull()
+    expect(section('notes')?.querySelector('.shell-page-lack')).toBeNull()
+    const connection = {
+      availability: {
+        keys: () => undefined,
+        standing: () => ({ kind: 'absent' }) as const,
+        subscribe: () => () => undefined,
+      },
+    }
+    await act(async () => {
+      shell.root.reflect.provide('connection', connection)
+      await settle()
+    })
+    expect(section('notes')?.querySelector('.shell-connecting')).toBeNull()
+    expect(
+      [...(section('notes')?.querySelectorAll('.shell-page-lack') ?? [])].map(e => e.textContent),
+    ).toEqual(['这一页现在用不了：服务端没有提供它要用的 notes/v1。'])
+  })
+})
+
 describe('the login gate of a module that lacks a protocol it needs', () => {
   const card = () => document.querySelector('.shell-gate-card')
 
@@ -264,6 +292,20 @@ describe('lackText', () => {
   })
 })
 
+describe('lackText, a served major between the wanted ones', () => {
+  it('does not blame a side when the served major lies between the two majors the module speaks', () => {
+    expect(
+      lackText({
+        kind: 'protocol',
+        wanted: 'notes/v3',
+        why: 'other-major',
+        served: [2],
+        majors: [3, 1],
+      }),
+    ).toBe('这一页现在用不了：它要用的是 notes/v3，服务端提供的是 v2。')
+  })
+})
+
 describe('lackOf', () => {
   const reference = { point: 'connection.protocols', anyOf: ['notes/v2', 'notes/v1'] }
   const none = { slot: 'notes', reference, answer: 'none', detail: '' } as const
@@ -302,6 +344,41 @@ describe('lackOf', () => {
     expect(lackOf({ ...none, reference: shelf }, () => ({ kind: 'open' }))).toEqual({
       kind: 'point',
       point: 'notes.shelf',
+    })
+  })
+
+  it('a registry that answers conflict says the application holds two of it', () => {
+    expect(lackOf({ ...none, answer: 'conflict' }, () => ({ kind: 'absent' }))).toEqual({
+      kind: 'protocol',
+      wanted: 'notes/v2',
+      why: 'doubled',
+    })
+  })
+
+  it('a connection that says one of the majors conflicts on the server says conflict', () => {
+    const stand = (key: { major: number }) =>
+      key.major === 1 ? ({ kind: 'conflict' } as const) : ({ kind: 'absent' } as const)
+    expect(lackOf(none, stand)).toEqual({ kind: 'protocol', wanted: 'notes/v2', why: 'conflict' })
+  })
+
+  it('a connection that says the protocol is open while the registry has no item says unheld', () => {
+    expect(lackOf(none, () => ({ kind: 'open' }))).toEqual({
+      kind: 'protocol',
+      wanted: 'notes/v2',
+      why: 'unheld',
+    })
+  })
+
+  it('reads a two-digit major as one number', () => {
+    const twelve = { point: 'connection.protocols', anyOf: ['notes/v12'] }
+    expect(
+      lackOf({ ...none, reference: twelve }, () => ({ kind: 'other-major', served: [11] })),
+    ).toEqual({
+      kind: 'protocol',
+      wanted: 'notes/v12',
+      why: 'other-major',
+      served: [11],
+      majors: [12],
     })
   })
 })

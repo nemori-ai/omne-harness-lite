@@ -289,3 +289,278 @@ describe('a view module that declares its needs', () => {
     expect(there()).toEqual({ pages: 1, gate: 1, sidebar: 1, attached: 1, offered: 'one' })
   })
 })
+
+describe('what the shell gives a view module in each turn', () => {
+  const settled = async () => {
+    for (let round = 0; round < 8; round += 1) await new Promise(resolve => setTimeout(resolve, 0))
+  }
+  const offered = serviceKey<{ text: string }>('notes.offer')
+  const provider = defineUiModule({
+    name: 'provider-ui',
+    needs: {},
+    apply(_shell, _bound, provide) {
+      provide(offered, { text: 'the offer' })
+    },
+  })
+  const page = (id: string) => ({ id, title: id, order: 0, icon: 'topics' as const, render })
+
+  it('an optional point that something provides is pinned in the adoption, and is null again once it goes', async () => {
+    const w = await world()
+    await w.root.plugin(
+      defineUiModule({
+        name: 'consumer-ui',
+        needs: { port: needPoint<{ text: string }>(offered, { optional: true }) },
+        apply: () => undefined,
+      }),
+    )
+    await settled()
+    expect(w.shell.adoption('consumer-ui')).toEqual({ kind: 'adopted', bindings: { port: null } })
+    const providing = w.root.plugin(provider)
+    await providing
+    await settled()
+    const adoption = w.shell.adoption('consumer-ui')
+    expect(adoption).toMatchObject({ kind: 'adopted' })
+    const port = adoption?.kind === 'adopted' ? adoption.bindings['port'] : null
+    expect(port).not.toBeNull()
+    expect(port).toMatchObject({ point: 'notes.offer' })
+    await providing.dispose()
+    await settled()
+    expect(w.shell.adoption('consumer-ui')).toEqual({ kind: 'adopted', bindings: { port: null } })
+  })
+
+  it('owner tells the modules apart by the slot and the id, and answers undefined for an id nobody put', async () => {
+    const w = await world()
+    await w.root.plugin(
+      defineUiModule({
+        name: 'first-ui',
+        needs: {},
+        apply(shell) {
+          shell.contribute('pages', page('p1'))
+          shell.contribute('gate', { id: 'g', render })
+        },
+      }),
+    )
+    await w.root.plugin(
+      defineUiModule({
+        name: 'second-ui',
+        needs: {},
+        apply(shell) {
+          shell.contribute('pages', page('p2'))
+          shell.contribute('sidebar', { id: 'p1', order: 0, render })
+        },
+      }),
+    )
+    await settled()
+    expect(w.shell.owner('pages', 'p1')).toBe('first-ui')
+    expect(w.shell.owner('pages', 'p2')).toBe('second-ui')
+    expect(w.shell.owner('gate', 'anything')).toBe('first-ui')
+    expect(w.shell.owner('sidebar', 'p1')).toBe('second-ui')
+    expect(w.shell.owner('pages', 'nobody')).toBeUndefined()
+    expect(w.shell.owner('sidebar', 'p2')).toBeUndefined()
+  })
+
+  it('the function watchAdoptions returns takes the listener away', async () => {
+    const w = await world()
+    let told = 0
+    const stop = w.shell.watchAdoptions(() => void (told += 1))
+    await w.serve('notes', 1)
+    await settled()
+    const before = told
+    expect(before).toBeGreaterThan(0)
+    stop()
+    await w.serve('tasks', 1)
+    await settled()
+    expect(told).toBe(before)
+  })
+
+  it('while a required need is missing the other members of the shell work as they do for a whole module', async () => {
+    const w = await world()
+    let seenScope: unknown = 'not read'
+    await w.root.plugin(
+      defineUiModule({
+        name: 'notes-ui',
+        needs: { notes: needProtocol<Notes>(NOTES) },
+        apply(shell) {
+          definePoint({
+            name: 'test.late',
+            subject: { encode: (value: string) => value, decode: (value: string) => value },
+          }).declare(shell)
+          seenScope = shell.scope.get()
+          shell.navigate('x')
+        },
+      }),
+    )
+    await settled()
+    await w.root.plugin({
+      name: 'attacher',
+      inject: ['shell'],
+      apply(ctx) {
+        ctx.shell.contribute('attached', { id: 'late.item', order: 0, anchor: 'test.late', render })
+      },
+    })
+    await settled()
+    expect(w.shell.adoption('notes-ui')).toMatchObject({ kind: 'unavailable' })
+    expect(w.shell.items('attached').map(item => item.id)).toEqual(['late.item'])
+    expect(seenScope).toBeUndefined()
+    expect(w.shell.navigated).toEqual(['x'])
+  })
+
+  it('applies again when an optional protocol comes and when it goes, and not for a protocol it does not name', async () => {
+    const w = await world()
+    const log: string[] = []
+    await w.serve('notes', 1)
+    await w.root.plugin(
+      defineUiModule({
+        name: 'notes-ui',
+        needs: {
+          notes: needProtocol<Notes>(NOTES),
+          tasks: needProtocol(TASKS, { optional: true }),
+        },
+        apply() {
+          const turn = log.filter(line => line.startsWith('apply')).length + 1
+          log.push(`apply ${turn}`)
+          return () => void log.push(`back ${turn}`)
+        },
+      }),
+    )
+    await settled()
+    expect(log.filter(line => line.startsWith('apply'))).toHaveLength(1)
+    const tasks = await w.serve('tasks', 1)
+    await settled()
+    expect(log.filter(line => line.startsWith('apply'))).toHaveLength(2)
+    expect(log.at(-2)).toBe('back 1')
+    await tasks.dispose()
+    await settled()
+    expect(log.filter(line => line.startsWith('apply'))).toHaveLength(3)
+    expect(log.at(-2)).toBe('back 2')
+    await w.serve('other', 1)
+    await settled()
+    expect(log.filter(line => line.startsWith('apply'))).toHaveLength(3)
+  })
+
+  const pagesModule = (log: string[]) =>
+    defineUiModule({
+      name: 'notes-ui',
+      needs: { notes: needProtocol<Notes>(NOTES) },
+      apply(shell) {
+        const turn = log.filter(line => line.startsWith('apply')).length + 1
+        log.push(`apply ${turn}`)
+        shell.contribute('pages', page('notes'))
+        return () => void log.push(`back ${turn}`)
+      },
+    })
+
+  it('does not apply again after the module is unloaded, and leaves nothing it made', async () => {
+    const w = await world()
+    const log: string[] = []
+    const fiber = w.root.plugin(pagesModule(log))
+    await fiber
+    void w.serve('notes', 1)
+    await fiber.dispose()
+    await settled()
+    const applied = log.filter(line => line.startsWith('apply'))
+    for (const line of applied) expect(log).toContain(line.replace('apply', 'back'))
+    expect(w.shell.items('pages')).toEqual([])
+    const length = log.length
+    await w.serve('tasks', 1)
+    await settled()
+    expect(log).toHaveLength(length)
+  })
+
+  it('two changes in a row end on the last adoption, with every earlier turn taken back', async () => {
+    const w = await world()
+    const log: string[] = []
+    await w.root.plugin(pagesModule(log))
+    const serving = await w.serve('notes', 1)
+    await serving.dispose()
+    await settled()
+    expect(w.shell.adoption('notes-ui')).toMatchObject({ kind: 'unavailable' })
+    const last = log.at(-1)!
+    expect(last.startsWith('apply')).toBe(true)
+    const earlier = log.filter(line => line.startsWith('apply') && line !== last)
+    for (const line of earlier) expect(log).toContain(line.replace('apply', 'back'))
+    expect(log).not.toContain(last.replace('apply', 'back'))
+    expect(w.shell.items('pages')).toHaveLength(1)
+  })
+})
+
+describe('the client a protocol need gives', () => {
+  const entry = (calls: string[]): Entry => ({
+    point: PROTOCOLS,
+    key: 'notes/v1',
+    id: '',
+    scope: [],
+    rank: 0,
+    digest: 'notes/v1',
+    item: {
+      protocol: 'notes',
+      major: 1,
+      client: {
+        ping: async () => {
+          calls.push('ping')
+          return { outcome: 'succeeded' }
+        },
+        observe: {
+          watch: async function* () {
+            calls.push('watch')
+            yield 1
+            return { kind: 'ended' }
+          },
+        },
+      },
+    },
+  })
+  type Watching = {
+    observe: { watch(): AsyncGenerator<number, { kind: string }> }
+  }
+
+  async function bound() {
+    const w = await world()
+    const calls: string[] = []
+    let notes: Watching | undefined
+    await w.root.plugin(
+      moduleOf('notes-ui', { notes: needProtocol<Watching>(NOTES) }, given => {
+        notes = (given as { notes: Watching }).notes
+      }),
+    )
+    const pin = () =>
+      w.root.plugin({
+        name: 'pin',
+        inject: ['dynamis'],
+        apply: (ctx: Context) => void ctx.dynamis.put([entry(calls)]),
+      })
+    return { notes: notes!, calls, pin }
+  }
+
+  it('an observation without a pinned client ends at once as unavailable', async () => {
+    const { notes } = await bound()
+    expect(await notes.observe.watch().next()).toEqual({
+      done: true,
+      value: { kind: 'unavailable' },
+    })
+  })
+
+  it('an observation with a pinned client gives its frames as they are', async () => {
+    const { notes, pin } = await bound()
+    await pin().await()
+    const frames = notes.observe.watch()
+    expect(await frames.next()).toEqual({ done: false, value: 1 })
+    expect(await frames.next()).toEqual({ done: true, value: { kind: 'ended' } })
+  })
+
+  it('the client is not a thenable: awaiting it gives it back and calls nothing', async () => {
+    const { notes, calls, pin } = await bound()
+    await pin().await()
+    expect(await Promise.resolve(notes)).toBe(notes)
+    expect(calls).toEqual([])
+  })
+
+  it('an operation the pinned client does not have answers unavailable and does not throw', async () => {
+    const { notes, calls, pin } = await bound()
+    await pin().await()
+    expect(await (notes as unknown as { nope(body: object): Promise<unknown> }).nope({})).toEqual({
+      outcome: 'unavailable',
+    })
+    expect(calls).toEqual([])
+  })
+})

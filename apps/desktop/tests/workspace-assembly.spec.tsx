@@ -120,7 +120,7 @@ describe('the desktop assembly and the workspace', () => {
       'workspaces',
     ])
     expect(shell.lacks('pages', 'conversation')).toEqual([])
-    expect(shell.lacks('pages', 'workspaces')).toHaveLength(1)
+    expect(shell.lacks('pages', 'workspaces')).toEqual([{ kind: 'connecting' }])
     expect(shell.adoption('workspace-ui')).toMatchObject({
       kind: 'unavailable',
       missing: [{ slot: 'workspace', reference: { anyOf: ['workspace/v1'] } }],
