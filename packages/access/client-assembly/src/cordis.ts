@@ -1,15 +1,26 @@
 import { Service, type Context, type Plugin } from '@deepseek-ai/cordis'
+import { ask, declare } from '@omne-harness/dynamis'
+import type { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { accessProtocol, type ProtocolContract } from '@omne-harness/public-contract'
 import { createClient, type ClientOf, type ReadRetry, type Transport } from '@omne-harness/sdk/core'
 import {
   applyFrame,
   defaultBackoff,
   keyText,
+  protocolStanding,
   type AvailabilityView,
   type Backoff,
+  type ProtocolStanding,
   type ServerPoint,
   type ProtocolKey,
 } from './availability.ts'
+import {
+  alwaysClient,
+  CONNECTION_PROTOCOLS_POINT,
+  protocolsContract,
+  servedEntry,
+  type ServedProtocol,
+} from './protocols-point.ts'
 
 export type LoginState = 'signed-out' | 'signing-in' | 'signed-in' | 'signing-out'
 
@@ -30,6 +41,10 @@ export interface Connection {
     isOpen(key: ProtocolKey): boolean
     /** The revision the server has this protocol at; nothing when it is not served or not said. */
     peerRevision(key: ProtocolKey): number | undefined
+    /** The revision of the view now applied; nothing before the first one arrived. */
+    revision(): number | undefined
+    /** Where one protocol stands in what the server tells now. */
+    standing(key: ProtocolKey): ProtocolStanding
     /** The points the server declares; and the keys now on one of them, where it makes them public. */
     points(): ReadonlyMap<string, ServerPoint>
     keys(point: string): readonly string[] | undefined
@@ -41,6 +56,8 @@ export interface Connection {
   }
   readonly claim: (key: ProtocolKey) => () => void
   readonly readRetry: ReadRetry | undefined
+  /** The client of a protocol that is always there: a call goes out only while the protocol is pinned. */
+  client<P extends ProtocolContract>(protocol: P): ClientOf<P>
 }
 
 declare module '@deepseek-ai/cordis' {
@@ -100,6 +117,8 @@ function availabilityState(diagnostics: ConnectionOptions['diagnostics']) {
       current: () => current,
       isOpen: (key: ProtocolKey) => view?.open.has(keyText(key)) === true,
       peerRevision: (key: ProtocolKey) => view?.revisions.get(keyText(key)),
+      revision: () => view?.revision,
+      standing: (key: ProtocolKey) => protocolStanding(view, key),
       points: (): ReadonlyMap<string, ServerPoint> => view?.points ?? NO_POINTS,
       keys: (point: string) => view?.points.get(point)?.keys,
       subscribe(listener: (open: ReadonlySet<ProtocolKey>) => void): () => void {
@@ -134,6 +153,23 @@ export class ConnectionService extends Service implements Connection {
   readonly login: Connection['login']
   readonly claim: Connection['claim']
   readonly readRetry: Connection['readRetry']
+  private readonly clients = new Map<string, object>()
+
+  client<P extends ProtocolContract>(protocol: P): ClientOf<P> {
+    const key = keyText(protocol)
+    const known = this.clients.get(key)
+    if (known !== undefined) return known as ClientOf<P>
+    // The root is asked at each call: the registry may come and go while this client is held.
+    const registry = (): DynamisService | undefined => this.ctx.root.get('dynamis')
+    const made = alwaysClient(protocol, () => {
+      const tree = registry()
+      return tree === undefined
+        ? { kind: 'none', filtered: [] }
+        : ask<ServedProtocol>(tree.registry(), CONNECTION_PROTOCOLS_POINT, key, [])
+    })
+    this.clients.set(key, made)
+    return made
+  }
 
   constructor(ctx: Context, options: ConnectionOptions) {
     super(ctx, 'connection')
@@ -212,8 +248,17 @@ export function connectionPlugin(options: ConnectionOptions): Plugin.Object {
     name: 'connection-host',
     apply(ctx: Context) {
       ctx.plugin(ConnectionService, options)
+      ctx.plugin(protocolsPointPlugin)
     },
   }
+}
+
+const protocolsPointPlugin: Plugin.Object = {
+  name: 'connection-protocols',
+  inject: ['dynamis'],
+  apply(ctx: Context) {
+    ctx.get('dynamis')?.put([declare(protocolsContract)])
+  },
 }
 
 function guarded<P extends ProtocolContract>(
@@ -267,9 +312,10 @@ export function defineProtocolClient<P extends ProtocolContract>(protocol: P): P
   const service = protocolServiceName(key)
   return {
     name: `protocol-client:${keyText(key)}`,
-    inject: ['connection'],
+    inject: ['connection', 'dynamis'],
     apply(ctx: Context) {
       const connection = ctx.connection
+      const tree = ctx.get('dynamis') as DynamisService
       let provided: { revoke: AbortController; withdraw: () => Promise<void> } | undefined
 
       function withdraw(): Promise<void> {
@@ -293,7 +339,14 @@ export function defineProtocolClient<P extends ProtocolContract>(protocol: P): P
             revoke.signal,
           )
           const unregister = ctx.reflect.provide(service, client)
-          provided = { revoke, withdraw: async () => unregister() }
+          const take = tree.put([servedEntry(key, client, peerRevision())])
+          provided = {
+            revoke,
+            async withdraw() {
+              await take()
+              unregister()
+            },
+          }
         } else if (!open) void withdraw()
       }
 

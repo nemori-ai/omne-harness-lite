@@ -1,5 +1,6 @@
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, expect, it } from 'vitest'
+import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { defineProtocol, ruleCodec } from '@omne-harness/public-contract'
 import { createHttpProtocolTransport } from '@omne-harness/sdk/core'
 import {
@@ -44,6 +45,7 @@ it('the protocol client appears while the entry has the protocol mounted, and go
   const entry: Peer = await startPeer()
   cleanups.push(() => entry.stop())
   const root = new Context()
+  await root.plugin(DynamisService)
   cleanups.push(() => root.fiber.dispose())
   const transport = createHttpProtocolTransport({
     origin: entry.origin,
