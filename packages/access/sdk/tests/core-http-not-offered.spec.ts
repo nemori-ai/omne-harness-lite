@@ -50,6 +50,15 @@ describe('the server says the protocol does not have this name (V3)', () => {
     expect(await endOf(json(404, NOT_OFFERED))).toEqual({ kind: 'not-sent' })
   })
 
+  it.each(['not-mounted', 'conflict'])(
+    'the protocol is not served at all (%s): the same certain answer, for a call and an observation',
+    async reason => {
+      const reply = json(404, `{"kind":"not-executed","reason":"${reason}"}`)
+      expect(await callOf(reply)).toEqual({ kind: 'not-sent' })
+      expect(await endOf(reply)).toEqual({ kind: 'not-sent' })
+    },
+  )
+
   it.each([
     ['another status', json(200, NOT_OFFERED)],
     ['another reason', json(404, '{"kind":"not-executed","reason":"other"}')],

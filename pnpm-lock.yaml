@@ -723,6 +723,9 @@ importers:
       '@omne-harness/dispatch-tools':
         specifier: workspace:*
         version: link:../../packages/dispatch/dispatch-tools
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../packages/dynamis/dynamis-cordis
       '@omne-harness/exchange-refs':
         specifier: workspace:*
         version: link:../../packages/common/exchange-refs

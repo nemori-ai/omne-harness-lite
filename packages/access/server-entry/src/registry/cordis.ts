@@ -11,6 +11,8 @@ import { entryOf, keyOf, protocolsContract } from './table.ts'
 
 export type AccessRegistryProviderOptions = {
   readonly diagnostics?: (event: PipelineDiagnostic) => void
+  /** The registry service, when the caller built it in the same plugin body: `ctx.get` does not see it yet. */
+  readonly dynamis?: DynamisService
 }
 
 /** @owner packages/access/server-entry */
@@ -22,7 +24,7 @@ export class AccessRegistryProvider extends AccessRegistryService implements Reg
   constructor(ctx: Context, options: AccessRegistryProviderOptions = {}) {
     super(ctx)
     const { diagnostics } = options
-    this.dynamis = ctx.get('dynamis') as DynamisService
+    this.dynamis = options.dynamis ?? (ctx.get('dynamis') as DynamisService)
     this.desk = createDesk(() => this.dynamis.registry(), {
       onListenerError: () => {
         try {

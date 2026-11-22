@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { request } from 'node:http'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -143,13 +144,21 @@ describe('server-entry row: the access it gives the entry', () => {
       actFor: async () => ({ outcome: 'denied' }),
       reportAccess: async () => {},
     }
-    const { identity } = entryAccess(new Context(), createCapturingTelemetry().port, port)
+    const root = new Context()
+    const { identity } = entryAccess(
+      root,
+      createCapturingTelemetry().port,
+      port,
+      new DynamisService(root),
+    )
     expect(identity).toBe(port)
   })
 
   it('gives the entry a clock, and the clock schedules and cancels on the time source it adapts', () => {
+    const root = new Context()
+    const dynamis = new DynamisService(root)
     expect(
-      entryAccess(new Context(), createCapturingTelemetry().port, NO_IDENTITY).clock,
+      entryAccess(root, createCapturingTelemetry().port, NO_IDENTITY, dynamis).clock,
     ).toBeDefined()
     const time = simulatedTime()
     const clock = accessClockOf(time.source)
@@ -163,14 +172,16 @@ describe('server-entry row: the access it gives the entry', () => {
     expect([ran, time.pending()]).toEqual([['heartbeat'], 0])
   })
 
-  it('writes access.listener-fault when an availability listener throws', () => {
+  it('writes access.listener-fault when an availability listener throws', async () => {
     const capture = createCapturingTelemetry()
-    const { registry } = entryAccess(new Context(), capture.port, NO_IDENTITY)
+    const root = new Context()
+    await root.plugin(DynamisService)
+    const { registry } = entryAccess(root, capture.port, NO_IDENTITY)
     registry.subscribe(() => {
       throw new Error('listener')
     })
     const protocol = defineProtocol({ name: 'empty', major: 1, operations: {}, observations: {} })
-    registry.mount({ protocol, operations: {}, observations: {} } as never)
+    registry.own({ protocol, operations: {}, observations: {} } as never)
     expect(
       capture.records().map(record => (record.kind === 'event' ? record.fields : null)),
     ).toStrictEqual([{ code: 'access.listener-fault' }])

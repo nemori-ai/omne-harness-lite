@@ -1,4 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
+import type { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import type { AccessIdentity } from '@omne-harness/access-cordis-contract'
 import { systemScope } from '@omne-harness/legal-identity'
 import type {
@@ -36,6 +37,7 @@ const CODES = [
   'access.content-type-rejected',
   'access.not-mounted',
   'access.not-offered',
+  'access.protocol-conflict',
   'access.busy',
   'access.message-id-rejected',
   'access.revision-rejected',
@@ -99,10 +101,14 @@ export function entryAccess(
   ctx: Context,
   telemetry: TelemetryPort,
   identity: AccessIdentity,
+  dynamis?: DynamisService,
 ): ServerEntryAccess {
   const diagnostics = accessDiagnostics(telemetry)
   return {
-    registry: new AccessRegistryProvider(ctx, { diagnostics }).registry,
+    registry: new AccessRegistryProvider(ctx, {
+      diagnostics,
+      ...(dynamis !== undefined && { dynamis }),
+    }),
     identity,
     graceMs: GRACE_MS,
     frameQueueBytes: FRAME_QUEUE_BYTES,

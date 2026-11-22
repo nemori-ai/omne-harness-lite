@@ -68,16 +68,16 @@ const ABORTED: ObserveEnd = Object.freeze({ kind: 'aborted' })
 const STOPPED: ObserveEnd = Object.freeze({ kind: 'uncertain' })
 const NOT_SENT = Object.freeze({ kind: 'not-sent' as const })
 
-/** The server says its mounted protocol has no such name. Nothing ran, so it is as if nothing was sent. */
+const NOT_EXECUTED: readonly (string | undefined)[] = ['not-offered', 'not-mounted', 'conflict']
+
+/** The server says what was asked for is not provided. Nothing ran, so it is as if nothing was sent. */
 function notOffered(response: Response, source: string, limits: JsonLimits): boolean {
   if (response.status !== 404) return false
   const read = readJsonText(source, limits)
   if (read.kind !== 'ok' || read.value.kind !== 'object' || read.value.entries.length !== 2)
     return false
-  return (
-    text(member(read.value, 'kind')) === 'not-executed' &&
-    text(member(read.value, 'reason')) === 'not-offered'
-  )
+  const reason = text(member(read.value, 'reason'))
+  return text(member(read.value, 'kind')) === 'not-executed' && NOT_EXECUTED.includes(reason)
 }
 
 function eventOf(

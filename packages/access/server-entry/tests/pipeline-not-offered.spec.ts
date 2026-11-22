@@ -42,6 +42,34 @@ describe('a name the mounted protocol does not have (V3)', () => {
   })
 })
 
+describe('two instances hold the protocol at once', () => {
+  it('answers 404 that says nothing ran because of the conflict, names both in the diagnostic, and calls neither', async () => {
+    fixture.log.registry.mount(fixture.notes.contribution)
+    const reply = await call(fixture.port, 'read-note', { body: '{"noteId":"n-1"}' })
+    expect(reply.status).toBe(404)
+    expect(reply.text).toBe('{"kind":"not-executed","reason":"conflict"}')
+    expect(reply.headers['content-type']).toBe('application/json; charset=utf-8')
+    expect(fixture.diagnostics).toEqual([
+      {
+        code: 'access.protocol-conflict',
+        path: '/api/notes/v1/read-note',
+        protocol: 'notes',
+        major: 1,
+        operation: 'read-note',
+        by: ['mount-1#1', 'mount-3#1'],
+      },
+    ])
+    expect(fixture.log.entries).toEqual([])
+  })
+
+  it('serves again once one of the two is taken down', async () => {
+    const takeSecond = fixture.log.registry.mount(fixture.notes.contribution)
+    await takeSecond()
+    const reply = await call(fixture.port, 'no-such-operation')
+    expect(reply.text).toBe('{"kind":"not-executed","reason":"not-offered"}')
+  })
+})
+
 describe('the other refusals of admission', () => {
   it('a protocol that is not mounted: 404 that says nothing ran, with its own reason', async () => {
     const reply = await send(fixture.port, '/api/ghost/v1/read', {
