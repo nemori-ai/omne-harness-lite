@@ -9,6 +9,7 @@ const common = [
   'identity-text.ts',
   'rule.ts',
   'leaf-codec.ts',
+  'revision.ts',
 ] as const
 
 function localImports(file: string): readonly string[] {
@@ -32,6 +33,7 @@ it('reads relative imports in every form the sources use', () => {
   expect(localImports('rule-codec.ts')).toEqual([
     './identity-text.ts',
     './leaf-codec.ts',
+    './revision.ts',
     './rule.ts',
   ])
 })

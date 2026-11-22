@@ -10,10 +10,12 @@ it('exports the identity text codecs, the common contract, the user message and 
     'encodeLoginStateIdText',
     'encodeOrganizationIdText',
     'encodeTenantText',
+    'projectRule',
     'readAccountIdText',
     'readLoginStateIdText',
     'readOrganizationIdText',
     'readTenantText',
+    'revisionOf',
     'ruleCodec',
   ])
 })

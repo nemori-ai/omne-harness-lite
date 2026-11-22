@@ -2,13 +2,16 @@ import { judgeJsonValue, type JsonLimits, type JsonValue } from '@omne-harness/j
 import type { Instant } from '@omne-harness/utc-instant'
 import type { AccountId, LoginStateId, OrganizationId, TenantId } from './identity-text.ts'
 import { convert } from './leaf-codec.ts'
+import { checkRule } from './revision.ts'
 import type { LeafKind, Rule } from './rule.ts'
 
 export type CodecResult<T> = { readonly ok: true; readonly value: T } | { readonly ok: false }
 
+/** With a revision, a codec reads and writes the rule as it was at that revision. */
 export type Codec<T> = {
-  readonly read: (value: JsonValue, limits: JsonLimits) => CodecResult<T>
-  readonly write: (value: T, limits: JsonLimits) => CodecResult<JsonValue>
+  readonly read: (value: JsonValue, limits: JsonLimits, revision?: number) => CodecResult<T>
+  readonly write: (value: T, limits: JsonLimits, revision?: number) => CodecResult<JsonValue>
+  readonly rule?: Rule
 }
 
 type JsonObject = Extract<JsonValue, { readonly kind: 'object' }>
@@ -66,15 +69,17 @@ export function ruleCodec<const R extends Rule>(rule: R): Codec<RuleValue<R>> {
 }
 
 function engineCodec(rule: Rule): Codec<unknown> {
+  checkRule(rule)
   return {
-    read(value, limits) {
+    rule,
+    read(value, limits, revision) {
       const judged = judgeJsonValue(value, { maxVisits: limits.maxItems })
       if (!('ok' in judged)) return rejected
-      const converted = convert(rule, judged.ok, 'decode', limits)
+      const converted = convert(rule, judged.ok, 'decode', limits, revision)
       return converted === undefined ? rejected : { ok: true, value: converted.local }
     },
-    write(value, limits) {
-      const converted = convert(rule, value, 'encode', limits)
+    write(value, limits, revision) {
+      const converted = convert(rule, value, 'encode', limits, revision)
       return converted === undefined ? rejected : { ok: true, value: converted.wire }
     },
   }

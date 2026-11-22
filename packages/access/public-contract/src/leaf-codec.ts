@@ -13,6 +13,7 @@ import {
 } from '@omne-harness/legal-identity'
 import { encodeInstant, parseInstant, type Instant } from '@omne-harness/utc-instant'
 import type { LeafKind, Rule } from './rule.ts'
+import { livesAt } from './revision.ts'
 
 export type Fields = Readonly<Record<string, unknown>>
 export type Converted = { readonly local: unknown; readonly wire: JsonValue }
@@ -362,15 +363,19 @@ function convertObject(
   data: Fields | undefined,
   direction: Direction,
   limits: JsonLimits,
+  revision: number | undefined,
 ): Converted | undefined {
-  if (data === undefined || Object.keys(data).some(key => !Object.hasOwn(rule.fields, key)))
-    return undefined
+  const later = (key: string): boolean => !livesAt(rule.fields[key]?.since, revision)
+  const unknown = (key: string): boolean =>
+    !Object.hasOwn(rule.fields, key) || (direction === 'decode' && later(key))
+  if (data === undefined || Object.keys(data).some(unknown)) return undefined
   const local: Record<string, unknown> = {}
   const wire: Record<string, JsonValue> = {}
   for (const [key, field] of Object.entries(rule.fields)) {
     if (!Object.hasOwn(data, key) && field.optional) continue
-    const converted = convert(field.rule, data[key], direction, limits)
+    const converted = convert(field.rule, data[key], direction, limits, revision)
     if (converted === undefined) return undefined
+    if (later(key)) continue
     local[key] = converted.local
     wire[key] = converted.wire
   }
@@ -382,6 +387,7 @@ function convertList(
   data: readonly unknown[] | undefined,
   direction: Direction,
   limits: JsonLimits,
+  revision: number | undefined,
 ): Converted | undefined {
   if (
     data === undefined ||
@@ -392,7 +398,7 @@ function convertList(
     return undefined
   const values: Converted[] = []
   for (const item of data) {
-    const converted = convert(rule.item, item, direction, limits)
+    const converted = convert(rule.item, item, direction, limits, revision)
     if (converted === undefined) return undefined
     values.push(converted)
   }
@@ -407,9 +413,10 @@ function firstMatch(
   input: unknown,
   direction: Direction,
   limits: JsonLimits,
+  revision: number | undefined,
 ): Converted | undefined {
   for (const option of rules) {
-    const converted = convert(option, input, direction, limits)
+    const converted = convert(option, input, direction, limits, revision)
     if (converted !== undefined) return converted
   }
   return undefined
@@ -426,6 +433,7 @@ export function convert(
   input: unknown,
   direction: Direction,
   limits: JsonLimits,
+  revision?: number,
 ): Converted | undefined {
   if (isLeaf(rule)) return leaves[rule.kind](input, direction, limits)
   switch (rule.kind) {
@@ -437,11 +445,12 @@ export function convert(
         direction === 'decode' ? objectWire(nodeOf(input)) : fields(input),
         direction,
         limits,
+        revision,
       )
     case 'array':
-      return convertList(rule, itemsOf(input, direction), direction, limits)
+      return convertList(rule, itemsOf(input, direction), direction, limits, revision)
     case 'one-of':
-      return firstMatch(rule.rules, input, direction, limits)
+      return firstMatch(rule.rules, input, direction, limits, revision)
     default: {
       const unreachable: never = rule
       return unreachable

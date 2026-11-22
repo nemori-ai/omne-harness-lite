@@ -12,6 +12,7 @@
 - `Codec` · `rule-codec.d.ts`
 - `CodecResult` · `rule-codec.d.ts`
 - `DefinedProtocol` · `protocol.d.ts`
+- `FieldRule` · `rule.d.ts`
 - `FixedOutcome` · `outcome.d.ts`
 - `LeafKind` · `rule.d.ts`
 - `LoginStateId` · 包 `@omne-harness/legal-identity`
@@ -31,10 +32,12 @@
 - `encodeLoginStateIdText` · `identity-text.d.ts`
 - `encodeOrganizationIdText` · `identity-text.d.ts`
 - `encodeTenantText` · `identity-text.d.ts`
+- `projectRule` · `revision.d.ts`
 - `readAccountIdText` · `identity-text.d.ts`
 - `readLoginStateIdText` · `identity-text.d.ts`
 - `readOrganizationIdText` · `identity-text.d.ts`
 - `readTenantText` · `identity-text.d.ts`
+- `revisionOf` · `revision.d.ts`
 - `ruleCodec` · `rule-codec.d.ts`
 
 ## 声明文件 `access-protocol.d.ts`
@@ -203,7 +206,8 @@ export { OUTCOMES } from './outcome.ts';
 export type { FixedOutcome, Outcome } from './outcome.ts';
 export { ruleCodec } from './rule-codec.ts';
 export type { Codec, CodecResult, RuleValue } from './rule-codec.ts';
-export type { LeafKind, Rule } from './rule.ts';
+export type { FieldRule, LeafKind, Rule } from './rule.ts';
+export { projectRule, revisionOf } from './revision.ts';
 export { defineProtocol } from './protocol.ts';
 export { accessProtocol } from './access-protocol.ts';
 export type { AccessProtocol, AvailabilityFrame } from './access-protocol.ts';
@@ -228,7 +232,7 @@ export declare function textWire(value: JsonValue | undefined): string | undefin
 export declare function stringWire(value: string): JsonValue;
 export declare function wireObject(value: Readonly<Record<string, JsonValue>>): JsonValue;
 export declare function nodeOf(input: unknown): JsonValue | undefined;
-export declare function convert(rule: Rule, input: unknown, direction: Direction, limits: JsonLimits): Converted | undefined;
+export declare function convert(rule: Rule, input: unknown, direction: Direction, limits: JsonLimits, revision?: number): Converted | undefined;
 ```
 
 ## 声明文件 `outcome.d.ts`
@@ -279,6 +283,7 @@ export type OperationContract<Body = any, Results extends OutcomeBodies = Outcom
     readonly outcomes: Results;
     readonly carriesCredential?: true;
     readonly countsAsAccess?: true;
+    readonly since?: number;
 };
 export type ObservationContract<Open = any, Frame = any, End extends string = string> = {
     readonly identity: Identity;
@@ -287,6 +292,7 @@ export type ObservationContract<Open = any, Frame = any, End extends string = st
     readonly frame: Codec<Frame>;
     readonly ends: readonly End[];
     readonly countsAsAccess?: true;
+    readonly since?: number;
 };
 export type ProtocolContract = {
     readonly name: string;
@@ -333,6 +339,18 @@ export declare function defineProtocol<const P extends ProtocolContract>(protoco
 export {};
 ```
 
+## 声明文件 `revision.d.ts`
+
+```ts
+import type { ProtocolContract } from './protocol.ts';
+import type { Rule } from './rule.ts';
+export declare const livesAt: (since: number | undefined, revision: number | undefined) => boolean;
+export declare const isRevision: (value: unknown) => value is number;
+export declare function checkRule(rule: Rule): void;
+export declare function projectRule(rule: Rule, revision: number): Rule;
+export declare function revisionOf(protocol: ProtocolContract): number;
+```
+
 ## 声明文件 `rule-codec.d.ts`
 
 ```ts
@@ -347,8 +365,9 @@ export type CodecResult<T> = {
     readonly ok: false;
 };
 export type Codec<T> = {
-    readonly read: (value: JsonValue, limits: JsonLimits) => CodecResult<T>;
-    readonly write: (value: T, limits: JsonLimits) => CodecResult<JsonValue>;
+    readonly read: (value: JsonValue, limits: JsonLimits, revision?: number) => CodecResult<T>;
+    readonly write: (value: T, limits: JsonLimits, revision?: number) => CodecResult<JsonValue>;
+    readonly rule?: Rule;
 };
 type JsonObject = Extract<JsonValue, {
     readonly kind: 'object';
@@ -421,10 +440,7 @@ export type Rule = {
     readonly values: readonly (string | boolean)[];
 } | {
     readonly kind: 'object';
-    readonly fields: Readonly<Record<string, {
-        readonly rule: Rule;
-        readonly optional?: true;
-    }>>;
+    readonly fields: Readonly<Record<string, FieldRule>>;
 } | {
     readonly kind: 'array';
     readonly item: Rule;
@@ -433,6 +449,15 @@ export type Rule = {
 } | {
     readonly kind: 'one-of';
     readonly rules: readonly Rule[];
+};
+export type FieldRule = {
+    readonly rule: Rule;
+    readonly optional?: true;
+    readonly since?: 1;
+} | {
+    readonly rule: Rule;
+    readonly optional: true;
+    readonly since: number;
 };
 export type RequestRule = {
     readonly body: Rule;
