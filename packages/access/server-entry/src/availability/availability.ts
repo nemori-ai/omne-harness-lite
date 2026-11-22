@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import type {
   AccessContribution,
   FrameSource,
@@ -8,19 +9,38 @@ import {
   type AccessProtocol,
   type AvailabilityFrame,
 } from '@omne-harness/public-contract'
+import { contractDigest } from '@omne-harness/public-contract/snapshot'
 import { PACED } from '../observation-hub/hub.ts'
-import type { AvailabilityChange, RegistryForPipeline } from '../registry/registry.ts'
+import type {
+  AvailabilityChange,
+  RegistryForPipeline,
+  ServedProtocol,
+} from '../registry/registry.ts'
 
 type Availability = AccessProtocol['observations']['availability']
 
 const keyText = (key: ProtocolKey): string => `${key.name}/v${key.major}`
 const keyValue = (key: ProtocolKey): ProtocolKey => ({ name: key.name, major: key.major })
 
+type Served = Extract<AvailabilityFrame, { kind: 'snapshot' }>['protocols'][number]
+
+const sha256 = (bytes: Uint8Array): Uint8Array => createHash('sha256').update(bytes).digest()
+const digests = new WeakMap<object, string | undefined>()
+
+/** The key with what the contract is at. The digest is worked out once for a contract. */
+function servedValue(protocol: ServedProtocol): Served {
+  const { name, major, revision, contract } = protocol
+  if (!digests.has(contract)) digests.set(contract, contractDigest(contract, revision, sha256))
+  const digest = digests.get(contract)
+  return { name, major, revision, ...(digest !== undefined && { digest }) }
+}
+
 function changeFrame(change: AvailabilityChange): AvailabilityFrame {
-  const protocol = [keyValue(change.protocol)]
+  const { revision } = change
+  const conflicts = change.conflicts.map(keyValue)
   return change.change === 'mounted'
-    ? { kind: 'change', revision: change.revision, added: protocol, removed: [] }
-    : { kind: 'change', revision: change.revision, added: [], removed: protocol }
+    ? { kind: 'change', revision, added: [servedValue(change.protocol)], removed: [], conflicts }
+    : { kind: 'change', revision, added: [], removed: [keyValue(change.protocol)], conflicts }
 }
 
 export function availabilitySource(
@@ -28,7 +48,8 @@ export function availabilitySource(
   backlog: number,
 ): FrameSource<Availability> {
   return async ({ signal }) => {
-    const known = new Map<string, ProtocolKey>()
+    const known = new Map<string, ServedProtocol>()
+    let conflicts: readonly ProtocolKey[] = []
     const queue: AvailabilityChange[] = []
     let snapshotDue = true
     let revision = 0
@@ -37,6 +58,7 @@ export function availabilitySource(
       if (change.change === 'mounted') known.set(keyText(change.protocol), change.protocol)
       else known.delete(keyText(change.protocol))
       revision = change.revision
+      conflicts = change.conflicts
       if (snapshotDue) return
       queue.push(change)
       if (queue.length > backlog) {
@@ -46,6 +68,7 @@ export function availabilitySource(
       wake?.()
     })
     revision = subscription.revision
+    conflicts = subscription.conflicts
     for (const key of subscription.protocols) known.set(keyText(key), key)
     // The subscription began here, before any frame is taken, so it ends on the abort itself: the
     // hub may abort an opening it never reads, and a generator that never ran has no `finally`.
@@ -65,7 +88,8 @@ export function availabilitySource(
     const snapshot = (): AvailabilityFrame => ({
       kind: 'snapshot',
       revision,
-      protocols: [...known.values()].map(keyValue),
+      protocols: [...known.values()].map(servedValue),
+      conflicts: conflicts.map(keyValue),
     })
 
     async function* frames(): AsyncGenerator<AvailabilityFrame, 'unavailable'> {

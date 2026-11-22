@@ -1,10 +1,11 @@
 {
   "digests": {
-    "1": "sha256:96cfa660d2347e783461b862c08b838140af2bdbad1784d5f81aa0a028111277"
+    "1": "sha256:96cfa660d2347e783461b862c08b838140af2bdbad1784d5f81aa0a028111277",
+    "2": "sha256:c7cb8d76fdbe7e2c834de6e1d153cc2722149bdd60ccb3455ac1f8520ff7d093"
   },
   "major": 1,
   "name": "access",
-  "revision": 1,
+  "revision": 2,
   "rules": {
     "observations": {
       "availability": {
@@ -14,15 +15,8 @@
           "rules": [
             {
               "fields": {
-                "kind": {
-                  "rule": {
-                    "kind": "literal",
-                    "values": [
-                      "snapshot"
-                    ]
-                  }
-                },
-                "protocols": {
+                "conflicts": {
+                  "optional": true,
                   "rule": {
                     "item": {
                       "fields": {
@@ -35,6 +29,49 @@
                           "rule": {
                             "kind": "text"
                           }
+                        }
+                      },
+                      "kind": "object"
+                    },
+                    "kind": "array"
+                  },
+                  "since": 2
+                },
+                "kind": {
+                  "rule": {
+                    "kind": "literal",
+                    "values": [
+                      "snapshot"
+                    ]
+                  }
+                },
+                "protocols": {
+                  "rule": {
+                    "item": {
+                      "fields": {
+                        "digest": {
+                          "optional": true,
+                          "rule": {
+                            "kind": "text"
+                          },
+                          "since": 2
+                        },
+                        "major": {
+                          "rule": {
+                            "kind": "positive-integer"
+                          }
+                        },
+                        "name": {
+                          "rule": {
+                            "kind": "text"
+                          }
+                        },
+                        "revision": {
+                          "optional": true,
+                          "rule": {
+                            "kind": "positive-integer"
+                          },
+                          "since": 2
                         }
                       },
                       "kind": "object"
@@ -56,6 +93,41 @@
                   "rule": {
                     "item": {
                       "fields": {
+                        "digest": {
+                          "optional": true,
+                          "rule": {
+                            "kind": "text"
+                          },
+                          "since": 2
+                        },
+                        "major": {
+                          "rule": {
+                            "kind": "positive-integer"
+                          }
+                        },
+                        "name": {
+                          "rule": {
+                            "kind": "text"
+                          }
+                        },
+                        "revision": {
+                          "optional": true,
+                          "rule": {
+                            "kind": "positive-integer"
+                          },
+                          "since": 2
+                        }
+                      },
+                      "kind": "object"
+                    },
+                    "kind": "array"
+                  }
+                },
+                "conflicts": {
+                  "optional": true,
+                  "rule": {
+                    "item": {
+                      "fields": {
                         "major": {
                           "rule": {
                             "kind": "positive-integer"
@@ -70,7 +142,8 @@
                       "kind": "object"
                     },
                     "kind": "array"
-                  }
+                  },
+                  "since": 2
                 },
                 "kind": {
                   "rule": {

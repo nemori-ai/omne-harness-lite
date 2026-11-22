@@ -205,7 +205,7 @@ describe('对外可用的集合', () => {
   it('没挂是空的；一份在服务有它；撤下中没有；两份在记成冲突', () => {
     expect(open(declared())).toEqual({ protocols: [], conflicts: [] })
     expect(open(serving())).toEqual({
-      protocols: [{ key: KEY, name: 'notes', major: 1, revision: 1 }],
+      protocols: [{ key: KEY, name: 'notes', major: 1, revision: 1, contract: notes }],
       conflicts: [],
     })
     expect(open(retire(serving(), a1))).toEqual({ protocols: [], conflicts: [] })

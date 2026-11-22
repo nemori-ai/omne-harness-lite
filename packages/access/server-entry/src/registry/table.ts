@@ -62,7 +62,13 @@ export type Enter =
   | Readonly<{ kind: 'conflict'; by: readonly Instance[] }>
 
 export type Open = Readonly<{
-  protocols: readonly Readonly<{ key: string; name: string; major: number; revision: number }>[]
+  protocols: readonly Readonly<{
+    key: string
+    name: string
+    major: number
+    revision: number
+    contract: ProtocolContract
+  }>[]
   conflicts: readonly Readonly<{ key: string; name: string; major: number }>[]
 }>
 
@@ -149,6 +155,7 @@ export function open(registry: Registry): Open {
     protocols: listing.items.map(({ entry }) => ({
       ...named(entry),
       revision: entry.item.revision,
+      contract: entry.item.contribution.protocol,
     })),
     conflicts: listing.conflicts.map(([first]) => named(first as Entry<ProtocolItem>)),
   }

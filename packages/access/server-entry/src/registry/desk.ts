@@ -13,6 +13,7 @@ import type {
   AvailabilityChange,
   AvailabilitySubscription,
   RegistryForPipeline,
+  ServedProtocol,
   StandaloneRegistry,
 } from './registry.ts'
 import {
@@ -54,13 +55,14 @@ function itemOf(registry: Registry, instance: Instance, key: string): ProtocolIt
 export function createDesk(read: () => Registry, options: DeskOptions = {}): ProtocolDesk {
   let calls = noCalls
   let revision = 0
-  const served = new Map<string, ProtocolKey>()
+  const served = new Map<string, ServedProtocol>()
+  let conflicts: readonly ProtocolKey[] = []
   const waiting = new Map<string, () => void>()
   const listeners = new Set<(change: AvailabilityChange) => void>()
 
-  function announce(change: AvailabilityChange['change'], protocol: ProtocolKey): void {
+  function announce(change: AvailabilityChange['change'], protocol: ServedProtocol): void {
     revision += 1
-    const event: AvailabilityChange = { revision, change, protocol }
+    const event: AvailabilityChange = { revision, change, protocol, conflicts }
     for (const listener of Array.from(listeners)) {
       try {
         listener(event)
@@ -105,6 +107,7 @@ export function createDesk(read: () => Registry, options: DeskOptions = {}): Pro
       return {
         revision,
         protocols: [...served.values()],
+        conflicts,
         unsubscribe: () => void listeners.delete(listener),
       }
     },
@@ -116,16 +119,19 @@ export function createDesk(read: () => Registry, options: DeskOptions = {}): Pro
       })
     },
     changed(registry) {
-      const now = new Map(open(registry).protocols.map(protocol => [protocol.key, protocol]))
+      const opened = open(registry)
+      const now = new Map(opened.protocols.map(protocol => [protocol.key, protocol]))
+      conflicts = opened.conflicts.map(({ name, major }) => ({ name, major }))
       for (const [key, protocol] of Array.from(served))
         if (!now.has(key)) {
           served.delete(key)
           announce('unmounted', protocol)
         }
-      for (const [key, { name, major }] of now)
+      for (const [key, { name, major, revision: at, contract }] of now)
         if (!served.has(key)) {
-          served.set(key, { name, major })
-          announce('mounted', { name, major })
+          const protocol = { name, major, revision: at, contract }
+          served.set(key, protocol)
+          announce('mounted', protocol)
         }
     },
   }

@@ -28,15 +28,24 @@ export type Entered = {
   readonly leave: () => void
 }
 
+/** A protocol the entry serves: its key, the revision of its contract, and the contract itself. */
+export type ServedProtocol = ProtocolKey & {
+  readonly revision: number
+  readonly contract: ProtocolContract
+}
+
 export type AvailabilityChange = {
   readonly revision: number
   readonly change: 'mounted' | 'unmounted'
-  readonly protocol: ProtocolKey
+  readonly protocol: ServedProtocol
+  /** The protocols that two instances hold at once, after this change. */
+  readonly conflicts: readonly ProtocolKey[]
 }
 
 export type AvailabilitySubscription = {
   readonly revision: number
-  readonly protocols: readonly ProtocolKey[]
+  readonly protocols: readonly ServedProtocol[]
+  readonly conflicts: readonly ProtocolKey[]
   readonly unsubscribe: () => void
 }
 
