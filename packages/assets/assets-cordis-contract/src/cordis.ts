@@ -2,7 +2,10 @@ import { Service, type Context, type Plugin } from '@deepseek-ai/cordis'
 import {
   admitCategory,
   categoryViewOf,
+  scopeOfLayer,
   type CategoryContribution,
+  type HeldItem,
+  type HeldPoint,
   type CategoryReading,
   type CategoryView,
   type TenantManagement,
@@ -31,6 +34,7 @@ import {
   assetChangesKey,
   assetManagementKey,
   assetPublishingKey,
+  heldEntry,
   independentSettingsKey,
 } from './index.ts'
 
@@ -95,12 +99,23 @@ export class AssetCategoriesService extends Service {
     this.view = categoryViewOf(() => readingOf(tree.registry()))
   }
 
-  /** The contribution is an item on the tree, put as the one who contributes, for as long as its scope lives. */
-  contribute(contribution: CategoryContribution): void {
-    const admitted = admitCategory(contribution)
-    // Read from `this`, not captured: Cordis gives the caller its own view, so the item is put as the caller.
+  /** A category and its point go on the tree together, put as the one who contributes, for as long as its scope lives. */
+  contribute(category: Omit<CategoryContribution, 'point'>, point: HeldPoint): void {
+    const admitted = admitCategory({ ...category, point: point.name })
+    // Read from `this`, not captured: Cordis gives the caller its own view, so the items are put as the caller.
     const { tree } = this
-    this.ctx.effect(() => tree.put(by => [contributed(admitted, by)]), 'assetCategories.contribute')
+    this.ctx.effect(
+      () => tree.put(by => [contributed(admitted, by), declare(point)]),
+      'assetCategories.contribute',
+    )
+  }
+
+  /** The definitions the deployment itself brings: items of the whole deployment on the point of their category. */
+  bring(point: string, held: readonly Readonly<{ name: string; item: HeldItem }>[]): void {
+    const { tree } = this
+    const scope = scopeOfLayer('official')
+    const entries = held.map(({ name, item }) => heldEntry(point, name, scope, item))
+    this.ctx.effect(() => tree.put(entries), 'assetCategories.bring')
   }
 }
 
@@ -194,15 +209,31 @@ export const assetCategoriesPlugin: Plugin.Object = {
   },
 }
 
-export function categoryContributionPlugin(
+/** Brings official definitions once the categories are there; the row that plugs it does not wait for them. */
+export function broughtDefinitionsPlugin(
   name: string,
-  contribution: CategoryContribution,
+  point: string,
+  held: readonly Readonly<{ name: string; item: HeldItem }>[],
 ): Plugin.Object {
   return {
     name,
     inject: [assetCategoriesKey],
     apply(ctx: Context) {
-      ctx.assetCategories.contribute(contribution)
+      ctx.assetCategories.bring(point, held)
+    },
+  }
+}
+
+export function categoryContributionPlugin(
+  name: string,
+  category: Omit<CategoryContribution, 'point'>,
+  point: HeldPoint,
+): Plugin.Object {
+  return {
+    name,
+    inject: [assetCategoriesKey],
+    apply(ctx: Context) {
+      ctx.assetCategories.contribute(category, point)
     },
   }
 }

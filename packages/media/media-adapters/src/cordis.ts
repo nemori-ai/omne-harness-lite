@@ -45,8 +45,11 @@ export class MediaToolStorePlugin extends ToolMediaStoreService<unknown> {
 }
 
 /** Contributes the category `converter` to the assets while it is in the tree. */
-export const converterCategoryPlugin = categoryContributionPlugin('converter-category', {
-  contract: converterBodyContract(),
-  display: converterCategoryDisplay,
-  point: mediaConvertersPoint.name,
-})
+export const converterCategoryPlugin = categoryContributionPlugin(
+  'converter-category',
+  {
+    contract: converterBodyContract(),
+    display: converterCategoryDisplay,
+  },
+  mediaConvertersPoint,
+)

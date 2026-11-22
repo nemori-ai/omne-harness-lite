@@ -10,6 +10,7 @@ import { converterCategoryPlugin } from '@omne-harness/media-adapters/cordis'
 import { modelProviderCategoryPlugin } from '@omne-harness/model-host-local/cordis'
 import { skillCategoryPlugin } from '@omne-harness/skill-host-local/cordis'
 import { toolBodyContract, toolCategoryDisplay } from '@omne-harness/tool-contract'
+import { toolToolsPoint } from '@omne-harness/tool-cordis-contract/cordis'
 import { expect, it } from 'vitest'
 
 it('six domains contribute into one extension point, each with the name it declares', async () => {
@@ -22,12 +23,11 @@ it('six domains contribute into one extension point, each with the name it decla
   await root.plugin(modelProviderCategoryPlugin)
   await root.plugin(converterCategoryPlugin)
   await root.plugin(
-    categoryContributionPlugin('tool-category', {
-      contract: toolBodyContract(),
-      display: toolCategoryDisplay,
-      generalCreation: 'closed',
-      point: 'tool.tools',
-    }),
+    categoryContributionPlugin(
+      'tool-category',
+      { contract: toolBodyContract(), display: toolCategoryDisplay, generalCreation: 'closed' },
+      toolToolsPoint,
+    ),
   )
   expect(
     root.assetCategories.view

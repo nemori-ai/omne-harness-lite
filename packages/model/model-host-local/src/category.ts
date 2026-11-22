@@ -5,9 +5,12 @@ import {
   modelProviderCategoryDisplay,
 } from '@omne-harness/model-contract/provider-asset'
 
-export const modelProviderCategoryPlugin = categoryContributionPlugin('model-provider-category', {
-  contract: modelProviderBodyContract(),
-  display: modelProviderCategoryDisplay,
-  generalCreation: 'closed',
-  point: modelProvidersPoint.name,
-})
+export const modelProviderCategoryPlugin = categoryContributionPlugin(
+  'model-provider-category',
+  {
+    contract: modelProviderBodyContract(),
+    display: modelProviderCategoryDisplay,
+    generalCreation: 'closed',
+  },
+  modelProvidersPoint,
+)

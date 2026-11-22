@@ -1,7 +1,13 @@
 import type { Context, Plugin } from '@deepseek-ai/cordis'
-import { agentAdoptionsKey } from '@omne-harness/agent-cordis-contract/cordis'
+import {
+  agentAdoptionsKey,
+  agentDefinitionsPoint,
+} from '@omne-harness/agent-cordis-contract/cordis'
+import { agentDefinitionCategoryPlugin } from '@omne-harness/agent-host-local/cordis'
+import { broughtDefinitionsPlugin } from '@omne-harness/assets-cordis-contract/cordis'
 import { agentDefinitionCatalogKey } from './definition-catalog.ts'
 import { definitionMappingsKey } from './definition-mappings.ts'
+import { officialItem } from '../../assets/official-holdings.ts'
 import { defineRow } from '../../row.ts'
 import { agentAdoptionsConfig, type AgentAdoptionsConfig } from './config.ts'
 import {
@@ -11,11 +17,24 @@ import {
 } from './services.ts'
 import { buildTable } from './table.ts'
 
+const DEFINITION_CATEGORY = 'AgentDefinition'
+
 const plugin: Plugin.Object = {
   name: 'agent-adoptions',
   Config: agentAdoptionsConfig,
   async apply(ctx: Context, config: AgentAdoptionsConfig) {
     const table = await buildTable(config)
+    ctx.plugin(agentDefinitionCategoryPlugin)
+    ctx.plugin(
+      broughtDefinitionsPlugin(
+        'agent-definitions-official',
+        agentDefinitionsPoint.name,
+        table.mappings.entries().map(({ name, candidate }) => ({
+          name,
+          item: officialItem(DEFINITION_CATEGORY, name, candidate.digest),
+        })),
+      ),
+    )
     new AgentAdoptionsImpl(ctx, table)
     new DefinitionMappingsImpl(ctx, table.mappings)
     new AgentDefinitionCatalogImpl(ctx, table)

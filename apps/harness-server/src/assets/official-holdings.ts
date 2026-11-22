@@ -3,6 +3,7 @@ import {
   pinBody,
   projectAssetSettings,
   type BodyContract,
+  type HeldItem,
   type JsonValue,
 } from '@omne-harness/assets'
 import {
@@ -33,6 +34,17 @@ const TOOL_CONTRACT = toolBodyContract()
 
 export function officialAssetRef(category: string, name: string): string {
   return `${SOURCE}/${category}/${name}`
+}
+
+/** An official definition as the item its category's point holds: enabled, and it locks nothing. */
+export function officialItem(category: string, name: string, version: string): HeldItem {
+  return {
+    asset: officialAssetRef(category, name),
+    version,
+    disabled: false,
+    immutable: false,
+    replaceLocked: false,
+  }
 }
 
 export function toolAsset(definition: ToolDefinition): OfficialAsset {

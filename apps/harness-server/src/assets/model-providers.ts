@@ -31,6 +31,7 @@ const BODY_LIMITS = {
 
 export type ReleaseProvider = Readonly<{
   body: ModelProviderBody
+  version: string
   holding: Extract<OfficialHolding, { kind: 'declared' }> | null
 }>
 
@@ -40,15 +41,16 @@ function readProvider(text: string): ReleaseProvider {
   const parsed = parseModelProviderBody(read.value)
   if ('failure' in parsed) throw new Error(`a release provider body is refused: ${parsed.failure}`)
   const body = parsed.ok
+  const version = createHash('sha256').update(text, 'utf8').digest('hex')
   const held = officialHolding({
     contract: PROVIDER_CONTRACT,
     name: body.name,
-    version: createHash('sha256').update(text, 'utf8').digest('hex'),
+    version,
     body: read.value,
   })
   if (held.kind === 'rejected')
     throw new Error(`the provider ${body.name} declares no valid settings: ${held.reason}`)
-  return { body, holding: held.kind === 'declared' ? held : null }
+  return { body, version, holding: held.kind === 'declared' ? held : null }
 }
 
 let providers: readonly ReleaseProvider[] | undefined

@@ -1,5 +1,10 @@
 import type { Context } from '@deepseek-ai/cordis'
-import type { BodyContract, CategoryContribution, PackageLayout } from '@omne-harness/assets'
+import {
+  heldPoint,
+  type BodyContract,
+  type CategoryContribution,
+  type PackageLayout,
+} from '@omne-harness/assets'
 import { assetCategoriesKey } from '@omne-harness/assets-cordis-contract'
 import type { JsonValue } from '@omne-harness/json-text'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -161,7 +166,11 @@ const fixtureCategoriesRow = defineRow({
     name: 'fixture-categories',
     inject: [assetCategoriesKey],
     apply(ctx: Context) {
-      for (const contribution of FIXTURE_CATEGORIES) ctx.assetCategories.contribute(contribution)
+      for (const contribution of FIXTURE_CATEGORIES)
+        ctx.assetCategories.contribute(
+          contribution,
+          heldPoint({ name: contribution.point, key: 'the item name', summary: 'Held items.' }),
+        )
     },
   },
 })
