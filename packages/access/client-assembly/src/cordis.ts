@@ -317,6 +317,8 @@ function guarded<P extends ProtocolContract>(
 
 export const protocolServiceName = (key: ProtocolKey): string => `protocol:${keyText(key)}`
 
+type Offered = { revoke: AbortController; retell(): void; withdraw(): Promise<void> }
+
 export function defineProtocolClient<P extends ProtocolContract>(protocol: P): Plugin.Object {
   const key: ProtocolKey = { name: protocol.name, major: protocol.major }
   const service = protocolServiceName(key)
@@ -326,7 +328,36 @@ export function defineProtocolClient<P extends ProtocolContract>(protocol: P): P
     apply(ctx: Context) {
       const connection = ctx.connection
       const tree = ctx.get('dynamis') as DynamisService
-      let provided: { revoke: AbortController; withdraw: () => Promise<void> } | undefined
+      const peerRevision = (): number | undefined => connection.availability.peerRevision(key)
+      let provided: Offered | undefined
+
+      function offer(): Offered {
+        const revoke = new AbortController()
+        const { readRetry } = connection
+        const settings = readRetry === undefined ? { peerRevision } : { readRetry, peerRevision }
+        const client = guarded(
+          protocol,
+          createClient(protocol, connection.transport, settings),
+          revoke.signal,
+        )
+        const unregister = ctx.reflect.provide(service, client)
+        let told = peerRevision()
+        let take = tree.put([servedEntry(key, client, told)])
+        return {
+          revoke,
+          retell() {
+            const now = peerRevision()
+            if (now === told) return
+            void take()
+            told = now
+            take = tree.put([servedEntry(key, client, told)])
+          },
+          async withdraw() {
+            await take()
+            unregister()
+          },
+        }
+      }
 
       function withdraw(): Promise<void> {
         if (provided === undefined) return Promise.resolve()
@@ -337,27 +368,9 @@ export function defineProtocolClient<P extends ProtocolContract>(protocol: P): P
       }
 
       function sync(): void {
-        const open = connection.availability.isOpen(key)
-        if (open && provided === undefined) {
-          const revoke = new AbortController()
-          const { readRetry } = connection
-          const peerRevision = (): number | undefined => connection.availability.peerRevision(key)
-          const settings = readRetry === undefined ? { peerRevision } : { readRetry, peerRevision }
-          const client = guarded(
-            protocol,
-            createClient(protocol, connection.transport, settings),
-            revoke.signal,
-          )
-          const unregister = ctx.reflect.provide(service, client)
-          const take = tree.put([servedEntry(key, client, peerRevision())])
-          provided = {
-            revoke,
-            async withdraw() {
-              await take()
-              unregister()
-            },
-          }
-        } else if (!open) void withdraw()
+        if (!connection.availability.isOpen(key)) void withdraw()
+        else if (provided === undefined) provided = offer()
+        else provided.retell()
       }
 
       ctx.effect(() => {
