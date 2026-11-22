@@ -172,6 +172,25 @@ describe('attachWhile on a reader of its own', () => {
     expect(attached).toBe(0)
   })
 
+  it('when the value goes away it detaches and attaches nothing in its place', () => {
+    const source = readerOf({})
+    const given: unknown[] = []
+    let detached = 0
+    attachWhile(source.reader, value => {
+      given.push(value)
+      return () => void (detached += 1)
+    })
+    source.set(undefined)
+    expect(given).toHaveLength(1)
+    expect(detached).toBe(1)
+  })
+
+  it('stopping while nothing is attached does not throw', () => {
+    const source = readerOf(undefined)
+    const stop = attachWhile(source.reader, () => () => undefined)
+    expect(() => stop()).not.toThrow()
+  })
+
   it('the function it returns detaches once and stops following the reader', () => {
     const source = readerOf({})
     let attached = 0

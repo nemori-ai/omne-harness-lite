@@ -183,6 +183,17 @@ describe('a view module that declares its needs', () => {
     expect(w.shell.adoption('notes-ui')).toEqual({ kind: 'adopted', bindings: { notes: null } })
   })
 
+  it('a missing required need keeps the module from being adopted, whatever an optional need on an undeclared point says', async () => {
+    const w = await world()
+    await w.root.plugin(
+      moduleOf('notes-ui', {
+        notes: needProtocol(NOTES),
+        choices: needPoint<string[]>('test.never-declared', { optional: true }),
+      }),
+    )
+    expect(w.shell.adoption('notes-ui')?.kind).toBe('unavailable')
+  })
+
   it('a need for a point reads what is on it now, and nothing when it is not there', async () => {
     const w = await world()
     let choices: { get(): unknown; subscribe(listener: () => void): () => void } | undefined
@@ -553,6 +564,47 @@ describe('the client a protocol need gives', () => {
     await pin().await()
     expect(await Promise.resolve(notes)).toBe(notes)
     expect(calls).toEqual([])
+  })
+
+  it('an observation the pinned client does not have ends as unavailable and does not throw', async () => {
+    const { notes, pin } = await bound()
+    await pin().await()
+    const other = notes as unknown as {
+      observe: { nope(): AsyncGenerator<number, { kind: string }> }
+    }
+    expect(await other.observe.nope().next()).toEqual({
+      done: true,
+      value: { kind: 'unavailable' },
+    })
+  })
+
+  it('a pinned client with no observations at all ends an observation as unavailable', async () => {
+    const w = await world()
+    let notes: Watching | undefined
+    await w.root.plugin(
+      moduleOf('notes-ui', { notes: needProtocol<Watching>(NOTES) }, given => {
+        notes = (given as { notes: Watching }).notes
+      }),
+    )
+    const bare: Entry = { ...entry([]), item: { protocol: 'notes', major: 1, client: {} } }
+    await w.root
+      .plugin({
+        name: 'pin',
+        inject: ['dynamis'],
+        apply: (ctx: Context) => void ctx.dynamis.put([bare]),
+      })
+      .await()
+    expect(w.shell.adoption('notes-ui')?.kind).toBe('adopted')
+    expect(await notes!.observe.watch().next()).toEqual({
+      done: true,
+      value: { kind: 'unavailable' },
+    })
+  })
+
+  it('a symbol read off the client gives nothing, so it is never taken for an iterable or a primitive', async () => {
+    const { notes, pin } = await bound()
+    await pin().await()
+    expect((notes as unknown as Record<symbol, unknown>)[Symbol.iterator]).toBeUndefined()
   })
 
   it('an operation the pinned client does not have answers unavailable and does not throw', async () => {

@@ -292,8 +292,10 @@ describe('what the connection tells of the protocols the server serves', () => {
     expect(notesItem(t).item).toMatchObject({ peerRevision: 3 })
     expect(notesItem(t).digest).toBe('notes/v1@3')
     expect(notesItem(t).item.client).toBe(before.item.client)
+    const settled = t.root.dynamis.registry()
     await t.push(withRevision(3, ACCESS, { ...served, revision: 3 }))
     expect(notesItem(t).digest).toBe('notes/v1@3')
+    expect(t.root.dynamis.registry()).toBe(settled)
   })
 
   it('keeps the revision the peer is at in the item and in the digest, and takes the new one when the protocol comes back', async () => {
