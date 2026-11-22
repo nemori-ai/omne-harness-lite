@@ -53,5 +53,7 @@ export function report(
     return 1
   }
   if (code === 5) output.stderr(`omne ${command}: result uncertain\n`)
+  if (result.kind === 'unavailable' && result.reason !== undefined)
+    output.stderr(`omne ${command}: ${result.reason}\n`)
   return code
 }
