@@ -66,9 +66,9 @@ const COMMITS = [
   'remove-destination',
 ]
 
-describe('notification/v1', () => {
-  it('is notification major 1 with eight reads, eight commits and one observation', () => {
-    expect([notificationProtocol.name, notificationProtocol.major]).toEqual(['notification', 1])
+describe('notification/v2', () => {
+  it('is notification major 2 with eight reads, eight commits and one observation', () => {
+    expect([notificationProtocol.name, notificationProtocol.major]).toEqual(['notification', 2])
     expect(Object.keys(operations).sort()).toEqual([...READS, ...COMMITS].sort())
     expect(Object.keys(observations)).toEqual(['observe-changes'])
     for (const [name, operation] of Object.entries(operations)) {

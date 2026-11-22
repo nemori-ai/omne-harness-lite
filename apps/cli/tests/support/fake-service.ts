@@ -263,7 +263,7 @@ export function streamAnswer(frames: readonly unknown[], end: string): Answer {
   return { outcome: 'stream', body: { frames, end } }
 }
 
-const PATH = /^\/api\/[^/]+\/v1\/([^/]+)$/
+const PATH = /^\/api\/[^/]+\/v[1-9][0-9]*\/([^/]+)$/
 const PROBE = '/probe'
 
 const fetchFailure = (url: string): Promise<unknown> =>

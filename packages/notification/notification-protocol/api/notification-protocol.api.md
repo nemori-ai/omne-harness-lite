@@ -1947,7 +1947,7 @@ export declare const notificationProtocol: {
         };
     };
     readonly name: "notification";
-    readonly major: 1;
+    readonly major: 2;
     readonly observations: {
         readonly 'observe-changes': {
             readonly identity: "login";

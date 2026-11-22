@@ -39,10 +39,10 @@ const inbox = (filter: 'unresolved' | 'all') => ({
   limit: 20,
 })
 
-/** A client of notification/v1 over HTTP, with the login the given client state saved. */
+/** A client of notification/v2 over HTTP, with the login the given client state saved. */
 function clientOf(port: number, home: string): Client {
   const url = (operation: string) =>
-    `http://127.0.0.1:${String(port)}/api/notification/v1/${operation}`
+    `http://127.0.0.1:${String(port)}/api/notification/v2/${operation}`
   const headers = () => ({
     'content-type': 'application/json',
     authorization: `Bearer ${savedLoginProof(home)}`,

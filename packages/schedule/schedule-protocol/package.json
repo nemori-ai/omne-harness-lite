@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Protocol contract of the public protocol schedule/v1: a tenant's schedules, read, previewed and managed",
+  "description": "Protocol contract of the public protocol schedule/v2: a tenant's schedules, read, previewed and managed",
   "engines": {
     "node": ">=24"
   },

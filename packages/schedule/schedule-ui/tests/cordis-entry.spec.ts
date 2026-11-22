@@ -11,6 +11,6 @@ it('the cordis entry gives the module factory and its placements only; the modul
   const create = cordis['createScheduleUiModule'] as () => unknown
   expect(create()).toMatchObject({
     name: 'schedule-ui',
-    inject: ['shell', 'protocol:schedule/v1'],
+    inject: ['shell', 'protocol:schedule/v2'],
   })
 })

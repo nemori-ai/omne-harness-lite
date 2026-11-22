@@ -1,8 +1,8 @@
 {
   "digests": {
-    "1": "sha256:97651086af30067f5202f2970bd195ebb1e4394349effa7d4e0187583e867974"
+    "1": "sha256:10ae6c8f1c40944c018d7c2640c6920831d59545f4fcae60e4447fcb88ed9df4"
   },
-  "major": 1,
+  "major": 2,
   "name": "notification",
   "revision": 1,
   "rules": {
@@ -1480,7 +1480,7 @@
                 "rule": {
                   "item": {
                     "fields": {
-                      "basis": {
+                      "creator": {
                         "rule": {
                           "kind": "one-of",
                           "rules": [
@@ -1490,7 +1490,7 @@
                                   "rule": {
                                     "kind": "literal",
                                     "values": [
-                                      "owner"
+                                      "human"
                                     ]
                                   }
                                 }
@@ -1503,17 +1503,13 @@
                                   "rule": {
                                     "kind": "literal",
                                     "values": [
-                                      "blanket"
+                                      "agent"
                                     ]
                                   }
                                 },
-                                "scope": {
+                                "session": {
                                   "rule": {
-                                    "kind": "literal",
-                                    "values": [
-                                      "standing",
-                                      "session"
-                                    ]
+                                    "kind": "text"
                                   }
                                 }
                               },
@@ -1525,7 +1521,7 @@
                                   "rule": {
                                     "kind": "literal",
                                     "values": [
-                                      "granular"
+                                      "system"
                                     ]
                                   }
                                 }
@@ -3651,7 +3647,7 @@
           },
           "no-change": {
             "fields": {
-              "basis": {
+              "creator": {
                 "rule": {
                   "kind": "one-of",
                   "rules": [
@@ -3661,7 +3657,7 @@
                           "rule": {
                             "kind": "literal",
                             "values": [
-                              "owner"
+                              "human"
                             ]
                           }
                         }
@@ -3674,17 +3670,13 @@
                           "rule": {
                             "kind": "literal",
                             "values": [
-                              "blanket"
+                              "agent"
                             ]
                           }
                         },
-                        "scope": {
+                        "session": {
                           "rule": {
-                            "kind": "literal",
-                            "values": [
-                              "standing",
-                              "session"
-                            ]
+                            "kind": "text"
                           }
                         }
                       },
@@ -3696,7 +3688,7 @@
                           "rule": {
                             "kind": "literal",
                             "values": [
-                              "granular"
+                              "system"
                             ]
                           }
                         }
@@ -3895,7 +3887,7 @@
           "protocol-rejected": true,
           "succeeded": {
             "fields": {
-              "basis": {
+              "creator": {
                 "rule": {
                   "kind": "one-of",
                   "rules": [
@@ -3905,7 +3897,7 @@
                           "rule": {
                             "kind": "literal",
                             "values": [
-                              "owner"
+                              "human"
                             ]
                           }
                         }
@@ -3918,17 +3910,13 @@
                           "rule": {
                             "kind": "literal",
                             "values": [
-                              "blanket"
+                              "agent"
                             ]
                           }
                         },
-                        "scope": {
+                        "session": {
                           "rule": {
-                            "kind": "literal",
-                            "values": [
-                              "standing",
-                              "session"
-                            ]
+                            "kind": "text"
                           }
                         }
                       },
@@ -3940,7 +3928,7 @@
                           "rule": {
                             "kind": "literal",
                             "values": [
-                              "granular"
+                              "system"
                             ]
                           }
                         }

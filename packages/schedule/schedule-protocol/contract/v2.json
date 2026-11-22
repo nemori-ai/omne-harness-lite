@@ -1,8 +1,8 @@
 {
   "digests": {
-    "1": "sha256:6223103e4a286b0d002a21559ae3edaa69dbe3b21da4f5fe2b7676d0006aca0c"
+    "1": "sha256:36e1d06a6100700156a5e79177f0c33bf3fc38dd82c80696243e4c222266f04d"
   },
-  "major": 1,
+  "major": 2,
   "name": "schedule",
   "revision": 1,
   "rules": {
@@ -127,74 +127,6 @@
                             "kind": "literal",
                             "values": [
                               "system"
-                            ]
-                          }
-                        }
-                      },
-                      "kind": "object"
-                    }
-                  ]
-                }
-              },
-              "basis": {
-                "rule": {
-                  "kind": "one-of",
-                  "rules": [
-                    {
-                      "fields": {
-                        "kind": {
-                          "rule": {
-                            "kind": "literal",
-                            "values": [
-                              "owner"
-                            ]
-                          }
-                        }
-                      },
-                      "kind": "object"
-                    },
-                    {
-                      "fields": {
-                        "kind": {
-                          "rule": {
-                            "kind": "literal",
-                            "values": [
-                              "blanket"
-                            ]
-                          }
-                        },
-                        "scope": {
-                          "rule": {
-                            "kind": "literal",
-                            "values": [
-                              "standing",
-                              "session"
-                            ]
-                          }
-                        }
-                      },
-                      "kind": "object"
-                    },
-                    {
-                      "fields": {
-                        "kind": {
-                          "rule": {
-                            "kind": "literal",
-                            "values": [
-                              "granular"
-                            ]
-                          }
-                        }
-                      },
-                      "kind": "object"
-                    },
-                    {
-                      "fields": {
-                        "kind": {
-                          "rule": {
-                            "kind": "literal",
-                            "values": [
-                              "none"
                             ]
                           }
                         }
@@ -793,74 +725,6 @@
                   ]
                 }
               },
-              "basis": {
-                "rule": {
-                  "kind": "one-of",
-                  "rules": [
-                    {
-                      "fields": {
-                        "kind": {
-                          "rule": {
-                            "kind": "literal",
-                            "values": [
-                              "owner"
-                            ]
-                          }
-                        }
-                      },
-                      "kind": "object"
-                    },
-                    {
-                      "fields": {
-                        "kind": {
-                          "rule": {
-                            "kind": "literal",
-                            "values": [
-                              "blanket"
-                            ]
-                          }
-                        },
-                        "scope": {
-                          "rule": {
-                            "kind": "literal",
-                            "values": [
-                              "standing",
-                              "session"
-                            ]
-                          }
-                        }
-                      },
-                      "kind": "object"
-                    },
-                    {
-                      "fields": {
-                        "kind": {
-                          "rule": {
-                            "kind": "literal",
-                            "values": [
-                              "granular"
-                            ]
-                          }
-                        }
-                      },
-                      "kind": "object"
-                    },
-                    {
-                      "fields": {
-                        "kind": {
-                          "rule": {
-                            "kind": "literal",
-                            "values": [
-                              "none"
-                            ]
-                          }
-                        }
-                      },
-                      "kind": "object"
-                    }
-                  ]
-                }
-              },
               "control": {
                 "rule": {
                   "kind": "literal",
@@ -1242,74 +1106,6 @@
                   ]
                 }
               },
-              "basis": {
-                "rule": {
-                  "kind": "one-of",
-                  "rules": [
-                    {
-                      "fields": {
-                        "kind": {
-                          "rule": {
-                            "kind": "literal",
-                            "values": [
-                              "owner"
-                            ]
-                          }
-                        }
-                      },
-                      "kind": "object"
-                    },
-                    {
-                      "fields": {
-                        "kind": {
-                          "rule": {
-                            "kind": "literal",
-                            "values": [
-                              "blanket"
-                            ]
-                          }
-                        },
-                        "scope": {
-                          "rule": {
-                            "kind": "literal",
-                            "values": [
-                              "standing",
-                              "session"
-                            ]
-                          }
-                        }
-                      },
-                      "kind": "object"
-                    },
-                    {
-                      "fields": {
-                        "kind": {
-                          "rule": {
-                            "kind": "literal",
-                            "values": [
-                              "granular"
-                            ]
-                          }
-                        }
-                      },
-                      "kind": "object"
-                    },
-                    {
-                      "fields": {
-                        "kind": {
-                          "rule": {
-                            "kind": "literal",
-                            "values": [
-                              "none"
-                            ]
-                          }
-                        }
-                      },
-                      "kind": "object"
-                    }
-                  ]
-                }
-              },
               "control": {
                 "rule": {
                   "kind": "literal",
@@ -1606,74 +1402,6 @@
                             "kind": "literal",
                             "values": [
                               "system"
-                            ]
-                          }
-                        }
-                      },
-                      "kind": "object"
-                    }
-                  ]
-                }
-              },
-              "basis": {
-                "rule": {
-                  "kind": "one-of",
-                  "rules": [
-                    {
-                      "fields": {
-                        "kind": {
-                          "rule": {
-                            "kind": "literal",
-                            "values": [
-                              "owner"
-                            ]
-                          }
-                        }
-                      },
-                      "kind": "object"
-                    },
-                    {
-                      "fields": {
-                        "kind": {
-                          "rule": {
-                            "kind": "literal",
-                            "values": [
-                              "blanket"
-                            ]
-                          }
-                        },
-                        "scope": {
-                          "rule": {
-                            "kind": "literal",
-                            "values": [
-                              "standing",
-                              "session"
-                            ]
-                          }
-                        }
-                      },
-                      "kind": "object"
-                    },
-                    {
-                      "fields": {
-                        "kind": {
-                          "rule": {
-                            "kind": "literal",
-                            "values": [
-                              "granular"
-                            ]
-                          }
-                        }
-                      },
-                      "kind": "object"
-                    },
-                    {
-                      "fields": {
-                        "kind": {
-                          "rule": {
-                            "kind": "literal",
-                            "values": [
-                              "none"
                             ]
                           }
                         }
@@ -2090,74 +1818,6 @@
                             "kind": "literal",
                             "values": [
                               "system"
-                            ]
-                          }
-                        }
-                      },
-                      "kind": "object"
-                    }
-                  ]
-                }
-              },
-              "basis": {
-                "rule": {
-                  "kind": "one-of",
-                  "rules": [
-                    {
-                      "fields": {
-                        "kind": {
-                          "rule": {
-                            "kind": "literal",
-                            "values": [
-                              "owner"
-                            ]
-                          }
-                        }
-                      },
-                      "kind": "object"
-                    },
-                    {
-                      "fields": {
-                        "kind": {
-                          "rule": {
-                            "kind": "literal",
-                            "values": [
-                              "blanket"
-                            ]
-                          }
-                        },
-                        "scope": {
-                          "rule": {
-                            "kind": "literal",
-                            "values": [
-                              "standing",
-                              "session"
-                            ]
-                          }
-                        }
-                      },
-                      "kind": "object"
-                    },
-                    {
-                      "fields": {
-                        "kind": {
-                          "rule": {
-                            "kind": "literal",
-                            "values": [
-                              "granular"
-                            ]
-                          }
-                        }
-                      },
-                      "kind": "object"
-                    },
-                    {
-                      "fields": {
-                        "kind": {
-                          "rule": {
-                            "kind": "literal",
-                            "values": [
-                              "none"
                             ]
                           }
                         }

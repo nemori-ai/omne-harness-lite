@@ -13,7 +13,7 @@ it('the cordis entry gives the interface module, the page id and order, and the 
   expect(cordis['PAGE_ORDER']).toBe(11)
   expect(cordis['notificationUiModule']).toMatchObject({
     name: 'notification-ui',
-    inject: ['shell', 'protocol:notification/v1'],
+    inject: ['shell', 'protocol:notification/v2'],
   })
 })
 

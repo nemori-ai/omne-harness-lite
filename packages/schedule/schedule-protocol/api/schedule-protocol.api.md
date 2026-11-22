@@ -420,7 +420,7 @@ export declare const scheduleProtocol: {
         };
     };
     readonly name: "schedule";
-    readonly major: 1;
+    readonly major: 2;
     readonly observations: {};
 };
 export type ScheduleProtocol = typeof scheduleProtocol;

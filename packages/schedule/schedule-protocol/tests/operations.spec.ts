@@ -20,7 +20,7 @@ const detail = {
   definition: { any: 'json' },
 }
 
-describe('schedule/v1', () => {
+describe('schedule/v2', () => {
   it('has the read and commit operations of the design and no observation', () => {
     expect(Object.keys(operations)).toEqual([
       'list-schedules',

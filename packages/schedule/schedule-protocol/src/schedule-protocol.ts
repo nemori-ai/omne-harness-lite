@@ -123,7 +123,7 @@ const write = { identity: 'login', effect: 'commit', limit: 'small', countsAsAcc
 
 export const scheduleProtocol = defineProtocol({
   name: 'schedule',
-  major: 1,
+  major: 2,
   operations: {
     'list-schedules': {
       ...read,

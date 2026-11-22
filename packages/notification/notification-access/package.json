@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Access plugin of notification/v1: a person reads and disposes notifications, and sets subscriptions and destinations, as the owner of a tenant",
+  "description": "Access plugin of notification/v2: a person reads and disposes notifications, and sets subscriptions and destinations, as the owner of a tenant",
   "engines": {
     "node": ">=24"
   },

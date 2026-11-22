@@ -162,7 +162,7 @@ const commit = {
 /** Every commit is idempotent on the state it leaves: after `unknown`, the same body again is recalled as `no-change`. */
 export const notificationProtocol = defineProtocol({
   name: 'notification',
-  major: 1,
+  major: 2,
   operations: {
     /** The owner hands one event over under a source. When it happened is the server's time, not the body's. */
     send: {
