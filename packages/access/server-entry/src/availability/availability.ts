@@ -13,6 +13,7 @@ import { contractDigest } from '@omne-harness/public-contract/snapshot'
 import { PACED } from '../observation-hub/hub.ts'
 import type {
   AvailabilityChange,
+  AvailabilitySubscription,
   PointFact,
   RegistryForPipeline,
   ServedProtocol,
@@ -53,42 +54,73 @@ function changeFrame(change: Mounting): AvailabilityFrame {
 /** The revision of `access/v1` that added the points to the snapshot. */
 const POINTS_SINCE = 2
 
+type Owed = {
+  readonly known: Map<string, ServedProtocol>
+  readonly queue: Mounting[]
+  conflicts: readonly ProtocolKey[]
+  declared: readonly PointFact[]
+  snapshotDue: boolean
+  revision: number
+}
+
+function owedAt(subscription: AvailabilitySubscription): Owed {
+  const { revision, conflicts, points: declared } = subscription
+  const known = new Map(subscription.protocols.map(key => [keyText(key), key]))
+  return { known, queue: [], conflicts, declared, snapshotDue: true, revision }
+}
+
+function fold(owed: Owed, change: AvailabilityChange): void {
+  owed.revision = change.revision
+  if (change.change === 'points') {
+    owed.declared = change.points
+    return
+  }
+  if (change.change === 'mounted') owed.known.set(keyText(change.protocol), change.protocol)
+  else owed.known.delete(keyText(change.protocol))
+  owed.conflicts = change.conflicts
+}
+
+function take(owed: Owed, change: AvailabilityChange, backlog: number, readsPoints: boolean) {
+  // A subscriber the points are not written to is sent nothing for them, and keeps its queue.
+  if (change.change === 'points' && !readsPoints) return false
+  fold(owed, change)
+  if (owed.snapshotDue) return false
+  if (change.change !== 'points') owed.queue.push(change)
+  // The points go in a snapshot only: when they change, what is queued is dropped for one.
+  if (change.change === 'points' || owed.queue.length > backlog) {
+    owed.queue.length = 0
+    owed.snapshotDue = true
+  }
+  return true
+}
+
+function nextFrame(owed: Owed): AvailabilityFrame | undefined {
+  if (!owed.snapshotDue) {
+    const next = owed.queue.shift()
+    return next === undefined ? undefined : changeFrame(next)
+  }
+  owed.snapshotDue = false
+  return {
+    kind: 'snapshot',
+    revision: owed.revision,
+    protocols: [...owed.known.values()].map(servedValue),
+    conflicts: owed.conflicts.map(keyValue),
+    points: owed.declared.map(pointValue),
+  }
+}
+
 export function availabilitySource(
   registry: RegistryForPipeline,
   backlog: number,
 ): FrameSource<Availability> {
   return async ({ signal, revision: writtenAt }) => {
     const readsPoints = writtenAt >= POINTS_SINCE
-    const known = new Map<string, ServedProtocol>()
-    let conflicts: readonly ProtocolKey[] = []
-    const queue: Mounting[] = []
-    let declared: readonly PointFact[] = []
-    let snapshotDue = true
-    let revision = 0
     let wake: (() => void) | undefined
+    let owed: Owed | undefined
     const subscription = registry.subscribe(change => {
-      // A subscriber the points are not written to is sent nothing for them, and keeps its queue.
-      if (change.change === 'points' && !readsPoints) return
-      revision = change.revision
-      if (change.change === 'points') declared = change.points
-      else {
-        if (change.change === 'mounted') known.set(keyText(change.protocol), change.protocol)
-        else known.delete(keyText(change.protocol))
-        conflicts = change.conflicts
-      }
-      if (snapshotDue) return
-      if (change.change !== 'points') queue.push(change)
-      // The points go in a snapshot only: when they change, what is queued is dropped for one.
-      if (change.change === 'points' || queue.length > backlog) {
-        queue.length = 0
-        snapshotDue = true
-      }
-      wake?.()
+      if (owed !== undefined && take(owed, change, backlog, readsPoints)) wake?.()
     })
-    revision = subscription.revision
-    conflicts = subscription.conflicts
-    declared = subscription.points
-    for (const key of subscription.protocols) known.set(keyText(key), key)
+    const mine = (owed = owedAt(subscription))
     // The subscription began here, before any frame is taken, so it ends on the abort itself: the
     // hub may abort an opening it never reads, and a generator that never ran has no `finally`.
     let listening = true
@@ -104,26 +136,13 @@ export function availabilitySource(
     signal.addEventListener('abort', awake)
     if (signal.aborted) leave()
 
-    const snapshot = (): AvailabilityFrame => ({
-      kind: 'snapshot',
-      revision,
-      protocols: [...known.values()].map(servedValue),
-      conflicts: conflicts.map(keyValue),
-      points: declared.map(pointValue),
-    })
-
     async function* frames(): AsyncGenerator<AvailabilityFrame, 'unavailable'> {
       try {
         for (;;) {
           if (signal.aborted) return 'unavailable'
-          if (snapshotDue) {
-            snapshotDue = false
-            yield snapshot()
-            continue
-          }
-          const next = queue.shift()
-          if (next !== undefined) {
-            yield changeFrame(next)
+          const frame = nextFrame(mine)
+          if (frame !== undefined) {
+            yield frame
             continue
           }
           await new Promise<void>(resolve => {
