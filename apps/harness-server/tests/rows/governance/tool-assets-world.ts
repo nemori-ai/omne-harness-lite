@@ -155,6 +155,7 @@ export async function toolAssetsWorld(
   categories.contribute({
     contract: createToolAssetCategory(release),
     display: toolCategoryDisplay,
+    point: 'tool.tools',
   })
   const owner = createAssetsLocal({ ...combination, domain, storage: made.storage, categories })
   const target: SettingsTargetProjection['target'] = toolAssetTarget(entry, domain.scope.tenant)

@@ -69,13 +69,19 @@ function setup(
   } = {},
 ) {
   const categories = createCategoryPoint()
-  categories.contribute({ contract: contract('note', false), display })
-  categories.contribute({ contract: contract('bundle', true), display })
-  categories.contribute({ contract: contract('tool', false), display, generalCreation: 'closed' })
+  categories.contribute({ contract: contract('note', false), display, point: 'note.items' })
+  categories.contribute({ contract: contract('bundle', true), display, point: 'bundle.items' })
+  categories.contribute({
+    contract: contract('tool', false),
+    display,
+    generalCreation: 'closed',
+    point: 'tool.items',
+  })
   categories.contribute({
     contract: contract('closed-bundle', true),
     display,
     generalCreation: 'closed',
+    point: 'closed-bundle.items',
   })
   const asked: string[] = []
   const published: string[] = []
@@ -248,20 +254,23 @@ describe('the display of a category says how to make one', () => {
     categories.contribute({
       contract: contract('bundle', true),
       display: { ...display, creation: 'A directory with a README at its root.' },
+      point: 'bundle.items',
     })
-    categories.contribute({ contract: contract('note', false), display })
+    categories.contribute({ contract: contract('note', false), display, point: 'note.items' })
     expect(categories.list()).toEqual([
       {
         category: 'bundle',
         display: { ...display, creation: 'A directory with a README at its root.' },
         creation: 'directory',
+        point: 'bundle.items',
       },
-      { category: 'note', display, creation: 'data' },
+      { category: 'note', display, creation: 'data', point: 'note.items' },
     ])
     expect(() =>
       categories.contribute({
         contract: contract('other', false),
         display: { ...display, creation: '' },
+        point: 'other.items',
       }),
     ).toThrow('category display is incomplete')
   })

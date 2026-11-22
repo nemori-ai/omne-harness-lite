@@ -19,6 +19,7 @@ import { IndependentSettingsService } from '@omne-harness/assets-cordis-contract
 import { toolCategoryDisplay } from '@omne-harness/tool-contract'
 import { createIndependentSettingsPoint, createSettingsRegistry } from '@omne-harness/settings'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
+import { toolToolsPoint } from '@omne-harness/tool-cordis-contract/cordis'
 import { toolContributionAuthorityKey } from '@omne-harness/tool-cordis-contract/cordis'
 import { defineRow } from '../../row.ts'
 import { classify } from '../authorization/principals.ts'
@@ -36,6 +37,7 @@ import {
 import { createToolGovernanceDefinitionSource } from './tool-definition-source.ts'
 import { prepareInstalledTenantGovernance } from './tenant-installation.ts'
 import { createToolAssetCategory } from './tool-assets.ts'
+import { officialItem } from '../../assets/official-holdings.ts'
 import {
   provideTenantIndependentSettings,
   tenantIndependentSettingsKey,
@@ -130,11 +132,21 @@ export const governanceRow = defineRow({
     const release = releaseOf(ctx)
     const materials = await productionStorageCatalog(async () => release)
     if (release.kind !== 'trusted') throw new Error('governance Tool release unavailable')
-    ctx.assetCategories.contribute({
-      contract: createToolAssetCategory(release),
-      display: toolCategoryDisplay,
-      generalCreation: 'closed',
-    })
+    ctx.assetCategories.contribute(
+      {
+        contract: createToolAssetCategory(release),
+        display: toolCategoryDisplay,
+        generalCreation: 'closed',
+      },
+      toolToolsPoint,
+    )
+    ctx.assetCategories.bring(
+      toolToolsPoint.name,
+      release.manifest.entries.map(({ asset }) => ({
+        name: asset.name,
+        item: officialItem('tool', asset.name, asset.adoption.digest),
+      })),
+    )
     const categories = ctx.assetCategories.view
     const registry = createSettingsRegistry({ capacity: 1024 })
     ctx.effect(() => () => registry.close(), 'governance.settings-registry.close')

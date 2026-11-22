@@ -46,12 +46,16 @@ export {
 export { packageBody } from './package-body.ts'
 export { isReadBody, readBodyText, readSnapshot } from './read-body.ts'
 export {
+  admitCategory,
+  categoryViewOf,
   createCategoryPoint,
   unknownCategory,
   type CategoryContribution,
   type CategoryDisplay,
   type CategoryListing,
   type CategoryPoint,
+  type CategoryReading,
+  type CategoryUnusable,
   type CategoryView,
   type CreationMode,
 } from './category-point.ts'
@@ -63,6 +67,23 @@ export {
   type AssetSummaryFact,
 } from './summary.ts'
 export { pinBody, type PinnedBody } from './adoption.ts'
+export {
+  createHeldBook,
+  heldLayerSource,
+  heldPoint,
+  layerInputsOf,
+  layerOfScope,
+  scopeOfLayer,
+  type HeldBook,
+  type HeldEntry,
+  type HeldHolding,
+  type HeldItem,
+  type HeldPoint,
+  type HeldPort,
+  type HeldLayer,
+  type HeldReading,
+  type HeldScope,
+} from './held.ts'
 export {
   createTenantPublishing,
   type PublishContent,

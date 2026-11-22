@@ -7,10 +7,13 @@
 ## 入口 `.` · `index.d.ts`
 
 - `ASSET_CATEGORIES_POINT` · `index.d.ts`
+- `HeldPlacing` · `index.d.ts`
 - `assetCategoriesKey` · `index.d.ts`
 - `assetChangesKey` · `index.d.ts`
 - `assetManagementKey` · `index.d.ts`
 - `assetPublishingKey` · `index.d.ts`
+- `createHeldSync` · `index.d.ts`
+- `heldEntry` · `index.d.ts`
 - `independentSettingsKey` · `index.d.ts`
 
 ## 入口 `./cordis` · `cordis.d.ts`
@@ -23,6 +26,7 @@
 - `AssetPublishingService` · `cordis.d.ts`
 - `IndependentSettingsService` · `cordis.d.ts`
 - `assetCategoriesPlugin` · `cordis.d.ts`
+- `broughtDefinitionsPlugin` · `cordis.d.ts`
 - `categoryContributionPlugin` · `cordis.d.ts`
 - `independentSettingsPlugin` · `cordis.d.ts`
 
@@ -30,15 +34,24 @@
 
 ```ts
 import { Service, type Context, type Plugin } from '@deepseek-ai/cordis';
-import { type CategoryContribution, type CategoryPoint, type CategoryView, type TenantManagement, type TenantPublishing, type TenantPublishOutcome, type TenantPublishRequest } from '@omne-harness/assets';
+import { type CategoryContribution, type HeldHolding, type HeldItem, type HeldPoint, type HeldReading, type CategoryView, type TenantManagement, type TenantPublishing, type TenantPublishOutcome, type TenantPublishRequest } from '@omne-harness/assets';
+import { type DynamisService } from '@omne-harness/dynamis-cordis/cordis';
 import type { IndependentSettingsPoint, IndependentSettingsView, SettingDefinitions } from '@omne-harness/settings';
 export declare class AssetCategoriesService extends Service {
     static readonly provide = "assetCategories";
     readonly view: CategoryView;
-    protected readonly point: CategoryPoint;
-    private readonly place;
+    readonly held: (capability: Readonly<{
+        category: string;
+        name: string;
+    }>, tenant: string) => HeldReading;
+    protected readonly tree: DynamisService;
     constructor(ctx: Context);
-    contribute(contribution: CategoryContribution): void;
+    contribute(category: Omit<CategoryContribution, 'point'>, point: HeldPoint): void;
+    holdingsOf(tenant: string, skipped: (holding: HeldHolding) => void): (holdings: readonly HeldHolding[]) => void;
+    bring(point: string, held: readonly Readonly<{
+        name: string;
+        item: HeldItem;
+    }>[]): void;
 }
 export declare class AssetPublishingService extends Service implements TenantPublishing<unknown> {
     static readonly provide = "assetPublishing";
@@ -82,16 +95,30 @@ declare module '@deepseek-ai/cordis' {
 }
 export declare function independentSettingsPlugin(name: string, definition: SettingDefinitions): Plugin.Object;
 export declare const assetCategoriesPlugin: Plugin.Object;
-export declare function categoryContributionPlugin(name: string, contribution: CategoryContribution): Plugin.Object;
+export declare function broughtDefinitionsPlugin(name: string, point: string, held: readonly Readonly<{
+    name: string;
+    item: HeldItem;
+}>[]): Plugin.Object;
+export declare function categoryContributionPlugin(name: string, category: Omit<CategoryContribution, 'point'>, point: HeldPoint): Plugin.Object;
 ```
 
 ## 声明文件 `index.d.ts`
 
 ```ts
+import type { HeldHolding, HeldItem, HeldScope } from '@omne-harness/assets';
+import type { Entry } from '@omne-harness/dynamis';
 export declare const assetCategoriesKey = "assetCategories";
 export declare const assetPublishingKey = "assetPublishing";
 export declare const assetManagementKey = "assetManagement";
 export declare const assetChangesKey = "assetChanges";
 export declare const independentSettingsKey = "independentSettings";
 export declare const ASSET_CATEGORIES_POINT = "assets.categories";
+export declare function heldEntry(point: string, name: string, scope: HeldScope, held: HeldItem): Entry<HeldItem>;
+export type HeldPlacing = Readonly<{
+    put(entry: Entry<HeldItem>): () => unknown;
+    pointOf(category: string): string | undefined;
+    scope: HeldScope;
+    skipped(holding: HeldHolding): void;
+}>;
+export declare function createHeldSync(placing: HeldPlacing): (holdings: readonly HeldHolding[]) => void;
 ```

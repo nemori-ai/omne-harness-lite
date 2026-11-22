@@ -121,6 +121,7 @@ async function governedTenant() {
   categories.contribute({
     contract: createToolAssetCategory(release),
     display: toolCategoryDisplay,
+    point: 'tool.tools',
   })
   const options: TenantGovernanceOptions = {
     materials,

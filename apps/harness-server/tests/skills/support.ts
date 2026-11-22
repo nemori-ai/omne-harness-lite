@@ -83,7 +83,11 @@ export type SkillPublisher = Readonly<{
 
 export function skillCategories() {
   const point = createCategoryPoint()
-  point.contribute({ contract: skillBodyContract(), display: skillCategoryDisplay })
+  point.contribute({
+    contract: skillBodyContract(),
+    display: skillCategoryDisplay,
+    point: 'skill.skills',
+  })
   return point
 }
 

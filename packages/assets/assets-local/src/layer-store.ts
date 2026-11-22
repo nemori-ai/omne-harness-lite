@@ -1,6 +1,7 @@
 import {
   capabilityId,
   type AssetContent,
+  type AssetLayerSource,
   type AssetRow,
   type CategoryView,
   type JsonValue,
@@ -8,7 +9,6 @@ import {
   type StorePublication,
   type TenantLayerStore,
 } from '@omne-harness/assets'
-import { tenantLayerSource } from './layer.ts'
 import { originOf } from './origin.ts'
 import { manifestOf } from './packages.ts'
 import type { PublicationRecall } from './results.ts'
@@ -89,6 +89,7 @@ export function createTenantLayerStore(
   local: AssetsLocal,
   tenantRef: string,
   categories: Pick<CategoryView, 'lookup'>,
+  layers: readonly AssetLayerSource[],
 ): TenantLayerStore {
   return Object.freeze({
     async list(request) {
@@ -151,6 +152,6 @@ export function createTenantLayerStore(
       return publicationOf(await local.recallPublication(operationId))
     },
     uploads: local.uploads,
-    layer: tenantLayerSource(local),
+    layers,
   } satisfies TenantLayerStore)
 }

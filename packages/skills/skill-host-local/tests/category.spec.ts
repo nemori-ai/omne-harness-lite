@@ -12,7 +12,12 @@ it('contributes the skill category with its own name and withdraws it on unload'
   const fiber = root.plugin(skillCategoryPlugin)
   await fiber.await()
   expect(root.assetCategories.view.list()).toEqual([
-    { category: 'skill', display: skillCategoryDisplay, creation: 'directory' },
+    {
+      category: 'skill',
+      display: skillCategoryDisplay,
+      creation: 'directory',
+      point: 'skill.skills',
+    },
   ])
   expect(root.assetCategories.view.lookup('skill')?.layout?.namespace).toBe('skills')
   await fiber.dispose()

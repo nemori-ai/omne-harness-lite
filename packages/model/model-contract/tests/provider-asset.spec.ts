@@ -272,6 +272,7 @@ describe('modelProviderBodyContract: settings through projectAssetSettings', () 
     registry.contribute({
       contract: modelProviderBodyContract(),
       display: modelProviderCategoryDisplay,
+      point: 'model.providers',
     })
     const identity = capabilityId(MODEL_PROVIDER_CATEGORY, 'test-gateway')
     if (!identity.ok) throw new Error('capability id fixture')

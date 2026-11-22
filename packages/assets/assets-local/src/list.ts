@@ -5,6 +5,7 @@ import { originOf } from './origin.ts'
 import { z } from 'zod'
 import { boundHolding, foreign, readAsset, readDomain, readSummary } from './records.ts'
 import {
+  heldRequestSchema,
   LIST_HANDLER,
   listRequestSchema,
   PROTOCOL,
@@ -17,7 +18,11 @@ type Result = ReturnType<ReadHandlerModule['read']>
 type Lookup = ReturnType<typeof listRequestSchema.parse>['lookup']
 type VersionsLookup = ReturnType<typeof versionsRequestSchema.parse>['lookup']
 
-const requestSchema = z.discriminatedUnion('kind', [listRequestSchema, versionsRequestSchema])
+const requestSchema = z.discriminatedUnion('kind', [
+  listRequestSchema,
+  versionsRequestSchema,
+  heldRequestSchema,
+])
 const versionKeySchema = z.tuple([z.unknown(), z.string(), z.string()])
 
 const FORBIDDEN: Result = { kind: 'read', output: { kind: 'rejected', reason: 'forbidden' } }
@@ -37,6 +42,28 @@ function listedVersion(port: Port, holding: Holding): string | undefined {
   return holding.selection.kind === 'pinned'
     ? holding.selection.version
     : readAsset(port, holding.domain, holding.assetRef)?.latestVersion
+}
+
+type HeldLookup = ReturnType<typeof heldRequestSchema.parse>['lookup']
+
+/** One page of everything the domain holds, of every category: what a held definition is to an evaluation. */
+function heldOf(port: Port, domain: DomainRef, lookup: HeldLookup): Result {
+  const rows = port
+    .execute(
+      "SELECT record FROM al_holdings WHERE scope_key = ? AND state = 'held' AND capability_key > ? ORDER BY capability_key LIMIT ?",
+      [canonical(domain), lookup.after ?? '', lookup.limit + 1],
+    )
+    .rows.map(row => boundHolding(row[0], domain))
+  const items = []
+  for (const holding of rows.slice(0, lookup.limit)) {
+    const version = listedVersion(port, holding)
+    if (version === undefined) return { kind: 'failed', diagnostic: 'assets_missing_version' }
+    const { category, name, assetRef, enabled } = holding
+    items.push({ category, name, assetRef, version, enabled })
+  }
+  const last = items.at(-1)
+  const next = rows.length > lookup.limit && last ? canonical([last.category, last.name]) : null
+  return { kind: 'read', output: json({ kind: 'held', items, next }) }
 }
 
 function versionsOf(port: Port, domain: DomainRef, lookup: VersionsLookup): Result {
@@ -68,6 +95,7 @@ export default {
     const current = readDomain(port)
     if (foreign(current, domain)) return FORBIDDEN
     if (parsed.data.kind === 'versions') return versionsOf(port, domain, parsed.data.lookup)
+    if (parsed.data.kind === 'held') return heldOf(port, domain, parsed.data.lookup)
     const { lookup } = parsed.data
     return pageOf(port, heldRows(port, domain, lookup), lookup.limit)
   },

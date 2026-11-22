@@ -1,15 +1,29 @@
 import { Service, type Context, type Plugin } from '@deepseek-ai/cordis'
 import {
-  createCategoryPoint,
+  admitCategory,
+  categoryViewOf,
+  scopeOfLayer,
   type CategoryContribution,
-  type CategoryPoint,
+  type HeldHolding,
+  type HeldItem,
+  type HeldPoint,
+  type HeldReading,
+  type CategoryReading,
   type CategoryView,
   type TenantManagement,
   type TenantPublishing,
   type TenantPublishOutcome,
   type TenantPublishRequest,
 } from '@omne-harness/assets'
-import { declare, type Contract, type Entry } from '@omne-harness/dynamis'
+import {
+  candidates,
+  declare,
+  deployment,
+  type Contract,
+  type Entry,
+  type Instance,
+  type Registry,
+} from '@omne-harness/dynamis'
 import { dynamisKey, type DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import type {
   IndependentSettingsPoint,
@@ -22,6 +36,8 @@ import {
   assetChangesKey,
   assetManagementKey,
   assetPublishingKey,
+  createHeldSync,
+  heldEntry,
   independentSettingsKey,
 } from './index.ts'
 
@@ -31,54 +47,109 @@ const categoriesContract: Contract = Object.freeze({
   arity: 'keyed-one',
   keyFrom: null,
   key: 'the category name',
-  gives: 'nothing: the item is the category name alone',
-  item: Object.freeze({ kind: 'data', fields: Object.freeze({ category: 'string' }) }),
+  gives: 'the contribution of one category: its body contract, how it is shown, and its point',
+  item: Object.freeze({
+    kind: 'pure',
+    fields: Object.freeze({
+      category: 'string',
+      point: 'string',
+      contract: 'object',
+      display: 'object',
+    }),
+  }),
   resolve: 'conflict',
   binding: 'run',
-  onError: 'nothing is called: the item is data',
+  onError: 'a category with two contributions gives no contract, and neither is called',
   version: 1,
   revision: 1,
   keys: 'public',
   conformance: null,
-  summary: 'The asset categories now registered, by name; a contribution stays on the service.',
+  summary: 'The asset categories now registered: each item is the contribution of one category.',
 })
 
-function named(category: string): Entry {
-  const point = ASSET_CATEGORIES_POINT
-  return { point, key: category, id: '', scope: [], rank: 0, digest: category, item: { category } }
+const UNREAD: HeldReading = Object.freeze({ kind: 'unavailable' })
+
+type Contributed = CategoryContribution & Readonly<{ category: string }>
+
+function contributed(contribution: CategoryContribution, by: Instance): Entry<Contributed> {
+  const category = contribution.contract.category
+  return {
+    point: ASSET_CATEGORIES_POINT,
+    key: category,
+    id: '',
+    scope: deployment,
+    rank: 0,
+    digest: `${category}@${by.fiber}#${by.generation}`,
+    item: Object.freeze({ ...contribution, category }),
+  }
+}
+
+function readingOf(registry: Registry): CategoryReading {
+  const read = candidates<Contributed>(registry, ASSET_CATEGORIES_POINT, null, deployment)
+  if (read.kind !== 'read') return { kind: 'unavailable', detail: read.detail }
+  return { kind: 'read', contributions: read.entries.map(entry => entry.item) }
 }
 
 /** @owner packages/assets/assets-cordis-contract */
 export class AssetCategoriesService extends Service {
   static readonly provide = assetCategoriesKey
   readonly view: CategoryView
-  protected readonly point: CategoryPoint
-  private readonly place: (category: string) => () => unknown
+  /** What one tenant sees under one name on the point of a category; unavailable when the category gives no point. */
+  readonly held: (
+    capability: Readonly<{ category: string; name: string }>,
+    tenant: string,
+  ) => HeldReading
+  protected readonly tree: DynamisService
   constructor(ctx: Context) {
     super(ctx, AssetCategoriesService.provide)
-    const point = createCategoryPoint()
-    this.point = point
-    // Captured here, not read from `this`: a key is put as this service, whoever contributes.
     const tree = ctx.get(dynamisKey) as DynamisService
     tree.put([declare(categoriesContract)])
-    this.place = category => tree.put([named(category)])
-    this.view = Object.freeze({
-      lookup: point.lookup,
-      describe: point.describe,
-      list: point.list,
+    this.tree = tree
+    const view = categoryViewOf(() => readingOf(tree.registry()))
+    this.view = view
+    this.held = ({ category, name }, tenant) => {
+      const listing = view.describe(category)
+      if (listing === undefined || 'unusable' in listing) return UNREAD
+      const asker = scopeOfLayer('tenant', tenant)
+      const read = candidates<HeldItem>(tree.registry(), listing.point, name, asker)
+      return read.kind === 'read' ? { kind: 'read', entries: read.entries } : UNREAD
+    }
+  }
+
+  /** A category and its point go on the tree together, put as the one who contributes, for as long as its scope lives. */
+  contribute(category: Omit<CategoryContribution, 'point'>, point: HeldPoint): void {
+    const admitted = admitCategory({ ...category, point: point.name })
+    // Read from `this`, not captured: Cordis gives the caller its own view, so the items are put as the caller.
+    const { tree } = this
+    this.ctx.effect(
+      () => tree.put(by => [contributed(admitted, by), declare(point)]),
+      'assetCategories.contribute',
+    )
+  }
+
+  /** Keeps what one tenant holds on the points of the categories, at the scope of that tenant, put as the caller. */
+  holdingsOf(
+    tenant: string,
+    skipped: (holding: HeldHolding) => void,
+  ): (holdings: readonly HeldHolding[]) => void {
+    const { tree, view } = this
+    return createHeldSync({
+      put: entry => tree.put([entry]),
+      pointOf(category) {
+        const listing = view.describe(category)
+        return listing === undefined || 'unusable' in listing ? undefined : listing.point
+      },
+      scope: scopeOfLayer('tenant', tenant),
+      skipped,
     })
   }
 
-  /** The name is a key on the tree for exactly as long as the contribution is on the point. */
-  contribute(contribution: CategoryContribution): void {
-    this.ctx.effect(() => {
-      const withdraw = this.point.contribute(contribution)
-      const take = this.place(contribution.contract.category)
-      return () => {
-        withdraw()
-        return take()
-      }
-    }, 'assetCategories.contribute')
+  /** The definitions the deployment itself brings: items of the whole deployment on the point of their category. */
+  bring(point: string, held: readonly Readonly<{ name: string; item: HeldItem }>[]): void {
+    const { tree } = this
+    const scope = scopeOfLayer('official')
+    const entries = held.map(({ name, item }) => heldEntry(point, name, scope, item))
+    this.ctx.effect(() => tree.put(entries), 'assetCategories.bring')
   }
 }
 
@@ -172,15 +243,31 @@ export const assetCategoriesPlugin: Plugin.Object = {
   },
 }
 
-export function categoryContributionPlugin(
+/** Brings official definitions once the categories are there; the row that plugs it does not wait for them. */
+export function broughtDefinitionsPlugin(
   name: string,
-  contribution: CategoryContribution,
+  point: string,
+  held: readonly Readonly<{ name: string; item: HeldItem }>[],
 ): Plugin.Object {
   return {
     name,
     inject: [assetCategoriesKey],
     apply(ctx: Context) {
-      ctx.assetCategories.contribute(contribution)
+      ctx.assetCategories.bring(point, held)
+    },
+  }
+}
+
+export function categoryContributionPlugin(
+  name: string,
+  category: Omit<CategoryContribution, 'point'>,
+  point: HeldPoint,
+): Plugin.Object {
+  return {
+    name,
+    inject: [assetCategoriesKey],
+    apply(ctx: Context) {
+      ctx.assetCategories.contribute(category, point)
     },
   }
 }

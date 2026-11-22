@@ -62,8 +62,8 @@ type Options = {
 
 function setup(options: Options = {}) {
   const categories = createCategoryPoint()
-  categories.contribute({ contract: directory, display })
-  categories.contribute({ contract: { ...base, category: 'note' }, display })
+  categories.contribute({ contract: directory, display, point: 'test.site1' })
+  categories.contribute({ contract: { ...base, category: 'note' }, display, point: 'note.items' })
   categories.contribute({
     contract: {
       ...directory,
@@ -72,6 +72,7 @@ function setup(options: Options = {}) {
     },
     display,
     generalCreation: 'closed',
+    point: 'tool.items',
   })
   const published: TenantPublishRequest<Principal>[] = []
   const discarded: string[] = []
@@ -107,11 +108,13 @@ function setup(options: Options = {}) {
       return options.publication ?? { kind: 'not-found' }
     },
     uploads,
-    layer: {
-      layer: 'tenant',
-      list: async () => ({ state: 'invalid' }),
-      candidates: async () => ({ layer: 'tenant', state: 'unavailable' }),
-    },
+    layers: [
+      {
+        layer: 'tenant',
+        list: async () => ({ state: 'invalid' }),
+        candidates: async () => ({ layer: 'tenant', state: 'unavailable' }),
+      },
+    ],
   }
   const management = createTenantManagement<Principal>({
     acting: {

@@ -1,3 +1,4 @@
+import { heldPoint } from '@omne-harness/assets'
 import { Service, type Context as CordisContext } from '@deepseek-ai/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type {
@@ -397,3 +398,10 @@ declare module '@deepseek-ai/cordis' {
     ): void
   }
 }
+
+/** The point of the category: each layer's held definitions are its items. */
+export const modelProvidersPoint = heldPoint({
+  name: 'model.providers',
+  key: 'the provider name',
+  summary: 'The model provider definitions each layer holds, by name.',
+})

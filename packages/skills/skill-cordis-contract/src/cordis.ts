@@ -1,3 +1,4 @@
+import { heldPoint } from '@omne-harness/assets'
 import { type Context, Service } from '@deepseek-ai/cordis'
 import type { SkillAccess, SkillCatalog } from '@omne-harness/skill-contract'
 
@@ -48,3 +49,10 @@ declare module '@deepseek-ai/cordis' {
     skillAccess: SkillAccessService<unknown, unknown>
   }
 }
+
+/** The point of the category: each layer's held definitions are its items. */
+export const skillSkillsPoint = heldPoint({
+  name: 'skill.skills',
+  key: 'the skill name',
+  summary: 'The skill definitions each layer holds, by name.',
+})

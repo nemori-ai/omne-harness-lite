@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
+  categoryViewOf,
   createCategoryPoint,
   isReadBody,
   readBodyText,
   unknownCategory,
   type BodyContract,
   type CategoryContribution,
+  type CategoryListing,
   type JsonValue,
 } from '@omne-harness/assets'
 
@@ -42,8 +44,15 @@ function contract(category: string, accepts = category): BodyContract {
 }
 
 function contribution(category: string, title = `${category} title`): CategoryContribution {
-  return { contract: contract(category), display: { title, summary: `${category} summary` } }
+  return {
+    contract: contract(category),
+    display: { title, summary: `${category} summary` },
+    point: `${category.toLowerCase()}.items`,
+  }
 }
+
+const creationOf = (point: { describe(category: string): unknown }, category: string) =>
+  (point.describe(category) as CategoryListing | undefined)?.creation
 
 describe('contribute to an unregistered category', () => {
   it('makes the contract findable and the category listed', () => {
@@ -52,20 +61,46 @@ describe('contribute to an unregistered category', () => {
     expect(point.lookup('tool')?.category).toBe('tool')
     expect(point.lookup('tool')?.judge(document('{"name":"tool"}'))).toEqual({ ok: true })
     expect(point.list()).toEqual([
-      { category: 'tool', display: { title: '工具', summary: 'tool summary' }, creation: 'data' },
+      {
+        category: 'tool',
+        display: { title: '工具', summary: 'tool summary' },
+        creation: 'data',
+        point: 'tool.items',
+      },
     ])
   })
 })
 
 describe('contribute to a registered category', () => {
-  it('throws an assembly error and keeps the first contribution', () => {
+  it('takes both; the category gives no contract while two stand, and says it is a conflict', () => {
     const point = createCategoryPoint()
     point.contribute({ ...contribution('tool', 'first'), contract: contract('tool', 'first') })
-    const before = point.list()
-    expect(() => point.contribute(contribution('tool', 'second'))).toThrow(TypeError)
-    expect(() => point.contribute(contribution('tool', 'second'))).toThrow(/already registered/)
+    point.contribute(contribution('note'))
+    const withdrawSecond = point.contribute(contribution('tool', 'second'))
+    expect(point.lookup('tool')).toBeUndefined()
+    expect(point.describe('tool')).toEqual({
+      category: 'tool',
+      unusable: 'conflict',
+      detail: '2 contributions',
+    })
+    expect(point.list().map(listing => listing.category)).toEqual(['note'])
+    expect(unknownCategory(point, 'tool')).toEqual({ ok: false, rejected: 'unknown-category' })
+    withdrawSecond()
     expect(point.lookup('tool')?.judge(document('{"name":"first"}'))).toEqual({ ok: true })
-    expect(point.list()).toEqual(before)
+    expect(point.list().map(listing => listing.category)).toEqual(['note', 'tool'])
+  })
+
+  it('does not call the judge of either contribution while two stand', () => {
+    const point = createCategoryPoint()
+    let judged = 0
+    const counting = (accepts: string): CategoryContribution => ({
+      ...contribution('tool', accepts),
+      contract: { ...contract('tool', accepts), judge: () => ((judged += 1), { ok: true }) },
+    })
+    point.contribute(counting('first'))
+    point.contribute(counting('second'))
+    point.lookup('tool')?.judge(document('{"name":"first"}'))
+    expect(judged).toBe(0)
   })
 })
 
@@ -80,18 +115,37 @@ describe('contribute a directory category whose namespace another category has',
     contract: { ...contract(category), layout: layout(namespace) },
   })
 
-  it('throws an assembly error and keeps the first contribution; another namespace is taken', () => {
+  it('neither gives a contract while both stand; another namespace is taken', () => {
     const point = createCategoryPoint()
     point.contribute(directory('gadget', 'gadgets'))
-    const before = point.list()
-    expect(() => point.contribute(directory('widget', 'gadgets'))).toThrow(
-      /namespace already registered/,
-    )
-    expect(point.list()).toEqual(before)
+    const withdraw = point.contribute(directory('widget', 'gadgets'))
+    expect(point.lookup('gadget')).toBeUndefined()
     expect(point.lookup('widget')).toBeUndefined()
+    expect(point.describe('gadget')).toEqual({
+      category: 'gadget',
+      unusable: 'conflict',
+      detail: 'the namespace gadgets is also the namespace of widget',
+    })
+    expect(point.describe('widget')).toMatchObject({ unusable: 'conflict' })
+    withdraw()
+    expect(point.lookup('gadget')?.layout?.namespace).toBe('gadgets')
     point.contribute(directory('widget', 'widgets'))
     point.contribute(contribution('note'))
     expect(point.list().map(listing => listing.category)).toEqual(['gadget', 'note', 'widget'])
+  })
+
+  it('two categories that name one point: neither gives a contract', () => {
+    const point = createCategoryPoint()
+    point.contribute({ ...contribution('gadget'), point: 'shop.items' })
+    const withdraw = point.contribute({ ...contribution('widget'), point: 'shop.items' })
+    expect(point.list()).toEqual([])
+    expect(point.describe('widget')).toEqual({
+      category: 'widget',
+      unusable: 'conflict',
+      detail: 'the point shop.items is also the point of gadget',
+    })
+    withdraw()
+    expect(point.list().map(listing => listing.category)).toEqual(['gadget'])
   })
 
   it('takes the namespace again once the category that had it is withdrawn', () => {
@@ -121,7 +175,12 @@ describe('withdraw a registered category', () => {
     point.contribute(contribution('tool', 'second'))
     withdrawFirst()
     expect(point.list()).toEqual([
-      { category: 'tool', display: { title: 'second', summary: 'tool summary' }, creation: 'data' },
+      {
+        category: 'tool',
+        display: { title: 'second', summary: 'tool summary' },
+        creation: 'data',
+        point: 'tool.items',
+      },
     ])
   })
 
@@ -159,7 +218,7 @@ describe('lookup and list', () => {
   it('keeps its own copy of the display', () => {
     const point = createCategoryPoint()
     const display = { title: '工具', summary: 'summary' }
-    point.contribute({ contract: contract('tool'), display })
+    point.contribute({ contract: contract('tool'), display, point: 'tool.items' })
     display.title = 'changed'
     expect(point.list()[0]?.display.title).toBe('工具')
     expect(Object.isFrozen(point.list())).toBe(true)
@@ -177,8 +236,8 @@ describe('how the general entry creates an asset of a category', () => {
     const point = createCategoryPoint()
     point.contribute(contribution('note'))
     point.contribute({ ...contribution('bundle'), contract: { ...contract('bundle'), layout } })
-    expect(point.describe('note')?.creation).toBe('data')
-    expect(point.describe('bundle')?.creation).toBe('directory')
+    expect(creationOf(point, 'note')).toBe('data')
+    expect(creationOf(point, 'bundle')).toBe('directory')
   })
 
   it('is none when the contribution closes the general entry, whatever the contract', () => {
@@ -203,7 +262,36 @@ describe('how the general entry creates an asset of a category', () => {
   })
 })
 
+describe('the readings when the contributions cannot be read', () => {
+  it('gives no contract, lists nothing, and describes any category as unread', () => {
+    const view = categoryViewOf(() => ({ kind: 'unavailable', detail: 'assets.categories' }))
+    expect(view.lookup('tool')).toBeUndefined()
+    expect(view.list()).toEqual([])
+    expect(view.describe('tool')).toEqual({
+      category: 'tool',
+      unusable: 'unread',
+      detail: 'assets.categories',
+    })
+  })
+
+  it('reads again at every question', () => {
+    let contributions: CategoryContribution[] = []
+    const view = categoryViewOf(() => ({ kind: 'read', contributions }))
+    expect(view.lookup('note')).toBeUndefined()
+    contributions = [contribution('note')]
+    expect(view.lookup('note')?.category).toBe('note')
+  })
+})
+
 describe('contributions the point refuses', () => {
+  it('rejects an empty point', () => {
+    const point = createCategoryPoint()
+    expect(() => point.contribute({ ...contribution('tool'), point: '' })).toThrow(
+      /category point is empty/,
+    )
+    expect(point.list()).toEqual([])
+  })
+
   it('rejects an empty category name and leaves the point unchanged', () => {
     const point = createCategoryPoint()
     expect(() => point.contribute(contribution(''))).toThrow(/category name is empty/)
@@ -213,10 +301,10 @@ describe('contributions the point refuses', () => {
   it('rejects an empty title or summary', () => {
     const point = createCategoryPoint()
     expect(() =>
-      point.contribute({ contract: contract('tool'), display: { title: '', summary: 's' } }),
+      point.contribute({ ...contribution('tool'), display: { title: '', summary: 's' } }),
     ).toThrow(/category display is incomplete/)
     expect(() =>
-      point.contribute({ contract: contract('tool'), display: { title: 't', summary: '' } }),
+      point.contribute({ ...contribution('tool'), display: { title: 't', summary: '' } }),
     ).toThrow(TypeError)
     expect(point.list()).toEqual([])
   })

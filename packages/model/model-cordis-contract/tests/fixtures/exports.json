@@ -99,6 +99,10 @@
             { "name": "createModelResultReceiverTable", "kind": "value", "pending": false },
             { "name": "ModelResultReceiverConflictError", "kind": "class", "pending": false }
           ]
+        },
+        {
+          "title": "资产类别的点",
+          "names": [{ "name": "modelProvidersPoint", "kind": "value", "pending": false }]
         }
       ]
     },

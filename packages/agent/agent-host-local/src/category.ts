@@ -1,4 +1,5 @@
 import { categoryContributionPlugin } from '@omne-harness/assets-cordis-contract/cordis'
+import { agentDefinitionsPoint } from '@omne-harness/agent-cordis-contract/cordis'
 import { agentBodyContract, agentDefinitionCategoryDisplay } from '@omne-harness/agent-contract'
 
 export const agentDefinitionCategoryPlugin = categoryContributionPlugin(
@@ -8,4 +9,5 @@ export const agentDefinitionCategoryPlugin = categoryContributionPlugin(
     display: agentDefinitionCategoryDisplay,
     generalCreation: 'closed',
   },
+  agentDefinitionsPoint,
 )

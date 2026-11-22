@@ -21,17 +21,14 @@ import {
   tenantSkills,
   TenantSkillsHost,
 } from '../../src/rows/skills/tenant-skills.ts'
+import { skillCategoryPlugin } from '@omne-harness/skill-host-local/cordis'
 import { openTenantAssets, TenantAssetsHost } from '../../src/rows/tenant-assets/host.ts'
+import { heldRegistry } from '../support/held-registry.ts'
 import { createBoundSkills } from '../../src/rows/tool-bindings/skills.ts'
 import { productionStorageCatalog } from '../../src/rows/storage/production-catalog.ts'
 import { fixtureEnv, fixtureTenant } from '../entry/support.ts'
 import { providerConfig } from '../rows/storage/fixtures/tree.ts'
-import {
-  openSkillPublisher,
-  readWorkNowhere,
-  skillCategories,
-  writeSampleSkill,
-} from './support.ts'
+import { openSkillPublisher, readWorkNowhere, writeSampleSkill } from './support.ts'
 
 const NO_WORKSPACE = { sources: () => undefined, contractOf: () => undefined }
 
@@ -101,20 +98,28 @@ export async function skillsWorld(): Promise<SkillsWorld> {
     packageRoot,
   })
   const counter = counted(made.storage)
+  const registry = await heldRegistry([skillCategoryPlugin])
   const tenantAssets = new TenantAssetsHost({
     domains: { lookup: async () => ({ kind: 'ready', domain }) },
     open: where =>
       openTenantAssets(
-        { storage: counter.storage, materials, packageRoot, categories: skillCategories() },
+        {
+          storage: counter.storage,
+          materials,
+          packageRoot,
+          categories: registry.categories,
+          heldOf: registry.held.heldOf,
+        },
         where,
       ),
   })
+  const sourcesOf = registry.held.sourcesOf(ref => tenantAssets.open(ref))
   const host = new TenantSkillsHost({
     async open(who, tenantRef) {
       const assets = await tenantAssets.open(tenantRef)
       return assets === undefined
         ? undefined
-        : tenantSkills(assets, who, SEARCH_RANKING, NO_WORKSPACE)
+        : tenantSkills(assets, who, SEARCH_RANKING, NO_WORKSPACE, sourcesOf(tenantRef))
     },
   })
 

@@ -1,13 +1,18 @@
-import { capabilityId } from '@omne-harness/assets'
+import { capabilityId, type AssetLayerSource } from '@omne-harness/assets'
+import { broughtDefinitionsPlugin } from '@omne-harness/assets-cordis-contract/cordis'
 import { parseConverterBody } from '@omne-harness/media-adapters'
+import { converterCategoryPlugin } from '@omne-harness/media-adapters/cordis'
+import { mediaConvertersPoint } from '@omne-harness/media-cordis-contract/cordis'
+import { skillCategoryPlugin } from '@omne-harness/skill-host-local/cordis'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { describe, expect, it } from 'vitest'
 import {
   converterLayersOf,
   officialConverterBody,
-  officialConverterSource,
+  officialConverterItems,
   releaseConverters,
 } from '../../src/assets/converters.ts'
+import { heldRegistry } from '../support/held-registry.ts'
 
 const id = (category: string, name: string) => {
   const made = capabilityId(category, name)
@@ -28,8 +33,20 @@ it('the release carries two converter definitions: voice and PDF, each judged so
   for (const item of releaseConverters()) expect(item.version).toMatch(/^[0-9a-f]{64}$/u)
 })
 
+/** The official layer one tenant reads, on a tree where the release has brought its converters as the row does. */
+async function officialLayer(): Promise<AssetLayerSource> {
+  const registry = await heldRegistry([converterCategoryPlugin, skillCategoryPlugin])
+  const brought = officialConverterItems()
+  await registry.root.plugin(
+    broughtDefinitionsPlugin('media-converters', mediaConvertersPoint.name, brought),
+  )
+  const [official] = registry.held.sourcesOf(async () => undefined)('tenant-a')
+  if (official === undefined) throw new Error('no official layer')
+  return official
+}
+
 it('the official layer offers them as candidates that are never disabled, and nothing else', async () => {
-  const source = officialConverterSource()
+  const source = await officialLayer()
   expect(source.layer).toBe('official')
   const voice = await source.candidates(id('converter', 'voice'))
   expect(voice).toEqual({
@@ -75,6 +92,12 @@ describe('the layers of one tenant', () => {
     return parsed.value
   })()
   const mine = { kind: 'object', entries: [] } as const
+  const layer = (name: 'official' | 'tenant'): AssetLayerSource => ({
+    layer: name,
+    list: async () => ({ layer: name, state: 'not-applicable' }),
+    candidates: async () => ({ layer: name, state: 'read', candidates: [] }),
+  })
+  const twoLayers = () => [layer('official'), layer('tenant')]
   function assets(version: { kind: string; version?: { body: unknown } }) {
     const asked: unknown[] = []
     const local = {
@@ -93,14 +116,14 @@ describe('the layers of one tenant', () => {
     const none = converterLayersOf(async ref => {
       opened.push(ref)
       return undefined
-    })
+    }, twoLayers)
     expect(await none(tenant)).toBeUndefined()
     expect(opened).toEqual([tenantText])
   })
 
   it('puts the official layer before the tenant one, and reads an official body without the assets', async () => {
     const { asked, local } = assets({ kind: 'absent' })
-    const layers = await converterLayersOf(async () => local)(tenant)
+    const layers = await converterLayersOf(async () => local, twoLayers)(tenant)
     expect(layers?.sources.map(source => source.layer)).toEqual(['official', 'tenant'])
     const voice = releaseConverters()[0]!
     const official = { asset: 'official/converter/voice', version: voice.version }
@@ -119,12 +142,12 @@ describe('the layers of one tenant', () => {
       replaceLocked: false,
     }
     const held = assets({ kind: 'version', version: { body: mine } })
-    const layers = await converterLayersOf(async () => held.local)(tenant)
+    const layers = await converterLayersOf(async () => held.local, twoLayers)(tenant)
     expect(await layers?.body(candidate)).toBe(mine)
     expect(held.asked).toEqual([{ assetRef: 'tenant-asset-1', version: 'v1' }])
     const gone = assets({ kind: 'absent' })
     expect(
-      await (await converterLayersOf(async () => gone.local)(tenant))?.body(candidate),
+      await (await converterLayersOf(async () => gone.local, twoLayers)(tenant))?.body(candidate),
     ).toBeUndefined()
   })
 })

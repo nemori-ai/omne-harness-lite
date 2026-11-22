@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { readBodyText } from '@omne-harness/assets'
 import {
+  modelProviderBodyContract,
   parseModelProviderBody,
   type ModelProviderBody,
 } from '@omne-harness/model-contract/provider-asset'
@@ -17,6 +18,7 @@ import type { SecretBindingKey, SecretScope, SettingsHolding } from '@omne-harne
 import { holdingKey, officialHolding, type OfficialHolding } from './official-holdings.ts'
 
 const RELEASE_PROVIDER_TEXTS: readonly string[] = [OPENROUTER_PROVIDER_BODY_TEXT]
+const PROVIDER_CONTRACT = modelProviderBodyContract()
 
 const BODY_LIMITS = {
   maxBytes: 16_384,
@@ -29,6 +31,7 @@ const BODY_LIMITS = {
 
 export type ReleaseProvider = Readonly<{
   body: ModelProviderBody
+  version: string
   holding: Extract<OfficialHolding, { kind: 'declared' }> | null
 }>
 
@@ -38,15 +41,16 @@ function readProvider(text: string): ReleaseProvider {
   const parsed = parseModelProviderBody(read.value)
   if ('failure' in parsed) throw new Error(`a release provider body is refused: ${parsed.failure}`)
   const body = parsed.ok
+  const version = createHash('sha256').update(text, 'utf8').digest('hex')
   const held = officialHolding({
-    category: 'model-provider',
+    contract: PROVIDER_CONTRACT,
     name: body.name,
-    version: createHash('sha256').update(text, 'utf8').digest('hex'),
+    version,
     body: read.value,
   })
   if (held.kind === 'rejected')
     throw new Error(`the provider ${body.name} declares no valid settings: ${held.reason}`)
-  return { body, holding: held.kind === 'declared' ? held : null }
+  return { body, version, holding: held.kind === 'declared' ? held : null }
 }
 
 let providers: readonly ReleaseProvider[] | undefined

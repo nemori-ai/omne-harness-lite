@@ -1,3 +1,4 @@
+import { heldPoint } from '@omne-harness/assets'
 import { type Context, type Fiber, Service } from '@deepseek-ai/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, type Outcome } from '@omne-harness/operation-result'
@@ -608,3 +609,11 @@ declare module '@deepseek-ai/cordis' {
     ): void
   }
 }
+
+/** The point of the category: each layer's held definitions are its items. */
+export const toolToolsPoint = heldPoint({
+  name: 'tool.tools',
+  key: 'the tool name',
+  summary: 'The tool definitions each layer holds, by name; the names are told to the client.',
+  keys: 'public',
+})

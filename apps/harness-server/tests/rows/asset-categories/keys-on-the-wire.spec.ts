@@ -1,5 +1,5 @@
 import type { Context, Fiber } from '@deepseek-ai/cordis'
-import type { CategoryContribution } from '@omne-harness/assets'
+import { heldPoint, type CategoryContribution } from '@omne-harness/assets'
 import { ASSET_CATEGORIES_POINT, assetCategoriesKey } from '@omne-harness/assets-cordis-contract'
 import { categoryContributionPlugin } from '@omne-harness/assets-cordis-contract/cordis'
 import { accessProtocol } from '@omne-harness/public-contract'
@@ -19,6 +19,7 @@ const gadget: CategoryContribution = {
     references: () => [],
   },
   display: { title: 'Gadget', summary: 'Gadget.' },
+  point: 'gadget.items',
 }
 
 /** A row the case reaches into: it contributes a category when told and takes it back when told. */
@@ -41,7 +42,8 @@ function hostRow() {
     row,
     contribute(): Fiber {
       if (held === undefined) throw new Error('the host row did not start')
-      return held.plugin(categoryContributionPlugin('gadget-category', gadget))
+      const point = heldPoint({ name: gadget.point, key: 'the gadget name', summary: 'Gadgets.' })
+      return held.plugin(categoryContributionPlugin('gadget-category', gadget, point))
     },
   }
 }

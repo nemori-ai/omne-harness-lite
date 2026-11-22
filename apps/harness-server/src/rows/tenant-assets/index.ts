@@ -20,6 +20,7 @@ import { releaseOf } from '../../entry/tool-release.ts'
 import { productionStorageCatalog } from '../storage/production-catalog.ts'
 import { publishActing } from './acting.ts'
 import { createAssetChangeFeed } from './changes.ts'
+import { heldOnRegistry } from './held.ts'
 import { openTenantAssets, TenantAssetsHost } from './host.ts'
 import { provideTenantAssets, tenantAssetsKey } from './service.ts'
 
@@ -73,6 +74,12 @@ export const tenantAssetsRow = defineRow({
     const release = releaseOf(ctx)
     const categories = ctx.assetCategories.view
     const changes = createAssetChangeFeed()
+    const logger = ctx.logger('tenant-assets')
+    const held = heldOnRegistry(
+      () => ctx.assetCategories,
+      message => logger.warn(message),
+    )
+    ctx.on('dynamis-cordis/changed', () => held.registryChanged())
     const idleMs = config.uploads.idleSeconds * 1000
     const store = {
       storage: ctx.storage,
@@ -81,12 +88,14 @@ export const tenantAssetsRow = defineRow({
       categories,
       uploads: { idleMs, maxOpen: config.uploads.maxOpen, partBytes: config.uploads.partBytes },
       changed: changes.changed,
+      heldOf: held.heldOf,
     }
     const host = new TenantAssetsHost({
       domains: ctx.tenantDomainLookup,
       open: domain => openTenantAssets(store, domain),
     })
-    provideTenantAssets(ctx, host)
+    const layerSources = held.sourcesOf(tenantRef => host.open(tenantRef))
+    provideTenantAssets(ctx, { open: tenantRef => host.open(tenantRef), layerSources })
     const acting = publishActing({ verifier: ctx.principalVerifier, standing: ctx.tenantStanding })
     const publishing = createTenantPublishing({
       acting,
@@ -107,7 +116,7 @@ export const tenantAssetsRow = defineRow({
           const assets = await host.open(tenant)
           return assets === undefined
             ? undefined
-            : createTenantLayerStore(assets, tenant, categories)
+            : createTenantLayerStore(assets, tenant, categories, layerSources(tenant))
         },
       }),
     )

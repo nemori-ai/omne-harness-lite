@@ -34,6 +34,7 @@ it('the cordis entry exports the service definitions with their keys, and no oth
       ...Object.keys(definitions).map(keyName),
       'ModelResultReceiverConflictError',
       'createModelResultReceiverTable',
+      'modelProvidersPoint',
     ].sort(),
   )
   for (const [service, key] of Object.entries(definitions)) {

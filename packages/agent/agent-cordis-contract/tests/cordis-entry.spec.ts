@@ -79,9 +79,8 @@ describe('service keys', () => {
     expect(serviceClasses).toHaveLength(26)
     expect(new Set(serviceClasses.map(([, type]) => type.provide)).size).toBe(26)
     for (const [name] of serviceClasses) expect(name).toMatch(/^[A-Z][A-Za-z]+Service$/u)
-    expect(exported.map(([name]) => name).filter(name => !/(Service|Key)$/u.test(name))).toEqual([
-      'agentInstancesPlugin',
-    ])
+    const others = exported.map(([name]) => name).filter(name => !/(Service|Key)$/u.test(name))
+    expect(others.sort()).toEqual(['agentDefinitionsPoint', 'agentInstancesPlugin'])
   })
 })
 

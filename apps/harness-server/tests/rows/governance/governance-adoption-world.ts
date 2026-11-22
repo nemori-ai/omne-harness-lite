@@ -49,7 +49,11 @@ import { releaseIdentityConfig } from '../identity/fixtures.ts'
 
 function toolCategories() {
   const point = createCategoryPoint()
-  point.contribute({ contract: toolBodyContract(), display: toolCategoryDisplay })
+  point.contribute({
+    contract: toolBodyContract(),
+    display: toolCategoryDisplay,
+    point: 'tool.tools',
+  })
   return point
 }
 

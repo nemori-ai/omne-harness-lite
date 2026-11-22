@@ -14,13 +14,14 @@ it('writes each service key once, on its abstract Service, and exports a constan
   expect(skillAccessKey).toBe(SkillAccessService.provide)
 })
 
-it('exports exactly the two abstract Service classes and the two key constants', async () => {
+it('exports exactly the two abstract Service classes, the two key constants and the point of the category', async () => {
   const cordis: Record<string, unknown> = await import('@omne-harness/skill-cordis-contract/cordis')
   expect(Object.keys(cordis).sort()).toEqual([
     'SkillAccessService',
     'SkillCatalogService',
     'skillAccessKey',
     'skillCatalogKey',
+    'skillSkillsPoint',
   ])
 })
 

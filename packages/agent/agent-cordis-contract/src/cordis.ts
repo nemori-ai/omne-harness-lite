@@ -1,3 +1,4 @@
+import { heldPoint } from '@omne-harness/assets'
 import { randomBytes } from 'node:crypto'
 import { type Context, CordisError, Service } from '@deepseek-ai/cordis'
 import {
@@ -878,3 +879,10 @@ declare module '@deepseek-ai/cordis' {
     ): void
   }
 }
+
+/** The point of the category: each layer's held definitions are its items. */
+export const agentDefinitionsPoint = heldPoint({
+  name: 'agent.definitions',
+  key: 'the definition name',
+  summary: 'The Agent definitions each layer holds, by name.',
+})
