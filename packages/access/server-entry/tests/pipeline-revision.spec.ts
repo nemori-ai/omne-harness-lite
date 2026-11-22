@@ -123,6 +123,17 @@ describe('the answer is written at the lesser of the two revisions (V2)', () => 
     expect(reply.text).toBe(`{"outcome":"succeeded","body":${body}}`)
   })
 
+  it.each(['12', '999999999'])(
+    'a revision of several digits is read as it is written: %s is past the last, so everything is sent',
+    async revision => {
+      const reply = await call('read', '{"id":"d-1"}', revision)
+      expect(reply.status).toBe(200)
+      expect(reply.text).toBe(
+        '{"outcome":"succeeded","body":{"id":"d-1","title":"T","colour":"red","pinned":true}}',
+      )
+    },
+  )
+
   it('writes every frame of an observation at that revision too', async () => {
     const stream = openStream(fixture.port, '{"id":"d-1"}', {
       path: '/api/drafts/v1/watch',
