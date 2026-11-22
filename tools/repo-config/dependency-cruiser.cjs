@@ -11,6 +11,7 @@ const FRONTEND = '^packages/frontend/'
 const VIEW_MODULE = '^packages/([^/]+)/[^/]+-ui/'
 const CLIENT_SIDE = `${CLIENT_ASSEMBLY}|${FRONTEND}|^packages/[^/]+/[^/]+-ui/`
 const SHARED = '^packages/(common|util)/'
+const DYNAMIS = '^packages/dynamis/'
 const ORGANIZATION = 'docs/package-organization.md'
 const TOOLCHAIN = '^tools/repo-toolchain/src/'
 const TOOLCHAIN_ENTRY = 'cli\\.ts$'
@@ -79,12 +80,12 @@ module.exports = {
     },
     {
       name: 'entry-registry-knows-no-domain',
-      comment: `The registry, the settle step, the pipeline, the observation hub and the availability source of the entry know no domain: no domain member, and none of the entry's existing domain positions. ${ACCESS_RFC}「16. 成员怎么放，依赖方向」, I-1`,
+      comment: `The registry, the settle step, the pipeline, the observation hub and the availability source of the entry know no domain: no domain member, and none of the entry's existing domain positions. The extension point mechanism (packages/dynamis) is a mechanism, not a domain. ${ACCESS_RFC}「16. 成员怎么放，依赖方向」, I-1; ${LAYERS}「拓展点的机制不是领域」`,
       severity: 'error',
       from: { path: `${SERVER_ENTRY}src/${ENTRY_CORE}/` },
       to: {
         path: `${PACKAGES}|${SERVER_ENTRY}src/`,
-        pathNot: `${PUBLIC_CONTRACT}|${ACCESS_CORDIS_CONTRACT}|${SHARED}|${SERVER_ENTRY}src/${ENTRY_CORE}/`,
+        pathNot: `${PUBLIC_CONTRACT}|${ACCESS_CORDIS_CONTRACT}|${SHARED}|${DYNAMIS}|${SERVER_ENTRY}src/${ENTRY_CORE}/`,
       },
     },
     {
@@ -99,12 +100,12 @@ module.exports = {
     },
     {
       name: 'access-cordis-contract-only-contract-and-cordis',
-      comment: `The access contribution types depend only on the public contract and Cordis. ${ACCESS_RFC}「16. 成员怎么放，依赖方向」, I-1, I-18`,
+      comment: `The access contribution types depend only on the public contract, Cordis and the extension point mechanism (packages/dynamis). ${ACCESS_RFC}「16. 成员怎么放，依赖方向」, I-1, I-18; ${LAYERS}「拓展点的机制不是领域」`,
       severity: 'error',
       from: { path: `${ACCESS_CORDIS_CONTRACT}src/` },
       to: {
         path: `${PACKAGES}|(^|/)node_modules/|${NODE_BUILTIN}`,
-        pathNot: `${PUBLIC_CONTRACT}|${ACCESS_CORDIS_CONTRACT}|(^|/)node_modules/@deepseek-ai/cordis/`,
+        pathNot: `${PUBLIC_CONTRACT}|${ACCESS_CORDIS_CONTRACT}|${DYNAMIS}|(^|/)node_modules/@deepseek-ai/cordis/`,
       },
     },
     {
@@ -123,12 +124,12 @@ module.exports = {
     },
     {
       name: 'client-side-only-core-contract-and-cordis',
-      comment: `The client assembly runs in a browser and depends only on the public contract, the SDK client core, Cordis and its own files; it imports no server-side member and no Node built-in. ${ACCESS_RFC}「16. 成员怎么放，依赖方向」: 客户端装配只多依赖 Cordis`,
+      comment: `The client assembly runs in a browser and depends only on the public contract, the SDK client core, Cordis, the extension point mechanism (packages/dynamis) and its own files; it imports no server-side member and no Node built-in. ${ACCESS_RFC}「16. 成员怎么放，依赖方向」: 客户端装配只多依赖 Cordis; ${LAYERS}「拓展点的机制不是领域」`,
       severity: 'error',
       from: { path: `${CLIENT_ASSEMBLY}src/` },
       to: {
         path: `${PACKAGES}|(^|/)node_modules/|${NODE_BUILTIN}`,
-        pathNot: `${PUBLIC_CONTRACT}|${SDK_CORE}|${CLIENT_ASSEMBLY}|(^|/)node_modules/@deepseek-ai/cordis/`,
+        pathNot: `${PUBLIC_CONTRACT}|${SDK_CORE}|${CLIENT_ASSEMBLY}|${DYNAMIS}|(^|/)node_modules/@deepseek-ai/cordis/`,
       },
     },
     {
@@ -143,12 +144,22 @@ module.exports = {
     },
     {
       name: 'frontend-knows-no-domain',
-      comment: `The frontend group, the shell contract and the shared view kit, runs in a browser and knows no domain. Of the repository it depends only on its own group and the shared pure definitions; it imports no client assembly, no view module, no server-side member and no Node built-in. ${LAYERS}: 界面外壳契约与共用界面件没有指向别的框的边`,
+      comment: `The frontend group, the shell contract and the shared view kit, runs in a browser and knows no domain. Of the repository it depends only on its own group, the shared pure definitions and the extension point mechanism (packages/dynamis), which is a mechanism and not a domain; it imports no client assembly, no view module, no server-side member and no Node built-in. ${LAYERS}「入口与外壳不含领域代码」「拓展点的机制不是领域」`,
       severity: 'error',
       from: { path: `${FRONTEND}[^/]+/src/` },
       to: {
         path: `${PACKAGES}|${NODE_BUILTIN}`,
-        pathNot: `${FRONTEND}|${SHARED}`,
+        pathNot: `${FRONTEND}|${SHARED}|${DYNAMIS}`,
+      },
+    },
+    {
+      name: 'mechanism-knows-no-domain',
+      comment: `The extension point mechanism (packages/dynamis) is what the entry, the shell contract and the client assembly may depend on, so it knows no domain itself and runs in a browser: of the repository it depends only on its own group and the shared pure definitions, and it imports no Node built-in. ${LAYERS}「拓展点的机制不是领域」`,
+      severity: 'error',
+      from: { path: `${DYNAMIS}[^/]+/src/` },
+      to: {
+        path: `${PACKAGES}|${NODE_BUILTIN}`,
+        pathNot: `${DYNAMIS}|${SHARED}`,
       },
     },
     {

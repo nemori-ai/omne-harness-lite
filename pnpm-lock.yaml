@@ -189,8 +189,8 @@ catalogs:
       specifier: 2.1.0
       version: 2.1.0
     '@omne-harness/repo-config':
-      specifier: 0.0.7
-      version: 0.0.7
+      specifier: 0.0.8
+      version: 0.0.8
     '@omne-harness/repo-toolchain':
       specifier: 0.0.20
       version: 0.0.20
@@ -378,7 +378,7 @@ importers:
     devDependencies:
       '@omne-harness/repo-config':
         specifier: 'catalog:'
-        version: 0.0.7
+        version: 0.0.8
       '@omne-harness/repo-toolchain':
         specifier: 'catalog:'
         version: 0.0.20(vitest@4.1.11)
@@ -8144,8 +8144,8 @@ packages:
     resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
     engines: {node: ^14.21.3 || >=16}
 
-  '@omne-harness/repo-config@0.0.7':
-    resolution: {integrity: sha512-SM0Xvwb1+ppDIJcUIUVF8CPvSwZPWVD3YB4ncH/J+shGsfb7JXUG3DpoXNP9wtLpNwhYbgPOI/v+7ARara3OTw==}
+  '@omne-harness/repo-config@0.0.8':
+    resolution: {integrity: sha512-pTPIqo4IEJuGDA2HKV5cIJ1GhfMztTCQNz+BQl2B7nfNHUB0Bu0k4Z9yo2LjnyKkIhGTv9QvatmmAOafUf4P8A==}
     engines: {node: '>=24'}
 
   '@omne-harness/repo-toolchain@0.0.20':
@@ -14563,7 +14563,7 @@ snapshots:
 
   '@noble/hashes@1.8.0': {}
 
-  '@omne-harness/repo-config@0.0.7': {}
+  '@omne-harness/repo-config@0.0.8': {}
 
   '@omne-harness/repo-toolchain@0.0.20(vitest@4.1.11)':
     dependencies:
