@@ -1,5 +1,5 @@
 import { expectTypeOf, test } from 'vitest'
-import { serviceKey, serviceOf, type ServiceKey } from '@omne-harness/shell-contract'
+import { needPoint, serviceKey, type ServiceKey } from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 
 type Port = Readonly<{ label: string; extra: number }>
@@ -26,15 +26,15 @@ test('a needed key cannot be widened back to the shape of the port', () => {
   expectTypeOf(back).toBeString()
 })
 
-test('provide takes a value of the key shape, and serviceOf gives the key shape', () => {
+test('provide takes a value of the key shape, and a point need reads the key shape', () => {
   defineUiModule({
     name: 'typed',
-    inject: [portKey],
-    apply(_shell, services, provide) {
+    needs: { port: needPoint<Port>(portKey) },
+    apply(_shell, bound, provide) {
       provide(portKey, { label: 'x', extra: 1 })
       // @ts-expect-error the value lacks `extra`
       provide(portKey, { label: 'x' })
-      expectTypeOf(serviceOf(services, portKey)).toEqualTypeOf<Port>()
+      expectTypeOf(bound.port.get()).toEqualTypeOf<Port | undefined>()
     },
   })
 })

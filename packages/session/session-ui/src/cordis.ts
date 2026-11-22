@@ -1,12 +1,10 @@
 export {
   CONVERSATION_PAGE,
   SESSION_LIST,
-  sessionClientService,
-  sessionBlockReadsKey,
+  createSessionUiModule,
   sessionComposerIntakeKey,
-  sessionModelChoicesKey,
   sessionUiModule,
-  sessionWorkspaceChoicesKey,
+  type SessionUiOptions,
 } from './module.tsx'
 export type {
   ModelChoice,

@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import {
   defineKeyedPoint,
   definePoint,
+  needPoint,
   type KeyedPointSink,
   type PointCodec,
   type PointContributor,
@@ -185,16 +186,14 @@ test('the login port is self-contained and states the client assembly login stat
   >()
 })
 
-test('defineUiModule hands the listed services with their types', () => {
-  defineUiModule<{ clock: { now: number } }>({
+test('defineUiModule hands the declared point needs with their types', () => {
+  defineUiModule({
     name: 'clock-ui',
-    inject: ['clock'],
-    apply(_shell, services) {
-      expectTypeOf(services.clock.now).toBeNumber()
+    needs: { clock: needPoint<{ now: number }>('host.clock') },
+    apply(_shell, bound) {
+      expectTypeOf(bound.clock.get()).toEqualTypeOf<{ now: number } | undefined>()
     },
   })
-  // @ts-expect-error a name outside the declared services cannot be listed
-  defineUiModule<{ clock: { now: number } }>({ name: 'x', inject: ['other'], apply() {} })
 })
 
 type Session = Readonly<{ session: string }>

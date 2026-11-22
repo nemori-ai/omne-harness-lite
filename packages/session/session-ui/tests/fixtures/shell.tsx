@@ -1,20 +1,49 @@
 import './dom.ts'
 import { act, render } from '@testing-library/react'
 import type { ClientOf } from '@omne-harness/sdk/core'
-import type { SessionProtocol } from '@omne-harness/session-protocol'
+import { sessionProtocol, type SessionProtocol } from '@omne-harness/session-protocol'
 import {
   type AttachedLayout,
   type FigureBoard,
   type FigureReport,
   type ItemOf,
+  serviceKey,
   type ScopeSource,
+  type ServiceKey,
   type ShellLogin,
   type SlotName,
 } from '@omne-harness/shell-contract'
-import { startShellOf, type Started } from '@omne-harness/shell-contract/testing'
+import { serveProtocol, startShellOf, type Started } from '@omne-harness/shell-contract/testing'
 import { ShellService } from '@omne-harness/shell-contract/cordis'
 import { Fragment, StrictMode, useEffect, useState, type ReactNode } from 'react'
-import { sessionClientService, sessionUiModule } from '../../src/cordis.ts'
+import type { Context } from '@deepseek-ai/cordis'
+import {
+  createSessionUiModule,
+  type ModelChoiceSource,
+  type WorkspaceChoiceSource,
+} from '../../src/cordis.ts'
+import type { BlockReadsSource } from '../../src/model/block-reads.ts'
+
+/** The keys a case provides under: the session module is mounted taking what is on them. */
+export const TAKEN = {
+  modelChoices: serviceKey<ModelChoiceSource>('test.model-choices'),
+  workspaceChoices: serviceKey<WorkspaceChoiceSource>('test.workspace-choices'),
+  blockReads: serviceKey<BlockReadsSource>('test.block-reads'),
+}
+
+/** Provides under a key as another module does; what `attach` returns takes it back. */
+export function providerOf<T extends object>(root: Context, key: ServiceKey<T>) {
+  return {
+    attach(source: T): () => void {
+      const fiber = root.plugin({
+        name: `provides:${key}`,
+        inject: ['shell'],
+        apply: (ctx: Context) => ctx.shell.offer(key, source),
+      })
+      return () => void fiber.dispose()
+    },
+  }
+}
 
 export class TestShell extends ShellService {
   readonly navigated: string[] = []
@@ -138,8 +167,8 @@ export async function mountModule(
   options: { readonly strict?: boolean } = {},
 ) {
   const { root, shell } = await startShell()
-  const withdraw = root.reflect.provide(sessionClientService, client)
-  await root.plugin(sessionUiModule)
+  const served = await serveProtocol(root, sessionProtocol, client)
+  await root.plugin(createSessionUiModule(TAKEN))
   shell.tenant = scope
   const tree = (next: string | undefined) =>
     options.strict === true ? (
@@ -155,7 +184,7 @@ export async function mountModule(
     shell,
     withdraw: async () => {
       await act(async () => {
-        await withdraw()
+        await served.dispose()
       })
     },
     rerender: (next: string | undefined) => {

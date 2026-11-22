@@ -2,9 +2,9 @@
 import { Context } from '@deepseek-ai/cordis'
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, beforeAll, expect, it } from 'vitest'
-import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
 import { humanInterventionProtocol } from '@omne-harness/human-intervention-protocol'
 import { definePoint } from '@omne-harness/shell-contract'
+import { serveProtocol } from '@omne-harness/shell-contract/testing'
 import { createHumanInterventionUiModule } from '../src/cordis.ts'
 import { page, questionItem } from './fixtures/cards.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
@@ -13,10 +13,6 @@ import { startShell as startBare } from './fixtures/reference-shell.ts'
 
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
-const SERVICE = protocolServiceName({
-  name: humanInterventionProtocol.name,
-  major: humanInterventionProtocol.major,
-})
 const ANCHOR = 'session.transcript'
 const SESSION = 'ses_0123456789abcdef'
 const dock = definePoint<{ readonly session: string }>({
@@ -48,7 +44,7 @@ const pageIds = (root: Context) =>
 
 it('U1 协议客户端在：放「待你决定」一页，次序 10，带张数；不放侧栏与登录门', async () => {
   const { root, shell } = await startShell()
-  root.reflect.provide(SERVICE, createFakeClient().client)
+  await serveProtocol(root, humanInterventionProtocol, createFakeClient().client)
   await root.plugin(createHumanInterventionUiModule())
   const [placed] = shell.items('pages')
   expect(placed).toMatchObject({ id: 'decisions', title: '待你决定', order: 10 })
@@ -60,7 +56,7 @@ it('U1 协议客户端在：放「待你决定」一页，次序 10，带张数�
 it('U2 这一页用外壳给的租户，经注入的客户端取列表', async () => {
   const { root, shell } = await startShell()
   const fake = createFakeClient()
-  root.reflect.provide(SERVICE, fake.client)
+  await serveProtocol(root, humanInterventionProtocol, fake.client)
   await root.plugin(createHumanInterventionUiModule())
   render(<>{shell.items('pages')[0]!.render({ scope: TENANT })}</>)
   const call = await fake.next('list-cards')
@@ -74,7 +70,7 @@ it('U2 这一页用外壳给的租户，经注入的客户端取列表', async (
 it('U3 还没有租户：页面与张数什么都不画，不发请求', async () => {
   const { root, shell } = await startShell()
   const fake = createFakeClient()
-  root.reflect.provide(SERVICE, fake.client)
+  await serveProtocol(root, humanInterventionProtocol, fake.client)
   await root.plugin(createHumanInterventionUiModule())
   const item = shell.items('pages')[0]!
   const view = render(
@@ -89,30 +85,39 @@ it('U3 还没有租户：页面与张数什么都不画，不发请求', async (
   expect(view.container.textContent).toBe('')
 })
 
-it('U4 协议客户端撤了：模块卸载，页面撤掉；回来了：再放上', async () => {
-  const { root } = await startShell()
+it('U4 协议客户端撤了：页面照放，采用转成不可用；回来了：采用再成立', async () => {
+  const { root, shell } = await startShell()
   const fake = createFakeClient()
-  const unprovide = root.reflect.provide(SERVICE, fake.client)
+  const served = await serveProtocol(root, humanInterventionProtocol, fake.client)
   await root.plugin(createHumanInterventionUiModule())
   expect(pageIds(root)).toEqual(['decisions'])
-  unprovide()
-  await new Promise(resolve => setTimeout(resolve, 0))
-  expect(pageIds(root)).toEqual([])
-  root.reflect.provide(SERVICE, fake.client)
+  expect(shell.adoption('human-intervention-ui')).toMatchObject({
+    kind: 'adopted',
+    bindings: { humanIntervention: { key: 'human-intervention/v1' } },
+  })
+  await served.dispose()
   await new Promise(resolve => setTimeout(resolve, 0))
   expect(pageIds(root)).toEqual(['decisions'])
+  expect(shell.adoption('human-intervention-ui')).toMatchObject({ kind: 'unavailable' })
+  await serveProtocol(root, humanInterventionProtocol, fake.client)
+  await new Promise(resolve => setTimeout(resolve, 0))
+  expect(pageIds(root)).toEqual(['decisions'])
+  expect(shell.adoption('human-intervention-ui')).toMatchObject({ kind: 'adopted' })
 })
 
-it('U5 没有协议客户端：模块不加载', async () => {
-  const { root } = await startShell()
-  await root.plugin(createHumanInterventionUiModule())
-  expect(pageIds(root)).toEqual([])
+it('U5 没有协议客户端：页面照放，侧栏、登录门与会话里的一项不放', async () => {
+  const { root, shell } = await startShell()
+  await root.plugin(createHumanInterventionUiModule({ sessionDock: dock }))
+  expect(pageIds(root)).toEqual(['decisions'])
+  expect(shell.items('sidebar')).toEqual([])
+  expect(shell.items('gate')).toEqual([])
+  expect(shell.items('attached')).toEqual([])
 })
 
 it('U6 张数与页面读同一份：一次列表，一个观察', async () => {
   const { root, shell } = await startShell()
   const fake = createFakeClient()
-  root.reflect.provide(SERVICE, fake.client)
+  await serveProtocol(root, humanInterventionProtocol, fake.client)
   await root.plugin(createHumanInterventionUiModule())
   const item = shell.items('pages')[0]!
   const view = render(
@@ -131,7 +136,7 @@ it('U6 张数与页面读同一份：一次列表，一个观察', async () => {
 
 it('U7 不给会话的拓展点：不往 attached 放', async () => {
   const { root, shell } = await startShell()
-  root.reflect.provide(SERVICE, createFakeClient().client)
+  await serveProtocol(root, humanInterventionProtocol, createFakeClient().client)
   await root.plugin(createHumanInterventionUiModule())
   expect(shell.items('attached')).toEqual([])
 })
@@ -139,7 +144,7 @@ it('U7 不给会话的拓展点：不往 attached 放', async () => {
 it('U8 给了会话的拓展点：往它里面放一项，展示这个会话的卡', async () => {
   const { root, shell } = await startShell()
   const fake = createFakeClient()
-  root.reflect.provide(SERVICE, fake.client)
+  await serveProtocol(root, humanInterventionProtocol, fake.client)
   shell.tenant = TENANT
   await root.plugin(createHumanInterventionUiModule({ sessionDock: dock }))
   expect(shell.items('attached')).toEqual([
@@ -158,7 +163,7 @@ it('U8 给了会话的拓展点：往它里面放一项，展示这个会话的�
 it('U9 拓展点里的一项没有租户：什么都不画', async () => {
   const { root, shell } = await startShell()
   const fake = createFakeClient()
-  root.reflect.provide(SERVICE, fake.client)
+  await serveProtocol(root, humanInterventionProtocol, fake.client)
   await root.plugin(createHumanInterventionUiModule({ sessionDock: dock }))
   const view = render(<>{shell.attached(ANCHOR, SESSION)}</>)
   await settle()
@@ -169,12 +174,12 @@ it('U9 拓展点里的一项没有租户：什么都不画', async () => {
 it('U10 模块卸载：观察被中止', async () => {
   const { root, shell } = await startShell()
   const fake = createFakeClient()
-  const unprovide = root.reflect.provide(SERVICE, fake.client)
+  const served = await serveProtocol(root, humanInterventionProtocol, fake.client)
   await root.plugin(createHumanInterventionUiModule())
   render(<>{shell.items('pages')[0]!.render({ scope: TENANT })}</>)
   await settle()
   expect(fake.observations).toHaveLength(1)
-  unprovide()
+  await served.dispose()
   await new Promise(resolve => setTimeout(resolve, 0))
   expect(fake.observations[0]!.signal.aborted).toBe(true)
 })
@@ -183,7 +188,7 @@ it('U11 给了会话的拓展点：协议客户端撤下，放在里面的一项
   const { root, shell } = await startShell()
   const fake = createFakeClient()
   shell.tenant = TENANT
-  const unprovide = root.reflect.provide(SERVICE, fake.client)
+  const served = await serveProtocol(root, humanInterventionProtocol, fake.client)
   await root.plugin(createHumanInterventionUiModule({ sessionDock: dock }))
   const placed = () => shell.items('attached').map(item => `${item.anchor}/${item.id}`)
   expect(placed()).toEqual([`${ANCHOR}/decisions-in-session`])
@@ -191,12 +196,12 @@ it('U11 给了会话的拓展点：协议客户端撤下，放在里面的一项
   await settle()
   expect(fake.observations).toHaveLength(1)
 
-  unprovide()
+  await served.dispose()
   await new Promise(resolve => setTimeout(resolve, 0))
   expect(placed()).toEqual([])
   expect(fake.observations[0]!.signal.aborted).toBe(true)
 
-  root.reflect.provide(SERVICE, createFakeClient().client)
+  await serveProtocol(root, humanInterventionProtocol, createFakeClient().client)
   await new Promise(resolve => setTimeout(resolve, 0))
   expect(placed()).toEqual([`${ANCHOR}/decisions-in-session`])
 })
@@ -204,7 +209,7 @@ it('U11 给了会话的拓展点：协议客户端撤下，放在里面的一项
 it('U12 经形口报待答数：外壳租户里等人回答的卡片张数，与「待你决定」这一页；不报活动与一次性的事实', async () => {
   const { root, shell } = await startShell()
   const fake = createFakeClient()
-  root.reflect.provide(SERVICE, fake.client)
+  await serveProtocol(root, humanInterventionProtocol, fake.client)
   shell.tenant = TENANT
   await root.plugin(createHumanInterventionUiModule())
   ;(await fake.next('list-cards')).answer(page([questionItem('a'), questionItem('b')]))
@@ -221,7 +226,7 @@ it('U12 经形口报待答数：外壳租户里等人回答的卡片张数，与
 it('U13 待答数跟着外壳的租户：没有租户报零，租户来了读它的卡，租户清空时不再看着它的卡', async () => {
   const { root, shell } = await startShell()
   const fake = createFakeClient()
-  root.reflect.provide(SERVICE, fake.client)
+  await serveProtocol(root, humanInterventionProtocol, fake.client)
   await root.plugin(createHumanInterventionUiModule())
   expect(shell.reports).toEqual([{ doing: 'idle', waiting: 0 }])
   expect(fake.calls).toHaveLength(0)

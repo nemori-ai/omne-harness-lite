@@ -1,7 +1,9 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, screen } from '@testing-library/react'
 import { afterEach, expect, it } from 'vitest'
-import { sessionClientService, sessionUiModule } from '../src/cordis.ts'
+import { sessionProtocol } from '@omne-harness/session-protocol'
+import { serveProtocol } from '@omne-harness/shell-contract/testing'
+import { sessionUiModule } from '../src/cordis.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
 import { listed, listPage } from './fixtures/frames.ts'
 import { mountModule, startShell } from './fixtures/shell.tsx'
@@ -18,8 +20,12 @@ async function settle(): Promise<void> {
   })
 }
 
-it('协议客户端的服务名照客户端装配的取法', () => {
-  expect(sessionClientService).toBe('protocol:session/v1')
+it('要 session/v1 这份协议：协议在时模块被采用', async () => {
+  const { shell } = await mountModule(createFakeClient().client, TENANT)
+  expect(shell.adoption('session-ui')).toMatchObject({
+    kind: 'adopted',
+    bindings: { session: { key: 'session/v1' } },
+  })
 })
 
 it('依赖都在：往侧栏区放会话列表（最前），往页面放对话页与搜索页；协议客户端撤了都撤掉', async () => {
@@ -42,15 +48,21 @@ it('依赖都在：往侧栏区放会话列表（最前），往页面放对话�
   await mounted.withdraw()
   await settle()
   expect(mounted.shell.items('sidebar')).toEqual([])
-  expect(mounted.shell.items('pages')).toEqual([])
+  expect(mounted.shell.items('pages').map(item => item.id)).toEqual([
+    'conversation',
+    'history-search',
+  ])
   expect(screen.queryByRole('navigation', { name: '会话列表' })).toBeNull()
 })
 
-it('没有协议客户端时不放任何东西', async () => {
+it('没有协议客户端时：页面还在，侧栏不放；协议来了侧栏才放', async () => {
   const { root, shell } = await startShell()
   await root.plugin(sessionUiModule)
   expect(shell.items('sidebar')).toEqual([])
-  expect(shell.items('pages')).toEqual([])
+  expect(shell.items('pages').map(item => item.id)).toEqual(['conversation', 'history-search'])
+  await serveProtocol(root, sessionProtocol, createFakeClient().client)
+  await new Promise(resolve => setTimeout(resolve, 0))
+  expect(shell.items('sidebar').map(item => item.id)).toEqual(['session-list', 'archived-sessions'])
 })
 
 it('列表里选一个会话：把对话页切到前面', async () => {

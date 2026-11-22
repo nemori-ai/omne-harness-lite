@@ -1,5 +1,6 @@
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
+import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { defineProtocol, ruleCodec, type AvailabilityFrame } from '@omne-harness/public-contract'
 import {
   connectionPlugin,
@@ -39,6 +40,7 @@ afterEach(async () => {
 async function tree() {
   const root = new Context()
   roots.push(root)
+  await root.plugin(DynamisService)
   const fake = fakeTransport()
   await root.plugin(
     connectionPlugin({

@@ -40,9 +40,9 @@ describe('媒体进了装配', () => {
     expect(assembly.protocols).toBe(domainProtocols)
   })
 
-  it('界面模块里有媒体的，另有一处把会话收草稿的口交给它', () => {
-    const names = assembly.modules.map(module => module.name)
+  it('界面模块里有媒体的；装配里没有专管转交的插件', () => {
+    const names = assembly.modules.map(module => module.name ?? '')
     expect(names).toContain('media-ui')
-    expect(names).toContain('hand-over:session.composer-intake->media.composer-intake')
+    expect(names.filter(name => name.startsWith('hand-over'))).toEqual([])
   })
 })

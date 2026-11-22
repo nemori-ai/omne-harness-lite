@@ -1,6 +1,8 @@
 // @vitest-environment happy-dom
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, beforeAll, expect, it } from 'vitest'
+import { serveProtocol } from '@omne-harness/shell-contract/testing'
+import { usageProtocol } from '@omne-harness/usage-protocol'
 import { createUsageUiModule, memoryLayoutStore, usageExampleModule } from '../src/cordis.tsx'
 import { stubDom, TENANT } from './fixtures/dom.ts'
 import { fakeUsage } from './fixtures/fake-usage.ts'
@@ -18,7 +20,7 @@ const settle = () =>
 it('draws the widget and the presentation another module brings once the layout chooses them (C29)', async () => {
   const { root, shell } = await startShell()
   shell.tenant = TENANT
-  root.reflect.provide('protocol:usage/v1', fakeUsage().client)
+  await serveProtocol(root, usageProtocol, fakeUsage().client)
   const store = memoryLayoutStore({
     tenant: [
       { widget: 'usage.tokens', width: 2, presentation: 'example.sparklines' },

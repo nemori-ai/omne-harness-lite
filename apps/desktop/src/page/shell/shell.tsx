@@ -27,6 +27,7 @@ import type { Connectivity } from '../connectivity.ts'
 import { useConflicts, useSlot, useWatched } from './hooks.ts'
 import { Item } from './item.tsx'
 import { bindRegionKeys } from './keys.ts'
+import { lackText, type Lack, type LackSlot } from './lacks.ts'
 import { pressSeat, useSeatedHome } from './seats.ts'
 import {
   NarrowNavigation,
@@ -163,6 +164,7 @@ function Gate(props: { state: ShellState; connectivity: Connectivity }) {
   const [conflict] = useConflicts(props.state.slots, 'gate')
   const notice = useWatched(props.state.notice)
   const seat = useRef<HTMLDivElement>(null)
+  const lacks = useLacks(props.state)('gate', gate?.id ?? '')
   return (
     <div className="shell-gate">
       <div ref={seat}>
@@ -174,10 +176,12 @@ function Gate(props: { state: ShellState; connectivity: Connectivity }) {
           <InlineNotice tone="danger" role="alert" still>
             {gateConflictText(conflict.by)}
           </InlineNotice>
+        ) : gate !== undefined && lacks.length > 0 ? (
+          <Lacks lacks={lacks} slot="gate" />
         ) : gate !== undefined ? (
           <Item key={gate.id} render={() => gate.render({})} />
         ) : props.connectivity === 'connecting' ? (
-          <LoadingState className="shell-connecting" label="正在连接服务……" />
+          <LoadingState className="shell-connecting" label={CONNECTING_TEXT} />
         ) : (
           <p className="shell-gate-closed">{NO_LOGIN_TEXT}</p>
         )}
@@ -208,6 +212,28 @@ function Outside(props: {
   )
 }
 
+export const CONNECTING_TEXT = '正在连接服务……'
+
+/** A page or gate whose module lacks something it needs: one sentence for each, or the wait for the connection. */
+function Lacks(props: { lacks: readonly Lack[]; slot: LackSlot }) {
+  const said = props.lacks.flatMap(lack =>
+    lack.kind === 'connecting' ? [] : [lackText(lack, props.slot)],
+  )
+  if (said.length < props.lacks.length)
+    return <LoadingState className="shell-connecting" label={CONNECTING_TEXT} />
+  return [...new Set(said)].map(text => (
+    <InlineNotice key={text} tone="caution" role="status" className="shell-page-lack" still>
+      {text}
+    </InlineNotice>
+  ))
+}
+
+function useLacks(state: ShellState): (slot: LackSlot, id: string) => readonly Lack[] {
+  const [, changed] = useReducer((count: number) => count + 1, 0)
+  useEffect(() => state.lacks.subscribe(changed), [state.lacks])
+  return (slot, id) => state.lacks.of(slot, id)
+}
+
 function Workspace(props: SidebarProps & { missing: readonly string[] }) {
   const { state, pages, shown } = props
   const focus = useWatched(state.page.focus)
@@ -218,6 +244,7 @@ function Workspace(props: SidebarProps & { missing: readonly string[] }) {
   const sidebar = useRef<HTMLElement>(null)
   const home = useSeatedHome()
   const room = wide && width === 'expanded' && home
+  const lacksOf = useLacks(state)
   useEffect(() => state.told.room(room), [state.told, room])
   useEffect(() => () => state.told.room(false), [state.told])
   return (
@@ -242,22 +269,25 @@ function Workspace(props: SidebarProps & { missing: readonly string[] }) {
       >
         <div className="shell-drag-strip" aria-hidden="true" />
         <StaleApp missing={props.missing} />
-        {pages.map(page => (
-          <section
-            key={page.id}
-            className="shell-page"
-            aria-label={page.title}
-            data-page={page.id}
-            hidden={page.id !== shown}
-          >
-            <Item
-              scope={scope}
-              render={() =>
-                page.render(focus?.page === page.id ? { scope, subject: focus.subject } : { scope })
-              }
-            />
-          </section>
-        ))}
+        {pages.map(page => {
+          const lacks = lacksOf('pages', page.id)
+          const toPage = focus?.page === page.id ? { scope, subject: focus.subject } : { scope }
+          return (
+            <section
+              key={page.id}
+              className="shell-page"
+              aria-label={page.title}
+              data-page={page.id}
+              hidden={page.id !== shown}
+            >
+              {lacks.length > 0 ? (
+                <Lacks lacks={lacks} slot="pages" />
+              ) : (
+                <Item scope={scope} render={() => page.render(toPage)} />
+              )}
+            </section>
+          )
+        })}
       </main>
     </div>
   )

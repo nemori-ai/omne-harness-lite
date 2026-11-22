@@ -1,9 +1,25 @@
 import { CordisError, Service, type Context, type Plugin } from '@deepseek-ai/cordis'
-import { declare, type Contract, type Registry } from '@omne-harness/dynamis'
+import {
+  adopt,
+  declare,
+  standingOf,
+  type Adoption,
+  type Contract,
+  type Reference,
+  type Registry,
+} from '@omne-harness/dynamis'
 import { DynamisRefused, type Made } from '@omne-harness/dynamis-cordis/cordis'
 import type { ReactNode } from 'react'
 import type { FigureBoard, FigureReport } from './figure-store.ts'
 import type { ScopeSource, ShellLogin } from './host.ts'
+import {
+  pinnedClient,
+  pointReader,
+  referenceOf,
+  referencesOf,
+  type BoundOf,
+  type Need,
+} from './needs.ts'
 import type { ServiceKey } from './service-key.ts'
 import { entryOf, sameView, shellContracts, viewOf, type SlotView } from './placement.ts'
 import {
@@ -25,6 +41,38 @@ const SLOT_NAMES = Object.keys(slots) as SlotName[]
 
 type Watcher = Readonly<{ slot: SlotName; listener: () => void }>
 
+const offered = (name: string): Contract => ({
+  name,
+  tree: 'client',
+  arity: 'one',
+  keyFrom: null,
+  key: 'none',
+  gives: 'what the view module that declares it provides to other view modules',
+  item: { kind: 'pure', fields: {} },
+  resolve: 'conflict',
+  binding: 'run',
+  onError: 'a module that needs it does without it, or is drawn as lacking it',
+  version: 1,
+  revision: 1,
+  keys: 'private',
+  conformance: null,
+  summary: `What one view module provides to the others under ${name}.`,
+})
+
+function adoptOn(registry: Registry, references: Readonly<Record<string, Reference>>): Adoption {
+  const absent = Object.entries(references)
+    .filter(
+      ([, { optional, point }]) =>
+        optional === true && standingOf(registry, point, []).kind === 'undeclared',
+    )
+    .map(([slot]) => slot)
+  const asked = Object.entries(references).filter(([slot]) => !absent.includes(slot))
+  const made = adopt(registry, Object.fromEntries(asked), [])
+  if (made.kind !== 'adopted' || absent.length === 0) return made
+  const empty = Object.fromEntries(absent.map(slot => [slot, null]))
+  return { kind: 'adopted', bindings: { ...made.bindings, ...empty } }
+}
+
 /** @owner packages/frontend/shell-contract */
 export abstract class ShellService extends Service implements ShellSlots {
   static readonly provide = 'shell'
@@ -37,6 +85,9 @@ export abstract class ShellService extends Service implements ShellSlots {
 
   private readonly views = new Map<SlotName, SlotView>()
   private readonly watchers = new Set<Watcher>()
+  private readonly required = new Map<string, Readonly<Record<string, Reference>>>()
+  private readonly adoptionWatchers = new Set<() => void>()
+  private adopted: Readonly<{ registry: Registry; of: Map<string, Adoption> }> | undefined
 
   constructor(ctx: Context) {
     super(ctx, ShellService.provide)
@@ -68,6 +119,61 @@ export abstract class ShellService extends Service implements ShellSlots {
     return () => void this.watchers.delete(watcher)
   }
 
+  registry(): Registry {
+    return this.ctx.dynamis.registry()
+  }
+
+  require(module: string, references: Readonly<Record<string, Reference>>): void {
+    this.ctx.effect(() => {
+      this.required.set(module, references)
+      this.adopted = undefined
+      return () => {
+        this.required.delete(module)
+        this.adopted = undefined
+      }
+    }, 'shell.require')
+  }
+
+  adoption(module: string): Adoption | undefined {
+    const references = this.required.get(module)
+    if (references === undefined) return undefined
+    const registry = this.ctx.dynamis.registry()
+    if (this.adopted?.registry !== registry) this.adopted = { registry, of: new Map() }
+    const known = this.adopted.of.get(module)
+    if (known !== undefined) return known
+    const made = adoptOn(registry, references)
+    this.adopted.of.set(module, made)
+    return made
+  }
+
+  offer<T>(key: ServiceKey<T>, value: NoInfer<T>): void {
+    this.ctx.dynamis.put(instance => [
+      declare(offered(key)),
+      {
+        point: key,
+        key: '',
+        id: '',
+        scope: [],
+        rank: 0,
+        digest: `${instance.fiber}#${instance.generation}`,
+        item: value,
+      },
+    ])
+  }
+
+  owner(slot: Exclude<SlotName, 'attached'>, id: string): string | undefined {
+    const point = `shell.${slot}`
+    return this.ctx.dynamis
+      .registry()
+      .placed.find(placed => placed.point === point && placed.id === (slot === 'gate' ? '' : id))
+      ?.instance.fiber
+  }
+
+  watchAdoptions(listener: () => void): () => void {
+    this.adoptionWatchers.add(listener)
+    return () => void this.adoptionWatchers.delete(listener)
+  }
+
   private put(slot: SlotName, id: string, made: Made): void {
     try {
       this.ctx.dynamis.put(made)
@@ -91,6 +197,13 @@ export abstract class ShellService extends Service implements ShellSlots {
         watcher.listener()
       } catch {
         this.ctx.logger.warn(`shell: a watcher of ${watcher.slot} threw`)
+      }
+    }
+    for (const listener of Array.from(this.adoptionWatchers)) {
+      try {
+        listener()
+      } catch {
+        this.ctx.logger.warn('shell: a watcher of the adoptions threw')
       }
     }
   }
@@ -177,26 +290,104 @@ declare module '@deepseek-ai/cordis' {
 
 export type Provide = <T>(key: ServiceKey<T>, value: NoInfer<T>) => void
 
-export type UiModuleDefinition<S extends Record<string, unknown>> = Readonly<{
+export type UiModuleDefinition<N extends Readonly<Record<string, Need>>> = Readonly<{
   name: string
-  inject: readonly (keyof S & string)[]
-  apply: (shell: ShellService, services: Readonly<S>, provide: Provide) => void
+  needs: N
+  apply: (shell: ShellService, bound: BoundOf<N>, provide: Provide) => void | (() => void)
 }>
 
-export function defineUiModule<S extends Record<string, unknown> = Record<string, unknown>>(
-  definition: UiModuleDefinition<S>,
-): Plugin.Object {
+type NeedsModule = UiModuleDefinition<Record<string, Need>>
+
+function lacking(shell: ShellService): ShellService {
+  return new Proxy(shell, {
+    get(target, key) {
+      if (key === 'contribute')
+        return (slot: SlotName, item: never) => {
+          if (slot === 'pages' || slot === 'gate') target.contribute(slot, item)
+        }
+      const value: unknown = Reflect.get(target, key)
+      return typeof value === 'function' ? value.bind(target) : value
+    },
+  })
+}
+
+function turnOf(definition: NeedsModule, bound: object, whole: boolean): Plugin.Object {
   return {
     name: definition.name,
-    inject: [ShellService.provide, ...definition.inject],
+    inject: [ShellService.provide],
     apply(ctx: Context) {
-      const lookup = ctx as unknown as { get(name: string): unknown }
-      const services: Record<string, unknown> = {}
-      for (const name of definition.inject) services[name] = lookup.get(name)
       const provide: Provide = (key, value) => {
-        ctx.effect(() => ctx.reflect.provide(key, value), 'ui-module.provide')
+        if (whole) ctx.shell.offer(key, value)
       }
-      definition.apply(ctx.shell, services as S, provide)
+      const shell = whole ? ctx.shell : lacking(ctx.shell)
+      const back = definition.apply(shell, bound as BoundOf<Record<string, Need>>, provide)
+      if (back !== undefined) ctx.effect(() => back, 'ui-module.apply')
+    },
+  }
+}
+
+function followAdoption(ctx: Context, definition: NeedsModule, bound: object): void {
+  const { shell } = ctx
+  let mark: string | undefined
+  let turn: { dispose(): Promise<void> } | undefined
+  let turning: Promise<void> = Promise.resolve()
+  let gone = false
+  const followed = Object.entries(definition.needs)
+    .filter(([, need]) => need.kind === 'point' && need.optional)
+    .map(([slot]) => slot)
+  const markOf = (adoption: Adoption | undefined): string =>
+    JSON.stringify(adoption, (key, value: unknown) => (followed.includes(key) ? undefined : value))
+  const settle = (): void => {
+    const adoption = shell.adoption(definition.name)
+    const next = markOf(adoption)
+    if (next === mark) return
+    mark = next
+    const last = turn
+    turn = undefined
+    turning = turning
+      .then(() => last?.dispose())
+      .then(() => {
+        if (gone || mark !== next) return
+        turn = ctx.plugin(turnOf(definition, bound, adoption?.kind === 'adopted'))
+      })
+  }
+  ctx.effect(() => {
+    const stop = shell.watchAdoptions(settle)
+    return () => {
+      gone = true
+      stop()
+    }
+  }, 'ui-module.adoption')
+  settle()
+}
+
+function boundOf(shell: ShellService, registry: () => Registry, needs: Record<string, Need>) {
+  const bound: Record<string, unknown> = {}
+  for (const [slot, need] of Object.entries(needs)) {
+    const reference = referenceOf(need)
+    bound[slot] =
+      need.kind === 'protocol'
+        ? pinnedClient(registry, reference)
+        : pointReader(registry, reference, listener => shell.watchAdoptions(listener))
+  }
+  return Object.freeze(bound)
+}
+
+export function defineUiModule<N extends Readonly<Record<string, Need>>>(
+  definition: UiModuleDefinition<N>,
+): Plugin.Object {
+  const module = definition as unknown as NeedsModule
+  return {
+    name: module.name,
+    inject: [ShellService.provide],
+    apply(ctx: Context) {
+      const { shell } = ctx
+      shell.require(module.name, referencesOf(module.needs))
+      followAdoption(
+        ctx,
+        module,
+        boundOf(shell, () => shell.registry(), module.needs),
+      )
     },
   }
 }

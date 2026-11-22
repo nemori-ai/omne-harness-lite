@@ -11,10 +11,7 @@ it('the cordis entry gives the interface module, the page id and order, and the 
   ])
   expect(cordis['PAGE_ID']).toBe('notifications')
   expect(cordis['PAGE_ORDER']).toBe(11)
-  expect(cordis['notificationUiModule']).toMatchObject({
-    name: 'notification-ui',
-    inject: ['shell', 'protocol:notification/v2'],
-  })
+  expect(cordis['notificationUiModule']).toMatchObject({ name: 'notification-ui' })
 })
 
 it('the root entry gives the hub and the two views', async () => {

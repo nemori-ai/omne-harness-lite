@@ -6,17 +6,29 @@ system
           assets-ui#1  [effective]
         assets.category-page
           assets-ui#1  [effective]
+        assets.governance
+          assets-ui#1  [effective]
         assets.holding
           assets-ui#1  [effective]
+        connection.protocols
+          served-protocols#1  [effective]
+        connection.server-points
+          served:connection.server-points#1  [effective]
         human-intervention.release-detail
           human-intervention-ui#1  [effective]
+        model.choices
+          model-ui#1  [effective]
         notification.inbox-sections
           notification-ui#1  [effective]
         session.block
           session-ui#1  [effective]
+        session.block-reads-source
+          session-reads-ui#1  [effective]
         session.call-detail
           session-ui#1  [effective]
         session.composer-attachments
+          session-ui#1  [effective]
+        session.composer-intake
           session-ui#1  [effective]
         session.dock
           session-ui#1  [effective]
@@ -34,25 +46,66 @@ system
           usage-ui#1  [effective]
         usage.widget
           usage-ui#1  [effective]
+        workspace.choices
+          workspace-ui#1  [effective]
   client
     assets
       assets.category-page  [list]
         mcp  [effective, mcp-ui#1]
+      assets.governance  [one]
+        assets-ui#1  [effective]
       assets.category  [keyed-list]
       assets.holding  [keyed-list]
+    connection
+      connection.protocols  [keyed-one]
+        assets/v1
+          served:assets/v1#1  [effective]
+        calendar/v1
+          served:calendar/v1#1  [effective]
+        human-intervention/v1
+          served:human-intervention/v1#1  [effective]
+        identity/v1
+          served:identity/v1#1  [effective]
+        media/v1
+          served:media/v1#1  [effective]
+        model/v1
+          served:model/v1#1  [effective]
+        notification/v2
+          served:notification/v2#1  [effective]
+        schedule/v2
+          served:schedule/v2#1  [effective]
+        session-diagnostics/v1
+          served:session-diagnostics/v1#1  [effective]
+        session/v1
+          served:session/v1#1  [effective]
+        tool/v1
+          served:tool/v1#1  [effective]
+        usage/v1
+          served:usage/v1#1  [effective]
+        workspace/v1
+          served:workspace/v1#1  [effective]
+      connection.server-points  [one]
+        served:connection.server-points#1  [effective]
     human-intervention
       human-intervention.release-detail  [keyed-list]
         schedule.activation@1
           schedule-activation  [effective, schedule-ui#1]
+    model
+      model.choices  [one]
+        model-ui#1  [effective]
     notification
       notification.inbox-sections  [list]
     session
       session.block  [list]
         media  [effective, media-ui#1]
+      session.block-reads-source  [one]
+        session-reads-ui#1  [effective]
       session.call-detail  [list]
         tool-call-output  [effective, tool-ui#1]
       session.composer-attachments  [list]
         media  [effective, media-ui#1]
+      session.composer-intake  [one]
+        session-ui#1  [effective]
       session.dock  [list]
         decisions-in-session  [effective, human-intervention-ui#1]
         background-calls  [effective, session-ui#1]
@@ -106,3 +159,6 @@ system
           usage.cache  [effective, usage-ui#1]
           usage.latency  [effective, usage-ui#1]
           usage.tools  [effective, usage-ui#1]
+    workspace
+      workspace.choices  [one]
+        workspace-ui#1  [effective]

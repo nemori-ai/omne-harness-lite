@@ -1,20 +1,20 @@
 // @vitest-environment happy-dom
 import { Context, type Plugin } from '@deepseek-ai/cordis'
 import { act, cleanup, render, screen } from '@testing-library/react'
-import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
+import { serveProtocol } from '@omne-harness/shell-contract/testing'
 import { sessionProtocol } from '@omne-harness/session-protocol'
 import type { ShellLogin } from '@omne-harness/shell-contract'
 import { workspaceProtocol } from '@omne-harness/workspace-protocol'
 import { afterEach, describe, expect, it } from 'vitest'
 import { assembly } from '../src/page/assembly.tsx'
+import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { DesktopShell, shellPlugin } from '../src/page/shell/service.ts'
 import { createShellState } from '../src/page/shell/state.ts'
 import { domainProtocols } from '../src/shared/protocols.ts'
 
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
-const HAND_OVER = 'hand-over:workspace.choices->session.workspace-choices'
-const WORKSPACE_PARTS = new Set(['workspace-ui', HAND_OVER])
+const WORKSPACE_PARTS = new Set(['workspace-ui'])
 
 afterEach(cleanup)
 
@@ -59,9 +59,10 @@ const workspaceClient = () => ({
 
 async function mounted(modules: readonly Plugin.Object[], withWorkspace: boolean) {
   const root = new Context()
+  await root.plugin(DynamisService)
   await root.plugin(shellPlugin(createShellState(login)))
-  root.reflect.provide(protocolServiceName(sessionProtocol), silent())
-  if (withWorkspace) root.reflect.provide(protocolServiceName(workspaceProtocol), workspaceClient())
+  await serveProtocol(root, sessionProtocol, silent())
+  if (withWorkspace) await serveProtocol(root, workspaceProtocol, workspaceClient())
   for (const module of modules) await root.plugin(module)
   const shell = root.get('shell') as unknown as DesktopShell
   const sidebar = shell.items('sidebar').find(item => item.id === 'session-list')!
@@ -77,10 +78,10 @@ const sessionParts = (keep: (name: string) => boolean) =>
   })
 
 describe('the desktop assembly and the workspace', () => {
-  it('lists the workspace module, the hand-over of its list and its protocol', () => {
-    expect(assembly.modules.map(module => module.name)).toEqual(
-      expect.arrayContaining(['workspace-ui', HAND_OVER]),
-    )
+  it('lists the workspace module and its protocol, and no plugin that hands things over', () => {
+    const names = assembly.modules.map(module => module.name ?? '')
+    expect(names).toContain('workspace-ui')
+    expect(names.filter(name => name.startsWith('hand-over'))).toEqual([])
     expect(domainProtocols).toContain(workspaceProtocol)
   })
 
@@ -107,12 +108,22 @@ describe('the desktop assembly and the workspace', () => {
     expect(shell.items('pages').map(page => page.id)).toEqual(['conversation', 'history-search'])
   })
 
-  it('the module listed but the protocol not mounted: the session interface is as before', async () => {
+  it('the module listed but the protocol not mounted: the session interface is as before, and the workspaces page is there as what it lacks', async () => {
     const shell = await mounted(
       sessionParts(() => true),
       false,
     )
     expect(screen.queryByRole('combobox', { name: '新会话的工作区' })).toBeNull()
-    expect(shell.items('pages').map(page => page.id)).toEqual(['conversation', 'history-search'])
+    expect(shell.items('pages').map(page => page.id)).toEqual([
+      'conversation',
+      'history-search',
+      'workspaces',
+    ])
+    expect(shell.lacks('pages', 'conversation')).toEqual([])
+    expect(shell.lacks('pages', 'workspaces')).toHaveLength(1)
+    expect(shell.adoption('workspace-ui')).toMatchObject({
+      kind: 'unavailable',
+      missing: [{ slot: 'workspace', reference: { anyOf: ['workspace/v1'] } }],
+    })
   })
 })

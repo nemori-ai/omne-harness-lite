@@ -2,9 +2,9 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeAll, expect, it } from 'vitest'
+import { serveProtocol } from '@omne-harness/shell-contract/testing'
 import { assetsProtocol, type AssetRowView } from '@omne-harness/assets-protocol'
-import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
-import { serviceOf } from '@omne-harness/shell-contract'
+import { needPoint } from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import { AssetsPage, createGovernance } from '../src/index.ts'
 import { assetGovernanceKey, assetsUiModule, type AssetGovernance } from '../src/cordis.tsx'
@@ -16,7 +16,6 @@ import { startShell } from './fixtures/reference-shell.ts'
 
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
-const SERVICE = protocolServiceName({ name: assetsProtocol.name, major: assetsProtocol.major })
 
 beforeAll(stubAnimation)
 
@@ -219,15 +218,16 @@ it('C14 递归：类别自己的页面经治理口拿到的列表与动作结果
   const fake = createFakeClient()
   serveSettings(fake)
   serveAssetReads(fake, [skill('review'), skill('notes')])
-  ;(root as unknown as Context).reflect.provide(SERVICE, fake.client)
+  await serveProtocol(root as unknown as Context, assetsProtocol, fake.client)
   await root.plugin(assetsUiModule)
   const ports: AssetGovernance[] = []
   await root.plugin(
     defineUiModule({
       name: 'skill-ui',
-      inject: [assetGovernanceKey],
-      apply(_shell, services) {
-        ports.push(serviceOf(services, assetGovernanceKey))
+      needs: { port: needPoint(assetGovernanceKey) },
+      apply(_shell, bound) {
+        const port = bound.port.get()
+        if (port !== undefined) ports.push(port)
       },
     }),
   )

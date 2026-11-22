@@ -9,6 +9,8 @@ export type AvailabilityView = {
   readonly revisions: ReadonlyMap<string, number>
   /** The extension points the server declares, by name; empty when it does not tell them. */
   readonly points: ReadonlyMap<string, ServerPoint>
+  /** The protocols two instances of the server hold at once: none of them is served. */
+  readonly conflicts: ReadonlySet<string>
 }
 
 /** A point of the other tree. `keys` is there only for a point that makes its keys public. */
@@ -35,6 +37,29 @@ const told = (served: readonly Served[]): [string, number][] =>
     revision === undefined ? [] : [[keyText(key), revision]],
   )
 
+const conflictsOf = (keys: readonly ProtocolKey[] | undefined): ReadonlySet<string> =>
+  new Set((keys ?? []).map(keyText))
+
+/** Where one protocol stands in what the server tells now. */
+export type ProtocolStanding =
+  | Readonly<{ kind: 'connecting' | 'open' | 'absent' | 'conflict' }>
+  | Readonly<{ kind: 'other-major'; served: readonly number[] }>
+
+export function protocolStanding(
+  view: AvailabilityView | undefined,
+  key: ProtocolKey,
+): ProtocolStanding {
+  if (view === undefined) return { kind: 'connecting' }
+  const text = keyText(key)
+  if (view.conflicts.has(text)) return { kind: 'conflict' }
+  if (view.open.has(text)) return { kind: 'open' }
+  const served = [...view.open.values()]
+    .filter(other => other.name === key.name)
+    .map(other => other.major)
+    .sort((left, right) => left - right)
+  return served.length === 0 ? { kind: 'absent' } : { kind: 'other-major', served }
+}
+
 export function applyFrame(
   view: AvailabilityView | undefined,
   frame: AvailabilityFrame,
@@ -43,7 +68,9 @@ export function applyFrame(
     const { revision, protocols } = frame
     const points = new Map((frame.points ?? []).map(({ name, ...point }) => [name, point]))
     const open = new Map(entries(protocols))
-    return { kind: 'apply', view: { revision, open, revisions: new Map(told(protocols)), points } }
+    const conflicts = conflictsOf(frame.conflicts)
+    const revisions = new Map(told(protocols))
+    return { kind: 'apply', view: { revision, open, revisions, points, conflicts } }
   }
   if (view === undefined || frame.revision !== view.revision + 1) return { kind: 'resubscribe' }
   const open = new Map(view.open)
@@ -55,7 +82,8 @@ export function applyFrame(
   for (const [text, key] of entries(frame.added)) open.set(text, key)
   for (const [text, revision] of told(frame.added)) revisions.set(text, revision)
   const { points } = view
-  return { kind: 'apply', view: { revision: frame.revision, open, revisions, points } }
+  const conflicts = conflictsOf(frame.conflicts)
+  return { kind: 'apply', view: { revision: frame.revision, open, revisions, points, conflicts } }
 }
 
 export type Backoff = { readonly delayMs: (attempt: number) => number }

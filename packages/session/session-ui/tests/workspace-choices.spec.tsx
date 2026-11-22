@@ -2,14 +2,10 @@
 import { act, cleanup, fireEvent, screen } from '@testing-library/react'
 import type { Context } from '@deepseek-ai/cordis'
 import { afterEach, beforeAll, expect, it } from 'vitest'
-import {
-  sessionWorkspaceChoicesKey,
-  type WorkspaceChoiceHolder,
-  type WorkspaceChoiceSource,
-} from '../src/cordis.ts'
+import type { WorkspaceChoiceSource } from '../src/cordis.ts'
 import { createFakeClient, type FakeClient } from './fixtures/fake-client.ts'
 import { listed, listPage, page } from './fixtures/frames.ts'
-import { mountModule } from './fixtures/shell.tsx'
+import { mountModule, providerOf, TAKEN } from './fixtures/shell.tsx'
 
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
@@ -47,10 +43,7 @@ async function settle(): Promise<void> {
 
 const picker = () => screen.queryByRole('combobox', { name: '新会话的工作区' })
 const heading = () => screen.queryByRole('combobox', { name: '工作区' })
-const holderOf = (root: Context): WorkspaceChoiceHolder =>
-  (root as unknown as { get(name: string): unknown }).get(
-    sessionWorkspaceChoicesKey,
-  ) as WorkspaceChoiceHolder
+const holderOf = (root: Context) => providerOf(root, TAKEN.workspaceChoices)
 
 async function pickOption(trigger: HTMLElement, name: RegExp): Promise<void> {
   fireEvent.keyDown(trigger, { key: 'Enter' })
@@ -271,10 +264,15 @@ it('another session opened in the same page reads its own place, and what was sa
   expect(screen.queryByText('没有换：会话已归档')).toBeNull()
 })
 
-it('the place a list is handed over goes when the session interface unloads', async () => {
+it('while the session protocol is away the module is not adopted, whatever is provided to it', async () => {
   const fake = createFakeClient()
   const mounted = await mountModule(fake.client, TENANT)
-  expect(holderOf(mounted.root)).toBeDefined()
   await mounted.withdraw()
-  expect(holderOf(mounted.root)).toBeUndefined()
+  expect(mounted.shell.items('sidebar')).toEqual([])
+  expect(mounted.shell.adoption('session-ui')).toMatchObject({ kind: 'unavailable' })
+  await act(async () => {
+    holderOf(mounted.root).attach({ list: async () => ({ kind: 'listed', choices: [] }) })
+  })
+  await settle()
+  expect(mounted.shell.adoption('session-ui')).toMatchObject({ kind: 'unavailable' })
 })

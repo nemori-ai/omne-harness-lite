@@ -12,9 +12,9 @@ it('the root entry exports the views and the models, and no Cordis binding', asy
   ])
 })
 
-it('the ./cordis entry exports the module factory and the key of the holder of drafts', async () => {
+it('the ./cordis entry exports the module factory only', async () => {
   const cordis = (await import('@omne-harness/media-ui/cordis')) as Record<string, unknown>
-  expect(Object.keys(cordis).sort()).toEqual(['createMediaUiModule', 'mediaComposerIntakeKey'])
+  expect(Object.keys(cordis).sort()).toEqual(['createMediaUiModule'])
   const made = (cordis['createMediaUiModule'] as () => unknown)()
-  expect(made).toMatchObject({ name: 'media-ui', inject: ['shell', 'protocol:media/v1'] })
+  expect(made).toMatchObject({ name: 'media-ui' })
 })

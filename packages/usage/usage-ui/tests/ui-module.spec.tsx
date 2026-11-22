@@ -1,6 +1,8 @@
 // @vitest-environment happy-dom
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { definePoint } from '@omne-harness/shell-contract'
+import { serveProtocol } from '@omne-harness/shell-contract/testing'
+import { usageProtocol } from '@omne-harness/usage-protocol'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import {
   createUsageUiModule,
@@ -17,7 +19,6 @@ import { startShell as startBare, type ReferenceShell } from './fixtures/referen
 beforeAll(stubDom)
 afterEach(cleanup)
 
-const SERVICE = 'protocol:usage/v1'
 const session = {
   encode: (value: { session: string }) => value.session,
   decode: (text: string) => ({ session: text }),
@@ -43,9 +44,9 @@ async function mounted() {
   const { root, shell } = await startShell()
   shell.tenant = TENANT
   const fake = fakeUsage()
-  const withdraw = root.reflect.provide(SERVICE, fake.client)
+  const served = await serveProtocol(root, usageProtocol, fake.client)
   await root.plugin(createUsageUiModule({ sessionSide, sessionStatus }))
-  return { root, shell, fake, withdraw }
+  return { root, shell, fake, withdraw: () => served.dispose() }
 }
 
 const anchored = (shell: ReferenceShell, anchor: string) =>
@@ -57,7 +58,7 @@ async function statusWith(occupancy: () => Answer | Promise<never>) {
   shell.tenant = TENANT
   const answer = (call: Call) =>
     call.operation === 'read-context-occupancy' ? (occupancy() as Answer) : undefined
-  root.reflect.provide(SERVICE, fakeUsage(answer).client)
+  await serveProtocol(root, usageProtocol, fakeUsage(answer).client)
   await root.plugin(createUsageUiModule({ sessionSide, sessionStatus }))
   render(<>{anchored(shell, 'session.status')[0]?.render({ scope: TENANT, subject: SESSION })}</>)
   await settle()
@@ -70,8 +71,12 @@ const known = (percent: string, compactAtPercent: string | null): Answer => ({
 })
 
 describe('the usage interface module in its three places (C27)', () => {
-  it('injects the usage protocol client by the name of usage/v1', () => {
-    expect(createUsageUiModule().inject).toEqual(['shell', SERVICE])
+  it('needs the usage protocol at usage/v1, and is pinned to it while it is served', async () => {
+    const { shell } = await mounted()
+    expect(shell.adoption('usage-ui')).toMatchObject({
+      kind: 'adopted',
+      bindings: { usage: { key: 'usage/v1' } },
+    })
   })
 
   it('puts the usage page, a session side tab and a session status item', async () => {
@@ -204,21 +209,25 @@ describe('the usage interface module in its three places (C27)', () => {
     expect(status?.querySelector('.usage-percent, [role="meter"], svg, [role="status"]')).toBeNull()
   })
 
-  it('does not load without the usage protocol, unloads when it is withdrawn and loads again when it is back', async () => {
+  it('keeps its page without the usage protocol, and puts the session side and status only while it is served', async () => {
     const { root, shell } = await startShell()
     await root.plugin(createUsageUiModule({ sessionSide, sessionStatus }))
-    expect(shell.items('pages')).toEqual([])
+    const there = () => [
+      shell.items('pages').map(page => page.id),
+      anchored(shell, 'session.side').length + anchored(shell, 'session.status').length,
+    ]
+    expect(there()).toEqual([[USAGE_PAGE], 0])
+    expect(shell.adoption('usage-ui')).toMatchObject({ kind: 'unavailable' })
     const fake = fakeUsage()
-    const withdraw = root.reflect.provide(SERVICE, fake.client)
+    const served = await serveProtocol(root, usageProtocol, fake.client)
     await new Promise(resolve => setTimeout(resolve, 0))
-    expect(shell.items('pages').map(page => page.id)).toEqual([USAGE_PAGE])
-    withdraw()
+    expect(there()).toEqual([[USAGE_PAGE], 2])
+    await served.dispose()
     await new Promise(resolve => setTimeout(resolve, 0))
-    expect(shell.items('pages')).toEqual([])
-    expect(shell.items('attached')).toEqual([])
-    root.reflect.provide(SERVICE, fake.client)
+    expect(there()).toEqual([[USAGE_PAGE], 0])
+    await serveProtocol(root, usageProtocol, fake.client)
     await new Promise(resolve => setTimeout(resolve, 0))
-    expect(shell.items('pages').map(page => page.id)).toEqual([USAGE_PAGE])
+    expect(there()).toEqual([[USAGE_PAGE], 2])
   })
 
   it('draws nothing in a place without a tenant', async () => {
@@ -247,7 +256,11 @@ describe('the usage interface module in its three places (C27)', () => {
   it('says it is reading until the answer comes', async () => {
     const { root, shell } = await startShell()
     shell.tenant = TENANT
-    root.reflect.provide(SERVICE, fakeUsage(() => new Promise<never>(() => {}) as never).client)
+    await serveProtocol(
+      root,
+      usageProtocol,
+      fakeUsage(() => new Promise<never>(() => {}) as never).client,
+    )
     await root.plugin(createUsageUiModule({ sessionSide, sessionStatus }))
     render(<>{shell.items('pages')[0]?.render({ scope: TENANT })}</>)
     await settle()

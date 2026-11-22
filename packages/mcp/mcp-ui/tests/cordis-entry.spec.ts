@@ -9,5 +9,5 @@ it('the cordis entry gives the module factory only; the module waits for the por
   }) => unknown
   expect(
     create({ page: { name: 'p', contribute: () => undefined }, governance: 'some-port' }),
-  ).toMatchObject({ name: 'mcp-ui', inject: ['shell', 'some-port'] })
+  ).toMatchObject({ name: 'mcp-ui' })
 })

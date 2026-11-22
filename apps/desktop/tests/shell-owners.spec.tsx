@@ -16,7 +16,7 @@ afterEach(() => {
 const page = (name: string, id: string) =>
   defineUiModule({
     name,
-    inject: [],
+    needs: {},
     apply: shell =>
       shell.contribute('pages', { id, title: id, order: 0, icon: 'topics', render: () => null }),
   })
@@ -24,7 +24,7 @@ const page = (name: string, id: string) =>
 const attach = (name: string, anchor: string, id: string) =>
   defineUiModule({
     name,
-    inject: [],
+    needs: {},
     apply: shell => shell.contribute('attached', { anchor, id, order: 0, render: () => null }),
   })
 
@@ -79,7 +79,7 @@ describe('外壳：一页是谁放的', () => {
     const held: { report?: () => void } = {}
     const reporting = defineUiModule({
       name: 'one',
-      inject: [],
+      needs: {},
       apply(shell) {
         held.report = () => shell.figure({ doing: 'writing', subject: '清单' })
         shell.contribute('pages', {
@@ -109,10 +109,7 @@ describe('外壳：装错的地方写进日志', () => {
     await loaded(t, page('one', 'p'))
     await loaded(t, page('two', 'p'))
     await loaded(t, fakeSidebar({ id: 'side', order: 0, text: '甲' }))
-    await loaded(t, {
-      ...fakeSidebar({ id: 'side', order: 0, text: '乙' }),
-      name: 'another-sidebar',
-    })
+    await loaded(t, fakeSidebar({ id: 'side', order: 0, text: '乙' }, 'another-sidebar'))
     await loaded(t, attach('left', 'test.a', 'x'))
     await loaded(t, attach('right', 'test.a', 'x'))
     const lines = logged.mock.calls.map(call => String(call[0]))

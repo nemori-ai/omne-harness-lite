@@ -1,4 +1,5 @@
-import { startShell as startBare } from '@omne-harness/shell-contract/testing'
+import { serverPointsContract } from '@omne-harness/client-assembly'
+import { servePoint, startShell as startBare } from '@omne-harness/shell-contract/testing'
 import { fakeKeys } from './server-keys.ts'
 
 export { ReferenceShell, render } from '@omne-harness/shell-contract/testing'
@@ -7,6 +8,6 @@ export { ReferenceShell, render } from '@omne-harness/shell-contract/testing'
 export async function startShell() {
   const started = await startBare()
   const keys = fakeKeys()
-  started.root.reflect.provide('connection', { availability: keys.source })
+  await servePoint(started.root, serverPointsContract, keys.source)
   return { ...started, keys }
 }

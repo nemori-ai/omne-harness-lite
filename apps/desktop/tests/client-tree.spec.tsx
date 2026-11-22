@@ -1,10 +1,12 @@
 // @vitest-environment happy-dom
 import { Context } from '@deepseek-ai/cordis'
-import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
+import { serverPointsContract } from '@omne-harness/client-assembly'
 import { deployment, render, tree } from '@omne-harness/dynamis'
 import type { ShellLogin } from '@omne-harness/shell-contract'
+import { servePoint, serveProtocol } from '@omne-harness/shell-contract/testing'
 import { expect, it, vi } from 'vitest'
 import { assembly } from '../src/page/assembly.tsx'
+import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { shellPlugin } from '../src/page/shell/service.ts'
 import { createShellState } from '../src/page/shell/state.ts'
 import { quietConnection } from './support/shell-setup.tsx'
@@ -27,10 +29,14 @@ const settle = async (): Promise<void> => {
 
 async function clientTree() {
   const root = new Context()
+  await root.plugin(DynamisService)
   await root.plugin(shellPlugin(createShellState(login)))
   root.reflect.provide('connection', quietConnection)
-  for (const protocol of assembly.protocols)
-    root.reflect.provide(protocolServiceName(protocol), silent())
+  await servePoint(root, serverPointsContract, {
+    keys: () => undefined,
+    subscribe: () => () => undefined,
+  })
+  for (const protocol of assembly.protocols) await serveProtocol(root, protocol, silent())
   for (const module of assembly.modules) await root.plugin(module)
   await settle()
   return tree(root.dynamis.registry(), deployment)
@@ -53,13 +59,19 @@ it('每个点由一个宿主声明，点的名字以宿主开头', async () => {
   expect(points.toSorted()).toEqual([
     'assets.category',
     'assets.category-page',
+    'assets.governance',
     'assets.holding',
+    'connection.protocols',
+    'connection.server-points',
     'dynamis.points',
     'human-intervention.release-detail',
+    'model.choices',
     'notification.inbox-sections',
     'session.block',
+    'session.block-reads-source',
     'session.call-detail',
     'session.composer-attachments',
+    'session.composer-intake',
     'session.dock',
     'session.side',
     'session.status',
@@ -68,11 +80,13 @@ it('每个点由一个宿主声明，点的名字以宿主开头', async () => {
     'shell.sidebar',
     'usage.presentation',
     'usage.widget',
+    'workspace.choices',
   ])
 })
 
 it('往没有声明的点上放东西：它不生效，树的问题一栏写出这个点', async () => {
   const root = new Context()
+  await root.plugin(DynamisService)
   await root.plugin(shellPlugin(createShellState(login)))
   await root.plugin({
     name: 'forgetful',
@@ -94,6 +108,7 @@ it('往没有声明的点上放东西：它不生效，树的问题一栏写出�
 it('树上每出现一个问题，外壳往日志里记一条错误，同一个问题只记一次', async () => {
   const root = new Context()
   const logged = vi.spyOn(root.logger, 'error').mockImplementation(() => undefined)
+  await root.plugin(DynamisService)
   await root.plugin(shellPlugin(createShellState(login)))
   const stray = (name: string, id: string) =>
     root.plugin({

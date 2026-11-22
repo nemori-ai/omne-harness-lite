@@ -35,7 +35,7 @@
 | `defineProtocol`、`ruleCodec`、对外结果表           | 每个开放给客户端的领域的协议契约   | 一份字段规则同时得到类型与读写；管道替领域答的结果自动补上 |
 | `AccessRegistryService.mount`、`defineAccessPlugin` | 每个领域的接入插件                 | 把协议挂上登记表，卸载即撤下                               |
 | 协议客户端核心 `createClient` 与两种传输            | 每个领域的协议客户端；脚本与第三方 | 由协议契约得到客户端，结果只有契约的结果加两种本地结果     |
-| `connectionPlugin`、`defineProtocolClient`          | 客户端应用与每个领域的界面模块     | 跟随可用性，协议开了就提供协议客户端，撤了就收回           |
+| `connectionPlugin`、`defineProtocolClient`          | 客户端应用与每个领域的界面模块     | 跟随可用性；服务端开着而且这个客户端带着契约的每份协议，是点 `connection.protocols` 上的一项 |
 
 ## 心智模型
 
@@ -197,6 +197,13 @@ HTTP 传输把两类失败认作没发出：连接建立之前就失败的（连
 - 连接一直跟着可用性；观察断了按退避重新订阅，视图不动，协议客户端不收回。协议开放而树上没有它的协议客户端时记一条诊断。
 - 协议撤下时，协议客户端先标记已收回再注销服务；之后的调用（含外部留着的旧句柄）在本地答不可用，观察立刻结束；在途调用没发出的答不可用，可能发出的答不确定。换登录或换租户不改变协议客户端。
 - 已经建立的观察连接断开后，客户端不自动重连，也不自动发出任何公开操作。
+- 客户端装配在客户端的树上声明两个点：
+  - `connection.protocols`：每键一项，键是「协议名/v主版本」。一项是这一版的协议客户端与对方的修订号。一项在两个条件都成立时出现：可用性里这份协议开着，而且这个客户端构建时带着这一版的契约。协议撤了，这一项取走。在服务端冲突的协议没有项。同键而摘要不同的几项答冲突。
+  - `connection.server-points`：一项，是一个读法：服务端各个点上公开的键（`keys(点名)`），与它们的变化（`subscribe`）。
+- 一份协议此刻的状态是五种之一，`availability.standing(协议)` 给出：还没有可用性；开着；同名的别的主版本开着（带出是哪几个）；没有；冲突。
+- 需要一份协议的一方把需要写成对 `connection.protocols` 的引用：要哪份协议，认哪几个主版本（想要的在前），是不是可选。点名的主版本没有就是没有，不拿别的主版本顶替。界面模块的声明与采用见[前端规格的「界面模块」](../frontend/SPEC.md#界面模块)。
+- 一直在的协议客户端（`connection.client(协议)`，与界面模块拿到的那一个）：它不随协议来去。每次调用按此刻的登记表找这份协议的那一项，恰好一项才转过去；没有、冲突或还没有可用性时，调用当场答不可用，观察以不可用结束，传输一次都不被调。
+- 命令行不带这棵树。它的一次调用答不可用之后，读一次可用性的第一帧就停，照同一张状态表在标准错误上写出原因（见[命令行的规格](../../apps/cli/SPEC.md)）。
 
 ### HTTP 承载
 
@@ -227,6 +234,11 @@ HTTP 传输把两类失败认作没发出：连接建立之前就失败的（连
 | AC-5 | 消息号不进入任何业务身份；服务端派生的业务身份是确定性的                             | 重连或换消息号产生第二份意图         | `session-access` 的 `derivation` 用例；`human-intervention-access` 的 `operations` 用例                                                             |
 | AC-6 | 名单要么完整，要么整份不可用                                                         | 调用者把残缺的名单当成全部           | `identity-access` 的 `governance-operations` 用例                                                                                                   |
 | AC-7 | 观察的每帧发出前已重核资格；观察的取消不发起、取消或重发任何业务调用                 | 撤权后仍披露；观察变成业务控制       | `server-entry` 的 `hub` 用例；Session 接入插件的观察用例                                                                                            |
+| R-1  | 引用点名的主版本没有就是没有，不拿别的主版本顶替                                     | 一个模块对着它不认识的协议形状说话   | `shell-contract` 的 `needs` 用例「with two majors served…」；`client-assembly` 的 `protocols-point` 用例 |
+| R-2  | 采用是一个值：同一组界面模块与同一张登记表，不论加载先后，钉出来的相同               | 界面的样子看启动次序                 | `shell-contract` 的 `needs` 用例「the adoption is one value…」 |
+| R-3  | 没钉住的协议一个字节也不发：调用当场答不可用，观察以不可用结束                       | 向没有的协议发消息；页面等一个不会来的答复 | `client-assembly` 的 `protocols-point` 用例（传输是记录调用的替身）；`shell-contract` 的 `needs` 用例「the client it is given is always there…」 |
+| R-4  | 少一份协议只影响引用它的界面模块，每一处说得出缺的是哪一条                           | 少了一页，没有任何地方写着原因       | `shell-contract` 的 `needs` 用例「one protocol less touches only…」；`apps/desktop` 的 `shell-lacks` 用例 |
+| R-5  | 钉住的等于此刻重新解析的结果：采用不存，界面模块的 `apply` 跟着采用换               | 界面模块拿着上一个采用留下的状态     | `shell-contract` 的 `needs` 用例「applies once for each adoption…」 |
 | I-1  | 入口、管道、登记表与观察中枢不含任何领域专用的代码                                   | 加一个领域要改接入层                 | 依赖检查的 `entry-registry-knows-no-domain`                                                                                                         |
 | I-3  | 同名同主版本的协议任一时刻至多一份在服务；多于一份时都不服务，答冲突 | 调用被送到不确定的实现；装错的结果看启动次序 | `AccessRegistry` 模型 `Unique`；`protocol-table`、`registry-cordis` 用例；Dynamis 的答法 |
 | I-4  | 协议撤下时，它的每个在途调用与观察都收到中止并有确定的结局；撤下完成时它们都已结束   | 调用永不返回，订阅泄漏               | `AccessRegistry` 模型 `AbortReachesInFlight`、`GoneMeansSettled`、`EveryCallSettles`、`DrainCompletes`；`registry`、`settle`、`pipeline-abort` 用例 |

@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, beforeAll, expect, it, vi } from 'vitest'
-import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
 import { notificationProtocol } from '@omne-harness/notification-protocol'
+import { serveProtocol } from '@omne-harness/shell-contract/testing'
 import { keyOf } from '../src/model/inbox-machine.ts'
 import { notificationUiModule, PAGE_ID } from '../src/cordis.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
@@ -12,10 +12,6 @@ import { startShell } from './fixtures/reference-shell.ts'
 
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
-const SERVICE = protocolServiceName({
-  name: notificationProtocol.name,
-  major: notificationProtocol.major,
-})
 
 const scrolled = vi.fn()
 beforeAll(() => {
@@ -31,7 +27,7 @@ async function signedIn() {
   const { root, shell } = await startShell()
   shell.setTenant(TENANT)
   const fake = createFakeClient()
-  root.reflect.provide(SERVICE, fake.client)
+  await serveProtocol(root, notificationProtocol, fake.client)
   const module = root.plugin(notificationUiModule)
   await module
   await later()
@@ -83,7 +79,7 @@ it('takes its toasts down and stops watching when it unloads', async () => {
 it('watches nothing without a tenant, and lets go of the tenant on sign-out', async () => {
   const { root, shell } = await startShell()
   const fake = createFakeClient()
-  root.reflect.provide(SERVICE, fake.client)
+  await serveProtocol(root, notificationProtocol, fake.client)
   await root.plugin(notificationUiModule)
   await later()
   expect(fake.observations).toHaveLength(0)

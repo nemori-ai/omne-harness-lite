@@ -1,18 +1,13 @@
 import { useState } from 'react'
 import type { Plugin } from '@deepseek-ai/cordis'
-import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
 import { identityProtocol, type IdentityProtocol } from '@omne-harness/identity-protocol'
 import type { ClientOf } from '@omne-harness/sdk/core'
+import { needProtocol } from '@omne-harness/shell-contract'
 import { defineUiModule, type ShellService } from '@omne-harness/shell-contract/cordis'
 import type { AccountPorts } from './model/account.ts'
 import { createLoginModel, type LoginPorts } from './model/login.ts'
 import { AccountBlock, AccountRail } from './view/account-block.tsx'
 import { LoginCard } from './view/login-card.tsx'
-
-export const IDENTITY_CLIENT = protocolServiceName({
-  name: identityProtocol.name,
-  major: identityProtocol.major,
-})
 
 export const GATE_ID = 'identity.login'
 export const ACCOUNT_ID = 'identity.account'
@@ -42,10 +37,10 @@ function contribute(shell: ShellService, identity: IdentityClient): void {
   })
 }
 
-export const identityUiModule: Plugin.Object = defineUiModule<Record<string, IdentityClient>>({
+export const identityUiModule: Plugin.Object = defineUiModule({
   name: 'identity-ui',
-  inject: [IDENTITY_CLIENT],
-  apply(shell, services) {
-    contribute(shell, services[IDENTITY_CLIENT]!)
+  needs: { identity: needProtocol<IdentityClient>(identityProtocol) },
+  apply(shell, { identity }) {
+    contribute(shell, identity)
   },
 })

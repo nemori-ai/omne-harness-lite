@@ -1,6 +1,16 @@
 import { expect, it } from 'vitest'
 
-it('exports the availability step, the default backoff and the key text', async () => {
+it('exports the availability step, the default backoff, the key text, the standings of a protocol and of a need, and the contract of its point', async () => {
   const root = (await import('@omne-harness/client-assembly')) as Record<string, unknown>
-  expect(Object.keys(root).sort()).toEqual(['applyFrame', 'defaultBackoff', 'keyText'])
+  expect(Object.keys(root).sort()).toEqual([
+    'CONNECTION_PROTOCOLS_POINT',
+    'CONNECTION_SERVER_POINTS',
+    'applyFrame',
+    'defaultBackoff',
+    'keyText',
+    'needStanding',
+    'protocolStanding',
+    'protocolsContract',
+    'serverPointsContract',
+  ])
 })

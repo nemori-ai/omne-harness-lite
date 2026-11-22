@@ -2,8 +2,8 @@
 import { Context } from '@deepseek-ai/cordis'
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, beforeAll, expect, it } from 'vitest'
-import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
 import { notificationProtocol } from '@omne-harness/notification-protocol'
+import { serveProtocol } from '@omne-harness/shell-contract/testing'
 import { INBOX_SECTIONS, inboxSections, notificationUiModule } from '../src/cordis.ts'
 import { entry, page } from './fixtures/entries.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
@@ -12,10 +12,6 @@ import { startShell } from './fixtures/reference-shell.ts'
 
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
-const SERVICE = protocolServiceName({
-  name: notificationProtocol.name,
-  major: notificationProtocol.major,
-})
 
 beforeAll(stubAnimation)
 afterEach(cleanup)
@@ -34,9 +30,9 @@ const pageIds = (root: Context) =>
 async function loaded() {
   const { root, shell } = await startShell()
   const fake = createFakeClient()
-  const unprovide = root.reflect.provide(SERVICE, fake.client)
+  const served = await serveProtocol(root, notificationProtocol, fake.client)
   await root.plugin(notificationUiModule)
-  return { root, shell, fake, unprovide }
+  return { root, shell, fake, served }
 }
 
 it('with the protocol client on the tree it puts one page with a count, and nothing else', async () => {
@@ -50,21 +46,29 @@ it('with the protocol client on the tree it puts one page with a count, and noth
   expect(shell.items('attached')).toEqual([])
 })
 
-it('without the protocol client it does not load', async () => {
-  const { root } = await startShell()
+it('without the protocol client it keeps its page and puts nothing else', async () => {
+  const { root, shell } = await startShell()
   await root.plugin(notificationUiModule)
-  expect(pageIds(root)).toEqual([])
+  expect(pageIds(root)).toEqual(['notifications'])
+  expect(shell.items('sidebar')).toEqual([])
+  expect(shell.items('gate')).toEqual([])
+  expect(shell.items('attached')).toEqual([])
 })
 
-it('the page and the count go when the client goes and come back with it', async () => {
-  const { root, fake, unprovide } = await loaded()
-  expect(pageIds(root)).toEqual(['notifications'])
-  unprovide()
+it('the module is adopted at notification/v2 while it is served, and the page stays when it goes', async () => {
+  const { root, shell, fake, served } = await loaded()
+  expect(shell.adoption('notification-ui')).toMatchObject({
+    kind: 'adopted',
+    bindings: { notification: { key: 'notification/v2' } },
+  })
+  await served.dispose()
   await later()
-  expect(pageIds(root)).toEqual([])
-  root.reflect.provide(SERVICE, fake.client)
+  expect(pageIds(root)).toEqual(['notifications'])
+  expect(shell.adoption('notification-ui')).toMatchObject({ kind: 'unavailable' })
+  await serveProtocol(root, notificationProtocol, fake.client)
   await later()
   expect(pageIds(root)).toEqual(['notifications'])
+  expect(shell.adoption('notification-ui')).toMatchObject({ kind: 'adopted' })
 })
 
 it('the page uses the tenant of the shell; without one it draws nothing and asks nothing', async () => {
@@ -105,10 +109,10 @@ it('the page and the count read the same inbox: one observation, one list', asyn
 })
 
 it('unloading stops the observation', async () => {
-  const { shell, fake, unprovide } = await loaded()
+  const { shell, fake, served } = await loaded()
   render(<>{shell.items('pages')[0]!.render({ scope: TENANT })}</>)
   await settle()
-  unprovide()
+  await served.dispose()
   await later()
   expect(fake.observations[0]!.signal.aborted).toBe(true)
 })

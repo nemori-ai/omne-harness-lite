@@ -1,7 +1,11 @@
-import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
 import { mediaProtocol } from '@omne-harness/media-protocol'
 import { readTenantText, type TenantId } from '@omne-harness/public-contract'
-import { serviceKey, type PointSink } from '@omne-harness/shell-contract'
+import {
+  needPoint,
+  needProtocol,
+  type PointSink,
+  type ServiceKey,
+} from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import { useMemo, type ReactNode } from 'react'
 import type { Drafts } from './model/attachment-tray.ts'
@@ -30,14 +34,10 @@ export type MediaUiOptions = Readonly<{
   block?: PointSink<MediaBlockSubject>
   /** Where recordings come from; the browser's microphone when not given. */
   microphone?: Microphone
+  /** What takes the attachments of a draft, when the assembly names who provides it; the module works without. */
+  drafts?: ServiceKey<Drafts>
 }>
 
-export type DraftsHolder = Readonly<{ attach(given: Drafts): () => void }>
-
-/** Where the assembly hands over what takes the attachments of a draft; the module works without. */
-export const mediaComposerIntakeKey = serviceKey<DraftsHolder>('media.composer-intake')
-
-const MEDIA = protocolServiceName({ name: mediaProtocol.name, major: mediaProtocol.major })
 const ITEM = 'media'
 
 type ScopedProps = Readonly<{
@@ -52,21 +52,14 @@ function Scoped({ scope, children }: ScopedProps) {
 }
 
 export function createMediaUiModule(options: MediaUiOptions = {}) {
-  return defineUiModule<Record<string, MediaClient>>({
+  return defineUiModule({
     name: 'media-ui',
-    inject: [MEDIA],
-    apply(shell, services, provide) {
-      const client = services[MEDIA]!
-      let given: Drafts | null = null
-      const drafts = () => given
-      provide(mediaComposerIntakeKey, {
-        attach(next) {
-          given = next
-          return () => {
-            if (given === next) given = null
-          }
-        },
-      })
+    needs: {
+      media: needProtocol<MediaClient>(mediaProtocol),
+      intake: needPoint(options.drafts, { optional: true }),
+    },
+    apply(shell, { media: client, intake }) {
+      const drafts = () => intake.get() ?? null
       options.composerAttachments?.contribute(shell, {
         id: ITEM,
         order: 0,
