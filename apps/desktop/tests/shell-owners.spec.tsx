@@ -151,7 +151,7 @@ function stub(tag: string): Stub {
       return () => void watchers.delete(watcher)
     },
     tell: slot => {
-      for (const watcher of [...watchers]) if (watcher.slot === slot) watcher.listener()
+      for (const watcher of Array.from(watchers)) if (watcher.slot === slot) watcher.listener()
     },
     watching: () => watchers.size,
   }
