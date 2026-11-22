@@ -13,16 +13,19 @@ export const SESSION_STATUS = 'session.status'
 
 export const sessionDock: Point<SessionSubject> = definePoint({
   name: SESSION_DOCK,
+  summary: 'What stands above the composer of the open session, one under another.',
   subject: sessionSubject,
 })
 
 export const sessionSide: Point<SessionSubject> = definePoint({
   name: SESSION_SIDE,
+  summary: 'The tabs of the side area of the open session.',
   subject: sessionSubject,
 })
 
 export const sessionStatus: Point<SessionSubject> = definePoint({
   name: SESSION_STATUS,
+  summary: 'The quiet facts in the status line of the open session.',
   subject: sessionSubject,
 })
 
@@ -42,6 +45,8 @@ export const SESSION_CALL_DETAIL = 'session.call-detail'
 // Under each call in the background; the session module does not know what goes here.
 export const sessionCallDetail: Point<SessionCallSubject> = definePoint({
   name: SESSION_CALL_DETAIL,
+  summary:
+    'What is shown under one background call of a session, by the domain that owns its output.',
   subject: sessionCallSubject,
 })
 
@@ -79,10 +84,12 @@ export const SESSION_BLOCK = 'session.block'
 
 export const sessionComposerAttachments: Point<SessionDraftSubject> = definePoint({
   name: SESSION_COMPOSER_ATTACHMENTS,
+  summary: 'What a draft of the composer carries beside its words.',
   subject: jsonSubject(value => texts(value, ['session', 'draft'])),
 })
 
 export const sessionBlock: Point<SessionBlockSubject> = definePoint({
   name: SESSION_BLOCK,
+  summary: 'How a block of a message that is not text is drawn.',
   subject: jsonSubject(value => texts(value, ['session', 'message', 'block'])),
 })

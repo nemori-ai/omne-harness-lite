@@ -13,10 +13,10 @@ import {
 import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
 import { createMcpUiModule } from '@omne-harness/mcp-ui/cordis'
 import { ITEM_FAILED_TEXT } from '../src/page/shell/item.tsx'
-import { NO_LOGIN_TEXT } from '../src/page/shell/shell.tsx'
+import { NO_LOGIN_TEXT, gateConflictText } from '../src/page/shell/shell.tsx'
 import { RECONNECTING_TEXT } from '../src/page/shell/sidebar.tsx'
 import { LOGOUT_UNKNOWN_TEXT } from '../src/page/shell/state.ts'
-import { fakeSidebar } from './support/fake-modules.tsx'
+import { fakeGate, fakeSidebar } from './support/fake-modules.tsx'
 import {
   CHAT,
   SETTINGS,
@@ -41,6 +41,35 @@ describe('外壳：登录之外', () => {
     expect(screen.getByText('登录门占位')).toBeTruthy()
     expect(screen.queryByText('对话占位')).toBeNull()
     expect(document.querySelector('.shell-sidebar')).toBeNull()
+  })
+
+  it('登录门来了两份：两份都不画，那里写明是哪两家；一份撤了，另一份立刻显示', async () => {
+    const second = defineUiModule({
+      name: 'other-gate',
+      inject: [],
+      apply: shell =>
+        shell.contribute('gate', { id: 'other.gate', render: () => <p>另一个登录门</p> }),
+    })
+    const t = await setup({ modules: [fakeGate()] })
+    const warned = vi.spyOn(t.root.logger, 'error').mockImplementation(() => undefined)
+    let fiber: { dispose(): unknown } | undefined
+    await act(async () => {
+      fiber = await t.root.plugin(second)
+    })
+    expect(screen.queryByText('登录门占位')).toBeNull()
+    expect(screen.queryByText('另一个登录门')).toBeNull()
+    expect(screen.getByRole('alert').textContent).toBe(
+      gateConflictText(['fake-gate', 'other-gate']),
+    )
+    expect(warned).toHaveBeenCalledWith(
+      'shell: gate is put by fake-gate, other-gate; none of them is drawn',
+    )
+    await act(async () => {
+      await fiber?.dispose()
+      await settle()
+    })
+    expect(screen.getByText('登录门占位')).toBeTruthy()
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 
   it('登录门空着时显示那句话；还在连接时先说正在连接', async () => {

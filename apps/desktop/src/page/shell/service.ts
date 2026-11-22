@@ -14,6 +14,8 @@ import { ShellService } from '@omne-harness/shell-contract/cordis'
 import { Arranged, Attached } from './attached.tsx'
 import type { ShellState } from './state.ts'
 
+const SLOT_NAMES: readonly SlotName[] = ['gate', 'pages', 'sidebar', 'attached']
+
 export class DesktopShell extends ShellService {
   readonly login: ShellLogin
   readonly scope: ScopeSource
@@ -25,6 +27,19 @@ export class DesktopShell extends ShellService {
     this.login = state.login
     this.scope = state.scope
     ctx.effect(() => state.slots.bind(this), 'desktop-shell.slots')
+    for (const slot of SLOT_NAMES)
+      ctx.effect(
+        () => this.subscribe(slot, () => this.reportConflicts(slot)),
+        'desktop-shell.conflicts',
+      )
+  }
+
+  /** A conflict is an assembly mistake nobody threw: the log names the spot and who put there. */
+  private reportConflicts(slot: SlotName): void {
+    for (const { anchor, id, by } of this.conflicts(slot)) {
+      const spot = [slot, anchor, id].filter(part => part !== undefined && part !== '').join(' ')
+      this.ctx.logger.error(`shell: ${spot} is put by ${by.join(', ')}; none of them is drawn`)
+    }
   }
 
   /** A page remembers the module that put it: that module is in front while its page is on show. */

@@ -24,7 +24,7 @@ import {
   type Box,
 } from '@omne-harness/ui-kit'
 import type { Connectivity } from '../connectivity.ts'
-import { useSlot, useWatched } from './hooks.ts'
+import { useConflicts, useSlot, useWatched } from './hooks.ts'
 import { Item } from './item.tsx'
 import { bindRegionKeys } from './keys.ts'
 import { pressSeat, useSeatedHome } from './seats.ts'
@@ -154,8 +154,13 @@ function GateNotice(props: { text: string; seat: React.RefObject<HTMLElement | n
   )
 }
 
+/** Two modules each brought a login gate: neither is shown, and the person reads who they are. */
+export const gateConflictText = (by: readonly string[]): string =>
+  `登录入口有 ${by.length} 份，来自 ${by.join('、')}，都没有显示。`
+
 function Gate(props: { state: ShellState; connectivity: Connectivity }) {
   const [gate] = useSlot(props.state.slots, 'gate')
+  const [conflict] = useConflicts(props.state.slots, 'gate')
   const notice = useWatched(props.state.notice)
   const seat = useRef<HTMLDivElement>(null)
   return (
@@ -165,7 +170,11 @@ function Gate(props: { state: ShellState; connectivity: Connectivity }) {
       </div>
       {notice !== undefined ? <GateNotice text={notice} seat={seat} /> : null}
       <div className="shell-gate-card">
-        {gate !== undefined ? (
+        {conflict !== undefined ? (
+          <InlineNotice tone="danger" role="alert" still>
+            {gateConflictText(conflict.by)}
+          </InlineNotice>
+        ) : gate !== undefined ? (
           <Item key={gate.id} render={() => gate.render({})} />
         ) : props.connectivity === 'connecting' ? (
           <LoadingState className="shell-connecting" label="正在连接服务……" />
