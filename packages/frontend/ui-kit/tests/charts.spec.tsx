@@ -3,11 +3,11 @@ import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import {
   AreaChart,
+  CHART_COPY,
   formatAmount,
   formatNumber,
   formatPercent,
   LineChart,
-  ReadingMeter,
   ShareBar,
   Sparkline,
   StackedBarChart,
@@ -168,6 +168,21 @@ describe.each([
     expect(container.querySelector('.omne-chart-table [aria-label="未知"]')).not.toBeNull()
   })
 
+  it('folds the table behind the kit disclosure, never a native one', async () => {
+    const { container, getByRole } = render(
+      <Chart label="按天的 token" series={series} rows={rows} />,
+    )
+    await settle()
+    expect(container.querySelector('details, summary')).toBeNull()
+    const trigger = getByRole('button', { name: '表格' })
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+    await act(async () => {
+      fireEvent.click(trigger)
+      await settle()
+    })
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
+  })
+
   it('says there is no data for no rows, says nothing is usable when all are unknown, and draws one row', async () => {
     const none = render(<Chart label="空" series={series} rows={[]} />)
     expect(none.container.querySelector('figure')?.dataset['state']).toBe('empty')
@@ -194,7 +209,7 @@ describe.each([
       />,
     )
     expect(unknown.container.querySelector('figure')?.dataset['state']).toBe('unknown')
-    expect(unknown.container.querySelector('svg')).toBeNull()
+    expect(unknown.container.querySelector('svg.recharts-surface')).toBeNull()
     expect(unknown.container.textContent).toContain('没有可用的数')
     expect(unknown.container.querySelector('.omne-chart-table')).not.toBeNull()
     unknown.unmount()
@@ -282,43 +297,6 @@ describe('the share bar', () => {
   })
 })
 
-describe('the reading meter', () => {
-  it('is a meter with its value, the mark and a caption, and fills to the end past one hundred', () => {
-    const { container } = render(
-      <ReadingMeter label="上下文" percent={42.5} mark={80} caption="截至上一次请求" />,
-    )
-    const meter = container.querySelector('[role="meter"]')
-    expect(meter?.getAttribute('aria-valuenow')).toBe('42.5')
-    expect(meter?.getAttribute('aria-valuetext')).toBe('42.5%')
-    expect(container.querySelector('.omne-meter')?.getAttribute('data-state')).toBe('drawn')
-    expect(container.querySelector('.omne-meter-mark')?.getAttribute('x')).toBe('79.5')
-    expect(container.textContent).toContain('42.5%')
-    expect(container.textContent).toContain('截至上一次请求')
-    cleanup()
-    const over = render(<ReadingMeter label="上下文" percent={130} />).container
-    expect(over.querySelector('.omne-meter')?.getAttribute('data-state')).toBe('over')
-    expect(over.querySelectorAll('rect')[1]?.getAttribute('width')).toBe('100')
-    expect(over.textContent).toContain('130%')
-    expect(over.querySelector('.omne-meter-mark')).toBeNull()
-    expect(over.querySelector('.omne-meter-caption')).toBeNull()
-    cleanup()
-    const full = render(<ReadingMeter label="上下文" percent={100} />).container
-    expect(full.querySelector('.omne-meter')?.getAttribute('data-state')).toBe('drawn')
-  })
-
-  it('draws no bar for an unknown value and says why', () => {
-    const { container } = render(
-      <ReadingMeter label="上下文" percent={null} unknownReason="用量未知" />,
-    )
-    expect(container.querySelector('svg')).toBeNull()
-    expect(container.textContent).toContain(UNKNOWN_TEXT)
-    expect(container.textContent).toContain('用量未知')
-    cleanup()
-    const bare = render(<ReadingMeter label="上下文" percent={null} />).container
-    expect(bare.querySelector('.omne-meter-caption')).toBeNull()
-  })
-})
-
 describe('the sparkline and the stat block', () => {
   it('breaks the line at an unknown point instead of dropping to zero, and reads the values out', () => {
     const { container } = render(<Sparkline label="每小时" values={[1, 3, null, 2, 4]} />)
@@ -363,5 +341,47 @@ describe('the sparkline and the stat block', () => {
     const bare = render(<StatBlock label="费用" value={null} />).container
     expect(bare.textContent).toBe(`费用${UNKNOWN_TEXT}`)
     expect(bare.querySelector('.omne-stat-detail')).toBeNull()
+  })
+})
+
+describe('the chart words', () => {
+  const copy = {
+    empty: 'No data',
+    unknown: 'Nothing usable',
+    unknownValue: 'Unknown',
+    table: 'Table',
+    unknownCount: (count: number) => `${count} unknown`,
+  }
+
+  it('are Chinese unless the caller gives its own', () => {
+    expect(CHART_COPY.unknownValue).toBe('未知')
+    const series = [{ key: 'a', label: 'A' }]
+    const empty = render(<LineChart label="L" series={series} rows={[]} copy={copy} />).container
+    expect(empty.textContent).toContain('No data')
+    cleanup()
+    const unknownRow = [{ label: 'd', values: { a: null } }]
+    const unknown = render(
+      <StackedBarChart label="B" series={series} rows={unknownRow} copy={copy} />,
+    ).container
+    expect(unknown.textContent).toContain('Nothing usable')
+    expect(unknown.querySelector('.omne-chart-table button')?.textContent).toBe('Table')
+    expect(unknown.querySelector('.omne-chart-table [aria-label="Unknown"]')).not.toBeNull()
+    cleanup()
+    const parts = [
+      { key: 'a', label: 'A', value: 1 },
+      { key: 'b', label: 'B', value: null },
+    ]
+    expect(
+      render(<ShareBar label="S" parts={parts} copy={copy} />).container.textContent,
+    ).toContain('1 unknown')
+    cleanup()
+    const spark = render(<Sparkline label="P" values={[1, null]} copy={copy} />).container
+    expect(spark.querySelector('svg')?.getAttribute('aria-label')).toBe('P：1、Unknown')
+    cleanup()
+    const none = render(<Sparkline label="P" values={[]} copy={copy} />).container
+    expect(none.querySelector('.omne-spark')?.getAttribute('aria-label')).toBe('P：Nothing usable')
+    cleanup()
+    const stat = render(<StatBlock label="T" value={null} copy={copy} />).container
+    expect(stat.querySelector('[aria-label="Unknown"]')).not.toBeNull()
   })
 })

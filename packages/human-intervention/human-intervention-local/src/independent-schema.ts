@@ -12,7 +12,7 @@ import {
   RequestRefSchema,
   WaitRefSchema,
 } from '@omne-harness/human-intervention'
-import { SqlCommandSchema } from './request-schema.ts'
+import { AskedAtSchema, SqlCommandSchema } from './request-schema.ts'
 
 export const WAIT_PROTOCOL = 'independent-wait/2'
 export const WAIT_HANDLER = 'hitl.independent-read'
@@ -45,7 +45,12 @@ export const IndependentCommandSchema = z
       operation: OperationRefSchema,
       preparation: IndependentPreparationSchema,
     }),
-    z.strictObject({ kind: z.literal('request'), input: SqlCommandSchema, waitRef: WaitRefSchema }),
+    z.strictObject({
+      kind: z.literal('request'),
+      input: SqlCommandSchema,
+      waitRef: WaitRefSchema,
+      askedAt: AskedAtSchema.exactOptional(),
+    }),
     z.strictObject({ kind: z.literal('bind'), command: BindReceiverSchema }),
     z.strictObject({ kind: z.literal('consume'), command: ConsumeDecisionSchema }),
   ])

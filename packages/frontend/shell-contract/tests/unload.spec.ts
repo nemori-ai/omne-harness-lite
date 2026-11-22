@@ -2,7 +2,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import { render, startShell } from './reference-shell.ts'
 
-const page = (id: string, order = 0) => ({ id, title: id, order, render })
+const page = (id: string, order = 0) => ({ id, title: id, order, icon: 'topics', render })
 
 describe('unloading the caller', () => {
   it('takes down what the caller placed and leaves what others placed', async () => {

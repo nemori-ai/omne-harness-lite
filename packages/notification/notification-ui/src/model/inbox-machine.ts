@@ -11,6 +11,7 @@ type NotSent = Readonly<{ outcome: 'unavailable' }>
 export type ListAnswer = Answer<'list-inbox'> | NotSent
 export type MarkAnswer = Answer<'mark'> | NotSent
 export type ReadAnswer = Answer<'read-notification'> | NotSent
+export type SourcesAnswer = Answer<'list-sources'> | NotSent
 export type InboxEnd = ObservationEnd<NotificationProtocol['observations']['observe-changes']>
 
 export type Entry = NotificationSummaryBody
@@ -49,6 +50,11 @@ export type Opened = Readonly<{
   view: 'reading' | 'gone' | 'unavailable' | NotificationViewBody
 }>
 
+export type Catalog = Readonly<{
+  labels: Readonly<Record<string, string>>
+  reading: number | null
+}>
+
 export type State = Readonly<{
   filter: Filter
   /** The list as the server last gave it. Marks change only by what the server answered. */
@@ -60,6 +66,7 @@ export type State = Readonly<{
   marking: Readonly<Record<string, MarkOperation>>
   notices: Readonly<Record<string, Notice>>
   opened: Opened | null
+  catalog: Catalog
 }>
 
 export const INITIAL: State = {
@@ -72,10 +79,11 @@ export const INITIAL: State = {
   marking: {},
   notices: {},
   opened: null,
+  catalog: { labels: {}, reading: null },
 }
 
 export type Event =
-  | Readonly<{ kind: 'watch' | 'unwatch' | 'refresh' | 'close' }>
+  | Readonly<{ kind: 'watch' | 'unwatch' | 'refresh' | 'close' | 'reread' }>
   | Readonly<{ kind: 'filter'; filter: Filter }>
   | Readonly<{ kind: 'frame'; generation: number; about: 'inbox' | 'catalog' }>
   | Readonly<{ kind: 'observation-ended'; generation: number; denied: boolean }>
@@ -85,6 +93,7 @@ export type Event =
   | Readonly<{ kind: 'mark-answered'; key: string; answer: MarkAnswer }>
   | Readonly<{ kind: 'open'; key: string }>
   | Readonly<{ kind: 'read-answered'; token: number; answer: ReadAnswer }>
+  | Readonly<{ kind: 'sources-answered'; token: number; answer: SourcesAnswer }>
 
 export type Effect =
   | Readonly<{ kind: 'observe'; generation: number }>
@@ -93,6 +102,7 @@ export type Effect =
   | Readonly<{ kind: 'list'; token: number; filter: Filter; after: number | null }>
   | Readonly<{ kind: 'mark'; key: string; ref: Ref; operation: MarkOperation }>
   | Readonly<{ kind: 'read'; token: number; ref: Ref }>
+  | Readonly<{ kind: 'sources'; token: number }>
 
 export type Step = Readonly<{ state: State; effects: readonly Effect[] }>
 
@@ -224,6 +234,18 @@ function open(state: State, key: string): Step {
   return { state: seen.state, effects: [{ kind: 'read', token, ref }, ...seen.effects] }
 }
 
+function reread(state: State): Step {
+  const { opened } = state
+  if (opened === null || opened.view !== 'unavailable') return still(state)
+  const entry = state.entries.find(item => keyOf(item) === opened.key)
+  if (entry === undefined) return still(state)
+  const token = state.tokens + 1
+  return {
+    state: { ...state, tokens: token, opened: { ...opened, token, view: 'reading' } },
+    effects: [{ kind: 'read', token, ref: { source: entry.source, event: entry.event } }],
+  }
+}
+
 function readAnswered(state: State, event: Extract<Event, { kind: 'read-answered' }>): Step {
   const { opened } = state
   if (opened === null || opened.token !== event.token) return still(state)
@@ -237,10 +259,29 @@ function readAnswered(state: State, event: Extract<Event, { kind: 'read-answered
   return still({ ...state, opened: { ...opened, view } })
 }
 
+function readSources(state: State): Step {
+  const token = state.tokens + 1
+  return {
+    state: { ...state, tokens: token, catalog: { ...state.catalog, reading: token } },
+    effects: [{ kind: 'sources', token }],
+  }
+}
+
+function sourcesAnswered(state: State, event: Extract<Event, { kind: 'sources-answered' }>): Step {
+  const { catalog } = state
+  if (catalog.reading !== event.token) return still(state)
+  const { answer } = event
+  const labels =
+    answer.outcome === 'succeeded'
+      ? Object.fromEntries(answer.body.sources.map(source => [source.name, source.label]))
+      : catalog.labels
+  return still({ ...state, catalog: { labels, reading: null } })
+}
+
 function frame(state: State, event: Extract<Event, { kind: 'frame' }>): Step {
   if (event.generation !== state.generation || state.live.kind === 'off') return still(state)
   const live: State = state.live.kind === 'on' ? state : { ...state, live: { kind: 'on' } }
-  return event.about === 'inbox' ? reload(live) : still(live)
+  return event.about === 'inbox' ? reload(live) : readSources(live)
 }
 
 function watch(state: State): Step {
@@ -282,6 +323,8 @@ const HANDLERS: Handlers = {
   open: (state, event) => open(state, event.key),
   close: state => still(state.opened === null ? state : { ...state, opened: null }),
   'read-answered': readAnswered,
+  reread,
+  'sources-answered': sourcesAnswered,
 }
 
 export function step(state: State, event: Event): Step {
@@ -290,7 +333,8 @@ export function step(state: State, event: Event): Step {
 }
 
 const newestFirst = (a: Entry, b: Entry) => b.sequence - a.sequence
-const isOpen = (entry: Entry) => entry.marks.resolved === null && entry.marks.supersededBy === null
+export const isOpen = (entry: Entry): boolean =>
+  entry.marks.resolved === null && entry.marks.supersededBy === null
 
 /** The two sections of the panel, newest first. A notification a newer one replaced counts as settled. */
 export function sectionsOf(
@@ -301,3 +345,6 @@ export function sectionsOf(
 }
 
 export const openCount = (state: State): number => state.entries.filter(isOpen).length
+
+export const labelOf = (state: State, source: string): string | undefined =>
+  Object.hasOwn(state.catalog.labels, source) ? state.catalog.labels[source] : undefined

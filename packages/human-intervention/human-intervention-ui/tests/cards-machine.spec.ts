@@ -587,7 +587,7 @@ const A = questionItem('card-a')
 const B = questionItem('card-b')
 const C = questionItem('card-c')
 const [KA, KB, KC] = [A, B, C].map(item => keyOf(item.card.ref)) as [string, string, string]
-const TEXT_DRAFT: Draft = { choice: { kind: 'none' }, text: '用 8080' }
+const TEXT_DRAFT: Draft = { choice: { kind: 'words' }, text: '用 8080' }
 const DECLINE_DRAFT: Draft = { choice: { kind: 'decline' }, text: '' }
 const DECIDED = {
   outcome: 'succeeded',
@@ -649,11 +649,12 @@ const reply = (key: string, replyId: string, answer: ReplyAnswer): Event => ({
 })
 
 describe('一组的作答', () => {
-  it('G1 草稿算出答复：选项、不回答、写了字；只写了空白算没答', () => {
+  it('G1 草稿算出答复：选项、不回答、选了用自己的话并写了字；只写了空白、或什么都没选（取消之后字还留着）算没答', () => {
     expect(replyOf(PICK_MAIN)).toEqual(SELECT)
     expect(replyOf(DECLINE_DRAFT)).toEqual({ kind: 'decline' })
     expect(replyOf(TEXT_DRAFT)).toEqual({ kind: 'text', text: '用 8080' })
-    expect(replyOf({ choice: { kind: 'none' }, text: '   ' })).toBeNull()
+    expect(replyOf({ choice: { kind: 'words' }, text: '   ' })).toBeNull()
+    expect(replyOf({ choice: { kind: 'none' }, text: '用 8080' })).toBeNull()
     expect(replyOf(EMPTY_DRAFT)).toBeNull()
     expect(replyOf(undefined)).toBeNull()
   })

@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { InboxHub, InboxPage, UnresolvedBadge } from '../src/index.ts'
-import type { Entry } from '../src/model/inbox-machine.ts'
+import { keyOf, type Entry } from '../src/model/inbox-machine.ts'
 import { dismissed, done, entry, page, seen, superseded, view } from './fixtures/entries.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
@@ -29,17 +29,40 @@ async function answer(fake: Fake, operation: Parameters<Fake['next']>[0], value:
 }
 
 /** The page on screen with its first frame taken and the list answered. */
-async function shown(entries: readonly Entry[], next: number | null = null) {
+async function shown(entries: readonly Entry[], next: number | null = null, focus?: string) {
   const fake = createFakeClient()
   const hub = new InboxHub({ client: fake.client })
-  const rendered = render(<InboxPage hub={hub} tenant={TENANT} />)
+  const rendered = render(
+    <InboxPage hub={hub} tenant={TENANT} {...(focus === undefined ? {} : { focus })} />,
+  )
   await settle()
   await act(async () => fake.observations[0]!.frame())
   await answer(fake, 'list-inbox', page(entries, next))
   return { fake, hub, rendered }
 }
 
+/** The catalogue frame and its answer: each source named for people. */
+async function named(fake: Fake, ...pairs: (readonly [string, string])[]) {
+  await act(async () => fake.observations[0]!.frame('catalog'))
+  await answer(fake, 'list-sources', {
+    outcome: 'succeeded',
+    body: { sources: pairs.map(([name, label]) => ({ name, label, types: [] })) },
+  })
+}
+
 const rowOf = (title: string) => within(screen.getByRole('button', { name: title }).closest('li')!)
+const dotted = (title: string) =>
+  screen.getByRole('button', { name: title }).closest('li')!.querySelector('.notification-dot')
+/** The icon button named `name` on a row: named by its label alone, its face the glyph `glyph` or the activity mark. */
+function iconButton(title: string, name: string, glyph: string): HTMLButtonElement {
+  const button = rowOf(title).getByRole<HTMLButtonElement>('button', { name })
+  expect(button.getAttribute('aria-label')).toBe(name)
+  expect(button.textContent).toBe('')
+  const face =
+    glyph === 'activity' ? '[data-loading-indicator]' : `svg[data-icon="${glyph}"][aria-hidden]`
+  expect(button.querySelector(face), `${name} draws ${glyph}`).not.toBeNull()
+  return button
+}
 const region = (name: string) => within(screen.getByRole('region', { name }))
 const click = async (element: Element) => {
   await act(async () => {
@@ -61,11 +84,12 @@ describe('the inbox page', () => {
     expect(screen.queryByText('正在读取……')).toBeNull()
   })
 
-  it('lists what is unresolved, newest first, with source, event type, level and state', async () => {
-    await shown([
+  it('lists what is unresolved, newest first, each under the name its source has for people and its time, and no level or state in words', async () => {
+    const { fake } = await shown([
       entry('e1', 1, { level: 'strong' }),
       entry('e2', 2, { marks: seen, source: 'agent.posts' }),
     ])
+    await named(fake, ['demo.things', '演示的来源'], ['agent.posts', 'agent 写的'])
     const open = region('未了结')
     expect(open.getByRole('heading').textContent).toBe('未了结（2）')
     const rows = open.getAllByRole('listitem')
@@ -74,12 +98,106 @@ describe('the inbox page', () => {
       'Title e1',
     ])
     const meta = (row: HTMLElement) => row.querySelector('.notification-meta')!.textContent
-    expect(meta(rows[0]!)).toMatch(/^agent\.posts · changed · 弱提醒 · \S.*[^l]$/)
-    expect(meta(rows[0]!)).not.toMatch(/未读|null|undefined/)
-    expect(meta(rows[1]!)).toMatch(/^demo\.things · changed · 强提醒 · .* · 未读$/)
+    expect(meta(rows[0]!)).toMatch(/^agent 写的 · \S.*[^l]$/)
+    expect(meta(rows[1]!)).toMatch(/^演示的来源 · \S.*[^l]$/)
+    for (const row of rows)
+      expect(meta(row)).not.toMatch(
+        /强|弱|未读|·\s*$|null|undefined|demo\.things|agent\.posts|changed/,
+      )
     expect(screen.queryByRole('region', { name: '已了结' })).toBeNull()
     for (const role of ['alert', 'status']) expect(screen.queryByRole(role)).toBeNull()
     expect(screen.queryByText(/读不出|没有列全|没有未了结的通知|收件箱是空的/)).toBeNull()
+  })
+
+  it('names no source while the catalogue has not named it: only the time, never the identifier', async () => {
+    const { fake } = await shown([entry('e1', 1), entry('e2', 2, { source: 'gone.source' })])
+    const meta = (title: string) =>
+      screen
+        .getByRole('button', { name: title })
+        .closest('li')!
+        .querySelector('.notification-meta')!
+    for (const title of ['Title e1', 'Title e2']) {
+      expect(meta(title).textContent).not.toMatch(/demo\.things|gone\.source|changed|·/)
+      expect(meta(title).querySelector('time')).not.toBeNull()
+    }
+    await named(fake, ['demo.things', '演示的来源'])
+    expect(meta('Title e1').textContent).toMatch(/^演示的来源 · /)
+    expect(meta('Title e2').textContent).not.toMatch(/gone\.source|·/)
+  })
+
+  it('is a row of three cells: the mark, the title with one line of source and time under it, the actions at its end', async () => {
+    await shown([entry('e1', 1, { level: 'strong' })])
+    const title = screen.getByRole('button', { name: 'Title e1' })
+    const head = title.closest('.notification-head')!
+    expect(head.hasAttribute('data-glide-row')).toBe(true)
+    expect(head.closest('[data-glide-menu]')).not.toBeNull()
+    expect([...head.children].map(child => child.className)).toEqual([
+      'notification-mark',
+      'notification-copy',
+      'notification-actions',
+    ])
+    const copy = head.querySelector('.notification-copy')!
+    expect([...copy.children]).toEqual([title, copy.querySelector('.notification-meta')])
+    expect(title.getAttribute('data-variant')).not.toBe('link')
+    expect(title.getAttribute('data-control')).toBe('button')
+    expect(title.classList.contains('notification-title')).toBe(true)
+  })
+
+  it('says in one short line what the page is, and puts everything under the header in one reading column', async () => {
+    const { rendered } = await shown([entry('e1', 1)])
+    const header = rendered.container.querySelector('header')!
+    expect(header.textContent).toContain('来源发给你的事件。')
+    expect(header.textContent).not.toContain('办完或划掉之后')
+    const column = rendered.container.querySelector('.notification-column')!
+    expect(column.contains(header)).toBe(false)
+    expect(column.contains(region('未了结').getByRole('list'))).toBe(true)
+    expect(header.nextElementSibling).toBe(column)
+    const scope = screen.getByRole('group', { name: '显示哪些通知' })
+    expect(header.contains(scope)).toBe(false)
+    expect(column.firstElementChild?.contains(scope)).toBe(true)
+  })
+
+  it('settles the row it was brought to once, scrolls it near, and draws no standing mark on it', async () => {
+    const frames: unknown[] = []
+    const animate = vi.spyOn(Element.prototype, 'animate').mockImplementation(function (
+      this: Element,
+      keyframes,
+    ) {
+      frames.push([this, keyframes])
+      return { cancel: () => undefined, finished: Promise.resolve() } as never
+    })
+    const rects = vi
+      .spyOn(Element.prototype, 'getClientRects')
+      .mockImplementation(() => [new DOMRect(0, 0, 1, 1)] as never)
+    const scrolled = vi.fn()
+    Object.assign(Element.prototype, { scrollIntoView: scrolled })
+    try {
+      await shown([entry('e1', 1), entry('e2', 2)], null, keyOf(entry('e1', 1)))
+      const row = screen.getByRole('button', { name: 'Title e1' }).closest('li')!
+      expect(frames).toEqual([[row, [{ opacity: 0.6 }, { opacity: 1 }]]])
+      expect(scrolled.mock.contexts).toEqual([row])
+      expect(row.hasAttribute('data-focused')).toBe(false)
+      expect(row.getAttribute('style')).toBeNull()
+    } finally {
+      animate.mockRestore()
+      rects.mockRestore()
+    }
+  })
+
+  it('starts a strong, unseen, open row with a dot of strong ink, and no other row', async () => {
+    await shown([
+      entry('fresh', 1, { level: 'strong' }),
+      entry('looked', 2, { level: 'strong', marks: seen }),
+      entry('quiet', 3),
+      entry('settled', 4, { level: 'strong', marks: dismissed }),
+      entry('replaced', 5, { level: 'strong', marks: superseded }),
+    ])
+    const dot = dotted('Title fresh')
+    expect(dot?.getAttribute('aria-hidden')).toBe('true')
+    expect(dot?.textContent).toBe('')
+    expect(dot?.parentElement?.className).toBe('notification-mark')
+    for (const title of ['Title looked', 'Title quiet', 'Title settled', 'Title replaced'])
+      expect(dotted(title), title).toBeNull()
   })
 
   it('offers done and dismiss for what is open, restore for what is settled, nothing for what was replaced', async () => {
@@ -93,25 +211,50 @@ describe('the inbox page', () => {
       rowOf(title)
         .getAllByRole('button')
         .slice(1)
-        .map(button => button.textContent)
+        .map(button => button.getAttribute('aria-label'))
     expect(names('Title open')).toEqual(['办完', '划掉'])
     expect(names('Title done')).toEqual(['恢复'])
     expect(names('Title dismissed')).toEqual(['恢复'])
     expect(names('Title old')).toEqual([])
+    iconButton('Title open', '办完', 'done')
+    iconButton('Title open', '划掉', 'close')
+    iconButton('Title done', '恢复', 'undo')
+    iconButton('Title dismissed', '恢复', 'undo')
     const settled = region('已了结')
     expect(settled.getByRole('heading').textContent).toBe('已了结（3）')
-    const labelOf = (title: string) => rowOf(title).getByText(/ · 已/).textContent
+    const labelOf = (title: string) =>
+      screen
+        .getByRole('button', { name: title })
+        .closest('li')!
+        .querySelector('.notification-meta')!.textContent
     expect(labelOf('Title done')).toMatch(/ · 已办完$/)
     expect(labelOf('Title dismissed')).toMatch(/ · 已划掉$/)
     expect(labelOf('Title old')).toMatch(/ · 已被顶替$/)
+    const wordOf = (title: string) =>
+      screen
+        .getByRole('button', { name: title })
+        .closest('li')!
+        .querySelector('.notification-meta [data-state-word]')
+    expect(wordOf('Title done')?.getAttribute('data-state-word')).toBe('handled')
+    expect(wordOf('Title dismissed')?.getAttribute('data-state-word')).toBe('dismissed')
+    expect(wordOf('Title old')?.getAttribute('data-state-word')).toBe('displaced')
+    expect(wordOf('Title done')?.getAttribute('data-tone')).toBe('neutral')
     expect(screen.queryByText(/没有未了结的通知|收件箱是空的/)).toBeNull()
   })
 
-  it('marks done: the buttons wait for the answer, and the row moves when the server says so', async () => {
+  it('marks done: only the pressed button waits, a second press sends nothing, and the row moves when the server says so', async () => {
     const { fake } = await shown([entry('e1', 1)])
-    await click(rowOf('Title e1').getByRole('button', { name: '办完' }))
-    for (const name of ['办完', '划掉'])
-      expect(rowOf('Title e1').getByRole('button', { name }).hasAttribute('disabled')).toBe(true)
+    await click(iconButton('Title e1', '办完', 'done'))
+    const pressed = iconButton('Title e1', '办完', 'activity')
+    expect(pressed.getAttribute('aria-busy')).toBe('true')
+    expect(pressed.querySelector('[data-icon="done"]')).toBeNull()
+    const other = iconButton('Title e1', '划掉', 'close')
+    expect(other.hasAttribute('aria-busy')).toBe(false)
+    expect(other.querySelector('[data-loading-indicator]')).toBeNull()
+    for (const button of [pressed, other]) expect(button.hasAttribute('disabled')).toBe(false)
+    await click(pressed)
+    await click(other)
+    expect(fake.calls.filter(call => call.operation === 'mark')).toHaveLength(1)
     expect(region('未了结').getAllByRole('listitem')).toHaveLength(1)
     const call = await answer(fake, 'mark', { outcome: 'succeeded', body: done })
     expect(call.body).toMatchObject({ event: 'e1', operation: 'done' })
@@ -138,9 +281,7 @@ describe('the inbox page', () => {
     expect(said.getAttribute('data-tone')).toBe(tone)
     expect(rowOf('Title e2').queryByRole('status')).toBeNull()
     expect(region('未了结').getAllByRole('listitem')).toHaveLength(2)
-    expect(rowOf('Title e1').getByRole('button', { name: '划掉' }).hasAttribute('disabled')).toBe(
-      false,
-    )
+    expect(iconButton('Title e1', '划掉', 'close').hasAttribute('aria-busy')).toBe(false)
   })
 
   it('with as many settled as open it shows both sections and no empty state', async () => {
@@ -190,9 +331,20 @@ describe('the inbox page', () => {
     await answer(fake, 'mark', { outcome: 'succeeded', body: seen })
     const row = rowOf('Title e1')
     expect(row.getByText(/Line one/).textContent).toBe('Line one\nLine two')
-    expect(row.getByText('对象：repo/a')).toBeTruthy()
-    expect(row.getByText('去处：session s-1')).toBeTruthy()
-    expect(row.getByText('缘由：这类事件缺省发给你')).toBeTruthy()
+    const facts = row.getByText('类型').closest('dl')!
+    expect(
+      [...facts.querySelectorAll('.fact-list-row')].map(fact => [
+        fact.querySelector('dt')!.textContent,
+        fact.querySelector('dd')!.textContent,
+      ]),
+    ).toEqual([
+      ['对象', 'repo/a'],
+      ['类型', 'changed'],
+      ['去处', 'session s-1'],
+      ['缘由', '这类事件缺省发给你'],
+    ])
+    expect(facts.querySelector('dd code')?.textContent).toBe('changed')
+    expect(facts.nextElementSibling?.textContent).toBe('Line one\nLine two')
     expect(screen.queryByText(/未读/)).toBeNull()
     await click(title)
     expect(screen.queryByText(/Line one/)).toBeNull()
@@ -221,7 +373,8 @@ describe('the inbox page', () => {
     const { fake } = await shown([item])
     await click(screen.getByRole('button', { name: 'Title e1' }))
     await answer(fake, 'read-notification', { outcome: 'succeeded', body: view(item) })
-    expect(rowOf('Title e1').getByText(text)).toBeTruthy()
+    const fact = rowOf('Title e1').getByText('缘由').closest('.fact-list-row')!
+    expect(fact.querySelector('dd')!.textContent).toBe(text.replace(/^缘由：/, ''))
   })
 
   /** A title holds no instant: an instant has no JSON form, and a reporter writes titles as JSON. */
@@ -238,9 +391,39 @@ describe('the inbox page', () => {
     await click(screen.getByRole('button', { name: 'Title e1' }))
     await answer(fake, 'read-notification', reply())
     expect(rowOf('Title e1').getByText(text)).toBeTruthy()
-    expect(screen.queryByText(/^对象：/)).toBeNull()
-    expect(screen.queryByText(/^去处：/)).toBeNull()
-    if (text !== '这一条没有正文。') expect(screen.queryByText(/^缘由：/)).toBeNull()
+    expect(screen.queryByText('对象')).toBeNull()
+    expect(screen.queryByText('去处')).toBeNull()
+    if (text !== '这一条没有正文。') expect(screen.queryByText('缘由')).toBeNull()
+  })
+
+  it('a body that cannot be read offers to read it again, and the second read shows it', async () => {
+    const { fake } = await shown([entry('e1', 1, { marks: seen })])
+    await click(screen.getByRole('button', { name: 'Title e1' }))
+    await answer(fake, 'read-notification', { outcome: 'basis-unavailable' })
+    const said = rowOf('Title e1')
+      .getByText('正文现在读不出，稍后再试。')
+      .closest('[data-inline-notice]')!
+    expect(said.getAttribute('data-tone')).toBe('caution')
+    const retry = rowOf('Title e1').getByRole('button', { name: '重试' })
+    expect(retry.querySelector('svg[data-icon="retry"]')).not.toBeNull()
+    await click(retry)
+    await answer(fake, 'read-notification', {
+      outcome: 'succeeded',
+      body: view(entry('e1', 1), 'Read the second time'),
+    })
+    expect(rowOf('Title e1').getByText('Read the second time')).toBeTruthy()
+    expect(rowOf('Title e1').queryByRole('button', { name: '重试' })).toBeNull()
+  })
+
+  it('a notification that is gone says so in the neutral tone, with nothing to retry', async () => {
+    const { fake } = await shown([entry('e1', 1, { marks: seen })])
+    await click(screen.getByRole('button', { name: 'Title e1' }))
+    await answer(fake, 'read-notification', { outcome: 'not-found', body: {} })
+    const said = rowOf('Title e1')
+      .getByText('这一条已经不在收件箱里了。')
+      .closest('[data-inline-notice]')!
+    expect(said.getAttribute('data-tone')).toBe('neutral')
+    expect(rowOf('Title e1').queryByRole('button', { name: '重试' })).toBeNull()
   })
 
   it('switches to everything and back, and reads again each time', async () => {
@@ -256,14 +439,11 @@ describe('the inbox page', () => {
     expect((await fake.next('list-inbox')).body).toMatchObject({ filter: 'unresolved' })
   })
 
-  it('refreshes on demand, and not twice while it reads', async () => {
-    const { fake } = await shown([entry('e1', 1)])
-    const refresh = screen.getByRole('button', { name: '刷新' })
-    await click(refresh)
-    expect(refresh.hasAttribute('disabled')).toBe(true)
-    await answer(fake, 'list-inbox', page([entry('e1', 1), entry('e2', 2)]))
-    expect(refresh.hasAttribute('disabled')).toBe(false)
-    expect(region('未了结').getAllByRole('listitem')).toHaveLength(2)
+  it('has no refresh: the list follows its observation, and the header holds no control', async () => {
+    const { rendered } = await shown([entry('e1', 1)])
+    expect(screen.queryByRole('button', { name: /刷新/ })).toBeNull()
+    const header = rendered.container.querySelector('header')!
+    expect(within(header).queryAllByRole('button')).toEqual([])
   })
 
   it('reads again when a frame says the inbox may have changed', async () => {
@@ -278,12 +458,15 @@ describe('the inbox page', () => {
 
   it('a read that fails keeps what it had and offers to retry; it never shows an empty inbox instead', async () => {
     const { fake } = await shown([entry('e1', 1)])
-    await click(screen.getByRole('button', { name: '刷新' }))
+    await act(async () => fake.observations[0]!.frame('inbox'))
     await answer(fake, 'list-inbox', { outcome: 'basis-unavailable' })
     expect(screen.getByText('收件箱现在读不出，下面是上一次读到的。')).toBeTruthy()
     expect(region('未了结').getAllByRole('listitem')).toHaveLength(1)
     expect(screen.queryByText('没有未了结的通知')).toBeNull()
-    await click(screen.getByRole('button', { name: '重试' }))
+    const retry = screen.getByRole('button', { name: '重试' })
+    expect(retry.textContent).toBe('重试')
+    expect(retry.querySelector('svg[data-icon="retry"]')).not.toBeNull()
+    await click(retry)
     await answer(fake, 'list-inbox', page([]))
     expect(screen.queryByText(/现在读不出/)).toBeNull()
     expect(screen.getByText('没有未了结的通知')).toBeTruthy()
@@ -307,7 +490,7 @@ describe('the inbox page', () => {
     await act(async () => fake.observations[0]!.frame())
     for (let pageNumber = 1; pageNumber <= 20; pageNumber++)
       await answer(fake, 'list-inbox', page([entry(`p${pageNumber}`, pageNumber)], pageNumber))
-    expect(screen.getByText(/这里没有列全/)).toBeTruthy()
+    expect(screen.getByText('通知太多，这里没有列全。')).toBeTruthy()
     expect(region('未了结').getAllByRole('listitem')).toHaveLength(20)
   })
 

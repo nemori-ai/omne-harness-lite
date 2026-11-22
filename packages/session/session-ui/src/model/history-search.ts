@@ -49,9 +49,12 @@ const REASON: Readonly<Record<SearchIncomplete['reason'], string>> = {
 export function incompleteText(incomplete: SearchIncomplete): string {
   const parts = [REASON[incomplete.reason]]
   if (incomplete.behind > 0) parts.push(`还有 ${incomplete.behind} 个会话没读完`)
-  if (incomplete.progress !== null)
-    parts.push(`索引建到 ${incomplete.progress.indexed}/${incomplete.progress.total}`)
   return `还没搜完：${parts.join('，')}。`
+}
+
+export function indexText(incomplete: SearchIncomplete): string | null {
+  const { progress } = incomplete
+  return progress === null ? null : `索引建到 ${progress.indexed}/${progress.total}`
 }
 
 const QUERY_REASON: Readonly<Record<string, string>> = {
@@ -133,9 +136,9 @@ export class HistorySearchStore {
     }
     const owner = readTenantText(tenant)
     const content = contentOf(ask)
-    if (content === null) return show(IDLE)
     entry.asked += 1
     const turn = entry.asked
+    if (content === null) return show(IDLE)
     show({ kind: 'searching', ask, hits })
     const body = {
       tenant: owner,
@@ -148,7 +151,7 @@ export class HistorySearchStore {
       owner === undefined
         ? { outcome: 'unavailable' }
         : await notSent(() => this.client['search-history'](body as Body))
-    // A newer ask was made meanwhile: its answer is the one to show.
+    // A newer ask was made meanwhile, an empty box too: its answer is the one to show.
     if (turn !== entry.asked) return
     if (answer.outcome !== 'succeeded')
       return show({ kind: 'refused', ask, hits, text: refusalText(answer) })

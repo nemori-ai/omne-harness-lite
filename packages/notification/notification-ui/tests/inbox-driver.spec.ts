@@ -2,7 +2,7 @@ import { readTenantText } from '@omne-harness/public-contract'
 import { describe, expect, it, vi } from 'vitest'
 import { InboxDriver } from '../src/model/inbox-driver.ts'
 import { InboxHub } from '../src/model/inbox-hub.ts'
-import { keyOf } from '../src/model/inbox-machine.ts'
+import { keyOf, labelOf } from '../src/model/inbox-machine.ts'
 import { done, entry, page, view } from './fixtures/entries.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
 
@@ -105,6 +105,33 @@ describe('the driver of one inbox', () => {
     read.answer({ outcome: 'succeeded', body: view(e1, 'The body') })
     await tick()
     expect(driver.getState().opened?.view).toMatchObject({ body: 'The body' })
+  })
+
+  it('reads the catalogue of the tenant when a frame says it may have changed, and names the sources by it', async () => {
+    const { fake, driver } = await ready()
+    fake.observations[0]!.frame('catalog')
+    const call = await fake.next('list-sources')
+    expect(call.body).toEqual({ tenant })
+    call.answer({
+      outcome: 'succeeded',
+      body: { sources: [{ name: 'demo.things', label: '演示的来源', types: [] }] },
+    })
+    await tick()
+    expect(labelOf(driver.getState(), 'demo.things')).toBe('演示的来源')
+  })
+
+  it('reads an opened notification again when asked after its body could not be read', async () => {
+    const { fake, driver } = await ready()
+    driver.open(keyOf(e1))
+    ;(await fake.next('read-notification')).answer({ outcome: 'basis-unavailable' })
+    await tick()
+    driver.reread()
+    const again = await fake.next('read-notification')
+    expect(again.body).toEqual({ ...target, source: 'demo.things', event: 'e1' })
+    again.answer({ outcome: 'succeeded', body: view(e1, 'The body') })
+    await tick()
+    expect(driver.getState().opened?.view).toMatchObject({ body: 'The body' })
+    expect(fake.calls.filter(item => item.operation === 'mark')).toHaveLength(1)
   })
 
   it('a call that throws is a call that was not sent: nothing is shown as done', async () => {

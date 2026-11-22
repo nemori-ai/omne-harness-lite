@@ -1,13 +1,14 @@
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { createElement, type ReactNode } from 'react'
-import type {
-  AttachedLayout,
-  ItemOf,
-  ScopeSource,
-  ShellLogin,
-  ShellSlots,
-  SlotName,
-  ToastBoard,
+import {
+  type AttachedLayout,
+  type FigureBoard,
+  type ItemOf,
+  type ScopeSource,
+  type ShellLogin,
+  type ShellSlots,
+  type SlotName,
+  type ToastBoard,
 } from '@omne-harness/shell-contract'
 import { ShellService } from '@omne-harness/shell-contract/cordis'
 import { Arranged, Attached } from './attached.tsx'
@@ -37,6 +38,12 @@ export class DesktopShell extends ShellService implements ShellSlots {
     this.state.page.choose(pageId, subject)
   }
 
+  /** Only which page is on show: choosing one stays with `navigate`. */
+  override get page(): ShellService['page'] {
+    const { get, subscribe } = this.state.page
+    return { get, subscribe }
+  }
+
   attached(anchor: string, subject: string): ReactNode {
     return createElement(Attached, {
       slots: this.state.slots,
@@ -56,12 +63,25 @@ export class DesktopShell extends ShellService implements ShellSlots {
     })
   }
 
+  /** A page remembers the module that placed it: that module is in front while its page is on show. */
   protected place<K extends SlotName>(slot: K, item: ItemOf<K>): () => void {
-    return this.state.slots.place(slot, item)
+    const takeDown = this.state.slots.place(slot, item)
+    if (slot !== 'pages') return takeDown
+    const { pageOwners } = this.state
+    const owner = this.ctx.fiber
+    pageOwners.set(item.id, owner)
+    return () => {
+      takeDown()
+      if (pageOwners.get(item.id) === owner) pageOwners.delete(item.id)
+    }
   }
 
   protected override toasts(): ToastBoard {
-    return this.state.toasts
+    return this.state.told
+  }
+
+  protected override figures(): FigureBoard {
+    return this.state.figure
   }
 }
 

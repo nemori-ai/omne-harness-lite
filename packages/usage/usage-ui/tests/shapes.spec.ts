@@ -137,7 +137,7 @@ describe('the data a native widget draws', () => {
     ).toBe(10)
   })
 
-  it('reads the occupancy as a percent with the compaction mark, or says why there is none', () => {
+  it('reads a known occupancy as a percent with the compaction mark, and anything else as no reading', () => {
     expect(
       occupancyReading(
         {
@@ -151,14 +151,8 @@ describe('the data a native widget draws', () => {
         at => `at ${String(at)}`,
       ),
     ).toEqual({ percent: 0.75, mark: 80, caption: '截至上一次请求（at T · m-a）' })
-    expect(occupancyReading({ kind: 'none-yet' }, String)).toEqual({
-      percent: null,
-      mark: null,
-      unknownReason: '还没有收场的请求',
-    })
-    expect(occupancyReading({ kind: 'unknown', reason: 'usage-unknown' }, String)).toMatchObject({
-      unknownReason: '这一次请求的用量未知',
-    })
+    expect(occupancyReading({ kind: 'none-yet' }, String)).toBeNull()
+    expect(occupancyReading({ kind: 'unknown', reason: 'usage-unknown' }, String)).toBeNull()
     expect(
       occupancyReading(
         {
@@ -172,9 +166,6 @@ describe('the data a native widget draws', () => {
         String,
       ),
     ).toEqual({ percent: 50, mark: null, caption: '截至上一次请求（T）' })
-    expect(occupancyReading({ kind: 'unknown', reason: 'window-unknown' }, String)).toMatchObject({
-      percent: null,
-      unknownReason: '这个型号的窗口未知',
-    })
+    expect(occupancyReading({ kind: 'unknown', reason: 'window-unknown' }, String)).toBeNull()
   })
 })

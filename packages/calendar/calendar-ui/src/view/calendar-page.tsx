@@ -3,10 +3,11 @@ import { readTenantText, type TenantId } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import {
   Button,
-  EmptyState,
   FactList,
   FactRow,
+  InlineNotice,
   Input,
+  LoadingIndicator,
   PageColumn,
   PageHeader,
   Section,
@@ -15,16 +16,11 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  StatusPill,
-  Table,
-  TableBody,
-  TableCell,
-  TableRow,
 } from '@omne-harness/ui-kit'
 import { useState, type JSX } from 'react'
 import { READING, readOnce, useReading, type Reading } from '../model/reading.ts'
-import { Drawn } from './drawn.tsx'
-import { SupplyHealthTable, type SupplyHealth } from './supply-health.tsx'
+import { Drawn, ReadNotice } from './drawn.tsx'
+import { ShippedCalendars, type SupplyHealth } from './shipped-calendars.tsx'
 
 type Client = ClientOf<CalendarProtocol>
 type Operations = CalendarProtocol['operations']
@@ -53,12 +49,9 @@ export function CalendarPage({ client, tenant }: CalendarPageProps): JSX.Element
   const id = readTenantText(tenant)
   return (
     <PageColumn className="calendar-page">
-      <PageHeader
-        title="日历"
-        description="日期计算与日程用哪套日历、哪个时区；只读，改在「资产」页的偏好里。"
-      />
+      <PageHeader title="日历" description="日期计算与日程用哪套日历、哪个时区；改在「设置」页。" />
       {id === undefined ? (
-        <EmptyState role="alert" title="读不懂当前的租户。" />
+        <InlineNotice tone="danger">读不懂当前的租户。</InlineNotice>
       ) : (
         <CalendarFacts client={client} tenant={id} tenantText={tenant} />
       )}
@@ -102,50 +95,21 @@ function CalendarFacts({
       </Section>
       <Section id="calendar-shipped" title="供应的日历">
         <Drawn reading={calendars} reread={rereadCalendars} refused={() => '读不出日历清单。'}>
-          {value => <CalendarTable calendars={value.calendars} effective={effective} />}
-        </Drawn>
-      </Section>
-      <Section id="calendar-health" title="供应健康">
-        <Drawn reading={health} reread={rereadHealth} refused={() => '读不出供应健康。'}>
-          {value => <SupplyHealthTable health={value} titleOf={titleOf} />}
+          {value => (
+            <ShippedCalendars
+              calendars={value.calendars}
+              health={health}
+              rereadHealth={rereadHealth}
+              effective={effective}
+              titleOf={titleOf}
+            />
+          )}
         </Drawn>
       </Section>
       <Section id="calendar-lookup" title="查一天">
         <DayLookup client={client} tenant={tenant} calendars={shipped} key={tenantText} />
       </Section>
     </>
-  )
-}
-
-function CalendarTable({
-  calendars,
-  effective,
-}: Readonly<{ calendars: Calendars['calendars']; effective: string | undefined }>): JSX.Element {
-  if (calendars.length === 0) return <EmptyState title="这个部署没有供应任何日历。" />
-  return (
-    <Table aria-label="日历清单">
-      <TableBody>
-        {calendars.map(calendar => (
-          <TableRow key={calendar.calendar}>
-            <TableCell>
-              {titleOf(calendar.calendar)}
-              {calendar.calendar === effective && (
-                <StatusPill tone="good" className="calendar-effective-mark">
-                  生效
-                </StatusPill>
-              )}
-            </TableCell>
-            <TableCell>{calendar.timezone}</TableCell>
-            <TableCell>{calendar.version ?? '没有可用的版本'}</TableCell>
-            <TableCell>
-              {calendar.coverageStart === null || calendar.coverageEnd === null
-                ? '没有覆盖'
-                : `${calendar.coverageStart} 至 ${calendar.coverageEnd}`}
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
   )
 }
 
@@ -160,6 +124,7 @@ function DayLookup({
   const [calendar, setCalendar] = useState(EFFECTIVE)
   const [version, setVersion] = useState('')
   const [answer, setAnswer] = useState<Reading<DayAnswer> | undefined>(undefined)
+  const asking = answer?.kind === 'reading'
   const named =
     calendar === EFFECTIVE
       ? {}
@@ -200,21 +165,21 @@ function DayLookup({
             ))}
           </SelectContent>
         </Select>
-        <Input
-          aria-label="版本"
-          placeholder="版本，不填用当前版本"
-          value={version}
-          disabled={calendar === EFFECTIVE}
-          onChange={event => setVersion(event.target.value)}
-        />
-        <Button type="submit" disabled={date.trim() === '' || answer?.kind === 'reading'}>
-          查
+        {calendar !== EFFECTIVE && (
+          <Input
+            aria-label="版本"
+            placeholder="版本，不填用当前版本"
+            value={version}
+            onChange={event => setVersion(event.target.value)}
+          />
+        )}
+        <Button type="submit" disabled={date.trim() === '' || asking}>
+          {asking && <LoadingIndicator size="sm" />}查
         </Button>
       </form>
-      {answer !== undefined && (
-        <Drawn reading={answer} reread={() => void ask()} refused={dayRefusal}>
-          {value => <DayResult answer={value} />}
-        </Drawn>
+      {answer?.kind === 'read' && <DayResult answer={answer.value} />}
+      {(answer?.kind === 'refused' || answer?.kind === 'unreadable') && (
+        <ReadNotice reading={answer} reread={() => void ask()} refused={dayRefusal} />
       )}
     </div>
   )

@@ -9,7 +9,7 @@
   justify-content: space-between;
   gap: var(--omne-space-inline);
   min-height: var(--omne-control-height);
-  padding: 0 4px 0 10px;
+  padding: 0 var(--spacing) 0 calc(var(--spacing) * 2.5);
   border-bottom: 1px solid var(--omne-line-subtle);
 }
 .code-surface-name {
@@ -18,10 +18,10 @@
   color: var(--omne-ink-faint);
 }
 .code-surface pre {
-  max-height: 18rem;
+  max-height: var(--omne-code-height);
   margin: 0;
   overflow: auto;
-  padding: var(--omne-space-inline) 10px;
+  padding: var(--omne-space-inline) calc(var(--spacing) * 2.5);
   font-family: var(--omne-font-mono);
   font-size: var(--omne-text-caption);
   line-height: var(--omne-leading-reading);

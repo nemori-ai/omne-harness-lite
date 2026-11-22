@@ -101,6 +101,8 @@ export function createFakeClient(): FakeClient {
     'search-history',
     'read-model-selection',
     'select-model',
+    'read-permission-mode',
+    'change-permission-mode',
     'read-workspace-selection',
     'select-workspace',
   ]

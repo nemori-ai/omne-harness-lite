@@ -7,14 +7,14 @@ type Offering<C> = Readonly<{
   loadChoices(tenant: string): Promise<void>
 }>
 
-/** What a tenant can pick from a store's handed-over source, read when the tenant is shown. */
-export function useOffered<C>(store: Offering<C>, tenant: string): ChoicesView<C> {
+/** What a tenant can pick from a store's handed-over source, read when the tenant is shown and `load` is on. */
+export function useOffered<C>(store: Offering<C>, tenant: string, load = true): ChoicesView<C> {
   const subscribe = useCallback(
     (listener: () => void) => store.subscribeChoices(tenant, listener),
     [store, tenant],
   )
   useEffect(() => {
-    void store.loadChoices(tenant)
-  }, [store, tenant])
+    if (load) void store.loadChoices(tenant)
+  }, [store, tenant, load])
   return useSyncExternalStore(subscribe, () => store.choices(tenant))
 }

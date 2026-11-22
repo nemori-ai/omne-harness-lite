@@ -1,5 +1,13 @@
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@omne-harness/ui-kit'
+import {
+  DropdownMenuItem,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@omne-harness/ui-kit'
 import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { FOLD_RANK, FoldedChoice, HeadingChoice, useHeadingPlace } from './heading-fold.tsx'
 import { useOffered } from './use-offered.ts'
 import {
   reasonText,
@@ -14,6 +22,11 @@ const NONE = '::none'
 const OPTION = 'omne-session-workspace-option'
 const valueOf = (target: WorkspaceTarget | null): string =>
   target === null ? NONE : JSON.stringify([target.workspace, target.instance])
+
+function targetOf(choices: readonly WorkspaceChoice[], picked: string): WorkspaceTarget | null {
+  const choice = choices.find(offered => valueOf(offered) === picked)
+  return choice === undefined ? null : { workspace: choice.workspace, instance: choice.instance }
+}
 
 function WorkspaceSelect({
   label,
@@ -31,12 +44,7 @@ function WorkspaceSelect({
   return (
     <Select
       value={valueOf(value)}
-      onValueChange={picked => {
-        const choice = choices.find(offered => valueOf(offered) === picked)
-        onValueChange(
-          choice === undefined ? null : { workspace: choice.workspace, instance: choice.instance },
-        )
-      }}
+      onValueChange={picked => onValueChange(targetOf(choices, picked))}
     >
       <SelectTrigger aria-label={label} size="sm">
         <SelectValue>{shown}</SelectValue>
@@ -81,42 +89,86 @@ const placeText = (view: Read): string =>
 type Props = Readonly<{ store: WorkspaceSelectionStore; tenant: string; session: string }>
 
 export function WorkspaceAction({ store, tenant, session }: Props) {
+  const inBar = useHeadingPlace() === 'bar'
   const subscribe = useCallback(
     (listener: () => void) => store.subscribe(tenant, session, listener),
     [store, tenant, session],
   )
   const view = useSyncExternalStore(subscribe, () => store.read(tenant, session))
-  const listing = useOffered(store, tenant)
+  const listing = useOffered(store, tenant, inBar)
   const [said, say] = useState<string | null>(null)
   useEffect(() => {
+    if (!inBar) return
     say(null)
     void store.load(tenant, session)
-  }, [store, tenant, session])
+  }, [store, tenant, session, inBar])
   const told = said === null ? null : <span role="status">{said}</span>
   if (view.kind === 'unread') return null
-  if (view.kind === 'unreadable')
+  if (view.kind === 'unreadable') {
+    const reason = `工作目录读不到：${view.reason}`
     return (
-      <span className="omne-session-workspace">
-        <span role="status">工作目录读不到：{view.reason}</span>
-        {told}
-      </span>
+      <HeadingChoice
+        rank={FOLD_RANK.workspace}
+        bar={
+          <span className="omne-session-workspace">
+            <span role="status">{reason}</span>
+            {told}
+          </span>
+        }
+        menu={() => <DropdownMenuItem disabled>{reason}</DropdownMenuItem>}
+      />
     )
+  }
   const choices = listing.kind === 'listed' ? withCurrent(listing.choices, view) : null
-  const current = choices?.find(choice => sameTarget(choice, view.workspace))
+  const shown = choices?.find(choice => sameTarget(choice, view.workspace))?.label ?? '不选工作区'
+  const place = placeText(view)
+  const select = (target: WorkspaceTarget | null, tell: (text: string) => void) =>
+    void store.select(tenant, session, target).then(tell)
   return (
-    <span className="omne-session-workspace">
-      {choices === null ? null : (
-        <WorkspaceSelect
-          label="工作区"
-          value={view.workspace}
-          shown={current?.label ?? '不选工作区'}
-          choices={choices}
-          onValueChange={target => void store.select(tenant, session, target).then(say)}
-        />
+    <HeadingChoice
+      rank={FOLD_RANK.workspace}
+      bar={
+        <span className="omne-session-workspace">
+          {choices === null ? null : (
+            <WorkspaceSelect
+              label="工作区"
+              value={view.workspace}
+              shown={shown}
+              choices={choices}
+              onValueChange={target => select(target, say)}
+            />
+          )}
+          <span className="omne-session-workspace-place" title={place}>
+            {place}
+          </span>
+          {told}
+        </span>
+      }
+      menu={tell => (
+        <>
+          {choices === null ? null : (
+            <FoldedChoice
+              label="工作区"
+              value={valueOf(view.workspace)}
+              shown={shown}
+              options={[
+                { value: NONE, label: '不选工作区' },
+                ...choices.map(choice => ({
+                  value: valueOf(choice),
+                  label: choice.label,
+                  note: choice.note,
+                  disabled: !choice.selectable,
+                })),
+              ]}
+              onPick={picked => select(targetOf(choices, picked), tell)}
+            />
+          )}
+          <DropdownMenuItem disabled title={place}>
+            <span className="omne-session-workspace-place">{place}</span>
+          </DropdownMenuItem>
+        </>
       )}
-      <span>{placeText(view)}</span>
-      {told}
-    </span>
+    />
   )
 }
 

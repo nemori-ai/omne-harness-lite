@@ -4,7 +4,6 @@ import {
   formatAmount,
   formatNumber,
   LineChart,
-  ReadingMeter,
   ShareBar,
   Sparkline,
   StackedBarChart,
@@ -45,8 +44,6 @@ createRoot(document.getElementById('root') as HTMLElement).render(
     <LineChart label="按天的 token（折线）" series={series} rows={rows} />
     <AreaChart label="按天的 token（面积）" series={series} rows={rows} />
     <ShareBar label="按模型的占比" parts={parts} format={value => formatNumber(value)} />
-    <ReadingMeter label="上下文占比" percent={42.5} mark={80} caption="截至上一次请求" />
-    <ReadingMeter label="上下文占比" percent={null} unknownReason="用量未知" />
     <Sparkline label="每小时的请求" values={[3, 5, 2, null, 6, 8, 4]} />
     <StatBlock label="费用" value={formatAmount('0.4321', 'USD')} detail="2 笔未知" />
     <StackedBarChart label="没有数据的样子" series={series} rows={[]} />

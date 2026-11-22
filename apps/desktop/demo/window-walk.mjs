@@ -66,8 +66,10 @@ const WALK = `(async () => {
   const composer = await wait('the composer', () => document.querySelector('textarea[aria-label="输入消息"]'))
   log('a session is created')
   fill(composer, 'say hello')
-  await wait('an enabled send button', () => !byText('button[type=submit]', '发送').disabled)
-  byText('button[type=submit]', '发送').click()
+  // The send button draws a glyph; its name is its accessible name.
+  const send = () => document.querySelector('button[type=submit][aria-label="发送"]')
+  await wait('an enabled send button', () => send() !== null && !send().disabled)
+  send().click()
   log('a message is sent')
   const reply = await wait('the reply', () =>
     [...document.querySelectorAll('.omne-message[data-role=assistant]')].find(element => element.textContent.includes(${JSON.stringify(REPLY)})))

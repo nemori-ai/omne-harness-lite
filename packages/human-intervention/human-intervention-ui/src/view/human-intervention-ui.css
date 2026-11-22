@@ -22,313 +22,330 @@
   font-weight: var(--omne-weight-strong);
 }
 
-.hitl-area {
+.hitl-session-cards {
   display: grid;
   gap: var(--omne-space-inline);
+  min-width: 0;
+}
+
+/* The paper: the decision measure, the overlay surface, one hairline lift and the card radius (decision-card.css
+   `.decision-card`). Lengths of the source above 1px are drawn at the size step. */
+.hitl-paper {
   width: 100%;
   max-width: var(--omne-measure-decision);
   min-width: 0;
-}
-
-.hitl-strip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--omne-space-inline);
-  min-width: 0;
-}
-
-.hitl-strip-item {
-  max-width: 100%;
-  border-radius: var(--omne-radius-pill);
-  background: var(--omne-surface-panel-soft);
-  color: var(--omne-ink-muted);
-  font-size: var(--omne-text-caption);
-}
-
-.hitl-strip-item[aria-selected='true'] {
-  background: var(--omne-surface-overlay);
-  box-shadow: var(--omne-elevation-hairline);
-  color: var(--omne-ink-primary);
-}
-
-.hitl-strip-item[data-mark='answered'] .hitl-strip-mark {
-  color: var(--omne-ink-primary);
-}
-
-.hitl-strip-item[data-mark='closed'] .hitl-strip-mark {
-  text-decoration: line-through;
-}
-
-.hitl-strip-number {
-  font-weight: var(--omne-weight-strong);
-  font-variant-numeric: tabular-nums;
-}
-
-.hitl-strip-mark {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.hitl-area-stage {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--omne-space-inline);
-  min-width: 0;
-}
-
-.hitl-area-stage > .hitl-card:only-child {
-  grid-column: 1 / -1;
-}
-
-.hitl-area-foot {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--omne-space-inline);
-  min-width: 0;
-}
-
-.hitl-area-submit {
-  margin-left: auto;
-}
-
-.hitl-wait-hint {
-  margin: 0;
-  color: var(--omne-ink-muted);
-  font-size: var(--omne-text-caption);
-}
-
-.hitl-card {
-  display: grid;
-  gap: var(--omne-space-inline);
-  width: 100%;
-  max-width: var(--omne-measure-decision);
-  min-width: 0;
-  padding: var(--omne-space-block);
+  padding-bottom: calc(var(--spacing) * 0.5);
   border-radius: var(--omne-radius-card);
   background: var(--omne-surface-overlay);
   box-shadow: var(--omne-elevation-hairline);
   color: var(--omne-ink-primary);
-  line-height: var(--omne-leading-reading);
-}
-
-.hitl-card-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--omne-space-inline);
-  min-width: 0;
-  color: var(--omne-ink-muted);
-  font-size: var(--omne-text-caption);
-  line-height: var(--omne-leading-wrapped);
-}
-
-.hitl-card-kind {
-  font-weight: var(--omne-weight-strong);
-}
-
-.hitl-card-position {
-  margin-left: auto;
-  font-variant-numeric: tabular-nums;
-}
-
-.hitl-card-title {
-  margin: 0;
-  color: var(--omne-ink-primary);
   font-size: var(--omne-text-ui);
+  line-height: var(--omne-leading-reading);
+}
+
+.hitl-section {
+  min-width: 0;
+}
+
+/* Sections of one paper sit one hairline apart, inset like the source's one rule; no section is a card. */
+.hitl-section + .hitl-section {
+  margin-top: calc(var(--spacing) * 4);
+}
+
+.hitl-section + .hitl-section::before {
+  content: '';
+  display: block;
+  margin-inline: calc(var(--spacing) * 5);
+  border-top: 1px solid var(--omne-line-subtle);
+}
+
+/* `.decision-kind`: whose move it is; the glyph and the word are amber while the card waits on the person. */
+.hitl-kind {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--spacing) * 1.5);
+  min-width: 0;
+  margin: 0;
+  padding: calc(var(--spacing) * 4) calc(var(--spacing) * 5) 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
   font-weight: var(--omne-weight-strong);
   line-height: var(--omne-leading-wrapped);
+}
+
+.hitl-kind[data-waiting='true'] {
+  color: var(--omne-caution-ink);
+}
+
+.hitl-kind-mark {
+  width: var(--omne-icon-compact);
+  height: var(--omne-icon-compact);
+  flex-shrink: 0;
+}
+
+.hitl-kind-trail {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--spacing) * 1.5);
+  margin-left: auto;
+  padding-left: calc(var(--spacing) * 3);
+  color: var(--omne-ink-muted);
+  font-weight: var(--omne-weight-regular);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* `.decision-kind-time`: when it was asked, in the faintest ink; the instant is in its hint. */
+.hitl-kind-time {
+  color: var(--omne-ink-faint);
+}
+
+.hitl-title {
+  margin: 0;
+  color: var(--omne-ink-primary);
   overflow-wrap: anywhere;
 }
 
-.hitl-card-text {
+/* `.decision-question`: a question is read in the conversation's reading face. */
+.hitl-title[data-face='reading'] {
+  padding: calc(var(--spacing) * 3) calc(var(--spacing) * 5) 0;
+  font-family: var(--omne-font-reading);
+  font-size: var(--omne-text-body);
+  font-weight: var(--omne-weight-regular);
+  line-height: var(--omne-leading-reading);
+}
+
+/* `.decision-heading` of an authorization: the action, a title and not a display heading. */
+.hitl-title[data-face='ui'] {
+  padding: calc(var(--spacing) * 2) calc(var(--spacing) * 5) 0;
+  font-size: var(--omne-text-body);
+  font-weight: var(--omne-weight-strong);
+  line-height: var(--omne-leading-wrapped);
+  letter-spacing: -0.015em;
+}
+
+/* `.decision-consequence`. */
+.hitl-text {
   margin: 0;
+  padding: var(--spacing) calc(var(--spacing) * 5) 0;
   color: var(--omne-ink-muted);
+  font-size: var(--omne-text-ui);
   line-height: var(--omne-leading-reading);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
-.hitl-card-source {
-  margin: 0;
+/* Who asks and where: the product's own quiet line under the asker's words (`.decision-scope`). */
+.hitl-who {
+  margin: calc(var(--spacing) * 2) calc(var(--spacing) * 5) 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+  line-height: var(--omne-leading-reading);
+  overflow-wrap: anywhere;
+}
+
+/* `.decision-facts`: the call under one hairline, the terms in the faintest ink. */
+.fact-list.hitl-facts {
+  grid-template-columns: minmax(calc(var(--spacing) * 16), max-content) minmax(0, 1fr);
+  gap: calc(var(--spacing) * 1.25) calc(var(--spacing) * 3);
+  margin: calc(var(--spacing) * 3) calc(var(--spacing) * 5) 0;
+  padding-top: calc(var(--spacing) * 3);
+  border-top: 1px solid var(--omne-line-subtle);
+  font-size: var(--omne-text-caption);
+  line-height: var(--omne-leading-reading);
+}
+
+.fact-list.hitl-facts dt,
+.fact-list.hitl-detail-rows dt {
   color: var(--omne-ink-faint);
-  font-size: var(--omne-text-caption);
+}
+
+/* The source's facts keep two columns on a narrow window: a term stays on its value's line. */
+@media (max-width: 767px) {
+  :is(.hitl-facts, .hitl-detail-rows) .fact-list-row + .fact-list-row > dt {
+    margin-top: 0;
+  }
+}
+
+.hitl-call {
+  font-family: var(--omne-font-mono);
   overflow-wrap: anywhere;
 }
 
-.hitl-card-choices {
+.hitl-detail {
   display: grid;
-  gap: var(--omne-space-inline);
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-.hitl-card-words-label {
-  color: var(--omne-ink-faint);
-  font-size: var(--omne-text-caption);
-}
-
-.hitl-card-decline {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--omne-space-inline);
-  min-width: 0;
-}
-
-.hitl-card-decline-text {
-  min-width: 0;
-  color: var(--omne-ink-muted);
-  font-size: var(--omne-text-caption);
-  overflow-wrap: anywhere;
-}
-
-.hitl-card-choice {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  column-gap: var(--omne-space-inline);
-  min-height: var(--omne-control-height);
-  padding-inline: var(--omne-space-inline);
-  border-radius: var(--omne-radius-control);
-  color: var(--omne-ink-muted);
-  cursor: pointer;
-  transition: background-color var(--omne-motion-feedback) var(--omne-motion-ease);
-}
-
-.hitl-card-choice:hover {
-  background-color: var(--omne-hover);
-}
-
-.hitl-card-choice[data-state='checked'] {
-  color: var(--omne-ink-primary);
-  font-weight: var(--omne-weight-strong);
-}
-
-.hitl-card-choice-label {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.hitl-card-choice-text {
-  grid-column: 2;
-  color: var(--omne-ink-muted);
-  font-size: var(--omne-text-caption);
-  font-weight: var(--omne-weight-regular);
-  overflow-wrap: anywhere;
-}
-
-.hitl-card-choices:disabled .hitl-card-choice,
-.hitl-card-choice[data-offered='false'] {
-  cursor: not-allowed;
-}
-
-.hitl-card-choice[data-offered='false'] {
-  opacity: 0.6;
-}
-
-.hitl-release-call {
-  display: grid;
-  gap: var(--omne-space-inline);
-  min-width: 0;
-}
-
-.hitl-release-summary {
-  overflow-wrap: anywhere;
-}
-
-.hitl-release-arguments pre {
-  max-height: 16rem;
-  overflow: auto;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.hitl-release-cut,
-.hitl-release-origin,
-.hitl-release-missing {
-  color: var(--omne-ink-muted);
-  font-size: var(--omne-text-caption);
-  overflow-wrap: anywhere;
-}
-
-.hitl-release-detail {
-  display: grid;
-  gap: var(--omne-space-inline);
   justify-items: start;
-}
-
-.hitl-release-rows {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
   gap: var(--omne-space-inline);
-  margin: 0;
+  min-width: 0;
+  margin: calc(var(--spacing) * 2) calc(var(--spacing) * 5) 0;
 }
 
-.hitl-release-row {
-  display: contents;
+.fact-list.hitl-detail-rows {
+  grid-template-columns: minmax(calc(var(--spacing) * 16), max-content) minmax(0, 1fr);
+  gap: calc(var(--spacing) * 1.25) calc(var(--spacing) * 3);
+  width: 100%;
+  font-size: var(--omne-text-caption);
+  line-height: var(--omne-leading-reading);
 }
 
-.hitl-release-row dt {
-  color: var(--omne-ink-muted);
-}
-
-.hitl-release-row dd {
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-
-.hitl-release-row ul {
+.hitl-detail-list {
   margin: 0;
   padding-inline-start: 1.25em;
 }
 
-.hitl-release-options {
+.hitl-quiet-line {
+  margin: calc(var(--spacing) * 2) calc(var(--spacing) * 5) 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+  line-height: var(--omne-leading-reading);
+  overflow-wrap: anywhere;
+}
+
+/* `.decision-scope-fold`: the arguments behind a quiet fold. */
+.hitl-fold {
+  margin: calc(var(--spacing) * 1.5) calc(var(--spacing) * 5) 0;
+}
+
+.hitl-fold > .omne-disclosure-trigger,
+.hitl-choice-fold > .omne-disclosure-trigger {
+  min-height: var(--omne-control-height-compact);
+}
+
+.hitl-fold-body > .hitl-quiet-line {
+  margin-inline: 0;
+}
+
+/* `.decision-options`: the answer rows, one radio group with one gliding highlight. */
+.hitl-options {
+  margin: calc(var(--spacing) * 2.5) calc(var(--spacing) * 2) 0;
+}
+
+/* A fold of answer rows (这一类动作, 自己写，或不回答) stands on the section's edge like 详情 (the source's
+   `.decision-scope-fold` and `.decision-note`): past the rows' inset (8), the trigger's own pull (-6) comes back
+   to 20. Its rows stay at the rows' inset; folds stand 6 apart. */
+.hitl-choice-fold > .omne-disclosure-trigger {
+  margin-left: calc(var(--spacing) * 1.5);
+}
+
+.hitl-choice-fold:not(:first-child) {
+  margin-top: var(--spacing);
+}
+
+/* With the options as buttons at the foot, the answer opens with a fold, 6 under what is above it. */
+.hitl-answer[data-verdict='buttons'] > .hitl-options {
+  margin-top: calc(var(--spacing) * 1.5);
+}
+
+.hitl-choice-fold-rows {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: calc(var(--spacing) * 0.5);
+}
+
+/* What a chosen row opens below it stands under its label: the mark (16) and the gap (9) past the row's padding (6). */
+.hitl-field,
+.hitl-decline-text {
+  padding: var(--spacing) calc(var(--spacing) * 2) 0 calc(var(--spacing) * 7.75);
+}
+
+.hitl-answer > .hitl-field {
+  padding: 0;
+  margin: calc(var(--spacing) * 2.5) calc(var(--spacing) * 5) 0;
+}
+
+.hitl-field > textarea {
+  min-height: calc(var(--spacing) * 16);
+  max-height: calc(var(--spacing) * 60);
+  font-size: var(--omne-text-ui);
+  line-height: var(--omne-leading-reading);
+}
+
+.hitl-decline-text {
+  margin: 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+  line-height: var(--omne-leading-wrapped);
+  overflow-wrap: anywhere;
+}
+
+/* A card with no options: 不回答这一题 is a quiet link under the field, its consequence under it. */
+.hitl-decline {
+  margin: calc(var(--spacing) * 1.5) calc(var(--spacing) * 5) 0;
+}
+
+.hitl-decline-link {
+  padding-inline: 0;
+}
+
+.hitl-decline .hitl-decline-text {
+  padding: 0;
+}
+
+.hitl-outcome {
+  margin: calc(var(--spacing) * 2.5) calc(var(--spacing) * 5) 0;
+}
+/* A closed section says why in one quiet line, not a box on the sheet; its dismiss is the line's icon button. */
+.hitl-closed {
+  display: flex;
+  align-items: center;
   gap: var(--omne-space-inline);
 }
+.hitl-closed-line {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+  line-height: var(--omne-leading-reading);
+  overflow-wrap: anywhere;
+}
 
-.hitl-release-group {
+/* `.decision-foot`: what is still missing on the left, the one submit on the right, one quiet line under both. */
+.hitl-foot {
   display: flex;
   flex-wrap: wrap;
-  min-width: 0;
-}
-
-.hitl-release-group[data-lasting='true'] {
-  padding-inline-start: var(--omne-space-inline);
-  border-inline-start: 1px solid var(--omne-line);
-}
-
-.hitl-session-cards {
-  display: grid;
+  align-items: flex-start;
   gap: var(--omne-space-inline);
-  width: 100%;
-  max-width: var(--omne-measure-decision);
-  min-width: 0;
+  padding: calc(var(--spacing) * 3) calc(var(--spacing) * 5) calc(var(--spacing) * 4);
 }
 
-.hitl-badge {
+.hitl-missing {
+  padding-inline: 0;
+}
+
+.hitl-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--omne-space-inline);
+  margin-left: auto;
+}
+
+.hitl-quiet {
+  flex: 1 1 100%;
+  min-width: 0;
+  margin: 0;
+  color: var(--omne-ink-faint);
+  font-size: var(--omne-text-caption);
+  line-height: var(--omne-leading-wrapped);
+  text-align: right;
+}
+
+/* `.decision-arming`: why the submit is armed, in the danger ink of the one button that commits. */
+.hitl-arming {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  min-width: var(--omne-chip-height);
-  height: var(--omne-chip-height);
-  padding-inline: var(--omne-space-inline);
-  border-radius: var(--omne-radius-pill);
-  background: var(--omne-accent);
-  color: var(--omne-accent-ink);
-  font-size: var(--omne-text-caption);
-  font-variant-numeric: tabular-nums;
+  gap: calc(var(--spacing) * 1.5);
+  color: var(--omne-danger-ink);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .hitl-card-choice {
-    transition: none;
-  }
+.hitl-arming > svg {
+  width: var(--omne-icon-compact);
+  height: var(--omne-icon-compact);
+  flex-shrink: 0;
+}
+
+.hitl-arming > strong {
+  font-weight: var(--omne-weight-strong);
 }

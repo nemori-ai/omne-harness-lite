@@ -11,6 +11,7 @@ import {
   type UnresponsiveChoice,
   type UtilityState,
 } from '../src/main/recovery.ts'
+import { TRAFFIC_LIGHT_POSITION, windowChrome } from '../src/main/window-chrome.ts'
 import { readWindowState, usableState, windowStateFile } from '../src/main/window-state.ts'
 import { gate, settle } from './support/fake-server.ts'
 
@@ -21,6 +22,17 @@ describe('外链', () => {
     expect(externalTarget('mailto:a@example.com')).toBe('mailto:a@example.com')
     for (const url of ['file:///etc/passwd', 'javascript:alert(1)', 'omne-app://app/', 'x', ''])
       expect(externalTarget(url)).toBeUndefined()
+  })
+})
+
+describe('窗口的标题栏', () => {
+  it('macOS 隐藏标题栏，红绿灯嵌在侧栏顶上那条里；别的平台用系统的标题栏', () => {
+    expect(windowChrome('darwin')).toEqual({
+      titleBarStyle: 'hiddenInset',
+      trafficLightPosition: { x: 14, y: 16 },
+    })
+    expect(TRAFFIC_LIGHT_POSITION).toEqual({ x: 14, y: 16 })
+    for (const platform of ['win32', 'linux'] as const) expect(windowChrome(platform)).toEqual({})
   })
 })
 

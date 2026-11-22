@@ -23,7 +23,13 @@ function consumer(key: ReturnType<typeof serviceKey<Need>>, seen: string[]) {
     apply(shell, services) {
       const port = serviceOf(services, key)
       seen.push(port.label)
-      shell.contribute('pages', { id: 'consumer', title: port.label, order: 0, render })
+      shell.contribute('pages', {
+        id: 'consumer',
+        title: port.label,
+        order: 0,
+        icon: 'topics',
+        render,
+      })
     },
   })
 }
@@ -70,7 +76,13 @@ describe('a UI module provides a service on the client tree', () => {
         name: 'plain',
         inject: [],
         apply(shell) {
-          shell.contribute('pages', { id: 'plain', title: 'plain', order: 0, render })
+          shell.contribute('pages', {
+            id: 'plain',
+            title: 'plain',
+            order: 0,
+            icon: 'topics',
+            render,
+          })
         },
       }),
     )

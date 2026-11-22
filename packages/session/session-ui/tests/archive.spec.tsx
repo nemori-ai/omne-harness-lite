@@ -1,5 +1,8 @@
 // @vitest-environment happy-dom
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import './fixtures/dom.ts'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { parseInstant } from '@omne-harness/utc-instant'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@omne-harness/ui-kit'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   ArchiveStore,
@@ -10,8 +13,13 @@ import {
 } from '../src/model/archive.ts'
 import type { SessionWorkspaces } from '../src/model/session-workspaces.ts'
 import { ArchiveAction, ArchivedSessions } from '../src/view/archive.tsx'
+import { iconButton } from './fixtures/icon-button.ts'
+import { stubInView } from './fixtures/in-view.ts'
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+})
 
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
@@ -124,13 +132,159 @@ describe('the archived list (C29)', () => {
     expect(screen.getByText('没有已归档的会话。')).toBeTruthy()
   })
 
+  it('opens in place under its own row, not as an overlay, and reads the list when opened', async () => {
+    const { store, listed } = clientWith([page([item('a')])])
+    const { workspaces } = workspacesWith()
+    const { container } = render(
+      <ArchivedSessions store={store} workspaces={workspaces} tenant={TENANT} />,
+    )
+    const trigger = screen.getByRole('button', { name: '已归档' })
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+    expect(listed).not.toHaveBeenCalled()
+    await act(async () => fireEvent.click(trigger))
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
+    expect(listed).toHaveBeenCalledTimes(1)
+    const row = screen.getByText('title a').closest('li')!
+    expect(container.contains(row)).toBe(true)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.queryByRole('button', { name: '收起' })).toBeNull()
+  })
+
+  it('a row cannot be opened: no row control, no glide, and unarchive is its only action', async () => {
+    const archivedAt = parseInstant(new Date(Date.now() - 3 * 86_400_000).toISOString())
+    if (!archivedAt.ok) throw new Error('fixture instant')
+    const { store } = clientWith([page([item('a', { archivedAt: archivedAt.value })])])
+    const { workspaces } = workspacesWith()
+    render(<ArchivedSessions store={store} workspaces={workspaces} tenant={TENANT} />)
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '已归档' })))
+    const row = screen.getByText('title a').closest('li')!
+    expect(row.hasAttribute('data-glide-row')).toBe(false)
+    expect(row.hasAttribute('data-control')).toBe(false)
+    expect(row.closest('[data-glide-menu]')).toBeNull()
+    expect(
+      within(row)
+        .getAllByRole('button')
+        .map(button => button.getAttribute('aria-label')),
+    ).toEqual(['撤销归档'])
+    expect(iconButton(row, '撤销归档', 'undo').getAttribute('data-size')).toBe('icon-compact')
+    expect(row.querySelector('time')?.textContent).toBe('3 天前')
+  })
+
+  it('the receipt of an unarchive stands once where the row was', async () => {
+    const { store } = clientWith([
+      page([item('a'), item('b'), item('c')]),
+      page([item('a'), item('c')]),
+    ])
+    const { workspaces } = workspacesWith()
+    render(<ArchivedSessions store={store} workspaces={workspaces} tenant={TENANT} />)
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '已归档' })))
+    const rowOf = (session: string) => screen.getByText(`title ${session}`).closest('li')!
+    await act(async () =>
+      fireEvent.click(within(rowOf('b')).getByRole('button', { name: '撤销归档' })),
+    )
+    const receipts = screen.getAllByRole('status')
+    expect(receipts.map(node => node.textContent)).toEqual(['已撤销归档'])
+    expect(rowOf('a').nextElementSibling?.textContent).toBe('已撤销归档')
+    expect(rowOf('c').previousElementSibling?.textContent).toBe('已撤销归档')
+  })
+
+  it('says a list it cannot read and an empty list, both in a neutral voice', async () => {
+    const { store } = clientWith([{ outcome: 'basis-unavailable' }, page([])])
+    const { workspaces } = workspacesWith()
+    render(<ArchivedSessions store={store} workspaces={workspaces} tenant={TENANT} />)
+    const trigger = screen.getByRole('button', { name: '已归档' })
+    await act(async () => fireEvent.click(trigger))
+    const unreadable = screen.getByText('已归档的会话暂时读不到。').closest('[data-tone]')
+    expect(unreadable?.getAttribute('data-tone')).toBe('neutral')
+    await act(async () => fireEvent.click(trigger))
+    await act(async () => fireEvent.click(trigger))
+    expect(screen.getByText('没有已归档的会话。')).toBeTruthy()
+    expect(screen.queryByText('已归档的会话暂时读不到。')).toBeNull()
+  })
+
   it('the archive action in the heading says what it withdrew and reads the session list again', async () => {
     const { store, archive } = clientWith([])
     const { workspaces, loadList } = workspacesWith()
-    render(<ArchiveAction store={store} workspaces={workspaces} tenant={TENANT} session="s-1" />)
-    await act(async () => fireEvent.click(screen.getByRole('button', { name: '归档' })))
+    const say = vi.fn()
+    render(
+      <DropdownMenu open>
+        <DropdownMenuTrigger>更多</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <ArchiveAction
+            store={store}
+            workspaces={workspaces}
+            tenant={TENANT}
+            session="s-1"
+            say={say}
+          />
+        </DropdownMenuContent>
+      </DropdownMenu>,
+    )
+    await act(async () => fireEvent.click(screen.getByRole('menuitem', { name: '归档' })))
     expect(archive).toHaveBeenCalledWith(expect.objectContaining({ session: 's-1' }))
-    expect(screen.getByRole('status').textContent).toBe('已归档；收起 1 轮，撤回 2 项后台调用')
+    expect(say).toHaveBeenCalledWith('已归档；收起 1 轮，撤回 2 项后台调用')
     expect(loadList).toHaveBeenCalled()
+  })
+})
+
+describe('the end of the archived list reads on by itself, with no 更多 (C29, A4)', () => {
+  async function opened(pages: readonly unknown[]) {
+    const view = stubInView()
+    const client = clientWith(pages)
+    const { workspaces } = workspacesWith()
+    render(<ArchivedSessions store={client.store} workspaces={workspaces} tenant={TENANT} />)
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '已归档' })))
+    return { ...client, view }
+  }
+  const titles = () =>
+    [...document.querySelectorAll('.omne-archived-title')].map(node => node.textContent)
+
+  it('reads the next page once the end is in view, one page at a time, and stops after the last', async () => {
+    const { listed, view } = await opened([
+      page([item('a')], 'n-1'),
+      page([item('b')], 'n-2'),
+      page([item('c')]),
+    ])
+    expect(screen.queryByRole('button', { name: '更多' })).toBeNull()
+    expect(document.querySelector('.omne-archived')?.textContent).not.toContain('更多')
+    await act(async () => view.enter())
+    expect(listed.mock.calls.map(([body]) => body.cursor)).toEqual([null, 'n-1'])
+    expect(titles()).toEqual(['title a', 'title b'])
+    await act(async () => view.enter())
+    expect(titles()).toEqual(['title a', 'title b', 'title c'])
+    expect(view.watched()).toEqual([])
+    await act(async () => view.enter())
+    expect(listed.mock.calls.map(([body]) => body.cursor)).toEqual([null, 'n-1', 'n-2'])
+  })
+
+  it('asks nothing again while a page is still on its way', async () => {
+    const { listed, view } = await opened([page([item('a')], 'n-1')])
+    let answer: (value: unknown) => void = () => {}
+    listed.mockImplementationOnce(() => new Promise(resolve => (answer = resolve)) as never)
+    await act(async () => view.enter())
+    await act(async () => view.leave())
+    await act(async () => view.enter())
+    expect(listed).toHaveBeenCalledTimes(2)
+    await act(async () => answer(page([item('b')])))
+    expect(titles()).toEqual(['title a', 'title b'])
+    expect(listed).toHaveBeenCalledTimes(2)
+  })
+
+  it('a next page it cannot read is said as the list is, neutral, with no button and no more reading', async () => {
+    const { listed, view } = await opened([
+      {
+        outcome: 'succeeded',
+        body: { sessions: [item('a')], next: 'n-1', completeness: 'partial' },
+      },
+      { outcome: 'basis-unavailable' },
+    ])
+    expect(screen.getByText('列表可能不全')).toBeTruthy()
+    await act(async () => view.enter())
+    const unreadable = screen.getByText('已归档的会话暂时读不到。').closest('[data-tone]')
+    expect(unreadable?.getAttribute('data-tone')).toBe('neutral')
+    expect(screen.getAllByRole('button').map(button => button.textContent)).toEqual(['已归档'])
+    expect(view.watched()).toEqual([])
+    await act(async () => view.enter())
+    expect(listed).toHaveBeenCalledTimes(2)
   })
 })

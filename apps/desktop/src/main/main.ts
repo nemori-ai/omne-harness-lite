@@ -1,7 +1,7 @@
 import { writeSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { app, safeStorage, session, type BrowserWindow } from 'electron'
+import { app, Menu, safeStorage, session, type BrowserWindow } from 'electron'
 import { DEFAULT_SERVER } from '../shared/server.ts'
 import {
   BUILD_PROFILE_MESSAGE,
@@ -57,8 +57,30 @@ function utilityWatch(): UtilityWatch & { set(state: UtilityState): void } {
   }
 }
 
+function setAppMenu(): void {
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate([
+      ...(process.platform === 'darwin' ? [{ role: 'appMenu' as const }] : []),
+      { role: 'fileMenu' },
+      { role: 'editMenu' },
+      {
+        role: 'viewMenu',
+        submenu: [
+          { role: 'reload' },
+          { role: 'forceReload' },
+          ...(OMNE_BUILD_PROFILE === 'release' ? [] : [{ role: 'toggleDevTools' as const }]),
+          { type: 'separator' },
+          { role: 'togglefullscreen' },
+        ],
+      },
+      { role: 'windowMenu' },
+    ]),
+  )
+}
+
 async function main(log: Logger, cookieKey: CookieKeyOutcome): Promise<void> {
   await app.whenReady()
+  setAppMenu()
   const pageRoot = fileURLToPath(new URL('../page/', import.meta.url))
   const appSession = session.fromPartition(APP_PARTITION)
   // One utility process for the app, not per window: it outlives windows, reloads and crashes.

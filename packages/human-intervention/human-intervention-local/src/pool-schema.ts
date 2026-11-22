@@ -7,6 +7,7 @@ import {
   CardSchema,
   OriginSchema,
 } from '@omne-harness/human-intervention'
+import { AskedAtSchema } from './request-schema.ts'
 import { SqlSequenceSchema as sequence } from './sql-sequence.ts'
 export const POOL_HANDLER = 'hitl.pool-read'
 export const PoolPositionSchema = z.strictObject({
@@ -25,6 +26,7 @@ export const PoolItemSchema = z.strictObject({
   card: CardSchema,
   origin: OriginSchema,
   displayContext: z.string(),
+  askedAt: AskedAtSchema.exactOptional(),
 })
 export const ReadLimitedSchema = z.strictObject({
   kind: z.literal('limited'),

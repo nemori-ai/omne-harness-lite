@@ -1,4 +1,5 @@
 import type { TenantId } from '@omne-harness/public-contract'
+import { Button, LoadingState } from '@omne-harness/ui-kit'
 import { useEffect, useState } from 'react'
 import { IMAGE_TYPES } from '../model/attachment-tray.ts'
 import { readWhole, type DisplayTarget, type MediaClient, type Reference } from '../model/upload.ts'
@@ -82,20 +83,20 @@ function useAddress(props: MediaBlockProps, ref: Reference, whole: boolean): Sho
 function Picture(props: MediaBlockProps & { readonly read: Read }) {
   const [whole, setWhole] = useState(false)
   const shown = useAddress(props, props.read.ref, whole)
-  if (shown.kind === 'reading') return <p className="omne-media-line">正在读图片…</p>
+  if (shown.kind === 'reading') return <LoadingState label="正在读图片…" />
   if (shown.kind === 'unreadable')
     return <p className="omne-media-line">图片读不出来：{shown.reason}</p>
   const { size } = props.read
   return (
-    <button
-      type="button"
+    <Button
+      variant="ghost"
       className="omne-media-picture"
       data-whole={whole}
       aria-label={whole ? '收起' : '看原图'}
       onClick={() => setWhole(value => !value)}
     >
       <img src={shown.url} alt={size === null ? '图片' : `图片 ${size}`} />
-    </button>
+    </Button>
   )
 }
 
