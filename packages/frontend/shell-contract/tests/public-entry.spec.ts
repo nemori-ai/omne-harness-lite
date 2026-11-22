@@ -36,6 +36,7 @@ it('declares the three points of the shell itself as fixed when the application 
     resolve: 'conflict',
     binding: 'build',
     version: 1,
+    revision: 1,
     conformance: null,
   }
   expect(shellContracts).toEqual([

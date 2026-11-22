@@ -20,6 +20,7 @@ const SHARED = {
   item: { kind: 'pure', fields: { render: 'function' } },
   resolve: 'conflict',
   version: 1,
+  revision: 1,
   conformance: null,
 } as const
 

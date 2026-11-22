@@ -6,7 +6,7 @@ import type {
   LoginResult,
 } from '@omne-harness/access-cordis-contract'
 import { readJsonBytes, type JsonLimits } from '@omne-harness/json-text'
-import type { Codec, OperationContract } from '@omne-harness/public-contract'
+import { livesAt, type Codec, type OperationContract } from '@omne-harness/public-contract'
 import {
   createObservationHub,
   type HubDiagnosticCode,
@@ -23,7 +23,7 @@ import {
   type SettleNote,
 } from '../settle/settle.ts'
 import { parseAddress, pathOf, type Address } from './address.ts'
-import { EMPTY_BODY, writeAnswer, writeBare } from './answer.ts'
+import { EMPTY_BODY, writeAnswer, writeBare, writeNotOffered } from './answer.ts'
 import { readBody } from './body.ts'
 import { contentTypeAccepted, countHeader, hostAccepted } from './headers.ts'
 import { establish, type Established, type SignedIn } from './identity-rule.ts'
@@ -49,8 +49,10 @@ export type PipelineDiagnosticCode =
   | 'access.host-rejected'
   | 'access.content-type-rejected'
   | 'access.not-mounted'
+  | 'access.not-offered'
   | 'access.busy'
   | 'access.message-id-rejected'
+  | 'access.revision-rejected'
   | 'access.identity-denied'
   | 'access.identity-unavailable'
   | 'access.identity-fault'
@@ -111,8 +113,10 @@ export function admit(
   if (req.method !== 'POST') return refused(405, 'access.method-rejected')
   if (!hostAccepted(req, loopback)) return refused(421, 'access.host-rejected')
   if (!contentTypeAccepted(req)) return refused(415, 'access.content-type-rejected')
-  const entered = registry.enter({ name: address.protocol, major: address.major }, address.name)
-  if (entered === undefined) return refused(404, 'access.not-mounted')
+  const key = { name: address.protocol, major: address.major }
+  const entered = registry.enter(key, address.name)
+  if (entered === undefined)
+    return refused(404, registry.mounts(key) ? 'access.not-offered' : 'access.not-mounted')
   return { kind: 'entered', address, entered }
 }
 
@@ -133,6 +137,50 @@ function messageIdOf(req: IncomingMessage): string | undefined {
   return typeof value === 'string' && MESSAGE_ID.test(value) ? value : undefined
 }
 
+const REVISION = /^[1-9][0-9]{0,8}$/
+
+/** The revision the caller says it is at. No header is revision 1; a header that cannot be read is none. */
+function claimedRevision(req: IncomingMessage): number | undefined {
+  const count = countHeader(req, 'omne-contract-revision')
+  if (count === 0) return 1
+  const value = req.headers['omne-contract-revision']
+  return count === 1 && typeof value === 'string' && REVISION.test(value)
+    ? Number(value)
+    : undefined
+}
+
+type Opening =
+  | Readonly<{ kind: 'opened'; messageId: string; revision: number }>
+  | Readonly<{
+      kind: 'refused'
+      code: 'access.message-id-rejected' | 'access.revision-rejected'
+      carried: Readonly<{ messageId?: string }>
+    }>
+
+/** The message id, then the revision the call is read and written at: the lesser of the two ends'. */
+function openingOf(req: IncomingMessage, entered: Entered): Opening {
+  const messageId = messageIdOf(req)
+  if (messageId === undefined)
+    return { kind: 'refused', code: 'access.message-id-rejected', carried: {} }
+  const claimed = claimedRevision(req)
+  if (claimed === undefined || !livesAt(entered.member.contract.since, claimed))
+    return { kind: 'refused', code: 'access.revision-rejected', carried: { messageId } }
+  return { kind: 'opened', messageId, revision: Math.min(entered.revision, claimed) }
+}
+
+function refuse(res: ServerResponse, refusal: Extract<Admission, { kind: 'refused' }>): void {
+  if (refusal.code === 'access.not-offered') return writeNotOffered(res)
+  writeBare(res, refusal.status, refusal.status === 405 ? { allow: 'POST' } : {})
+}
+
+const quietly =
+  (sink: PipelineAccess['diagnostics']) =>
+  (event: PipelineDiagnostic): void => {
+    try {
+      sink?.(event)
+    } catch {}
+  }
+
 type BodyOutcome =
   | Readonly<{ kind: 'read'; value: unknown }>
   | Readonly<{ kind: 'over' }>
@@ -152,6 +200,7 @@ async function readBodyOf(
   rule: BodyRule,
   settings: PipelineSettings,
   watch: CallWatch,
+  revision: number,
 ): Promise<BodyOutcome> {
   const maxBytes = settings.bodyLimits[rule.limit]
   const read = await readBody(req, maxBytes, watch.halt)
@@ -161,7 +210,7 @@ async function readBodyOf(
   const limits = settings.readLimits(maxBytes)
   const json = readJsonBytes(read.bytes, limits)
   if (json.kind !== 'ok') return { kind: 'rejected' }
-  const decoded = rule.codec.read(json.value, limits)
+  const decoded = rule.codec.read(json.value, limits, revision)
   return decoded.ok ? { kind: 'read', value: decoded.value } : { kind: 'rejected' }
 }
 
@@ -241,11 +290,7 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
     clock,
     writeLimits: settings.writeLimits,
   })
-  const diagnose = (event: PipelineDiagnostic): void => {
-    try {
-      access.diagnostics?.(event)
-    } catch {}
-  }
+  const diagnose = quietly(access.diagnostics)
 
   async function serve(
     req: IncomingMessage,
@@ -256,13 +301,15 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
     const { member } = entered
     const note = (code: PipelineDiagnosticCode): void =>
       diagnose(eventOf(code, address.path, address))
-    const messageId = messageIdOf(req)
-    if (messageId === undefined) {
-      note('access.message-id-rejected')
-      writeAnswer(res, { outcome: 'protocol-rejected', body: EMPTY_BODY, close: true })
+    const opening = openingOf(req, entered)
+    if (opening.kind === 'refused') {
+      note(opening.code)
+      const refusal = { outcome: 'protocol-rejected', body: EMPTY_BODY, close: true } as const
+      writeAnswer(res, { ...refusal, ...opening.carried })
       entered.leave()
       return
     }
+    const { messageId, revision } = opening
     // Before the body is read in full, an answer closes the connection: otherwise Node would read
     // the rest of the body off the wire to reuse it.
     const early = (outcome: 'denied' | 'basis-unavailable' | 'protocol-rejected'): void => {
@@ -317,7 +364,7 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
       const established = await establish(member.contract.identity, req, access.identity, watch)
       if (established.kind !== 'caller') return unestablished(established)
       caller = established
-      const read = await readBodyOf(req, bodyRuleOf(member), settings, watch)
+      const read = await readBodyOf(req, bodyRuleOf(member), settings, watch, revision)
       if (read.kind !== 'read') return unread(read)
       body = read.value
     } finally {
@@ -332,6 +379,7 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
         source: member.source,
         principal: caller.principal,
         messageId,
+        revision,
         open: body,
         key: observationKey(address, messageId, login),
         ...(login === undefined
@@ -349,6 +397,7 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
       entered,
       principal: caller.principal,
       messageId,
+      revision,
       body,
       limits: settings.writeLimits,
       config: { graceMs: access.graceMs },
@@ -363,8 +412,7 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
     const admission = admit(req, access.registry, settings.loopback)
     if (admission.kind === 'refused') {
       diagnose(eventOf(admission.code, admission.path, admission.address))
-      writeBare(res, admission.status, admission.status === 405 ? { allow: 'POST' } : {})
-      return
+      return refuse(res, admission)
     }
     const release = settings.slots.take(res)
     if (release === undefined) {

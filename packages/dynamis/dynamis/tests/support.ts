@@ -82,6 +82,7 @@ export const contract = (name: string, over: Partial<Contract> = {}): Contract =
   binding: 'run',
   onError: 'the answer is unavailable',
   version: 1,
+  revision: 1,
   conformance: null,
   summary: `the point ${name}`,
   ...over,

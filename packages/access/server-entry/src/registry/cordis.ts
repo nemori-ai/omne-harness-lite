@@ -29,6 +29,7 @@ export class AccessRegistryProvider extends AccessRegistryService implements Reg
   }
 
   readonly enter: RegistryForPipeline['enter'] = (key, name) => this.registry.enter(key, name)
+  readonly mounts: RegistryForPipeline['mounts'] = key => this.registry.mounts(key)
   readonly subscribe: RegistryForPipeline['subscribe'] = listener =>
     this.registry.subscribe(listener)
 }

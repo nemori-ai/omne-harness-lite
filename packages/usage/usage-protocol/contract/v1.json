@@ -1,0 +1,3097 @@
+{
+  "digests": {
+    "1": "sha256:44c074074ca970129047ef2adfe1dcb4f4d1c08b90dafff6c259a47321a480ec"
+  },
+  "major": 1,
+  "name": "usage",
+  "revision": 1,
+  "rules": {
+    "observations": {},
+    "operations": {
+      "list-usage-records": {
+        "body": {
+          "fields": {
+            "after": {
+              "rule": {
+                "kind": "one-of",
+                "rules": [
+                  {
+                    "kind": "text"
+                  },
+                  {
+                    "kind": "null"
+                  }
+                ]
+              }
+            },
+            "limit": {
+              "rule": {
+                "kind": "page-limit"
+              }
+            },
+            "range": {
+              "rule": {
+                "fields": {
+                  "from": {
+                    "rule": {
+                      "kind": "instant"
+                    }
+                  },
+                  "to": {
+                    "rule": {
+                      "kind": "instant"
+                    }
+                  }
+                },
+                "kind": "object"
+              }
+            },
+            "scope": {
+              "rule": {
+                "kind": "one-of",
+                "rules": [
+                  {
+                    "fields": {
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "tenant"
+                          ]
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  {
+                    "fields": {
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "session"
+                          ]
+                        }
+                      },
+                      "session": {
+                        "rule": {
+                          "kind": "session"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  {
+                    "fields": {
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "organization"
+                          ]
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  }
+                ]
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "invalid": {
+            "fields": {
+              "field": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "scope",
+                    "range",
+                    "zone",
+                    "bucket",
+                    "groupBy",
+                    "limit",
+                    "after"
+                  ]
+                }
+              },
+              "reason": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "limited": {
+            "fields": {
+              "limit": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "buckets",
+                    "pages"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "not-found": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "entries": {
+                "rule": {
+                  "item": {
+                    "fields": {
+                      "accounted": {
+                        "rule": {
+                          "kind": "boolean"
+                        }
+                      },
+                      "at": {
+                        "rule": {
+                          "kind": "one-of",
+                          "rules": [
+                            {
+                              "kind": "instant"
+                            },
+                            {
+                              "kind": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "cause": {
+                        "rule": {
+                          "kind": "one-of",
+                          "rules": [
+                            {
+                              "kind": "string"
+                            },
+                            {
+                              "kind": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "connectRetries": {
+                        "rule": {
+                          "kind": "count"
+                        }
+                      },
+                      "consumer": {
+                        "rule": {
+                          "fields": {
+                            "owner": {
+                              "rule": {
+                                "kind": "string"
+                              }
+                            },
+                            "position": {
+                              "rule": {
+                                "kind": "string"
+                              }
+                            },
+                            "purpose": {
+                              "rule": {
+                                "kind": "string"
+                              }
+                            },
+                            "work": {
+                              "rule": {
+                                "kind": "string"
+                              }
+                            }
+                          },
+                          "kind": "object"
+                        }
+                      },
+                      "cost": {
+                        "rule": {
+                          "kind": "one-of",
+                          "rules": [
+                            {
+                              "kind": "one-of",
+                              "rules": [
+                                {
+                                  "fields": {
+                                    "lexeme": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    },
+                                    "state": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "known"
+                                        ]
+                                      }
+                                    },
+                                    "unit": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                },
+                                {
+                                  "fields": {
+                                    "state": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "unknown"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                }
+                              ]
+                            },
+                            {
+                              "kind": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "durations": {
+                        "rule": {
+                          "fields": {
+                            "generation": {
+                              "rule": {
+                                "kind": "one-of",
+                                "rules": [
+                                  {
+                                    "kind": "count"
+                                  },
+                                  {
+                                    "kind": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "toFirstContent": {
+                              "rule": {
+                                "kind": "one-of",
+                                "rules": [
+                                  {
+                                    "kind": "count"
+                                  },
+                                  {
+                                    "kind": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "toResponse": {
+                              "rule": {
+                                "kind": "one-of",
+                                "rules": [
+                                  {
+                                    "kind": "count"
+                                  },
+                                  {
+                                    "kind": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "total": {
+                              "rule": {
+                                "kind": "one-of",
+                                "rules": [
+                                  {
+                                    "kind": "count"
+                                  },
+                                  {
+                                    "kind": "null"
+                                  }
+                                ]
+                              }
+                            }
+                          },
+                          "kind": "object"
+                        }
+                      },
+                      "labels": {
+                        "rule": {
+                          "fields": {
+                            "model": {
+                              "rule": {
+                                "kind": "one-of",
+                                "rules": [
+                                  {
+                                    "kind": "string"
+                                  },
+                                  {
+                                    "kind": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "profile": {
+                              "rule": {
+                                "kind": "one-of",
+                                "rules": [
+                                  {
+                                    "kind": "string"
+                                  },
+                                  {
+                                    "kind": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "provider": {
+                              "rule": {
+                                "kind": "one-of",
+                                "rules": [
+                                  {
+                                    "kind": "string"
+                                  },
+                                  {
+                                    "kind": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "tool": {
+                              "rule": {
+                                "kind": "one-of",
+                                "rules": [
+                                  {
+                                    "kind": "string"
+                                  },
+                                  {
+                                    "kind": "null"
+                                  }
+                                ]
+                              }
+                            }
+                          },
+                          "kind": "object"
+                        }
+                      },
+                      "outcome": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "pending",
+                            "completed",
+                            "interrupted",
+                            "failed"
+                          ]
+                        }
+                      },
+                      "source": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "subject": {
+                        "rule": {
+                          "fields": {
+                            "id": {
+                              "rule": {
+                                "kind": "text"
+                              }
+                            },
+                            "kind": {
+                              "rule": {
+                                "kind": "literal",
+                                "values": [
+                                  "model_call",
+                                  "tool_execution"
+                                ]
+                              }
+                            }
+                          },
+                          "kind": "object"
+                        }
+                      },
+                      "unit": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "usage": {
+                        "rule": {
+                          "item": {
+                            "kind": "one-of",
+                            "rules": [
+                              {
+                                "fields": {
+                                  "name": {
+                                    "rule": {
+                                      "kind": "text"
+                                    }
+                                  },
+                                  "state": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "unknown"
+                                      ]
+                                    }
+                                  },
+                                  "unit": {
+                                    "rule": {
+                                      "kind": "text"
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              },
+                              {
+                                "fields": {
+                                  "lexeme": {
+                                    "rule": {
+                                      "kind": "text"
+                                    }
+                                  },
+                                  "name": {
+                                    "rule": {
+                                      "kind": "text"
+                                    }
+                                  },
+                                  "state": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "known",
+                                        "provisional"
+                                      ]
+                                    }
+                                  },
+                                  "unit": {
+                                    "rule": {
+                                      "kind": "text"
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              }
+                            ]
+                          },
+                          "kind": "array"
+                        }
+                      },
+                      "window": {
+                        "rule": {
+                          "kind": "one-of",
+                          "rules": [
+                            {
+                              "fields": {
+                                "compactAtPercent": {
+                                  "rule": {
+                                    "kind": "one-of",
+                                    "rules": [
+                                      {
+                                        "kind": "text"
+                                      },
+                                      {
+                                        "kind": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "tokens": {
+                                  "rule": {
+                                    "kind": "text"
+                                  }
+                                }
+                              },
+                              "kind": "object"
+                            },
+                            {
+                              "kind": "null"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  "kind": "array"
+                }
+              },
+              "next": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "text"
+                    },
+                    {
+                      "kind": "null"
+                    }
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unsupported": {
+            "fields": {
+              "field": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "scope"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "query-usage": {
+        "body": {
+          "fields": {
+            "bucket": {
+              "rule": {
+                "kind": "literal",
+                "values": [
+                  "none",
+                  "hour",
+                  "day",
+                  "week",
+                  "month"
+                ]
+              }
+            },
+            "groupBy": {
+              "rule": {
+                "item": {
+                  "kind": "literal",
+                  "values": [
+                    "source",
+                    "model",
+                    "provider",
+                    "purpose",
+                    "tool"
+                  ]
+                },
+                "kind": "array",
+                "max": 2
+              }
+            },
+            "range": {
+              "rule": {
+                "fields": {
+                  "from": {
+                    "rule": {
+                      "kind": "instant"
+                    }
+                  },
+                  "to": {
+                    "rule": {
+                      "kind": "instant"
+                    }
+                  }
+                },
+                "kind": "object"
+              }
+            },
+            "scope": {
+              "rule": {
+                "kind": "one-of",
+                "rules": [
+                  {
+                    "fields": {
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "tenant"
+                          ]
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  {
+                    "fields": {
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "session"
+                          ]
+                        }
+                      },
+                      "session": {
+                        "rule": {
+                          "kind": "session"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  {
+                    "fields": {
+                      "kind": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "organization"
+                          ]
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  }
+                ]
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "zone": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "invalid": {
+            "fields": {
+              "field": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "scope",
+                    "range",
+                    "zone",
+                    "bucket",
+                    "groupBy",
+                    "limit",
+                    "after"
+                  ]
+                }
+              },
+              "reason": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "limited": {
+            "fields": {
+              "limit": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "buckets",
+                    "pages"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "not-found": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "buckets": {
+                "rule": {
+                  "item": {
+                    "fields": {
+                      "end": {
+                        "rule": {
+                          "kind": "instant"
+                        }
+                      },
+                      "groups": {
+                        "rule": {
+                          "item": {
+                            "fields": {
+                              "key": {
+                                "rule": {
+                                  "item": {
+                                    "kind": "one-of",
+                                    "rules": [
+                                      {
+                                        "kind": "string"
+                                      },
+                                      {
+                                        "kind": "null"
+                                      }
+                                    ]
+                                  },
+                                  "kind": "array"
+                                }
+                              },
+                              "measures": {
+                                "rule": {
+                                  "fields": {
+                                    "calls": {
+                                      "rule": {
+                                        "kind": "count"
+                                      }
+                                    },
+                                    "cost": {
+                                      "rule": {
+                                        "fields": {
+                                          "sums": {
+                                            "rule": {
+                                              "item": {
+                                                "fields": {
+                                                  "known": {
+                                                    "rule": {
+                                                      "kind": "text"
+                                                    }
+                                                  },
+                                                  "unit": {
+                                                    "rule": {
+                                                      "kind": "text"
+                                                    }
+                                                  }
+                                                },
+                                                "kind": "object"
+                                              },
+                                              "kind": "array"
+                                            }
+                                          },
+                                          "unknown": {
+                                            "rule": {
+                                              "kind": "count"
+                                            }
+                                          }
+                                        },
+                                        "kind": "object"
+                                      }
+                                    },
+                                    "duration": {
+                                      "rule": {
+                                        "fields": {
+                                          "toFirstContent": {
+                                            "rule": {
+                                              "fields": {
+                                                "count": {
+                                                  "rule": {
+                                                    "kind": "count"
+                                                  }
+                                                },
+                                                "p50": {
+                                                  "rule": {
+                                                    "kind": "one-of",
+                                                    "rules": [
+                                                      {
+                                                        "kind": "count"
+                                                      },
+                                                      {
+                                                        "kind": "null"
+                                                      }
+                                                    ]
+                                                  }
+                                                },
+                                                "p90": {
+                                                  "rule": {
+                                                    "kind": "one-of",
+                                                    "rules": [
+                                                      {
+                                                        "kind": "count"
+                                                      },
+                                                      {
+                                                        "kind": "null"
+                                                      }
+                                                    ]
+                                                  }
+                                                }
+                                              },
+                                              "kind": "object"
+                                            }
+                                          },
+                                          "total": {
+                                            "rule": {
+                                              "fields": {
+                                                "known": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "provisional": {
+                                                  "rule": {
+                                                    "kind": "count"
+                                                  }
+                                                },
+                                                "unknown": {
+                                                  "rule": {
+                                                    "kind": "count"
+                                                  }
+                                                }
+                                              },
+                                              "kind": "object"
+                                            }
+                                          },
+                                          "whole": {
+                                            "rule": {
+                                              "fields": {
+                                                "count": {
+                                                  "rule": {
+                                                    "kind": "count"
+                                                  }
+                                                },
+                                                "p50": {
+                                                  "rule": {
+                                                    "kind": "one-of",
+                                                    "rules": [
+                                                      {
+                                                        "kind": "count"
+                                                      },
+                                                      {
+                                                        "kind": "null"
+                                                      }
+                                                    ]
+                                                  }
+                                                },
+                                                "p90": {
+                                                  "rule": {
+                                                    "kind": "one-of",
+                                                    "rules": [
+                                                      {
+                                                        "kind": "count"
+                                                      },
+                                                      {
+                                                        "kind": "null"
+                                                      }
+                                                    ]
+                                                  }
+                                                }
+                                              },
+                                              "kind": "object"
+                                            }
+                                          }
+                                        },
+                                        "kind": "object"
+                                      }
+                                    },
+                                    "failed": {
+                                      "rule": {
+                                        "item": {
+                                          "fields": {
+                                            "cause": {
+                                              "rule": {
+                                                "kind": "one-of",
+                                                "rules": [
+                                                  {
+                                                    "kind": "string"
+                                                  },
+                                                  {
+                                                    "kind": "null"
+                                                  }
+                                                ]
+                                              }
+                                            },
+                                            "count": {
+                                              "rule": {
+                                                "kind": "count"
+                                              }
+                                            }
+                                          },
+                                          "kind": "object"
+                                        },
+                                        "kind": "array"
+                                      }
+                                    },
+                                    "interrupted": {
+                                      "rule": {
+                                        "kind": "count"
+                                      }
+                                    },
+                                    "rates": {
+                                      "rule": {
+                                        "fields": {
+                                          "cacheHit": {
+                                            "rule": {
+                                              "kind": "one-of",
+                                              "rules": [
+                                                {
+                                                  "fields": {
+                                                    "kind": {
+                                                      "rule": {
+                                                        "kind": "literal",
+                                                        "values": [
+                                                          "known"
+                                                        ]
+                                                      }
+                                                    },
+                                                    "value": {
+                                                      "rule": {
+                                                        "kind": "text"
+                                                      }
+                                                    }
+                                                  },
+                                                  "kind": "object"
+                                                },
+                                                {
+                                                  "fields": {
+                                                    "kind": {
+                                                      "rule": {
+                                                        "kind": "literal",
+                                                        "values": [
+                                                          "unknown"
+                                                        ]
+                                                      }
+                                                    }
+                                                  },
+                                                  "kind": "object"
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "failure": {
+                                            "rule": {
+                                              "kind": "one-of",
+                                              "rules": [
+                                                {
+                                                  "fields": {
+                                                    "kind": {
+                                                      "rule": {
+                                                        "kind": "literal",
+                                                        "values": [
+                                                          "known"
+                                                        ]
+                                                      }
+                                                    },
+                                                    "value": {
+                                                      "rule": {
+                                                        "kind": "text"
+                                                      }
+                                                    }
+                                                  },
+                                                  "kind": "object"
+                                                },
+                                                {
+                                                  "fields": {
+                                                    "kind": {
+                                                      "rule": {
+                                                        "kind": "literal",
+                                                        "values": [
+                                                          "unknown"
+                                                        ]
+                                                      }
+                                                    }
+                                                  },
+                                                  "kind": "object"
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "outputPerSecond": {
+                                            "rule": {
+                                              "kind": "one-of",
+                                              "rules": [
+                                                {
+                                                  "fields": {
+                                                    "kind": {
+                                                      "rule": {
+                                                        "kind": "literal",
+                                                        "values": [
+                                                          "known"
+                                                        ]
+                                                      }
+                                                    },
+                                                    "value": {
+                                                      "rule": {
+                                                        "kind": "text"
+                                                      }
+                                                    }
+                                                  },
+                                                  "kind": "object"
+                                                },
+                                                {
+                                                  "fields": {
+                                                    "kind": {
+                                                      "rule": {
+                                                        "kind": "literal",
+                                                        "values": [
+                                                          "unknown"
+                                                        ]
+                                                      }
+                                                    }
+                                                  },
+                                                  "kind": "object"
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "reasoningShare": {
+                                            "rule": {
+                                              "kind": "one-of",
+                                              "rules": [
+                                                {
+                                                  "fields": {
+                                                    "kind": {
+                                                      "rule": {
+                                                        "kind": "literal",
+                                                        "values": [
+                                                          "known"
+                                                        ]
+                                                      }
+                                                    },
+                                                    "value": {
+                                                      "rule": {
+                                                        "kind": "text"
+                                                      }
+                                                    }
+                                                  },
+                                                  "kind": "object"
+                                                },
+                                                {
+                                                  "fields": {
+                                                    "kind": {
+                                                      "rule": {
+                                                        "kind": "literal",
+                                                        "values": [
+                                                          "unknown"
+                                                        ]
+                                                      }
+                                                    }
+                                                  },
+                                                  "kind": "object"
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "retry": {
+                                            "rule": {
+                                              "kind": "one-of",
+                                              "rules": [
+                                                {
+                                                  "fields": {
+                                                    "kind": {
+                                                      "rule": {
+                                                        "kind": "literal",
+                                                        "values": [
+                                                          "known"
+                                                        ]
+                                                      }
+                                                    },
+                                                    "value": {
+                                                      "rule": {
+                                                        "kind": "text"
+                                                      }
+                                                    }
+                                                  },
+                                                  "kind": "object"
+                                                },
+                                                {
+                                                  "fields": {
+                                                    "kind": {
+                                                      "rule": {
+                                                        "kind": "literal",
+                                                        "values": [
+                                                          "unknown"
+                                                        ]
+                                                      }
+                                                    }
+                                                  },
+                                                  "kind": "object"
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        },
+                                        "kind": "object"
+                                      }
+                                    },
+                                    "retried": {
+                                      "rule": {
+                                        "kind": "count"
+                                      }
+                                    },
+                                    "tokens": {
+                                      "rule": {
+                                        "fields": {
+                                          "cache-read": {
+                                            "rule": {
+                                              "fields": {
+                                                "known": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "provisional": {
+                                                  "rule": {
+                                                    "kind": "count"
+                                                  }
+                                                },
+                                                "unknown": {
+                                                  "rule": {
+                                                    "kind": "count"
+                                                  }
+                                                }
+                                              },
+                                              "kind": "object"
+                                            }
+                                          },
+                                          "cache-write": {
+                                            "rule": {
+                                              "fields": {
+                                                "known": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "provisional": {
+                                                  "rule": {
+                                                    "kind": "count"
+                                                  }
+                                                },
+                                                "unknown": {
+                                                  "rule": {
+                                                    "kind": "count"
+                                                  }
+                                                }
+                                              },
+                                              "kind": "object"
+                                            }
+                                          },
+                                          "input": {
+                                            "rule": {
+                                              "fields": {
+                                                "known": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "provisional": {
+                                                  "rule": {
+                                                    "kind": "count"
+                                                  }
+                                                },
+                                                "unknown": {
+                                                  "rule": {
+                                                    "kind": "count"
+                                                  }
+                                                }
+                                              },
+                                              "kind": "object"
+                                            }
+                                          },
+                                          "output": {
+                                            "rule": {
+                                              "fields": {
+                                                "known": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "provisional": {
+                                                  "rule": {
+                                                    "kind": "count"
+                                                  }
+                                                },
+                                                "unknown": {
+                                                  "rule": {
+                                                    "kind": "count"
+                                                  }
+                                                }
+                                              },
+                                              "kind": "object"
+                                            }
+                                          },
+                                          "reasoning": {
+                                            "rule": {
+                                              "fields": {
+                                                "known": {
+                                                  "rule": {
+                                                    "kind": "text"
+                                                  }
+                                                },
+                                                "provisional": {
+                                                  "rule": {
+                                                    "kind": "count"
+                                                  }
+                                                },
+                                                "unknown": {
+                                                  "rule": {
+                                                    "kind": "count"
+                                                  }
+                                                }
+                                              },
+                                              "kind": "object"
+                                            }
+                                          }
+                                        },
+                                        "kind": "object"
+                                      }
+                                    },
+                                    "units": {
+                                      "rule": {
+                                        "kind": "count"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                }
+                              }
+                            },
+                            "kind": "object"
+                          },
+                          "kind": "array"
+                        }
+                      },
+                      "start": {
+                        "rule": {
+                          "kind": "instant"
+                        }
+                      },
+                      "total": {
+                        "rule": {
+                          "fields": {
+                            "calls": {
+                              "rule": {
+                                "kind": "count"
+                              }
+                            },
+                            "cost": {
+                              "rule": {
+                                "fields": {
+                                  "sums": {
+                                    "rule": {
+                                      "item": {
+                                        "fields": {
+                                          "known": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "unit": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          }
+                                        },
+                                        "kind": "object"
+                                      },
+                                      "kind": "array"
+                                    }
+                                  },
+                                  "unknown": {
+                                    "rule": {
+                                      "kind": "count"
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              }
+                            },
+                            "duration": {
+                              "rule": {
+                                "fields": {
+                                  "toFirstContent": {
+                                    "rule": {
+                                      "fields": {
+                                        "count": {
+                                          "rule": {
+                                            "kind": "count"
+                                          }
+                                        },
+                                        "p50": {
+                                          "rule": {
+                                            "kind": "one-of",
+                                            "rules": [
+                                              {
+                                                "kind": "count"
+                                              },
+                                              {
+                                                "kind": "null"
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        "p90": {
+                                          "rule": {
+                                            "kind": "one-of",
+                                            "rules": [
+                                              {
+                                                "kind": "count"
+                                              },
+                                              {
+                                                "kind": "null"
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    }
+                                  },
+                                  "total": {
+                                    "rule": {
+                                      "fields": {
+                                        "known": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "provisional": {
+                                          "rule": {
+                                            "kind": "count"
+                                          }
+                                        },
+                                        "unknown": {
+                                          "rule": {
+                                            "kind": "count"
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    }
+                                  },
+                                  "whole": {
+                                    "rule": {
+                                      "fields": {
+                                        "count": {
+                                          "rule": {
+                                            "kind": "count"
+                                          }
+                                        },
+                                        "p50": {
+                                          "rule": {
+                                            "kind": "one-of",
+                                            "rules": [
+                                              {
+                                                "kind": "count"
+                                              },
+                                              {
+                                                "kind": "null"
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        "p90": {
+                                          "rule": {
+                                            "kind": "one-of",
+                                            "rules": [
+                                              {
+                                                "kind": "count"
+                                              },
+                                              {
+                                                "kind": "null"
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              }
+                            },
+                            "failed": {
+                              "rule": {
+                                "item": {
+                                  "fields": {
+                                    "cause": {
+                                      "rule": {
+                                        "kind": "one-of",
+                                        "rules": [
+                                          {
+                                            "kind": "string"
+                                          },
+                                          {
+                                            "kind": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "count": {
+                                      "rule": {
+                                        "kind": "count"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                },
+                                "kind": "array"
+                              }
+                            },
+                            "interrupted": {
+                              "rule": {
+                                "kind": "count"
+                              }
+                            },
+                            "rates": {
+                              "rule": {
+                                "fields": {
+                                  "cacheHit": {
+                                    "rule": {
+                                      "kind": "one-of",
+                                      "rules": [
+                                        {
+                                          "fields": {
+                                            "kind": {
+                                              "rule": {
+                                                "kind": "literal",
+                                                "values": [
+                                                  "known"
+                                                ]
+                                              }
+                                            },
+                                            "value": {
+                                              "rule": {
+                                                "kind": "text"
+                                              }
+                                            }
+                                          },
+                                          "kind": "object"
+                                        },
+                                        {
+                                          "fields": {
+                                            "kind": {
+                                              "rule": {
+                                                "kind": "literal",
+                                                "values": [
+                                                  "unknown"
+                                                ]
+                                              }
+                                            }
+                                          },
+                                          "kind": "object"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "failure": {
+                                    "rule": {
+                                      "kind": "one-of",
+                                      "rules": [
+                                        {
+                                          "fields": {
+                                            "kind": {
+                                              "rule": {
+                                                "kind": "literal",
+                                                "values": [
+                                                  "known"
+                                                ]
+                                              }
+                                            },
+                                            "value": {
+                                              "rule": {
+                                                "kind": "text"
+                                              }
+                                            }
+                                          },
+                                          "kind": "object"
+                                        },
+                                        {
+                                          "fields": {
+                                            "kind": {
+                                              "rule": {
+                                                "kind": "literal",
+                                                "values": [
+                                                  "unknown"
+                                                ]
+                                              }
+                                            }
+                                          },
+                                          "kind": "object"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "outputPerSecond": {
+                                    "rule": {
+                                      "kind": "one-of",
+                                      "rules": [
+                                        {
+                                          "fields": {
+                                            "kind": {
+                                              "rule": {
+                                                "kind": "literal",
+                                                "values": [
+                                                  "known"
+                                                ]
+                                              }
+                                            },
+                                            "value": {
+                                              "rule": {
+                                                "kind": "text"
+                                              }
+                                            }
+                                          },
+                                          "kind": "object"
+                                        },
+                                        {
+                                          "fields": {
+                                            "kind": {
+                                              "rule": {
+                                                "kind": "literal",
+                                                "values": [
+                                                  "unknown"
+                                                ]
+                                              }
+                                            }
+                                          },
+                                          "kind": "object"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "reasoningShare": {
+                                    "rule": {
+                                      "kind": "one-of",
+                                      "rules": [
+                                        {
+                                          "fields": {
+                                            "kind": {
+                                              "rule": {
+                                                "kind": "literal",
+                                                "values": [
+                                                  "known"
+                                                ]
+                                              }
+                                            },
+                                            "value": {
+                                              "rule": {
+                                                "kind": "text"
+                                              }
+                                            }
+                                          },
+                                          "kind": "object"
+                                        },
+                                        {
+                                          "fields": {
+                                            "kind": {
+                                              "rule": {
+                                                "kind": "literal",
+                                                "values": [
+                                                  "unknown"
+                                                ]
+                                              }
+                                            }
+                                          },
+                                          "kind": "object"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "retry": {
+                                    "rule": {
+                                      "kind": "one-of",
+                                      "rules": [
+                                        {
+                                          "fields": {
+                                            "kind": {
+                                              "rule": {
+                                                "kind": "literal",
+                                                "values": [
+                                                  "known"
+                                                ]
+                                              }
+                                            },
+                                            "value": {
+                                              "rule": {
+                                                "kind": "text"
+                                              }
+                                            }
+                                          },
+                                          "kind": "object"
+                                        },
+                                        {
+                                          "fields": {
+                                            "kind": {
+                                              "rule": {
+                                                "kind": "literal",
+                                                "values": [
+                                                  "unknown"
+                                                ]
+                                              }
+                                            }
+                                          },
+                                          "kind": "object"
+                                        }
+                                      ]
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              }
+                            },
+                            "retried": {
+                              "rule": {
+                                "kind": "count"
+                              }
+                            },
+                            "tokens": {
+                              "rule": {
+                                "fields": {
+                                  "cache-read": {
+                                    "rule": {
+                                      "fields": {
+                                        "known": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "provisional": {
+                                          "rule": {
+                                            "kind": "count"
+                                          }
+                                        },
+                                        "unknown": {
+                                          "rule": {
+                                            "kind": "count"
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    }
+                                  },
+                                  "cache-write": {
+                                    "rule": {
+                                      "fields": {
+                                        "known": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "provisional": {
+                                          "rule": {
+                                            "kind": "count"
+                                          }
+                                        },
+                                        "unknown": {
+                                          "rule": {
+                                            "kind": "count"
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    }
+                                  },
+                                  "input": {
+                                    "rule": {
+                                      "fields": {
+                                        "known": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "provisional": {
+                                          "rule": {
+                                            "kind": "count"
+                                          }
+                                        },
+                                        "unknown": {
+                                          "rule": {
+                                            "kind": "count"
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    }
+                                  },
+                                  "output": {
+                                    "rule": {
+                                      "fields": {
+                                        "known": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "provisional": {
+                                          "rule": {
+                                            "kind": "count"
+                                          }
+                                        },
+                                        "unknown": {
+                                          "rule": {
+                                            "kind": "count"
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    }
+                                  },
+                                  "reasoning": {
+                                    "rule": {
+                                      "fields": {
+                                        "known": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "provisional": {
+                                          "rule": {
+                                            "kind": "count"
+                                          }
+                                        },
+                                        "unknown": {
+                                          "rule": {
+                                            "kind": "count"
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              }
+                            },
+                            "units": {
+                              "rule": {
+                                "kind": "count"
+                              }
+                            }
+                          },
+                          "kind": "object"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  "kind": "array"
+                }
+              },
+              "coverage": {
+                "rule": {
+                  "fields": {
+                    "costUnknown": {
+                      "rule": {
+                        "kind": "count"
+                      }
+                    },
+                    "earliest": {
+                      "rule": {
+                        "kind": "one-of",
+                        "rules": [
+                          {
+                            "kind": "instant"
+                          },
+                          {
+                            "kind": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "excluded": {
+                      "rule": {
+                        "fields": {
+                          "cacheHit": {
+                            "rule": {
+                              "kind": "count"
+                            }
+                          },
+                          "outputPerSecond": {
+                            "rule": {
+                              "kind": "count"
+                            }
+                          },
+                          "reasoningShare": {
+                            "rule": {
+                              "kind": "count"
+                            }
+                          }
+                        },
+                        "kind": "object"
+                      }
+                    },
+                    "sources": {
+                      "rule": {
+                        "item": {
+                          "kind": "text"
+                        },
+                        "kind": "array"
+                      }
+                    },
+                    "undated": {
+                      "rule": {
+                        "kind": "count"
+                      }
+                    }
+                  },
+                  "kind": "object"
+                }
+              },
+              "groups": {
+                "rule": {
+                  "item": {
+                    "fields": {
+                      "key": {
+                        "rule": {
+                          "item": {
+                            "kind": "one-of",
+                            "rules": [
+                              {
+                                "kind": "string"
+                              },
+                              {
+                                "kind": "null"
+                              }
+                            ]
+                          },
+                          "kind": "array"
+                        }
+                      },
+                      "measures": {
+                        "rule": {
+                          "fields": {
+                            "calls": {
+                              "rule": {
+                                "kind": "count"
+                              }
+                            },
+                            "cost": {
+                              "rule": {
+                                "fields": {
+                                  "sums": {
+                                    "rule": {
+                                      "item": {
+                                        "fields": {
+                                          "known": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "unit": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          }
+                                        },
+                                        "kind": "object"
+                                      },
+                                      "kind": "array"
+                                    }
+                                  },
+                                  "unknown": {
+                                    "rule": {
+                                      "kind": "count"
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              }
+                            },
+                            "duration": {
+                              "rule": {
+                                "fields": {
+                                  "toFirstContent": {
+                                    "rule": {
+                                      "fields": {
+                                        "count": {
+                                          "rule": {
+                                            "kind": "count"
+                                          }
+                                        },
+                                        "p50": {
+                                          "rule": {
+                                            "kind": "one-of",
+                                            "rules": [
+                                              {
+                                                "kind": "count"
+                                              },
+                                              {
+                                                "kind": "null"
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        "p90": {
+                                          "rule": {
+                                            "kind": "one-of",
+                                            "rules": [
+                                              {
+                                                "kind": "count"
+                                              },
+                                              {
+                                                "kind": "null"
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    }
+                                  },
+                                  "total": {
+                                    "rule": {
+                                      "fields": {
+                                        "known": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "provisional": {
+                                          "rule": {
+                                            "kind": "count"
+                                          }
+                                        },
+                                        "unknown": {
+                                          "rule": {
+                                            "kind": "count"
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    }
+                                  },
+                                  "whole": {
+                                    "rule": {
+                                      "fields": {
+                                        "count": {
+                                          "rule": {
+                                            "kind": "count"
+                                          }
+                                        },
+                                        "p50": {
+                                          "rule": {
+                                            "kind": "one-of",
+                                            "rules": [
+                                              {
+                                                "kind": "count"
+                                              },
+                                              {
+                                                "kind": "null"
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        "p90": {
+                                          "rule": {
+                                            "kind": "one-of",
+                                            "rules": [
+                                              {
+                                                "kind": "count"
+                                              },
+                                              {
+                                                "kind": "null"
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              }
+                            },
+                            "failed": {
+                              "rule": {
+                                "item": {
+                                  "fields": {
+                                    "cause": {
+                                      "rule": {
+                                        "kind": "one-of",
+                                        "rules": [
+                                          {
+                                            "kind": "string"
+                                          },
+                                          {
+                                            "kind": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "count": {
+                                      "rule": {
+                                        "kind": "count"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                },
+                                "kind": "array"
+                              }
+                            },
+                            "interrupted": {
+                              "rule": {
+                                "kind": "count"
+                              }
+                            },
+                            "rates": {
+                              "rule": {
+                                "fields": {
+                                  "cacheHit": {
+                                    "rule": {
+                                      "kind": "one-of",
+                                      "rules": [
+                                        {
+                                          "fields": {
+                                            "kind": {
+                                              "rule": {
+                                                "kind": "literal",
+                                                "values": [
+                                                  "known"
+                                                ]
+                                              }
+                                            },
+                                            "value": {
+                                              "rule": {
+                                                "kind": "text"
+                                              }
+                                            }
+                                          },
+                                          "kind": "object"
+                                        },
+                                        {
+                                          "fields": {
+                                            "kind": {
+                                              "rule": {
+                                                "kind": "literal",
+                                                "values": [
+                                                  "unknown"
+                                                ]
+                                              }
+                                            }
+                                          },
+                                          "kind": "object"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "failure": {
+                                    "rule": {
+                                      "kind": "one-of",
+                                      "rules": [
+                                        {
+                                          "fields": {
+                                            "kind": {
+                                              "rule": {
+                                                "kind": "literal",
+                                                "values": [
+                                                  "known"
+                                                ]
+                                              }
+                                            },
+                                            "value": {
+                                              "rule": {
+                                                "kind": "text"
+                                              }
+                                            }
+                                          },
+                                          "kind": "object"
+                                        },
+                                        {
+                                          "fields": {
+                                            "kind": {
+                                              "rule": {
+                                                "kind": "literal",
+                                                "values": [
+                                                  "unknown"
+                                                ]
+                                              }
+                                            }
+                                          },
+                                          "kind": "object"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "outputPerSecond": {
+                                    "rule": {
+                                      "kind": "one-of",
+                                      "rules": [
+                                        {
+                                          "fields": {
+                                            "kind": {
+                                              "rule": {
+                                                "kind": "literal",
+                                                "values": [
+                                                  "known"
+                                                ]
+                                              }
+                                            },
+                                            "value": {
+                                              "rule": {
+                                                "kind": "text"
+                                              }
+                                            }
+                                          },
+                                          "kind": "object"
+                                        },
+                                        {
+                                          "fields": {
+                                            "kind": {
+                                              "rule": {
+                                                "kind": "literal",
+                                                "values": [
+                                                  "unknown"
+                                                ]
+                                              }
+                                            }
+                                          },
+                                          "kind": "object"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "reasoningShare": {
+                                    "rule": {
+                                      "kind": "one-of",
+                                      "rules": [
+                                        {
+                                          "fields": {
+                                            "kind": {
+                                              "rule": {
+                                                "kind": "literal",
+                                                "values": [
+                                                  "known"
+                                                ]
+                                              }
+                                            },
+                                            "value": {
+                                              "rule": {
+                                                "kind": "text"
+                                              }
+                                            }
+                                          },
+                                          "kind": "object"
+                                        },
+                                        {
+                                          "fields": {
+                                            "kind": {
+                                              "rule": {
+                                                "kind": "literal",
+                                                "values": [
+                                                  "unknown"
+                                                ]
+                                              }
+                                            }
+                                          },
+                                          "kind": "object"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "retry": {
+                                    "rule": {
+                                      "kind": "one-of",
+                                      "rules": [
+                                        {
+                                          "fields": {
+                                            "kind": {
+                                              "rule": {
+                                                "kind": "literal",
+                                                "values": [
+                                                  "known"
+                                                ]
+                                              }
+                                            },
+                                            "value": {
+                                              "rule": {
+                                                "kind": "text"
+                                              }
+                                            }
+                                          },
+                                          "kind": "object"
+                                        },
+                                        {
+                                          "fields": {
+                                            "kind": {
+                                              "rule": {
+                                                "kind": "literal",
+                                                "values": [
+                                                  "unknown"
+                                                ]
+                                              }
+                                            }
+                                          },
+                                          "kind": "object"
+                                        }
+                                      ]
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              }
+                            },
+                            "retried": {
+                              "rule": {
+                                "kind": "count"
+                              }
+                            },
+                            "tokens": {
+                              "rule": {
+                                "fields": {
+                                  "cache-read": {
+                                    "rule": {
+                                      "fields": {
+                                        "known": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "provisional": {
+                                          "rule": {
+                                            "kind": "count"
+                                          }
+                                        },
+                                        "unknown": {
+                                          "rule": {
+                                            "kind": "count"
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    }
+                                  },
+                                  "cache-write": {
+                                    "rule": {
+                                      "fields": {
+                                        "known": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "provisional": {
+                                          "rule": {
+                                            "kind": "count"
+                                          }
+                                        },
+                                        "unknown": {
+                                          "rule": {
+                                            "kind": "count"
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    }
+                                  },
+                                  "input": {
+                                    "rule": {
+                                      "fields": {
+                                        "known": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "provisional": {
+                                          "rule": {
+                                            "kind": "count"
+                                          }
+                                        },
+                                        "unknown": {
+                                          "rule": {
+                                            "kind": "count"
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    }
+                                  },
+                                  "output": {
+                                    "rule": {
+                                      "fields": {
+                                        "known": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "provisional": {
+                                          "rule": {
+                                            "kind": "count"
+                                          }
+                                        },
+                                        "unknown": {
+                                          "rule": {
+                                            "kind": "count"
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    }
+                                  },
+                                  "reasoning": {
+                                    "rule": {
+                                      "fields": {
+                                        "known": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "provisional": {
+                                          "rule": {
+                                            "kind": "count"
+                                          }
+                                        },
+                                        "unknown": {
+                                          "rule": {
+                                            "kind": "count"
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              }
+                            },
+                            "units": {
+                              "rule": {
+                                "kind": "count"
+                              }
+                            }
+                          },
+                          "kind": "object"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  "kind": "array"
+                }
+              },
+              "total": {
+                "rule": {
+                  "fields": {
+                    "calls": {
+                      "rule": {
+                        "kind": "count"
+                      }
+                    },
+                    "cost": {
+                      "rule": {
+                        "fields": {
+                          "sums": {
+                            "rule": {
+                              "item": {
+                                "fields": {
+                                  "known": {
+                                    "rule": {
+                                      "kind": "text"
+                                    }
+                                  },
+                                  "unit": {
+                                    "rule": {
+                                      "kind": "text"
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              },
+                              "kind": "array"
+                            }
+                          },
+                          "unknown": {
+                            "rule": {
+                              "kind": "count"
+                            }
+                          }
+                        },
+                        "kind": "object"
+                      }
+                    },
+                    "duration": {
+                      "rule": {
+                        "fields": {
+                          "toFirstContent": {
+                            "rule": {
+                              "fields": {
+                                "count": {
+                                  "rule": {
+                                    "kind": "count"
+                                  }
+                                },
+                                "p50": {
+                                  "rule": {
+                                    "kind": "one-of",
+                                    "rules": [
+                                      {
+                                        "kind": "count"
+                                      },
+                                      {
+                                        "kind": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "p90": {
+                                  "rule": {
+                                    "kind": "one-of",
+                                    "rules": [
+                                      {
+                                        "kind": "count"
+                                      },
+                                      {
+                                        "kind": "null"
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              "kind": "object"
+                            }
+                          },
+                          "total": {
+                            "rule": {
+                              "fields": {
+                                "known": {
+                                  "rule": {
+                                    "kind": "text"
+                                  }
+                                },
+                                "provisional": {
+                                  "rule": {
+                                    "kind": "count"
+                                  }
+                                },
+                                "unknown": {
+                                  "rule": {
+                                    "kind": "count"
+                                  }
+                                }
+                              },
+                              "kind": "object"
+                            }
+                          },
+                          "whole": {
+                            "rule": {
+                              "fields": {
+                                "count": {
+                                  "rule": {
+                                    "kind": "count"
+                                  }
+                                },
+                                "p50": {
+                                  "rule": {
+                                    "kind": "one-of",
+                                    "rules": [
+                                      {
+                                        "kind": "count"
+                                      },
+                                      {
+                                        "kind": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "p90": {
+                                  "rule": {
+                                    "kind": "one-of",
+                                    "rules": [
+                                      {
+                                        "kind": "count"
+                                      },
+                                      {
+                                        "kind": "null"
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              "kind": "object"
+                            }
+                          }
+                        },
+                        "kind": "object"
+                      }
+                    },
+                    "failed": {
+                      "rule": {
+                        "item": {
+                          "fields": {
+                            "cause": {
+                              "rule": {
+                                "kind": "one-of",
+                                "rules": [
+                                  {
+                                    "kind": "string"
+                                  },
+                                  {
+                                    "kind": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "count": {
+                              "rule": {
+                                "kind": "count"
+                              }
+                            }
+                          },
+                          "kind": "object"
+                        },
+                        "kind": "array"
+                      }
+                    },
+                    "interrupted": {
+                      "rule": {
+                        "kind": "count"
+                      }
+                    },
+                    "rates": {
+                      "rule": {
+                        "fields": {
+                          "cacheHit": {
+                            "rule": {
+                              "kind": "one-of",
+                              "rules": [
+                                {
+                                  "fields": {
+                                    "kind": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "known"
+                                        ]
+                                      }
+                                    },
+                                    "value": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                },
+                                {
+                                  "fields": {
+                                    "kind": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "unknown"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                }
+                              ]
+                            }
+                          },
+                          "failure": {
+                            "rule": {
+                              "kind": "one-of",
+                              "rules": [
+                                {
+                                  "fields": {
+                                    "kind": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "known"
+                                        ]
+                                      }
+                                    },
+                                    "value": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                },
+                                {
+                                  "fields": {
+                                    "kind": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "unknown"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                }
+                              ]
+                            }
+                          },
+                          "outputPerSecond": {
+                            "rule": {
+                              "kind": "one-of",
+                              "rules": [
+                                {
+                                  "fields": {
+                                    "kind": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "known"
+                                        ]
+                                      }
+                                    },
+                                    "value": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                },
+                                {
+                                  "fields": {
+                                    "kind": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "unknown"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                }
+                              ]
+                            }
+                          },
+                          "reasoningShare": {
+                            "rule": {
+                              "kind": "one-of",
+                              "rules": [
+                                {
+                                  "fields": {
+                                    "kind": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "known"
+                                        ]
+                                      }
+                                    },
+                                    "value": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                },
+                                {
+                                  "fields": {
+                                    "kind": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "unknown"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                }
+                              ]
+                            }
+                          },
+                          "retry": {
+                            "rule": {
+                              "kind": "one-of",
+                              "rules": [
+                                {
+                                  "fields": {
+                                    "kind": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "known"
+                                        ]
+                                      }
+                                    },
+                                    "value": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                },
+                                {
+                                  "fields": {
+                                    "kind": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "unknown"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "kind": "object"
+                      }
+                    },
+                    "retried": {
+                      "rule": {
+                        "kind": "count"
+                      }
+                    },
+                    "tokens": {
+                      "rule": {
+                        "fields": {
+                          "cache-read": {
+                            "rule": {
+                              "fields": {
+                                "known": {
+                                  "rule": {
+                                    "kind": "text"
+                                  }
+                                },
+                                "provisional": {
+                                  "rule": {
+                                    "kind": "count"
+                                  }
+                                },
+                                "unknown": {
+                                  "rule": {
+                                    "kind": "count"
+                                  }
+                                }
+                              },
+                              "kind": "object"
+                            }
+                          },
+                          "cache-write": {
+                            "rule": {
+                              "fields": {
+                                "known": {
+                                  "rule": {
+                                    "kind": "text"
+                                  }
+                                },
+                                "provisional": {
+                                  "rule": {
+                                    "kind": "count"
+                                  }
+                                },
+                                "unknown": {
+                                  "rule": {
+                                    "kind": "count"
+                                  }
+                                }
+                              },
+                              "kind": "object"
+                            }
+                          },
+                          "input": {
+                            "rule": {
+                              "fields": {
+                                "known": {
+                                  "rule": {
+                                    "kind": "text"
+                                  }
+                                },
+                                "provisional": {
+                                  "rule": {
+                                    "kind": "count"
+                                  }
+                                },
+                                "unknown": {
+                                  "rule": {
+                                    "kind": "count"
+                                  }
+                                }
+                              },
+                              "kind": "object"
+                            }
+                          },
+                          "output": {
+                            "rule": {
+                              "fields": {
+                                "known": {
+                                  "rule": {
+                                    "kind": "text"
+                                  }
+                                },
+                                "provisional": {
+                                  "rule": {
+                                    "kind": "count"
+                                  }
+                                },
+                                "unknown": {
+                                  "rule": {
+                                    "kind": "count"
+                                  }
+                                }
+                              },
+                              "kind": "object"
+                            }
+                          },
+                          "reasoning": {
+                            "rule": {
+                              "fields": {
+                                "known": {
+                                  "rule": {
+                                    "kind": "text"
+                                  }
+                                },
+                                "provisional": {
+                                  "rule": {
+                                    "kind": "count"
+                                  }
+                                },
+                                "unknown": {
+                                  "rule": {
+                                    "kind": "count"
+                                  }
+                                }
+                              },
+                              "kind": "object"
+                            }
+                          }
+                        },
+                        "kind": "object"
+                      }
+                    },
+                    "units": {
+                      "rule": {
+                        "kind": "count"
+                      }
+                    }
+                  },
+                  "kind": "object"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unsupported": {
+            "fields": {
+              "field": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "scope"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "read-context-occupancy": {
+        "body": {
+          "fields": {
+            "session": {
+              "rule": {
+                "kind": "session"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "invalid": {
+            "fields": {
+              "field": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "scope",
+                    "range",
+                    "zone",
+                    "bucket",
+                    "groupBy",
+                    "limit",
+                    "after"
+                  ]
+                }
+              },
+              "reason": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "limited": {
+            "fields": {
+              "limit": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "buckets",
+                    "pages"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "not-found": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "kind": "one-of",
+            "rules": [
+              {
+                "fields": {
+                  "asOf": {
+                    "rule": {
+                      "fields": {
+                        "at": {
+                          "rule": {
+                            "kind": "instant"
+                          }
+                        },
+                        "model": {
+                          "rule": {
+                            "kind": "one-of",
+                            "rules": [
+                              {
+                                "kind": "string"
+                              },
+                              {
+                                "kind": "null"
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    }
+                  },
+                  "compactAtPercent": {
+                    "rule": {
+                      "kind": "one-of",
+                      "rules": [
+                        {
+                          "kind": "text"
+                        },
+                        {
+                          "kind": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "kind": {
+                    "rule": {
+                      "kind": "literal",
+                      "values": [
+                        "known"
+                      ]
+                    }
+                  },
+                  "percent": {
+                    "rule": {
+                      "kind": "text"
+                    }
+                  },
+                  "used": {
+                    "rule": {
+                      "kind": "text"
+                    }
+                  },
+                  "window": {
+                    "rule": {
+                      "kind": "text"
+                    }
+                  }
+                },
+                "kind": "object"
+              },
+              {
+                "fields": {
+                  "kind": {
+                    "rule": {
+                      "kind": "literal",
+                      "values": [
+                        "none-yet"
+                      ]
+                    }
+                  }
+                },
+                "kind": "object"
+              },
+              {
+                "fields": {
+                  "kind": {
+                    "rule": {
+                      "kind": "literal",
+                      "values": [
+                        "unknown"
+                      ]
+                    }
+                  },
+                  "reason": {
+                    "rule": {
+                      "kind": "literal",
+                      "values": [
+                        "usage-unknown",
+                        "window-unknown"
+                      ]
+                    }
+                  }
+                },
+                "kind": "object"
+              }
+            ]
+          },
+          "unsupported": {
+            "fields": {
+              "field": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "scope"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      }
+    }
+  }
+}

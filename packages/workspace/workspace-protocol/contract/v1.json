@@ -1,0 +1,1180 @@
+{
+  "digests": {
+    "1": "sha256:6d692bc85b2e3942c6bd15f9f3a1baad4e61a9ea7399f167de19d5a21118766a"
+  },
+  "major": 1,
+  "name": "workspace",
+  "revision": 1,
+  "rules": {
+    "observations": {},
+    "operations": {
+      "associate": {
+        "body": {
+          "fields": {
+            "address": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "operation": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "workspace": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "commit",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "conflict": {
+            "fields": {},
+            "kind": "object"
+          },
+          "denied": true,
+          "invalid": {
+            "fields": {
+              "reason": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "no-change": {
+            "fields": {
+              "instance": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "instance": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "describe": {
+        "body": {
+          "fields": {
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "workspace": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "not-found": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "instances": {
+                "rule": {
+                  "item": {
+                    "fields": {
+                      "address": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "availability": {
+                        "rule": {
+                          "kind": "one-of",
+                          "rules": [
+                            {
+                              "fields": {
+                                "basis": {
+                                  "rule": {
+                                    "kind": "text"
+                                  }
+                                },
+                                "directory": {
+                                  "rule": {
+                                    "kind": "text"
+                                  }
+                                },
+                                "kind": {
+                                  "rule": {
+                                    "kind": "literal",
+                                    "values": [
+                                      "available"
+                                    ]
+                                  }
+                                }
+                              },
+                              "kind": "object"
+                            },
+                            {
+                              "fields": {
+                                "kind": {
+                                  "rule": {
+                                    "kind": "literal",
+                                    "values": [
+                                      "unavailable"
+                                    ]
+                                  }
+                                },
+                                "reason": {
+                                  "rule": {
+                                    "kind": "text"
+                                  }
+                                }
+                              },
+                              "kind": "object"
+                            },
+                            {
+                              "fields": {
+                                "kind": {
+                                  "rule": {
+                                    "kind": "literal",
+                                    "values": [
+                                      "unknown"
+                                    ]
+                                  }
+                                }
+                              },
+                              "kind": "object"
+                            }
+                          ]
+                        }
+                      },
+                      "instance": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  "kind": "array"
+                }
+              },
+              "standing": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "participant",
+                    "admin",
+                    "owner"
+                  ]
+                }
+              },
+              "type": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "workspace": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "destroy": {
+        "body": {
+          "fields": {
+            "operation": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "workspace": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "commit",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "conflict": {
+            "fields": {},
+            "kind": "object"
+          },
+          "denied": true,
+          "invalid": {
+            "fields": {
+              "reason": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "no-change": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {},
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "dissociate": {
+        "body": {
+          "fields": {
+            "instance": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "operation": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "workspace": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "commit",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "conflict": {
+            "fields": {},
+            "kind": "object"
+          },
+          "denied": true,
+          "invalid": {
+            "fields": {
+              "reason": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "no-change": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {},
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "grant-admin": {
+        "body": {
+          "fields": {
+            "operation": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "target": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "workspace": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "commit",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "conflict": {
+            "fields": {},
+            "kind": "object"
+          },
+          "denied": true,
+          "invalid": {
+            "fields": {
+              "reason": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "no-change": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {},
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "grant-participation": {
+        "body": {
+          "fields": {
+            "operation": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "target": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "workspace": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "commit",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "conflict": {
+            "fields": {},
+            "kind": "object"
+          },
+          "denied": true,
+          "invalid": {
+            "fields": {
+              "reason": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "no-change": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {},
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "leave": {
+        "body": {
+          "fields": {
+            "operation": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "workspace": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "commit",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "conflict": {
+            "fields": {},
+            "kind": "object"
+          },
+          "denied": true,
+          "invalid": {
+            "fields": {
+              "reason": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "no-change": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {},
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "list": {
+        "body": {
+          "fields": {
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "workspaces": {
+                "rule": {
+                  "item": {
+                    "fields": {
+                      "standing": {
+                        "rule": {
+                          "kind": "literal",
+                          "values": [
+                            "participant",
+                            "admin",
+                            "owner"
+                          ]
+                        }
+                      },
+                      "type": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "workspace": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  "kind": "array"
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "query-associate": {
+        "body": {
+          "fields": {
+            "address": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "operation": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "workspace": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "not-committed": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "instance": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "query-destroy": {
+        "body": {
+          "fields": {
+            "operation": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "workspace": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "not-committed": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {},
+            "kind": "object"
+          }
+        }
+      },
+      "query-dissociate": {
+        "body": {
+          "fields": {
+            "instance": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "operation": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "workspace": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "not-committed": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {},
+            "kind": "object"
+          }
+        }
+      },
+      "query-grant-admin": {
+        "body": {
+          "fields": {
+            "operation": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "target": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "workspace": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "not-committed": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {},
+            "kind": "object"
+          }
+        }
+      },
+      "query-grant-participation": {
+        "body": {
+          "fields": {
+            "operation": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "target": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "workspace": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "not-committed": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {},
+            "kind": "object"
+          }
+        }
+      },
+      "query-leave": {
+        "body": {
+          "fields": {
+            "operation": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "workspace": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "not-committed": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {},
+            "kind": "object"
+          }
+        }
+      },
+      "query-register": {
+        "body": {
+          "fields": {
+            "address": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "operation": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "type": {
+              "optional": true,
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "not-committed": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "instance": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "type": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "workspace": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "query-remove": {
+        "body": {
+          "fields": {
+            "operation": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "target": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "workspace": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "not-committed": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {},
+            "kind": "object"
+          }
+        }
+      },
+      "query-revoke-admin": {
+        "body": {
+          "fields": {
+            "operation": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "target": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "workspace": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "not-committed": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {},
+            "kind": "object"
+          }
+        }
+      },
+      "register": {
+        "body": {
+          "fields": {
+            "address": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "operation": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "type": {
+              "optional": true,
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "commit",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "conflict": {
+            "fields": {},
+            "kind": "object"
+          },
+          "denied": true,
+          "invalid": {
+            "fields": {
+              "reason": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "no-change": {
+            "fields": {
+              "instance": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "type": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "workspace": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "instance": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "type": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "workspace": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "remove": {
+        "body": {
+          "fields": {
+            "operation": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "target": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "workspace": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "commit",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "conflict": {
+            "fields": {},
+            "kind": "object"
+          },
+          "denied": true,
+          "invalid": {
+            "fields": {
+              "reason": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "no-change": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {},
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "revoke-admin": {
+        "body": {
+          "fields": {
+            "operation": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "target": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "workspace": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "commit",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "conflict": {
+            "fields": {},
+            "kind": "object"
+          },
+          "denied": true,
+          "invalid": {
+            "fields": {
+              "reason": {
+                "rule": {
+                  "kind": "text"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "no-change": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {},
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      }
+    }
+  }
+}

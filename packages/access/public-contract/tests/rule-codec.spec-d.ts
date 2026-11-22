@@ -3,6 +3,7 @@ import {
   ruleCodec,
   type AccountId,
   type Codec,
+  type Rule,
   type RuleValue,
 } from '@omne-harness/public-contract'
 import type { JsonValue } from '@omne-harness/json-text'
@@ -66,3 +67,13 @@ test('a rule and a type that disagree do not compile', () => {
   void [unlisted, limits]
   void [wrong, missing]
 })
+
+// A field that came later says so with `since`, and is optional: the type refuses the rest.
+const later: Rule = {
+  kind: 'object',
+  fields: { a: { rule: { kind: 'text' }, optional: true, since: 2 } },
+}
+void later
+// @ts-expect-error a required field cannot have come later
+const required: Rule = { kind: 'object', fields: { a: { rule: { kind: 'text' }, since: 2 } } }
+void required

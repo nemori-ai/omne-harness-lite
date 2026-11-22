@@ -43,6 +43,7 @@ export type Contract = Readonly<{
   binding: (typeof BINDINGS)[number]
   onError: string
   version: number
+  revision: number
   conformance: string | null
   summary: string
 }>
@@ -59,6 +60,7 @@ export const catalogContract: Contract = Object.freeze({
   binding: 'run',
   onError: 'a point whose declaration cannot be read answers unavailable',
   version: 1,
+  revision: 1,
   conformance: null,
   summary: 'The catalog: one item declares one extension point and carries its contract.',
 })
@@ -161,6 +163,10 @@ const CONTRACT_RULES: readonly (readonly [
   [
     contract => Number.isInteger(contract['version']) && (contract['version'] as number) >= 1,
     'the version is not a positive integer',
+  ],
+  [
+    contract => Number.isInteger(contract['revision']) && (contract['revision'] as number) >= 1,
+    'the revision is not a positive integer',
   ],
   [
     contract => contract['conformance'] === null || isText(contract['conformance']),

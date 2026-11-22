@@ -1,0 +1,1660 @@
+{
+  "digests": {
+    "1": "sha256:1f42c623564cf38a98a2fd49b951191f8adcd2c0fb0411a4a3e15b578ec4612a"
+  },
+  "major": 1,
+  "name": "media",
+  "revision": 1,
+  "rules": {
+    "observations": {
+      "observe-media": {
+        "ends": [],
+        "frame": {
+          "fields": {
+            "kind": {
+              "rule": {
+                "kind": "literal",
+                "values": [
+                  "changed"
+                ]
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "identity": "login",
+        "open": {
+          "fields": {
+            "ref": {
+              "rule": {
+                "fields": {
+                  "bytes": {
+                    "rule": {
+                      "kind": "text"
+                    }
+                  },
+                  "digest": {
+                    "rule": {
+                      "kind": "text"
+                    }
+                  },
+                  "key": {
+                    "rule": {
+                      "kind": "text"
+                    }
+                  },
+                  "mediaType": {
+                    "rule": {
+                      "kind": "text"
+                    }
+                  },
+                  "storage": {
+                    "rule": {
+                      "kind": "text"
+                    }
+                  }
+                },
+                "kind": "object"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        }
+      }
+    },
+    "operations": {
+      "append-upload-part": {
+        "body": {
+          "fields": {
+            "part": {
+              "rule": {
+                "kind": "bytes"
+              }
+            },
+            "sequence": {
+              "rule": {
+                "kind": "count"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "upload": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "commit",
+        "identity": "login",
+        "limit": "input",
+        "outcomes": {
+          "basis-unavailable": true,
+          "conflict": {
+            "fields": {
+              "reason": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "other-bytes",
+                    "committed"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "denied": true,
+          "invalid": {
+            "kind": "one-of",
+            "rules": [
+              {
+                "fields": {
+                  "nextSequence": {
+                    "rule": {
+                      "kind": "count"
+                    }
+                  },
+                  "reason": {
+                    "rule": {
+                      "kind": "literal",
+                      "values": [
+                        "gap"
+                      ]
+                    }
+                  }
+                },
+                "kind": "object"
+              },
+              {
+                "fields": {
+                  "reason": {
+                    "rule": {
+                      "kind": "literal",
+                      "values": [
+                        "beyond-declared"
+                      ]
+                    }
+                  }
+                },
+                "kind": "object"
+              }
+            ]
+          },
+          "limited": {
+            "fields": {
+              "limit": {
+                "rule": {
+                  "kind": "count"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "not-found": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "nextSequence": {
+                "rule": {
+                  "kind": "count"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "begin-upload": {
+        "body": {
+          "fields": {
+            "bytes": {
+              "rule": {
+                "kind": "count"
+              }
+            },
+            "mediaType": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "upload": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "commit",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "invalid": {
+            "fields": {
+              "field": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "upload",
+                    "bytes"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "limited": {
+            "fields": {
+              "limit": {
+                "rule": {
+                  "kind": "count"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "status": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "fields": {
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "uploading"
+                            ]
+                          }
+                        },
+                        "nextSequence": {
+                          "rule": {
+                            "kind": "count"
+                          }
+                        },
+                        "partBytes": {
+                          "rule": {
+                            "kind": "count"
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    },
+                    {
+                      "fields": {
+                        "facts": {
+                          "rule": {
+                            "kind": "one-of",
+                            "rules": [
+                              {
+                                "fields": {
+                                  "heightPixels": {
+                                    "rule": {
+                                      "kind": "count"
+                                    }
+                                  },
+                                  "kind": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "image"
+                                      ]
+                                    }
+                                  },
+                                  "widthPixels": {
+                                    "rule": {
+                                      "kind": "count"
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              },
+                              {
+                                "fields": {
+                                  "channels": {
+                                    "rule": {
+                                      "kind": "count"
+                                    }
+                                  },
+                                  "durationMs": {
+                                    "rule": {
+                                      "kind": "count"
+                                    }
+                                  },
+                                  "kind": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "voice"
+                                      ]
+                                    }
+                                  },
+                                  "sampleRate": {
+                                    "rule": {
+                                      "kind": "count"
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              },
+                              {
+                                "fields": {
+                                  "kind": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "file"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              }
+                            ]
+                          }
+                        },
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "committed"
+                            ]
+                          }
+                        },
+                        "ref": {
+                          "rule": {
+                            "fields": {
+                              "bytes": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              },
+                              "digest": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              },
+                              "key": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              },
+                              "mediaType": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              },
+                              "storage": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              }
+                            },
+                            "kind": "object"
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true,
+          "unsupported": {
+            "fields": {},
+            "kind": "object"
+          }
+        }
+      },
+      "commit-upload": {
+        "body": {
+          "fields": {
+            "digest": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "upload": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "commit",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "invalid": {
+            "kind": "one-of",
+            "rules": [
+              {
+                "fields": {
+                  "nextSequence": {
+                    "rule": {
+                      "kind": "count"
+                    }
+                  },
+                  "reason": {
+                    "rule": {
+                      "kind": "literal",
+                      "values": [
+                        "incomplete"
+                      ]
+                    }
+                  }
+                },
+                "kind": "object"
+              },
+              {
+                "fields": {
+                  "reason": {
+                    "rule": {
+                      "kind": "literal",
+                      "values": [
+                        "digest-mismatch",
+                        "type-mismatch",
+                        "over-budget"
+                      ]
+                    }
+                  }
+                },
+                "kind": "object"
+              }
+            ]
+          },
+          "not-found": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "facts": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "fields": {
+                        "heightPixels": {
+                          "rule": {
+                            "kind": "count"
+                          }
+                        },
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "image"
+                            ]
+                          }
+                        },
+                        "widthPixels": {
+                          "rule": {
+                            "kind": "count"
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    },
+                    {
+                      "fields": {
+                        "channels": {
+                          "rule": {
+                            "kind": "count"
+                          }
+                        },
+                        "durationMs": {
+                          "rule": {
+                            "kind": "count"
+                          }
+                        },
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "voice"
+                            ]
+                          }
+                        },
+                        "sampleRate": {
+                          "rule": {
+                            "kind": "count"
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    },
+                    {
+                      "fields": {
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "file"
+                            ]
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    }
+                  ]
+                }
+              },
+              "ref": {
+                "rule": {
+                  "fields": {
+                    "bytes": {
+                      "rule": {
+                        "kind": "text"
+                      }
+                    },
+                    "digest": {
+                      "rule": {
+                        "kind": "text"
+                      }
+                    },
+                    "key": {
+                      "rule": {
+                        "kind": "text"
+                      }
+                    },
+                    "mediaType": {
+                      "rule": {
+                        "kind": "text"
+                      }
+                    },
+                    "storage": {
+                      "rule": {
+                        "kind": "text"
+                      }
+                    }
+                  },
+                  "kind": "object"
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "describe-media": {
+        "body": {
+          "fields": {
+            "ref": {
+              "rule": {
+                "fields": {
+                  "bytes": {
+                    "rule": {
+                      "kind": "text"
+                    }
+                  },
+                  "digest": {
+                    "rule": {
+                      "kind": "text"
+                    }
+                  },
+                  "key": {
+                    "rule": {
+                      "kind": "text"
+                    }
+                  },
+                  "mediaType": {
+                    "rule": {
+                      "kind": "text"
+                    }
+                  },
+                  "storage": {
+                    "rule": {
+                      "kind": "text"
+                    }
+                  }
+                },
+                "kind": "object"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "not-found": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "facts": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "fields": {
+                        "heightPixels": {
+                          "rule": {
+                            "kind": "count"
+                          }
+                        },
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "image"
+                            ]
+                          }
+                        },
+                        "widthPixels": {
+                          "rule": {
+                            "kind": "count"
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    },
+                    {
+                      "fields": {
+                        "channels": {
+                          "rule": {
+                            "kind": "count"
+                          }
+                        },
+                        "durationMs": {
+                          "rule": {
+                            "kind": "count"
+                          }
+                        },
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "voice"
+                            ]
+                          }
+                        },
+                        "sampleRate": {
+                          "rule": {
+                            "kind": "count"
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    },
+                    {
+                      "fields": {
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "file"
+                            ]
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    }
+                  ]
+                }
+              },
+              "preprocess": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "fields": {
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "not-needed",
+                              "not-started",
+                              "running"
+                            ]
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    },
+                    {
+                      "fields": {
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "done"
+                            ]
+                          }
+                        },
+                        "representation": {
+                          "rule": {
+                            "kind": "one-of",
+                            "rules": [
+                              {
+                                "fields": {
+                                  "definition": {
+                                    "rule": {
+                                      "fields": {
+                                        "name": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "revision": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    }
+                                  },
+                                  "engine": {
+                                    "rule": {
+                                      "fields": {
+                                        "name": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "revision": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    }
+                                  },
+                                  "others": {
+                                    "rule": {
+                                      "item": {
+                                        "fields": {
+                                          "bytes": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "digest": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "key": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "mediaType": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "storage": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          }
+                                        },
+                                        "kind": "object"
+                                      },
+                                      "kind": "array"
+                                    }
+                                  },
+                                  "outcome": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "converted"
+                                      ]
+                                    }
+                                  },
+                                  "text": {
+                                    "rule": {
+                                      "kind": "one-of",
+                                      "rules": [
+                                        {
+                                          "kind": "text"
+                                        },
+                                        {
+                                          "fields": {
+                                            "bytes": {
+                                              "rule": {
+                                                "kind": "text"
+                                              }
+                                            },
+                                            "digest": {
+                                              "rule": {
+                                                "kind": "text"
+                                              }
+                                            },
+                                            "key": {
+                                              "rule": {
+                                                "kind": "text"
+                                              }
+                                            },
+                                            "mediaType": {
+                                              "rule": {
+                                                "kind": "text"
+                                              }
+                                            },
+                                            "storage": {
+                                              "rule": {
+                                                "kind": "text"
+                                              }
+                                            }
+                                          },
+                                          "kind": "object"
+                                        }
+                                      ]
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              },
+                              {
+                                "fields": {
+                                  "definition": {
+                                    "rule": {
+                                      "fields": {
+                                        "name": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "revision": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    }
+                                  },
+                                  "engine": {
+                                    "rule": {
+                                      "fields": {
+                                        "name": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "revision": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    }
+                                  },
+                                  "outcome": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "inconvertible"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    },
+                    {
+                      "fields": {
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "failed"
+                            ]
+                          }
+                        },
+                        "reason": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "basis-unavailable",
+                              "engine-unavailable",
+                              "engine-error",
+                              "timeout",
+                              "invalid-result",
+                              "outcome-unknown",
+                              "cancelled"
+                            ]
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    }
+                  ]
+                }
+              },
+              "state": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "staged",
+                    "held"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "prepare-media": {
+        "body": {
+          "fields": {
+            "ref": {
+              "rule": {
+                "fields": {
+                  "bytes": {
+                    "rule": {
+                      "kind": "text"
+                    }
+                  },
+                  "digest": {
+                    "rule": {
+                      "kind": "text"
+                    }
+                  },
+                  "key": {
+                    "rule": {
+                      "kind": "text"
+                    }
+                  },
+                  "mediaType": {
+                    "rule": {
+                      "kind": "text"
+                    }
+                  },
+                  "storage": {
+                    "rule": {
+                      "kind": "text"
+                    }
+                  }
+                },
+                "kind": "object"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "commit",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "not-found": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "preprocess": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "fields": {
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "not-needed",
+                              "not-started",
+                              "running"
+                            ]
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    },
+                    {
+                      "fields": {
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "done"
+                            ]
+                          }
+                        },
+                        "representation": {
+                          "rule": {
+                            "kind": "one-of",
+                            "rules": [
+                              {
+                                "fields": {
+                                  "definition": {
+                                    "rule": {
+                                      "fields": {
+                                        "name": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "revision": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    }
+                                  },
+                                  "engine": {
+                                    "rule": {
+                                      "fields": {
+                                        "name": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "revision": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    }
+                                  },
+                                  "others": {
+                                    "rule": {
+                                      "item": {
+                                        "fields": {
+                                          "bytes": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "digest": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "key": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "mediaType": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          },
+                                          "storage": {
+                                            "rule": {
+                                              "kind": "text"
+                                            }
+                                          }
+                                        },
+                                        "kind": "object"
+                                      },
+                                      "kind": "array"
+                                    }
+                                  },
+                                  "outcome": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "converted"
+                                      ]
+                                    }
+                                  },
+                                  "text": {
+                                    "rule": {
+                                      "kind": "one-of",
+                                      "rules": [
+                                        {
+                                          "kind": "text"
+                                        },
+                                        {
+                                          "fields": {
+                                            "bytes": {
+                                              "rule": {
+                                                "kind": "text"
+                                              }
+                                            },
+                                            "digest": {
+                                              "rule": {
+                                                "kind": "text"
+                                              }
+                                            },
+                                            "key": {
+                                              "rule": {
+                                                "kind": "text"
+                                              }
+                                            },
+                                            "mediaType": {
+                                              "rule": {
+                                                "kind": "text"
+                                              }
+                                            },
+                                            "storage": {
+                                              "rule": {
+                                                "kind": "text"
+                                              }
+                                            }
+                                          },
+                                          "kind": "object"
+                                        }
+                                      ]
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              },
+                              {
+                                "fields": {
+                                  "definition": {
+                                    "rule": {
+                                      "fields": {
+                                        "name": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "revision": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    }
+                                  },
+                                  "engine": {
+                                    "rule": {
+                                      "fields": {
+                                        "name": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        },
+                                        "revision": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    }
+                                  },
+                                  "outcome": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "inconvertible"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    },
+                    {
+                      "fields": {
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "failed"
+                            ]
+                          }
+                        },
+                        "reason": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "basis-unavailable",
+                              "engine-unavailable",
+                              "engine-error",
+                              "timeout",
+                              "invalid-result",
+                              "outcome-unknown",
+                              "cancelled"
+                            ]
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      },
+      "query-upload": {
+        "body": {
+          "fields": {
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "upload": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "not-found": {
+            "fields": {},
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "status": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "fields": {
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "uploading"
+                            ]
+                          }
+                        },
+                        "nextSequence": {
+                          "rule": {
+                            "kind": "count"
+                          }
+                        },
+                        "partBytes": {
+                          "rule": {
+                            "kind": "count"
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    },
+                    {
+                      "fields": {
+                        "facts": {
+                          "rule": {
+                            "kind": "one-of",
+                            "rules": [
+                              {
+                                "fields": {
+                                  "heightPixels": {
+                                    "rule": {
+                                      "kind": "count"
+                                    }
+                                  },
+                                  "kind": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "image"
+                                      ]
+                                    }
+                                  },
+                                  "widthPixels": {
+                                    "rule": {
+                                      "kind": "count"
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              },
+                              {
+                                "fields": {
+                                  "channels": {
+                                    "rule": {
+                                      "kind": "count"
+                                    }
+                                  },
+                                  "durationMs": {
+                                    "rule": {
+                                      "kind": "count"
+                                    }
+                                  },
+                                  "kind": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "voice"
+                                      ]
+                                    }
+                                  },
+                                  "sampleRate": {
+                                    "rule": {
+                                      "kind": "count"
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              },
+                              {
+                                "fields": {
+                                  "kind": {
+                                    "rule": {
+                                      "kind": "literal",
+                                      "values": [
+                                        "file"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "kind": "object"
+                              }
+                            ]
+                          }
+                        },
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "committed"
+                            ]
+                          }
+                        },
+                        "ref": {
+                          "rule": {
+                            "fields": {
+                              "bytes": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              },
+                              "digest": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              },
+                              "key": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              },
+                              "mediaType": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              },
+                              "storage": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              }
+                            },
+                            "kind": "object"
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "read-media-page": {
+        "body": {
+          "fields": {
+            "limit": {
+              "rule": {
+                "kind": "count"
+              }
+            },
+            "offset": {
+              "rule": {
+                "kind": "count"
+              }
+            },
+            "ref": {
+              "rule": {
+                "fields": {
+                  "bytes": {
+                    "rule": {
+                      "kind": "text"
+                    }
+                  },
+                  "digest": {
+                    "rule": {
+                      "kind": "text"
+                    }
+                  },
+                  "key": {
+                    "rule": {
+                      "kind": "text"
+                    }
+                  },
+                  "mediaType": {
+                    "rule": {
+                      "kind": "text"
+                    }
+                  },
+                  "storage": {
+                    "rule": {
+                      "kind": "text"
+                    }
+                  }
+                },
+                "kind": "object"
+              }
+            },
+            "target": {
+              "optional": true,
+              "rule": {
+                "fields": {
+                  "maxBytes": {
+                    "rule": {
+                      "kind": "count"
+                    }
+                  },
+                  "maxHeight": {
+                    "rule": {
+                      "kind": "count"
+                    }
+                  },
+                  "maxWidth": {
+                    "rule": {
+                      "kind": "count"
+                    }
+                  },
+                  "mediaTypes": {
+                    "rule": {
+                      "item": {
+                        "kind": "text"
+                      },
+                      "kind": "array"
+                    }
+                  }
+                },
+                "kind": "object"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "limited": {
+            "fields": {},
+            "kind": "object"
+          },
+          "not-found": {
+            "fields": {
+              "reason": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "reference",
+                    "material"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "bytes": {
+                "rule": {
+                  "kind": "count"
+                }
+              },
+              "facts": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "fields": {
+                        "heightPixels": {
+                          "rule": {
+                            "kind": "count"
+                          }
+                        },
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "image"
+                            ]
+                          }
+                        },
+                        "widthPixels": {
+                          "rule": {
+                            "kind": "count"
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    },
+                    {
+                      "fields": {
+                        "channels": {
+                          "rule": {
+                            "kind": "count"
+                          }
+                        },
+                        "durationMs": {
+                          "rule": {
+                            "kind": "count"
+                          }
+                        },
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "voice"
+                            ]
+                          }
+                        },
+                        "sampleRate": {
+                          "rule": {
+                            "kind": "count"
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    },
+                    {
+                      "fields": {
+                        "kind": {
+                          "rule": {
+                            "kind": "literal",
+                            "values": [
+                              "file"
+                            ]
+                          }
+                        }
+                      },
+                      "kind": "object"
+                    }
+                  ]
+                }
+              },
+              "mediaType": {
+                "rule": {
+                  "kind": "text"
+                }
+              },
+              "next": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "count"
+                    },
+                    {
+                      "kind": "null"
+                    }
+                  ]
+                }
+              },
+              "part": {
+                "rule": {
+                  "kind": "bytes"
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      }
+    }
+  }
+}
