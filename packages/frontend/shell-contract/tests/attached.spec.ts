@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { declare, type Contract } from '@omne-harness/dynamis'
 import type { AttachedProps } from '@omne-harness/shell-contract'
 import { startShell } from './reference-shell.ts'
 
@@ -29,6 +30,47 @@ describe('the shell service attached', () => {
       early: { scope: undefined, subject: 's1' },
       late: { scope: undefined, subject: 's1' },
     })
+  })
+
+  it('a point on the tree that holds no render function is not a place to attach to: its items are not listed', async () => {
+    const { root, shell } = await startShell()
+    const data: Contract = {
+      name: 'wire.things',
+      tree: 'client',
+      arity: 'keyed-one',
+      keyFrom: null,
+      key: 'the name of a thing',
+      gives: 'a thing',
+      item: { kind: 'pure', fields: { thing: 'object' } },
+      resolve: 'conflict',
+      binding: 'run',
+      onError: 'nothing is called',
+      version: 1,
+      revision: 1,
+      keys: 'private',
+      conformance: null,
+      summary: 'Things another member keeps on this tree.',
+    }
+    await root.plugin({
+      name: 'wire',
+      inject: ['dynamis'],
+      apply(ctx) {
+        ctx.dynamis.put([
+          declare(data),
+          {
+            point: 'wire.things',
+            key: 'one',
+            id: '',
+            scope: [],
+            rank: 0,
+            digest: 'one',
+            item: { thing: {} },
+          },
+        ])
+      },
+    })
+    expect(shell.items('attached')).toEqual([])
+    expect(shell.conflicts('attached')).toEqual([])
   })
 
   it('renders nothing when no item has the anchor', async () => {

@@ -131,12 +131,13 @@ const byText = (left: string, right: string): number => (left < right ? -1 : lef
 const byOrderThenId = (left: AttachedItem, right: AttachedItem): number =>
   left.order - right.order || byText(left.id, right.id) || byText(left.anchor, right.anchor)
 
-/** Every declared point but the three of the shell is a place something can be attached to. */
+/** A declared point whose items are drawn, and is not one of the three of the shell, is a place something can be attached to. */
 function attachedView(registry: Registry): SlotView<'attached'> {
-  const declared = list(registry, CATALOG, null, deployment)
+  const declared = list<Contract>(registry, CATALOG, null, deployment)
   if (declared.kind !== 'read') return NOTHING
   const own: readonly string[] = Object.values(POINT)
   const views = declared.items
+    .filter(item => item.entry.item.item.fields['render'] === 'function')
     .map(item => item.entry.key)
     .filter(name => !own.includes(name))
     .map(name => listView(registry, 'attached', name))
