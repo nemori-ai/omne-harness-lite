@@ -52,6 +52,7 @@
 - `agentCompactionKey` · `cordis.d.ts`
 - `agentConditionsKey` · `cordis.d.ts`
 - `agentDecisionCardsKey` · `cordis.d.ts`
+- `agentDefinitionsPoint` · `cordis.d.ts`
 - `agentExecutionControlKey` · `cordis.d.ts`
 - `agentExecutionRecoveryKey` · `cordis.d.ts`
 - `agentExtensionsKey` · `cordis.d.ts`
@@ -360,6 +361,26 @@ declare module '@deepseek-ai/cordis' {
         'agent-cordis-contract/instance-retired'(tenant: TenantId, instance: AgentInstanceId, generation: number, reason: 'withdrawn' | 'contributor-removed' | 'superseded'): void;
     }
 }
+export declare const agentDefinitionsPoint: Readonly<{
+    name: string;
+    tree: 'server';
+    arity: 'keyed-one';
+    keyFrom: null;
+    key: string;
+    gives: string;
+    item: Readonly<{
+        kind: 'data';
+        fields: Readonly<Record<keyof import("@omne-harness/assets").HeldItem, 'string' | 'boolean'>>;
+    }>;
+    resolve: 'most-specific';
+    binding: 'run';
+    onError: string;
+    version: number;
+    revision: number;
+    keys: 'private' | 'public';
+    conformance: null;
+    summary: string;
+}>;
 ```
 
 ## 声明文件 `index.d.ts`

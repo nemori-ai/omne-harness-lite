@@ -46,12 +46,16 @@ export {
 export { packageBody } from './package-body.ts'
 export { isReadBody, readBodyText, readSnapshot } from './read-body.ts'
 export {
+  admitCategory,
+  categoryViewOf,
   createCategoryPoint,
   unknownCategory,
   type CategoryContribution,
   type CategoryDisplay,
   type CategoryListing,
   type CategoryPoint,
+  type CategoryReading,
+  type CategoryUnusable,
   type CategoryView,
   type CreationMode,
 } from './category-point.ts'
@@ -64,11 +68,13 @@ export {
 } from './summary.ts'
 export { pinBody, type PinnedBody } from './adoption.ts'
 export {
+  heldPoint,
   layerInputsOf,
   layerOfScope,
   scopeOfLayer,
   type HeldEntry,
   type HeldItem,
+  type HeldPoint,
   type HeldLayer,
   type HeldReading,
   type HeldScope,

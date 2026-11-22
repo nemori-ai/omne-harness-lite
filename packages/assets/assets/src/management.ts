@@ -307,7 +307,9 @@ async function list<P>(
 ): Promise<ManagedList> {
   const store = await storeFor(input)
   if ('kind' in store) return store
-  if (categories.describe(input.category) === undefined) return { kind: 'unknown-category' }
+  const listing = categories.describe(input.category)
+  if (listing === undefined) return { kind: 'unknown-category' }
+  if ('unusable' in listing) return UNAVAILABLE
   if (!Number.isInteger(input.limit) || input.limit < 1 || input.limit > MAX_ASSET_PAGE)
     return { kind: 'invalid' }
   try {
@@ -374,6 +376,7 @@ async function beginUpload<P>(
   if ('kind' in store) return store
   const listing = categories.describe(input.capability.category)
   if (listing === undefined) return { kind: 'unknown-category' }
+  if ('unusable' in listing) return UNAVAILABLE
   const refused = creationRefusal(listing.creation, 'directory')
   if (refused !== undefined) return { kind: 'invalid', reason: refused }
   const { operationId, capability, entries } = input

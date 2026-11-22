@@ -10,6 +10,7 @@ import {
 import { describe, expect, it } from 'vitest'
 import {
   evaluate,
+  heldPoint,
   layerInputsOf,
   layerOfScope,
   scopeOfLayer,
@@ -24,32 +25,11 @@ const POINT = 'skill.skills'
 const NAMES = ['review', 'report', 'ledger']
 const TENANTS = ['tenant-a', 'tenant-b']
 
-const contract: Contract = {
+const contract: Contract = heldPoint({
   name: POINT,
-  tree: 'server',
-  arity: 'keyed-one',
-  keyFrom: null,
   key: 'the name of a skill',
-  gives: 'one held definition',
-  item: {
-    kind: 'data',
-    fields: {
-      asset: 'string',
-      version: 'string',
-      disabled: 'boolean',
-      immutable: 'boolean',
-      replaceLocked: 'boolean',
-    },
-  },
-  resolve: 'most-specific',
-  binding: 'run',
-  onError: 'an entry that breaks the contract is skipped',
-  version: 1,
-  revision: 1,
-  keys: 'private',
-  conformance: null,
   summary: 'the skills each layer holds',
-}
+})
 
 type Random = () => number
 

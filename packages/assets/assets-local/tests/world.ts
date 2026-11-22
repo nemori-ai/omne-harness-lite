@@ -80,6 +80,7 @@ export const service: CategoryContribution = {
       return definition(context?.definition, enabled)
     },
   },
+  point: 'service.items',
 }
 export const categories = createCategoryPoint()
 categories.contribute(service)

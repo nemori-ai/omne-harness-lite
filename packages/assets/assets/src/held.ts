@@ -12,6 +12,56 @@ export type HeldItem = Readonly<{
 
 export type HeldScope = readonly string[]
 
+export type HeldPoint = Readonly<{
+  name: string
+  tree: 'server'
+  arity: 'keyed-one'
+  keyFrom: null
+  key: string
+  gives: string
+  item: Readonly<{ kind: 'data'; fields: Readonly<Record<keyof HeldItem, 'string' | 'boolean'>> }>
+  resolve: 'most-specific'
+  binding: 'run'
+  onError: string
+  version: number
+  revision: number
+  keys: 'private' | 'public'
+  conformance: null
+  summary: string
+}>
+
+/** The rules of the point of one category. Most specific is how a tree shows it; an evaluation takes every layer. */
+export function heldPoint(
+  rules: Readonly<{ name: string; key: string; summary: string; keys?: 'public' }>,
+): HeldPoint {
+  return Object.freeze({
+    name: rules.name,
+    tree: 'server',
+    arity: 'keyed-one',
+    keyFrom: null,
+    key: rules.key,
+    gives: 'one held definition: the asset, its version, whether it is disabled, and its two locks',
+    item: Object.freeze({
+      kind: 'data',
+      fields: Object.freeze({
+        asset: 'string',
+        version: 'string',
+        disabled: 'boolean',
+        immutable: 'boolean',
+        replaceLocked: 'boolean',
+      }),
+    }),
+    resolve: 'most-specific',
+    binding: 'run',
+    onError: 'nothing is called: the item is data',
+    version: 1,
+    revision: 1,
+    keys: rules.keys ?? 'private',
+    conformance: null,
+    summary: rules.summary,
+  })
+}
+
 export type HeldLayer = Extract<AssetLayer, 'official' | 'tenant'>
 
 export type HeldEntry = Readonly<{ scope: HeldScope; item: HeldItem }>

@@ -10,91 +10,154 @@ export type CategoryContribution = Readonly<{
   contract: BodyContract
   display: CategoryDisplay
   generalCreation?: 'closed'
+  point: string
 }>
 
 export type CategoryListing = Readonly<{
   category: string
   display: CategoryDisplay
   creation: CreationMode
+  point: string
+}>
+
+/** A category that has contributions and gives no contract now, and why. */
+export type CategoryUnusable = Readonly<{
+  category: string
+  unusable: 'conflict' | 'unread'
+  detail: string
 }>
 
 export type CategoryView = Readonly<{
   lookup(category: string): BodyContract | undefined
-  describe(category: string): CategoryListing | undefined
+  describe(category: string): CategoryListing | CategoryUnusable | undefined
   list(): readonly CategoryListing[]
 }>
 
 export type CategoryPoint = CategoryView &
   Readonly<{ contribute(contribution: CategoryContribution): () => void }>
 
-type Entry = Readonly<{ contract: BodyContract; listing: CategoryListing }>
+export type CategoryReading =
+  | Readonly<{ kind: 'read'; contributions: readonly CategoryContribution[] }>
+  | Readonly<{ kind: 'unavailable'; detail: string }>
 
-export function createCategoryPoint(): CategoryPoint {
-  const entries = new Map<string, Entry>()
-  let listed: readonly CategoryListing[] = Object.freeze([])
+type Registered = Readonly<{ contract: BodyContract; listing: CategoryListing }>
+type Standings = ReadonlyMap<string, Registered | CategoryUnusable>
 
-  function relist(): void {
-    listed = Object.freeze(
-      [...entries.values()]
-        .map(entry => entry.listing)
-        .sort((left, right) => (left.category < right.category ? -1 : 1)),
-    )
-  }
-
-  return Object.freeze({
-    contribute(contribution: CategoryContribution): () => void {
-      const entry = admit(contribution)
-      const category = entry.listing.category
-      if (entries.has(category)) throw new TypeError('category already registered')
-      // Some source roots tell a category by its directory name alone.
-      const namespace = entry.contract.layout?.namespace
-      if (
-        namespace !== undefined &&
-        [...entries.values()].some(other => other.contract.layout?.namespace === namespace)
-      )
-        throw new TypeError('namespace already registered')
-      entries.set(category, entry)
-      relist()
-      return () => {
-        if (entries.get(category) !== entry) return
-        entries.delete(category)
-        relist()
-      }
-    },
-    lookup(category: string): BodyContract | undefined {
-      return entries.get(category)?.contract
-    },
-    describe(category: string): CategoryListing | undefined {
-      return entries.get(category)?.listing
-    },
-    list(): readonly CategoryListing[] {
-      return listed
-    },
-  })
-}
+const byCategory = (left: CategoryListing, right: CategoryListing): number =>
+  left.category < right.category ? -1 : 1
 
 function creationOf(contract: BodyContract, general: 'closed' | undefined): CreationMode {
   if (general === 'closed') return 'none'
   return contract.layout === undefined ? 'data' : 'directory'
 }
 
-function admit({ contract, display, generalCreation }: CategoryContribution): Entry {
-  const category = contract.category
-  if (category === '') throw new TypeError('category name is empty')
+const listings = new WeakMap<CategoryContribution, Registered>()
+
+/** One contribution gives one listing for as long as it is contributed, whoever reads it. */
+function registered(contribution: CategoryContribution): Registered {
+  const known = listings.get(contribution)
+  if (known !== undefined) return known
+  const { contract, display, generalCreation, point } = contribution
+  const creation = creationOf(contract, generalCreation)
+  const listing = Object.freeze({ category: contract.category, display, creation, point })
+  const made = Object.freeze({ contract, listing })
+  listings.set(contribution, made)
+  return made
+}
+
+/** What two categories may not share: some source roots tell a category by its namespace alone, and a point holds one category. */
+function sharedWith(
+  mine: CategoryContribution,
+  all: readonly CategoryContribution[],
+): string | null {
+  const others = all.filter(other => other.contract.category !== mine.contract.category)
+  const namespace = mine.contract.layout?.namespace
+  const sameSpace = others.find(
+    other => namespace !== undefined && other.contract.layout?.namespace === namespace,
+  )
+  if (sameSpace !== undefined)
+    return `the namespace ${namespace} is also the namespace of ${sameSpace.contract.category}`
+  const samePoint = others.find(other => other.point === mine.point)
+  return samePoint === undefined
+    ? null
+    : `the point ${mine.point} is also the point of ${samePoint.contract.category}`
+}
+
+function standingsOf(contributions: readonly CategoryContribution[]): Standings {
+  const counted = new Map<string, number>()
+  for (const { contract } of contributions)
+    counted.set(contract.category, (counted.get(contract.category) ?? 0) + 1)
+  const standings = new Map<string, Registered | CategoryUnusable>()
+  for (const contribution of contributions) {
+    const category = contribution.contract.category
+    const count = counted.get(category) ?? 0
+    const detail = count > 1 ? `${count} contributions` : sharedWith(contribution, contributions)
+    standings.set(
+      category,
+      detail === null ? registered(contribution) : { category, unusable: 'conflict', detail },
+    )
+  }
+  return standings
+}
+
+export function categoryViewOf(read: () => CategoryReading): CategoryView {
+  const standings = (): Standings | string => {
+    const reading = read()
+    return reading.kind === 'read' ? standingsOf(reading.contributions) : reading.detail
+  }
+  return Object.freeze({
+    lookup(category: string): BodyContract | undefined {
+      const now = standings()
+      const held = typeof now === 'string' ? undefined : now.get(category)
+      return held !== undefined && 'contract' in held ? held.contract : undefined
+    },
+    describe(category: string): CategoryListing | CategoryUnusable | undefined {
+      const now = standings()
+      if (typeof now === 'string') return { category, unusable: 'unread', detail: now }
+      const held = now.get(category)
+      return held !== undefined && 'contract' in held ? held.listing : held
+    },
+    list(): readonly CategoryListing[] {
+      const now = standings()
+      if (typeof now === 'string') return Object.freeze([])
+      const listed = [...now.values()].flatMap(held => ('contract' in held ? [held.listing] : []))
+      return Object.freeze(listed.sort(byCategory))
+    },
+  })
+}
+
+/** Checks a contribution and freezes what a reader is given. It throws on a contribution that names nothing. */
+export function admitCategory(contribution: CategoryContribution): CategoryContribution {
+  const { contract, display, generalCreation, point } = contribution
+  if (contract.category === '') throw new TypeError('category name is empty')
+  if (point === '') throw new TypeError('category point is empty')
   if (display.title === '' || display.summary === '' || display.creation === '')
     throw new TypeError('category display is incomplete')
   const schema = copyTree(contract.schema, false)
   if (schema === undefined) throw new TypeError('schema could not be copied')
   const { title, summary, creation } = display
   return Object.freeze({
-    contract: Object.freeze({ ...contract, category, schema }),
-    listing: Object.freeze({
-      category,
-      display: Object.freeze(
-        creation === undefined ? { title, summary } : { title, summary, creation },
-      ),
-      creation: creationOf(contract, generalCreation),
-    }),
+    contract: Object.freeze({ ...contract, schema }),
+    display: Object.freeze(
+      creation === undefined ? { title, summary } : { title, summary, creation },
+    ),
+    ...(generalCreation === undefined ? {} : { generalCreation }),
+    point,
+  })
+}
+
+/** The categories held in memory: for a use of the assets without a registry, with the same readings. */
+export function createCategoryPoint(): CategoryPoint {
+  let contributions: readonly CategoryContribution[] = []
+  return Object.freeze({
+    contribute(contribution: CategoryContribution): () => void {
+      const admitted = admitCategory(contribution)
+      contributions = [...contributions, admitted]
+      return () => {
+        contributions = contributions.filter(held => held !== admitted)
+      }
+    },
+    ...categoryViewOf(() => ({ kind: 'read', contributions })),
   })
 }
 

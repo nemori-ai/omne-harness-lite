@@ -157,6 +157,7 @@ async function serviceAndNoteWorld() {
   point.contribute({
     contract: { ...service.contract, category: 'note' },
     display: { title: 'Note', summary: 'A second category that exists only in these tests.' },
+    point: 'note.items',
   })
   const world = await openWorld({ categories: point })
   worlds.push(world)

@@ -75,6 +75,7 @@ export function createTenantPublishing<P>(ports: {
       if (answer !== 'admitted') return { kind: answer }
       const listing = ports.categories.describe(request.capability.category)
       if (listing === undefined) return { kind: 'unknown-category' }
+      if ('unusable' in listing) return UNAVAILABLE
       const refused = creationRefusal(listing.creation, request.content.kind)
       if (refused !== undefined) return { kind: 'invalid', reason: refused }
       const local = await publisher(request.tenant)

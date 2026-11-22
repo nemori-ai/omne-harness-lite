@@ -73,6 +73,7 @@
 - `toolRuntimeKey` · `cordis.d.ts`
 - `toolStartAuthorityKey` · `cordis.d.ts`
 - `toolStartFenceKey` · `cordis.d.ts`
+- `toolToolsPoint` · `cordis.d.ts`
 
 ## 入口 `./testing` · `testing.d.ts`
 
@@ -516,6 +517,26 @@ declare module '@deepseek-ai/cordis' {
         'tool-cordis-contract/binding-changed'(key: ToolBindingKey, change: 'registered' | 'draining' | 'released'): void;
     }
 }
+export declare const toolToolsPoint: Readonly<{
+    name: string;
+    tree: 'server';
+    arity: 'keyed-one';
+    keyFrom: null;
+    key: string;
+    gives: string;
+    item: Readonly<{
+        kind: 'data';
+        fields: Readonly<Record<keyof import("@omne-harness/assets").HeldItem, 'string' | 'boolean'>>;
+    }>;
+    resolve: 'most-specific';
+    binding: 'run';
+    onError: string;
+    version: number;
+    revision: number;
+    keys: 'private' | 'public';
+    conformance: null;
+    summary: string;
+}>;
 export {};
 ```
 

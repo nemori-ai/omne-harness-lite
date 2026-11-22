@@ -53,6 +53,7 @@
 - `modelPreparationResourcesKey` · `cordis.d.ts`
 - `modelProfileMaintenanceKey` · `cordis.d.ts`
 - `modelProfilesKey` · `cordis.d.ts`
+- `modelProvidersPoint` · `cordis.d.ts`
 - `modelPublicationAuthorityKey` · `cordis.d.ts`
 - `modelRequestPreparationKey` · `cordis.d.ts`
 - `modelRetryPolicyKey` · `cordis.d.ts`
@@ -261,6 +262,26 @@ declare module '@deepseek-ai/cordis' {
         'model-cordis-contract/call-changed'(tenant: TenantId, call: ModelCallId, revision: Revision): void;
     }
 }
+export declare const modelProvidersPoint: Readonly<{
+    name: string;
+    tree: 'server';
+    arity: 'keyed-one';
+    keyFrom: null;
+    key: string;
+    gives: string;
+    item: Readonly<{
+        kind: 'data';
+        fields: Readonly<Record<keyof import("@omne-harness/assets").HeldItem, 'string' | 'boolean'>>;
+    }>;
+    resolve: 'most-specific';
+    binding: 'run';
+    onError: string;
+    version: number;
+    revision: number;
+    keys: 'private' | 'public';
+    conformance: null;
+    summary: string;
+}>;
 ```
 
 ## 声明文件 `index.d.ts`

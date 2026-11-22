@@ -40,6 +40,7 @@ it('does not treat a registered schema literal as a read body', () => {
       deriveDeclarations: () => ({ entries: [] }),
       references: () => [],
     },
+    point: 'literal.items',
   })
   const stored = registry.lookup('literal')?.schema
   expect(isReadBody(stored)).toBe(false)
@@ -57,7 +58,7 @@ it('does not treat a registered schema literal as a read body', () => {
 it('accepts read_file and records skill references without making them required', () => {
   const registry = createCategoryPoint()
   const port = toolBodyContract()
-  registry.contribute({ contract: port, display: toolCategoryDisplay })
+  registry.contribute({ contract: port, display: toolCategoryDisplay, point: 'tool.tools' })
   const body = document('{"name":"read_file","composes":{"skills":["review"]}}')
   expect(port.judge(body, { capabilityName: 'read_file' })).toEqual({ ok: true })
   expect(port.references(body)).toEqual([{ category: 'skill', name: 'review' }])

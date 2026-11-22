@@ -1,3 +1,4 @@
+import { heldPoint } from '@omne-harness/assets'
 import { type Context, Service } from '@deepseek-ai/cordis'
 import type { ActionDiscovery, ActionInvoker, EndpointStatus } from '@omne-harness/mcp-contract'
 import type {
@@ -153,3 +154,10 @@ declare module '@deepseek-ai/cordis' {
     mcpCredentialUse: CredentialUseService<unknown>
   }
 }
+
+/** The point of the category: each layer's held definitions are its items. */
+export const mcpEndpointsPoint = heldPoint({
+  name: 'mcp.endpoints',
+  key: 'the endpoint name',
+  summary: 'The MCP endpoint definitions each layer holds, by name.',
+})

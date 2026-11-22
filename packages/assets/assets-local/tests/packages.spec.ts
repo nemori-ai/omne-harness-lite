@@ -65,6 +65,7 @@ const bundle: CategoryContribution = {
       },
     },
   },
+  point: 'bundle.items',
 }
 
 function bundles() {
@@ -79,6 +80,7 @@ function bundles() {
       deriveDeclarations: () => ({ entries: [] }),
       references: () => [],
     },
+    point: 'plain.items',
   })
   return { categories, withdrawBundle, restoreBundle: () => categories.contribute(bundle) }
 }

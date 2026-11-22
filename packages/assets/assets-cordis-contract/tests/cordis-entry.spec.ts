@@ -6,7 +6,7 @@ import {
   categoryContributionPlugin,
 } from '@omne-harness/assets-cordis-contract/cordis'
 import { ASSET_CATEGORIES_POINT } from '@omne-harness/assets-cordis-contract'
-import { CATALOG, list, type Contract } from '@omne-harness/dynamis'
+import { ask, CATALOG, list, type Contract } from '@omne-harness/dynamis'
 import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { describe, expect, it } from 'vitest'
 
@@ -25,7 +25,11 @@ function contract(category: string): BodyContract {
 }
 
 function contribution(category: string, title: string): CategoryContribution {
-  return { contract: contract(category), display: { title, summary: `${title}.` } }
+  return {
+    contract: contract(category),
+    display: { title, summary: `${title}.` },
+    point: `${category}.items`,
+  }
 }
 
 function labels(effects: readonly EffectMeta[]): string[] {
@@ -37,6 +41,14 @@ async function categories() {
   await root.plugin(DynamisService)
   await root.plugin(assetCategoriesPlugin)
   return { root, service: root.assetCategories as AssetCategoriesService }
+}
+
+/** The fibers that now hold an item at one key of the categories point. */
+function placedOn(root: Context, category: string): string[] {
+  return root.dynamis
+    .registry()
+    .placed.filter(placed => placed.point === ASSET_CATEGORIES_POINT && placed.key === category)
+    .map(placed => placed.instance.fiber)
 }
 
 /** The keys now on the categories point of the tree's registry. */
@@ -56,7 +68,12 @@ describe('the categories service on a real Cordis root', () => {
     expect(labels(fiber.getEffects())).toContain('assetCategories.contribute')
     expect(service.view.lookup('gadget')?.category).toBe('gadget')
     expect(service.view.list()).toEqual([
-      { category: 'gadget', display: { title: 'Gadget', summary: 'Gadget.' }, creation: 'data' },
+      {
+        category: 'gadget',
+        display: { title: 'Gadget', summary: 'Gadget.' },
+        creation: 'data',
+        point: 'gadget.items',
+      },
     ])
     await fiber.dispose()
     expect(service.view.lookup('gadget')).toBeUndefined()
@@ -80,19 +97,53 @@ describe('the categories service on a real Cordis root', () => {
     expect(fiber.state).toBe(PENDING)
   })
 
-  it('a second plugin for the same category fails to start and the first one stays', async () => {
+  it('two plugins for one category both start; the category is a conflict until one leaves', async () => {
     const { root, service } = await categories()
-    await root.plugin(categoryContributionPlugin('first', contribution('gadget', 'First')))
-    const second = root.plugin(
-      categoryContributionPlugin('second', contribution('gadget', 'Second')),
-    )
-    await expect(second.await()).rejects.toThrow(/category already registered/)
-    expect(second.state).toBe(FAILED)
-    expect(service.view.list()).toEqual([
-      { category: 'gadget', display: { title: 'First', summary: 'First.' }, creation: 'data' },
-    ])
+    let judged = 0
+    const counted = (title: string): CategoryContribution => {
+      const made = contribution('gadget', title)
+      return { ...made, contract: { ...made.contract, judge: () => ((judged += 1), { ok: true }) } }
+    }
+    const first = root.plugin(categoryContributionPlugin('first', counted('First')))
+    const second = root.plugin(categoryContributionPlugin('second', counted('Second')))
+    const widget = root.plugin(categoryContributionPlugin('widget', contribution('widget', 'W')))
+    await Promise.all([first.await(), second.await(), widget.await()])
+    expect([first.state, second.state]).toEqual([ACTIVE, ACTIVE])
+    expect(service.view.lookup('gadget')).toBeUndefined()
+    expect(service.view.describe('gadget')).toEqual({
+      category: 'gadget',
+      unusable: 'conflict',
+      detail: '2 contributions',
+    })
+    service.view.lookup('gadget')?.judge(null)
+    expect(judged).toBe(0)
+    expect(service.view.list().map(listing => listing.category)).toEqual(['widget'])
+    expect(placedOn(root, 'gadget').sort()).toEqual(['first', 'second'])
+    expect(ask(root.dynamis.registry(), ASSET_CATEGORIES_POINT, 'gadget', []).kind).toBe('conflict')
     await second.dispose()
-    expect(service.view.list().map(listing => listing.display.title)).toEqual(['First'])
+    expect(service.view.lookup('gadget')?.category).toBe('gadget')
+    expect(service.view.list().map(listing => listing.display.title)).toEqual(['First', 'W'])
+  })
+
+  it('two categories with one namespace: neither gives a contract, and both plugins start', async () => {
+    const { root, service } = await categories()
+    const layout = {
+      namespace: 'things',
+      limits: { files: 1, fileBytes: 1, totalBytes: 1 },
+      inspect: async () => ({ failure: { kind: 'not-configured' as const } }),
+    }
+    const directory = (category: string): CategoryContribution => {
+      const made = contribution(category, category)
+      return { ...made, contract: { ...made.contract, layout } }
+    }
+    const gadget = root.plugin(categoryContributionPlugin('gadget', directory('gadget')))
+    const widget = root.plugin(categoryContributionPlugin('widget', directory('widget')))
+    await Promise.all([gadget.await(), widget.await()])
+    expect([gadget.state, widget.state]).toEqual([ACTIVE, ACTIVE])
+    expect(service.view.list()).toEqual([])
+    expect(service.view.describe('widget')).toMatchObject({ unusable: 'conflict' })
+    await gadget.dispose()
+    expect(service.view.list().map(listing => listing.category)).toEqual(['widget'])
   })
 
   it('names the plugin that provides the service after the extension point', () => {
@@ -113,7 +164,10 @@ describe('the categories as keys on the registry of the tree', () => {
     if (declared.kind !== 'read') throw new Error('the catalog is not read')
     const point = declared.items.find(({ entry }) => entry.key === ASSET_CATEGORIES_POINT)
     expect(point?.entry.item).toMatchObject({ tree: 'server', arity: 'keyed-one', keys: 'public' })
-    expect(point?.entry.item.item).toEqual({ kind: 'data', fields: { category: 'string' } })
+    expect(point?.entry.item.item).toEqual({
+      kind: 'pure',
+      fields: { category: 'string', point: 'string', contract: 'object', display: 'object' },
+    })
     // The rules are read by people and go into the digest the other tree sees: none is left empty.
     const texts = Object.values(point?.entry.item ?? {}).filter(value => typeof value === 'string')
     expect(texts.length).toBeGreaterThan(8)
@@ -152,16 +206,27 @@ describe('the categories as keys on the registry of the tree', () => {
     expect(seen).toEqual([['gadget'], []])
   })
 
-  it('a contribution the categories point refuses leaves no key', async () => {
+  it('a contribution the categories point refuses fails its plugin and leaves no key', async () => {
     const { root } = await categories()
     await root.plugin(categoryContributionPlugin('first', contribution('gadget', 'Gadget')))
     const second = root.plugin(
-      categoryContributionPlugin('second', contribution('gadget', 'Again')),
+      categoryContributionPlugin('second', { ...contribution('widget', 'W'), point: '' }),
     )
-    await second.await().catch(() => undefined)
+    await expect(second.await()).rejects.toThrow(/category point is empty/)
+    expect(second.state).toBe(FAILED)
     expect(keysOn(root)).toEqual(['gadget'])
     await second.dispose()
     expect(keysOn(root)).toEqual(['gadget'])
+  })
+
+  it('the item is the whole contribution, put by the one who contributes', async () => {
+    const { root } = await categories()
+    const given = contribution('gadget', 'Gadget')
+    await root.plugin(categoryContributionPlugin('gadget-category', given))
+    const [placed] = root.dynamis.registry().placed.filter(each => each.key === 'gadget')
+    expect(placed?.instance.fiber).toBe('gadget-category')
+    expect(placed?.item).toMatchObject({ category: 'gadget', point: 'gadget.items' })
+    expect(placed?.item).toHaveProperty('contract.judge', given.contract.judge)
   })
 
   it('does not start until the registry service is there', async () => {

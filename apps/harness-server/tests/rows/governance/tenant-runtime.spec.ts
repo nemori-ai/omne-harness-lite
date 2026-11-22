@@ -240,6 +240,7 @@ async function world(extraParticipants: SqlMaterialCatalog['participants'] = [])
   toolCategory.contribute({
     contract: createToolAssetCategory(release),
     display: toolCategoryDisplay,
+    point: 'tool.tools',
   })
   const options: TenantGovernanceOptions = {
     materials,
@@ -760,6 +761,7 @@ async function installedWorld(extraParticipants: SqlMaterialCatalog['participant
   categories.contribute({
     contract: createToolAssetCategory(w.release),
     display: toolCategoryDisplay,
+    point: 'tool.tools',
   })
   const packageRoot = realpathSync(mkdtempSync(join(tmpdir(), 'governance-assets-')))
   cleanup.push(() => rmSync(packageRoot, { recursive: true, force: true }))
@@ -979,6 +981,7 @@ it.each([false, true])(
     categories.contribute({
       contract: createToolAssetCategory(w.release),
       display: toolCategoryDisplay,
+      point: 'tool.tools',
     })
     const assets = createAssetsLocal({
       ...governanceStorageCombinations(w.options.materials).assets,
@@ -1237,6 +1240,7 @@ async function upgradedWorld({ holding, permissionsChanged }: Upgrade) {
   categories.contribute({
     contract: createToolAssetCategory(earlier),
     display: toolCategoryDisplay,
+    point: 'tool.tools',
   })
   const packageRoot = realpathSync(mkdtempSync(join(tmpdir(), 'governance-earlier-assets-')))
   cleanup.push(() => rmSync(packageRoot, { recursive: true, force: true }))
@@ -1416,6 +1420,7 @@ async function shellStoredUnderEarlierRun(under: 'earlier' | 'unpublished' = 'ea
   categories.contribute({
     contract: createToolAssetCategory(earlier),
     display: toolCategoryDisplay,
+    point: 'tool.tools',
   })
   const packageRoot = realpathSync(mkdtempSync(join(tmpdir(), 'governance-earlier-shell-')))
   cleanup.push(() => rmSync(packageRoot, { recursive: true, force: true }))
@@ -2046,7 +2051,7 @@ it('lists the settings of a holding whose category exists only in this test, bes
     settings: () => gadget,
   }
   const display = { title: 'Gadget', summary: 'A category that exists only in this test.' }
-  const withdraw = categories.contribute({ contract, display })
+  const withdraw = categories.contribute({ contract, display, point: 'test.site7' })
   const assembly = prepare()
   const runtime = await assembly.open()
   if (runtime.kind !== 'created') throw new Error(JSON.stringify(runtime))
@@ -2135,7 +2140,11 @@ it('lists the settings of a holding whose category exists only in this test, bes
   withdraw()
   expect(await listed()).toEqual(first)
 
-  categories.contribute({ contract, display: { title: 'Renamed', summary: 'Another name.' } })
+  categories.contribute({
+    contract,
+    display: { title: 'Renamed', summary: 'Another name.' },
+    point: 'test.site6',
+  })
   expect(await listed()).toEqual(first)
 })
 
@@ -2219,6 +2228,7 @@ async function heldGadget(beforeHeldCommit?: (world: HeldGadget) => Promise<void
   categories.contribute({
     contract: gadgetContract,
     display: { title: 'Gadget', summary: 'A category that exists only in this test.' },
+    point: 'test.site5',
   })
   const base = w.options.storage
   let armed = beforeHeldCommit

@@ -1,15 +1,24 @@
 import { Service, type Context, type Plugin } from '@deepseek-ai/cordis'
 import {
-  createCategoryPoint,
+  admitCategory,
+  categoryViewOf,
   type CategoryContribution,
-  type CategoryPoint,
+  type CategoryReading,
   type CategoryView,
   type TenantManagement,
   type TenantPublishing,
   type TenantPublishOutcome,
   type TenantPublishRequest,
 } from '@omne-harness/assets'
-import { declare, type Contract, type Entry } from '@omne-harness/dynamis'
+import {
+  candidates,
+  declare,
+  deployment,
+  type Contract,
+  type Entry,
+  type Instance,
+  type Registry,
+} from '@omne-harness/dynamis'
 import { dynamisKey, type DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import type {
   IndependentSettingsPoint,
@@ -31,54 +40,67 @@ const categoriesContract: Contract = Object.freeze({
   arity: 'keyed-one',
   keyFrom: null,
   key: 'the category name',
-  gives: 'nothing: the item is the category name alone',
-  item: Object.freeze({ kind: 'data', fields: Object.freeze({ category: 'string' }) }),
+  gives: 'the contribution of one category: its body contract, how it is shown, and its point',
+  item: Object.freeze({
+    kind: 'pure',
+    fields: Object.freeze({
+      category: 'string',
+      point: 'string',
+      contract: 'object',
+      display: 'object',
+    }),
+  }),
   resolve: 'conflict',
   binding: 'run',
-  onError: 'nothing is called: the item is data',
+  onError: 'a category with two contributions gives no contract, and neither is called',
   version: 1,
   revision: 1,
   keys: 'public',
   conformance: null,
-  summary: 'The asset categories now registered, by name; a contribution stays on the service.',
+  summary: 'The asset categories now registered: each item is the contribution of one category.',
 })
 
-function named(category: string): Entry {
-  const point = ASSET_CATEGORIES_POINT
-  return { point, key: category, id: '', scope: [], rank: 0, digest: category, item: { category } }
+type Contributed = CategoryContribution & Readonly<{ category: string }>
+
+/** Two contributors of one category hold two items at one key: the digest names who put it. */
+function contributed(contribution: CategoryContribution, by: Instance): Entry<Contributed> {
+  const category = contribution.contract.category
+  return {
+    point: ASSET_CATEGORIES_POINT,
+    key: category,
+    id: '',
+    scope: deployment,
+    rank: 0,
+    digest: `${category}@${by.fiber}#${by.generation}`,
+    item: Object.freeze({ ...contribution, category }),
+  }
+}
+
+function readingOf(registry: Registry): CategoryReading {
+  const read = candidates<Contributed>(registry, ASSET_CATEGORIES_POINT, null, deployment)
+  if (read.kind !== 'read') return { kind: 'unavailable', detail: read.detail }
+  return { kind: 'read', contributions: read.entries.map(entry => entry.item) }
 }
 
 /** @owner packages/assets/assets-cordis-contract */
 export class AssetCategoriesService extends Service {
   static readonly provide = assetCategoriesKey
   readonly view: CategoryView
-  protected readonly point: CategoryPoint
-  private readonly place: (category: string) => () => unknown
+  protected readonly tree: DynamisService
   constructor(ctx: Context) {
     super(ctx, AssetCategoriesService.provide)
-    const point = createCategoryPoint()
-    this.point = point
-    // Captured here, not read from `this`: a key is put as this service, whoever contributes.
     const tree = ctx.get(dynamisKey) as DynamisService
     tree.put([declare(categoriesContract)])
-    this.place = category => tree.put([named(category)])
-    this.view = Object.freeze({
-      lookup: point.lookup,
-      describe: point.describe,
-      list: point.list,
-    })
+    this.tree = tree
+    this.view = categoryViewOf(() => readingOf(tree.registry()))
   }
 
-  /** The name is a key on the tree for exactly as long as the contribution is on the point. */
+  /** The contribution is an item on the tree, put as the one who contributes, for as long as its scope lives. */
   contribute(contribution: CategoryContribution): void {
-    this.ctx.effect(() => {
-      const withdraw = this.point.contribute(contribution)
-      const take = this.place(contribution.contract.category)
-      return () => {
-        withdraw()
-        return take()
-      }
-    }, 'assetCategories.contribute')
+    const admitted = admitCategory(contribution)
+    // Read from `this`, not captured: Cordis gives the caller its own view, so the item is put as the caller.
+    const { tree } = this
+    this.ctx.effect(() => tree.put(by => [contributed(admitted, by)]), 'assetCategories.contribute')
   }
 }
 

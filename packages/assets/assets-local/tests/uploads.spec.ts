@@ -30,6 +30,7 @@ const bundle: CategoryContribution = {
       inspect: async () => ({ ok: { kind: 'null' } }),
     },
   },
+  point: 'bundle.items',
 }
 
 function idOf(category: string, name: string): CapabilityId {
@@ -47,7 +48,11 @@ function world(policy: Partial<UploadPolicy> = {}) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'uploads-')))
   const categories = createCategoryPoint()
   categories.contribute(bundle)
-  categories.contribute({ display, contract: { ...contract, category: 'plain' } })
+  categories.contribute({
+    display,
+    contract: { ...contract, category: 'plain' },
+    point: 'plain.items',
+  })
   const clock = { now: 1_000_000 }
   const uploads = createLocalUploads({
     root,

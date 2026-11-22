@@ -139,6 +139,7 @@ export const FIXTURE_CATEGORIES: readonly CategoryContribution[] = [
       summary: '只在测试里的数据型类别，带两项设置。',
       creation: '填一个地址。',
     },
+    point: 'test.site4',
   },
   {
     contract: bundleContract,
@@ -147,6 +148,7 @@ export const FIXTURE_CATEGORIES: readonly CategoryContribution[] = [
       summary: '只在测试里的目录型类别。',
       creation: '一个目录，根下有 README.md。',
     },
+    point: 'test.site3',
   },
 ]
 

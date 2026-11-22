@@ -90,7 +90,11 @@ function setup(
   } = {},
 ) {
   const categories = createCategoryPoint()
-  categories.contribute({ contract, display: { title: 'Note', summary: 'Notes.' } })
+  categories.contribute({
+    contract,
+    display: { title: 'Note', summary: 'Notes.' },
+    point: 'test.site2',
+  })
   const asked: string[] = []
   const changed: Changed[] = []
   const reads: string[] = []

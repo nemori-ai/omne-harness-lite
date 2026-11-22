@@ -340,6 +340,7 @@ export function createAssetOperations(input: AssetOperationsInput): AssetHandler
       if (categories === undefined) return UNAVAILABLE
       const listing = categories.describe(body.category)
       const contract = categories.lookup(body.category)
+      if (listing !== undefined && 'unusable' in listing) return UNAVAILABLE
       if (listing === undefined || contract === undefined) return NOT_FOUND
       return {
         outcome: 'succeeded',

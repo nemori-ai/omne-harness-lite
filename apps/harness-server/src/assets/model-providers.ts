@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { readBodyText } from '@omne-harness/assets'
 import {
+  modelProviderBodyContract,
   parseModelProviderBody,
   type ModelProviderBody,
 } from '@omne-harness/model-contract/provider-asset'
@@ -17,6 +18,7 @@ import type { SecretBindingKey, SecretScope, SettingsHolding } from '@omne-harne
 import { holdingKey, officialHolding, type OfficialHolding } from './official-holdings.ts'
 
 const RELEASE_PROVIDER_TEXTS: readonly string[] = [OPENROUTER_PROVIDER_BODY_TEXT]
+const PROVIDER_CONTRACT = modelProviderBodyContract()
 
 const BODY_LIMITS = {
   maxBytes: 16_384,
@@ -39,7 +41,7 @@ function readProvider(text: string): ReleaseProvider {
   if ('failure' in parsed) throw new Error(`a release provider body is refused: ${parsed.failure}`)
   const body = parsed.ok
   const held = officialHolding({
-    category: 'model-provider',
+    contract: PROVIDER_CONTRACT,
     name: body.name,
     version: createHash('sha256').update(text, 'utf8').digest('hex'),
     body: read.value,

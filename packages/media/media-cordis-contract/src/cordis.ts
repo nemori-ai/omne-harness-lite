@@ -1,3 +1,4 @@
+import { heldPoint } from '@omne-harness/assets'
 import { Service, type Context } from '@deepseek-ai/cordis'
 import type {
   ByteStore,
@@ -155,3 +156,10 @@ declare module '@deepseek-ai/cordis' {
     mediaImage: MediaImageService
   }
 }
+
+/** The point of the category: each layer's held definitions are its items. */
+export const mediaConvertersPoint = heldPoint({
+  name: 'media.converters',
+  key: 'the converter name',
+  summary: 'The converter definitions each layer holds, by name.',
+})

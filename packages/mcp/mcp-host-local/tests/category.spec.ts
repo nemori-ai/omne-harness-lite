@@ -12,7 +12,7 @@ it('contributes the mcp category with its own name and withdraws it on unload', 
   const fiber = root.plugin(mcpCategoryPlugin)
   await fiber.await()
   expect(root.assetCategories.view.list()).toEqual([
-    { category: 'mcp', display: mcpCategoryDisplay, creation: 'data' },
+    { category: 'mcp', display: mcpCategoryDisplay, creation: 'data', point: 'mcp.endpoints' },
   ])
   await fiber.dispose()
   expect(root.assetCategories.view.list()).toEqual([])

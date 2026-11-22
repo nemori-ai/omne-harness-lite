@@ -117,6 +117,7 @@ describe('the change signal of the local assets', () => {
           inspect: async () => ({ ok: { kind: 'object', entries: [] } }),
         },
       },
+      point: 'bundle.items',
     }
     const categories = createCategoryPoint()
     categories.contribute(bundle)

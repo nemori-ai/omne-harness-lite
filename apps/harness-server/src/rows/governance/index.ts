@@ -19,6 +19,7 @@ import { IndependentSettingsService } from '@omne-harness/assets-cordis-contract
 import { toolCategoryDisplay } from '@omne-harness/tool-contract'
 import { createIndependentSettingsPoint, createSettingsRegistry } from '@omne-harness/settings'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
+import { toolToolsPoint } from '@omne-harness/tool-cordis-contract/cordis'
 import { toolContributionAuthorityKey } from '@omne-harness/tool-cordis-contract/cordis'
 import { defineRow } from '../../row.ts'
 import { classify } from '../authorization/principals.ts'
@@ -134,6 +135,7 @@ export const governanceRow = defineRow({
       contract: createToolAssetCategory(release),
       display: toolCategoryDisplay,
       generalCreation: 'closed',
+      point: toolToolsPoint.name,
     })
     const categories = ctx.assetCategories.view
     const registry = createSettingsRegistry({ capacity: 1024 })

@@ -113,12 +113,21 @@ async function world() {
   }
   const packageRoot = join(root, 'assets')
   const categories = createCategoryPoint()
-  categories.contribute({ contract: toolBodyContract(), display: toolCategoryDisplay })
+  categories.contribute({
+    contract: toolBodyContract(),
+    display: toolCategoryDisplay,
+    point: 'tool.tools',
+  })
   categories.contribute({
     contract: modelProviderBodyContract(),
     display: modelProviderCategoryDisplay,
+    point: 'model.providers',
   })
-  categories.contribute({ contract: skillBodyContract(), display: skillCategoryDisplay })
+  categories.contribute({
+    contract: skillBodyContract(),
+    display: skillCategoryDisplay,
+    point: 'skill.skills',
+  })
   const store = { storage: made.storage, materials, packageRoot, categories }
   const tenantAssets = new TenantAssetsHost({
     domains: lookup,

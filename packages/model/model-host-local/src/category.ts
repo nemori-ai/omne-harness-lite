@@ -1,4 +1,5 @@
 import { categoryContributionPlugin } from '@omne-harness/assets-cordis-contract/cordis'
+import { modelProvidersPoint } from '@omne-harness/model-cordis-contract/cordis'
 import {
   modelProviderBodyContract,
   modelProviderCategoryDisplay,
@@ -8,4 +9,5 @@ export const modelProviderCategoryPlugin = categoryContributionPlugin('model-pro
   contract: modelProviderBodyContract(),
   display: modelProviderCategoryDisplay,
   generalCreation: 'closed',
+  point: modelProvidersPoint.name,
 })

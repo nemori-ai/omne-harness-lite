@@ -108,7 +108,11 @@ export async function runListJourney(options: ListJourneyOptions): Promise<ListJ
   await mkdir(options.stateDir, { recursive: true })
   const opened = await openStorage(options.stateDir, tenantRef)
   const categories = createCategoryPoint()
-  categories.contribute({ contract: skillBodyContract(), display: skillCategoryDisplay })
+  categories.contribute({
+    contract: skillBodyContract(),
+    display: skillCategoryDisplay,
+    point: 'skill.skills',
+  })
   const assets = createAssetsLocal({
     storage: opened.storage,
     domain: opened.domain,

@@ -26,6 +26,7 @@ it('six domains contribute into one extension point, each with the name it decla
       contract: toolBodyContract(),
       display: toolCategoryDisplay,
       generalCreation: 'closed',
+      point: 'tool.tools',
     }),
   )
   expect(

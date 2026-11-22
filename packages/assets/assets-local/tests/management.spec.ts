@@ -93,8 +93,8 @@ const ALICE = { tenant: 'tenant-a', principal: { tenant: 'tenant-a' } } as const
 
 async function world() {
   const categories = createCategoryPoint()
-  categories.contribute({ contract: category('note', false), display })
-  categories.contribute({ contract: category('bundle', true), display })
+  categories.contribute({ contract: category('note', false), display, point: 'note.items' })
+  categories.contribute({ contract: category('bundle', true), display, point: 'bundle.items' })
   const packageRoot = realpathSync(mkdtempSync(join(tmpdir(), 'assets-management-')))
   const opened = await openWorld({
     categories,

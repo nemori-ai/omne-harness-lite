@@ -26,7 +26,7 @@ it('reads a skill body without running a script and records required tool identi
   const body = document('{"name":"review","tools":[{"category":"tool","name":"read_file"}]}')
   const port = skillBodyContract()
   const registry = createCategoryPoint()
-  registry.contribute({ contract: port, display: skillCategoryDisplay })
+  registry.contribute({ contract: port, display: skillCategoryDisplay, point: 'skill.skills' })
   expect(port.judge(body, { capabilityName: 'review' })).toEqual({ ok: true })
   expect(port.references(body)).toEqual([{ category: 'tool', name: 'read_file' }])
   expect(registry.lookup('skill')?.category).toBe('skill')

@@ -100,8 +100,8 @@ const NOTE: AssetSummary = { title: 'A note', description: 'One sentence.', fact
 
 async function world() {
   const categories = createCategoryPoint()
-  categories.contribute({ contract: category('note', () => NOTE), display })
-  categories.contribute({ contract: category('plain', undefined), display })
+  categories.contribute({ contract: category('note', () => NOTE), display, point: 'note.items' })
+  categories.contribute({ contract: category('plain', undefined), display, point: 'plain.items' })
   categories.contribute({
     contract: category('versioned', (_, context) => ({
       title: 'versioned',
@@ -109,12 +109,14 @@ async function world() {
       facts: [],
     })),
     display,
+    point: 'versioned.items',
   })
   categories.contribute({
     contract: category('broken', () => {
       throw new Error('summarize is broken')
     }),
     display,
+    point: 'broken.items',
   })
   categories.contribute({
     contract: category(
@@ -127,6 +129,7 @@ async function world() {
       true,
     ),
     display,
+    point: 'bundle.items',
   })
   const packageRoot = realpathSync(mkdtempSync(join(tmpdir(), 'assets-summary-')))
   const opened = await openWorld({ categories, packageRoot })

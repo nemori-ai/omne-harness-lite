@@ -1331,6 +1331,9 @@ importers:
       '@omne-harness/agent-contract':
         specifier: workspace:*
         version: link:../agent-contract
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../../assets/assets
       '@omne-harness/content-block':
         specifier: workspace:*
         version: link:../../common/content-block
@@ -3689,6 +3692,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.1.0
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../../assets/assets
       '@omne-harness/mcp-contract':
         specifier: workspace:*
         version: link:../mcp-contract
@@ -3954,6 +3960,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.1.0
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../../assets/assets
       '@omne-harness/media-contract':
         specifier: workspace:*
         version: link:../media-contract
@@ -4274,6 +4283,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.1.0
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../../assets/assets
       '@omne-harness/kernel-basis':
         specifier: workspace:*
         version: link:../../assembly/kernel-basis
@@ -5827,6 +5839,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.1.0
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../../assets/assets
       '@omne-harness/skill-contract':
         specifier: workspace:*
         version: link:../skill-contract
@@ -5858,6 +5873,9 @@ importers:
       '@omne-harness/skill-contract':
         specifier: workspace:*
         version: link:../skill-contract
+      '@omne-harness/skill-cordis-contract':
+        specifier: workspace:*
+        version: link:../skill-cordis-contract
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
@@ -6128,6 +6146,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.1.0
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../../assets/assets
       '@omne-harness/content-block':
         specifier: workspace:*
         version: link:../../common/content-block

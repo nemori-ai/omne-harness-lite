@@ -86,9 +86,13 @@ function files(content: Readonly<Record<string, string>>): PackageReader {
 
 async function world(packageRoot?: string) {
   const categories = createCategoryPoint()
-  categories.contribute({ contract: category('note', false), display })
-  categories.contribute({ contract: category('refused', false, false), display })
-  categories.contribute({ contract: category('bundle', true), display })
+  categories.contribute({ contract: category('note', false), display, point: 'note.items' })
+  categories.contribute({
+    contract: category('refused', false, false),
+    display,
+    point: 'refused.items',
+  })
+  categories.contribute({ contract: category('bundle', true), display, point: 'bundle.items' })
   const opened = await openWorld({
     categories,
     ...(packageRoot === undefined ? {} : { packageRoot }),

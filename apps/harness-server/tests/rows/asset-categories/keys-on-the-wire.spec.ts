@@ -19,6 +19,7 @@ const gadget: CategoryContribution = {
     references: () => [],
   },
   display: { title: 'Gadget', summary: 'Gadget.' },
+  point: 'gadget.items',
 }
 
 /** A row the case reaches into: it contributes a category when told and takes it back when told. */

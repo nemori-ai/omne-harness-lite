@@ -289,7 +289,11 @@ describe('agentBodyContract registration', () => {
   it('registers under the category name and is retrieved from the registry', () => {
     const registry = createCategoryPoint()
     const contract = agentBodyContract()
-    registry.contribute({ contract, display: agentDefinitionCategoryDisplay })
+    registry.contribute({
+      contract,
+      display: agentDefinitionCategoryDisplay,
+      point: 'agent.definitions',
+    })
     const found = registry.lookup('AgentDefinition')
     expect(found).toBeDefined()
     expect(found?.category).toBe('AgentDefinition')
@@ -309,18 +313,22 @@ describe('agentBodyContract registration', () => {
     })
   })
 
-  it('refuses a second registration of the category', () => {
+  it('a second registration of the category makes it a conflict: no contract is given', () => {
     const registry = createCategoryPoint()
     registry.contribute({
       contract: agentBodyContract(),
       display: agentDefinitionCategoryDisplay,
+      point: 'agent.definitions',
     })
-    expect(() =>
-      registry.contribute({
-        contract: agentBodyContract(),
-        display: agentDefinitionCategoryDisplay,
-      }),
-    ).toThrow(/already registered/)
+    const withdraw = registry.contribute({
+      contract: agentBodyContract(),
+      display: agentDefinitionCategoryDisplay,
+      point: 'agent.definitions',
+    })
+    expect(registry.lookup('AgentDefinition')).toBeUndefined()
+    expect(registry.describe('AgentDefinition')).toMatchObject({ unusable: 'conflict' })
+    withdraw()
+    expect(registry.lookup('AgentDefinition')?.category).toBe('AgentDefinition')
   })
 })
 
@@ -330,6 +338,7 @@ describe('judge agrees with judgeAgentDefinition', () => {
     registry.contribute({
       contract: agentBodyContract(),
       display: agentDefinitionCategoryDisplay,
+      point: 'agent.definitions',
     })
     const contract = registry.lookup('AgentDefinition')
     if (contract === undefined) throw new Error('contract missing')
