@@ -13,11 +13,10 @@ import { agentAdoptionsConfig, type AgentAdoptionsConfig } from './config.ts'
 import {
   AgentAdoptionsImpl,
   AgentDefinitionCatalogImpl,
+  DEFINITION_CATEGORY,
   DefinitionMappingsImpl,
 } from './services.ts'
 import { buildTable } from './table.ts'
-
-const DEFINITION_CATEGORY = 'AgentDefinition'
 
 const plugin: Plugin.Object = {
   name: 'agent-adoptions',

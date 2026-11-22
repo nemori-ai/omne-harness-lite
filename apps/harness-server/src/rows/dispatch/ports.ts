@@ -61,8 +61,9 @@ export function definitionsOf(catalog: () => AgentDefinitionCatalog | undefined)
       const listing = catalog()
       if (listing === undefined) return UNAVAILABLE
       if (!legal.ok) return { kind: 'read', value: null }
-      const found = listing.visibleTo(legal.value).find(item => item.name === name)
-      return { kind: 'read', value: found?.type ?? null }
+      const seen = listing.visibleTo(legal.value)
+      if (seen === undefined) return UNAVAILABLE
+      return { kind: 'read', value: seen.find(item => item.name === name)?.type ?? null }
     },
   }
 }

@@ -80,6 +80,46 @@ function foreignTenant(tenant: string): string {
   return JSON.stringify({ ...parsed, account: `${parsed.account.slice(0, -1)}${last}` })
 }
 
+describe('what the release brings is on the points of the categories', () => {
+  it(
+    'each official definition is one item of the whole deployment, named as the release names it',
+    { tags: ['slow'], timeout: 240_000 },
+    async () => {
+      const exitCode = await onReleaseTree({ script: toolCallsThenText(() => []) }, async tree => {
+        const registry = tree.scope.get('dynamis')?.registry()
+        if (registry === undefined) throw new Error('the tree has no registry')
+        const official = (category: string) => {
+          const read = candidates<HeldItem>(registry, POINTS[category] as string, null, [])
+          if (read.kind !== 'read') throw new Error(`${category}: the point is ${read.kind}`)
+          expect(read.filtered, category).toEqual([])
+          return read.entries.map(entry => [
+            entry.key,
+            entry.scope,
+            entry.item.asset,
+            entry.item.disabled,
+          ])
+        }
+        const named = (category: string, names: readonly string[]) =>
+          [...names].sort().map(name => [name, [], `official/${category}/${name}`, false])
+        expect(official('converter').sort()).toEqual(
+          named('converter', ['voice', 'application-pdf']),
+        )
+        expect(official('model-provider')).toEqual(named('model-provider', ['openrouter']))
+        expect(official('AgentDefinition').sort()).toEqual(
+          named('AgentDefinition', ['assistant', 'coding']),
+        )
+        expect(official('skill')).toEqual([])
+        const tools = official('tool')
+        expect(tools).toHaveLength(15)
+        expect(tools.map(([name]) => name)).toContain('Skills')
+        for (const [name, scope, asset] of tools)
+          expect([scope, asset]).toEqual([[], `official/tool/${String(name)}`])
+      })
+      expect(exitCode).toBe(0)
+    },
+  )
+})
+
 describe('what a tenant holds is on the points of the categories', () => {
   it(
     'after every change the entries at the scope of the tenant are the ledger, already when the change is answered',

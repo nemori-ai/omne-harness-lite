@@ -115,6 +115,17 @@ describe('the type of an Agent definition as a tenant sees it', () => {
     })
   })
 
+  it('is unavailable while the catalogue cannot know what the tenant sees', async () => {
+    const unknown = { visibleTo: () => undefined }
+    expect(await definitionsOf(() => unknown).typeOf(textOf(A) as TenantId, 'coding')).toEqual(
+      await definitionsOf(() => undefined).typeOf(textOf(A) as TenantId, 'coding'),
+    )
+    expect(await definitionsOf(() => unknown).typeOf(textOf(A) as TenantId, 'coding')).not.toEqual({
+      kind: 'read',
+      value: null,
+    })
+  })
+
   it('does not ask the catalogue for a tenant text that is no tenant', async () => {
     const asked: unknown[] = []
     const everything = {
