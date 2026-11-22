@@ -116,7 +116,11 @@ describe('the Schedules tool on the release tree', () => {
       const exit = await onReleaseTree({ script, nonresident: ['Schedules'] }, async tree => {
         const hold = holdStart(tree, 'Schedules')
         const forwarded = await tree.startSession('schedules: forwarded')
-        await pollUntil('the Tool to reach the start', async () => hold.held(), n => n > 0)
+        await pollUntil(
+          'the Tool to reach the start',
+          async () => hold.held(),
+          n => n > 0,
+        )
         const releases = admittedReleases(tree.storageRoot)
         hold.go()
         await settled(tree, forwarded, 'it')

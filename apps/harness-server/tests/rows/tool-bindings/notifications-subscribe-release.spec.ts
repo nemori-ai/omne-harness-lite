@@ -69,7 +69,11 @@ describe('a subscription of the Notifications tool on the release tree', () => {
       const exit = await onReleaseTree({ script, permission: 'auto_permission' }, async tree => {
         const hold = holdStart(tree, 'Notifications')
         const session = await tree.startSession('notifications: standing')
-        await pollUntil('the Tool to reach the start', async () => hold.held(), n => n > 0)
+        await pollUntil(
+          'the Tool to reach the start',
+          async () => hold.held(),
+          n => n > 0,
+        )
         const releases = admittedReleases(tree.storageRoot)
         hold.go()
         const standing = await settled(tree, session, 'standing')
