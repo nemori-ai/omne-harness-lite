@@ -20,6 +20,7 @@ import {
   type BoundOf,
   type Need,
 } from './needs.ts'
+import { partEntry, partFault, partHostOf, partsContract, type PartDeclaration } from './part.ts'
 import type { ServiceKey } from './service-key.ts'
 import { entryOf, sameView, shellContracts, viewOf, type SlotView } from './placement.ts'
 import {
@@ -93,7 +94,7 @@ export abstract class ShellService extends Service implements ShellSlots {
     super(ctx, ShellService.provide)
     const { dynamis } = ctx
     for (const slot of SLOT_NAMES) this.views.set(slot, viewOf(dynamis.registry(), slot))
-    dynamis.put(shellContracts.map(contract => declare(contract)))
+    dynamis.put([...shellContracts, partsContract].map(contract => declare(contract)))
     ctx.on('dynamis-cordis/changed', registry => this.follow(registry))
   }
 
@@ -103,6 +104,15 @@ export abstract class ShellService extends Service implements ShellSlots {
 
   declare(contract: Contract): void {
     this.put('attached', contract.name, [declare(contract)])
+  }
+
+  declarePart(declaration: PartDeclaration): void {
+    this.put('attached', declaration.name, instance => {
+      const fault = partFault(declaration, partHostOf(instance.fiber))
+      if (fault !== null)
+        throw new ShellAssemblyError('attached', declaration.name, 'invalid', fault)
+      return [partEntry(declaration)]
+    })
   }
 
   items<K extends SlotName>(slot: K): readonly ItemOf<K>[] {

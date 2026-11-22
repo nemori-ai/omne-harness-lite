@@ -23,6 +23,18 @@ export {
 export { ShellAssemblyError, slots } from './slots.ts'
 export { shellContracts } from './placement.ts'
 export { defineKeyedPoint, definePoint } from './point.ts'
+export {
+  PARTS_POINT,
+  definePart,
+  partFault,
+  partsOn,
+  type DeclaredPart,
+  type Part,
+  type PartDeclaration,
+  type PartDeclarer,
+  type PartDepth,
+  type PartsRead,
+} from './part.ts'
 export { serviceKey, type ServiceKey } from './service-key.ts'
 export type {
   Declared,

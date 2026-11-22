@@ -40,6 +40,8 @@ system
           DesktopShell#1  [effective]
         shell.pages
           DesktopShell#1  [effective]
+        shell.parts
+          DesktopShell#1  [effective]
         shell.sidebar
           DesktopShell#1  [effective]
         usage.presentation
@@ -127,6 +129,7 @@ system
         assets  [effective, assets-ui#1]
         settings  [effective, assets-ui#1]
         usage  [effective, usage-ui#1]
+      shell.parts  [keyed-one]
       shell.sidebar  [list, build]
         session-list  [effective, session-ui#1]
         archived-sessions  [effective, session-ui#1]
