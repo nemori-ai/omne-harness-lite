@@ -59,4 +59,13 @@ describe('桥的消息带着页面一侧的契约修订号', () => {
       expect(readObserve(observe)).toBeUndefined()
     },
   )
+
+  it('a message with no body, or an observation with no opening, is not a message, though the rest is right', () => {
+    const call =
+      '{"protocol":{"name":"notes","major":1},"operation":"read","messageId":"m-1","revision":2}'
+    const observe =
+      '{"protocol":{"name":"notes","major":1},"observation":"watch","messageId":"m-1","revision":2}'
+    expect(readCall(call)).toBeUndefined()
+    expect(readObserve(observe)).toBeUndefined()
+  })
 })

@@ -3,6 +3,7 @@ import {
   defineProtocol,
   ruleCodec,
   type FieldRule,
+  type ObservationContract,
   type OperationContract,
   type ProtocolContract,
   type Rule,
@@ -25,6 +26,7 @@ type Shape = Readonly<{
   operations?: Record<string, Partial<OperationContract>>
   ends?: readonly string[]
   identity?: OperationContract['identity']
+  watch?: Partial<ObservationContract>
 }>
 
 /** `notes/v1` with a few things a later build could change. */
@@ -50,7 +52,13 @@ function notes(shape: Shape = {}): ProtocolContract {
     Object.entries(shape.operations ?? {}).map(([name, extra]) => [name, { ...read, ...extra }]),
   )
   const observations = {
-    watch: { identity: 'login', open: empty, frame: note, ends: shape.ends ?? ['gone'] },
+    watch: {
+      identity: 'login',
+      open: empty,
+      frame: note,
+      ends: shape.ends ?? ['gone'],
+      ...shape.watch,
+    },
   }
   const protocol = { name: 'notes', major: 1, operations: { read, ...more }, observations }
   return defineProtocol(protocol as never) as unknown as ProtocolContract
@@ -87,6 +95,29 @@ describe('the first snapshot', () => {
       },
       observations: { watch: { identity: 'login', ends: ['gone'] } },
     })
+  })
+
+  it('writes a flag only where it is set, and the since of an operation and an observation', async () => {
+    const bare = await recorded(notes({ operations: { pin: {} } }))
+    const plain = bare.rules as {
+      operations: Record<string, object>
+      observations: Record<string, object>
+    }
+    for (const key of ['carriesCredential', 'countsAsAccess', 'since'])
+      expect(plain.operations['pin']).not.toHaveProperty(key)
+    for (const key of ['limit', 'countsAsAccess', 'since'])
+      expect(plain.observations['watch']).not.toHaveProperty(key)
+    const set = await recorded(
+      notes({
+        operations: { pin: { carriesCredential: true, countsAsAccess: true, since: 2 } },
+        watch: { limit: 'small', countsAsAccess: true, since: 3 },
+      }),
+    )
+    expect(set.rules).toMatchObject({
+      operations: { pin: { carriesCredential: true, countsAsAccess: true, since: 2 } },
+      observations: { watch: { limit: 'small', countsAsAccess: true, since: 3 } },
+    })
+    expect(set.revision).toBe(3)
   })
 
   it('is the same whatever order the rules were written in', async () => {
@@ -172,6 +203,32 @@ describe('a change that breaks: a published revision no longer reads as recorded
       [2],
     ],
     ['another identity', {}, { identity: 'acting-tenant' }, [1]],
+    [
+      'an operation that starts to carry a credential',
+      { operations: { pin: {} } },
+      { operations: { pin: { carriesCredential: true } } },
+      [1],
+    ],
+    [
+      'an operation that stops counting as access',
+      { operations: { pin: { countsAsAccess: true } } },
+      { operations: { pin: {} } },
+      [1],
+    ],
+    ['an observation given a limit', {}, { watch: { limit: 'small' } }, [1]],
+    [
+      'an observation with another limit',
+      { watch: { limit: 'small' } },
+      { watch: { limit: 'input' } },
+      [1],
+    ],
+    ['an observation that starts to count as access', {}, { watch: { countsAsAccess: true } }, [1]],
+    [
+      'an operation made to have come earlier',
+      { fields: tag, operations: { pin: { since: 2 } } },
+      { fields: tag, operations: { pin: {} } },
+      [1],
+    ],
   ]
 
   it.each(cases)('%s', async (_name, before, after, revisions) => {
@@ -216,7 +273,7 @@ describe('a change that breaks: a published revision no longer reads as recorded
 })
 
 describe('what is not a snapshot of this protocol', () => {
-  it.each([
+  const notSnapshots: readonly (readonly [string, unknown])[] = [
     ['not an object', 'x'],
     [
       'another name',
@@ -224,11 +281,26 @@ describe('what is not a snapshot of this protocol', () => {
     ],
     ['no digests', { name: 'notes', major: 1, revision: 1, rules: {} }],
     ['no revision', { name: 'notes', major: 1, rules: {}, digests: { '1': 'sha256:0' } }],
+    ['another major', { name: 'notes', major: 2, revision: 1, rules: {}, digests: { '1': 'x' } }],
+    ['digests that are null', { name: 'notes', major: 1, revision: 1, rules: {}, digests: null }],
+    [
+      'a digest that is not text',
+      { name: 'notes', major: 1, revision: 1, rules: {}, digests: { '1': 5 } },
+    ],
+    ...['0', '01', '1x', 'x1', 'one'].map(
+      key =>
+        [
+          `a digest under the key ${key}`,
+          { name: 'notes', major: 1, revision: 1, rules: {}, digests: { '1': 'x', [key]: 'x' } },
+        ] as const,
+    ),
     [
       'a revision that is not one',
       { name: 'notes', major: 1, revision: 0, rules: {}, digests: {} },
     ],
-  ])('%s', async (_name, value) => {
+  ]
+
+  it.each(notSnapshots)('%s', async (_name, value) => {
     expect(await snapshotProblems(notes(), value)).toEqual([
       'notes/v1: the file is not a snapshot of this protocol',
     ])
@@ -250,6 +322,45 @@ describe('what is not a snapshot of this protocol', () => {
     expect(await snapshotProblems(bare, await recorded(protocol))).toEqual([
       'notes/v1: the body of read was not built by ruleCodec, so its rules cannot be recorded',
     ])
+  })
+
+  it('names the part that was written by hand, and neither checks nor records the protocol', async () => {
+    const protocol = notes()
+    const read = protocol.operations['read'] as OperationContract
+    const watch = protocol.observations['watch'] as ObservationContract
+    const handmade = { read: () => ({ ok: false }), write: () => ({ ok: false }) } as never
+    const cases: readonly (readonly [string, ProtocolContract])[] = [
+      [
+        'the outcome succeeded of read',
+        {
+          ...protocol,
+          operations: { read: { ...read, outcomes: { ...read.outcomes, succeeded: handmade } } },
+        } as ProtocolContract,
+      ],
+      [
+        'the opening of watch',
+        { ...protocol, observations: { watch: { ...watch, open: handmade } } },
+      ],
+      [
+        'the frame of watch',
+        { ...protocol, observations: { watch: { ...watch, frame: handmade } } },
+      ],
+    ]
+    for (const [part, bare] of cases) {
+      const problem = `notes/v1: ${part} was not built by ruleCodec, so its rules cannot be recorded`
+      expect(await snapshotProblems(bare, await recorded(protocol))).toEqual([problem])
+      expect(await nextSnapshot(bare, undefined)).toEqual({ ok: false, problems: [problem] })
+    }
+  })
+
+  it('does not record over a file that is not a snapshot of this protocol', async () => {
+    expect(await nextSnapshot(notes(), 'x')).toEqual({
+      ok: false,
+      problems: ['notes/v1: the file is not a snapshot of this protocol'],
+    })
+    expect(
+      await nextSnapshot(notes(), { name: 'other', major: 1, revision: 1, digests: {} }),
+    ).toEqual({ ok: false, problems: ['notes/v1: the file is not a snapshot of this protocol'] })
   })
 })
 
