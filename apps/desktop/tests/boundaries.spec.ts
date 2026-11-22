@@ -39,8 +39,8 @@ function membersOutside(groups: readonly string[]): ReadonlySet<string> {
   )
 }
 
-const OUTSIDE_SHELL = membersOutside(['frontend', 'access'])
-const DOMAIN_MEMBERS = membersOutside(['frontend', 'access', 'common', 'util'])
+const OUTSIDE_SHELL = membersOutside(['frontend', 'access', 'dynamis'])
+const DOMAIN_MEMBERS = membersOutside(['frontend', 'access', 'common', 'util', 'dynamis'])
 
 const memberOf = (specifier: string): string =>
   specifier
@@ -154,5 +154,7 @@ describe('边界', () => {
     expect(DOMAIN_MEMBERS.has('@omne-harness/json-text')).toBe(false)
     expect(OUTSIDE_SHELL.has('@omne-harness/json-text')).toBe(true)
     expect(OUTSIDE_SHELL.has('@omne-harness/ui-kit')).toBe(false)
+    expect(OUTSIDE_SHELL.has('@omne-harness/dynamis-cordis')).toBe(false)
+    expect(DOMAIN_MEMBERS.has('@omne-harness/dynamis')).toBe(false)
   })
 })

@@ -96,12 +96,15 @@ function useWide(): boolean {
   )
 }
 
+const ownerOf = (owners: readonly object[] = []): object | undefined =>
+  owners.length === 1 ? owners[0] : undefined
+
 /** The modules' reports merged (R4-1): the module whose page is on show is in front. */
 function useFigure(state: ShellState, pages: readonly PageItem[], shown: string | undefined) {
   const [, changed] = useReducer((count: number) => count + 1, 0)
   useEffect(() => state.figure.subscribe(changed), [state.figure])
   return state.figure.merged({
-    foreground: shown === undefined ? undefined : state.pageOwners.get(shown),
+    foreground: shown === undefined ? undefined : ownerOf(state.pageOwners.get(shown)),
     pages: pages.map(page => page.id),
   })
 }

@@ -9,7 +9,7 @@ import { createHumanInterventionUiModule } from '../src/cordis.ts'
 import { page, questionItem } from './fixtures/cards.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
-import { startShell } from './fixtures/reference-shell.ts'
+import { startShell as startBare } from './fixtures/reference-shell.ts'
 
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
@@ -17,12 +17,19 @@ const SERVICE = protocolServiceName({
   name: humanInterventionProtocol.name,
   major: humanInterventionProtocol.major,
 })
-const ANCHOR = 'session-transcript'
+const ANCHOR = 'session.transcript'
 const SESSION = 'ses_0123456789abcdef'
 const dock = definePoint<{ readonly session: string }>({
   name: ANCHOR,
   subject: { encode: value => value.session, decode: text => ({ session: text }) },
 })
+
+/** The host of these points is not on this tree: the case stands in for it and declares them. */
+async function startShell() {
+  const started = await startBare()
+  for (const point of [dock]) point.declare(started.shell)
+  return started
+}
 
 beforeAll(stubAnimation)
 

@@ -1,7 +1,7 @@
 import { Context, type Plugin } from '@deepseek-ai/cordis'
 import { empty, type Instance, type Registry } from '@omne-harness/dynamis'
-import { describe, expect, it } from 'vitest'
-import { DynamisService } from '../src/cordis.ts'
+import { describe, expect, it, vi } from 'vitest'
+import { DynamisRefused, DynamisService } from '../src/cordis.ts'
 import { entry } from './support.ts'
 
 const a1 = entry('host.list', 'k', { id: 'a1' })
@@ -136,7 +136,9 @@ describe('服务 dynamis（DC-1、DC-2、DC-3）', () => {
         }
       }),
     )
-    expect(refused).toBeInstanceOf(Error)
+    expect(refused).toBeInstanceOf(DynamisRefused)
+    expect((refused as DynamisRefused).reason).toBe('held')
+    expect((refused as DynamisRefused).name).toBe('DynamisRefused')
     expect((refused as Error).message).toContain('two entries of this instance at one spot')
     expect(ids(dynamis.registry())).toEqual(['a1'])
     expect(seen).toHaveLength(1)
@@ -159,6 +161,15 @@ describe('服务 dynamis（DC-1、DC-2、DC-3）', () => {
     held?.dynamis.put([a2])
     expect(ids(dynamis.registry())).toEqual(['a1', 'a2'])
     expect(holders(dynamis.registry())).toEqual(['mod#1'])
+    expect(seen).toHaveLength(1)
+  })
+
+  it('就绪之后才第一次放：没有座位也立刻在位', async () => {
+    const { ctx, dynamis, seen } = await tree()
+    let held: Context | undefined
+    await ctx.plugin(mod('mod', inner => void (held = inner)))
+    held?.dynamis.put([a1])
+    expect(ids(dynamis.registry())).toEqual(['a1'])
     expect(seen).toHaveLength(1)
   })
 
@@ -213,8 +224,10 @@ describe('服务 dynamis（DC-1、DC-2、DC-3）', () => {
     ctx.on('dynamis-cordis/changed', () => {
       throw new Error('listener')
     })
+    const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation(() => undefined)
     await ctx.plugin(mod('mod', inner => void inner.dynamis.put([a1])))
     expect(ids(dynamis.registry())).toEqual(['a1'])
+    expect(warn).toHaveBeenCalledWith('dynamis: a listener of dynamis-cordis/changed threw')
   })
 
   it('已经开始卸载的 fiber 放不进去', async () => {

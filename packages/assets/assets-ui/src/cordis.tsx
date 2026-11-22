@@ -24,6 +24,7 @@ export const assetsUiModule = defineUiModule<Record<string, ClientOf<AssetsProto
   name: 'assets-ui',
   inject: [ASSETS],
   apply(shell, services, provide) {
+    for (const point of [assetsCategoryPage, assetsCategory, assetsHolding]) point.declare(shell)
     const client = services[ASSETS]!
     const governance = createGovernance({ client })
     const categoryNames = createCategoryNames(client)

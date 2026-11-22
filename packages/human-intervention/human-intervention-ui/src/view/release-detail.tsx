@@ -34,6 +34,8 @@ function Drawn({ draw }: Readonly<{ draw: () => ReactNode }>): ReactNode {
   return draw()
 }
 
+export const declareReleaseDetail = point.declare
+
 // A tool's own UI draws the typed value under its kind; whatever it throws, the card draws the rows.
 export const releaseDetail: KeyedPointSink<string> = {
   name: point.name,

@@ -1,4 +1,3 @@
-export { createSlotStore, type SlotStore } from './slot-store.ts'
 export {
   createFigureStore,
   type FigureBoard,
@@ -22,15 +21,18 @@ export {
   type ToastTone,
 } from './toast-store.ts'
 export { ShellAssemblyError, slots } from './slots.ts'
+export { shellContracts } from './placement.ts'
 export { defineKeyedPoint, definePoint } from './point.ts'
 export { serviceKey, serviceOf, type ServiceKey } from './service-key.ts'
 export type {
+  Declared,
   KeyedPoint,
   KeyedPointSink,
   Point,
   PointCodec,
   PointContributor,
   PointDeclaration,
+  PointDeclarer,
   PointHost,
   PointItem,
   PointProps,
@@ -50,6 +52,7 @@ export type {
   ShellAssemblyReason,
   ShellSlots,
   SidebarItem,
+  SlotConflict,
   SlotItems,
   SlotName,
 } from './slots.ts'

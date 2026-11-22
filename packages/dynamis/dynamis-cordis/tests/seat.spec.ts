@@ -28,6 +28,7 @@ describe('座位的全化表（DC-1）', () => {
       const outcome = put(noSeats, 'f1', 'mod', [bad])
       expect(outcome).toEqual({
         kind: 'refused',
+        reason: 'invalid',
         detail: '"not a point" is not a point name <host>.<name>',
       })
     })
@@ -36,6 +37,7 @@ describe('座位的全化表（DC-1）', () => {
       const outcome = put(noSeats, 'f1', 'mod', [a1, a1])
       expect(outcome).toEqual({
         kind: 'refused',
+        reason: 'invalid',
         detail: 'host.list holds two entries of this instance at one spot',
       })
     })
@@ -43,6 +45,7 @@ describe('座位的全化表（DC-1）', () => {
     it('放一批（名字为空）：拒绝', () => {
       expect(put(noSeats, 'f1', '', [a1])).toEqual({
         kind: 'refused',
+        reason: 'invalid',
         detail: 'the fiber name is empty',
       })
     })
@@ -82,6 +85,7 @@ describe('座位的全化表（DC-1）', () => {
       const { seats } = staged()
       expect(put(seats, 'f1', 'mod', [a1])).toEqual({
         kind: 'refused',
+        reason: 'held',
         detail: 'host.list holds two entries of this instance at one spot',
       })
     })
@@ -134,8 +138,8 @@ describe('座位的全化表（DC-1）', () => {
 
     it('放一批（不合法）：拒绝，登记表照旧', () => {
       const { seats } = seated()
-      expect(put(seats, 'f1', 'mod', [bad]).kind).toBe('refused')
-      expect(put(seats, 'f1', 'mod', [a1]).kind).toBe('refused')
+      expect(put(seats, 'f1', 'mod', [bad])).toMatchObject({ kind: 'refused', reason: 'invalid' })
+      expect(put(seats, 'f1', 'mod', [a1])).toMatchObject({ kind: 'refused', reason: 'held' })
     })
 
     it('撤一批：去掉这一批，剩下的重装', () => {

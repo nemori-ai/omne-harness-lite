@@ -12,6 +12,11 @@ export type Made = readonly Entry[] | ((instance: Instance) => readonly Entry[])
 /** A batch that was not taken: an entry is not valid, or the caller holds this spot already. */
 export class DynamisRefused extends Error {
   override readonly name = 'DynamisRefused'
+  readonly reason: 'invalid' | 'held'
+  constructor(reason: 'invalid' | 'held', detail: string) {
+    super(detail)
+    this.reason = reason
+  }
 }
 
 /** @owner packages/dynamis/dynamis-cordis */
@@ -41,7 +46,7 @@ export class DynamisService extends Service {
     const entries =
       typeof made === 'function' ? made(instanceFor(this.seats, key, fiber.name)) : made
     const outcome = put(this.seats, key, fiber.name, entries)
-    if (outcome.kind === 'refused') throw new DynamisRefused(outcome.detail)
+    if (outcome.kind === 'refused') throw new DynamisRefused(outcome.reason, outcome.detail)
     return fiber.effect(() => {
       this.commit((fiber.state as number) === ACTIVE ? ready(outcome.seats, key) : outcome.seats)
       return () => this.commit(drop(this.seats, key, outcome.batch))

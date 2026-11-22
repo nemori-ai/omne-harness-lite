@@ -482,6 +482,12 @@ importers:
       '@omne-harness/client-assembly':
         specifier: workspace:*
         version: link:../../packages/access/client-assembly
+      '@omne-harness/dynamis':
+        specifier: workspace:*
+        version: link:../../packages/dynamis/dynamis
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../packages/dynamis/dynamis-cordis
       '@omne-harness/human-intervention-protocol':
         specifier: workspace:*
         version: link:../../packages/human-intervention/human-intervention-protocol
@@ -3005,6 +3011,12 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.1.0
+      '@omne-harness/dynamis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
       '@types/react':
         specifier: 'catalog:'
         version: 19.3.0

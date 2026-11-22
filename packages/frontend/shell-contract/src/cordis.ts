@@ -1,30 +1,105 @@
 import { CordisError, Service, type Context, type Plugin } from '@deepseek-ai/cordis'
+import { declare, type Contract, type Registry } from '@omne-harness/dynamis'
+import { DynamisRefused, type Made } from '@omne-harness/dynamis-cordis/cordis'
 import type { ReactNode } from 'react'
 import type { FigureBoard, FigureReport } from './figure-store.ts'
 import type { ScopeSource, ShellLogin } from './host.ts'
 import type { ServiceKey } from './service-key.ts'
-import type { AttachedLayout, ItemOf, SlotName } from './slots.ts'
+import { entryOf, sameView, shellContracts, viewOf, type SlotView } from './placement.ts'
+import {
+  ShellAssemblyError,
+  slots,
+  type AttachedLayout,
+  type ItemOf,
+  type ShellSlots,
+  type SlotConflict,
+  type SlotName,
+} from './slots.ts'
 import type { Toast, ToastBoard } from './toast-store.ts'
 
 type Withdrawing = Readonly<{ withdraw(owner: object): void }>
 
 const NO_PAGE = { get: () => undefined, subscribe: () => () => undefined }
 
+const SLOT_NAMES = Object.keys(slots) as SlotName[]
+
+type Watcher = Readonly<{ slot: SlotName; listener: () => void }>
+
 /** @owner packages/frontend/shell-contract */
-export abstract class ShellService extends Service {
+export abstract class ShellService extends Service implements ShellSlots {
   static readonly provide = 'shell'
+  static readonly inject = ['dynamis']
   abstract readonly login: ShellLogin
   abstract readonly scope: ScopeSource
   /** The callers whose scope already carries the take-down of their toasts, and of their report. */
   private readonly toastCallers = new WeakSet<object>()
   private readonly figureCallers = new WeakSet<object>()
 
+  private readonly registry: () => Registry
+  private readonly views = new Map<SlotName, SlotView>()
+  private readonly watchers = new Set<Watcher>()
+  private seen: Registry
+
   constructor(ctx: Context) {
     super(ctx, ShellService.provide)
+    const { dynamis } = ctx
+    this.registry = () => dynamis.registry()
+    this.seen = this.registry()
+    for (const slot of SLOT_NAMES) this.views.set(slot, viewOf(this.seen, slot))
+    dynamis.put(shellContracts.map(contract => declare(contract)))
+    ctx.on('dynamis-cordis/changed', registry => this.follow(registry))
   }
 
   contribute<K extends SlotName>(slot: K, item: ItemOf<K>): void {
-    this.ctx.effect(() => this.place(slot, item), 'shell.contribute')
+    this.put(slot, item.id, instance => [entryOf(slot, item, instance)])
+  }
+
+  declare(contract: Contract): void {
+    this.put('attached', contract.name, [declare(contract)])
+  }
+
+  items<K extends SlotName>(slot: K): readonly ItemOf<K>[] {
+    return (this.view(slot) as SlotView<K>).items
+  }
+
+  conflicts(slot: SlotName): readonly SlotConflict[] {
+    return this.view(slot).conflicts
+  }
+
+  subscribe(slot: SlotName, listener: () => void): () => void {
+    const watcher = { slot, listener }
+    this.watchers.add(watcher)
+    return () => void this.watchers.delete(watcher)
+  }
+
+  private put(slot: SlotName, id: string, made: Made): void {
+    try {
+      this.ctx.dynamis.put(made)
+    } catch (error) {
+      if (!(error instanceof DynamisRefused)) throw error
+      const reason = error.reason === 'held' ? 'duplicate' : 'invalid'
+      throw new ShellAssemblyError(slot, id, reason, error.message)
+    }
+  }
+
+  private view(slot: SlotName): SlotView {
+    const held = this.views.get(slot) as SlotView
+    const registry = this.registry()
+    if (registry === this.seen) return held
+    const fresh = viewOf(registry, slot)
+    return sameView(held, fresh) ? held : fresh
+  }
+
+  private follow(registry: Registry): void {
+    const changed = SLOT_NAMES.filter(slot => {
+      const fresh = viewOf(registry, slot)
+      if (sameView(this.views.get(slot) as SlotView, fresh)) return false
+      this.views.set(slot, fresh)
+      return true
+    })
+    this.seen = registry
+    for (const watcher of Array.from(this.watchers))
+      if (changed.includes(watcher.slot)) watcher.listener()
   }
 
   /** Best effort and without a result: a toast shown is not a toast a person saw. */
@@ -88,8 +163,6 @@ export abstract class ShellService extends Service {
   abstract attached(anchor: string, subject: string): ReactNode
 
   abstract arranged(anchor: string, subject: string, layout: AttachedLayout): ReactNode
-
-  protected abstract place<K extends SlotName>(slot: K, item: ItemOf<K>): () => void
 
   /** A shell that draws toasts gives its board here; without one a toast is dropped. */
   protected toasts(): ToastBoard | undefined {

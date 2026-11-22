@@ -17,6 +17,11 @@
       "source": "./src/cordis.ts",
       "types": "./dist/cordis.d.ts",
       "import": "./dist/cordis.js"
+    },
+    "./testing": {
+      "source": "./src/testing.ts",
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js"
     }
   },
   "files": [
@@ -31,6 +36,8 @@
   },
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/dynamis": "workspace:*",
+    "@omne-harness/dynamis-cordis": "workspace:*",
     "@types/react": "catalog:"
   },
   "devDependencies": {

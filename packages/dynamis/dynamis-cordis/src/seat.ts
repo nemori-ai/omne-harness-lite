@@ -25,7 +25,7 @@ export type Seats = Readonly<{
 
 export type Put =
   | Readonly<{ kind: 'put'; seats: Seats; batch: number }>
-  | Readonly<{ kind: 'refused'; detail: string }>
+  | Readonly<{ kind: 'refused'; reason: 'invalid' | 'held'; detail: string }>
 
 export const noSeats: Seats = Object.freeze({
   seats: Object.freeze([]),
@@ -84,16 +84,14 @@ function withoutSeat(seats: Seats, seat: Seat): Seats {
 
 /** Add one batch to the seat of a fiber, opening the seat when there is none. */
 export function put(seats: Seats, fiber: string, name: string, entries: readonly Entry[]): Put {
-  const seat = seatOf(seats, fiber) ?? {
-    fiber,
-    instance: instanceFor(seats, fiber, name),
-    seated: false,
-    batches: [],
-  }
+  const instance = instanceFor(seats, fiber, name)
+  const alone = install(empty, instance, entries)
+  if (alone.kind === 'refused') return { kind: 'refused', reason: 'invalid', detail: alone.detail }
+  const seat = seatOf(seats, fiber) ?? { fiber, instance, seated: false, batches: [] }
   const id = seats.batches + 1
   const next = { ...seat, batches: [...seat.batches, { id, entries: [...entries] }] }
-  const fit = install(next.seated ? seats.registry : empty, next.instance, entriesOf(next))
-  if (fit.kind === 'refused') return { kind: 'refused', detail: fit.detail }
+  const fit = install(next.seated ? seats.registry : empty, instance, entriesOf(next))
+  if (fit.kind === 'refused') return { kind: 'refused', reason: 'held', detail: fit.detail }
   const registry = next.seated ? fit.registry : seats.registry
   return { kind: 'put', seats: withSeat(seats, next, registry, id), batch: id }
 }

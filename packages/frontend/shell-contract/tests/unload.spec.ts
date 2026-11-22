@@ -13,7 +13,7 @@ describe('unloading the caller', () => {
       apply(ctx: Context) {
         ctx.shell.contribute('pages', page('a'))
         ctx.shell.contribute('sidebar', { id: 'a', order: 0, render })
-        ctx.shell.contribute('attached', { id: 'a', order: 0, anchor: 'x', render })
+        ctx.shell.contribute('attached', { id: 'a', order: 0, anchor: 'test.x', render })
       },
     })
     await first
@@ -22,7 +22,7 @@ describe('unloading the caller', () => {
       inject: ['shell'],
       apply(ctx: Context) {
         ctx.shell.contribute('pages', page('b'))
-        ctx.shell.contribute('attached', { id: 'b', order: 1, anchor: 'x', render })
+        ctx.shell.contribute('attached', { id: 'b', order: 1, anchor: 'test.x', render })
       },
     })
     expect(shell.items('pages').map(item => item.id)).toEqual(['a', 'b'])
