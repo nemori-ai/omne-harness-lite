@@ -1,5 +1,5 @@
-import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
 import type { ClientOf } from '@omne-harness/sdk/core'
+import { needProtocol } from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import { usageProtocol, type UsageProtocol } from '@omne-harness/usage-protocol'
 import { ianaZoneOf } from './model/range.ts'
@@ -7,20 +7,18 @@ import { contributeUsage, type UsageUiOptions } from './places.tsx'
 import { usagePresentation, usageWidget } from './points.ts'
 import { createUsageReads } from './view/reads.ts'
 
-export const USAGE = protocolServiceName({ name: usageProtocol.name, major: usageProtocol.major })
-
 const localZone = (): string => ianaZoneOf(Intl.DateTimeFormat().resolvedOptions().timeZone)
 
 type UiModule = ReturnType<typeof defineUiModule>
 
 export function createUsageUiModule(options: UsageUiOptions = {}): UiModule {
-  return defineUiModule<Record<string, ClientOf<UsageProtocol>>>({
+  return defineUiModule({
     name: 'usage-ui',
-    inject: [USAGE],
-    apply(shell, services) {
+    needs: { usage: needProtocol<ClientOf<UsageProtocol>>(usageProtocol) },
+    apply(shell, { usage }) {
       usageWidget.declare(shell)
       usagePresentation.declare(shell)
-      const reads = createUsageReads(services[USAGE]!, options.zone ?? localZone)
+      const reads = createUsageReads(usage, options.zone ?? localZone)
       contributeUsage(shell, reads, options)
     },
   })

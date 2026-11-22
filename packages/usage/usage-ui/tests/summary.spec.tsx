@@ -1,6 +1,8 @@
 // @vitest-environment happy-dom
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { serveProtocol } from '@omne-harness/shell-contract/testing'
+import { usageProtocol } from '@omne-harness/usage-protocol'
 import {
   createUsageUiModule,
   memoryLayoutStore,
@@ -28,8 +30,9 @@ async function summaryOf(
   const { root, shell } = await startShell()
   shell.tenant = TENANT
   const answer = { ...result(['source']), total, groups }
-  root.reflect.provide(
-    'protocol:usage/v1',
+  await serveProtocol(
+    root,
+    usageProtocol,
     fakeUsage(() => ({ outcome: 'succeeded', body: answer })).client,
   )
   const store = memoryLayoutStore({

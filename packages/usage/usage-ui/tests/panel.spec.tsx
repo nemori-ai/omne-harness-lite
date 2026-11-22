@@ -4,6 +4,8 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { ShellAssemblyError } from '@omne-harness/shell-contract'
 import { encodeInstant, type Instant } from '@omne-harness/utc-instant'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { serveProtocol } from '@omne-harness/shell-contract/testing'
+import { usageProtocol } from '@omne-harness/usage-protocol'
 import {
   createUsageUiModule,
   memoryLayoutStore,
@@ -19,7 +21,6 @@ import { startShell } from './fixtures/reference-shell.tsx'
 beforeAll(stubDom)
 afterEach(cleanup)
 
-const SERVICE = 'protocol:usage/v1'
 const settle = () =>
   act(async () => {
     for (let round = 0; round < 5; round += 1) await Promise.resolve()
@@ -34,7 +35,7 @@ async function page(
   const { root, shell } = await startShell()
   shell.tenant = TENANT
   const fake = fakeUsage(answer)
-  root.reflect.provide(SERVICE, fake.client)
+  await serveProtocol(root, usageProtocol, fake.client)
   const store = options.store ?? memoryLayoutStore()
   await root.plugin(createUsageUiModule({ ...options, store }))
   if (extra !== undefined) await root.plugin({ name: 'extra', inject: ['shell'], apply: extra })

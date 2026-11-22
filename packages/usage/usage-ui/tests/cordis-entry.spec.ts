@@ -4,7 +4,6 @@ it('the cordis entry gives the module factory, the example module, the two point
   const cordis = (await import('../src/cordis.tsx')) as Record<string, unknown>
   expect(Object.keys(cordis).sort()).toEqual(
     [
-      'USAGE',
       'USAGE_IN_SESSION',
       'USAGE_PAGE',
       'USAGE_PRESENTATION',
