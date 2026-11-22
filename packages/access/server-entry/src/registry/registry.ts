@@ -5,10 +5,11 @@ import {
   type OperationHandler,
   type ProtocolKey,
 } from '@omne-harness/access-cordis-contract'
-import type {
-  ObservationContract,
-  OperationContract,
-  ProtocolContract,
+import {
+  revisionOf,
+  type ObservationContract,
+  type OperationContract,
+  type ProtocolContract,
 } from '@omne-harness/public-contract'
 
 export type Entered = {
@@ -23,6 +24,8 @@ export type Entered = {
         readonly contract: ObservationContract
         readonly source: FrameSource<any>
       }
+  /** The revision of the protocol the member belongs to. */
+  readonly revision: number
   readonly signal: AbortSignal
   readonly leave: () => void
 }
@@ -30,6 +33,7 @@ export type Entered = {
 type Generation = {
   readonly key: ProtocolKey
   readonly contribution: AccessContribution<ProtocolContract>
+  readonly revision: number
   readonly controller: AbortController
   readonly inFlight: Set<symbol>
   drain?: { readonly promise: Promise<void>; readonly resolve: () => void }
@@ -132,6 +136,7 @@ export function createAccessRegistry(options: AccessRegistryOptions = {}): Acces
     const generation: Generation = {
       key,
       contribution,
+      revision: revisionOf(contribution.protocol),
       controller: new AbortController(),
       inFlight: new Set(),
     }
@@ -149,6 +154,7 @@ export function createAccessRegistry(options: AccessRegistryOptions = {}): Acces
     generation.inFlight.add(token)
     return {
       member,
+      revision: generation.revision,
       signal: generation.controller.signal,
       leave: () => {
         if (!generation.inFlight.delete(token)) return

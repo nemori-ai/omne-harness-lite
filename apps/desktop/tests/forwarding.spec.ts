@@ -224,6 +224,16 @@ describe('登录 cookie', () => {
     }
   })
 
+  it('页面一侧的契约修订号随桥的消息到转发层，再随请求到服务端；没带的不带', async () => {
+    const { page, server } = start()
+    await page.login()
+    await page.json('/bridge/call', { ...CALL, revision: 3 })
+    await page.json('/bridge/call', CALL)
+    const carried = server.seen.filter(item => item.target === 'session/v1 read-history')
+    expect(carried.map(item => item.revision)).toEqual([3, undefined])
+    expect((await page.post('/bridge/call', { ...CALL, revision: 0 })).status).toBe(400)
+  })
+
   it('转发层不记登录：同一枚 cookie 交给另一个新建的转发层，答复相同', async () => {
     const { page, server } = start()
     await page.login()

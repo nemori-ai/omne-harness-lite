@@ -37,6 +37,8 @@ export type HubOpen = Readonly<{
   source: FrameSource<ObservationContract>
   principal: unknown
   messageId: string
+  /** The revision every frame is written at: the lesser of the protocol's and the caller's. */
+  revision?: number
   open: unknown
   key: string
   loginKey?: string
@@ -168,7 +170,7 @@ export function createObservationHub(settings: HubSettings): ObservationHub {
     stream: SseStream,
     frame: unknown,
   ): boolean {
-    const written = input.contract.frame.write(frame, settings.writeLimits)
+    const written = input.contract.frame.write(frame, settings.writeLimits, input.revision)
     if (!written.ok) {
       input.note('access.frame-rejected')
       claim.end('unavailable')

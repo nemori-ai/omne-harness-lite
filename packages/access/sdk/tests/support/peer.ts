@@ -24,8 +24,9 @@ export type Peer = {
   readonly kill: () => Promise<void>
 }
 
-export async function startPeer(): Promise<Peer> {
-  const child: ChildProcess = spawn(process.execPath, ['--conditions=source', script], {
+/** `flags` go to the peer script: `--drafts` also mounts `drafts/v1` at revision 2. */
+export async function startPeer(flags: readonly string[] = []): Promise<Peer> {
+  const child: ChildProcess = spawn(process.execPath, ['--conditions=source', script, ...flags], {
     stdio: ['pipe', 'pipe', 'inherit'],
   })
   const events: unknown[] = []
