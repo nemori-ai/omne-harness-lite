@@ -382,14 +382,21 @@ describe('a cancel checks each foreground producer on the stop the Agent made fo
     names?: string
     settledAt?: string
     model?: true
+    intent?: ControlProgress['intent']
+    origin?: string
   }>
+
+  const STOPPED = { command: 'withdraw-tool', reached: ['accepted', 'physically-stopped'] } as const
 
   function decideCancel(stop: Stop) {
     const producer = stop.model ? MODEL : TOOL
     const progress: ControlProgress = {
       operation: OPERATION,
       target: { kind: 'run', run: RUN },
-      intent: { kind: 'control', value: { kind: 'cancel-run', run: RUN, urgency: 'force' } },
+      intent: stop.intent ?? {
+        kind: 'control',
+        value: { kind: 'cancel-run', run: RUN, urgency: 'force' },
+      },
       state: 'propagating',
       pending: [producer],
       pendingUnassociatedWaiting: [],
@@ -417,7 +424,7 @@ describe('a cancel checks each foreground producer on the stop the Agent made fo
           started: evidence('attempt-started'),
         },
       ],
-      origins: [{ operation: OPERATION, execution: EXECUTION }],
+      origins: [{ operation: OPERATION, execution: stop.origin ?? EXECUTION }],
       evidence: {
         through: '9',
         records: [
@@ -513,6 +520,32 @@ describe('a cancel checks each foreground producer on the stop the Agent made fo
     {
       name: 'the Agent made no stop for the call',
       stop: { command: null, reached: [] },
+      answer: unchanged,
+    },
+    {
+      name: 'an archive checks the producer on the same stop',
+      stop: { ...STOPPED, intent: { kind: 'control', value: { kind: 'archive' } } },
+      answer: reconciled,
+    },
+    {
+      name: 'an automatic archive checks the producer on the same stop',
+      stop: {
+        ...STOPPED,
+        intent: { kind: 'auto-archive', idleEvidence: evidence('idle') },
+      },
+      answer: reconciled,
+    },
+    {
+      name: 'the cancel was made on another execution: the stop of this one is not its answer',
+      stop: { ...STOPPED, origin: 'execution-b' },
+      answer: unchanged,
+    },
+    {
+      name: 'a control that stops one named call is not answered by the stop of another call',
+      stop: {
+        ...STOPPED,
+        intent: { kind: 'control', value: { kind: 'stop-call', producer: MODEL } as never },
+      },
       answer: unchanged,
     },
   ] as const satisfies readonly { name: string; stop: Stop; answer: unknown }[])(
