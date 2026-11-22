@@ -1,4 +1,4 @@
-import { createAccessRegistry } from '../../src/index.ts'
+import { createStandaloneRegistry } from '../../src/index.ts'
 import { send, startEntry, type HttpReply } from '../support/entry.ts'
 import {
   MESSAGE_ID,
@@ -12,7 +12,7 @@ import {
 const serve = process.argv.includes('--serve')
 const say = (line = ''): void => console.log(line)
 
-const registry = createAccessRegistry()
+const registry = createStandaloneRegistry()
 const identity = testIdentity()
 let notes = scriptedNotes()
 let takeDown = registry.mount(notes.contribution)

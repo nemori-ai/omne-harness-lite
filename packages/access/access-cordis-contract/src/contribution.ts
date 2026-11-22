@@ -65,12 +65,3 @@ export type AccessContribution<P extends ProtocolContract> = {
     readonly [K in keyof P['observations']]: FrameSource<P['observations'][K]>
   }
 }
-
-export class AccessAssemblyError extends Error {
-  readonly protocol: ProtocolKey
-  constructor(protocol: ProtocolKey) {
-    super(`protocol ${protocol.name}/v${protocol.major} is already mounted`)
-    this.name = 'AccessAssemblyError'
-    this.protocol = protocol
-  }
-}

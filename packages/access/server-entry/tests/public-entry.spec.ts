@@ -4,8 +4,8 @@ it('the public entry exports the constructor and nothing that the SPEC keeps int
   const root = (await import('@omne-harness/server-entry')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual([
     'ServerEntryConfigError',
-    'createAccessRegistry',
     'createServerEntry',
+    'createStandaloneRegistry',
     'settleCall',
     'systemClock',
   ])

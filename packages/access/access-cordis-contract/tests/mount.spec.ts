@@ -1,31 +1,58 @@
-import { Context, type Fiber } from '@deepseek-ai/cordis'
+import { Context, Service, type Fiber } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
+import type { Entry, Instance } from '@omne-harness/dynamis'
 import type { ProtocolContract } from '@omne-harness/public-contract'
-import { AccessAssemblyError, type AccessContribution } from '@omne-harness/access-cordis-contract'
+import type { AccessContribution } from '@omne-harness/access-cordis-contract'
 import { AccessRegistryService } from '@omne-harness/access-cordis-contract/cordis'
 
-class RecordingRegistry extends AccessRegistryService {
+type Drain = (instance: Instance) => Promise<void>
+
+/** Stands for the `dynamis` service: it makes the entries for the caller and keeps the drain. */
+class StubDynamis extends Service {
   readonly events: string[] = []
-  private readonly mounted = new Set<string>()
-  private drain: () => void = () => undefined
-  release(): void {
-    this.drain()
+  refuse = false
+  constructor(ctx: Context) {
+    super(ctx, 'dynamis')
   }
-  protected attach(contribution: AccessContribution<ProtocolContract>): () => Promise<void> {
+  put(made: (instance: Instance) => readonly Entry[], options: { drain: Drain }): void {
+    const fiber = this.ctx.fiber
+    if (this.refuse) throw new Error('refused by the registry')
+    const instance = { fiber: fiber.name, generation: 1 }
+    const keys = made(instance).map(entry => entry.key)
+    fiber.effect(() => {
+      this.events.push(`put ${keys.join(',')} by ${fiber.name}`)
+      return () => options.drain(instance).then(() => void this.events.push(`taken ${keys}`))
+    }, 'stub.put')
+  }
+}
+
+class RecordingRegistry extends AccessRegistryService {
+  static readonly inject = ['dynamis']
+  readonly events: string[] = []
+  private done: () => void = () => undefined
+  release(): void {
+    this.done()
+  }
+  protected entry(contribution: AccessContribution<ProtocolContract>, instance: Instance): Entry {
     const { name, major } = contribution.protocol
-    if (this.mounted.has(name)) throw new AccessAssemblyError({ name, major })
-    this.mounted.add(name)
-    this.events.push(`attach ${name}`)
-    return () => {
-      this.mounted.delete(name)
-      this.events.push(`take down ${name}`)
-      return new Promise<void>(resolve => {
-        this.drain = () => {
-          this.events.push(`drained ${name}`)
-          resolve()
-        }
-      })
+    return {
+      point: 'access.protocols',
+      key: `${name}/v${major}`,
+      id: '',
+      scope: [],
+      rank: 0,
+      digest: `${name}@${instance.fiber}`,
+      item: contribution,
     }
+  }
+  protected drained(
+    contribution: AccessContribution<ProtocolContract>,
+    instance: Instance,
+  ): Promise<void> {
+    this.events.push(`draining ${contribution.protocol.name} of ${instance.fiber}`)
+    return new Promise<void>(resolve => {
+      this.done = resolve
+    })
   }
 }
 
@@ -35,6 +62,19 @@ const contribution = (name: string) =>
     operations: {},
     observations: {},
   }) as AccessContribution<ProtocolContract>
+
+async function tree(): Promise<
+  Readonly<{ root: Context; dynamis: StubDynamis; registry: RecordingRegistry }>
+> {
+  const root = new Context()
+  await root.plugin(StubDynamis)
+  await root.plugin(RecordingRegistry)
+  return {
+    root,
+    dynamis: root.get('dynamis' as never) as unknown as StubDynamis,
+    registry: root.accessRegistry as unknown as RecordingRegistry,
+  }
+}
 
 async function plugin(root: Context, name: string): Promise<Fiber | undefined> {
   let fiber: Fiber | undefined
@@ -50,45 +90,56 @@ async function plugin(root: Context, name: string): Promise<Fiber | undefined> {
 }
 
 describe('mount', () => {
-  it('binds the take-down to the caller and the unload waits for its promise', async () => {
-    const root = new Context()
-    await root.plugin(RecordingRegistry)
-    const registry = root.accessRegistry as unknown as RecordingRegistry
+  it('puts the protocol through the dynamis service as the caller, and the unload waits for the drain', async () => {
+    const { root, dynamis, registry } = await tree()
     const fiber = await plugin(root, 'first')
-    expect(registry.events).toEqual(['attach notes'])
+    expect(dynamis.events).toEqual(['put notes/v1 by access-first'])
     let unloaded = false
     const unloading = fiber?.dispose().then(() => {
       unloaded = true
     })
     await new Promise<void>(resolve => setImmediate(resolve))
-    expect(registry.events).toEqual(['attach notes', 'take down notes'])
+    expect(registry.events).toEqual(['draining notes of access-first'])
     expect(unloaded).toBe(false)
     registry.release()
     await unloading
     expect(unloaded).toBe(true)
-    expect(registry.events).toEqual(['attach notes', 'take down notes', 'drained notes'])
+    expect(dynamis.events).toEqual(['put notes/v1 by access-first', 'taken notes/v1'])
   })
 
-  it('passes the assembly error to the caller, whose plugin fails', async () => {
-    const root = new Context()
-    await root.plugin(RecordingRegistry)
-    const registry = root.accessRegistry as unknown as RecordingRegistry
+  it('a second plugin that mounts the same protocol loads as the first did: a clash is not an error here', async () => {
+    const { root, dynamis } = await tree()
     await plugin(root, 'first')
+    const second = await plugin(root, 'second')
+    expect(second?.state).toBe(2)
+    expect(dynamis.events).toEqual([
+      'put notes/v1 by access-first',
+      'put notes/v1 by access-second',
+    ])
+  })
+
+  it('passes what the dynamis service refuses to the caller, whose plugin fails', async () => {
+    const { root, dynamis } = await tree()
+    dynamis.refuse = true
     let caught: unknown
-    root.plugin({
-      name: 'access-second',
-      inject: ['accessRegistry'],
-      apply(ctx: Context) {
-        try {
-          ctx.accessRegistry.mount(contribution('notes'))
-        } catch (error) {
-          caught = error
-          throw error
-        }
-      },
-    })
-    await new Promise<void>(resolve => setImmediate(resolve))
-    expect(caught).toBeInstanceOf(AccessAssemblyError)
-    expect(registry.events).toEqual(['attach notes'])
+    await root
+      .plugin({
+        name: 'access-first',
+        inject: ['accessRegistry'],
+        apply(ctx: Context) {
+          try {
+            ctx.accessRegistry.mount(contribution('notes'))
+          } catch (error) {
+            caught = error
+            throw error
+          }
+        },
+      })
+      .then(
+        () => undefined,
+        () => undefined,
+      )
+    expect(caught).toEqual(new Error('refused by the registry'))
+    expect(dynamis.events).toEqual([])
   })
 })

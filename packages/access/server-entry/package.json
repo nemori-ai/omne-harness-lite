@@ -33,6 +33,7 @@
     "@deepseek-ai/cordis": "catalog:",
     "@omne-harness/access-cordis-contract": "workspace:*",
     "@omne-harness/dynamis": "workspace:*",
+    "@omne-harness/dynamis-cordis": "workspace:*",
     "@omne-harness/json-text": "workspace:*",
     "@omne-harness/public-contract": "workspace:*"
   },

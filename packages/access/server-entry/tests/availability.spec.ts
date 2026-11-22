@@ -2,7 +2,8 @@ import { connect, createServer, type AddressInfo } from 'node:net'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AvailabilityFrame } from '@omne-harness/public-contract'
 import { accessContribution, availabilitySource } from '../src/availability/availability.ts'
-import { createAccessRegistry, type AccessRegistry } from '../src/registry/registry.ts'
+import { createStandaloneRegistry } from '../src/registry/desk.ts'
+import type { StandaloneRegistry as AccessRegistry } from '../src/registry/registry.ts'
 import type { SseClient } from './support/entry.ts'
 import { openStream, startEntry } from './support/entry.ts'
 import {
@@ -42,7 +43,7 @@ function registryView(registry: AccessRegistry): View {
 }
 
 function entryRegistry(backlog: number): AccessRegistry {
-  const registry = createAccessRegistry()
+  const registry = createStandaloneRegistry()
   registry.mount(accessContribution(registry, backlog))
   return registry
 }
@@ -152,7 +153,7 @@ describe('availability is a projection of the registry', () => {
 
   it('wakes only a subscriber that waits: a change while a frame is held leaves no listener fault', async () => {
     const faults: unknown[] = []
-    const registry = createAccessRegistry({ onListenerError: error => faults.push(error) })
+    const registry = createStandaloneRegistry({ onListenerError: error => faults.push(error) })
     registry.mount(accessContribution(registry, 4))
     const controller = new AbortController()
     const opened = await availabilitySource(registry, 4)(
@@ -271,7 +272,7 @@ describe('availability at the entry', () => {
     const busy = createServer()
     await new Promise<void>(resolve => busy.listen(0, '127.0.0.1', resolve))
     const port = (busy.address() as AddressInfo).port
-    const registry = createAccessRegistry()
+    const registry = createStandaloneRegistry()
     try {
       await expect(
         startEntry({

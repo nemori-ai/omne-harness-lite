@@ -1,5 +1,6 @@
 import { Context, Service } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
+import type { Entry, Instance } from '@omne-harness/dynamis'
 import { defineProtocol, ruleCodec, type ProtocolContract } from '@omne-harness/public-contract'
 import type { AccessContribution } from '@omne-harness/access-cordis-contract'
 import {
@@ -7,13 +8,40 @@ import {
   defineAccessPlugin,
 } from '@omne-harness/access-cordis-contract/cordis'
 
-class KeepingRegistry extends AccessRegistryService {
+/** Stands for the `dynamis` service: keeps what a caller put, for as long as that caller is loaded. */
+class Placing extends Service {
   readonly mounted = new Map<string, AccessContribution<ProtocolContract>>()
-  protected attach(contribution: AccessContribution<ProtocolContract>): () => Promise<void> {
-    this.mounted.set(contribution.protocol.name, contribution)
-    return async () => {
-      this.mounted.delete(contribution.protocol.name)
+  constructor(ctx: Context) {
+    super(ctx, 'dynamis')
+  }
+  put(made: (instance: Instance) => readonly Entry[]): void {
+    const fiber = this.ctx.fiber
+    const [entry] = made({ fiber: fiber.name, generation: 1 })
+    const contribution = entry?.item as AccessContribution<ProtocolContract>
+    const { name } = contribution.protocol
+    fiber.effect(() => {
+      this.mounted.set(name, contribution)
+      return () => void this.mounted.delete(name)
+    }, 'placing.put')
+  }
+}
+
+class KeepingRegistry extends AccessRegistryService {
+  static readonly inject = ['dynamis']
+  protected entry(contribution: AccessContribution<ProtocolContract>): Entry {
+    const key = `${contribution.protocol.name}/v1`
+    return {
+      point: 'access.protocols',
+      key,
+      id: '',
+      scope: [],
+      rank: 0,
+      digest: key,
+      item: contribution,
     }
+  }
+  protected drained(): Promise<void> {
+    return Promise.resolve()
   }
 }
 
@@ -69,8 +97,9 @@ const timeAccess = defineAccessPlugin({
 describe('defineAccessPlugin', () => {
   it('mounts on load, takes the service at each call, and takes down on unload', async () => {
     const root = new Context()
+    await root.plugin(Placing)
     await root.plugin(KeepingRegistry)
-    const registry = root.accessRegistry as unknown as KeepingRegistry
+    const registry = root.get('dynamis' as never) as unknown as Placing
     const call = () =>
       registry.mounted
         .get('time')

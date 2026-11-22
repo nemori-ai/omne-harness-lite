@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { AccessAssemblyError } from '@omne-harness/access-cordis-contract'
-import { createAccessRegistry } from '../src/registry/registry.ts'
+import { createStandaloneRegistry } from '../src/registry/desk.ts'
 import { NOTES, notesContribution } from './support/test-contribution.ts'
+import { mustEnter } from './support/enter.ts'
 
-async function readTitle(registry: ReturnType<typeof createAccessRegistry>): Promise<unknown> {
-  const entered = registry.enter(NOTES, 'read-note')
-  if (entered?.member.kind !== 'operation') throw new Error('read-note is not mounted')
+async function readTitle(registry: ReturnType<typeof createStandaloneRegistry>): Promise<unknown> {
+  const entered = mustEnter(registry, NOTES, 'read-note')
+  if (entered.member.kind !== 'operation') throw new Error('read-note is not an operation')
   const answer = await entered.member.handler(
     { principal: undefined, messageId: 'm', signal: entered.signal },
     { noteId: 'n-1' },
@@ -15,38 +15,47 @@ async function readTitle(registry: ReturnType<typeof createAccessRegistry>): Pro
 }
 
 describe('mount', () => {
-  it('挂上同名协议第二次报错，第一份照常答复', async () => {
-    const registry = createAccessRegistry()
-    registry.mount(notesContribution('first'))
-    expect(() => registry.mount(notesContribution('second'))).toThrow(AccessAssemblyError)
+  it('挂上同名协议第二次：两份都在，都不服务，答冲突并写明哪两家；撤掉一份，另一份立刻答复', async () => {
+    const registry = createStandaloneRegistry()
+    const takeFirst = registry.mount(notesContribution('first'))
+    registry.mount(notesContribution('second'))
+    expect(registry.enter(NOTES, 'read-note')).toEqual({
+      refused: 'conflict',
+      by: ['mount-1#1', 'mount-2#1'],
+    })
+    await takeFirst()
     expect(await readTitle(registry)).toEqual({
       outcome: 'succeeded',
-      body: { noteId: 'n-1', title: 'first' },
+      body: { noteId: 'n-1', title: 'second' },
     })
   })
 })
 
 describe('enter', () => {
   it('finds operations and observations of a mounted protocol and nothing else', () => {
-    const registry = createAccessRegistry()
-    expect(registry.enter(NOTES, 'read-note')).toBeUndefined()
+    const registry = createStandaloneRegistry()
+    expect(registry.enter(NOTES, 'read-note')).toEqual({ refused: 'not-mounted' })
     registry.mount(notesContribution('first'))
-    expect(registry.enter(NOTES, 'read-note')?.member.kind).toBe('operation')
-    expect(registry.enter(NOTES, 'watch-note')?.member.kind).toBe('observation')
-    expect(registry.enter(NOTES, 'delete-note')).toBeUndefined()
-    expect(registry.enter({ name: 'notes', major: 2 }, 'read-note')).toBeUndefined()
-    expect(registry.enter({ name: 'other', major: 1 }, 'read-note')).toBeUndefined()
+    expect(mustEnter(registry, NOTES, 'read-note').member.kind).toBe('operation')
+    expect(mustEnter(registry, NOTES, 'watch-note').member.kind).toBe('observation')
+    expect(registry.enter(NOTES, 'delete-note')).toEqual({ refused: 'not-offered' })
+    expect(registry.enter({ name: 'notes', major: 2 }, 'read-note')).toEqual({
+      refused: 'not-mounted',
+    })
+    expect(registry.enter({ name: 'other', major: 1 }, 'read-note')).toEqual({
+      refused: 'not-mounted',
+    })
   })
 
   it('does not find names that only the object prototype has', () => {
-    const registry = createAccessRegistry()
+    const registry = createStandaloneRegistry()
     registry.mount(notesContribution('first'))
     for (const name of ['toString', 'constructor', '__proto__', 'hasOwnProperty'])
-      expect(registry.enter(NOTES, name)).toBeUndefined()
+      expect(registry.enter(NOTES, name)).toEqual({ refused: 'not-offered' })
   })
 
   it('does not count a name outside the contract as in flight', async () => {
-    const registry = createAccessRegistry()
+    const registry = createStandaloneRegistry()
     const takeDown = registry.mount(notesContribution('first'))
     registry.enter(NOTES, 'delete-note')
     await expect(takeDown()).resolves.toBeUndefined()
@@ -55,20 +64,20 @@ describe('enter', () => {
 
 describe('take-down', () => {
   it('调用登记成在途之后撤下协议，中止信号被触发', () => {
-    const registry = createAccessRegistry()
+    const registry = createStandaloneRegistry()
     const takeDown = registry.mount(notesContribution('first'))
-    const entered = registry.enter(NOTES, 'save-note')
+    const entered = mustEnter(registry, NOTES, 'save-note')
     expect(entered?.signal.aborted).toBe(false)
     void takeDown()
     expect(entered?.signal.aborted).toBe(true)
-    expect(registry.enter(NOTES, 'save-note')).toBeUndefined()
+    expect(registry.enter(NOTES, 'save-note')).toEqual({ refused: 'not-mounted' })
   })
 
   it('撤下并等它完成，此时每个在途调用都已答复', async () => {
-    const registry = createAccessRegistry()
+    const registry = createStandaloneRegistry()
     const takeDown = registry.mount(notesContribution('first'))
-    const read = registry.enter(NOTES, 'read-note')
-    const save = registry.enter(NOTES, 'save-note')
+    const read = mustEnter(registry, NOTES, 'read-note')
+    const save = mustEnter(registry, NOTES, 'save-note')
     if (read === undefined || save === undefined) throw new Error('not mounted')
     const answered = { read: false, save: false }
     let done = false
@@ -88,9 +97,9 @@ describe('take-down', () => {
   })
 
   it('waits for an observation to leave as it waits for a call', async () => {
-    const registry = createAccessRegistry()
+    const registry = createStandaloneRegistry()
     const takeDown = registry.mount(notesContribution('first'))
-    const watch = registry.enter(NOTES, 'watch-note')
+    const watch = mustEnter(registry, NOTES, 'watch-note')
     let done = false
     const drained = takeDown().then(() => {
       done = true
@@ -104,7 +113,7 @@ describe('take-down', () => {
   })
 
   it('takes down once when the take-down is called twice', async () => {
-    const registry = createAccessRegistry()
+    const registry = createStandaloneRegistry()
     const changes: string[] = []
     registry.subscribe(change => changes.push(`${change.revision} ${change.change}`))
     const takeDown = registry.mount(notesContribution('first'))
@@ -112,14 +121,14 @@ describe('take-down', () => {
     registry.mount(notesContribution('again'))
     expect(takeDown()).toBe(first)
     await first
-    expect(registry.enter(NOTES, 'read-note')).toBeDefined()
+    expect('refused' in registry.enter(NOTES, 'read-note')).toBe(false)
     expect(changes).toEqual(['1 mounted', '2 unmounted', '3 mounted'])
   })
 
   it('completes at once when nothing is in flight, and a second leave has no effect', async () => {
-    const registry = createAccessRegistry()
+    const registry = createStandaloneRegistry()
     const takeDown = registry.mount(notesContribution('first'))
-    const read = registry.enter(NOTES, 'read-note')
+    const read = mustEnter(registry, NOTES, 'read-note')
     read?.leave()
     read?.leave()
     await expect(takeDown()).resolves.toBeUndefined()
@@ -128,7 +137,7 @@ describe('take-down', () => {
 
 describe('subscribe', () => {
   type View = { revision: number; protocols: Set<string> }
-  function follow(registry: ReturnType<typeof createAccessRegistry>): {
+  function follow(registry: ReturnType<typeof createStandaloneRegistry>): {
     view: View
     unsubscribe: () => void
   } {
@@ -146,14 +155,14 @@ describe('subscribe', () => {
   }
 
   it('订阅的同时挂上一个协议，订阅者最终的集合里有它', () => {
-    const registry = createAccessRegistry()
+    const registry = createStandaloneRegistry()
     const { view } = follow(registry)
     registry.mount(notesContribution('first'))
     expect(view).toEqual({ revision: 1, protocols: new Set(['notes/v1']) })
   })
 
   it('returns the snapshot, then reports each mount and take-down in the same synchronous step', () => {
-    const registry = createAccessRegistry()
+    const registry = createStandaloneRegistry()
     const takeDown = registry.mount(notesContribution('v1'))
     registry.mount(notesContribution('v2', 2))
     const { view, unsubscribe } = follow(registry)
@@ -168,14 +177,14 @@ describe('subscribe', () => {
 
   it('keeps the registry and the other subscribers when a subscriber throws', () => {
     const diagnostics: unknown[] = []
-    const registry = createAccessRegistry({ onListenerError: error => diagnostics.push(error) })
+    const registry = createStandaloneRegistry({ onListenerError: error => diagnostics.push(error) })
     registry.subscribe(() => {
       throw new Error('listener failed')
     })
     const { view } = follow(registry)
     registry.mount(notesContribution('first'))
     expect(view.protocols).toEqual(new Set(['notes/v1']))
-    expect(registry.enter(NOTES, 'read-note')).toBeDefined()
+    expect('refused' in registry.enter(NOTES, 'read-note')).toBe(false)
     expect(diagnostics).toEqual([new Error('listener failed')])
   })
 })

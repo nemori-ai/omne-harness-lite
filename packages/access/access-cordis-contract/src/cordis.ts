@@ -1,4 +1,5 @@
 import { Service, type Context, type Plugin } from '@deepseek-ai/cordis'
+import type { Entry, Instance } from '@omne-harness/dynamis'
 import type { ProtocolContract } from '@omne-harness/public-contract'
 import type { AccessContribution } from './contribution.ts'
 
@@ -9,14 +10,33 @@ export abstract class AccessRegistryService extends Service {
     super(ctx, AccessRegistryService.provide)
   }
 
-  mount<P extends ProtocolContract>(contribution: AccessContribution<P>): void {
-    this.ctx.effect(
-      () => this.attach(contribution as unknown as AccessContribution<ProtocolContract>),
-      'accessRegistry.mount',
-    )
+  /** Puts the protocol as an effect of the caller: it is served once that caller is ready. */
+  mount<P extends ProtocolContract>(typed: AccessContribution<P>): void {
+    const contribution = typed as unknown as AccessContribution<ProtocolContract>
+    const dynamis = this.ctx.get('dynamis') as Placing
+    dynamis.put(instance => [this.entry(contribution, instance)], {
+      drain: instance => this.drained(contribution, instance),
+    })
   }
 
-  protected abstract attach(contribution: AccessContribution<ProtocolContract>): () => Promise<void>
+  protected abstract entry(
+    contribution: AccessContribution<ProtocolContract>,
+    instance: Instance,
+  ): Entry
+
+  /** Resolves once nothing of this protocol runs on the instance that is being withdrawn. */
+  protected abstract drained(
+    contribution: AccessContribution<ProtocolContract>,
+    instance: Instance,
+  ): Promise<void>
+}
+
+/** The part of the `dynamis` service a mount goes through. */
+type Placing = {
+  put(
+    made: (instance: Instance) => readonly Entry[],
+    options: { drain: (instance: Instance) => Promise<void> },
+  ): unknown
 }
 export const accessRegistryKey = AccessRegistryService.provide
 

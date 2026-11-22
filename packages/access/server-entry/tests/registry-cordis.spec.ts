@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { AccessContribution } from '@omne-harness/access-cordis-contract'
 import { defineAccessPlugin } from '@omne-harness/access-cordis-contract/cordis'
 import type { AccessDiagnostic } from '../src/index.ts'
+import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { AccessRegistryProvider } from '../src/registry/cordis.ts'
 import { settleCall } from '../src/settle/settle.ts'
 import { manualClock } from './support/manual-clock.ts'
@@ -12,6 +13,7 @@ import {
   notesProtocol,
   type NotesProtocol,
 } from './support/test-contribution.ts'
+import { mustEnter } from './support/enter.ts'
 
 const limits = {
   maxBytes: 4096,
@@ -25,6 +27,7 @@ const flush = () => new Promise<void>(resolve => setImmediate(resolve))
 
 async function assemble(contribution: AccessContribution<NotesProtocol>) {
   const root = new Context()
+  await root.plugin(DynamisService)
   await root.plugin(AccessRegistryProvider)
   let plugin: Fiber | undefined
   await root.plugin({
@@ -59,7 +62,7 @@ describe('the registry on real Cordis', () => {
       },
     }
     const { plugin, registry } = await assemble(contribution)
-    const entered = registry.enter(NOTES, 'save-note')
+    const entered = mustEnter(registry, NOTES, 'save-note')
     if (entered === undefined) throw new Error('not mounted')
     const settled = settleCall({
       entered: {
@@ -81,7 +84,7 @@ describe('the registry on real Cordis', () => {
     })
     const unloaded = plugin.dispose().then(() => events.push('unload complete'))
     await flush()
-    expect(registry.enter(NOTES, 'save-note')).toBeUndefined()
+    expect(registry.enter(NOTES, 'save-note')).toEqual({ refused: 'not-mounted' })
     expect(entered.signal.aborted).toBe(true)
     expect(events).toEqual([])
     release()
@@ -95,9 +98,9 @@ describe('the registry on real Cordis', () => {
     ])
   })
 
-  it('fails the second plugin that mounts the same protocol, and the first keeps answering', async () => {
-    const { root, registry } = await assemble(notesContribution('first'))
-    const second = root.plugin({
+  it('两个接入插件挂同一份协议：两个都加载成功，这份协议答冲突；一个卸载后另一个立刻答复', async () => {
+    const { root, plugin, registry } = await assemble(notesContribution('first'))
+    const second = await root.plugin({
       name: 'notes-access-again',
       inject: ['accessRegistry'],
       apply(ctx: Context) {
@@ -105,20 +108,56 @@ describe('the registry on real Cordis', () => {
       },
     })
     await flush()
-    expect(second.uid === null || second.state !== 2).toBe(true)
-    const entered = registry.enter(NOTES, 'read-note')
-    if (entered?.member.kind !== 'operation') throw new Error('not mounted')
+    expect(second.state).toBe(2)
+    expect(plugin.state).toBe(2)
+    expect(registry.enter(NOTES, 'read-note')).toEqual({
+      refused: 'conflict',
+      by: ['notes-access#1', 'notes-access-again#1'],
+    })
+    expect(registry.subscribe(() => {}).protocols).toEqual([])
+    await plugin.dispose()
+    const entered = mustEnter(registry, NOTES, 'read-note')
+    if (entered.member.kind !== 'operation') throw new Error('not an operation')
     expect(
       await entered.member.handler(
         { principal: undefined, messageId: 'm', signal: entered.signal },
         { noteId: 'n-1' },
       ),
-    ).toEqual({ outcome: 'succeeded', body: { noteId: 'n-1', title: 'first' } })
+    ).toEqual({ outcome: 'succeeded', body: { noteId: 'n-1', title: 'second' } })
     entered.leave()
+  })
+
+  it('一个 apply 抛错的接入插件挂的协议从不出现', async () => {
+    const root = new Context()
+    await root.plugin(DynamisService)
+    await root.plugin(AccessRegistryProvider)
+    const registry = root.accessRegistry as unknown as AccessRegistryProvider
+    const seen: string[] = []
+    registry.subscribe(change => void seen.push(change.change))
+    let during: unknown
+    await root
+      .plugin({
+        name: 'notes-access',
+        inject: ['accessRegistry'],
+        apply(ctx: Context) {
+          ctx.accessRegistry.mount(notesContribution('first'))
+          during = registry.enter(NOTES, 'read-note')
+          throw new Error('apply failed')
+        },
+      })
+      .then(
+        () => undefined,
+        () => undefined,
+      )
+    await flush()
+    expect(during).toEqual({ refused: 'not-mounted' })
+    expect(registry.enter(NOTES, 'read-note')).toEqual({ refused: 'not-mounted' })
+    expect(seen).toEqual([])
   })
 
   it('lets the pipeline follow the registry through the provider', async () => {
     const root = new Context()
+    await root.plugin(DynamisService)
     await root.plugin(AccessRegistryProvider)
     const registry = root.accessRegistry as unknown as AccessRegistryProvider
     const changes: string[] = []
@@ -171,8 +210,8 @@ const notesAccess = defineAccessPlugin({
 
 describe('defineAccessPlugin on real Cordis', () => {
   async function readNote(registry: AccessRegistryProvider): Promise<unknown> {
-    const entered = registry.enter(NOTES, 'read-note')
-    if (entered?.member.kind !== 'operation') return 'not mounted'
+    const entered = mustEnter(registry, NOTES, 'read-note')
+    if (entered.member.kind !== 'operation') return 'not mounted'
     const answer = await entered.member.handler(
       { principal: undefined, messageId: 'm', signal: entered.signal },
       { noteId: 'n-1' },
@@ -183,8 +222,8 @@ describe('defineAccessPlugin on real Cordis', () => {
 
   it('mounts while loaded, takes the domain service at each call, and comes off when unloaded', async () => {
     const root = new Context()
+    await root.plugin(DynamisService)
     await root.plugin(AccessRegistryProvider)
-    const registry = (root.accessRegistry as unknown as AccessRegistryProvider).registry
     const provider = root.accessRegistry as unknown as AccessRegistryProvider
     const mounted = (): string[] =>
       provider.subscribe(() => {}).protocols.map(key => `${key.name}/v${key.major}`)
@@ -217,12 +256,13 @@ describe('defineAccessPlugin on real Cordis', () => {
     expect(mounted()).toEqual(['notes/v1'])
     await plugin?.dispose()
     expect(mounted()).toEqual([])
-    expect(registry.enter(NOTES, 'read-note')).toBeUndefined()
+    expect(provider.enter(NOTES, 'read-note')).toEqual({ refused: 'not-mounted' })
   })
 
   it('leaves one access.listener-fault diagnostic when a subscriber throws, and keeps the registry', async () => {
     const root = new Context()
     const diagnostics: AccessDiagnostic[] = []
+    await root.plugin(DynamisService)
     await root.plugin(AccessRegistryProvider, { diagnostics: event => diagnostics.push(event) })
     const provider = root.accessRegistry as unknown as AccessRegistryProvider
     provider.subscribe(() => {

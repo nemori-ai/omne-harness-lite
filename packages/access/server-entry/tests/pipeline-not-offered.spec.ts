@@ -42,15 +42,15 @@ describe('a name the mounted protocol does not have (V3)', () => {
   })
 })
 
-describe('the other refusals of admission are as they were', () => {
-  it('a protocol that is not mounted: 404 with no body', async () => {
+describe('the other refusals of admission', () => {
+  it('a protocol that is not mounted: 404 that says nothing ran, with its own reason', async () => {
     const reply = await send(fixture.port, '/api/ghost/v1/read', {
       headers: callHeaders(),
       body: '{}',
     })
     expect(reply.status).toBe(404)
-    expect(reply.text).toBe('')
-    expect(reply.headers['content-type']).toBeUndefined()
+    expect(reply.text).toBe('{"kind":"not-executed","reason":"not-mounted"}')
+    expect(reply.headers['content-type']).toBe('application/json; charset=utf-8')
     expect(fixture.diagnostics.map(event => event.code)).toEqual(['access.not-mounted'])
   })
 
@@ -60,7 +60,7 @@ describe('the other refusals of admission are as they were', () => {
       body: '{}',
     })
     expect(reply.status).toBe(404)
-    expect(reply.text).toBe('')
+    expect(reply.text).toBe('{"kind":"not-executed","reason":"not-mounted"}')
     expect(fixture.diagnostics.map(event => event.code)).toEqual(['access.not-mounted'])
   })
 
@@ -81,7 +81,7 @@ describe('the other refusals of admission are as they were', () => {
     await fixture.takeDown()
     const reply = await call(fixture.port, 'no-such-operation')
     expect(reply.status).toBe(404)
-    expect(reply.text).toBe('')
+    expect(reply.text).toBe('{"kind":"not-executed","reason":"not-mounted"}')
     expect(fixture.diagnostics.map(event => event.code)).toEqual(['access.not-mounted'])
   })
 })

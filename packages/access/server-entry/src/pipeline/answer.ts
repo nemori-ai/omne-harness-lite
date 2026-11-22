@@ -19,17 +19,25 @@ export function writeBare(
   res.end()
 }
 
-const NOT_OFFERED = Buffer.from('{"kind":"not-executed","reason":"not-offered"}')
+export type NotExecuted = 'not-mounted' | 'not-offered' | 'conflict'
 
-/** The mounted protocol has no such name: nothing ran, and the caller can know that for certain. */
-export function writeNotOffered(res: ServerResponse): void {
+const NOT_EXECUTED = Object.fromEntries(
+  (['not-mounted', 'not-offered', 'conflict'] as const).map(reason => [
+    reason,
+    Buffer.from(`{"kind":"not-executed","reason":"${reason}"}`),
+  ]),
+) as Readonly<Record<NotExecuted, Buffer>>
+
+/** What was asked for is not provided: nothing ran, and the caller can know that for certain. */
+export function writeNotExecuted(res: ServerResponse, reason: NotExecuted): void {
+  const body = NOT_EXECUTED[reason]
   res.writeHead(404, {
     'content-type': 'application/json; charset=utf-8',
     'cache-control': 'no-store',
-    'content-length': String(NOT_OFFERED.byteLength),
+    'content-length': String(body.byteLength),
     connection: 'close',
   })
-  res.end(NOT_OFFERED)
+  res.end(body)
 }
 
 export type WrittenAnswer = Readonly<{

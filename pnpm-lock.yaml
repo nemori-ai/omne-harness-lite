@@ -1111,6 +1111,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.1.0
+      '@omne-harness/dynamis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis
       '@omne-harness/public-contract':
         specifier: workspace:*
         version: link:../public-contract
@@ -1202,6 +1205,9 @@ importers:
       '@omne-harness/dynamis':
         specifier: workspace:*
         version: link:../../dynamis/dynamis
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
