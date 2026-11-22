@@ -9,7 +9,7 @@
 | `ui-kit` | 设计 token、动效、基础控件、图标、字体、流式 Markdown 的包装、主题与字号档的控制器、Agent 形的墨迹：别的界面成员导入什么就得到同一种观感。纯展示，不认识任何领域，不认识任何应用 |
 | `shell-contract` | 界面外壳给界面模块的是什么：有哪几个界面插入位置，往里放的一项长什么样，放进去、撤下、登录、租户、切页怎样调。纯契约加一个 Cordis 服务的定义，不含任何外壳的实现，不认识任何领域 |
 
-依赖方向：`ui-kit` 不依赖仓库里任何别的成员，不依赖 Cordis，不依赖任何协议契约，不依赖 Node 内置模块。`shell-contract` 只依赖 Cordis 与 React 的类型声明，不依赖客户端装配、任何领域成员与 Node 内置模块。领域的界面模块（例如 `session-ui`）和应用的外壳（例如 `apps/desktop`）导入这两个成员，反向不成立。本组两个成员互不依赖。
+依赖方向：`ui-kit` 不依赖仓库里任何别的成员，不依赖 Cordis，不依赖任何协议契约，不依赖 Node 内置模块。`shell-contract` 只依赖 Cordis、React 的类型声明与拓展点的机制（`@omne-harness/dynamis`、`@omne-harness/dynamis-cordis`），不依赖客户端装配、任何领域成员与 Node 内置模块。拓展点的机制不是领域，见[分层正文](../../docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向)。领域的界面模块（例如 `session-ui`）和应用的外壳（例如 `apps/desktop`）导入这两个成员，反向不成立。本组两个成员互不依赖。
 
 新增一段界面代码时按下表选位置：
 
@@ -23,7 +23,7 @@
 
 本组拥有：设计语言的数值（颜色、字号、间距、圆角、阴影、动效时长与曲线）、控件与通用件的外观和交互状态、图标、字体、Markdown 的版式、明暗主题与字号档怎样落到页面上、Agent 形与墨框怎样画。
 
-本组还拥有界面外壳与界面模块之间的契约：插入位置的名字与种类、一项的形状、存放的规则、`shell` 服务的形状。
+本组还拥有界面外壳与界面模块之间的契约：插入位置的名字与种类、一项的形状、每个位置的规矩、`shell` 服务的形状。放进去的东西存在哪、撞了怎样答，归 [Dynamis](../dynamis/SPEC.md) 的登记表，本组不另写存放规则。
 
 本组不拥有：任何领域的界面（会话列表、对话版式、设置页等归各领域的界面模块）、任何应用的外壳的实现（导航、侧栏、标题栏归应用）、登录与登录状态的事实、与服务端的连接、偏好的存储、形此刻该说什么状态（归报告状态的界面模块）。
 
@@ -138,12 +138,15 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 
 | 入口 | 内容 |
 | --- | --- |
-| `.` | 运行时有七样：常量表 `slots`、错误 `ShellAssemblyError`、存放的工厂 `createSlotStore`、声明带类型的拓展点的两个函数 `definePoint` 与 `defineKeyedPoint`、造带类型的键的 `serviceKey` 与按键取服务的 `serviceOf`。其余是类型：带类型的键 `ServiceKey`，存放的类型 `SlotStore`，四种位置的一项 `GateItem`、`PageItem`、`SidebarItem`、`AttachedItem`，位置名 `SlotName`，按位置取项的类型 `ItemOf`，渲染函数的属性 `GateProps`、`ScopedProps`、`AttachedProps`，宿主排版时拿到的一项 `AttachedEntry` 与排版函数 `AttachedLayout`，带类型的拓展点的类型（见「带类型的拓展点」），外壳一侧读位置的接口 `ShellSlots`，租户的形状 `ScopeSource`，登录的端口 `ShellLogin`、登录状态 `ShellLoginState`、凭据与结果 `LoginCredentials`、`LoginResult`、`LogoutResult` |
+| `.` | 运行时有七样：常量表 `slots`、外壳自己三个位置的规矩 `shellContracts`、错误 `ShellAssemblyError`、声明带类型的拓展点的两个函数 `definePoint` 与 `defineKeyedPoint`、造带类型的键的 `serviceKey` 与按键取服务的 `serviceOf`（另有瞬时提示与形口的两个工厂，见各自一节）。其余是类型：带类型的键 `ServiceKey`，一处冲突 `SlotConflict`，四种位置的一项 `GateItem`、`PageItem`、`SidebarItem`、`AttachedItem`，位置名 `SlotName`，按位置取项的类型 `ItemOf`，渲染函数的属性 `GateProps`、`ScopedProps`、`AttachedProps`，宿主排版时拿到的一项 `AttachedEntry` 与排版函数 `AttachedLayout`，带类型的拓展点的类型（见「带类型的拓展点」），外壳一侧读位置的接口 `ShellSlots`，租户的形状 `ScopeSource`，登录的端口 `ShellLogin`、登录状态 `ShellLoginState`、凭据与结果 `LoginCredentials`、`LoginResult`、`LogoutResult` |
 | `./cordis` | 服务 `shell` 的抽象类 `ShellService`、它的键 `shellKey`、界面模块的助手 `defineUiModule` 与它的类型 `UiModuleDefinition`、提供服务的函数类型 `Provide`。根入口的源码闭包不含 Cordis 绑定 |
+| `./testing` | 给界面模块的用例用的参考外壳 `ReferenceShell`，与起一棵带登记表和外壳的树的 `startShell`、`startShellOf(外壳的类, 可选的配置)`。它只存不画 |
 
 #### 插入位置
 
 插入位置写死在常量表 `slots` 里，不在运行期创建。种类是「只放一个」（`one`）或「放一列」（`list`）。
+
+每个位置是登记表上的点。外壳自己的三个位置是 `shell.gate`、`shell.pages`、`shell.sidebar`，规矩在 `shellContracts` 里，写着「构建时就定了」；外壳的服务在构造时把它们声明进目录。附着位置不是一个点：它的名字就是点，或者「点、冒号、键」，点由展示那个对象的界面模块声明（见「带类型的拓展点」）。没有声明的点上放的东西不生效，在客户端的树上列成问题。
 
 | 位置 | 种类 | 一项 | 谁放 |
 | --- | --- | --- | --- |
@@ -192,16 +195,21 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 
 #### 放进去与撤下
 
-| 位置 \ 现状 | 空 | 有别的标识的项 | 有同一个标识的项 |
-| --- | --- | --- | --- |
-| 只放一个 | 放进去 | 抛出 | 抛出 |
-| 放一列（页面、侧栏区） | 放进去 | 放进去，按次序排 | 抛出 |
-| 附着位置 | 放进去 | 放进去，按次序排 | 位置的名字不同：放进去。位置的名字相同：抛出 |
+一处是「位置，加上附着位置的名字，加上标识」；登录门只有一处。下表按这一处现在放着什么写。
 
-- 抛出的是 `ShellAssemblyError`，带 `slot`、`id` 与原因：只放一个的位置已有东西是 `occupied`，放一列的位置里标识重复是 `duplicate`。装配错了不静默覆盖。
-- 标识只在同一个位置里不许重复；不同位置里可以同名。附着位置里，标识在同一个位置的名字（`anchor`）下不许重复：两个互不知道的界面模块在两个名字下可以用同一个标识。
-- 放一列的位置按 `order` 升序排，`order` 相同按 `id` 的码元序排，不用区域比较，结果与放进去的先后、加载的次序无关。
-- 放进去的一项绑在调用者的作用域上：`contribute` 在调用者的作用域上登记一个效应，作用域卸载时自动撤掉。界面模块不写撤下的代码。撤掉的只是它自己放的，别人放的不动。
+| 位置 \ 这一处的现状 | 空 | 同一个模块已经放了 | 别的模块放了 |
+| --- | --- | --- | --- |
+| 登录门 | 放进去 | 抛出 | 两份都在，这一处答冲突，都不画 |
+| 放一列（页面、侧栏区） | 放进去 | 抛出 | 两份都在，这个标识答冲突，都不画；别的标识照常 |
+| 附着位置 | 放进去 | 抛出 | 同上，只看同一个名字下的同一个标识 |
+
+- 两个模块撞在一处不是装配失败。两份都留在登记表里，这一处答冲突，写明是哪两家；其中一份撤了，另一份立刻生效。答案与谁先放无关，所以两次启动看到的一样。冲突用服务的 `conflicts(位置)` 读，每一处是 `SlotConflict`：位置、附着位置的名字、标识、两家的名字。
+- 抛出的是 `ShellAssemblyError`，带 `slot`、`id` 与原因：同一个模块在同一处放了两次是 `duplicate`；放的东西不合法是 `invalid`，例如附着位置的名字不是「宿主.名字」这样的点名。被拒绝的放入不改变登记表，不通知任何人。
+- 一个模块放的东西整份出现、整份消失：它在 `apply` 里放的各项在模块就绪时一起可见，读的人看不到只来了一半；`apply` 抛错的模块放的东西从不出现；模块卸载时一起撤掉。这一条由 `dynamis-cordis` 的座位守，见 [Dynamis 规格](../dynamis/SPEC.md)。
+- 标识只在同一处不许重复；不同位置里可以同名。附着位置里，两个互不知道的界面模块在两个名字下可以用同一个标识。
+- 放一列的位置按 `order` 升序排，`order` 相同按 `id` 的码元序排，不用区域比较，结果与放进去的先后、加载的次序无关。整个附着位置一起读时，两项的 `order` 与 `id` 都相同就按位置的名字排。
+- 放进去的一项绑在调用者的作用域上：`contribute` 把它登记成调用者作用域上的一个效应，作用域卸载时自动撤掉。界面模块不写撤下的代码。撤掉的只是它自己放的，别人放的不动。
+- 一项的内容是渲染函数，取不出内容摘要。契约拿「放它的那个实例」当摘要，所以两个模块放的同名项一定算内容不同。
 - 撤掉当前显示的页面时，外壳回到次序最前的一页；一页都没有时主区空着。这一条归外壳的实现。
 
 #### 服务 `shell`
@@ -210,7 +218,9 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 
 | 成员 | 做什么 |
 | --- | --- |
-| `contribute(位置, 一项)` | 往一个插入位置里放一项，绑在调用者的作用域上。真正的存放由外壳实现受保护的 `place`，它返回撤下的函数；外壳的实现把 `place` 交给 `createSlotStore`，不另写存放规则 |
+| `contribute(位置, 一项)` | 往一个插入位置里放一项，绑在调用者的作用域上。它把这一项写成登记表的一个条目，交给服务 `dynamis`；外壳的实现不参与存放 |
+| `declare(规矩)` | 把一个点声明进目录，绑在调用者的作用域上。宿主不直接调它，用拓展点的 `declare(外壳)` |
+| `items(位置)`、`conflicts(位置)`、`subscribe(位置, 监听)` | 读一个位置现在生效的项、现在的冲突，与订阅它的变化。由抽象类照登记表给出，外壳的实现不重写 |
 | `login` | 登录在页面一侧的全部，类型 `ShellLogin`：`state()`、`subscribe(监听)`、`login(凭据)`、`logout()`。契约自己声明这个端口，登录状态 `ShellLoginState` 的四个取值与 `client-assembly` 的 `LoginState` 逐字相同，但契约不依赖客户端装配。应用在装配处把客户端装配的登录状态源交给外壳；两边的形状不一致时，在应用那里编译不过，这就是对上的办法 |
 | `scope` | 当前租户的文本：`get()`、`set(文本)`、`subscribe`。设它的是知道租户的那个界面模块（身份）。登录状态离开「已登录」时外壳把它清空 |
 | `navigate(页面的标识, 可选的对象)` | 把一个页面切到前面。标识不在时什么都不做。带了对象时，这个页面的 `render` 在 `{ scope, subject }` 里收到它（一段文本，含义归这个页面），用来指到页面上的那一项；它不打开、不改变任何东西 |
@@ -224,15 +234,7 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 
 外壳的实现给它画的每一项包一层错误隔离：一项的渲染抛出时，只有这一项显示读不出（FE-I14）。坏了的一项显示什么，归外壳的实现。
 
-外壳一侧读位置用 `ShellSlots`：`items(位置)` 给出现在放着的项（列的位置已经排好序，只放一个的位置最多一项），`subscribe(位置, 监听)` 在这个位置变化时通知。外壳的实现同时实现 `ShellService` 与 `ShellSlots`。
-
-#### 存放 `createSlotStore`
-
-存放的规则只有一份，在 `createSlotStore()`：它返回 `SlotStore`，即 `ShellSlots` 加 `place(位置, 一项)`。上面「放进去与撤下」的全化表、排序、错误都由它守，外壳的实现交给它，不另写。它不依赖 Cordis，不依赖 React 的运行时。
-
-- `place` 放进去后通知这个位置的订阅者，返回撤下的函数。被拒绝的放入不通知任何人，也不改变存放。
-- 撤下只撤这一次 `place` 放进去的那一项，撤下后通知这个位置的订阅者；撤两次，第二次什么都不做、不通知，也不动后来放进同一个标识的项。
-- `items(位置)` 每次给出排好序的新数组；订阅者只收到自己订阅的位置的变化；订阅返回取消订阅的函数。
+外壳一侧读位置用 `ShellSlots`：`items(位置)` 给出现在生效的项（列的位置已经排好序，只放一个的位置最多一项，冲突的不在里面），`conflicts(位置)` 给出现在的冲突，`subscribe(位置, 监听)` 在这个位置的项或冲突变化时通知。抽象类 `ShellService` 实现了 `ShellSlots`：一个位置的项没变时 `items` 给出同一个数组，别的位置变了不通知这个位置的订阅者。一个订阅者在回调里抛错，不挡同一个位置的别的订阅者，外壳记一条诊断。一个点读不出（没有声明，或被声明了两次）时 `items` 答空，和没有东西分不开：要分开，读客户端的树的问题一栏，外壳的实现把它记进日志。服务依赖 `dynamis`（见 [Dynamis 规格](../dynamis/SPEC.md)），应用在装外壳之前把它装到客户端的树上。
 
 #### 带类型的拓展点
 
@@ -240,14 +242,15 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 
 | 函数 | 声明什么 | 返回的拓展点 |
 | --- | --- | --- |
-| `definePoint<S>({ name, subject })` | 名字，与对象 `S` 的编解码 `PointCodec<S>`（`encode` 把对象编成文本，`decode` 把文本解回对象，解不回时给 `undefined`） | `Point<S>`：`name`；宿主用的 `slot(外壳, 对象, 排版函数)`；贡献方用的 `contribute(外壳, 一项)` |
+| `definePoint<S>({ name, subject })` | 名字，与对象 `S` 的编解码 `PointCodec<S>`（`encode` 把对象编成文本，`decode` 把文本解回对象，解不回时给 `undefined`）；可选的 `summary`（一句话说明）与 `key`（键是什么），写进规矩 | `Point<S>`：`name`；这个点的规矩 `contract`；宿主用的 `declare(外壳)` 与 `slot(外壳, 对象, 排版函数)`；贡献方用的 `contribute(外壳, 一项)` |
 | `defineKeyedPoint<S>(同上)` | 同上。这个拓展点按键分 | `KeyedPoint<S>`：`slot` 与 `contribute` 各多一个键。不同的键互不可见 |
 
+- 拓展点的名字是「宿主.名字」。它的规矩是数据：在客户端的树上，放一列或每键一列，一项交的是纯函数、必有 `render`，同一处多份答冲突，贡献在运行中能变。宿主的界面模块在 `apply` 里给自己的每个点调一次 `declare(外壳)`，把规矩声明进目录；宿主不在时点没有声明，别人放在上面的东西不生效。同一个模块声明两次抛 `ShellAssemblyError`。
 - 一项是 `PointItem<S>`：`id`、`order`、可选的 `label`、`render`。`render` 收到 `{ scope, subject }`，`subject` 是解回来的对象。文本解不回对象时这一项不画，不抛出。
 - 按不按键分由用哪一个函数定。不按键的拓展点上写不出键。
 - 不按键的拓展点，附着位置的名字就是拓展点的名字，所以直接往同名的 `anchor` 里放的项也在里面。按键的拓展点，附着位置的名字是「拓展点的名字、冒号、键」。拓展点的名字里不带冒号。
 - 贡献可以先于键放进去。宿主什么时候展示这个键，它什么时候出现。
-- 编解码由宿主交进来。薄壳不导入任何协议契约，也不导入 Cordis：它要的外壳写成两个结构类型，`PointContributor`（有 `contribute`）与 `PointHost`（有 `arranged`），服务 `shell` 两样都满足。
+- 编解码由宿主交进来。薄壳不导入任何协议契约，也不导入 Cordis：它要的外壳写成三个结构类型，`PointContributor`（有 `contribute`）、`PointHost`（有 `arranged`）与 `PointDeclarer`（有 `declare`），服务 `shell` 三样都满足。
 - 贡献方不导入宿主的界面模块。宿主从自己的 `./cordis` 入口导出拓展点，应用的装配把它交给贡献方。贡献方只要贡献的一面，类型是 `PointSink<S>` 或 `KeyedPointSink<S>`，并用自己要的对象形状写 `S`。宿主的对象比它宽时可以交过去；对不上时，在应用的装配处编译不过。
 
 #### 界面模块
@@ -288,8 +291,8 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 | FE-I05 | `Prose` 的链接一律在新窗口打开并带 `rel="noreferrer noopener"`，没有应用内的自定义链接方案 | 外部内容的链接带着来源页面的信息，或者借自定义协议进入应用 | `ui-kit/tests/prose.spec.tsx` 的链接用例 |
 | FE-I06 | `Prose` 流式输入分次给出，已给出的内容一个字也不丢 | 回复在流式过程中缺字 | `ui-kit/tests/prose.spec.tsx` 的流式用例 |
 | FE-I07 | 汇总样式能被 Tailwind 4 编出来，产物里有 `--omne-` 变量与控件的类 | 应用引入后样式缺失 | 构建核对：在最小的 Vite 工程里只引汇总样式，`vite build` 后检查产物 |
-| FE-I08 | `shell-contract` 的 `src/` 只导入 Cordis、React 的类型与自己 | 契约反过来认识客户端装配、领域或应用，界面模块经它带进不该有的依赖 | `shell-contract/tests/boundaries.spec.ts`；`pnpm run lint:deps` 的 `frontend-knows-no-domain` |
-| FE-I09 | 只放一个的位置不会有第二项；放一列的位置里标识不重复，附着位置里同一个名字下标识不重复。违反时抛出 `ShellAssemblyError`，存放不变，不通知任何人 | 两个界面模块静默互相覆盖，看到哪一个取决于加载次序 | `shell-contract/tests/contribute.spec.ts` 的全化表与存放工厂的用例 |
+| FE-I08 | `shell-contract` 的 `src/` 只导入 Cordis、React 的类型、Dynamis 的两个成员与自己 | 契约反过来认识客户端装配、领域或应用，界面模块经它带进不该有的依赖 | `shell-contract/tests/boundaries.spec.ts`；`pnpm run lint:deps` 的 `frontend-knows-no-domain` |
+| FE-I09 | 同一处由两个模块放了东西时，两份都不生效，这一处答冲突并写明是哪两家，别处照常；一份撤了另一份立刻生效；答案与谁先放无关。同一个模块在同一处放两次、或放的东西不合法时抛出 `ShellAssemblyError`，登记表不变，不通知任何人 | 两个界面模块静默互相覆盖，或者谁留下取决于加载次序；一处装错，整个模块起不来 | `shell-contract/tests/contribute.spec.ts` 的全化表；`shell-contract/tests/point.spec.ts`；`usage-ui/tests/panel.spec.tsx` 的冲突用例 |
 | FE-I10 | 放一列的位置的次序只由 `order` 与 `id` 决定，与放进去的先后无关 | 同一组界面模块在两次启动里排出不同的次序 | `shell-contract/tests/order.spec.ts` |
 | FE-I11 | 一个作用域卸载时，撤掉的恰好是它放的那些项；撤两次第二次什么都不做 | 卸载一个界面模块带走别人放的东西，或留下自己的 | `shell-contract/tests/unload.spec.ts` 与存放工厂的撤回用例 |
 | FE-I12 | 登录与退出的答案只有结果，不含任何登录证明 | 页面里的界面模块读到登录证明 | `shell-contract/tests/slots.spec-d.ts` 里登录端口的类型用例 |
@@ -318,3 +321,5 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 | FE-I35 | 源码与本组、桌面应用的规格里指向视觉规范技能的锚点都存在 | 读者顺着引用找到的规则已经不在 | `apps/desktop/tests/design-gates/references.spec.ts` |
 | FE-I36 | 成员视图与外壳里每个带字的 `Button` 都在登记表 `baselines/worded-buttons.json` 里，每一条写各有几个是哪一种：`commit`（落定）、`choice`（对话里的选项）、`primary`（一页唯一的主动作）、`name`（对象的名字作入口）、`value`（当前值），或交给哪一程收走（如 `R7`）；交给一程的只许去掉，那五种新加时写一条并写明种类，表外多一个就失败 | 面上又长出写字的工具钮，与图标钮的标准两套并存 | `apps/desktop/tests/design-gates/worded-buttons.spec.ts` |
 | FE-I37 | 每个抬起的件连同它的投影与焦点环的余地，都在裁切它的每个祖先的可见范围里；件本身滚出视野的不算 | 钮与字段贴着容器的边被切掉边线与投影，看起来像坏了 | 判法的用例 `apps/desktop/tests/raised-edges.spec.ts`；观感走查 `apps/desktop/demo/visual-walk.mjs` 每张截图核一次 |
+| FE-I38 | 一个模块放的东西整份出现、整份消失：`apply` 里放的各项在它就绪时一起可见，`apply` 抛错的模块放的东西从不出现；一个位置的项没变时读到的是同一个数组，别的位置的变化不通知它的订阅者 | 界面闪出半截的页面；一处变了，全部订阅者重画 | `shell-contract/tests/contribute.spec.ts` 的「shows all a module put at once」「shows nothing of a module whose apply throws」「gives the same array」；`dynamis-cordis/tests/service.spec.ts` |
+| FE-I39 | 应用装配出的客户端树上，外壳的三个位置与每个界面拓展点都由它的宿主声明进了目录，树的问题一栏是空的；往没有声明的点上放东西不生效，并在问题一栏写出这个点 | 一个点没有声明，放在上面的东西不出声地不见了 | `apps/desktop/tests/client-tree.spec.tsx` 与它钉住的树 `apps/desktop/tests/client-tree.txt` |

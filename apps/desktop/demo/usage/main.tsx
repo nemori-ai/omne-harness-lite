@@ -1,13 +1,6 @@
 import { Context } from '@deepseek-ai/cordis'
-import {
-  createSlotStore,
-  type AttachedLayout,
-  type ItemOf,
-  type ScopeSource,
-  type ShellLogin,
-  type ShellSlots,
-  type SlotName,
-} from '@omne-harness/shell-contract'
+import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
+import type { AttachedLayout, ScopeSource, ShellLogin } from '@omne-harness/shell-contract'
 import { ShellService } from '@omne-harness/shell-contract/cordis'
 import {
   createUsageUiModule,
@@ -34,7 +27,7 @@ Object.assign(window, {
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
 
-class DemoShell extends ShellService implements ShellSlots {
+class DemoShell extends ShellService {
   readonly login: ShellLogin = {
     state: () => 'signed-in',
     subscribe: () => () => undefined,
@@ -46,22 +39,12 @@ class DemoShell extends ShellService implements ShellSlots {
     set: () => undefined,
     subscribe: () => () => undefined,
   }
-  private readonly store = createSlotStore()
-  items<K extends SlotName>(slot: K): readonly ItemOf<K>[] {
-    return this.store.items(slot)
-  }
-  subscribe(slot: SlotName, listener: () => void): () => void {
-    return this.store.subscribe(slot, listener)
-  }
   navigate(): void {}
   attached(): ReactNode {
     return null
   }
   arranged(anchor: string, subject: string, layout: AttachedLayout): ReactNode {
     return <Arranged shell={this} anchor={anchor} subject={subject} layout={layout} />
-  }
-  protected place<K extends SlotName>(slot: K, item: ItemOf<K>): () => void {
-    return this.store.place(slot, item)
   }
 }
 
@@ -173,6 +156,7 @@ const client = {
 }
 
 const root = new Context()
+await root.plugin(DynamisService)
 await root.plugin(DemoShell)
 root.reflect.provide('protocol:usage/v1', client)
 const store = memoryLayoutStore({

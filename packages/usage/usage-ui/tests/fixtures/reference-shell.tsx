@@ -1,17 +1,13 @@
-import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { useEffect, useState, type ReactNode } from 'react'
 import {
-  createSlotStore,
   type AttachedLayout,
-  type ItemOf,
   type ScopeSource,
   type ShellLogin,
-  type ShellSlots,
-  type SlotName,
 } from '@omne-harness/shell-contract'
+import { startShellOf, type Started } from '@omne-harness/shell-contract/testing'
 import { ShellService } from '@omne-harness/shell-contract/cordis'
 
-export class ReferenceShell extends ShellService implements ShellSlots {
+export class ReferenceShell extends ShellService {
   readonly navigated: string[] = []
   readonly login: ShellLogin = {
     state: () => 'signed-out',
@@ -24,15 +20,6 @@ export class ReferenceShell extends ShellService implements ShellSlots {
     get: () => this.tenant,
     set: () => undefined,
     subscribe: () => () => undefined,
-  }
-  private readonly store = createSlotStore()
-
-  items<K extends SlotName>(slot: K): readonly ItemOf<K>[] {
-    return this.store.items(slot)
-  }
-
-  subscribe(slot: SlotName, listener: () => void): () => void {
-    return this.store.subscribe(slot, listener)
   }
 
   navigate(pageId: string): void {
@@ -47,10 +34,6 @@ export class ReferenceShell extends ShellService implements ShellSlots {
 
   arranged(anchor: string, subject: string, layout: AttachedLayout): ReactNode {
     return <Arranged shell={this} anchor={anchor} subject={subject} layout={layout} />
-  }
-
-  protected place<K extends SlotName>(slot: K, item: ItemOf<K>): () => void {
-    return this.store.place(slot, item)
   }
 }
 
@@ -81,15 +64,6 @@ function Arranged({
   )
 }
 
-export async function startShell(): Promise<{
-  root: Context
-  shell: ReferenceShell
-  host: Fiber
-}> {
-  const root = new Context()
-  const host = root.plugin(ReferenceShell)
-  await host
-  return { root, shell: root.shell as unknown as ReferenceShell, host }
-}
+export const startShell = (): Promise<Started<ReferenceShell>> => startShellOf(ReferenceShell)
 
 export const render = (): null => null

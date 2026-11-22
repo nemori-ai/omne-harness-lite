@@ -1,24 +1,22 @@
 import './dom.ts'
-import { Context } from '@deepseek-ai/cordis'
 import { act, render } from '@testing-library/react'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import type { SessionProtocol } from '@omne-harness/session-protocol'
 import {
-  createSlotStore,
   type AttachedLayout,
   type FigureBoard,
   type FigureReport,
   type ItemOf,
   type ScopeSource,
   type ShellLogin,
-  type ShellSlots,
   type SlotName,
 } from '@omne-harness/shell-contract'
+import { startShellOf, type Started } from '@omne-harness/shell-contract/testing'
 import { ShellService } from '@omne-harness/shell-contract/cordis'
 import { Fragment, StrictMode, useEffect, useState, type ReactNode } from 'react'
 import { sessionClientService, sessionUiModule } from '../../src/cordis.ts'
 
-export class TestShell extends ShellService implements ShellSlots {
+export class TestShell extends ShellService {
   readonly navigated: string[] = []
   /** Every report handed to the figure port, in order. */
   readonly reports: FigureReport[] = []
@@ -34,18 +32,9 @@ export class TestShell extends ShellService implements ShellSlots {
     set: () => undefined,
     subscribe: () => () => undefined,
   }
-  private readonly store = createSlotStore()
   /** The page put in front last; before any, the first page, as the desktop shell does. */
   private chosen: string | undefined = undefined
   private readonly pageListeners = new Set<(page: string | undefined) => void>()
-
-  items<K extends SlotName>(slot: K): readonly ItemOf<K>[] {
-    return this.store.items(slot)
-  }
-
-  subscribe(slot: SlotName, listener: () => void): () => void {
-    return this.store.subscribe(slot, listener)
-  }
 
   navigate(pageId: string): void {
     this.navigated.push(pageId)
@@ -55,7 +44,7 @@ export class TestShell extends ShellService implements ShellSlots {
 
   override get page(): ShellService['page'] {
     return {
-      get: () => this.chosen ?? this.store.items('pages')[0]?.id,
+      get: () => this.chosen ?? this.items('pages')[0]?.id,
       subscribe: listener => {
         this.pageListeners.add(listener)
         return () => this.pageListeners.delete(listener)
@@ -73,10 +62,6 @@ export class TestShell extends ShellService implements ShellSlots {
 
   arranged(anchor: string, subject: string, layout: AttachedLayout): ReactNode {
     return <Arranged shell={this} anchor={anchor} subject={subject} layout={layout} />
-  }
-
-  protected place<K extends SlotName>(slot: K, item: ItemOf<K>): () => void {
-    return this.store.place(slot, item)
   }
 
   protected override figures(): FigureBoard {
@@ -145,11 +130,7 @@ export function ShellView({
   )
 }
 
-export async function startShell(): Promise<{ root: Context; shell: TestShell }> {
-  const root = new Context()
-  await root.plugin(TestShell)
-  return { root, shell: root.shell as unknown as TestShell }
-}
+export const startShell = (): Promise<Started<TestShell>> => startShellOf(TestShell)
 
 export async function mountModule(
   client: ClientOf<SessionProtocol>,

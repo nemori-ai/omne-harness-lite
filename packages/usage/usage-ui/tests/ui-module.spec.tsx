@@ -12,7 +12,7 @@ import {
 } from '../src/cordis.tsx'
 import { stubDom, TENANT } from './fixtures/dom.ts'
 import { fakeUsage, KNOWN_OCCUPANCY, type Answer, type Call } from './fixtures/fake-usage.ts'
-import { startShell, type ReferenceShell } from './fixtures/reference-shell.tsx'
+import { startShell as startBare, type ReferenceShell } from './fixtures/reference-shell.tsx'
 
 beforeAll(stubDom)
 afterEach(cleanup)
@@ -24,6 +24,13 @@ const session = {
 }
 const sessionSide = definePoint({ name: 'session.side', subject: session })
 const sessionStatus = definePoint({ name: 'session.status', subject: session })
+
+/** The host of these points is not on this tree: the case stands in for it and declares them. */
+async function startShell() {
+  const started = await startBare()
+  for (const point of [sessionSide, sessionStatus]) point.declare(started.shell)
+  return started
+}
 const SESSION = 'a'.repeat(64)
 
 const settle = () =>

@@ -67,23 +67,33 @@ export type SlotItems = {
 
 export type ItemOf<K extends SlotName> = SlotItems[K]
 
+/** One spot where two modules put different things: neither is drawn until one of them leaves. */
+export type SlotConflict = Readonly<{
+  slot: SlotName
+  anchor: string | undefined
+  id: string
+  by: readonly string[]
+}>
+
 export interface ShellSlots {
   items<K extends SlotName>(slot: K): readonly ItemOf<K>[]
+  conflicts(slot: SlotName): readonly SlotConflict[]
   subscribe(slot: SlotName, listener: () => void): () => void
 }
 
-export type ShellAssemblyReason = 'occupied' | 'duplicate'
+export type ShellAssemblyReason = 'duplicate' | 'invalid'
+
+const SAID: Readonly<Record<ShellAssemblyReason, string>> = {
+  duplicate: 'this module already put an item there',
+  invalid: 'the item cannot be put there',
+}
 
 export class ShellAssemblyError extends Error {
   readonly slot: SlotName
   readonly id: string
   readonly reason: ShellAssemblyReason
-  constructor(slot: SlotName, id: string, reason: ShellAssemblyReason) {
-    super(
-      reason === 'occupied'
-        ? `slot ${slot} already holds an item; cannot place ${id}`
-        : `slot ${slot} already holds an item with id ${id}`,
-    )
+  constructor(slot: SlotName, id: string, reason: ShellAssemblyReason, detail: string) {
+    super(`slot ${slot}, item ${id}: ${SAID[reason]} (${detail})`)
     this.name = 'ShellAssemblyError'
     this.slot = slot
     this.id = id

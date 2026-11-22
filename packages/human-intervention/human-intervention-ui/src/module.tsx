@@ -15,7 +15,7 @@ import { CardsHub } from './model/cards-hub.ts'
 import { awaitingCount } from './model/cards-machine.ts'
 import { DecisionsPage } from './view/decisions-page.tsx'
 import { PendingBadge } from './view/pending-badge.tsx'
-import { DetailHost } from './view/release-detail.tsx'
+import { DetailHost, declareReleaseDetail } from './view/release-detail.tsx'
 import { SessionCards } from './view/session-cards.tsx'
 
 const HITL = protocolServiceName({
@@ -108,6 +108,7 @@ export function createHumanInterventionUiModule(
       const hub = new CardsHub({ client })
       ctx.effect(() => () => hub.dispose(), 'human-intervention-ui.cards')
       ctx.effect(() => reportAwaiting(ctx.shell, hub), 'human-intervention-ui.figure')
+      declareReleaseDetail(ctx.shell)
       contribute(ctx.shell, hub, options)
     },
   }

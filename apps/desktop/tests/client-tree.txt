@@ -1,0 +1,108 @@
+system
+  server
+    dynamis
+      dynamis.points  [keyed-one]
+        assets.category
+          assets-ui#1  [effective]
+        assets.category-page
+          assets-ui#1  [effective]
+        assets.holding
+          assets-ui#1  [effective]
+        human-intervention.release-detail
+          human-intervention-ui#1  [effective]
+        notification.inbox-sections
+          notification-ui#1  [effective]
+        session.block
+          session-ui#1  [effective]
+        session.call-detail
+          session-ui#1  [effective]
+        session.composer-attachments
+          session-ui#1  [effective]
+        session.dock
+          session-ui#1  [effective]
+        session.side
+          session-ui#1  [effective]
+        session.status
+          session-ui#1  [effective]
+        shell.gate
+          DesktopShell#1  [effective]
+        shell.pages
+          DesktopShell#1  [effective]
+        shell.sidebar
+          DesktopShell#1  [effective]
+        usage.presentation
+          usage-ui#1  [effective]
+        usage.widget
+          usage-ui#1  [effective]
+  client
+    assets
+      assets.category-page  [list]
+        mcp  [effective, mcp-ui#1]
+      assets.category  [keyed-list]
+      assets.holding  [keyed-list]
+    human-intervention
+      human-intervention.release-detail  [keyed-list]
+        schedule.activation@1
+          schedule-activation  [effective, schedule-ui#1]
+    notification
+      notification.inbox-sections  [list]
+    session
+      session.block  [list]
+        media  [effective, media-ui#1]
+      session.call-detail  [list]
+        tool-call-output  [effective, tool-ui#1]
+      session.composer-attachments  [list]
+        media  [effective, media-ui#1]
+      session.dock  [list]
+        decisions-in-session  [effective, human-intervention-ui#1]
+        background-calls  [effective, session-ui#1]
+      session.side  [list]
+        usage  [effective, usage-ui#1]
+      session.status  [list]
+        usage.occupancy  [effective, usage-ui#1]
+    shell
+      shell.gate  [one, build]
+        identity-ui#1  [effective]
+      shell.pages  [list, build]
+        conversation  [effective, session-ui#1]
+        history-search  [effective, session-ui#1]
+        decisions  [effective, human-intervention-ui#1]
+        notifications  [effective, notification-ui#1]
+        schedules  [effective, schedule-ui#1]
+        calendar  [effective, calendar-ui#1]
+        workspaces  [effective, workspace-ui#1]
+        assets  [effective, assets-ui#1]
+        settings  [effective, assets-ui#1]
+        usage  [effective, usage-ui#1]
+      shell.sidebar  [list, build]
+        session-list  [effective, session-ui#1]
+        archived-sessions  [effective, session-ui#1]
+        identity.account  [effective, identity-ui#1]
+    usage
+      usage.presentation  [keyed-list]
+        breakdown
+          usage.share-bar  [effective, usage-ui#1]
+          usage.share-list  [effective, usage-ui#1]
+        reading
+          usage.percent  [effective, usage-ui#1]
+        series
+          usage.stacked-bar  [effective, usage-ui#1]
+          usage.line  [effective, usage-ui#1]
+          usage.area  [effective, usage-ui#1]
+      usage.widget  [keyed-list]
+        session
+          usage.summary  [effective, usage-ui#1]
+          usage.tokens  [effective, usage-ui#1]
+          usage.by-model  [effective, usage-ui#1]
+          usage.cache  [effective, usage-ui#1]
+          usage.latency  [effective, usage-ui#1]
+          usage.tools  [effective, usage-ui#1]
+        status
+          usage.occupancy  [effective, usage-ui#1]
+        tenant
+          usage.summary  [effective, usage-ui#1]
+          usage.tokens  [effective, usage-ui#1]
+          usage.by-model  [effective, usage-ui#1]
+          usage.cache  [effective, usage-ui#1]
+          usage.latency  [effective, usage-ui#1]
+          usage.tools  [effective, usage-ui#1]

@@ -1,4 +1,6 @@
+import type { Contract } from '@omne-harness/dynamis'
 import type { ReactNode } from 'react'
+import { pointContract } from './placement.ts'
 import type { AttachedItem, AttachedLayout } from './slots.ts'
 
 export type PointCodec<S> = Readonly<{
@@ -23,12 +25,18 @@ export type PointHost = Readonly<{
   arranged: (anchor: string, subject: string, layout: AttachedLayout) => ReactNode
 }>
 
+export type PointDeclarer = Readonly<{ declare: (contract: Contract) => void }>
+
+/** What a host does with its own point: it declares it once, in its `apply`. */
+export type Declared = Readonly<{ contract: Contract; declare: (shell: PointDeclarer) => void }>
+
 export type PointSink<S> = Readonly<{
   name: string
   contribute: (shell: PointContributor, item: PointItem<S>) => void
 }>
 
 export type Point<S> = PointSink<S> &
+  Declared &
   Readonly<{
     slot: (shell: PointHost, subject: S, layout: AttachedLayout) => ReactNode
   }>
@@ -39,11 +47,22 @@ export type KeyedPointSink<S> = Readonly<{
 }>
 
 export type KeyedPoint<S> = KeyedPointSink<S> &
+  Declared &
   Readonly<{
     slot: (shell: PointHost, key: string, subject: S, layout: AttachedLayout) => ReactNode
   }>
 
-export type PointDeclaration<S> = Readonly<{ name: string; subject: PointCodec<S> }>
+export type PointDeclaration<S> = Readonly<{
+  name: string
+  subject: PointCodec<S>
+  summary?: string
+  key?: string
+}>
+
+const declared = (contract: Contract): Declared => ({
+  contract,
+  declare: shell => shell.declare(contract),
+})
 
 function attachedItem<S>(codec: PointCodec<S>, anchor: string, item: PointItem<S>): AttachedItem {
   return {
@@ -60,6 +79,7 @@ export function definePoint<S>(declaration: PointDeclaration<S>): Point<S> {
   const { name, subject: codec } = declaration
   return {
     name,
+    ...declared(pointContract(name, false, declaration)),
     slot: (shell, subject, layout) => shell.arranged(name, codec.encode(subject), layout),
     contribute: (shell, item) => shell.contribute('attached', attachedItem(codec, name, item)),
   }
@@ -70,6 +90,7 @@ export function defineKeyedPoint<S>(declaration: PointDeclaration<S>): KeyedPoin
   const anchorOf = (key: string): string => `${name}:${key}`
   return {
     name,
+    ...declared(pointContract(name, true, declaration)),
     slot: (shell, key, subject, layout) =>
       shell.arranged(anchorOf(key), codec.encode(subject), layout),
     contribute: (shell, key, item) =>

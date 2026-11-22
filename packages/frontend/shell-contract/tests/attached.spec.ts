@@ -19,12 +19,12 @@ describe('the shell service attached', () => {
       name: 'a',
       inject: ['shell'],
       apply(ctx) {
-        ctx.shell.contribute('attached', item('late', 'a', 2))
-        ctx.shell.contribute('attached', item('other', 'b', 0))
-        ctx.shell.contribute('attached', item('early', 'a', 1))
+        ctx.shell.contribute('attached', item('late', 'test.a', 2))
+        ctx.shell.contribute('attached', item('other', 'test.b', 0))
+        ctx.shell.contribute('attached', item('early', 'test.a', 1))
       },
     })
-    expect(shell.attached('a', 's1')).toEqual(['early', 'late'])
+    expect(shell.attached('test.a', 's1')).toEqual(['early', 'late'])
     expect(received).toEqual({
       early: { scope: undefined, subject: 's1' },
       late: { scope: undefined, subject: 's1' },
@@ -33,7 +33,7 @@ describe('the shell service attached', () => {
 
   it('renders nothing when no item has the anchor', async () => {
     const { shell } = await startShell()
-    expect(shell.attached('a', 's1')).toEqual([])
+    expect(shell.attached('test.a', 's1')).toEqual([])
   })
 })
 
@@ -47,21 +47,26 @@ describe('the shell service arranged', () => {
         ctx.shell.contribute('attached', {
           id: 'late',
           order: 2,
-          anchor: 'a',
+          anchor: 'test.a',
           label: '晚',
           render: props => `late ${props.subject}`,
         })
-        ctx.shell.contribute('attached', { id: 'other', order: 0, anchor: 'b', render: () => 'x' })
+        ctx.shell.contribute('attached', {
+          id: 'other',
+          order: 0,
+          anchor: 'test.b',
+          render: () => 'x',
+        })
         ctx.shell.contribute('attached', {
           id: 'early',
           order: 1,
-          anchor: 'a',
+          anchor: 'test.a',
           render: props => `early ${props.subject}`,
         })
       },
     })
     const seen: unknown[] = []
-    const result = shell.arranged('a', 's1', entries => {
+    const result = shell.arranged('test.a', 's1', entries => {
       seen.push(entries)
       return 'laid out'
     })
@@ -72,13 +77,13 @@ describe('the shell service arranged', () => {
         { id: 'late', label: '晚', node: 'late s1' },
       ],
     ])
-    expect(shell.attached('a', 's1')).toEqual(['early s1', 'late s1'])
+    expect(shell.attached('test.a', 's1')).toEqual(['early s1', 'late s1'])
   })
 
   it('hands the layout an empty list when no item has the anchor', async () => {
     const { shell } = await startShell()
     const seen: unknown[] = []
-    shell.arranged('a', 's1', entries => {
+    shell.arranged('test.a', 's1', entries => {
       seen.push(entries)
       return null
     })

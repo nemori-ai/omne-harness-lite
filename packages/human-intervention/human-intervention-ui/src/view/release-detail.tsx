@@ -9,6 +9,9 @@ export type GivenDetail = Extract<Detail, { state: 'given' }>
 
 const point = defineKeyedPoint<string>({
   name: 'human-intervention.release-detail',
+  summary:
+    'How the typed value in the detail of a release card is drawn, by the domain that owns its kind.',
+  key: 'the kind of the typed value, with its major version',
   subject: { encode: value => value, decode: text => text },
 })
 
@@ -33,6 +36,8 @@ class Guarded extends Component<Readonly<{ children: ReactNode }>, Readonly<{ fa
 function Drawn({ draw }: Readonly<{ draw: () => ReactNode }>): ReactNode {
   return draw()
 }
+
+export const declareReleaseDetail = point.declare
 
 // A tool's own UI draws the typed value under its kind; whatever it throws, the card draws the rows.
 export const releaseDetail: KeyedPointSink<string> = {

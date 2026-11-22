@@ -72,6 +72,7 @@ export const notificationUiModule: UiModule = {
     const client = (ctx as unknown as Lookup).get(NOTIFICATION) as ClientOf<NotificationProtocol>
     const hub = new InboxHub({ client })
     ctx.effect(() => () => hub.dispose(), 'notification-ui.inbox')
+    inboxSections.declare(ctx.shell)
     contribute(ctx.shell, hub)
     const { shell } = ctx
     ctx.effect(
