@@ -64,6 +64,16 @@ export {
 } from './summary.ts'
 export { pinBody, type PinnedBody } from './adoption.ts'
 export {
+  layerInputsOf,
+  layerOfScope,
+  scopeOfLayer,
+  type HeldEntry,
+  type HeldItem,
+  type HeldLayer,
+  type HeldReading,
+  type HeldScope,
+} from './held.ts'
+export {
   createTenantPublishing,
   type PublishContent,
   type TenantActing,

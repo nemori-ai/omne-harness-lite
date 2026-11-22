@@ -1516,6 +1516,9 @@ importers:
         specifier: workspace:*
         version: link:../settings
     devDependencies:
+      '@omne-harness/dynamis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
