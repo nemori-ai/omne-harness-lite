@@ -97,9 +97,9 @@ system
       connection.server-points  [one]
         served:connection.server-points#1  [effective]
     human-intervention
-      human-intervention.release-detail  [keyed-list]
+      human-intervention.release-detail  [keyed-one]
         schedule.activation@1
-          schedule-activation  [effective, schedule-ui#1]
+          schedule-ui#1  [effective]
     model
       model.choices  [one]
         model-ui#1  [effective]

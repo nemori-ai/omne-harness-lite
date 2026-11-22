@@ -1,10 +1,4 @@
-import { PART_ATTRIBUTE, type PartRender } from '@omne-harness/shell-contract'
 import { Component, useSyncExternalStore, type ReactNode } from 'react'
-
-export type DrawingSource = Readonly<{
-  renderOf: (part: string) => PartRender | undefined
-  watch: (listener: () => void) => () => void
-}>
 
 type FallbackProps = Readonly<{ fallback: () => ReactNode; children: ReactNode }>
 
@@ -20,38 +14,35 @@ class Fallback extends Component<FallbackProps, { failed: boolean }> {
   }
 }
 
-type Given = Parameters<PartRender>[0]
-
-function Put(props: { render: PartRender; given: Given }): ReactNode {
-  return props.render(props.given)
+function Put(props: { put: () => ReactNode }): ReactNode {
+  return props.put()
 }
 
-const marks = new WeakMap<PartRender, number>()
+const marks = new WeakMap<object, number>()
 let minted = 0
 
-function markOf(render: PartRender): number {
-  const held = marks.get(render)
+function markOf(drawing: object): number {
+  const held = marks.get(drawing)
   if (held !== undefined) return held
   minted += 1
-  marks.set(render, minted)
+  marks.set(drawing, minted)
   return minted
 }
 
-export type DrawnProps = Readonly<{
-  source: DrawingSource
-  part: string
-  builtIn: () => ReactNode
-  given: unknown
+export type DrawnProps<D extends object> = Readonly<{
+  watch: (listener: () => void) => () => void
+  pick: () => D | undefined
+  put: (drawing: D) => ReactNode
+  fallback: () => ReactNode
 }>
 
-/** A part drawn by the drawing put on it; with none, or when that one throws, by the drawing it shipped with. */
-export function Drawn({ source, part, builtIn, given }: DrawnProps): ReactNode {
-  const render = useSyncExternalStore(source.watch, () => source.renderOf(part))
-  if (render === undefined) return builtIn()
-  const handed = { props: given as never, part: { [PART_ATTRIBUTE]: part }, builtIn }
+/** Drawn by the drawing that stands; with none, or when that one throws, by the fallback. */
+export function Drawn<D extends object>({ watch, pick, put, fallback }: DrawnProps<D>): ReactNode {
+  const drawing = useSyncExternalStore(watch, pick)
+  if (drawing === undefined) return fallback()
   return (
-    <Fallback key={markOf(render)} fallback={builtIn}>
-      <Put render={render} given={handed} />
+    <Fallback key={markOf(drawing)} fallback={fallback}>
+      <Put put={() => put(drawing)} />
     </Fallback>
   )
 }

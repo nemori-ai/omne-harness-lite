@@ -12,7 +12,7 @@ import {
 } from '@omne-harness/shell-contract'
 import { ShellService } from '@omne-harness/shell-contract/cordis'
 import { Arranged, Attached } from './attached.tsx'
-import { Drawn, type DrawingSource } from './drawn.tsx'
+import { Drawn } from './drawn.tsx'
 import { lackOf, type Lack, type LackSlot, type Standing } from './lacks.ts'
 import { shellParts } from './parts.ts'
 import type { ShellState } from './state.ts'
@@ -27,10 +27,7 @@ export class DesktopShell extends ShellService {
   private readonly state: ShellState
   private problems: ReadonlySet<string> = new Set()
   private unsound: ReadonlySet<string> = new Set()
-  private readonly drawings: DrawingSource = {
-    renderOf: part => this.changes().renders.get(part),
-    watch: listener => this.watchChanges(listener),
-  }
+  private readonly watching = (listener: () => void): (() => void) => this.watchChanges(listener)
   private standing: Standing = UNTOLD
   private readonly lackWatchers = new Set<() => void>()
 
@@ -174,8 +171,17 @@ export class DesktopShell extends ShellService {
     })
   }
 
-  override drawn(part: string, builtIn: () => ReactNode, props: unknown): ReactNode {
-    return createElement(Drawn, { source: this.drawings, part, builtIn, given: props })
+  protected override fallingBack<D>(
+    pick: () => D | undefined,
+    put: (drawing: D) => ReactNode,
+    fallback: () => ReactNode,
+  ): ReactNode {
+    return createElement(Drawn<D & object>, {
+      watch: this.watching,
+      pick: pick as () => (D & object) | undefined,
+      put,
+      fallback,
+    })
   }
 
   arranged(anchor: string, subject: string, layout: AttachedLayout): ReactNode {

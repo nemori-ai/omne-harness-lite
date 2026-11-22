@@ -74,6 +74,20 @@ export function pointContract(
   }
 }
 
+export function drawingContract(
+  words: Readonly<{ name: string; key: string; summary: string }>,
+): Contract {
+  return {
+    ...SHARED,
+    ...words,
+    arity: 'keyed-one',
+    gives: 'the tenant scope, the subject the host shows, and the generic drawing of the host',
+    resolve: 'most-specific',
+    binding: 'run',
+    onError: 'a drawing that throws falls back to the generic drawing of the host',
+  }
+}
+
 type Spot = Readonly<{ point: string; key: string; id: string; rank: number }>
 
 /** An attached place is a point, or a point and a key after the first colon. */

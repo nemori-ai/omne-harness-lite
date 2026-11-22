@@ -202,12 +202,13 @@ export function styleEntry(part: string, style: PartStyle, scope: Scope): Entry<
 }
 
 export function renderEntry(
-  part: string,
-  render: PartRender,
+  point: string,
+  key: string,
+  render: unknown,
   scope: Scope,
   by: string,
-): Entry<RenderItem> {
-  return { point: RENDER_POINT, key: part, id: '', scope, rank: 0, digest: by, item: { render } }
+): Entry<Readonly<{ render: unknown }>> {
+  return { point, key, id: '', scope, rank: 0, digest: by, item: { render } }
 }
 
 export function layoutEntry(

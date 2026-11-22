@@ -17,6 +17,7 @@ import {
   laidOut,
   layoutContract,
   layoutEntry,
+  RENDER_POINT,
   renderContract,
   renderEntry,
   styleContract,
@@ -46,6 +47,7 @@ import {
   type PartDeclaration,
   type PartRender,
 } from './part.ts'
+import { drawingOn, type KeyRender } from './point.ts'
 import type { ServiceKey } from './service-key.ts'
 import { entryOf, sameView, shellContracts, viewOf, type SlotView } from './placement.ts'
 import {
@@ -178,8 +180,12 @@ export abstract class ShellService extends Service implements ShellSlots {
   }
 
   putRender<P>(part: string, render: PartRender<P>, scope: Scope = []): () => unknown {
+    return this.putDrawing(RENDER_POINT, part, render as never, scope)
+  }
+
+  putDrawing(point: string, key: string, render: KeyRender, scope: Scope = []): () => unknown {
     return this.ctx.dynamis.put(instance => [
-      renderEntry(part, render as PartRender, scope, `${instance.fiber}#${instance.generation}`),
+      renderEntry(point, key, render, scope, `${instance.fiber}#${instance.generation}`),
     ])
   }
 
@@ -198,12 +204,40 @@ export abstract class ShellService extends Service implements ShellSlots {
   }
 
   drawn(part: string, builtIn: () => ReactNode, props: unknown): ReactNode {
-    const render = this.changes().renders.get(part)
-    if (render === undefined) return builtIn()
+    const given = { props: props as never, part: { [PART_ATTRIBUTE]: part }, builtIn }
+    return this.fallingBack(
+      () => this.changes().renders.get(part),
+      render => render(given),
+      builtIn,
+    )
+  }
+
+  drawnAt(
+    point: string,
+    key: string,
+    subject: unknown,
+    generic: () => ReactNode,
+    frame: (drawn: ReactNode) => ReactNode = drawn => drawn,
+  ): ReactNode {
+    const tenant = (): string | undefined => this.scope.get()
+    return this.fallingBack(
+      () => drawingOn(this.registry(), point, key, tenantScope(tenant())),
+      render => frame(render({ scope: tenant(), subject: subject as never, generic })),
+      generic,
+    )
+  }
+
+  protected fallingBack<D>(
+    pick: () => D | undefined,
+    put: (drawing: D) => ReactNode,
+    fallback: () => ReactNode,
+  ): ReactNode {
+    const drawing = pick()
+    if (drawing === undefined) return fallback()
     try {
-      return render({ props: props as never, part: { [PART_ATTRIBUTE]: part }, builtIn })
+      return put(drawing)
     } catch {
-      return builtIn()
+      return fallback()
     }
   }
 

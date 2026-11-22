@@ -148,7 +148,7 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 
 | 入口 | 内容 |
 | --- | --- |
-| `.` | 运行时有二十二样：常量表 `slots`、外壳自己三个位置的规矩 `shellContracts`、错误 `ShellAssemblyError`、声明带类型的拓展点的两个函数 `definePoint` 与 `defineKeyedPoint`、声明部位的 `definePart` 与它的核法 `partFault`、读现在声明着哪些部位的 `partsOn`、部位的点名 `PARTS_POINT` 与元素上的属性名 `PART_ATTRIBUTE`、令牌、样式、画法与布局的点名 `TOKENS_POINT`、`STYLE_POINT`、`RENDER_POINT`、`LAYOUT_POINT`、算改动的 `changesOn`、值的核法 `valueFault`、租户的作用域 `tenantScope`、造带类型的键的 `serviceKey`、写需要的 `needProtocol` 与 `needPoint`、跟读口的 `attachWhile`、协议的需要指着的点名 `PROTOCOLS_POINT`（另有瞬时提示与形口的两个工厂，见各自一节）。其余是类型：带类型的键 `ServiceKey`，一处冲突 `SlotConflict`，四种位置的一项 `GateItem`、`PageItem`、`SidebarItem`、`AttachedItem`，位置名 `SlotName`，按位置取项的类型 `ItemOf`，渲染函数的属性 `GateProps`、`ScopedProps`、`AttachedProps`，宿主排版时拿到的一项 `AttachedEntry` 与排版函数 `AttachedLayout`，带类型的拓展点的类型（见「带类型的拓展点」），外壳一侧读位置的接口 `ShellSlots`，租户的形状 `ScopeSource`，登录的端口 `ShellLogin`、登录状态 `ShellLoginState`、凭据与结果 `LoginCredentials`、`LoginResult`、`LogoutResult` |
+| `.` | 运行时有二十三样：常量表 `slots`、外壳自己三个位置的规矩 `shellContracts`、错误 `ShellAssemblyError`、声明带类型的拓展点的两个函数 `definePoint` 与 `defineKeyedPoint`、声明按键选画法的点的 `defineRenderPoint`、声明部位的 `definePart` 与它的核法 `partFault`、读现在声明着哪些部位的 `partsOn`、部位的点名 `PARTS_POINT` 与元素上的属性名 `PART_ATTRIBUTE`、令牌、样式、画法与布局的点名 `TOKENS_POINT`、`STYLE_POINT`、`RENDER_POINT`、`LAYOUT_POINT`、算改动的 `changesOn`、值的核法 `valueFault`、租户的作用域 `tenantScope`、造带类型的键的 `serviceKey`、写需要的 `needProtocol` 与 `needPoint`、跟读口的 `attachWhile`、协议的需要指着的点名 `PROTOCOLS_POINT`（另有瞬时提示与形口的两个工厂，见各自一节）。其余是类型：带类型的键 `ServiceKey`，一处冲突 `SlotConflict`，四种位置的一项 `GateItem`、`PageItem`、`SidebarItem`、`AttachedItem`，位置名 `SlotName`，按位置取项的类型 `ItemOf`，渲染函数的属性 `GateProps`、`ScopedProps`、`AttachedProps`，宿主排版时拿到的一项 `AttachedEntry` 与排版函数 `AttachedLayout`，带类型的拓展点的类型（见「带类型的拓展点」），外壳一侧读位置的接口 `ShellSlots`，租户的形状 `ScopeSource`，登录的端口 `ShellLogin`、登录状态 `ShellLoginState`、凭据与结果 `LoginCredentials`、`LoginResult`、`LogoutResult` |
 | `./cordis` | 服务 `shell` 的抽象类 `ShellService`、它的键 `shellKey`、界面模块的助手 `defineUiModule` 与它的类型 `UiModuleDefinition`、提供服务的函数类型 `Provide`。根入口的源码闭包不含 Cordis 绑定 |
 | `./testing` | 给界面模块的用例用的参考外壳 `ReferenceShell`，与起一棵带登记表和外壳的树的 `startShell`、`startShellOf(外壳的类, 可选的配置)`。它只存不画。另有像连接与别的模块那样往树上放东西的帮手：`serveProtocol(根, 协议, 客户端)`、`servePoint(根, 规矩, 一项)`、`provideOn(根, 键, 值)`，各返回一个 fiber，撤掉它就是收回；它们的插件形是 `protocolsPoint`、`servedProtocol`、`servedPoint`。`providedOn(外壳, 键)` 读一个键下现在提供的值 |
 
@@ -262,6 +262,28 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 - 贡献可以先于键放进去。宿主什么时候展示这个键，它什么时候出现。
 - 编解码由宿主交进来。薄壳不导入任何协议契约，也不导入 Cordis：它要的外壳写成三个结构类型，`PointContributor`（有 `contribute`）、`PointHost`（有 `arranged`）与 `PointDeclarer`（有 `declare`），服务 `shell` 三样都满足。
 - 贡献方不导入宿主的界面模块。宿主从自己的 `./cordis` 入口导出拓展点，应用的装配把它交给贡献方。贡献方只要贡献的一面，类型是 `PointSink<S>` 或 `KeyedPointSink<S>`，并用自己要的对象形状写 `S`。宿主的对象比它宽时可以交过去；对不上时，在应用的装配处编译不过。
+
+#### 按键选画法的点
+
+同一类东西按种类各有各的画法时（一种工具的调用、一种来源的通知、一种内容块），宿主用 `defineRenderPoint<S>({ name, key, summary })` 声明一个点：有人在这个键上放了画法就画它，没有就画宿主自己通用的那一份。所以每个键都画得出东西，新的种类一出现就看得见。
+
+- 它是登记表上自己的一个点，不经附着位置：每键一项，一项是 `{ render }`，同一个键上作用域最深的一项算数。整个部署的作用域是空的，一个租户放的只有这个租户看得到（见「改一个部位的样子」里的「谁算数」）。
+- 宿主在 `apply` 里调一次 `point.declare(外壳)`，画的时候调 `point.draw(外壳, 键, 对象, 通用的画法, 可选的外框)`。贡献方调 `point.put(外壳, 键, 画法, 作用域)`，返回撤掉它的函数；放它的模块卸载时也跟着撤掉。
+- 画法收到三样：`scope` 是外壳当前的租户文本，`subject` 是宿主给的对象（类型是 `S`，不编成文本），`generic` 是宿主通用的画法，一个函数，画法可以包着它画。
+- 画一个键，全部情形：
+
+  | 这个键上 | 画什么 |
+  | --- | --- |
+  | 没有画法 | 通用的 |
+  | 有一份算数的 | 这一份；给了外框时，外框包着它 |
+  | 算数的那一份抛出 | 通用的，不带外框；别的键不受影响 |
+  | 同一层有两份 | 通用的；树上这两项标着冲突 |
+  | 放的不是函数 | 通用的 |
+  | 宿主没有声明这个点 | 通用的 |
+
+- 落回只有一处：`ShellService` 的受保护方法 `fallingBack(取画法, 画, 落回)`。部位的画法与按键的画法都经它。抽象类里的那一份接住调用时抛出的；外壳的实现重写它，把渲染当中才抛出的也接住，并在登记表或租户变了时重画。桌面应用里是一层错误边界，画法换了一份就重新试。
+- 外壳要的面写成两个结构类型：贡献方要 `RenderPutter`（有 `putDrawing`），宿主要 `RenderDrawer`（有 `drawnAt`），服务 `shell` 两样都满足。贡献方只拿贡献的一面 `RenderPointSink<S>`（名字与 `put`），由应用的装配交给它。
+- 放行卡的详情（`human-intervention.release-detail`）是这样的一个点。
 
 #### 部位
 

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { act, cleanup, render } from '@testing-library/react'
-import { definePart, tenantScope } from '@omne-harness/shell-contract'
+import { definePart, defineRenderPoint, tenantScope } from '@omne-harness/shell-contract'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { adoptChanges, tokenOf } from '../src/page/shell/changes-sheet.ts'
 import { CHAT, SETTINGS, settle, setup } from './support/shell-setup.tsx'
@@ -140,6 +140,64 @@ describe('the drawing of a part in the desktop shell', () => {
       await settle()
     })
     expect(shown()).toBe('built-in')
+    quiet.mockRestore()
+  })
+
+  it('a point that draws by key draws what is put on the key, framed by the host; one that throws while it is drawn falls back to the generic drawing', async () => {
+    const calls = defineRenderPoint<{ name: string }>({
+      name: 'notes.tool-call',
+      key: 'the name of the tool',
+      summary: 'How a call of one tool is drawn.',
+    })
+    const t = await setup({ login: 'signed-in' })
+    const host = await t.module('notes-ui')
+    calls.declare(host.shell)
+    const call = (name: string) =>
+      calls.draw(
+        t.service,
+        name,
+        { name },
+        () => <p data-note={`generic:${name}`} />,
+        drawn => <div data-frame={name}>{drawn}</div>,
+      )
+    render(
+      <>
+        {call('files.write')}
+        {call('files.read')}
+      </>,
+    )
+    const notes = () =>
+      Array.from(document.querySelectorAll('[data-note]'), note => [
+        note.getAttribute('data-note'),
+        note.parentElement?.getAttribute('data-frame') ?? null,
+      ])
+    expect(notes()).toEqual([
+      ['generic:files.write', null],
+      ['generic:files.read', null],
+    ])
+    const files = await t.module('files-ui')
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    let take: (() => unknown) | undefined
+    await act(async () => {
+      take = calls.put(files.shell, 'files.write', () => <Broken />)
+      calls.put(files.shell, 'files.read', ({ subject }) => (
+        <p data-note={`mine:${subject.name}`} />
+      ))
+      await settle()
+    })
+    expect(notes()).toEqual([
+      ['generic:files.write', null],
+      ['mine:files.read', 'files.read'],
+    ])
+    await act(async () => {
+      await take?.()
+      calls.put(files.shell, 'files.write', () => <p data-note="mended" />)
+      await settle()
+    })
+    expect(notes()).toEqual([
+      ['mended', 'files.write'],
+      ['mine:files.read', 'files.read'],
+    ])
     quiet.mockRestore()
   })
 

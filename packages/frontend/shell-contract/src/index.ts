@@ -22,7 +22,7 @@ export {
 } from './toast-store.ts'
 export { ShellAssemblyError, slots } from './slots.ts'
 export { shellContracts } from './placement.ts'
-export { defineKeyedPoint, definePoint } from './point.ts'
+export { defineKeyedPoint, definePoint, defineRenderPoint } from './point.ts'
 export {
   LAYOUT_POINT,
   RENDER_POINT,
@@ -61,6 +61,8 @@ export {
 export { serviceKey, type ServiceKey } from './service-key.ts'
 export type {
   Declared,
+  KeyDrawing,
+  KeyRender,
   KeyedPoint,
   KeyedPointSink,
   Point,
@@ -72,6 +74,11 @@ export type {
   PointItem,
   PointProps,
   PointSink,
+  RenderDrawer,
+  RenderPoint,
+  RenderPointDeclaration,
+  RenderPointSink,
+  RenderPutter,
 } from './point.ts'
 export type {
   AttachedEntry,
