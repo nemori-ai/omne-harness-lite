@@ -76,7 +76,7 @@ function settleIfDrained(generation: Generation): void {
   if (generation.inFlight.size === 0) generation.drain?.resolve()
 }
 
-function memberOf(
+export function memberOf(
   contribution: AccessContribution<ProtocolContract>,
   name: string,
 ): Entered['member'] | undefined {

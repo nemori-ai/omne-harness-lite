@@ -1199,6 +1199,9 @@ importers:
       '@omne-harness/access-cordis-contract':
         specifier: workspace:*
         version: link:../access-cordis-contract
+      '@omne-harness/dynamis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
