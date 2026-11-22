@@ -124,3 +124,55 @@ describe('a protocol client writes at the lesser of the two revisions (V2)', () 
     expect(t.fake.calls.map(call => call.operation)).toEqual(['pin'])
   })
 })
+
+describe('the points of the other tree, and the keys it makes public (C10)', () => {
+  const protocolsPoint = { name: 'access.protocols', major: 1, revision: 1, digest: 'sha256:p' }
+  const categories = (...keys: string[]) => ({
+    name: 'assets.categories',
+    major: 1,
+    revision: 1,
+    digest: 'sha256:c',
+    keys,
+  })
+  const told = (revision: number, ...points: object[]) =>
+    ({ kind: 'snapshot', revision, protocols: [ACCESS], points }) as AvailabilityFrame
+
+  it('a server that tells them: the points are read by name, the keys only where they are public', async () => {
+    const t = await tree()
+    t.fake.push(told(1, protocolsPoint, categories('mcp', 'skills')))
+    await settle()
+    const { availability } = t.connection
+    expect([...availability.points().keys()]).toEqual(['access.protocols', 'assets.categories'])
+    expect(availability.points().get('assets.categories')).toMatchObject({ major: 1, revision: 1 })
+    expect(availability.keys('assets.categories')).toEqual(['mcp', 'skills'])
+    expect(availability.keys('access.protocols')).toBeUndefined()
+    expect(availability.keys('no.such')).toBeUndefined()
+  })
+
+  it('the keys change: a subscriber is told, and reads the new ones', async () => {
+    const t = await tree()
+    t.fake.push(told(1, categories('mcp')))
+    await settle()
+    const seen: (readonly string[] | undefined)[] = []
+    t.connection.availability.subscribe(() => {
+      seen.push(t.connection.availability.keys('assets.categories'))
+    })
+    t.fake.push(told(1, categories('mcp', 'skills')))
+    await settle()
+    t.fake.push(told(1))
+    await settle()
+    expect(seen).toEqual([['mcp', 'skills'], undefined])
+  })
+
+  it('a server that does not tell them: no point is known, and a change frame leaves what is known as it is', async () => {
+    const t = await tree()
+    t.fake.push(snapshot(1, ACCESS))
+    await settle()
+    expect(t.connection.availability.points().size).toBe(0)
+    t.fake.push(told(2, categories('mcp')))
+    await settle()
+    t.fake.push({ kind: 'change', revision: 3, added: [DRAFTS], removed: [] })
+    await settle()
+    expect(t.connection.availability.keys('assets.categories')).toEqual(['mcp'])
+  })
+})

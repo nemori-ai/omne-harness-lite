@@ -144,6 +144,7 @@ describe('subscribe', () => {
     const view: View = { revision: 0, protocols: new Set() }
     const subscription = registry.subscribe(change => {
       view.revision = change.revision
+      if (change.change === 'points') return
       const text = `${change.protocol.name}/v${change.protocol.major}`
       if (change.change === 'mounted') view.protocols.add(text)
       else view.protocols.delete(text)

@@ -27,6 +27,18 @@ const conflicts = {
   since: 2,
 } as const
 
+/** An extension point the server declares; `keys` is there only for a point whose keys are public. */
+const point = {
+  kind: 'object',
+  fields: {
+    name: { rule: { kind: 'text' } },
+    major: { rule: { kind: 'positive-integer' } },
+    revision: { rule: { kind: 'positive-integer' } },
+    digest: { rule: { kind: 'text' } },
+    keys: { rule: { kind: 'array', item: { kind: 'text' } }, optional: true },
+  },
+} as const
+
 const revision = { rule: { kind: 'positive-integer' } } as const
 
 const availabilityFrame = {
@@ -39,6 +51,7 @@ const availabilityFrame = {
         revision,
         protocols: { rule: { kind: 'array', item: servedProtocol } },
         conflicts,
+        points: { rule: { kind: 'array', item: point }, optional: true, since: 2 },
       },
     },
     {

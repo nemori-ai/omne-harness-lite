@@ -22,7 +22,6 @@ export type Entered = {
         readonly contract: ObservationContract
         readonly source: FrameSource<any>
       }
-  /** The revision of the protocol the member belongs to. */
   readonly revision: number
   readonly signal: AbortSignal
   readonly leave: () => void
@@ -34,18 +33,30 @@ export type ServedProtocol = ProtocolKey & {
   readonly contract: ProtocolContract
 }
 
-export type AvailabilityChange = {
-  readonly revision: number
-  readonly change: 'mounted' | 'unmounted'
-  readonly protocol: ServedProtocol
-  /** The protocols that two instances hold at once, after this change. */
-  readonly conflicts: readonly ProtocolKey[]
-}
+/** A declared extension point: its rules as text, and its keys when the point makes them public. */
+export type PointFact = Readonly<{
+  name: string
+  major: number
+  revision: number
+  rules: string
+  keys?: readonly string[]
+}>
+
+export type AvailabilityChange =
+  | {
+      readonly revision: number
+      readonly change: 'mounted' | 'unmounted'
+      readonly protocol: ServedProtocol
+      /** The protocols that two instances hold at once, after this change. */
+      readonly conflicts: readonly ProtocolKey[]
+    }
+  | { readonly revision: number; readonly change: 'points'; readonly points: readonly PointFact[] }
 
 export type AvailabilitySubscription = {
   readonly revision: number
   readonly protocols: readonly ServedProtocol[]
   readonly conflicts: readonly ProtocolKey[]
+  readonly points: readonly PointFact[]
   readonly unsubscribe: () => void
 }
 

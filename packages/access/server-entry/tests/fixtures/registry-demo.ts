@@ -64,11 +64,11 @@ function settle(title: string) {
 }
 
 const registry = createStandaloneRegistry()
-const subscription = registry.subscribe(change =>
-  say(
-    `  subscriber: revision ${change.revision}, ${change.change} ${change.protocol.name}/v${change.protocol.major}`,
-  ),
-)
+const subscription = registry.subscribe(change => {
+  if (change.change === 'points') return
+  const { name, major } = change.protocol
+  say(`  subscriber: revision ${change.revision}, ${change.change} ${name}/v${major}`)
+})
 say(`subscribe: revision ${subscription.revision}, protocols [${subscription.protocols.length}]`)
 
 say('— 1. mount, and mount the same protocol again')

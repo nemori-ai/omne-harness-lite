@@ -130,6 +130,47 @@ declare const availabilityFrame: {
                     readonly optional: true;
                     readonly since: 2;
                 };
+                readonly points: {
+                    readonly rule: {
+                        readonly kind: 'array';
+                        readonly item: {
+                            readonly kind: 'object';
+                            readonly fields: {
+                                readonly name: {
+                                    readonly rule: {
+                                        readonly kind: 'text';
+                                    };
+                                };
+                                readonly major: {
+                                    readonly rule: {
+                                        readonly kind: 'positive-integer';
+                                    };
+                                };
+                                readonly revision: {
+                                    readonly rule: {
+                                        readonly kind: 'positive-integer';
+                                    };
+                                };
+                                readonly digest: {
+                                    readonly rule: {
+                                        readonly kind: 'text';
+                                    };
+                                };
+                                readonly keys: {
+                                    readonly rule: {
+                                        readonly kind: 'array';
+                                        readonly item: {
+                                            readonly kind: 'text';
+                                        };
+                                    };
+                                    readonly optional: true;
+                                };
+                            };
+                        };
+                    };
+                    readonly optional: true;
+                    readonly since: 2;
+                };
             };
         },
         {
@@ -243,6 +284,13 @@ export declare const accessProtocol: {
                     readonly name: string;
                 }[];
                 readonly kind: "snapshot";
+                readonly points?: readonly {
+                    readonly digest: string;
+                    readonly keys?: readonly string[];
+                    readonly major: number;
+                    readonly name: string;
+                    readonly revision: number;
+                }[];
                 readonly protocols: readonly {
                     readonly digest?: string;
                     readonly major: number;

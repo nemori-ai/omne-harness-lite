@@ -272,6 +272,7 @@ describe('defineKeyedPoint', () => {
       onError: 'only this item shows that it cannot be read',
       version: 1,
       revision: 1,
+      keys: 'private',
       conformance: null,
     }
     expect(plain.contract).toEqual({

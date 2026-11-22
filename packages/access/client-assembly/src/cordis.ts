@@ -7,6 +7,7 @@ import {
   keyText,
   type AvailabilityView,
   type Backoff,
+  type ServerPoint,
   type ProtocolKey,
 } from './availability.ts'
 
@@ -29,6 +30,9 @@ export interface Connection {
     isOpen(key: ProtocolKey): boolean
     /** The revision the server has this protocol at; nothing when it is not served or not said. */
     peerRevision(key: ProtocolKey): number | undefined
+    /** The points the server declares; and the keys now on one of them, where it makes them public. */
+    points(): ReadonlyMap<string, ServerPoint>
+    keys(point: string): readonly string[] | undefined
     subscribe(listener: (open: ReadonlySet<ProtocolKey>) => void): () => void
   }
   readonly login: {
@@ -66,6 +70,8 @@ function timerSleep(ms: number, signal: AbortSignal): Promise<void> {
   })
 }
 
+const NO_POINTS: ReadonlyMap<string, ServerPoint> = new Map()
+
 function availabilityState(diagnostics: ConnectionOptions['diagnostics']) {
   let view: AvailabilityView | undefined
   let current: ReadonlySet<ProtocolKey> = new Set()
@@ -94,6 +100,8 @@ function availabilityState(diagnostics: ConnectionOptions['diagnostics']) {
       current: () => current,
       isOpen: (key: ProtocolKey) => view?.open.has(keyText(key)) === true,
       peerRevision: (key: ProtocolKey) => view?.revisions.get(keyText(key)),
+      points: (): ReadonlyMap<string, ServerPoint> => view?.points ?? NO_POINTS,
+      keys: (point: string) => view?.points.get(point)?.keys,
       subscribe(listener: (open: ReadonlySet<ProtocolKey>) => void): () => void {
         listeners.add(listener)
         return () => {

@@ -32,6 +32,14 @@ const text = (key: Key): string => `${key.name}/v${key.major}`
 const sha256 = (bytes: Uint8Array): Uint8Array => createHash('sha256').update(bytes).digest()
 
 /** A served protocol as a caller at revision 2 is told of it: with what its contract is at. */
+/** The one point the entry declares, as a caller at revision 2 is told of it: its keys are not public. */
+const PROTOCOLS_POINT = {
+  name: 'access.protocols',
+  major: 1,
+  revision: 1,
+  digest: expect.stringMatching(/^sha256:[0-9a-f]{64}$/) as unknown as string,
+}
+
 const served = (protocol: ProtocolContract) => ({
   name: protocol.name,
   major: protocol.major,
@@ -164,6 +172,7 @@ describe('availability is a projection of the registry', () => {
       revision: 4,
       protocols: [served(accessProtocol), served(notesContribution('b', 2).protocol)],
       conflicts: [],
+      points: [PROTOCOLS_POINT],
     })
     await again.close()
   })
@@ -371,6 +380,7 @@ describe('availability at the entry', () => {
         revision: 2,
         protocols: [notes, access],
         conflicts: [],
+        points: [PROTOCOLS_POINT],
       },
       {
         kind: 'change',

@@ -33,6 +33,7 @@ export const protocolsContract: Contract = Object.freeze({
   onError: 'the call is answered as the failure its contract names',
   version: 1,
   revision: 1,
+  keys: 'private',
   conformance: null,
   summary: 'The protocols the entry serves: one item is one protocol with its handlers.',
 })

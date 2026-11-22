@@ -83,6 +83,7 @@ export const contract = (name: string, over: Partial<Contract> = {}): Contract =
   onError: 'the answer is unavailable',
   version: 1,
   revision: 1,
+  keys: 'private',
   conformance: null,
   summary: `the point ${name}`,
   ...over,

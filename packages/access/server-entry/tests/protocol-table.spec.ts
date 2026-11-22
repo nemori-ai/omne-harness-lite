@@ -11,6 +11,7 @@ import {
 } from '@omne-harness/dynamis'
 import { defineProtocol, ruleCodec, type ProtocolContract } from '@omne-harness/public-contract'
 import { describe, expect, it } from 'vitest'
+import { points } from '../src/registry/points.ts'
 import {
   busy,
   enter,
@@ -217,5 +218,68 @@ describe('对外可用的集合', () => {
 
   it('点没声明：空的', () => {
     expect(open(empty)).toEqual({ protocols: [], conflicts: [] })
+  })
+})
+
+describe('这棵树声明的点，与公开的点现在的键', () => {
+  const tags = {
+    ...protocolsContract,
+    name: 'notes.tags',
+    arity: 'keyed-list' as const,
+    keys: 'public' as const,
+  }
+  const tag = (key: string, id = '') => ({
+    point: 'notes.tags',
+    key,
+    id,
+    scope: [],
+    rank: 0,
+    digest: `${key}/${id}`,
+    item: { contribution: {}, revision: 1, controller: {} },
+  })
+
+  it('没有声明：空的', () => {
+    expect(points(empty).facts).toEqual([])
+  })
+
+  it('键不公开的点：只有名字、主版本、修订号与规矩，没有键', () => {
+    expect(points(serving()).facts).toEqual([
+      { name: 'access.protocols', major: 1, revision: 1, rules: declare(protocolsContract).digest },
+    ])
+  })
+
+  it('键公开的点：按名字排在一起，带现在在服务的键，排好序、不重复；撤下中的实例放的不算', () => {
+    const base = installed(
+      declared(),
+      host,
+      declare(protocolsContract) as never,
+      declare(tags) as never,
+    )
+    const one = installed(base, a1, tag('b') as never, tag('a') as never)
+    const two = installed(one, b1, tag('a', 'again') as never)
+    expect(points(two).facts.map(point => [point.name, point.keys])).toEqual([
+      ['access.protocols', undefined],
+      ['notes.tags', ['a', 'b']],
+    ])
+    expect(points(retire(two, a1)).facts.at(-1)?.keys).toEqual(['a'])
+    expect(points(base).facts.at(-1)?.keys).toEqual([])
+  })
+
+  it('读它的东西没变：给回上一次的那一个，不再读目录；变了才重算，从哪一次接着算答案都一样', () => {
+    const base = installed(
+      declared(),
+      host,
+      declare(protocolsContract) as never,
+      declare(tags) as never,
+    )
+    const first = points(base)
+    const other = installed(base, a1, entryOf(contribution, a1))
+    expect(points(other, first)).toBe(first)
+    const keyed = installed(other, b1, tag('x') as never)
+    const next = points(keyed, first)
+    expect(next).not.toBe(first)
+    expect(next.facts).toEqual(points(keyed).facts)
+    expect(points(retire(keyed, b1), next).facts).toEqual(points(retire(keyed, b1)).facts)
+    expect(points(retire(keyed, host), next).facts).toEqual([])
   })
 })

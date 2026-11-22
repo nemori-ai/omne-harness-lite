@@ -16,6 +16,7 @@ import type {
   ServedProtocol,
   StandaloneRegistry,
 } from './registry.ts'
+import { noPoints, points } from './points.ts'
 import {
   PROTOCOLS,
   busy,
@@ -57,12 +58,16 @@ export function createDesk(read: () => Registry, options: DeskOptions = {}): Pro
   let revision = 0
   const served = new Map<string, ServedProtocol>()
   let conflicts: readonly ProtocolKey[] = []
+  let declared = noPoints
   const waiting = new Map<string, () => void>()
   const listeners = new Set<(change: AvailabilityChange) => void>()
 
-  function announce(change: AvailabilityChange['change'], protocol: ServedProtocol): void {
+  function announce(change: 'mounted' | 'unmounted', protocol: ServedProtocol): void {
     revision += 1
-    const event: AvailabilityChange = { revision, change, protocol, conflicts }
+    tell({ revision, change, protocol, conflicts })
+  }
+
+  function tell(event: AvailabilityChange): void {
     for (const listener of Array.from(listeners)) {
       try {
         listener(event)
@@ -108,6 +113,7 @@ export function createDesk(read: () => Registry, options: DeskOptions = {}): Pro
         revision,
         protocols: [...served.values()],
         conflicts,
+        points: declared.facts,
         unsubscribe: () => void listeners.delete(listener),
       }
     },
@@ -133,6 +139,11 @@ export function createDesk(read: () => Registry, options: DeskOptions = {}): Pro
           served.set(key, protocol)
           announce('mounted', protocol)
         }
+      const facts = points(registry, declared)
+      const same = JSON.stringify(facts.facts) === JSON.stringify(declared.facts)
+      declared = facts
+      // The points are not counted: a change of them resends the snapshot at the same revision.
+      if (!same) tell({ revision, change: 'points', points: declared.facts })
     },
   }
 }
@@ -152,6 +163,7 @@ export function createStandaloneRegistry(options: DeskOptions = {}): StandaloneR
   let registry = mustInstall(empty, { fiber: 'entry', generation: 1 }, [declare(protocolsContract)])
   let minted = 0
   const desk = createDesk(() => registry, options)
+  desk.changed(registry)
   const set = (next: Registry): void => {
     registry = next
     desk.changed(next)

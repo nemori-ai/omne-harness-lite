@@ -4,7 +4,10 @@ import type { AccessContribution } from '@omne-harness/access-cordis-contract'
 import { defineAccessPlugin } from '@omne-harness/access-cordis-contract/cordis'
 import type { AccessDiagnostic } from '../src/index.ts'
 import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
+import { declare } from '@omne-harness/dynamis'
+import { availabilitySource } from '../src/availability/availability.ts'
 import { AccessRegistryProvider } from '../src/registry/cordis.ts'
+import { protocolsContract } from '../src/registry/table.ts'
 import { settleCall } from '../src/settle/settle.ts'
 import { manualClock } from './support/manual-clock.ts'
 import {
@@ -161,9 +164,10 @@ describe('the registry on real Cordis', () => {
     await root.plugin(AccessRegistryProvider)
     const registry = root.accessRegistry as unknown as AccessRegistryProvider
     const changes: string[] = []
-    const subscription = registry.subscribe(change =>
-      changes.push(`${change.revision} ${change.change} ${change.protocol.name}`),
-    )
+    const subscription = registry.subscribe(change => {
+      if (change.change !== 'points')
+        changes.push(`${change.revision} ${change.change} ${change.protocol.name}`)
+    })
     expect(subscription).toMatchObject({ revision: 0, protocols: [] })
     let plugin: Fiber | undefined
     await root.plugin({
@@ -206,6 +210,76 @@ const notesAccess = defineAccessPlugin({
       },
     },
   }),
+})
+
+describe('the points of the tree reach the availability (C10)', () => {
+  const tags = { ...protocolsContract, name: 'notes.tags', arity: 'keyed-list', keys: 'public' }
+  const tag = (key: string) => ({
+    point: 'notes.tags',
+    key,
+    id: key,
+    scope: [],
+    rank: 0,
+    digest: key,
+    item: { contribution: {}, revision: 1, controller: {} },
+  })
+
+  it('a point with public keys is declared, gains a key and loses it: each time the snapshot is sent again, at the same revision', async () => {
+    const root = new Context()
+    await root.plugin(DynamisService)
+    await root.plugin(AccessRegistryProvider)
+    const provider = root.accessRegistry as unknown as AccessRegistryProvider
+    const opened = await availabilitySource(provider, 4)(
+      { principal: undefined as never, messageId: 'm-1', signal: new AbortController().signal },
+      {},
+    )
+    if (opened.outcome !== 'succeeded') throw new Error(opened.outcome)
+    const next = async () => (await opened.frames.next()).value as { points?: unknown[] }
+    const told = (frame: { points?: unknown[] }) =>
+      (frame.points as { name: string; keys?: string[] }[]).map(point => [point.name, point.keys])
+
+    const first = await next()
+    expect(first).toMatchObject({ kind: 'snapshot', revision: 0, protocols: [], conflicts: [] })
+    expect(told(first)).toEqual([['access.protocols', undefined]])
+
+    const host = await root.plugin({
+      name: 'notes-host',
+      inject: ['dynamis'],
+      apply: (ctx: Context) => void ctx.dynamis.put([declare(tags as never), tag('a') as never]),
+    })
+    const declared = await next()
+    expect(declared).toMatchObject({ kind: 'snapshot', revision: 0 })
+    expect(told(declared)).toEqual([
+      ['access.protocols', undefined],
+      ['notes.tags', ['a']],
+    ])
+
+    const other = await root.plugin({
+      name: 'notes-more',
+      inject: ['dynamis'],
+      apply: (ctx: Context) => void ctx.dynamis.put([tag('b') as never]),
+    })
+    expect(told(await next()).at(-1)).toEqual(['notes.tags', ['a', 'b']])
+    await other.dispose()
+    expect(told(await next()).at(-1)).toEqual(['notes.tags', ['a']])
+    await host.dispose()
+    expect(told(await next())).toEqual([['access.protocols', undefined]])
+  })
+
+  it('a change that does not touch the points sends no snapshot again', async () => {
+    const root = new Context()
+    await root.plugin(DynamisService)
+    await root.plugin(AccessRegistryProvider)
+    const provider = root.accessRegistry as unknown as AccessRegistryProvider
+    const seen: string[] = []
+    provider.subscribe(change => void seen.push(change.change))
+    await root.plugin({
+      name: 'notes-access',
+      inject: ['accessRegistry'],
+      apply: (ctx: Context) => ctx.accessRegistry.mount(notesContribution('first')),
+    })
+    expect(seen).toEqual(['mounted'])
+  })
 })
 
 describe('defineAccessPlugin on real Cordis', () => {

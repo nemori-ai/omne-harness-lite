@@ -7,7 +7,17 @@ export type AvailabilityView = {
   readonly open: ReadonlyMap<string, ProtocolKey>
   /** The revision of the contract of each served protocol, where the server says it. */
   readonly revisions: ReadonlyMap<string, number>
+  /** The extension points the server declares, by name; empty when it does not tell them. */
+  readonly points: ReadonlyMap<string, ServerPoint>
 }
+
+/** A point of the other tree. `keys` is there only for a point that makes its keys public. */
+export type ServerPoint = Readonly<{
+  major: number
+  revision: number
+  digest: string
+  keys?: readonly string[]
+}>
 
 export type AvailabilityStep =
   | { readonly kind: 'apply'; readonly view: AvailabilityView }
@@ -31,12 +41,9 @@ export function applyFrame(
 ): AvailabilityStep {
   if (frame.kind === 'snapshot') {
     const { revision, protocols } = frame
-    const next = {
-      revision,
-      open: new Map(entries(protocols)),
-      revisions: new Map(told(protocols)),
-    }
-    return { kind: 'apply', view: next }
+    const points = new Map((frame.points ?? []).map(({ name, ...point }) => [name, point]))
+    const open = new Map(entries(protocols))
+    return { kind: 'apply', view: { revision, open, revisions: new Map(told(protocols)), points } }
   }
   if (view === undefined || frame.revision !== view.revision + 1) return { kind: 'resubscribe' }
   const open = new Map(view.open)
@@ -47,7 +54,8 @@ export function applyFrame(
   }
   for (const [text, key] of entries(frame.added)) open.set(text, key)
   for (const [text, revision] of told(frame.added)) revisions.set(text, revision)
-  return { kind: 'apply', view: { revision: frame.revision, open, revisions } }
+  const { points } = view
+  return { kind: 'apply', view: { revision: frame.revision, open, revisions, points } }
 }
 
 export type Backoff = { readonly delayMs: (attempt: number) => number }

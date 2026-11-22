@@ -80,6 +80,7 @@ describe('standingOf：一个点的四种状态', () => {
       onError: 'a point whose declaration cannot be read answers unavailable',
       version: 1,
       revision: 1,
+      keys: 'private',
       conformance: null,
       summary: 'The catalog: one item declares one extension point and carries its contract.',
     })
@@ -176,6 +177,8 @@ describe('standingOf：一个点的四种状态', () => {
     ['修订号不是正整数', { ...host(), item: { ...good, revision: 0 } }],
     ['修订号不是整数', { ...host(), item: { ...good, revision: 1.5 } }],
     ['修订号没写', { ...host(), item: { ...good, revision: undefined } }],
+    ['键公不公开不认识', { ...host(), item: { ...good, keys: 'secret' } }],
+    ['键公不公开没写', { ...host(), item: { ...good, keys: undefined } }],
     ['符合性用例既不是文字也不是空', { ...host(), item: { ...good, conformance: 3 } }],
   ]
   const why: Readonly<Record<string, string>> = {
@@ -207,6 +210,8 @@ describe('standingOf：一个点的四种状态', () => {
     修订号不是正整数: 'the revision is not a positive integer',
     修订号不是整数: 'the revision is not a positive integer',
     修订号没写: 'the revision is not a positive integer',
+    键公不公开不认识: 'whether the keys are public is unknown',
+    键公不公开没写: 'whether the keys are public is unknown',
     符合性用例既不是文字也不是空: 'conformance is neither text nor null',
   }
   it.each(Object.keys(why))('不合法的声明不算数：%s', name => {

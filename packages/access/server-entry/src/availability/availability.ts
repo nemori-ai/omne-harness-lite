@@ -13,6 +13,7 @@ import { contractDigest } from '@omne-harness/public-contract/snapshot'
 import { PACED } from '../observation-hub/hub.ts'
 import type {
   AvailabilityChange,
+  PointFact,
   RegistryForPipeline,
   ServedProtocol,
 } from '../registry/registry.ts'
@@ -35,7 +36,13 @@ function servedValue(protocol: ServedProtocol): Served {
   return { name, major, revision, ...(digest !== undefined && { digest }) }
 }
 
-function changeFrame(change: AvailabilityChange): AvailabilityFrame {
+type Mounting = Extract<AvailabilityChange, { protocol: ServedProtocol }>
+
+const hashed = (text: string): string => `sha256:${createHash('sha256').update(text).digest('hex')}`
+
+const pointValue = ({ rules, ...fact }: PointFact) => ({ ...fact, digest: hashed(rules) })
+
+function changeFrame(change: Mounting): AvailabilityFrame {
   const { revision } = change
   const conflicts = change.conflicts.map(keyValue)
   return change.change === 'mounted'
@@ -50,18 +57,23 @@ export function availabilitySource(
   return async ({ signal }) => {
     const known = new Map<string, ServedProtocol>()
     let conflicts: readonly ProtocolKey[] = []
-    const queue: AvailabilityChange[] = []
+    const queue: Mounting[] = []
+    let declared: readonly PointFact[] = []
     let snapshotDue = true
     let revision = 0
     let wake: (() => void) | undefined
     const subscription = registry.subscribe(change => {
-      if (change.change === 'mounted') known.set(keyText(change.protocol), change.protocol)
-      else known.delete(keyText(change.protocol))
       revision = change.revision
-      conflicts = change.conflicts
+      if (change.change === 'points') declared = change.points
+      else {
+        if (change.change === 'mounted') known.set(keyText(change.protocol), change.protocol)
+        else known.delete(keyText(change.protocol))
+        conflicts = change.conflicts
+      }
       if (snapshotDue) return
-      queue.push(change)
-      if (queue.length > backlog) {
+      if (change.change !== 'points') queue.push(change)
+      // The points go in a snapshot only: when they change, what is queued is dropped for one.
+      if (change.change === 'points' || queue.length > backlog) {
         queue.length = 0
         snapshotDue = true
       }
@@ -69,6 +81,7 @@ export function availabilitySource(
     })
     revision = subscription.revision
     conflicts = subscription.conflicts
+    declared = subscription.points
     for (const key of subscription.protocols) known.set(keyText(key), key)
     // The subscription began here, before any frame is taken, so it ends on the abort itself: the
     // hub may abort an opening it never reads, and a generator that never ran has no `finally`.
@@ -90,6 +103,7 @@ export function availabilitySource(
       revision,
       protocols: [...known.values()].map(servedValue),
       conflicts: conflicts.map(keyValue),
+      points: declared.map(pointValue),
     })
 
     async function* frames(): AsyncGenerator<AvailabilityFrame, 'unavailable'> {
