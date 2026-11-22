@@ -7,6 +7,7 @@ import {
   type HeldHolding,
   type HeldItem,
   type HeldPoint,
+  type HeldReading,
   type CategoryReading,
   type CategoryView,
   type TenantManagement,
@@ -66,9 +67,10 @@ const categoriesContract: Contract = Object.freeze({
   summary: 'The asset categories now registered: each item is the contribution of one category.',
 })
 
+const UNREAD: HeldReading = Object.freeze({ kind: 'unavailable' })
+
 type Contributed = CategoryContribution & Readonly<{ category: string }>
 
-/** Two contributors of one category hold two items at one key: the digest names who put it. */
 function contributed(contribution: CategoryContribution, by: Instance): Entry<Contributed> {
   const category = contribution.contract.category
   return {
@@ -92,13 +94,26 @@ function readingOf(registry: Registry): CategoryReading {
 export class AssetCategoriesService extends Service {
   static readonly provide = assetCategoriesKey
   readonly view: CategoryView
+  /** What one tenant sees under one name on the point of a category; unavailable when the category gives no point. */
+  readonly held: (
+    capability: Readonly<{ category: string; name: string }>,
+    tenant: string,
+  ) => HeldReading
   protected readonly tree: DynamisService
   constructor(ctx: Context) {
     super(ctx, AssetCategoriesService.provide)
     const tree = ctx.get(dynamisKey) as DynamisService
     tree.put([declare(categoriesContract)])
     this.tree = tree
-    this.view = categoryViewOf(() => readingOf(tree.registry()))
+    const view = categoryViewOf(() => readingOf(tree.registry()))
+    this.view = view
+    this.held = ({ category, name }, tenant) => {
+      const listing = view.describe(category)
+      if (listing === undefined || 'unusable' in listing) return UNREAD
+      const asker = scopeOfLayer('tenant', tenant)
+      const read = candidates<HeldItem>(tree.registry(), listing.point, name, asker)
+      return read.kind === 'read' ? { kind: 'read', entries: read.entries } : UNREAD
+    }
   }
 
   /** A category and its point go on the tree together, put as the one who contributes, for as long as its scope lives. */

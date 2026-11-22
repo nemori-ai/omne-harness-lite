@@ -34,12 +34,16 @@
 
 ```ts
 import { Service, type Context, type Plugin } from '@deepseek-ai/cordis';
-import { type CategoryContribution, type HeldHolding, type HeldItem, type HeldPoint, type CategoryView, type TenantManagement, type TenantPublishing, type TenantPublishOutcome, type TenantPublishRequest } from '@omne-harness/assets';
+import { type CategoryContribution, type HeldHolding, type HeldItem, type HeldPoint, type HeldReading, type CategoryView, type TenantManagement, type TenantPublishing, type TenantPublishOutcome, type TenantPublishRequest } from '@omne-harness/assets';
 import { type DynamisService } from '@omne-harness/dynamis-cordis/cordis';
 import type { IndependentSettingsPoint, IndependentSettingsView, SettingDefinitions } from '@omne-harness/settings';
 export declare class AssetCategoriesService extends Service {
     static readonly provide = "assetCategories";
     readonly view: CategoryView;
+    readonly held: (capability: Readonly<{
+        category: string;
+        name: string;
+    }>, tenant: string) => HeldReading;
     protected readonly tree: DynamisService;
     constructor(ctx: Context);
     contribute(category: Omit<CategoryContribution, 'point'>, point: HeldPoint): void;

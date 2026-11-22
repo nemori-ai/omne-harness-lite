@@ -70,7 +70,13 @@ export const skillsRow = defineRow({
         const assets = await ctx.tenantAssets.open(tenantRef)
         return assets === undefined
           ? undefined
-          : tenantSkills(assets, tenant, config.ranking, workspace)
+          : tenantSkills(
+              assets,
+              tenant,
+              config.ranking,
+              workspace,
+              ctx.tenantAssets.layerSources(tenantRef),
+            )
       },
     })
     const routed = routedSkills(host)

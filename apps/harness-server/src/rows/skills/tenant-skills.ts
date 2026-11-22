@@ -1,5 +1,5 @@
-import type { BodyContract, Candidate } from '@omne-harness/assets'
-import { tenantLayerSource, type AssetsLocal } from '@omne-harness/assets-local'
+import type { AssetLayerSource, BodyContract, Candidate } from '@omne-harness/assets'
+import type { AssetsLocal } from '@omne-harness/assets-local'
 import { tenantCodec, type Access, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { createSkillAccess, createSkillCatalog } from '@omne-harness/skill'
@@ -77,9 +77,9 @@ type Layers = Readonly<{
   readerOf: PackageReaderOf
 }>
 
-function tenantLayers(assets: AssetsLocal): Layers {
+function tenantLayers(assets: AssetsLocal, sources: readonly AssetLayerSource[]): Layers {
   return {
-    sources: [tenantLayerSource(assets)],
+    sources,
     async body(candidate) {
       const read = await assets.readVersion({
         assetRef: candidate.asset,
@@ -111,8 +111,9 @@ export function tenantSkills(
   tenant: TenantId,
   ranking: RankingParameters,
   workspace: WorkspaceSkillPorts,
+  sources: readonly AssetLayerSource[],
 ): TenantSkills {
-  const tenantLayer = tenantLayers(assets)
+  const tenantLayer = tenantLayers(assets, sources)
   const layers = (access: Access<unknown>, scope: unknown): Layers => {
     const key = keyOf(scope)
     if (key === null) return tenantLayer

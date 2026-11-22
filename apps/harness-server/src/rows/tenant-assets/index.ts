@@ -20,6 +20,7 @@ import { releaseOf } from '../../entry/tool-release.ts'
 import { productionStorageCatalog } from '../storage/production-catalog.ts'
 import { publishActing } from './acting.ts'
 import { createAssetChangeFeed } from './changes.ts'
+import { heldOnRegistry } from './held.ts'
 import { openTenantAssets, TenantAssetsHost } from './host.ts'
 import { provideTenantAssets, tenantAssetsKey } from './service.ts'
 
@@ -74,13 +75,10 @@ export const tenantAssetsRow = defineRow({
     const categories = ctx.assetCategories.view
     const changes = createAssetChangeFeed()
     const logger = ctx.logger('tenant-assets')
-    const heldOf = (tenant: string) => ({
-      sync: ctx.assetCategories.holdingsOf(tenant, ({ category, name }) =>
-        logger.warn('held %s:%s is not on a point: its category gives none', category, name),
-      ),
-      missed: (reason: string) =>
-        logger.warn('what a tenant holds was not told to the registry: %s', reason),
-    })
+    const held = heldOnRegistry(
+      () => ctx.assetCategories,
+      message => logger.warn(message),
+    )
     const idleMs = config.uploads.idleSeconds * 1000
     const store = {
       storage: ctx.storage,
@@ -89,13 +87,14 @@ export const tenantAssetsRow = defineRow({
       categories,
       uploads: { idleMs, maxOpen: config.uploads.maxOpen, partBytes: config.uploads.partBytes },
       changed: changes.changed,
-      heldOf,
+      heldOf: held.heldOf,
     }
     const host = new TenantAssetsHost({
       domains: ctx.tenantDomainLookup,
       open: domain => openTenantAssets(store, domain),
     })
-    provideTenantAssets(ctx, host)
+    const layerSources = held.sourcesOf(tenantRef => host.open(tenantRef))
+    provideTenantAssets(ctx, { open: tenantRef => host.open(tenantRef), layerSources })
     const acting = publishActing({ verifier: ctx.principalVerifier, standing: ctx.tenantStanding })
     const publishing = createTenantPublishing({
       acting,

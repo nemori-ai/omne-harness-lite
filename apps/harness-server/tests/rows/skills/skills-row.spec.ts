@@ -15,6 +15,11 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
 import { access, tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { capabilityId, createCategoryPoint } from '@omne-harness/assets'
+import { categoryContributionPlugin } from '@omne-harness/assets-cordis-contract/cordis'
+import { modelProviderCategoryPlugin } from '@omne-harness/model-host-local/cordis'
+import { skillCategoryPlugin } from '@omne-harness/skill-host-local/cordis'
+import { toolToolsPoint } from '@omne-harness/tool-cordis-contract/cordis'
+import { heldRegistry } from '../../support/held-registry.ts'
 import {
   modelProviderBodyContract,
   modelProviderCategoryDisplay,
@@ -128,16 +133,34 @@ async function world() {
     display: skillCategoryDisplay,
     point: 'skill.skills',
   })
-  const store = { storage: made.storage, materials, packageRoot, categories }
+  const registry = await heldRegistry([
+    categoryContributionPlugin(
+      'tool-category',
+      { contract: toolBodyContract(), display: toolCategoryDisplay },
+      toolToolsPoint,
+    ),
+    modelProviderCategoryPlugin,
+    skillCategoryPlugin,
+  ])
+  const store = {
+    storage: made.storage,
+    materials,
+    packageRoot,
+    categories,
+    heldOf: registry.held.heldOf,
+  }
   const tenantAssets = new TenantAssetsHost({
     domains: lookup,
     open: domain => openTenantAssets(store, domain),
   })
   cleanups.push(() => tenantAssets.close())
+  const sourcesOf = registry.held.sourcesOf(ref => tenantAssets.open(ref))
   const host = new TenantSkillsHost({
     async open(tenant, tenantRef) {
       const assets = await tenantAssets.open(tenantRef)
-      return assets === undefined ? undefined : tenantSkills(assets, tenant, ranking, NO_WORKSPACE)
+      return assets === undefined
+        ? undefined
+        : tenantSkills(assets, tenant, ranking, NO_WORKSPACE, sourcesOf(tenantRef))
     },
   })
   cleanups.push(() => host.close())
@@ -154,10 +177,14 @@ async function world() {
       access: () => routed.access,
     })
   }
+  // These helpers publish through a second store of the same domain; the release has one, which tells on its own.
+  const told = async () => {
+    for (const assets of await tenantAssets.opened()) await assets.syncHeld()
+  }
   const publish = async (tenant: TenantId, name: string, enabled = true) => {
     const dir = await writeSampleSkill(join(root, 'sources', name), name)
     const domain = domainOf(tenant, tenant === alpha ? 'tenant-alpha' : 'tenant-beta')
-    return publishSkill({
+    const published = await publishSkill({
       storage: made.storage,
       materials,
       domain,
@@ -166,6 +193,8 @@ async function world() {
       name,
       enabled,
     })
+    await told()
+    return published
   }
   const capture = (excluded: readonly string[]) => {
     const domain = domainOf(alpha, 'tenant-alpha')
@@ -212,6 +241,7 @@ async function world() {
       } finally {
         await publisher.close()
       }
+      await told()
     },
     async publishThroughTenantAssets(name: string) {
       const dir = await writeSampleSkill(join(root, 'sources', name), name)
