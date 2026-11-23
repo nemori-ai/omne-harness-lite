@@ -23,8 +23,8 @@
         "adoption": {
           "owner": "@omne-harness/pi-ai-deepseek",
           "name": "deepseek/deepseek-v3.2-exp",
-          "revision": "1",
-          "digest": "5ac9dce75b1de33dcb1c6d88cb6f7ad0520de53d35c717f3f7a38c1357243bbf"
+          "revision": "2",
+          "digest": "eb777ed2b91a535502c6c892e3cdaf47d5a32d9d46fee0a2c50dd6b88086ce17"
         },
         "provider": "openrouter",
         "model": "deepseek/deepseek-v3.2-exp",
@@ -45,8 +45,8 @@
         "supplier": {
           "owner": "@omne-harness/pi-ai-deepseek",
           "name": "deepseek/deepseek-v3.2-exp",
-          "revision": "1",
-          "digest": "5ac9dce75b1de33dcb1c6d88cb6f7ad0520de53d35c717f3f7a38c1357243bbf"
+          "revision": "2",
+          "digest": "eb777ed2b91a535502c6c892e3cdaf47d5a32d9d46fee0a2c50dd6b88086ce17"
         },
         "applied": {
           "kind": "max-output-tokens",
@@ -70,8 +70,8 @@
     "representation": {
       "owner": "@omne-harness/pi-ai-deepseek",
       "name": "deepseek/deepseek-v3.2-exp#representation",
-      "revision": "1",
-      "digest": "5ac9dce75b1de33dcb1c6d88cb6f7ad0520de53d35c717f3f7a38c1357243bbf"
+      "revision": "2",
+      "digest": "eb777ed2b91a535502c6c892e3cdaf47d5a32d9d46fee0a2c50dd6b88086ce17"
     },
     "declarations": [
       {

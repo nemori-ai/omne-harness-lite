@@ -14,6 +14,7 @@ import { componentAdoption, countingBasis } from './adoptions.ts'
 import { DEEPSEEK_OWNER } from './owner.ts'
 import type { DeepSeekRecord } from './record.ts'
 import { imageExtras } from './image-tokens.ts'
+import { projectToolSchema } from './rules.ts'
 
 export const OUTPUT_GROUP_METHOD = 'deepseek-complete-output-group-workload-estimated/1'
 export { ANCHORED_METHOD, type MeterMargin } from '@omne-harness/pi-ai-transport/chat-completions'
@@ -126,7 +127,7 @@ export function representationOf(
         obj({
           name: str(tool.name),
           description: str(tool.description),
-          parameters: tool.argumentsSchema,
+          parameters: projectToolSchema(record.rules.toolSchema, tool.argumentsSchema),
         }),
       ),
     ),

@@ -24,7 +24,7 @@ export type ProfileData = Readonly<{
 export type RuleNames = Readonly<{
   reasoning: 'deepseek-reasoning-text/1'
   usage: 'deepseek-usage/1'
-  toolSchema: 'object-root/1'
+  toolSchema: 'object-root/1' | 'explicit-open-object-properties/1'
   check: 'none/1'
 }>
 

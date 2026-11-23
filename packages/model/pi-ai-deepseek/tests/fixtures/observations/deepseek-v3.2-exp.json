@@ -823,5 +823,78 @@
       "residual": 880,
       "replay": false
     }
+  },
+  "fileToolSchema": {
+    "control": "The original release session included the file name but kept its ticket hidden. All five calls supplied an empty string for the object argument.",
+    "comparison": "The probes used the original first user turn and 17 tools with auto selection. The output cap was 512. The explicit-open case changed just Files. The all-open cases expanded all 16 directly declared bare object properties.",
+    "observations": {
+      "control": {
+        "declarations": 17,
+        "paramsSchema": {
+          "type": "object"
+        },
+        "arguments": {
+          "command": "read",
+          "params": ""
+        },
+        "requestSha256": "8fc77f80a915fa459ab1d79369c466f5256887adf8929f0108928e0484b5a0c1",
+        "responseSha256": "0171ab55eb1e75fe3ab850da7416cb279b8ef76025de5659a3ade850afab1d6a"
+      },
+      "explicit-open": {
+        "declarations": 17,
+        "paramsSchema": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "arguments": {
+          "command": "read",
+          "params": {
+            "path": "ticket-9.txt"
+          }
+        },
+        "requestSha256": "6bff52425c71d1eaa385844b7d1c7c3332c678995bc8a2b3a4de3f1b592f16a0",
+        "responseSha256": "03109433a7ef5c6d955da518a590adf2de6ba938a8bab809cb0c10700228551a"
+      },
+      "all-open": {
+        "declarations": 17,
+        "paramsSchema": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "arguments": {
+          "command": "read",
+          "params": {
+            "path": "ticket-9.txt"
+          }
+        },
+        "requestSha256": "3ee910a4c79c05a3b3aaf086655ed4955a444ea01ce5b58b15fd94ed6dbe28d1",
+        "responseSha256": "eb667e11913a2c6f358f077ee52d5437fe5cd4ec42d42b373d763bd03518721b"
+      },
+      "all-open-repeat": {
+        "declarations": 17,
+        "paramsSchema": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        },
+        "arguments": {
+          "command": "read",
+          "params": {
+            "path": "ticket-9.txt"
+          }
+        },
+        "requestSha256": "3ee910a4c79c05a3b3aaf086655ed4955a444ea01ce5b58b15fd94ed6dbe28d1",
+        "responseSha256": "b0a9860eeb69213f7c4c441d905b40355fcffcbc035b9e8f94bbdf84dfe67efc"
+      }
+    },
+    "calibration": {
+      "releaseTools": 17,
+      "expandedDeclarations": 16,
+      "upstreamPromptTokens": 8277,
+      "localVisibleTokens": 7397,
+      "coldAllowanceTokens": 880
+    }
   }
 }

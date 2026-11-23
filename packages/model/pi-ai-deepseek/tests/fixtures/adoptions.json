@@ -7,5 +7,5 @@
   {"name":"deepseek/deepseek-v4-pro","revision":"1","digest":"05f6071e10f31d7341cc32ef43c2e1df7edf9f590aaa813980cb101bf0b63787"},
   {"name":"deepseek/deepseek-v4-flash","revision":"1","digest":"2951d98559e103ef0c92f0578e9189a3d784f8cc4dadf1c1d7a4217a93c27fa6"},
   {"name":"deepseek/deepseek-v3.2","revision":"1","digest":"1d816ca13ec9d53648ce94b0cd575f3db57f03b2bf1c365a17d0d1e43897efac"},
-  {"name":"deepseek/deepseek-v3.2-exp","revision":"1","digest":"5ac9dce75b1de33dcb1c6d88cb6f7ad0520de53d35c717f3f7a38c1357243bbf"}
+  {"name":"deepseek/deepseek-v3.2-exp","revision":"2","digest":"eb777ed2b91a535502c6c892e3cdaf47d5a32d9d46fee0a2c50dd6b88086ce17"}
 ]

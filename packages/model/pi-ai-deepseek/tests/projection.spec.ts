@@ -3,7 +3,11 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
 import { readJsonText, writeJsonText } from '@omne-harness/json-text'
-import { judgeFixedModelRequest, type TransportFact } from '@omne-harness/model-contract/provider'
+import {
+  judgeFixedModelRequest,
+  judgeReplayDeclaration,
+  type TransportFact,
+} from '@omne-harness/model-contract/provider'
 import {
   composeFamilies,
   type PiFamilyBinding,
@@ -26,11 +30,11 @@ const checked = (input: unknown) => {
   return result.ok
 }
 const request = checked(JSON.parse(readFileSync(join(directory, 'request.json'), 'utf8')).request)
-async function withBinding(test: (binding: PiFamilyBinding) => Promise<void>) {
-  const result = await composeFamilies([FAMILY]).acquire(
-    request.suppliers[0],
-    new AbortController().signal,
-  )
+async function withBinding(
+  test: (binding: PiFamilyBinding) => Promise<void>,
+  supplier = request.suppliers[0],
+) {
+  const result = await composeFamilies([FAMILY]).acquire(supplier, new AbortController().signal)
   if ('failure' in result) throw Error(JSON.stringify(result.failure))
   try {
     await test(result.ok)
@@ -231,3 +235,63 @@ it('preserves tool arguments, results and replay information from a recorded con
     expect(serialized.messages.at(-2).tool_calls[0].function.arguments).toBe(raw)
     expect(estimate.messages.at(-2).content[0].arguments).toBe(raw)
   }))
+
+it.each(
+  officialDeepSeekProfiles({ retryPolicy: request.retryPolicy, compactionTriggerPercent: '80' }),
+)(
+  'projects open object parameters for the configured route on the wire and in the meter ($suppliers.0.model)',
+  async profile => {
+    const { provider, model, adoption } = profile.suppliers[0]
+    const declaration = judgeReplayDeclaration(profile.suppliers[0], 0)
+    if ('failure' in declaration) throw Error('invalid replay declaration')
+    const bare = { type: 'object' }
+    const schema = {
+      type: 'object',
+      properties: {
+        options: bare,
+        format: { enum: [bare], default: bare },
+        limited: { type: 'object', additionalProperties: false },
+        nested: { type: 'object', properties: { inner: bare } },
+      },
+      default: bare,
+      required: ['options'],
+      additionalProperties: false,
+    }
+    const asJson = readJsonText(JSON.stringify(schema), {
+      maxDepth: 12,
+      maxMembers: 256,
+      maxItems: 256,
+      maxBytes: 4096,
+      maxStringLength: 256,
+      maxNumberLength: 12,
+    })
+    if (asJson.kind !== 'ok') throw Error(JSON.stringify(asJson))
+    const input = checked({
+      ...request,
+      suppliers: [{ provider, model, adoption, credential: { layer: 'official' } }],
+      representation: profile.representation,
+      declarations: [declaration.ok],
+      tools: [{ name: 'dispatch', description: 'Read an item.', argumentsSchema: asJson.value }],
+    })
+    const expected =
+      model === 'deepseek/deepseek-v3.2-exp'
+        ? {
+            ...schema,
+            properties: {
+              ...schema.properties,
+              options: { type: 'object', properties: {}, additionalProperties: true },
+            },
+          }
+        : schema
+    await withBinding(async binding => {
+      const out = encoded(binding, input)
+      const wire = JSON.parse(writeJsonText(out.body))
+      const meter = JSON.parse(writeJsonText(out.representation.tokenInput))
+      expect(wire.tools[0].function.parameters).toEqual(expected)
+      expect(meter.tools[0].parameters).toEqual(expected)
+      expect(input.tools.map(tool => JSON.parse(writeJsonText(tool.argumentsSchema)))).toEqual([
+        schema,
+      ])
+    }, input.suppliers[0])
+  },
+)

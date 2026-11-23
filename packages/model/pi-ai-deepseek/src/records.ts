@@ -37,6 +37,8 @@ const DEEPSEEK_TOKENIZER = {
 
 type Route = Readonly<{
   model: string
+  revision?: string
+  toolSchema?: DeepSeekRecord['rules']['toolSchema']
   upstream: string
   reports: string
   window: string
@@ -85,12 +87,16 @@ function parameters(route: Route): ParameterTable {
   }
 }
 
-function provenanceFor(model: string): RecordProvenance {
-  const evidence = 'packages/model/pi-ai-deepseek/tests/fixtures/observations/' + model + '.json'
+function provenanceFor(route: Route): RecordProvenance {
+  const evidence =
+    'packages/model/pi-ai-deepseek/tests/fixtures/observations/' + route.model + '.json'
   const fact = (note: string) => ({ measuredAt: '2026-11-23', evidence, note })
   return {
     engine: fact(
-      'The fixed endpoint answered a text prompt and returned a tool call. Its continuation answered with the value supplied only by the tool.',
+      'The fixed endpoint answered a text prompt and returned a tool call. Its continuation answered with the value supplied only by the tool.' +
+        (route.toolSchema === 'explicit-open-object-properties/1'
+          ? ' In fileToolSchema, a bare object property produced an empty string. With empty properties and additionalProperties true, the same endpoint returned the requested nested object.'
+          : ''),
     ),
     efforts: fact(
       'The effort probes record the requested field, outcome and reasoning tokens. The upstream does not report its effective effort. Sampling probes record acceptance only.',
@@ -129,7 +135,7 @@ function record(route: Route): DeepSeekRecord {
   const format = route.model + '-reasoning-text/1'
   return {
     name,
-    revision: '1',
+    revision: route.revision ?? '1',
     status: 'current',
     route: { provider: 'openrouter', model: name },
     serving: { order: [route.upstream], reports: [route.reports] },
@@ -162,7 +168,7 @@ function record(route: Route): DeepSeekRecord {
     rules: {
       reasoning: 'deepseek-reasoning-text/1',
       usage: 'deepseek-usage/1',
-      toolSchema: 'object-root/1',
+      toolSchema: route.toolSchema ?? 'object-root/1',
       check: 'none/1',
     },
     meter: {
@@ -172,7 +178,7 @@ function record(route: Route): DeepSeekRecord {
       coldRequestTokens: route.cold,
       ...(route.image ? { image: route.image } : {}),
     },
-    provenance: provenanceFor(route.model),
+    provenance: provenanceFor(route),
   }
 }
 
@@ -270,6 +276,8 @@ export const DEEPSEEK_RECORDS = [
   }),
   record({
     model: 'deepseek-v3.2-exp',
+    revision: '2',
+    toolSchema: 'explicit-open-object-properties/1',
     upstream: 'siliconflow/fp8',
     reports: 'SiliconFlow',
     window: '163840',
