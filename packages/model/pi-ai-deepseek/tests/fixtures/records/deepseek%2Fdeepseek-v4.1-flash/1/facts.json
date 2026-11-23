@@ -1,0 +1,143 @@
+[
+  {
+    "kind": "block-open",
+    "index": "0",
+    "mode": "append",
+    "content": "thinking"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "The"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " user wants me to read the ticket."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Let me call the tool."
+  },
+  {
+    "kind": "block-open",
+    "index": "1",
+    "mode": "append",
+    "content": "tool-arguments"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "{}"
+  },
+  {
+    "kind": "block-seal",
+    "index": "0",
+    "block": {
+      "kind": "thinking",
+      "id": "b0",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "The user wants me to read the ticket. Let me call the tool."
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "1",
+    "block": {
+      "kind": "tool_call",
+      "id": "b1",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "callId": "call-1a8b7df0-f795-47d8-90d2-8fc22e06d979",
+      "name": "read_ticket",
+      "arguments": {
+        "kind": "object",
+        "entries": []
+      }
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "2",
+    "block": {
+      "kind": "reasoning_state",
+      "id": "b2",
+      "visibility": {
+        "toHuman": false,
+        "toModel": true
+      },
+      "payload": "{\"format\":\"unknown\",\"index\":0,\"text\":\"The user wants me to read the ticket. Let me call the tool.\",\"type\":\"reasoning.text\"}",
+      "pairs": [
+        "b0"
+      ]
+    }
+  },
+  {
+    "kind": "account",
+    "event": "usage",
+    "value": {
+      "usage": [
+        {
+          "name": "input",
+          "state": "known",
+          "lexeme": "293",
+          "unit": "token"
+        },
+        {
+          "name": "output",
+          "state": "known",
+          "lexeme": "39",
+          "unit": "token"
+        },
+        {
+          "name": "cache-read",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "cache-write",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "reasoning",
+          "state": "known",
+          "lexeme": "15",
+          "unit": "token"
+        }
+      ],
+      "cost": [
+        {
+          "state": "known",
+          "lexeme": "0.0000574",
+          "unit": "openrouter-credit",
+          "source": "billable"
+        }
+      ],
+      "trimmed": {
+        "state": "unknown",
+        "unit": "token"
+      },
+      "place": "openrouter/DeepInfra",
+      "duration": {
+        "state": "unknown"
+      },
+      "revision": "1"
+    }
+  },
+  {
+    "kind": "ended",
+    "termination": {
+      "kind": "completed",
+      "reason": "tool-suggestions"
+    }
+  }
+]

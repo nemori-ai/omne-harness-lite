@@ -1,0 +1,16 @@
+data: {"id":"gen-1795449352-vH08c51FfBypI4Opw0wa","object":"chat.completion.chunk","created":1795449352,"model":"deepseek/deepseek-v3.2","provider":"DeepInfra","choices":[{"index":0,"delta":{"content":"I","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1795449352-vH08c51FfBypI4Opw0wa","object":"chat.completion.chunk","created":1795449352,"model":"deepseek/deepseek-v3.2","provider":"DeepInfra","choices":[{"index":0,"delta":{"content":"'ll read the current","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1795449352-vH08c51FfBypI4Opw0wa","object":"chat.completion.chunk","created":1795449352,"model":"deepseek/deepseek-v3.2","provider":"DeepInfra","choices":[{"index":0,"delta":{"content":" ticket for you.","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1795449352-vH08c51FfBypI4Opw0wa","object":"chat.completion.chunk","created":1795449352,"model":"deepseek/deepseek-v3.2","provider":"DeepInfra","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"id":"call_9b05cf9dd6f84f1a887a4c70","type":"function","function":{"name":"read_ticket","arguments":""}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1795449352-vH08c51FfBypI4Opw0wa","object":"chat.completion.chunk","created":1795449352,"model":"deepseek/deepseek-v3.2","provider":"DeepInfra","choices":[{"index":0,"delta":{"content":null,"role":"assistant","tool_calls":[{"index":0,"function":{"arguments":"{}"}}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1795449352-vH08c51FfBypI4Opw0wa","object":"chat.completion.chunk","created":1795449352,"model":"deepseek/deepseek-v3.2","provider":"DeepInfra","choices":[{"index":0,"delta":{"content":"","role":"assistant"},"finish_reason":"tool_calls","native_finish_reason":"tool_calls"}]}
+
+data: {"id":"gen-1795449352-vH08c51FfBypI4Opw0wa","object":"chat.completion.chunk","created":1795449352,"model":"deepseek/deepseek-v3.2","provider":"DeepInfra","service_tier":"default","choices":[{"index":0,"delta":{"content":"","role":"assistant"},"finish_reason":"tool_calls","native_finish_reason":"tool_calls"}],"usage":{"prompt_tokens":302,"completion_tokens":37,"total_tokens":339,"cost":0.00009258,"is_byok":false,"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":0,"audio_tokens":0,"video_tokens":0},"cost_details":{"upstream_inference_cost":0.00009258,"upstream_inference_prompt_cost":0.00007852,"upstream_inference_completions_cost":0.00001406},"completion_tokens_details":{"reasoning_tokens":0,"image_tokens":0,"audio_tokens":0}}}
+
+data: [DONE]
+
