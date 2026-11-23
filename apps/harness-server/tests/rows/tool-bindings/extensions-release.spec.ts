@@ -1,6 +1,6 @@
 // @module-tag slow
 // Starts the release tree: an agent writes a plugin in its workspace and manages it with OmneExtensions.
-import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pluginProtocol } from '@omne-harness/plugin-protocol'
@@ -80,6 +80,8 @@ const manifest = (accent: string) =>
   })
 
 const TIDY = { category: 'plugin', name: 'tidy' } as const
+const ACCENT = (value: string) => `"--omne-accent":"${value}"`
+const TEAL = manifest('green').replace(ACCENT('green'), ACCENT('teal'))
 const REPORT = {
   points: [{ name: 'shell.tokens', summary: 'The design tokens of the app or of one part.' }],
   parts: [],
@@ -105,22 +107,27 @@ describe('OmneExtensions on the release tree', () => {
         const at = ['--workspace', String(workspace), '--instance', String(instance)]
         const created = await ok(tree, ['create-session', '--definition', 'coding', ...at])
         const session = String(created.body['session'])
-        let runs = 0
-        let seenResults = 0
-        const ask = async (...steps: readonly (readonly Call[])[]): Promise<string> => {
-          runs += 1
+        const progress = new Map<string, { runs: number; results: number }>()
+        const inSession = async (
+          session: string,
+          ...steps: readonly (readonly Call[])[]
+        ): Promise<string> => {
+          const at = progress.get(session) ?? { runs: 0, results: 0 }
+          progress.set(session, at)
+          at.runs += 1
           await ok(tree, ['send-input', '--session', session, '--text', plan(...steps)])
-          const wanted = runs
+          const wanted = at.runs
           const entries = await pollUntil(
             `run ${String(wanted)} to end`,
             () => historyOf(tree, session),
             seen => seen.filter(entry => entry.kind === 'run.terminal').length >= wanted,
           )
           const results = toolResults(entries)
-          const fresh = results.slice(seenResults)
-          seenResults = results.length
+          const fresh = results.slice(at.results)
+          at.results = results.length
           return fresh.join('\n')
         }
+        const ask = (...steps: readonly (readonly Call[])[]) => inSession(session, ...steps)
 
         const tenant = tenantOf(savedTenant(tree.home))
         const plugins = createClient(
@@ -212,6 +219,56 @@ describe('OmneExtensions on the release tree', () => {
         expect(again).toMatch(/"id":"op-publish-1".*"recalled":true/u)
         expect(again).toContain('done OmneExtensions result')
 
+        // Another workspace, another session: the files are not there, so the agent takes them from the holding.
+        const elsewhere = realpathSync(mkdtempSync(join(tmpdir(), 'extensions-elsewhere-')))
+        writeFileSync(join(elsewhere, 'README.md'), '# elsewhere\n')
+        const second = (await ok(tree, ['workspace', 'register', elsewhere])).body
+        const there = [
+          '--workspace',
+          String(second['workspace']),
+          '--instance',
+          String(second['instance']),
+        ]
+        const later = String(
+          (await ok(tree, ['create-session', '--definition', 'coding', ...there])).body['session'],
+        )
+        const edited = await inSession(
+          later,
+          [extensions('show', TIDY)],
+          [extensions('export', { ...TIDY, dir: 'work/tidy' })],
+          [extensions('export', { ...TIDY, dir: 'work/tidy' })],
+          [
+            files('edit', {
+              path: 'work/tidy/plugin.json',
+              old_text: ACCENT('green'),
+              new_text: ACCENT('teal'),
+            }),
+          ],
+          [extensions('export', { ...TIDY, dir: 'work/tidy' })],
+          [extensions('impact', { category: 'plugin', dir: 'work/tidy' })],
+          [extensions('publish', { id: 'op-publish-2', ...TIDY, dir: 'work/tidy' })],
+        )
+        expect(edited).toContain('source: this held version, 1 file (')
+        expect(edited).toContain('to change it: export it to a directory')
+        expect(edited).toMatch(
+          /done OmneExtensions export plugin tidy\nsha256:[0-9a-f]{64} {3}wrote 1 file \(\d+ bytes\) to work\/tidy/u,
+        )
+        expect(edited).toContain(`work/tidy already holds exactly version sha256:${held!.version};`)
+        expect(edited).toContain(
+          'work/tidy is not empty and differs from the held version in: plugin.json.',
+        )
+        expect(readFileSync(join(elsewhere, 'work/tidy/plugin.json'), 'utf8')).toBe(TEAL)
+        expect(edited).toMatch(/"id":"op-publish-2".*"changed":true/u)
+        await until(
+          async () => {
+            const [now] = await wantedNames()
+            return now !== undefined && now.version !== held!.version
+          },
+          'the client to be told of the new version',
+          15_000,
+        )
+        expect(JSON.parse((await wantedNames())[0]!.manifest)).toEqual(JSON.parse(TEAL))
+
         const off = await ask(
           [extensions('impact', { ...TIDY, change: 'disable' })],
           [extensions('disable', { id: 'op-disable-1', ...TIDY })],
@@ -242,7 +299,7 @@ describe('OmneExtensions on the release tree', () => {
         watching.abort()
         await pumping.catch(() => undefined)
         const calls = toolCalls(tree.storageRoot).filter(row => row.tool === 'OmneExtensions')
-        expect(calls.length).toBeGreaterThanOrEqual(15)
+        expect(calls.length).toBeGreaterThanOrEqual(21)
         expect(calls.every(row => row.phase === 'settled')).toBe(true)
       })
       expect(exitCode).toBe(0)

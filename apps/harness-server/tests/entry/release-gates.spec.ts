@@ -55,6 +55,7 @@ const EXPECTED: Readonly<
   OmneExtensions: [
     ['read', 'auto', ['help', 'categories', 'list', 'show', 'impact', 'result']],
     ['change', 'auto', ['publish', 'enable', 'disable', 'remove']],
+    ['export', 'auto', ['export']],
   ],
   Screen: [
     ['read', 'auto', ['help']],

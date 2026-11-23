@@ -1,12 +1,5 @@
-import { readdir, realpath, stat } from 'node:fs/promises'
-import { join, sep } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
-import {
-  digestBytes,
-  heldEffect,
-  type CategoryEffect,
-  type PackageReader,
-} from '@omne-harness/assets'
+import { heldEffect, type CategoryEffect } from '@omne-harness/assets'
 import {
   assetCategoriesKey,
   assetManagementKey,
@@ -21,9 +14,9 @@ import { tenantCodec, workspaceCodec } from '@omne-harness/legal-identity'
 import type { FixedToolRequest, ToolCallDirectory } from '@omne-harness/tool-contract'
 import type { CallAccess, ToolExecutionScope } from '@omne-harness/tool-contract/provider'
 import { workspaceInstancesKey } from '@omne-harness/workspace-cordis-contract/cordis'
-import { nodeFileIo } from '../plugin-access/file-io.ts'
 import { admittedDirectory } from '../tool-runtime/environment.ts'
 import { extensionRevisionOf } from './extension-points.ts'
+import { directoryIn, placeIn } from './workspace-directory.ts'
 
 type Parent = CallAccess<unknown> & Readonly<{ request: FixedToolRequest }>
 
@@ -33,71 +26,6 @@ export type ExtensionsPorts = Readonly<{
   workingDirectory(): Promise<string | 'absent' | 'unavailable'>
   revision(): string | null
 }>
-
-const hidden = (name: string): boolean => name.startsWith('.')
-const safe = (path: string): boolean =>
-  path !== '' &&
-  !path.startsWith('/') &&
-  !path.includes('\\') &&
-  path.split('/').every(segment => segment !== '' && segment !== '.' && segment !== '..')
-
-/** A directory on disk as a package: its files, none whose name begins with a dot, each opened only as it was listed. */
-function directoryPackage(root: string): PackageReader {
-  return {
-    async manifest() {
-      try {
-        const found = await readdir(root, { recursive: true, withFileTypes: true })
-        const files = found
-          .filter(entry => entry.isFile())
-          .map(entry =>
-            join(entry.parentPath, entry.name)
-              .slice(root.length + 1)
-              .split(sep),
-          )
-          .filter(segments => !segments.some(hidden))
-        const entries = await Promise.all(
-          files.map(async segments => {
-            const file = join(root, ...segments)
-            const [{ size }, { digest }] = await Promise.all([
-              stat(file),
-              nodeFileIo.digest(file, false),
-            ])
-            return { path: segments.join('/'), bytes: size, digest: `sha256:${digest}` }
-          }),
-        )
-        return { ok: { entries: entries.sort((left, right) => (left.path < right.path ? -1 : 1)) } }
-      } catch {
-        return { failure: 'unavailable' }
-      }
-    },
-    async open(path, expected) {
-      if (!safe(path)) return { failure: 'entry-not-found' }
-      try {
-        const file = join(root, ...path.split('/'))
-        const { size } = await stat(file)
-        const bytes = await nodeFileIo.range(file, 0, size)
-        return digestBytes(bytes) === expected ? { ok: bytes } : { failure: 'material-unavailable' }
-      } catch {
-        return { failure: 'entry-not-found' }
-      }
-    },
-  }
-}
-
-async function directoryIn(
-  working: string,
-  path: string,
-): Promise<PackageReader | 'absent' | 'unavailable'> {
-  if (!safe(path)) return 'absent'
-  try {
-    const inside = await realpath(working)
-    const root = await realpath(join(inside, ...path.split('/'))).catch(() => undefined)
-    if (root === undefined || !root.startsWith(inside + sep)) return 'absent'
-    return (await stat(root)).isDirectory() ? directoryPackage(root) : 'absent'
-  } catch {
-    return 'unavailable'
-  }
-}
 
 /** What one call of OmneExtensions is given. Every answer is for the tenant of the call, whatever a question names. */
 export function createExtensionsSource(
@@ -132,6 +60,11 @@ export function createExtensionsSource(
       return working === 'absent' || working === 'unavailable'
         ? working
         : directoryIn(working, path)
+    },
+    async place(path, from) {
+      const working = await ports.workingDirectory()
+      if (working === 'absent' || working === 'unavailable') return { kind: working }
+      return placeIn(working, path, from).catch(() => ({ kind: 'unavailable' }) as const)
     },
     impact: {
       of: async input =>

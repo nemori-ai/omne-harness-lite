@@ -1,4 +1,14 @@
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -8,6 +18,7 @@ import {
   type BodyContract,
   type CategoryEffect,
   type ManagedAsset,
+  type PackageReader,
 } from '@omne-harness/assets'
 import type { ExtensionsFaces } from '@omne-harness/assets-tools'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -100,6 +111,144 @@ describe('a directory of the working directory of the call, as a package', () =>
     expect(await world().source.directory('plugins/tidy')).toBe('absent')
     const gone = world({ workingDirectory: async () => 'unavailable' })
     expect(await gone.source.directory('plugins/tidy')).toBe('unavailable')
+  })
+})
+
+/** A held version in memory: what a store would give to be read. */
+function held(files: Readonly<Record<string, string>>, unreadable: readonly string[] = []) {
+  const bytes = (path: string) => new TextEncoder().encode(files[path])
+  const reader: PackageReader = {
+    manifest: async () => ({
+      ok: {
+        entries: Object.keys(files).map(path => ({
+          path,
+          bytes: bytes(path).length,
+          digest: digestBytes(bytes(path)),
+        })),
+      },
+    }),
+    open: async path =>
+      path in files && !unreadable.includes(path)
+        ? { ok: bytes(path) }
+        : { failure: 'material-unavailable' },
+  }
+  return reader
+}
+
+const TIDY = { 'plugin.json': '{"schema":1}', 'client/card.js': 'export const a = 1\n' }
+
+describe('a held version written into a directory of the working directory', () => {
+  it('writes every file into a directory that is not there yet, parents included, and leaves nothing else', async () => {
+    const root = workspace({ 'README.md': '# project\n' })
+    const { source } = world({ workingDirectory: async () => root })
+    expect(await source.place('ext/tidy', held(TIDY))).toEqual({
+      kind: 'written',
+      files: 2,
+      bytes: 12 + 19,
+    })
+    expect(readFileSync(join(root, 'ext/tidy/client/card.js'), 'utf8')).toBe(TIDY['client/card.js'])
+    expect(readFileSync(join(root, 'ext/tidy/plugin.json'), 'utf8')).toBe(TIDY['plugin.json'])
+    expect(readdirSync(join(root, 'ext'))).toEqual(['tidy'])
+  })
+
+  it('reads back as the same package: publishing it unchanged gives the version it came from', async () => {
+    const root = workspace({})
+    const { source } = world({ workingDirectory: async () => root })
+    await source.place('tidy', held(TIDY))
+    const back = await source.directory('tidy')
+    if (typeof back === 'string') throw new Error(back)
+    const [written, original] = await Promise.all([back.manifest(), held(TIDY).manifest()])
+    if (!('ok' in written) || !('ok' in original)) throw new Error('manifest')
+    const sorted = [...original.ok.entries].sort((a, b) => (a.path < b.path ? -1 : 1))
+    expect(written.ok.entries).toEqual(sorted)
+  })
+
+  it.each([
+    ['an empty directory', {}],
+    ['a directory that holds only files whose name begins with a dot', { 'tidy/.DS_Store': 'x' }],
+  ])('writes into %s', async (_name, there) => {
+    const root = workspace(there)
+    mkdirSync(join(root, 'tidy'), { recursive: true })
+    const { source } = world({ workingDirectory: async () => root })
+    expect((await source.place('tidy', held(TIDY))).kind).toBe('written')
+    expect(existsSync(join(root, 'tidy/client/card.js'))).toBe(true)
+  })
+
+  it('writes nothing where the directory already holds exactly these files, and says so', async () => {
+    const root = workspace({
+      'tidy/plugin.json': TIDY['plugin.json'],
+      'tidy/client/card.js': TIDY['client/card.js'],
+    })
+    const { source } = world({ workingDirectory: async () => root })
+    expect(await source.place('tidy', held(TIDY))).toEqual({ kind: 'same' })
+  })
+
+  it('writes nothing where the directory holds something else: it names what differs, changed, missing or extra', async () => {
+    const root = workspace({
+      'tidy/plugin.json': '{"schema":1,"edited":true}',
+      'tidy/notes.md': 'mine',
+    })
+    const { source } = world({ workingDirectory: async () => root })
+    expect(await source.place('tidy', held(TIDY))).toEqual({
+      kind: 'differs',
+      paths: ['client/card.js', 'notes.md', 'plugin.json'],
+      more: 0,
+    })
+    expect(readFileSync(join(root, 'tidy/plugin.json'), 'utf8')).toBe('{"schema":1,"edited":true}')
+    expect(existsSync(join(root, 'tidy/client'))).toBe(false)
+  })
+
+  it('names ten of what differs at the most, and counts the rest', async () => {
+    const many = Object.fromEntries(
+      Array.from({ length: 13 }, (_, index) => [`f${String(index).padStart(2, '0')}.txt`, 'x']),
+    )
+    const root = workspace({ 'tidy/other.txt': 'y' })
+    const { source } = world({ workingDirectory: async () => root })
+    const answer = await source.place('tidy', held(many))
+    expect(answer).toMatchObject({ kind: 'differs', more: 4 })
+    expect(answer.kind === 'differs' && answer.paths).toHaveLength(10)
+  })
+
+  it.each([
+    ['a path that steps up', '../outside'],
+    ['an absolute path', '/tmp/outside'],
+    ['an empty path', ''],
+    ['a file', 'README.md'],
+    ['a path under a file', 'README.md/tidy'],
+    ['a link that leads out', 'leak'],
+    ['a path under a link that leads out', 'leak/tidy'],
+  ])('answers absent for %s, and writes nothing', async (_name, path) => {
+    const outside = workspace({ 'kept.txt': 'kept' })
+    const root = workspace({ 'README.md': '# project\n' })
+    symlinkSync(outside, join(root, 'leak'))
+    const { source } = world({ workingDirectory: async () => root })
+    expect(await source.place(path, held(TIDY))).toEqual({ kind: 'absent' })
+    expect(readdirSync(outside)).toEqual(['kept.txt'])
+    expect(readdirSync(root).sort()).toEqual(['README.md', 'leak'])
+  })
+
+  it('leaves nothing behind when a file of the held version cannot be read', async () => {
+    const root = workspace({})
+    const { source } = world({ workingDirectory: async () => root })
+    expect(await source.place('ext/tidy', held(TIDY, ['client/card.js']))).toEqual({
+      kind: 'unavailable',
+    })
+    expect(readdirSync(root)).toEqual([])
+  })
+
+  it('writes nothing for a held version that names a path outside its own directory', async () => {
+    const root = workspace({})
+    const { source } = world({ workingDirectory: async () => root })
+    expect(await source.place('tidy', held({ '../escaped.txt': 'x' }))).toEqual({
+      kind: 'unavailable',
+    })
+    expect(readdirSync(root)).toEqual([])
+  })
+
+  it('says what the call has for a working directory: none is absent, one that cannot be asked about is unavailable', async () => {
+    expect(await world().source.place('tidy', held(TIDY))).toEqual({ kind: 'absent' })
+    const gone = world({ workingDirectory: async () => 'unavailable' })
+    expect(await gone.source.place('tidy', held(TIDY))).toEqual({ kind: 'unavailable' })
   })
 })
 
