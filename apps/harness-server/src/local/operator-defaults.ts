@@ -119,6 +119,7 @@ const PREPARATION = {
   anthropic: FAMILY,
   qwen: FAMILY,
   kimi: FAMILY,
+  deepseek: FAMILY,
 } as const
 
 export const LOCAL_CONCURRENT_MODEL_CALLS = 20

@@ -5,7 +5,7 @@ const models: readonly LiveModel[] = [
   { route: 'a/one', family: 'a', revision: '1' },
   { route: 'b/two', family: 'b', revision: '2' },
 ]
-const cells = liveCells(models)
+const cells = liveCells(models, ['a/one', 'b/two'])
 const empty: Baseline = { cells: {} }
 const turns: readonly Turn[] = Array.from({ length: 3 }, () => ({
   route: 'a/one',

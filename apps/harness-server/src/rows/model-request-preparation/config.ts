@@ -28,6 +28,7 @@ export const modelRequestPreparationConfig = z.strictObject({
   anthropic: family,
   qwen: family,
   kimi: family,
+  deepseek: family,
 })
 
 export type ModelRequestPreparationConfig = z.output<typeof modelRequestPreparationConfig>
