@@ -201,3 +201,90 @@ it('gives each profile its definition unchanged, so the definition is the family
   expect(profilesOfRoute(profile)).toBe(profile.adoption)
   expect(profile.definition).toBe(definition)
 })
+
+it('reads current credential presence once per provider and Access without resolving secrets', async () => {
+  const seen: unknown[] = []
+  let state: 'available' | 'missing' = 'missing'
+  const source = createOfficialProfileSource(
+    { definitions: ['alpha/route', 'beta/route'].map(definitionOf), updatedAt: UPDATED_AT },
+    () => ({
+      layerOf: query => {
+        seen.push(query)
+        return state === 'available'
+          ? { ok: { layer: 'official' } }
+          : { failure: { kind: 'missing' } }
+      },
+      resolve: () => {
+        throw new Error('presence must not read secrets')
+      },
+    }),
+  )
+  const first = await source.read({ principal, tenant: TENANT })
+  if (!('ok' in first)) throw new Error('source failure')
+  expect(first.ok.candidates.map(candidate => candidate.credential)).toEqual(['missing', 'missing'])
+  expect(seen).toEqual([
+    { provider: providerName('openrouter'), official: true, access: { principal, tenant: TENANT } },
+  ])
+  state = 'available'
+  const other = tenantOf('2', '2')
+  const second = await source.read({ principal, tenant: other })
+  if (!('ok' in second)) throw new Error('source failure')
+  expect(second.ok.candidates.map(candidate => candidate.credential)).toEqual([
+    'available',
+    'available',
+  ])
+  expect(seen).toHaveLength(2)
+  expect(seen[1]).toEqual({
+    provider: providerName('openrouter'),
+    official: true,
+    access: { principal, tenant: other },
+  })
+  expect(second.ok.source.digest).not.toBe(first.ok.source.digest)
+  expect(second.ok.source.revision).not.toBe(first.ok.source.revision)
+})
+
+it('keeps uncertain credential presence unknown while the official profiles remain selectable', async () => {
+  for (const readPort of [
+    () => undefined,
+    () => {
+      throw new Error('provider down')
+    },
+    () => ({
+      layerOf: () => {
+        throw new Error('custody down')
+      },
+      resolve: () => {
+        throw new Error('must not resolve')
+      },
+    }),
+    () => ({
+      layerOf: () => ({ failure: { kind: 'unavailable' as const } }),
+      resolve: () => {
+        throw new Error('must not resolve')
+      },
+    }),
+    () => ({
+      layerOf: () => ({ failure: { kind: 'denied' as const } }),
+      resolve: () => {
+        throw new Error('must not resolve')
+      },
+    }),
+  ]) {
+    const source = createOfficialProfileSource(
+      { definitions: [definitionOf('alpha/route')], updatedAt: UPDATED_AT },
+      readPort,
+    )
+    const resolved = await createModelProfiles(source).resolve({
+      principal,
+      tenant: TENANT,
+      route: 'alpha/route',
+      required: {
+        modalities: ['text'],
+        source: { owner: 'test', record: 'text', revision: '1', digest: '0'.repeat(64) },
+      },
+    })
+    expect(resolved).toMatchObject({
+      ok: { kind: 'resolved', selectable: true, credential: 'unavailable' },
+    })
+  }
+})
