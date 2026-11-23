@@ -262,33 +262,39 @@ function withSourced(listed: Observed['entries'], sourced: SourcedCatalogEntries
   }
 }
 
-export function createLocalToolCatalog<P>(input: LocalToolCatalogInput<P>): ToolCatalog<P> {
-  const { registry, availability } = input
-  const rank = createCatalogRanking(input.search)
-
-  // `names` narrows what the sources are asked: a read for named tools asks only the sources they are under.
+// The catalog as it is now for the asker; given `names`, only the sources they are under are asked.
+function liveReader<P>(input: LocalToolCatalogInput<P>) {
   const liveFor = async (access: Access<P>, names?: readonly string[]) => {
     const observed = await readCatalogView(input.view, access)
     if ('failure' in observed) return observed
-    const listed = listingsFor(registry, access, observed.ok.view)
+    const listed = listingsFor(input.registry, access, observed.ok.view)
     if ('failure' in listed) return listed
     const sourced = (await input.sources?.read(access, names)) ?? NO_SOURCES
-    return succeed({ ...observed.ok, ...withSourced(listed.ok, sourced) })
+    return succeed({ ...observed.ok, ...withSourced(listed.ok, sourced), names })
   }
-
   const stable = async (
-    observed: Readonly<{ digest: string; registryDigest: string }>,
+    observed: Readonly<{
+      digest: string
+      registryDigest: string
+      names: readonly string[] | undefined
+    }>,
     access: Access<P>,
     after: string | null = null,
-    names?: readonly string[],
   ) => {
-    const current = await liveFor(access, names)
+    const current = await liveFor(access, observed.names)
     if ('failure' in current) return current
     return current.ok.digest === observed.digest &&
       current.ok.registryDigest === observed.registryDigest
       ? succeed(undefined)
       : changed(after)
   }
+  return { liveFor, stable }
+}
+
+export function createLocalToolCatalog<P>(input: LocalToolCatalogInput<P>): ToolCatalog<P> {
+  const { availability } = input
+  const rank = createCatalogRanking(input.search)
+  const { liveFor, stable } = liveReader(input)
 
   const judged = async (
     access: Access<P>,
@@ -346,13 +352,12 @@ export function createLocalToolCatalog<P>(input: LocalToolCatalogInput<P>): Tool
 
   return Object.freeze({
     inspect: async request => {
-      const names = [request.name]
-      const live = await liveFor(request, names)
+      const live = await liveFor(request, [request.name])
       if ('failure' in live) return live
       const candidate = chosen(live.ok, request.name, request.command)
       if ('failure' in candidate) return candidate
       const answer = await judged(request, candidate.ok, request.consumer, request.command)
-      const checked = await stable(live.ok, request, null, names)
+      const checked = await stable(live.ok, request)
       return 'failure' in checked ? checked : answer
     },
 
@@ -368,13 +373,12 @@ export function createLocalToolCatalog<P>(input: LocalToolCatalogInput<P>): Tool
             : await judged(request, candidate.ok, request.consumer, null),
         )
       }
-      const checked = await stable(live.ok, request, null, request.names)
+      const checked = await stable(live.ok, request)
       return 'failure' in checked ? checked : succeed(answers)
     },
 
     usage: async request => {
-      const names = [request.name]
-      const live = await liveFor(request, names)
+      const live = await liveFor(request, [request.name])
       if ('failure' in live) return live
       const candidate = candidateFor(live.ok, request.name)
       if (candidate === undefined) return sourceUnavailable(live.ok.sourced, request.name)
@@ -383,7 +387,7 @@ export function createLocalToolCatalog<P>(input: LocalToolCatalogInput<P>): Tool
       const verdict = await availability.judge(
         asked(request, candidate, request.consumer, request.command),
       )
-      const checked = await stable(live.ok, request, null, names)
+      const checked = await stable(live.ok, request)
       if ('failure' in checked) return checked
       if ('failure' in verdict) return verdict
       if (verdict.ok.qualification !== 'allowed') return fail({ kind: 'denied', action: 'usage' })

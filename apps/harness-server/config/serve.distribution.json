@@ -109,6 +109,13 @@
               "id": "skills",
               "effect": "allow",
               "tool": "Skills"
+            },
+            {
+              "id": "mcp",
+              "effect": "allow",
+              "source": {
+                "category": "mcp"
+              }
             }
           ]
         },
@@ -162,7 +169,20 @@
         "deploymentId": "harness-local",
         "logicalServiceId": "harness-governance",
         "recoveryPagesPerPass": 4,
-        "closeTimeoutMs": 3000
+        "closeTimeoutMs": 3000,
+        "categoryGates": [
+          {
+            "category": "mcp",
+            "ownerId": "mcp.endpoint-gates",
+            "gates": [
+              {
+                "id": "invoke",
+                "title": "调用这个接入点的动作",
+                "default": "ask"
+              }
+            ]
+          }
+        ]
       }
     },
     {
@@ -690,6 +710,26 @@
       "id": "tool-entry-sources",
       "plugin": "toolEntrySourcesRow",
       "config": {}
+    },
+    {
+      "id": "mcp",
+      "plugin": "mcpRow",
+      "config": {
+        "core": {
+          "maxListingPages": 16,
+          "maxActions": 256,
+          "instructionsByteLimit": 16384,
+          "clientInfo": {
+            "name": "omne-harness",
+            "version": "0.0.0"
+          }
+        },
+        "bridge": {
+          "acquireWaitMs": 3000,
+          "resultMaxBytes": 65536,
+          "connectBoundMs": 10000
+        }
+      }
     },
     {
       "id": "tool-bindings",

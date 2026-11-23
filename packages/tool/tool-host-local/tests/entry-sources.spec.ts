@@ -268,6 +268,26 @@ describe('the entries of a source in the catalog', () => {
     },
   )
 
+  it('a tool of the registry is inspected without asking any source, so a source that hangs holds up none of them', async () => {
+    let asked = 0
+    const { catalog } = world([
+      probe(() => {
+        asked += 1
+        return new Promise<never>(() => undefined)
+      }),
+    ])
+    const started = Date.now()
+    expect(await catalog.inspect(inspecting(asA, 'Shell'))).toMatchObject({
+      ok: { kind: 'available' },
+    })
+    expect(asked).toBe(0)
+    expect(Date.now() - started).toBeLessThan(50)
+    expect(await catalog.inspect(inspecting(asA, 'probe__alpha'))).toMatchObject({
+      failure: { kind: 'unavailable', dependency: 'toolEntrySource' },
+    })
+    expect(asked).toBeGreaterThan(0)
+  })
+
   it('a source whose list answers a failure is unavailable for that reason', async () => {
     const failing: Source = {
       prefix: 'probe__',

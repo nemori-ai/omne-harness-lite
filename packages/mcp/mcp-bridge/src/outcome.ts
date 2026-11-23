@@ -228,10 +228,7 @@ function unknown(tool: string, action: string, what: string): string {
   return `${tool} ${action} was sent, and ${what}. ${NOT_KNOWN}`
 }
 
-/**
- * The whole mapping from what MCP gave back to what the tool call came to. `maxBytes` is what one
- * result of the tool may weigh; a longer answer of the endpoint is cut, and the result says so.
- */
+/** What MCP gave back, as what the tool call came to; an answer above `maxBytes` is cut and says so. */
 export function settle(
   tool: string,
   action: string,

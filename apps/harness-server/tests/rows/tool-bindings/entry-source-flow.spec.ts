@@ -1,6 +1,5 @@
 // @module-tag slow
 // A tool entry source on the release tree: its entries are found, described and called through Tools.
-import { setTimeout as sleep } from 'node:timers/promises'
 import { expect, it } from 'vitest'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { savedTenant } from '../../r9/support.ts'
@@ -9,9 +8,16 @@ import {
   onReleaseTree,
   releaseDistribution,
   toolCallsByRequest,
-  toolResults,
   type ReleaseTree,
 } from '../../support/release-tree.ts'
+import {
+  lastMessageOf,
+  lastResult,
+  prefixOf,
+  recoveryOf,
+  settled,
+  toolsCall as tools,
+} from '../../support/tools-flow.ts'
 import {
   answerCard,
   endedRuns,
@@ -26,44 +32,12 @@ type Assets = ProtocolClients['assets']
 const NOT_RELEASED = 'The tool call did not run: the person did not allow it this time.'
 const ownerOf = (name: string) => ({ kind: 'asset', category: PROBE, name }) as const
 
-const tools = (id: string, command: string, params: unknown) => ({
-  id,
-  tool: 'Tools',
-  arguments: JSON.stringify({ command, intent: 'test call', params }),
-})
-
-type Message = Readonly<{ role: string; content: unknown }>
-
-// The recovery call a pending answer of Tools names: a model copies it to read the result.
-function recoveryOf(last: Message | undefined) {
-  if (last?.role !== 'tool') return undefined
-  const texts =
-    typeof last.content === 'string'
-      ? [last.content]
-      : (last.content as { text?: unknown }[]).flatMap(part =>
-          typeof part.text === 'string' ? [part.text] : [],
-        )
-  for (const text of texts) {
-    try {
-      const answer = JSON.parse(text) as {
-        state?: string
-        next?: { command: string; params: unknown }
-      }
-      if (answer.state === 'pending' && answer.next !== undefined) return answer.next
-    } catch {
-      continue
-    }
-  }
-  return undefined
-}
-
 // Each new user message asks for one call of Tools; a pending answer is followed by its recovery call.
 function scripted() {
   const bodies: string[] = []
   const script = toolCallsByRequest(body => {
     bodies.push(body)
-    const messages = (JSON.parse(body) as { messages?: Message[] }).messages
-    const last = messages?.at(-1)
+    const last = lastMessageOf(body)
     const recovery = recoveryOf(last)
     if (recovery !== undefined)
       return [tools(`read_${String(bodies.length)}`, recovery.command, recovery.params)]
@@ -111,29 +85,6 @@ const options = (script: ReturnType<typeof scripted>['script']) => ({
   },
 })
 
-const warningsOf = (tree: ReleaseTree) =>
-  tree.records
-    .filter(record => record['signal'] === 'log' && record['level'] !== 'info')
-    .map(record => `${String(record['component'])}: ${JSON.stringify(record['fields'])}`)
-    .slice(-20)
-    .join('\n')
-
-async function settled<T>(
-  tree: ReleaseTree,
-  what: string,
-  read: () => Promise<T>,
-  done: (value: T) => boolean,
-): Promise<T> {
-  const deadline = Date.now() + 30_000
-  for (;;) {
-    const value = await read()
-    if (done(value)) return value
-    if (Date.now() > deadline)
-      throw new Error(`${what} did not happen: ${JSON.stringify(value)}\n${warningsOf(tree)}`)
-    await sleep(200)
-  }
-}
-
 const world = (tree: ReleaseTree) => ({
   tree,
   assets: tree.clients.assets,
@@ -174,18 +125,6 @@ async function pick({ assets, tenant }: World, name: string, value: 'deny' | 'as
     value: { kind: 'permission', pick: value },
   })
   expect(written).toMatchObject({ outcome: 'succeeded' })
-}
-
-const lastResult = async (tree: ReleaseTree, session: string, runs: number) =>
-  toolResults(await endedRuns(tree, session, runs)).at(-1) ?? ''
-
-// What a request gives the model before the conversation: the system part and the tool declarations.
-function prefixOf(body: string): string {
-  const request = JSON.parse(body) as { messages?: { role: string }[]; tools?: unknown }
-  return JSON.stringify({
-    system: request.messages?.filter(message => message.role === 'system'),
-    tools: request.tools,
-  })
 }
 
 it(

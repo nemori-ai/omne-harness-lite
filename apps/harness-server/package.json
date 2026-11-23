@@ -190,9 +190,12 @@
     "@omne-harness/workspace-git": "workspace:*",
     "@omne-harness/workspace-local": "workspace:*",
     "@omne-harness/workspace-tools": "workspace:*",
+    "ajv": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@modelcontextprotocol/node": "catalog:",
+    "@modelcontextprotocol/server": "catalog:",
     "@omne-harness/assets-protocol": "workspace:*",
     "@omne-harness/cli": "workspace:*",
     "@omne-harness/content-block": "workspace:*",

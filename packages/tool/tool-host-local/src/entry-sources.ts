@@ -40,11 +40,7 @@ export type SourcedCatalogEntries = Readonly<{
 }>
 
 export interface LocalToolSourcedEntries<P> {
-  /**
-   * Never fails as a whole: a source that cannot list is named in `unavailable`, by its prefix.
-   * Given `names`, only the sources whose prefix one of them is under are asked: a call of a tool
-   * of the release never waits on a source.
-   */
+  /** Never fails as a whole; given `names`, asks only the sources they are under, so no release tool waits on one. */
   read(access: Access<P>, names?: readonly string[]): Promise<SourcedCatalogEntries>
 }
 

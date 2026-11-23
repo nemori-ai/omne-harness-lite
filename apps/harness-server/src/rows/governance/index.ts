@@ -58,7 +58,12 @@ import { tenantDomainRegistrationKey } from './tenant-domain-registration-servic
 import { openOrganizationSettingsSources } from './organization-settings.ts'
 import { permissionOriginsOf } from './permission-origins.ts'
 import { CurrentPermissionService, currentToolPermissionKey } from './current-permission-service.ts'
-import { provideTenantSettings, tenantSettingsKey } from './tenant-settings-service.ts'
+import {
+  provideTenantSettings,
+  tenantAssetSettingsKey,
+  tenantSettingsKey,
+  type TenantSettingsServiceOptions,
+} from './tenant-settings-service.ts'
 import { isHitlReservation } from '../tool-hitl/host.ts'
 import { toolHitlHolder } from '../tool-hitl/holder.ts'
 
@@ -130,6 +135,7 @@ export const governanceRow = defineRow({
       standingDestinationResolverKey,
       currentToolPermissionKey,
       tenantSettingsKey,
+      tenantAssetSettingsKey,
       independentSettingsKey,
       tenantIndependentSettingsKey,
     ],
@@ -273,19 +279,20 @@ export const governanceRow = defineRow({
       'governance.tenant-settings.active',
     )
     provideTenantIndependentSettings(ctx, { host, deploymentRef: config.deploymentId })
-    provideTenantSettings(ctx, {
+    const settingsFace = {
       host,
       scope: config,
       storage: ctx.storage,
       release: () => release,
-      declared: tenantRef => registeredPermissionDeclarations(ctx, tenantRef),
+      declared: (tenantRef: string) => registeredPermissionDeclarations(ctx, tenantRef),
       identity: {
         verifier: { verify: input => ctx.principalVerifier.verify(input) },
         standing: { read: input => ctx.tenantStanding.read(input) },
       },
       active: () => active,
       cards: () => ctx.get(agentDecisionCardsKey, false),
-    })
+    } satisfies TenantSettingsServiceOptions
+    provideTenantSettings(ctx, settingsFace)
     ctx.effect(
       () => () => host.close(monotonicClock.now() + config.closeTimeoutMs),
       'governance.close',

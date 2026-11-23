@@ -5,6 +5,7 @@ import {
   type ActionDiscovery,
   type ActionInvoker,
   type EndpointRef,
+  type Millis,
   type KnownAction,
   type OperationFailure,
 } from '@omne-harness/mcp-contract'
@@ -45,6 +46,8 @@ export type McpBridgeDependencies<P> = Readonly<{
   resultMaxBytes: number
   /** How long one listing waits for the first acquisition of an endpoint's actions. */
   acquireWaitMs: number
+  /** How long a connection may take when the endpoint's own connection timeout is not set. */
+  connectBound: Millis
 }>
 
 type Row =
@@ -92,6 +95,76 @@ function refused(ref: EndpointRef, failure: OperationFailure): Row {
   return failure.kind === 'not-available-to-you' ? NONE : withheld(ref, failureText(failure))
 }
 
+async function waited<T>(work: Promise<T>, waitMs: number): Promise<T | 'still-running'> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const late = new Promise<'still-running'>(resolve => {
+    timer = setTimeout(() => resolve('still-running'), waitMs)
+  })
+  try {
+    return await Promise.race([work, late])
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+function settled(rows: readonly Row[]): ReadonlyMap<string, Exclude<Row, { kind: 'none' }>> {
+  const byName = new Map<string, Exclude<Row, { kind: 'none' }>>()
+  for (const row of rows) {
+    if (row.kind === 'none') continue
+    const name = row.kind === 'entry' ? row.entry.definition.name : row.withheld.name
+    const prior = byName.get(name)
+    if (prior === undefined || (prior.kind === 'withheld' && row.kind === 'entry'))
+      byName.set(name, row)
+  }
+  return byName
+}
+
+// The action the call names, as the endpoint offers it now; it must be the command the call was accepted as.
+async function calling<P>(
+  deps: McpBridgeDependencies<P>,
+  access: Access<P>,
+  ref: EndpointRef,
+  declared: ToolCommandDeclaration,
+): Promise<Outcome<KnownAction, string>> {
+  const view = await deps.discovery.current(access, ref)
+  if ('failure' in view) return fail(failureText(view.failure))
+  const known =
+    view.ok.kind === 'acquired'
+      ? view.ok.actions.find(action => action.name === declared.name)
+      : undefined
+  if (known === undefined) return fail(failureText({ kind: 'action-unavailable' }))
+  const now = commandOf(known, deps.shape)
+  return 'ok' in now && commandText(now.ok) === commandText(declared)
+    ? succeed(known)
+    : fail(failureText({ kind: 'definition-changed' }))
+}
+
+async function send<P>(
+  deps: McpBridgeDependencies<P>,
+  call: ToolSourceCall<P>,
+  ref: EndpointRef,
+  declared: ToolCommandDeclaration,
+): Promise<Settlement> {
+  const access: Access<P> = { principal: call.principal, tenant: call.tenant }
+  const known = await calling(deps, access, ref, declared)
+  if ('failure' in known) return notStarted(call.name, declared.name, known.failure)
+  if (!isCorrelationKey(call.invocation))
+    throw new TypeError('the invocation of the call is not a correlation key')
+  const result = await deps.invoker.invoke(access, {
+    ref,
+    action: known.ok.name,
+    args: call.arguments,
+    expectedDefinition: known.ok.definitionDigest,
+    correlationKey: call.invocation,
+    signal: call.signal,
+    connectBound: deps.connectBound,
+  })
+  const came = settle(call.name, declared.name, result, deps.resultMaxBytes)
+  if (came.effect === 'unknown' && came.cancelTask !== undefined)
+    await deps.invoker.cancelTask(access, { ref, ...came.cancelTask })
+  return came
+}
+
 export function createMcpEntrySource<P>(
   deps: McpBridgeDependencies<P>,
 ): ToolEntrySource<P, ToolMessageContentBlock> {
@@ -132,28 +205,18 @@ export function createMcpEntrySource<P>(
     const key = `${askerKey(access)}\n${ref.holding}`
     const running = acquiring.get(key)
     if (running !== undefined) return running
-    const started = deps.discovery.refresh(access, { ref }).finally(() => acquiring.delete(key))
+    const started = deps.discovery
+      .refresh(access, { ref, connectBound: deps.connectBound })
+      .finally(() => acquiring.delete(key))
     acquiring.set(key, started)
     return started
-  }
-
-  async function waited<T>(work: Promise<T>): Promise<T | 'still-running'> {
-    let timer: ReturnType<typeof setTimeout> | undefined
-    const late = new Promise<'still-running'>(resolve => {
-      timer = setTimeout(() => resolve('still-running'), deps.acquireWaitMs)
-    })
-    try {
-      return await Promise.race([work, late])
-    } finally {
-      clearTimeout(timer)
-    }
   }
 
   async function endpointRow(access: Access<P>, ref: EndpointRef): Promise<Row> {
     const first = await deps.discovery.current(access, ref)
     if ('failure' in first) return refused(ref, first.failure)
     if (first.ok.kind === 'acquired') return rowOf(ref, first.ok.actions)
-    const refreshed = await waited(acquire(access, ref))
+    const refreshed = await waited(acquire(access, ref), deps.acquireWaitMs)
     if (refreshed === 'still-running')
       return withheld(ref, 'the actions of the endpoint are still being acquired')
     if ('failure' in refreshed) return refused(ref, refreshed.failure)
@@ -162,60 +225,6 @@ export function createMcpEntrySource<P>(
     return second.ok.kind === 'acquired'
       ? rowOf(ref, second.ok.actions)
       : withheld(ref, 'the actions of the endpoint have not been acquired')
-  }
-
-  function settled(rows: readonly Row[]): ReadonlyMap<string, Exclude<Row, { kind: 'none' }>> {
-    const byName = new Map<string, Exclude<Row, { kind: 'none' }>>()
-    for (const row of rows) {
-      if (row.kind === 'none') continue
-      const name = row.kind === 'entry' ? row.entry.definition.name : row.withheld.name
-      const prior = byName.get(name)
-      if (prior === undefined || (prior.kind === 'withheld' && row.kind === 'entry'))
-        byName.set(name, row)
-    }
-    return byName
-  }
-
-  async function calling(
-    access: Access<P>,
-    ref: EndpointRef,
-    declared: ToolCommandDeclaration,
-  ): Promise<Outcome<KnownAction, string>> {
-    const view = await deps.discovery.current(access, ref)
-    if ('failure' in view) return fail(failureText(view.failure))
-    const known =
-      view.ok.kind === 'acquired'
-        ? view.ok.actions.find(action => action.name === declared.name)
-        : undefined
-    if (known === undefined) return fail(failureText({ kind: 'action-unavailable' }))
-    const now = commandOf(known, deps.shape)
-    return 'ok' in now && commandText(now.ok) === commandText(declared)
-      ? succeed(known)
-      : fail(failureText({ kind: 'definition-changed' }))
-  }
-
-  async function send(
-    call: ToolSourceCall<P>,
-    ref: EndpointRef,
-    declared: ToolCommandDeclaration,
-  ): Promise<Settlement> {
-    const access: Access<P> = { principal: call.principal, tenant: call.tenant }
-    const known = await calling(access, ref, declared)
-    if ('failure' in known) return notStarted(call.name, declared.name, known.failure)
-    if (!isCorrelationKey(call.invocation))
-      throw new TypeError('the invocation of the call is not a correlation key')
-    const result = await deps.invoker.invoke(access, {
-      ref,
-      action: known.ok.name,
-      args: call.arguments,
-      expectedDefinition: known.ok.definitionDigest,
-      correlationKey: call.invocation,
-      signal: call.signal,
-    })
-    const came = settle(call.name, declared.name, result, deps.resultMaxBytes)
-    if (came.effect === 'unknown' && came.cancelTask !== undefined)
-      await deps.invoker.cancelTask(access, { ref, ...came.cancelTask })
-    return came
   }
 
   return {
@@ -247,7 +256,7 @@ export function createMcpEntrySource<P>(
       const outcome =
         ref === undefined || call.declared === null
           ? notStarted(call.name, call.command ?? '', failureText({ kind: 'not-available-to-you' }))
-          : await send(call, ref, call.declared)
+          : await send(deps, call, ref, call.declared)
       if (outcome.effect === 'happened') return outcome.result
       throw new Error(outcome.message)
     },

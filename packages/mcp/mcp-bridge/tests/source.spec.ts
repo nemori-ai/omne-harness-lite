@@ -117,6 +117,7 @@ describe('what the source gives, for each state of an endpoint', () => {
     })
     expect(names(await listing(w, alice))).toEqual(['mcp__docs'])
     expect(w.refreshed).toEqual(['docs'])
+    expect(w.bounds).toEqual([7000])
   })
 
   it('the actions were never acquired and the refresh fails: withheld, with the reason', async () => {
@@ -291,6 +292,7 @@ describe('a call of a command', () => {
       args,
       expectedDefinition: 'sha256:search:1',
       correlationKey: 'call-1',
+      connectBound: 7000,
     })
     expect(result.content).toHaveLength(1)
     expect(result.content[0]).toMatchObject({ kind: 'text' })

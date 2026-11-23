@@ -86,13 +86,16 @@ describe('one endpoint is one multi-command tool', () => {
     expect(bare?.summary).toBe('The endpoint gave no description.')
   })
 
-  it('the whole description stands at the root of the parameters, between the marks', () => {
+  it('the whole description stands at the root of the input schema, between the marks', () => {
     const description = 'Finds pages. Use it before fetch.\n\nDo not call it twice.'
     const command = commandsOf(toolOf(action('search', { description })).definition).commands[0]
     if (command?.parameters.kind !== 'declared') throw new Error('parameters are not declared')
-    expect(command.parameters.value.descriptions).toEqual([
-      { path: '$', text: `${PEER_TEXT_BEGIN}\n${description}\n${PEER_TEXT_END}` },
-    ])
+    const { schema, descriptions } = command.parameters.value
+    expect(descriptions).toEqual([])
+    expect(schema.kind === 'object' && schema.entries[0]).toEqual({
+      key: 'description',
+      value: { kind: 'string', value: `${PEER_TEXT_BEGIN}\n${description}\n${PEER_TEXT_END}` },
+    })
     const guide = commandGuide(
       commandsOf(toolOf(action('search', { description })).definition),
       'search',
@@ -105,10 +108,30 @@ describe('one endpoint is one multi-command tool', () => {
     const command = commandsOf(toolOf(action('search', { description: 'Finds pages.' })).definition)
       .commands[0]
     if (command?.parameters.kind !== 'declared') throw new Error('parameters are not declared')
-    expect(command.parameters.value.descriptions).toEqual([])
+    const { schema } = command.parameters.value
+    expect(schema.kind === 'object' && schema.entries.map(entry => entry.key)).not.toContain(
+      'description',
+    )
   })
 
-  it('the input schema of the action is the schema of the command, as it is', () => {
+  it('a description the input schema had follows the description of the action', () => {
+    const made = commandOf(
+      action('search', {
+        description: 'Finds pages. More words.',
+        inputSchema: { type: 'object', description: 'The query object.' },
+      }),
+      shape,
+    )
+    if (!('ok' in made) || made.ok.parameters.kind !== 'declared') throw new Error('not admitted')
+    const { schema } = made.ok.parameters.value
+    expect(schema.kind === 'object' && schema.entries.map(entry => entry.key)).toEqual([
+      'description',
+      'type',
+    ])
+    expect(JSON.stringify(schema)).toContain(`${PEER_TEXT_END}\\nThe query object.`)
+  })
+
+  it('without a longer description the input schema of the action is the schema of the command, as it is', () => {
     const known = action('search')
     const made = commandOf(known, shape)
     if (!('ok' in made) || made.ok.parameters.kind !== 'declared') throw new Error('not admitted')

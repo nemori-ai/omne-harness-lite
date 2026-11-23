@@ -66,6 +66,7 @@
     "tool-records",
     "tool-body-sweep",
     "tool-entry-sources",
+    "mcp",
     "tool-bindings",
     "skills",
     "tool-runtime",

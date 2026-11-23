@@ -102,6 +102,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'standingDestinationResolver',
       'currentToolPermission',
       'tenantSettings',
+      'tenantAssetSettings',
       'independentSettings',
       'tenantIndependentSettings',
     ],
@@ -391,6 +392,16 @@ const TABLE: Readonly<Record<string, Entry>> = {
     group: 'tool-start',
   },
   'tool-entry-sources': { provides: ['toolEntrySources'], injects: ['dynamis'] },
+  mcp: {
+    provides: [
+      'mcpActionDiscovery',
+      'mcpActionInvoker',
+      'mcpEndpointStatus',
+      'mcpAdoptionView',
+      'mcpUseEligibility',
+    ],
+    injects: ['tenantAssets', 'assetCategories', 'toolEntrySources'],
+  },
   'tool-bindings': {
     provides: ['toolBindings', 'toolCatalog', 'toolReleaseDetails'],
     injects: ['toolContributionAuthority'],

@@ -1092,10 +1092,19 @@ importers:
       '@omne-harness/workspace-tools':
         specifier: workspace:*
         version: link:../../packages/workspace/workspace-tools
+      ajv:
+        specifier: 'catalog:'
+        version: 8.20.0
       zod:
         specifier: 'catalog:'
         version: 4.6.5
     devDependencies:
+      '@modelcontextprotocol/node':
+        specifier: 'catalog:'
+        version: 2.1.2(@modelcontextprotocol/server@2.4.0)
+      '@modelcontextprotocol/server':
+        specifier: 'catalog:'
+        version: 2.4.0
       '@omne-harness/assets-protocol':
         specifier: workspace:*
         version: link:../../packages/assets/assets-protocol

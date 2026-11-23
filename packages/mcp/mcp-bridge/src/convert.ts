@@ -19,7 +19,6 @@ export const PEER_TEXT_END = '[external data ends]'
 const OWNER = '@omne-harness/mcp-bridge'
 const SUMMARY_MAX = 160
 const NAME_SHOWN_MAX = 80
-const ROOT_PATH = '$'
 const NO_DESCRIPTION = 'The endpoint gave no description.'
 
 const vocabulary = describedAdoption({
@@ -27,6 +26,12 @@ const vocabulary = describedAdoption({
   name: 'json-schema',
   revision: '2020-12',
   dialect: 'https://json-schema.org/draft/2020-12/schema',
+})
+const textBody = describedAdoption({
+  owner: OWNER,
+  name: 'utf8-text-body',
+  revision: '1',
+  encoding: 'UTF-8',
 })
 const declarationsAdoption = describedAdoption({
   owner: OWNER,
@@ -84,7 +89,7 @@ function returnsOf(shape: BridgeShape): ToolReturnDeclaration {
     kind: 'structured',
     value: { kind: 'tool-result', contract: shape.resultContract },
     program: { kind: 'none' },
-    body: { kind: 'none' },
+    body: { kind: 'text', codec: textBody },
     offloading: { inline: { kind: 'system' }, retention: { kind: 'system' } },
   }
 }
@@ -148,6 +153,21 @@ export function commandText(command: ToolCommandDeclaration): string {
   return JSON.stringify([command.name, command.summary, parameters, command.returns])
 }
 
+// The whole description goes on the root of the input schema, where every rendering of the schema
+// shows it; a description the schema had already follows it.
+function described(
+  schema: Extract<JsonValue, { kind: 'object' }>,
+  text: string,
+): Extract<JsonValue, { kind: 'object' }> {
+  const own = textMember(schema, 'description')
+  const rest = schema.entries.filter(entry => entry.key !== 'description')
+  const value = own === undefined ? text : `${text}\n${own}`
+  return {
+    kind: 'object',
+    entries: [{ key: 'description', value: { kind: 'string', value } }, ...rest],
+  }
+}
+
 export function commandOf(
   action: KnownAction,
   shape: BridgeShape,
@@ -164,12 +184,12 @@ export function commandOf(
     parameters: {
       kind: 'declared',
       value: {
-        schema,
-        vocabulary,
-        descriptions:
+        schema:
           description === undefined || description.trim() === said
-            ? []
-            : [{ path: ROOT_PATH, text: `${PEER_TEXT_BEGIN}\n${description}\n${PEER_TEXT_END}` }],
+            ? schema
+            : described(schema, `${PEER_TEXT_BEGIN}\n${description}\n${PEER_TEXT_END}`),
+        vocabulary,
+        descriptions: [],
       },
     },
     returns: returnsOf(shape),

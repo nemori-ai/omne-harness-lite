@@ -19,7 +19,7 @@ import type {
   RefreshResult,
   TaskRef,
 } from '@omne-harness/mcp-contract'
-import { revisionOf } from '@omne-harness/mcp-contract/testing'
+import { millisOf, revisionOf } from '@omne-harness/mcp-contract/testing'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { createMcpEntrySource } from '../src/index.ts'
 import { ref, shape } from './support.ts'
@@ -70,6 +70,7 @@ export function world(acquireWaitMs = 50) {
   const invoked: Array<Readonly<{ asker: Access<Principal>; request: InvokeRequest }>> = []
   const cancelledTasks: TaskRef[] = []
   const refreshed: string[] = []
+  const bounds: unknown[] = []
   let answer: (request: InvokeRequest) => InvokeResult | Promise<InvokeResult> = () => {
     throw new Error('the world has no answer scripted for a call')
   }
@@ -79,6 +80,7 @@ export function world(acquireWaitMs = 50) {
       readings.get(endpoint.name)?.(asker) ?? fail({ kind: 'not-available-to-you' }),
     refresh: async (_asker, request) => {
       refreshed.push(request.ref.name)
+      bounds.push(request.connectBound)
       const scripted = refreshes.get(request.ref.name)
       return scripted === undefined ? fail({ kind: 'connection-unavailable' }) : scripted()
     },
@@ -104,6 +106,7 @@ export function world(acquireWaitMs = 50) {
     principalKey: principal => principal.id,
     shape,
     resultMaxBytes: 65_536,
+    connectBound: millisOf(7000),
     acquireWaitMs,
   })
 
@@ -112,6 +115,7 @@ export function world(acquireWaitMs = 50) {
     invoked,
     cancelledTasks,
     refreshed,
+    bounds,
     adopt(owner: TenantId, ...names: string[]) {
       adopted.set(
         owner,
