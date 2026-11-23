@@ -5,3 +5,12 @@ export {
   pluginCategoryDisplay,
   pluginPluginsPoint,
 } from './category.ts'
+export {
+  heldPlugins,
+  readHeldPart,
+  type HeldFile,
+  type HeldPart,
+  type HeldPlugin,
+  type HeldPluginPorts,
+  type HeldPlugins,
+} from './held.ts'

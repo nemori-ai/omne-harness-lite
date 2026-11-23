@@ -197,7 +197,7 @@ export function createDevDirectorySource(
         kind: 'unavailable' as const,
       }))
     },
-    subscribe(listener) {
+    subscribe(_tenant, listener) {
       const own = (): void => listener()
       listeners.add(own)
       return () => void listeners.delete(own)

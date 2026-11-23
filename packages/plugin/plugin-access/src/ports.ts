@@ -27,16 +27,19 @@ export type SourceRead =
   | Readonly<{ kind: 'absent'; what: 'plugin' | 'file' }>
   | Readonly<{ kind: 'unavailable' }>
 
-/** Where the plugins to load come from. What it offers may differ by the principal it is asked for. */
+/** Who asks: a principal that acts for this tenant. The login was judged before a source is asked. */
+export type Asker = Readonly<{ principal: Principal; tenant: string }>
+
+/** Where the plugins to load come from. What it offers may differ by who asks. */
 export interface PluginSource {
   list(
-    principal: Principal,
+    asker: Asker,
   ): Promise<
     Readonly<{ kind: 'read'; offered: readonly SourcePlugin[] }> | Readonly<{ kind: 'unavailable' }>
   >
-  read(principal: Principal, at: FileAt): Promise<SourceRead>
-  /** Calls the listener when what it offers may have changed; returns the function that stops it. */
-  subscribe(listener: () => void): () => void
+  read(asker: Asker, at: FileAt): Promise<SourceRead>
+  /** Calls the listener when what it offers this tenant may have changed; returns the function that stops it. */
+  subscribe(tenant: string, listener: () => void): () => void
 }
 
 export type LoadReport = Readonly<{

@@ -1,8 +1,14 @@
-import type { AccessContribution, AnswerOf, Principal } from '@omne-harness/access-cordis-contract'
+import type { AccessContribution, AnswerOf } from '@omne-harness/access-cordis-contract'
 import { pluginProtocol, wantedOf, type PluginProtocol } from '@omne-harness/plugin-protocol'
 import { actingFor, tenantText } from './acting.ts'
 import { createWantedObservation } from './observe-wanted.ts'
-import type { PluginReports, PluginSource, SourcePlugin, TargetTenantPrincipals } from './ports.ts'
+import type {
+  Asker,
+  PluginReports,
+  PluginSource,
+  SourcePlugin,
+  TargetTenantPrincipals,
+} from './ports.ts'
 
 export type PluginContributionInput = Readonly<{
   principals: TargetTenantPrincipals
@@ -36,16 +42,17 @@ export function createPluginContribution(
   input: PluginContributionInput,
 ): AccessContribution<PluginProtocol> {
   const { principals, source, reports } = input
-  const listed = (principal: Principal) =>
-    source.list(principal).catch(() => ({ kind: 'unavailable' as const }))
+  const listed = (asker: Asker) =>
+    source.list(asker).catch(() => ({ kind: 'unavailable' as const }))
 
   return {
     protocol: pluginProtocol,
     operations: {
       async 'list-wanted'(call, body): Promise<Answer<'list-wanted'>> {
-        const principal = await actingFor(principals, call.principal, tenantText(body.tenant))
+        const tenant = tenantText(body.tenant)
+        const principal = await actingFor(principals, call.principal, tenant)
         if ('outcome' in principal) return principal
-        const list = await listed(principal)
+        const list = await listed({ principal, tenant })
         if (list.kind !== 'read') return UNAVAILABLE
         const byName = new Map(list.offered.map(each => [each.manifest.name, each]))
         const plugins = wantedOf(list.offered, body.side).map(({ name, version }) => {
@@ -60,9 +67,11 @@ export function createPluginContribution(
         return { outcome: 'succeeded', body: { plugins } }
       },
       async 'read-file'(call, body): Promise<Answer<'read-file'>> {
-        const principal = await actingFor(principals, call.principal, tenantText(body.tenant))
+        const tenant = tenantText(body.tenant)
+        const principal = await actingFor(principals, call.principal, tenant)
         if ('outcome' in principal) return principal
-        const list = await listed(principal)
+        const asker = { principal, tenant }
+        const list = await listed(asker)
         if (list.kind !== 'read') return UNAVAILABLE
         const { name, version, path, offset, limit } = body
         const plugin = loadable(list.offered).find(
@@ -72,9 +81,7 @@ export function createPluginContribution(
         if (!plugin.files.some(file => file.path === path)) return notFound('file')
         if (limit === 0) return { outcome: 'limited', body: {} }
         const at = { name, version, path, offset, limit: Math.min(limit, PART_BYTES) }
-        const read = await source
-          .read(principal, at)
-          .catch(() => ({ kind: 'unavailable' as const }))
+        const read = await source.read(asker, at).catch(() => ({ kind: 'unavailable' as const }))
         if (read.kind === 'absent') return notFound(read.what)
         if (read.kind !== 'read') return UNAVAILABLE
         return {

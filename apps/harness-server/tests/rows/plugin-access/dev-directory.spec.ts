@@ -9,7 +9,7 @@ import {
   type DevDirectorySource,
 } from '../../../src/rows/plugin-access/dev-directory.ts'
 
-const principal = {} as Principal
+const principal = { principal: {} as Principal, tenant: 'any tenant' }
 const opened: { root: string; source?: DevDirectorySource }[] = []
 
 afterEach(() => {
@@ -57,7 +57,7 @@ const sha = (text: string) => createHash('sha256').update(text).digest('hex')
 function changed(source: DevDirectorySource): Promise<number> {
   const started = Date.now()
   return new Promise(resolve => {
-    const stop = source.subscribe(() => {
+    const stop = source.subscribe('any tenant', () => {
       stop()
       resolve(Date.now() - started)
     })
@@ -167,7 +167,7 @@ describe('the dev directory as a source of plugins', () => {
     await listed(source)
     await source.settled()
     let calls = 0
-    source.subscribe(() => (calls += 1))
+    source.subscribe('any tenant', () => (calls += 1))
     write(root, 'notes/main.js', 'export const page = 1\n')
     await new Promise(resolve => setTimeout(resolve, 600))
     await source.settled()
@@ -178,7 +178,7 @@ describe('the dev directory as a source of plugins', () => {
     const { root, source } = directory()
     await source.settled()
     let calls = 0
-    source.subscribe(() => (calls += 1))
+    source.subscribe('any tenant', () => (calls += 1))
     source.close()
     write(root, 'notes/main.js', 'export const page = 5\n')
     await new Promise(resolve => setTimeout(resolve, 600))
@@ -215,7 +215,7 @@ describe('the dev directory as a source of plugins', () => {
       await source.read(principal, { name: 'n', version: 'v', path: 'p', offset: 0, limit: 1 }),
     ).toEqual({ kind: 'absent', what: 'plugin' })
     let calls = 0
-    source.subscribe(() => (calls += 1))()
+    source.subscribe('any tenant', () => (calls += 1))()
     source.close()
     expect(calls).toBe(0)
   })

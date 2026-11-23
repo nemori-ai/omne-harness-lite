@@ -123,7 +123,7 @@
 | `tool-access` | `@omne-harness/tool-access` 的 `./cordis` 插件 `createToolAccessPlugin`：`tool/v1` 的接入插件。装上这一行，新地址才开放 `tool/v1` | 无。插件把 `tool/v1` 的贡献（按调用引用读一次调用与读结果 2 个操作、观察 `observe-call`）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，本行用它与按调用读的 `identityOperations`、`tenantStanding`（受信）构造身份的 `createMemberActing`，把登录换成为目标租户行事的主体；资格读口缺席时换不出，调用答 `basis-unavailable`） | `toolRuntime` 的查询、实例与观察。取不到时调用答 `basis-unavailable`，协议不撤下 | 无 |
 | `model-access` | `@omne-harness/model-access` 的 `./cordis` 插件 `createModelAccessPlugin`：`model/v1` 的接入插件。装上这一行，新地址才开放 `model/v1` | 无。插件把 `model/v1` 的贡献（列出模型 1 个操作）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，同 `session-diagnostics-access`：经 `createMemberActing` 把登录换成为目标租户行事的主体） | `modelProfiles`。取不到时调用答 `basis-unavailable`，协议不撤下 | 无 |
 | `usage-access` | `@omne-harness/usage-access` 的 `./cordis` 插件 `createUsageAccessPlugin`：`usage/v1` 的接入插件。装上这一行，新地址才开放 `usage/v1` | 无。插件把 `usage/v1` 的贡献（统计、逐笔记录、上下文占比 3 个读操作）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，同 `session-diagnostics-access`：经 `createMemberActing` 把登录换成为目标租户行事的主体） | `usage`。取不到时调用答 `basis-unavailable`，协议不撤下 | 无 |
-| `plugin-access` | `@omne-harness/plugin-access` 的 `./cordis` 插件 `createPluginAccessPlugin`：`plugin/v1` 的接入插件。装上这一行，新地址才开放 `plugin/v1` | 无。插件把 `plugin/v1` 的贡献（列出一侧要装的、分页读一份的文件 2 个读操作，报告装成了没有 1 个提交操作；观察要装的，帧只说可能变了）挂上 `accessRegistry`。要装的来自本行的开发目录这个来源，回报记在本进程里 | `accessRegistry`；`principalIssuer`（受信，同 `calendar-access`） | 无 | `devDirectory`：可选的绝对路径，开发目录，下面每个子目录是一份 plugin，对所有租户给出同一组；缺省时要装的是空表，观察照常开着 |
+| `plugin-access` | `@omne-harness/plugin-access` 的 `./cordis` 插件 `createPluginAccessPlugin`：`plugin/v1` 的接入插件。装上这一行，新地址才开放 `plugin/v1` | 无。插件把 `plugin/v1` 的贡献（列出一侧要装的、分页读一份的文件 2 个读操作，报告装成了没有 1 个提交操作；观察要装的，帧只说可能变了）挂上 `accessRegistry`。要装的来自两个来源：这个租户持有的 plugin（按调用现取 `tenantAssets` 与 `assetChanges`，不在时答取不到）与本行的开发目录；回报记在本进程里 | `accessRegistry`；`principalIssuer`（受信，同 `calendar-access`）；按调用读取 `tenantAssets`、`assetChanges` | 无 | `devDirectory`：可选的绝对路径，开发目录，下面每个子目录是一份 plugin，对所有租户给出同一组；缺省时要装的是空表，观察照常开着 |
 | `plugin-host` | `@omne-harness/plugin-host-local` 的 `./cordis` 插件 `pluginCategoryPlugin`：把 Plugin 这一类贡献给 `assetCategories`，连同它的点 `plugin.plugins`。它的正文契约在判一份包时现问别的类别：清单里指向一个类别的点的成员，交给那个类别的正文契约判 | 无 | `assetCategories` | 无 | 无 |
 
 每行装一个插件（[IC-16](../cordis-integration-conventions.md#ic-16)）；插件自己的子插件随父插件装载。`session-ad*` 各行的 `inject` 以 [session-adapters 的 Cordis 页](../../../packages/session/SPEC.md#领域边界)为准，运维者可以按行 id 单独替换其中一行。
@@ -338,6 +338,7 @@ flowchart LR
   usage -.-> usage-access
   server-entry --> plugin-access
   identity -.-> plugin-access
+  tenant-assets -.-> plugin-access
   asset-categories -->|assetCategories| plugin-host
   tool-runtime -.-> session-call-control
   session-call-control -.-> session-provider
@@ -388,7 +389,7 @@ flowchart LR
 | 秘密保管 | `settingsSecretCustody` | `secret-custody` 行；`settings` 行 `inject`，`tool-bindings` 行按调用读取（Web 附着），`media-engine-transcribe` 行 `inject`（转写的密钥） |
 | 秘密设置项 | `settingsSecretItems` | `settings` 行；`assets-access` 行按调用读取，与 `tenantSettings` 并成 `assets/v1` 的设置端口 |
 | 租户层设置读写面 | `tenantSettings` | `governance` 行；不受信，`assets-access` 行按调用读取 |
-| 租户的本机资产 | `tenantAssets` | `tenant-assets` 行；`governance`、`skills`、`media-converters` 三行注入，按调用里的租户取 |
+| 租户的本机资产 | `tenantAssets` | `tenant-assets` 行；`governance`、`skills`、`media-converters` 三行注入，按调用里的租户取；`plugin-access` 行按调用读取 |
 | 接收记录读面 | `agentReceivedRecords` | `agent-journal` 行；`model-records` 与 `context-compaction` 行用于各自服务的 Agent 消费者 ACK 核验 |
 | 压缩服务的模型处理证明 | `compactionModelEvidence` | `context-compaction` 行提供；`model-records` 按调用读取，核对原模型调用、消费者与结果在压缩服务中的处理事实 |
 | identity 读口 | `principalVerifier`、`tenantStanding`、`identityGovernance` | 核验器：装配入口；资格读口与治理端口：`identity` 行。`settings` 行按调用读核验器与资格读口做设置管理的准入。四个领域的接入行（`session-access`、`assets-access`、`human-intervention-access`、`session-diagnostics-access`）按调用读资格读口：为目标租户换主体之前，这个租户的成员资格要当前有效。`server-entry` 行不读它：入口管道给 `acting-tenant` 的操作换主体只核账号对得上，成员与资格由主体到达的服务判。入口对象只经 `env.readTrusted` 读取；Tool 运行时组与 Tool 请求来源不在可见表里，由入口对象 `toolClock` 交给 Tool 共享状态的逐次读法读取 |

@@ -1,14 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { scopeOfLayer, type HeldItem } from '@omne-harness/assets'
 import { candidates } from '@omne-harness/dynamis'
-import type { TenantId } from '@omne-harness/legal-identity'
 import { settledSession } from '../../governance/tenant-settings-support.ts'
 import { savedTenant } from '../../r9/support.ts'
-import { tenantOf, type ProtocolClients } from '../../support/protocol-clients.ts'
+import { uploadPlugin as upload } from '../../support/plugin-packages.ts'
+import { tenantOf } from '../../support/protocol-clients.ts'
 import { onReleaseTree, toolCallsThenText } from '../../support/release-tree.ts'
-
-type Assets = ProtocolClients['assets']
-type Files = Readonly<Record<string, string>>
 
 const SKILL = `---
 name: tidy-up
@@ -30,33 +27,6 @@ const manifest = (name: string, server: readonly unknown[]): string =>
   })
 
 const TIDY_UP = { point: 'skill.skills', key: 'tidy-up', directory: 'skills/tidy-up' }
-
-async function upload(assets: Assets, tenant: TenantId, name: string, files: Files) {
-  const encoder = new TextEncoder()
-  const operation = `up-${name}`
-  const begun = await assets['begin-asset-upload']({
-    tenant,
-    operation,
-    category: 'plugin',
-    name,
-    manifest: Object.entries(files).map(([path, text]) => ({
-      path,
-      bytes: encoder.encode(text).length,
-    })),
-  })
-  if (begun.outcome !== 'succeeded') throw new Error(`begin: ${JSON.stringify(begun)}`)
-  for (const [path, text] of Object.entries(files)) {
-    const sent = await assets['append-asset-upload']({
-      tenant,
-      upload: operation,
-      path,
-      offset: 0,
-      bytes: encoder.encode(text),
-    })
-    if (sent.outcome !== 'succeeded') throw new Error(`append ${path}: ${sent.outcome}`)
-  }
-  return assets['commit-asset-upload']({ tenant, upload: operation })
-}
 
 describe('Plugin as a category on the release tree', () => {
   it(

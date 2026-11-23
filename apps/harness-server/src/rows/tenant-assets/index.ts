@@ -95,7 +95,11 @@ export const tenantAssetsRow = defineRow({
       open: domain => openTenantAssets(store, domain),
     })
     const layerSources = held.sourcesOf(tenantRef => host.open(tenantRef))
-    provideTenantAssets(ctx, { open: tenantRef => host.open(tenantRef), layerSources })
+    provideTenantAssets(ctx, {
+      open: tenantRef => host.open(tenantRef),
+      standing: tenantRef => host.standing(tenantRef),
+      layerSources,
+    })
     const acting = publishActing({ verifier: ctx.principalVerifier, standing: ctx.tenantStanding })
     const publishing = createTenantPublishing({
       acting,
