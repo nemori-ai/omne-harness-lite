@@ -8,7 +8,12 @@ import {
 } from '@omne-harness/assets'
 import { writeJsonText } from '@omne-harness/json-text'
 import type { Adoption } from '@omne-harness/session-contract'
-import { inWorkspace, type AssetLayers } from '../tenant-assets/layers.ts'
+import {
+  candidateOfRevision,
+  inWorkspace,
+  revisionOf,
+  type AssetLayers,
+} from '../tenant-assets/layers.ts'
 import type { CustomDefaults } from './config.ts'
 import type {
   DefinitionAsker,
@@ -34,21 +39,17 @@ export type DefinitionReadingInput = Readonly<{
 const absent = (reason: string): DefinitionLookup => ({ kind: 'absent', reason })
 const unavailable = (diagnostic: string): DefinitionLookup => ({ kind: 'unavailable', diagnostic })
 
-const WITHIN = '#'
-
 function candidateOf(name: string, held: Candidate): Adoption {
-  const { asset, version, within } = held
-  const revision = within === undefined ? asset : `${asset}${WITHIN}${within}`
-  return Object.freeze({ owner: HELD_DEFINITION_OWNER, name, revision, digest: version })
+  return Object.freeze({
+    owner: HELD_DEFINITION_OWNER,
+    name,
+    revision: revisionOf(held),
+    digest: held.version,
+  })
 }
 
-function heldOf(candidate: Adoption): Candidate {
-  const { revision, digest } = candidate
-  const at = inWorkspace(revision) ? -1 : revision.indexOf(WITHIN)
-  const place =
-    at < 0 ? { asset: revision } : { asset: revision.slice(0, at), within: revision.slice(at + 1) }
-  return { ...place, version: digest, disabled: false, immutable: false, replaceLocked: false }
-}
+const heldOf = (candidate: Adoption): Candidate =>
+  candidateOfRevision(candidate.revision, candidate.digest)
 
 async function definitionOf(body: JsonValue): Promise<AgentDefinition | string> {
   const { manifest: _manifest, ...fields } = JSON.parse(writeJsonText(body)) as Record<

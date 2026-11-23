@@ -102,11 +102,15 @@ describe('toolContributionAuthority.verify', () => {
     ).toMatchObject({ failure: { kind: 'invalid' } })
   })
 
-  it('denies a layer that is not official and an asset that the release does not hold', async () => {
+  it('verifies the tenant layer against what the tenant holds, and denies an asset that the release does not hold', async () => {
     const { authority, manifest } = await releaseFixture()
     const shell = authorityOf(manifest, 'Shell')
+    // Nothing here tells what a tenant holds: the answer is that it cannot be read, never that it is held.
     expect(
       authority.verify({ ...shell, layer: { kind: 'tenant', tenant: fixtureTenant('a') } }),
+    ).toMatchObject({ failure: { kind: 'unavailable' } })
+    expect(
+      authority.verify({ ...shell, layer: { kind: 'workspace', workspace: 'w' } as never }),
     ).toEqual(fail({ kind: 'denied' }))
     expect(authority.verify({ ...shell, layer: { kind: 'official', extra: 1 } as never })).toEqual(
       fail({ kind: 'denied' }),
@@ -205,7 +209,7 @@ describe('toolContributionAuthority.admits', () => {
     ).toEqual(fail({ kind: 'denied' }))
   })
 
-  it('denies the registrant under another tenant and at a non-official layer', async () => {
+  it('denies the registrant under another tenant at the official layer', async () => {
     const { authority, registrant } = await releaseFixture()
     expect(
       authority.admits(
@@ -213,7 +217,20 @@ describe('toolContributionAuthority.admits', () => {
         { kind: 'official' },
       ),
     ).toEqual(fail({ kind: 'denied' }))
-    expect(authority.admits(registrant, { kind: 'tenant', tenant: registrant.tenant })).toEqual(
+  })
+
+  it('admits at the tenant layer only an access of the tenant that holds the tool', async () => {
+    const { authority, registrant } = await releaseFixture()
+    const alpha = fixtureTenant('a')
+    const mine = { principal: registrant.principal, tenant: alpha }
+    expect(authority.admits(mine, { kind: 'tenant', tenant: alpha })).toEqual(succeed(undefined))
+    expect(authority.admits(mine, { kind: 'tenant', tenant: fixtureTenant('b') })).toEqual(
+      fail({ kind: 'denied' }),
+    )
+    expect(authority.admits(registrant, { kind: 'tenant', tenant: alpha })).toEqual(
+      fail({ kind: 'denied' }),
+    )
+    expect(authority.admits(mine, { kind: 'workspace', workspace: 'w' } as never)).toEqual(
       fail({ kind: 'denied' }),
     )
   })

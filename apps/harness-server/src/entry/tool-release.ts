@@ -15,6 +15,8 @@ import {
   type VerifiedAuthority,
 } from '@omne-harness/tool-cordis-contract/cordis'
 import { pauseAfterFailures } from '../retry-pause.ts'
+import { heldReadingOf } from '../rows/tool-host/held-current.ts'
+import { heldToolAuthority, heldToolStanding, sameHeld } from '../rows/tool-host/held-tools.ts'
 import { monotonicClock } from '../shutdown.ts'
 import type { EntryEnv, EntryObjectModule } from '../types.ts'
 import { issueEntrySystemPrincipal } from './agent-host-principal.ts'
@@ -102,8 +104,29 @@ function mismatchOf(
   return null
 }
 
-function verifyAgainst(release: Trusted, authority: ToolAuthority): ReturnType<Verify> {
-  if (!isOfficial(authority.layer)) return fail({ kind: 'denied' })
+type HeldRead = Parameters<typeof heldToolStanding>[0]
+
+/** A tool of the tenant layer is the one its tenant holds in force now: the same asset, the same version, not disabled. */
+function verifyHeld(read: HeldRead, authority: ToolAuthority): ReturnType<Verify> {
+  const { layer, asset } = authority
+  if (layer.kind !== 'tenant' || Object.keys(layer).length !== 2) return fail({ kind: 'denied' })
+  const standing = heldToolStanding(read, layer.tenant, asset.name)
+  if (standing.kind === 'unavailable') return unavailable('what the tenant holds cannot be read')
+  if (standing.kind === 'none') return fail({ kind: 'denied' })
+  if (!sameHeld(authority, standing.candidate))
+    return fail({ kind: 'invalid', reason: 'the tenant holds another version now' })
+  // The verified value is built from what the registry holds, never from the caller's object.
+  return succeed(
+    heldToolAuthority(layer.tenant, asset.name, standing.candidate) as VerifiedAuthority,
+  )
+}
+
+function verifyAgainst(
+  release: Trusted,
+  authority: ToolAuthority,
+  read: HeldRead,
+): ReturnType<Verify> {
+  if (!isOfficial(authority.layer)) return verifyHeld(read, authority)
   const entry = entryNamed(release, authority.asset)
   if (entry === undefined) return fail({ kind: 'denied' })
   const reason = mismatchOf(authority, entry, release.generation)
@@ -126,13 +149,26 @@ function isRegistrant(access: Access<unknown>, bound: Bound): boolean {
   )
 }
 
+/** A tool of the tenant layer is loaded and contributed only for the tenant that holds it. */
+function admitsHeld(access: Access<unknown>, layer: unknown): ReturnType<Admits> {
+  const tenant = typeof layer === 'object' && layer !== null ? Reflect.get(layer, 'tenant') : null
+  const held =
+    typeof layer === 'object' && layer !== null && Reflect.get(layer, 'kind') === 'tenant'
+  return held &&
+    tenantCodec.encode(access.tenant).ok &&
+    tenantCodec.encode(tenant as TenantId).ok &&
+    tenantEquals(access.tenant, tenant as TenantId)
+    ? succeed(undefined)
+    : fail({ kind: 'denied' })
+}
+
 function admitsAgainst(
   release: Trusted,
   bound: Bound | null,
   access: Access<unknown>,
   layer: unknown,
 ): ReturnType<Admits> {
-  if (!isOfficial(layer)) return fail({ kind: 'denied' })
+  if (!isOfficial(layer)) return admitsHeld(access, layer)
   if (bound === null) return unavailable('the release registrant is not installed')
   if (bound.generation !== release.generation || !isRegistrant(access, bound))
     return fail({ kind: 'denied' })
@@ -172,7 +208,7 @@ export class ReleaseToolContributionAuthority extends ToolContributionAuthorityS
       const release = releaseNow()
       if (release.kind !== 'trusted') return unavailable('release snapshot unavailable')
       try {
-        return verifyAgainst(release, authority)
+        return verifyAgainst(release, authority, heldReadingOf(ctx))
       } catch {
         return fail({ kind: 'invalid', reason: 'authority is unreadable' })
       }

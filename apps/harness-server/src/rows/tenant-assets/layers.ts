@@ -26,14 +26,12 @@ export type WorkspaceLayerPorts = Readonly<{
 
 type Locator = Readonly<{ ref: string; digest: string }>
 
-/** The layers one reader of a category takes its candidates, bodies and files from. */
 export type AssetLayers = Readonly<{
   sources: readonly AssetLayerSource[]
   body(candidate: Candidate): Promise<JsonValue | undefined>
   readerOf(locator: Locator): PackageReader
 }>
 
-/** Where a body read from inside another package lies: the version and the directory within it. */
 export type Within = Readonly<{ version: string; within: string }>
 
 export type TenantAssetLayers = AssetLayers &
@@ -55,6 +53,20 @@ export function turnKeyOf(scope: unknown): string | null {
 }
 
 export const inWorkspace = (ref: string): boolean => ref.startsWith('workspace/')
+
+const WITHIN = '#'
+
+/** Where an exact held version lies, as one text: the asset, and the directory within it when it lies inside another package. */
+export function revisionOf({ asset, within }: Pick<Candidate, 'asset' | 'within'>): string {
+  return within === undefined ? asset : `${asset}${WITHIN}${within}`
+}
+
+export function candidateOfRevision(revision: string, version: string): Candidate {
+  const at = inWorkspace(revision) ? -1 : revision.indexOf(WITHIN)
+  const place =
+    at < 0 ? { asset: revision } : { asset: revision.slice(0, at), within: revision.slice(at + 1) }
+  return { ...place, version, disabled: false, immutable: false, replaceLocked: false }
+}
 
 type Judged = Readonly<{ body: JsonValue; digest: string }>
 

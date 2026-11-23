@@ -31,6 +31,7 @@ import {
   ENVIRONMENT_DECLARATION_LIMITS,
 } from '../../entry/schema-domain.ts'
 import { registrantOf, releaseOf, rememberReleaseDefinition } from '../../entry/tool-release.ts'
+import { heldLoaderFor, resolveHeld } from './held-author.ts'
 import {
   constructionTree,
   governanceOf,
@@ -143,6 +144,7 @@ export function releaseAuthorInput(
 
   const source: LocalToolHostPluginInput<unknown, unknown, B>['source'] = {
     async resolve(authority) {
+      if (authority.layer.kind !== 'official') return resolveHeld(ctx, authority)
       try {
         const found = entryFor(ctx, authority.asset.name)
         if (found === undefined) {
@@ -212,6 +214,10 @@ export function releaseAuthorInput(
     })
 
   const loaderFor = (authority: ToolAuthority): ToolLoader<unknown, unknown, B> => {
+    if (authority.layer.kind !== 'official')
+      return heldLoaderFor(ctx, authority, verifier, definition =>
+        checkEnvironmentNeed(definition, check),
+      )
     const loader = inner(authority)
     return {
       async load(input) {

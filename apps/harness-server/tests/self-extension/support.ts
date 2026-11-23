@@ -83,3 +83,17 @@ export async function inWorkspace(
   )
   expect(exitCode).toBe(0)
 }
+
+/** A tool that counts words, as an agent would write it: tool.json and the script beside it. */
+export const WORDCOUNT = {
+  name: 'wordcount',
+  summary: 'Count the words of a text. Returns the number.',
+  parameters: {
+    type: 'object',
+    properties: { text: { type: 'string', description: 'The text to count.' } },
+    required: ['text'],
+  },
+  run: { program: 'python3', script: 'count.py' },
+  effect: 'read',
+}
+export const COUNT_PY = 'import json, sys\nprint(len(json.load(sys.stdin)["text"].split()))\n'

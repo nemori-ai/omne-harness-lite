@@ -2,20 +2,7 @@
 // Starts the release tree: an agent writes a tool in its workspace and publishes it.
 import { describe, expect, it } from 'vitest'
 import { extensions } from '../support/planned-model.ts'
-import { inWorkspace, points, write } from './support.ts'
-
-export const WORDCOUNT = {
-  name: 'wordcount',
-  summary: 'Count the words of a text. Returns the number.',
-  parameters: {
-    type: 'object',
-    properties: { text: { type: 'string', description: 'The text to count.' } },
-    required: ['text'],
-  },
-  run: { program: 'python3', script: 'count.py' },
-  effect: 'read',
-}
-export const COUNT_PY = 'import json, sys\nprint(len(json.load(sys.stdin)["text"].split()))\n'
+import { COUNT_PY, inWorkspace, points, WORDCOUNT, write } from './support.ts'
 
 const publish = (id: string, name: string, dir: string) =>
   extensions('publish', { id, category: 'tool', name, dir })

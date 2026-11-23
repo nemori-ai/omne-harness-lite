@@ -103,7 +103,6 @@ export const fileCount = (count: number) => `${count} ${count === 1 ? 'file' : '
 
 const CLOSED = 'this category is not made through here: it cannot be changed with this tool.'
 
-/** How a body that was not made from a directory is changed, in a category that is made from one. */
 const FROM_DIRECTORY =
   'one made here is a directory: help with name publish and this category says how it is written.'
 
