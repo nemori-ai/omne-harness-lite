@@ -1,0 +1,1255 @@
+{
+  "model": "z-ai/glm-5.2",
+  "pin": "z-ai/fp8",
+  "endpointSource": {
+    "url": "https://openrouter.ai/api/v1/models/z-ai/glm-5.2/endpoints",
+    "sha256": "d3796eedcaa7b1dbbbb05ff55a0ded25a2dd3136f5fdc25e54921a21a9f86ecd",
+    "observedAt": "2026-11-23T18:36:47.330Z"
+  },
+  "endpoint": {
+    "tag": "z-ai/fp8",
+    "context_length": 1048576,
+    "max_completion_tokens": 131072,
+    "max_prompt_tokens": null
+  },
+  "samples": {
+    "adjacent-users": {
+      "state": "receipted",
+      "at": "2026-11-23T18:56:41.514Z",
+      "requestSha256": "086f6d74b100c0150558f4378c91598f9a144027f8995a3c8299282eb41857fc",
+      "responseSha256": "387373505c034d7fad4658f1affb7d80d25e1decc93f1b89b5faf9d4482b1eb6",
+      "status": 200,
+      "provider": "Z.AI",
+      "upstreamModel": "z-ai/glm-5.2",
+      "requestId": "gen-1795460201-vS0rFKKaLiwtCQRFYoZa",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 31,
+        "completion_tokens": 109,
+        "cost": "0.000523",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 107,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ]
+    },
+    "assistant-last": {
+      "state": "receipted",
+      "at": "2026-11-23T18:57:07.051Z",
+      "requestSha256": "43f4b4e08ea7afb04ec3d435dd9b25e455d3e7778cc0b2e02dedd73ffea4ba84",
+      "responseSha256": "5c90b145c24b8f7d6ad3461c10bb1ede2ddbd96ac75eeb4b015188cb9b313c7c",
+      "status": 200,
+      "provider": "Z.AI",
+      "upstreamModel": "z-ai/glm-5.2",
+      "requestId": "gen-1795460227-ps796SUr8TSGUIDIFfJT",
+      "finish": "length",
+      "usage": {
+        "prompt_tokens": 31,
+        "completion_tokens": 256,
+        "cost": "0.0011698",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 254,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ]
+    },
+    "cache-1": {
+      "state": "receipted",
+      "at": "2026-11-23T18:44:09.690Z",
+      "requestSha256": "25575f62ebbc7633312ac4451bcd3f0ba3d7ff63092ecd82cc1d6664a1ea3410",
+      "responseSha256": "714951a60e3a86b92f908a8280f310d4777b9400a79d9c3a31f0ca7e8cfc750e",
+      "status": 200,
+      "provider": "Z.AI",
+      "upstreamModel": "z-ai/glm-5.2",
+      "requestId": "gen-1795459450-FOP1TamhgRb8VJU1qnlX",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 4034,
+        "completion_tokens": 49,
+        "cost": "0.0058632",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 47,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ],
+      "countedVisibleTokens": 4129
+    },
+    "cache-2": {
+      "state": "receipted",
+      "at": "2026-11-23T18:44:31.850Z",
+      "requestSha256": "81b815f67964d8bd779706a6325dc67910e2bedb504bbf4f25bd19af70b5d9ac",
+      "responseSha256": "8a96f22e25d9c422f6cd79eb8293c8d3ea02e8ca1ad5051cc2ab454a677b3298",
+      "status": 200,
+      "provider": "Z.AI",
+      "upstreamModel": "z-ai/glm-5.2",
+      "requestId": "gen-1795459472-ot2UNSUeR2FCVawuYMPo",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 4053,
+        "completion_tokens": 40,
+        "cost": "0.0014726",
+        "prompt_tokens_details": {
+          "cached_tokens": 3840,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 37,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ],
+      "countedVisibleTokens": 4172
+    },
+    "cache-3": {
+      "state": "receipted",
+      "at": "2026-11-23T18:44:52.554Z",
+      "requestSha256": "e7300ca33b3de2621c0fb4afd73f920a1101fce5f413e5772f8859b56bc62bfd",
+      "responseSha256": "6c3443c24ee054d7e0759673e38f39d4788751f623447ec2691d7c16b2a81422",
+      "status": 200,
+      "provider": "Z.AI",
+      "upstreamModel": "z-ai/glm-5.2",
+      "requestId": "gen-1795459492-s9uRST6vtZQNj9I1lUMe",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 4072,
+        "completion_tokens": 34,
+        "cost": "0.0014728",
+        "prompt_tokens_details": {
+          "cached_tokens": 3840,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 31,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ],
+      "countedVisibleTokens": 4215
+    },
+    "calib-code": {
+      "state": "receipted",
+      "at": "2026-11-23T18:45:43.504Z",
+      "requestSha256": "5f2e8a081ba92953547cb71bf2487eeab6ae47891a19437f027283fd55bd4fd4",
+      "responseSha256": "e112e96259369df5abb5682e800620a2cbe909ae1b2648cb1a483ef763800f74",
+      "status": 200,
+      "provider": "Z.AI",
+      "upstreamModel": "z-ai/glm-5.2",
+      "requestId": "gen-1795459543-tSKLOHrwCkT7boTz6Wf9",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 38,
+        "completion_tokens": 214,
+        "cost": "0.0009948",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 212,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ],
+      "countedVisibleTokens": 70
+    },
+    "calib-zh": {
+      "state": "receipted",
+      "at": "2026-11-23T18:45:20.304Z",
+      "requestSha256": "d0026157e4d82016ecbfb50e3ada9003664ddac545d7b787a1589b00de9bc1de",
+      "responseSha256": "cae7f6cc4cc13d2936b23ba3ccb70847c5b2a144c3f3613416b77cbbc6662c41",
+      "status": 200,
+      "provider": "Z.AI",
+      "upstreamModel": "z-ai/glm-5.2",
+      "requestId": "gen-1795459520-apKNVYW4ONwZPQwNvrNQ",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 23,
+        "completion_tokens": 80,
+        "cost": "0.0003842",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 78,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ],
+      "countedVisibleTokens": 58
+    },
+    "changed-prefix": {
+      "state": "receipted",
+      "at": "2026-11-23T18:42:22.245Z",
+      "requestSha256": "363bdf741bc4a213080610956883243d59340a5cc28a39869798412354fe5132",
+      "responseSha256": "c833b90bf2a0d6a9532ca4d6d0a1fd2bedc6cb0a67ceb37625ae6221e325aed8",
+      "status": 200,
+      "provider": "Z.AI",
+      "upstreamModel": "z-ai/glm-5.2",
+      "requestId": "gen-1795459342-Pw21trdOOB3UyzAHyJ8b",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 226,
+        "completion_tokens": 31,
+        "cost": "0.0004528",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 12,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ],
+      "answer": "The value printed on ticket A17 is **SAPPHIRE-614**."
+    },
+    "continuation": {
+      "state": "receipted",
+      "at": "2026-11-23T18:41:58.622Z",
+      "requestSha256": "690c2a54195b9270f9cae31b7348e3ae76d26bff06c27d787f5724071b34abda",
+      "responseSha256": "f523a38f5434853fcd2087852631001bdb7b9f1b3d3390afde80ef72c8f6e59f",
+      "status": 200,
+      "provider": "Z.AI",
+      "upstreamModel": "z-ai/glm-5.2",
+      "requestId": "gen-1795459318-YF8py4c7dEDGvzeO0wUV",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 222,
+        "completion_tokens": 35,
+        "cost": "0.0004648",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 16,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ],
+      "answer": "The value printed on ticket A17 is **SAPPHIRE-614**."
+    },
+    "effort-high": {
+      "state": "receipted",
+      "at": "2026-11-23T18:51:42.793Z",
+      "requestSha256": "c0f27e0aeca8297d58ebf74d6533e3474591cf1da00a077ce28d57a82ea7fba8",
+      "responseSha256": "bb952bd3fed0a74ebb954125c06ca1abf2b4f8b26c137844015220564ce1e87d",
+      "status": 200,
+      "provider": "Z.AI",
+      "upstreamModel": "z-ai/glm-5.2",
+      "requestId": "gen-1795459903-xyDa2u2zZ2GHx69Cez32",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 25,
+        "completion_tokens": 51,
+        "cost": "0.0002594",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 49,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ]
+    },
+    "effort-low": {
+      "state": "receipted",
+      "at": "2026-11-23T18:51:05.496Z",
+      "requestSha256": "ff99d6b0cc2b21a415ac9e5f3e2b6fd4a0db353a615ee96eaa9afc2e8a2a176f",
+      "responseSha256": "f0184625bf96b593f85c53eac2749fe74a63891d8a1c3926397de9878e378cea",
+      "status": 200,
+      "provider": "Z.AI",
+      "upstreamModel": "z-ai/glm-5.2",
+      "requestId": "gen-1795459865-peEgFaCQRi9iPMB060B0",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 25,
+        "completion_tokens": 58,
+        "cost": "0.0002902",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 56,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ]
+    },
+    "effort-max": {
+      "state": "receipted",
+      "at": "2026-11-23T18:54:02.291Z",
+      "requestSha256": "e734f3d7ac4b78af05fd7bb7b94d7a8ca2ec525f3285db3d4f9fd2a97727f1db",
+      "responseSha256": "d05bf300375a7c74f9dd0d3cbd425a561b7961a89f6adcc269fe776f93bb565d",
+      "status": 200,
+      "provider": "Z.AI",
+      "upstreamModel": "z-ai/glm-5.2",
+      "requestId": "gen-1795460042-2aWADJ6CoPehcBlZcUCI",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 25,
+        "completion_tokens": 86,
+        "cost": "0.0004134",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 84,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ]
+    },
+    "effort-medium": {
+      "state": "receipted",
+      "at": "2026-11-23T18:51:23.115Z",
+      "requestSha256": "00aafeda064ec7deb6ca33a9f266cb54367a8d556abc0cad8cff2230023c0892",
+      "responseSha256": "4fd5c12cdddc14a004e54c1f0344cbd2c1e3c95ab56f21b39fe676927c0b4760",
+      "status": 200,
+      "provider": "Z.AI",
+      "upstreamModel": "z-ai/glm-5.2",
+      "requestId": "gen-1795459883-Uut1ObslRvU4zmNduWPs",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 25,
+        "completion_tokens": 57,
+        "cost": "0.0002858",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 55,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ]
+    },
+    "effort-minimal": {
+      "state": "receipted",
+      "at": "2026-11-23T18:54:21.688Z",
+      "requestSha256": "620f2aa14de99791dbc66cc014355085d14e0960e5b4d8017e4444bd1458aa5b",
+      "responseSha256": "ff6082f4cb4684d9a710c62bebee76b6879dd4a341f455d0e145a2833efa967c",
+      "status": 200,
+      "provider": "Z.AI",
+      "upstreamModel": "z-ai/glm-5.2",
+      "requestId": "gen-1795460061-5iAopWlX9LJ09GcpUt3C",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 25,
+        "completion_tokens": 82,
+        "cost": "0.0003958",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 80,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ]
+    },
+    "effort-none": {
+      "state": "receipted",
+      "at": "2026-11-23T18:54:57.833Z",
+      "requestSha256": "68a9ff3f744ec1f414898e9f619abfd57be60855764becb27249092b05c5255b",
+      "responseSha256": "ffc1db33a91242ce22f3874b75f0946f335958208889aa1a66cff8501e07e6f9",
+      "status": 200,
+      "provider": "Z.AI",
+      "upstreamModel": "z-ai/glm-5.2",
+      "requestId": "gen-1795460098-Dz7dlMU7wyg3dZtDk33r",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 19,
+        "completion_tokens": 1,
+        "cost": "0.000031",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": []
+    },
+    "effort-xhigh": {
+      "state": "receipted",
+      "at": "2026-11-23T18:54:39.242Z",
+      "requestSha256": "aeb8728f19c6073936416b0a583f4ed211390a73c52132f6e07658498eba065b",
+      "responseSha256": "dd6a7ea9e6c8d441a3fcf1e558ef7b478bebbfee8c4086e789d387589f8e952d",
+      "status": 200,
+      "provider": "Z.AI",
+      "upstreamModel": "z-ai/glm-5.2",
+      "requestId": "gen-1795460079-KX6YmF5OqeDC7F1m8WH4",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 25,
+        "completion_tokens": 66,
+        "cost": "0.0003254",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 64,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ]
+    },
+    "empty-content": {
+      "state": "receipted",
+      "at": "2026-11-23T18:57:30.263Z",
+      "requestSha256": "d1c30f14e43469d9aaf0dc2e889b6622283920763e7990f2cea644547b67610c",
+      "responseSha256": "d3b360347b7f49cfbf6df400bb84f6b691d19278918776eab66d536ba4d2fc8d",
+      "status": 200,
+      "provider": "Z.AI",
+      "upstreamModel": "z-ai/glm-5.2",
+      "requestId": "gen-1795460250-gu3SVJkxXdhH3GoF2Jry",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 26,
+        "completion_tokens": 55,
+        "cost": "0.0002784",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 53,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ]
+    },
+    "fixture": {
+      "state": "receipted",
+      "at": "2026-11-23T18:48:35.124Z",
+      "requestSha256": "b10d4ddfb80f509de93a2319de77aaa5bbf035c85a1a673b4d6a1f1aa18f36c1",
+      "responseSha256": "2948491894a2657280981c846b75d0c7d0ab19dcd59d58ab33f946828e12c128",
+      "status": 200,
+      "provider": "Z.AI",
+      "upstreamModel": "z-ai/glm-5.2",
+      "requestId": "gen-1795459715-vlxqmuGlVrbscd0chAfZ",
+      "finish": "tool_calls",
+      "usage": {
+        "prompt_tokens": 184,
+        "completion_tokens": 25,
+        "cost": "0.0003676",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 13,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ],
+      "answer": "",
+      "toolCalls": [
+        {
+          "id": "call_96c8a44bda6140b8808e9308",
+          "name": "read_ticket",
+          "arguments": "{\"id\": \"A17\"}"
+        }
+      ],
+      "tool": "read_ticket",
+      "arguments": "{\"id\": \"A17\"}",
+      "countedVisibleTokens": 123
+    },
+    "plain": {
+      "state": "receipted",
+      "at": "2026-11-23T18:40:48.537Z",
+      "requestSha256": "89cd6af36134bc835b45ec4c10e021ddd22f32cab24f8d4d9ad4c4d96b0501b4",
+      "responseSha256": "9f67f071a516e0d3b83d860d2b67f586d052cadfb508ecb8da5b6eb4e365bef5",
+      "status": 200,
+      "provider": "Z.AI",
+      "upstreamModel": "z-ai/glm-5.2",
+      "requestId": "gen-1795459248-TTwh4IzLTmnZU7zyzH7q",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 24,
+        "completion_tokens": 66,
+        "cost": "0.000324",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 64,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ],
+      "answer": "21",
+      "countedVisibleTokens": 57
+    },
+    "reasoning-off": {
+      "state": "receipted",
+      "at": "2026-11-23T18:50:10.868Z",
+      "requestSha256": "e7387b23911d7abfa2895290bab8fadc6ecb38e964794bcbb2f413c3f46fe65e",
+      "responseSha256": "4fbce7aedc518a4cca974907852292159d08f65e042da2e21b4af14d0a90a586",
+      "status": 200,
+      "provider": "Z.AI",
+      "upstreamModel": "z-ai/glm-5.2",
+      "requestId": "gen-1795459811-omrLF4QqOrrdkllPeoz1",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 19,
+        "completion_tokens": 1,
+        "cost": "0.000031",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": []
+    },
+    "release-tools": {
+      "state": "receipted",
+      "at": "2026-11-23T18:48:05.682Z",
+      "requestSha256": "0fd73f203d7fb965402e02a15bdd90b2485eede4a43fbf528f4b156332a696c3",
+      "responseSha256": "16250180da992899a98e8c62e39c812a8175f4c50af3117d0d95ba5f261aeb52",
+      "status": 200,
+      "provider": "Z.AI",
+      "upstreamModel": "z-ai/glm-5.2",
+      "requestId": "gen-1795459686-Pwko5gFMUSFwshYSmYj9",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 7729,
+        "completion_tokens": 20,
+        "cost": "0.0109086",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 18,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ],
+      "countedVisibleTokens": 7302
+    },
+    "replay-altered": {
+      "state": "receipted",
+      "at": "2026-11-23T18:43:26.912Z",
+      "requestSha256": "7e144224f4b4ce622a1cf9fcd7720cd07e0927c56139c14a6c404e351be8f59e",
+      "responseSha256": "e571f4375f095f42409a394960fd03a73e5724522ae3ca963793c8feabdc66f9",
+      "status": 200,
+      "provider": "Z.AI",
+      "upstreamModel": "z-ai/glm-5.2",
+      "requestId": "gen-1795459407-LweKMZ6Wjgmyg8d0GAsl",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 48,
+        "completion_tokens": 19,
+        "cost": "0.0001508",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 17,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ],
+      "answer": "22"
+    },
+    "replay-changed": {
+      "state": "receipted",
+      "at": "2026-11-23T18:43:07.752Z",
+      "requestSha256": "412d81d26a6da0950092fc4d510a4053aa613ffee363bb89a0c793572838b6ad",
+      "responseSha256": "a13ae63cb5294c72233d873899e860608b117ea8b439fee009f2c1b201e7db59",
+      "status": 200,
+      "provider": "Z.AI",
+      "upstreamModel": "z-ai/glm-5.2",
+      "requestId": "gen-1795459388-9xDydRqhed74zBiTUMNJ",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 113,
+        "completion_tokens": 55,
+        "cost": "0.0004002",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 53,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ],
+      "answer": "22"
+    },
+    "replay-omitted": {
+      "state": "receipted",
+      "at": "2026-11-23T18:43:46.353Z",
+      "requestSha256": "62d6d385251adc22549c0880b8aba4d23cef66a24655732711585bf334405924",
+      "responseSha256": "8caa97cf5a327b6ab616573366f65c60345adc54a4ab437045f0852e1b5ae63d",
+      "status": 200,
+      "provider": "Z.AI",
+      "upstreamModel": "z-ai/glm-5.2",
+      "requestId": "gen-1795459426-K0zeZJL47gIagEiE526R",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 43,
+        "completion_tokens": 70,
+        "cost": "0.0003682",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 68,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ],
+      "answer": "22"
+    },
+    "replay-retained": {
+      "state": "receipted",
+      "at": "2026-11-23T18:42:47.889Z",
+      "requestSha256": "0d5923cc8b794b1c8e73374bf4009443b9d5929ded0a3d214a4c52301a847ac9",
+      "responseSha256": "b04f758918702713ac06ebc221cf555b6c8c0ef04c47d6a7a16bc080d5806dd8",
+      "status": 200,
+      "provider": "Z.AI",
+      "upstreamModel": "z-ai/glm-5.2",
+      "requestId": "gen-1795459368-88GdBd3BRqtrSevHej1Z",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 107,
+        "completion_tokens": 114,
+        "cost": "0.0006514",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 112,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ],
+      "answer": "22"
+    },
+    "sampling-seed": {
+      "state": "reconciled-rejection",
+      "at": "2026-11-23T18:55:19.454Z",
+      "requestSha256": "f9f0ee83c8ab566a78123d359ea116236400a9448818a9f90d5e6883fec6370a",
+      "responseSha256": "412352fc36b8725ae74f1b4f211d8d891068698b5cb2494ef83d70ff514de4da",
+      "reason": "No endpoints found for z-ai/glm-5.2. Every candidate endpoint was removed during routing: Filter by Tier Endpoint Rows removed deepinfra/fp4/flex (Excluded tier endpoint rows the request did not opt into); Filter by Parameters removed baidu/fp8, streamlake/fp8, siliconflow/fp8, digitalocean, baseten/fp8/us, together, baseten/fp8, venice/fp8, z-ai/fp8, baseten/us/fast, baseten/fast, baidu/fast; Filter by Fallback removed wafer/us, wafer, relace/fp4, deepinfra/fp4, coreweave/fp4, morph/fp8, novita/fp8, deepinfra/fp4/priority, alibaba/fp8, alibaba/fp8/us-east-1, nebius/fp4, mistral/zdr, parasail/fp4, friendli, mistral/eu, alibaba/fast, ambient/fp8.",
+      "accountedUsd": "0",
+      "status": 404
+    },
+    "sampling-temperature": {
+      "state": "receipted",
+      "at": "2026-11-23T18:55:37.982Z",
+      "requestSha256": "7bf222ce9fd559a8272a7d34b7432f65844c7d9a22c2f143b601aa0874fabb4e",
+      "responseSha256": "aedaba9c1e7faf9ed8e3cc4e302b8ff005c70be6a4c5a269a96b180c8aff56ec",
+      "status": 200,
+      "provider": "Z.AI",
+      "upstreamModel": "z-ai/glm-5.2",
+      "requestId": "gen-1795460138-DDW1JQlA98twz7SKWkv4",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 25,
+        "completion_tokens": 55,
+        "cost": "0.000277",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 53,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ]
+    },
+    "sampling-top_k": {
+      "state": "receipted",
+      "at": "2026-11-23T18:55:57.477Z",
+      "requestSha256": "f2a3c8e36e6958dff2e36a646910925b56a2cbc07cfa7ab3e95dc3c3c65167a0",
+      "responseSha256": "63f8f8dc92ea7f31ba55bbe29526e800785319356ec3e9adf71bc8a11f9005de",
+      "status": 200,
+      "provider": "Z.AI",
+      "upstreamModel": "z-ai/glm-5.2",
+      "requestId": "gen-1795460157-PD8F0Gd1KyNImKS0xTuZ",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 25,
+        "completion_tokens": 55,
+        "cost": "0.000277",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 53,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ]
+    },
+    "sampling-top_p": {
+      "state": "receipted",
+      "at": "2026-11-23T18:56:21.132Z",
+      "requestSha256": "6280d12afd8e5bafca4d77fc6be5208fe142a9da5024e258d3ab5b2b5b1ae726",
+      "responseSha256": "5b3b4702b180dccde58c0fa4acbf3eae76136ae775e3806e50af9dbe8732356e",
+      "status": 200,
+      "provider": "Z.AI",
+      "upstreamModel": "z-ai/glm-5.2",
+      "requestId": "gen-1795460181-ifvsaD11vbKzodu4nzDv",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 25,
+        "completion_tokens": 57,
+        "cost": "0.0002858",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 55,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ]
+    },
+    "short-output": {
+      "state": "receipted",
+      "at": "2026-11-23T18:57:49.036Z",
+      "requestSha256": "758b027b20f52caa5487ecb67b80e03c0c7c7c3d798dd65efca962d8935b2dd2",
+      "responseSha256": "725e934257e2d9b5fb236e5408b22a2e98501cf013b991bb7ee94749c9e63aeb",
+      "status": 200,
+      "provider": "Z.AI",
+      "upstreamModel": "z-ai/glm-5.2",
+      "requestId": "gen-1795460269-VvUE7WpO67jqAacNOUgY",
+      "finish": "length",
+      "usage": {
+        "prompt_tokens": 25,
+        "completion_tokens": 1,
+        "cost": "0.0000394",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 1,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ]
+    },
+    "tool-named": {
+      "state": "reconciled-rejection",
+      "at": "2026-11-23T18:49:38.631Z",
+      "requestSha256": "6676be08fad330c3ef010d820926518ad5f816f88dc1320fd2798b124d7c3421",
+      "responseSha256": "3479495570c7edb5a80411d4a923ebc6fcf5507606999d23f74bc38e8f5bba67",
+      "reason": "No endpoints found for z-ai/glm-5.2. Every candidate endpoint was removed during routing: Filter by Tier Endpoint Rows removed deepinfra/fp4/flex (Excluded tier endpoint rows the request did not opt into); Filter by Tool Compatibility removed baidu/fp8, relace/fp4, siliconflow/fp8, novita/fp8, alibaba/fp8, alibaba/fp8/us-east-1, baseten/fp8/us, z-ai/fp8, baseten/us/fast, baseten/fast, baidu/fast, alibaba/fast; Filter by Parameters removed ambient/fp8; Filter by Fallback removed wafer/us, wafer, streamlake/fp8, deepinfra/fp4, coreweave/fp4, morph/fp8, digitalocean, deepinfra/fp4/priority, nebius/fp4, mistral/zdr, together, baseten/fp8, venice/fp8, parasail/fp4, friendli, mistral/eu.",
+      "accountedUsd": "0",
+      "status": 404
+    },
+    "tool-none": {
+      "state": "reconciled-rejection",
+      "at": "2026-11-23T18:49:53.707Z",
+      "requestSha256": "c376ad3869606ee7cef668fc16f595dbf7b66da9ccb8b5360fc129b126ef461e",
+      "responseSha256": "0007194aac009c50d4fe84564c1b7331a4271aa07a2de75eb06d00ea9e43bc8f",
+      "reason": "No endpoints found for z-ai/glm-5.2. Every candidate endpoint was removed during routing: Filter by Tier Endpoint Rows removed deepinfra/fp4/flex (Excluded tier endpoint rows the request did not opt into); Filter by Tool Compatibility removed z-ai/fp8; Filter by Parameters removed ambient/fp8; Filter by Fallback removed wafer/us, baidu/fp8, wafer, relace/fp4, streamlake/fp8, deepinfra/fp4, coreweave/fp4, morph/fp8, siliconflow/fp8, digitalocean, novita/fp8, deepinfra/fp4/priority, alibaba/fp8, alibaba/fp8/us-east-1, nebius/fp4, mistral/zdr, baseten/fp8/us, together, baseten/fp8, venice/fp8, parasail/fp4, friendli, mistral/eu, baseten/us/fast, baseten/fast, baidu/fast, alibaba/fast.",
+      "accountedUsd": "0",
+      "status": 404
+    },
+    "tool-required": {
+      "state": "reconciled-rejection",
+      "at": "2026-11-23T18:48:57.034Z",
+      "requestSha256": "fff15f499cb070e0b3634994037304e5713fa4ad509571090c3274193b877365",
+      "responseSha256": "58a2a9cbf887fe90e14937138a1c5f679ce5049d19b581ddf7502da3b48541cd",
+      "reason": "No endpoints found for z-ai/glm-5.2. Every candidate endpoint was removed during routing: Filter by Tier Endpoint Rows removed deepinfra/fp4/flex (Excluded tier endpoint rows the request did not opt into); Filter by Tool Compatibility removed baidu/fp8, relace/fp4, siliconflow/fp8, novita/fp8, alibaba/fp8, alibaba/fp8/us-east-1, nebius/fp4, baseten/fp8/us, together, parasail/fp4, friendli, z-ai/fp8, baseten/us/fast, baidu/fast, alibaba/fast; Filter by Parameters removed ambient/fp8; Filter by Fallback removed wafer/us, wafer, streamlake/fp8, deepinfra/fp4, coreweave/fp4, morph/fp8, digitalocean, deepinfra/fp4/priority, mistral/zdr, baseten/fp8, venice/fp8, mistral/eu, baseten/fast.",
+      "accountedUsd": "0",
+      "status": 404
+    },
+    "tool": {
+      "state": "receipted",
+      "at": "2026-11-23T18:40:51.750Z",
+      "requestSha256": "564c2aeedd4667f6bfd5828d43c25a3e3d8477debc8988489a88be3dcd27d834",
+      "responseSha256": "98706f42eb26c1e5def8d6f3476c55c65d3177b954caa8eb76a6710eede29f10",
+      "status": 200,
+      "provider": "Z.AI",
+      "upstreamModel": "z-ai/glm-5.2",
+      "requestId": "gen-1795459252-JNMl9d1U2ojuar4Q0Z7w",
+      "finish": "tool_calls",
+      "usage": {
+        "prompt_tokens": 184,
+        "completion_tokens": 22,
+        "cost": "0.0003544",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 10,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ],
+      "answer": "",
+      "toolCalls": [
+        {
+          "id": "call_b6bdce1a2e7344eab66a843d",
+          "name": "read_ticket",
+          "arguments": "{\"id\": \"A17\"}"
+        }
+      ],
+      "tool": "read_ticket",
+      "arguments": "{\"id\": \"A17\"}",
+      "countedVisibleTokens": 123
+    }
+  },
+  "coldCalibration": {
+    "tokenizer": "o200k_base",
+    "samples": [
+      "plain",
+      "tool",
+      "fixture",
+      "calib-zh",
+      "calib-code",
+      "release-tools",
+      "cache-1",
+      "cache-2",
+      "cache-3"
+    ],
+    "maxPositiveResidual": 427,
+    "controllingSamples": [
+      "release-tools"
+    ]
+  }
+}

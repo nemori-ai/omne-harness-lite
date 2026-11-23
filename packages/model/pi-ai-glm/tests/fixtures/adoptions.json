@@ -1,0 +1,9 @@
+[
+  {"name":"z-ai/glm-5.1","revision":"1","digest":"44df33cd98ca461f52caf3fca696180f0ada49dc4ede90b3bdac4f1ff20a9376"},
+  {"name":"z-ai/glm-5.2","revision":"1","digest":"b975fcc4b885fad1c269cc2288b44ca96f9e1afe2cb876a7ab60eb1c66f4e8d3"},
+  {"name":"z-ai/glm-5.3","revision":"1","digest":"75e91f8941a8e22b5de93f3170f772445b58c4837cc55ecc06d3cb0186467a44"},
+  {"name":"z-ai/glm-5.3-flash","revision":"1","digest":"5ce29afcb350a9c5db2ec921e9f2cc1f76cbb9f11710caa1fcc2b0785a70658b"},
+  {"name":"z-ai/glm-5.3-flashx","revision":"1","digest":"3d55cd108a6a6847f94b952f29b0e71115b21d2784f35c12325ba926af6955e8"},
+  {"name":"z-ai/glm-5.3-flashx-legal","revision":"1","digest":"1602792283113757beff4c8bc0c5f4a0c94b3c28467c852f1aeca80419976bde"},
+  {"name":"z-ai/glm-5.3-prime","revision":"1","digest":"383cd2b7a13f512d6dbb3876ed93e229f0518923f2f28add6be9a7ae51d59b8b"}
+]

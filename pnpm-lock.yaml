@@ -888,6 +888,12 @@ importers:
       '@omne-harness/pi-ai-anthropic':
         specifier: workspace:*
         version: link:../../packages/model/pi-ai-anthropic
+      '@omne-harness/pi-ai-deepseek':
+        specifier: workspace:*
+        version: link:../../packages/model/pi-ai-deepseek
+      '@omne-harness/pi-ai-glm':
+        specifier: workspace:*
+        version: link:../../packages/model/pi-ai-glm
       '@omne-harness/pi-ai-kimi':
         specifier: workspace:*
         version: link:../../packages/model/pi-ai-kimi
@@ -4540,6 +4546,12 @@ importers:
       '@omne-harness/pi-ai-anthropic':
         specifier: workspace:*
         version: link:../pi-ai-anthropic
+      '@omne-harness/pi-ai-deepseek':
+        specifier: workspace:*
+        version: link:../pi-ai-deepseek
+      '@omne-harness/pi-ai-glm':
+        specifier: workspace:*
+        version: link:../pi-ai-glm
       '@omne-harness/pi-ai-kimi':
         specifier: workspace:*
         version: link:../pi-ai-kimi
@@ -4713,6 +4725,68 @@ importers:
       js-tiktoken:
         specifier: 'catalog:'
         version: 1.0.21
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/model/pi-ai-deepseek:
+    dependencies:
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/model-contract':
+        specifier: workspace:*
+        version: link:../model-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/pi-ai-transport':
+        specifier: workspace:*
+        version: link:../pi-ai-transport
+      '@omne-harness/tokenizer-tiktoken':
+        specifier: workspace:*
+        version: link:../tokenizer-tiktoken
+    devDependencies:
+      '@omne-harness/pi-ai-openai':
+        specifier: workspace:*
+        version: link:../pi-ai-openai
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/model/pi-ai-glm:
+    dependencies:
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/model-contract':
+        specifier: workspace:*
+        version: link:../model-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/pi-ai-transport':
+        specifier: workspace:*
+        version: link:../pi-ai-transport
+      '@omne-harness/tokenizer-tiktoken':
+        specifier: workspace:*
+        version: link:../tokenizer-tiktoken
+    devDependencies:
+      '@omne-harness/pi-ai-openai':
+        specifier: workspace:*
+        version: link:../pi-ai-openai
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
