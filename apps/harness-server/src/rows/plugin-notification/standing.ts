@@ -8,6 +8,7 @@ import {
 import type { ReportedClient } from '@omne-harness/plugin-access'
 import type { ListedPlugin, ListedPlugins } from '@omne-harness/plugin-host-local'
 import type { StaticBlock, SuppliedBlockDescriptor } from '@omne-harness/runtime-context-contract'
+import { ARRIVAL_TYPES } from './arrivals.ts'
 
 export const PLUGIN_LOAD_FAILURES_KEY = 'plugin.load-failures'
 
@@ -15,7 +16,7 @@ const SOURCE = sourceNameSchema.parse('extensions.changes')
 const LOAD_FAILED = eventTypeNameSchema.parse('load-failed')
 const TITLE_MAX = 200
 
-/** The extensions as a source of notification: one standing type, open while a held one cannot be loaded somewhere. */
+/** The extensions as a source of notification: a standing type open while a held one cannot be loaded, and what arrives. */
 export const EXTENSIONS_SOURCE: SourceDeclaration = {
   name: SOURCE,
   label: '拓展',
@@ -32,6 +33,7 @@ export const EXTENSIONS_SOURCE: SourceDeclaration = {
       defaults: { person: 'strong', agent: 'off' },
       external: false,
     },
+    ...ARRIVAL_TYPES,
   ],
 }
 

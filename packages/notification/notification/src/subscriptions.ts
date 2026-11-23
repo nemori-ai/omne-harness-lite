@@ -80,12 +80,13 @@ export function createSubscriptions(deps: SubscriptionsDependencies): Notificati
     creator: Creator,
   ): SubscriptionDecision | null {
     const declared = declaredType(deps.sources, change)
-    if (declared === null) return null
+    const { actor } = ctx
+    if (declared === null || actor.kind === 'system') return null
     try {
       return decideSubscription({
         change,
         current,
-        actor: ctx.actor,
+        actor,
         creator,
         declared,
         now: deps.clock.now(),
@@ -198,9 +199,10 @@ function validBeat(beat: Beat): boolean {
 const keyRefusal = (refusal: ParseRefusal) =>
   refusal === 'invalid-scope' ? refusal : 'invalid-request'
 
-/** The owner acts for any recipient of the tenant; an agent only for itself. */
+/** The owner acts for any recipient of the tenant; an agent only for itself; a source of the system for none. */
 const isOwn = (ctx: CallContext, recipient: RecipientRef) =>
-  ctx.actor.kind === 'owner' || sameRecipient(ctx.actor.recipient, recipient)
+  ctx.actor.kind === 'owner' ||
+  (ctx.actor.kind === 'agent' && sameRecipient(ctx.actor.recipient, recipient))
 
 const parseRefusal = (refusal: ParseRefusal) =>
   refusal === 'invalid-scope' || refusal === 'invalid-term' ? refusal : 'invalid-request'
