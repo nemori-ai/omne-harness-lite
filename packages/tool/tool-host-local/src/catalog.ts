@@ -266,12 +266,13 @@ export function createLocalToolCatalog<P>(input: LocalToolCatalogInput<P>): Tool
   const { registry, availability } = input
   const rank = createCatalogRanking(input.search)
 
-  const liveFor = async (access: Access<P>) => {
+  // `names` narrows what the sources are asked: a read for named tools asks only the sources they are under.
+  const liveFor = async (access: Access<P>, names?: readonly string[]) => {
     const observed = await readCatalogView(input.view, access)
     if ('failure' in observed) return observed
     const listed = listingsFor(registry, access, observed.ok.view)
     if ('failure' in listed) return listed
-    const sourced = (await input.sources?.read(access)) ?? NO_SOURCES
+    const sourced = (await input.sources?.read(access, names)) ?? NO_SOURCES
     return succeed({ ...observed.ok, ...withSourced(listed.ok, sourced) })
   }
 
@@ -279,8 +280,9 @@ export function createLocalToolCatalog<P>(input: LocalToolCatalogInput<P>): Tool
     observed: Readonly<{ digest: string; registryDigest: string }>,
     access: Access<P>,
     after: string | null = null,
+    names?: readonly string[],
   ) => {
-    const current = await liveFor(access)
+    const current = await liveFor(access, names)
     if ('failure' in current) return current
     return current.ok.digest === observed.digest &&
       current.ok.registryDigest === observed.registryDigest
@@ -344,17 +346,18 @@ export function createLocalToolCatalog<P>(input: LocalToolCatalogInput<P>): Tool
 
   return Object.freeze({
     inspect: async request => {
-      const live = await liveFor(request)
+      const names = [request.name]
+      const live = await liveFor(request, names)
       if ('failure' in live) return live
       const candidate = chosen(live.ok, request.name, request.command)
       if ('failure' in candidate) return candidate
       const answer = await judged(request, candidate.ok, request.consumer, request.command)
-      const checked = await stable(live.ok, request)
+      const checked = await stable(live.ok, request, null, names)
       return 'failure' in checked ? checked : answer
     },
 
     inspectEach: async request => {
-      const live = await liveFor(request)
+      const live = await liveFor(request, request.names)
       if ('failure' in live) return live
       const answers: Outcome<ToolAvailability, ToolFailure>[] = []
       for (const name of request.names) {
@@ -365,12 +368,13 @@ export function createLocalToolCatalog<P>(input: LocalToolCatalogInput<P>): Tool
             : await judged(request, candidate.ok, request.consumer, null),
         )
       }
-      const checked = await stable(live.ok, request)
+      const checked = await stable(live.ok, request, null, request.names)
       return 'failure' in checked ? checked : succeed(answers)
     },
 
     usage: async request => {
-      const live = await liveFor(request)
+      const names = [request.name]
+      const live = await liveFor(request, names)
       if ('failure' in live) return live
       const candidate = candidateFor(live.ok, request.name)
       if (candidate === undefined) return sourceUnavailable(live.ok.sourced, request.name)
@@ -379,7 +383,7 @@ export function createLocalToolCatalog<P>(input: LocalToolCatalogInput<P>): Tool
       const verdict = await availability.judge(
         asked(request, candidate, request.consumer, request.command),
       )
-      const checked = await stable(live.ok, request)
+      const checked = await stable(live.ok, request, null, names)
       if ('failure' in checked) return checked
       if ('failure' in verdict) return verdict
       if (verdict.ok.qualification !== 'allowed') return fail({ kind: 'denied', action: 'usage' })

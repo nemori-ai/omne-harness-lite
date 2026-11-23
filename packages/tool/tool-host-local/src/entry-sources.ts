@@ -40,8 +40,12 @@ export type SourcedCatalogEntries = Readonly<{
 }>
 
 export interface LocalToolSourcedEntries<P> {
-  /** Never fails as a whole: a source that cannot list is named in `unavailable`, by its prefix. */
-  read(access: Access<P>): Promise<SourcedCatalogEntries>
+  /**
+   * Never fails as a whole: a source that cannot list is named in `unavailable`, by its prefix.
+   * Given `names`, only the sources whose prefix one of them is under are asked: a call of a tool
+   * of the release never waits on a source.
+   */
+  read(access: Access<P>, names?: readonly string[]): Promise<SourcedCatalogEntries>
 }
 
 export type LocalEntrySourcePolicy = Readonly<{
@@ -227,6 +231,7 @@ async function readEntries<P, B extends ContentBlock>(
   offered: readonly ToolEntrySource<P, B>[],
   access: Access<P>,
   timeoutMs: number,
+  names: readonly string[] | undefined,
 ): Promise<SourcedCatalogEntries> {
   const live: ToolListing[] = []
   const known: SourcedCatalogEntries['known'][number][] = []
@@ -235,6 +240,7 @@ async function readEntries<P, B extends ContentBlock>(
   const sources = offered.toSorted((left, right) => (left.prefix < right.prefix ? -1 : 1))
   for (const source of sources) {
     if (sourceOf(sources, source.prefix) !== source) continue
+    if (names !== undefined && !names.some(name => name.startsWith(source.prefix))) continue
     const listed = await listedBy(source, access, timeoutMs)
     if ('failure' in listed) {
       failed.push(source.prefix)
@@ -338,7 +344,7 @@ export function createLocalEntrySources<P, E, B extends ContentBlock>(
   }
 
   const entries: LocalToolSourcedEntries<P> = {
-    read: access => readEntries(input.sources(), access, policy.listTimeoutMs),
+    read: (access, names) => readEntries(input.sources(), access, policy.listTimeoutMs, names),
   }
 
   return {
