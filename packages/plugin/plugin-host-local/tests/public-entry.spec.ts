@@ -15,5 +15,6 @@ it('the root entry exports the category, its contract and its point', async () =
     'pluginPlacement',
     'pluginPluginsPoint',
     'readHeldPart',
+    'serverInstall',
   ])
 })

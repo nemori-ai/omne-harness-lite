@@ -32,3 +32,10 @@ export {
   type PluginPlacement,
   type PluginPlacementInput,
 } from './placement.ts'
+export {
+  serverInstall,
+  type GuestForm,
+  type ServerEntry,
+  type ServerInstallPorts,
+  type ServerPoint,
+} from './server-install.ts'
