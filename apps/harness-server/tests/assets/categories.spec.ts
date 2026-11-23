@@ -34,7 +34,7 @@ it('six domains contribute into one extension point, each with the name it decla
       .list()
       .map(listing => [listing.category, listing.display.title, listing.creation]),
   ).toEqual([
-    ['AgentDefinition', '智能体', 'none'],
+    ['AgentDefinition', '智能体', 'directory'],
     ['converter', '转换件', 'data'],
     ['mcp', 'MCP', 'data'],
     ['model-provider', '模型供应商', 'none'],

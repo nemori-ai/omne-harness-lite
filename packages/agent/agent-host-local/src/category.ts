@@ -7,7 +7,6 @@ export const agentDefinitionCategoryPlugin = categoryContributionPlugin(
   {
     contract: agentBodyContract(),
     display: agentDefinitionCategoryDisplay,
-    generalCreation: 'closed',
   },
   agentDefinitionsPoint,
 )

@@ -64,7 +64,7 @@ async function categoriesAndAssets(assets: Assets, tenant: TenantId) {
   const categories = await assets['list-categories']({ after: null, limit: 100 })
   if (categories.outcome !== 'succeeded') throw new Error(categories.outcome)
   expect(categories.body.items.map(item => [item.category, item.creation])).toEqual([
-    ['AgentDefinition', 'none'],
+    ['AgentDefinition', 'directory'],
     ['converter', 'data'],
     [FIXTURE, 'data'],
     [FIXTURE_BUNDLE, 'directory'],

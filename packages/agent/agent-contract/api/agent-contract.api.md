@@ -2970,6 +2970,14 @@ export type BatchJudgment<T> = {
 export declare function refused<T>(reason: RefusalReason, detail?: string): Judgment<T>;
 ```
 
+## 声明文件 `layout.d.ts`
+
+```ts
+import { type PackageLayout } from '@omne-harness/assets';
+export declare const AGENT_FILE = "AGENT.md";
+export declare const agentDefinitionLayout: PackageLayout;
+```
+
 ## 声明文件 `passages.d.ts`
 
 ```ts

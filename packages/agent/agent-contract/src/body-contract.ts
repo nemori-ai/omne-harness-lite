@@ -13,12 +13,28 @@ import {
 } from '@omne-harness/assets'
 import { AGENT_TYPES, INSTRUCTION_LIMITS, attributeItem, type AttributeItem } from './definition.ts'
 import { instructionsProblem, summaryProblem } from './judge-definition.ts'
+import { AGENT_FILE, agentDefinitionLayout } from './layout.ts'
 
 const CATEGORY = 'AgentDefinition'
 
 export const agentDefinitionCategoryDisplay: CategoryDisplay = Object.freeze({
   title: '智能体',
   summary: '一个智能体的定义：它的说明、能用的能力与权限上界。',
+  creation: `一个目录，根下只有一个 ${AGENT_FILE}：头部写名字、说明与引用的能力，正文是它的提示词。`,
+  authoring: [
+    `A definition is a directory with one file, ${AGENT_FILE}: a frontmatter, then the instructions the agent works by. Whole and minimal:`,
+    '---',
+    'name: reviewer',
+    'summary: Reviews one file and reports the problems it finds. Fit for a second look at a change.',
+    'references:',
+    '  - { category: tool, name: Files, resident: true }',
+    '---',
+    'You review code. Read the file you are given and report the problems you find, the worst first.',
+    'name is the name it is published under, and the name of its directory. summary is read by the agent that chooses whom to hand work to: say what this one is fit for.',
+    'references lists the capabilities it uses, each {category, name, resident?}. A tool with resident: true is in every request it makes. A reference of another category is kept and has no effect yet.',
+    'Other fields: attributes (a list of names: model, first_token_wait_limit, post_first_token_stall_limit) and permissionBounds. type is non-master and can be left out.',
+    'It is handed work with Agents, or a session is made with it by its name. Published again, it is used from the next run.',
+  ].join('\n'),
 })
 
 const schemaRead = readBodyText(
@@ -68,6 +84,7 @@ export function agentBodyContract(): BodyContract {
     references(body, context) {
       return decodeOrThrow(body, context).references
     },
+    layout: agentDefinitionLayout,
   }
 }
 
@@ -122,6 +139,7 @@ const BODY_KEYS = [
   'attributes',
   'instructions',
   'permissionBounds',
+  'manifest',
 ]
 
 function checkStanding(members: readonly Member[]): Refused | undefined {
