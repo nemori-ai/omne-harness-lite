@@ -150,6 +150,12 @@
   padding: 0;
   border-radius: var(--omne-radius-pill);
 }
+/* A drawing put on the figure keeps the size it gives itself: the button does not size it as an icon. */
+.omne-companion-figure svg[width],
+.omne-companion-figure svg[height] {
+  width: auto;
+  height: auto;
+}
 /* The panel is an ink bubble written out of the figure: a field, whom the words go to and send in one row under it,
    and one line for how the words ended. */
 .omne-companion-panel {
