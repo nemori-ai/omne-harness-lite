@@ -348,4 +348,70 @@ describe('the dev directory as a source of plugins', () => {
     expect(told).toBeDefined()
     expect(told!).toBeLessThan(1_000)
   })
+
+  /** A source over a platform whose watching says nothing: it takes the watch and never sends an event. */
+  function deaf() {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'plugin-dev-')))
+    write(root, 'notes/plugin.json', manifest('notes'))
+    write(root, 'notes/main.js', 'export const page = 1\n')
+    const source = createDevDirectorySource({
+      root,
+      warn: () => undefined,
+      watch: () => () => undefined,
+    })
+    opened.push({ root, source })
+    return { root, source }
+  }
+
+  it.each([
+    [
+      'a plugin is put in',
+      (root: string) => {
+        write(root, 'board/plugin.json', manifest('board'))
+        write(root, 'board/main.js', 'export const page = 2\n')
+      },
+    ],
+    ['a file changes', (root: string) => write(root, 'notes/main.js', 'export const page = 7\n')],
+    ['a plugin is taken away', (root: string) => rmSync(join(root, 'notes'), { recursive: true })],
+  ] as const)(
+    'tells of a change within two seconds when the watching sends no event at all: %s',
+    async (_name, change) => {
+      const { root, source } = deaf()
+      await listed(source)
+      await source.settled()
+      const told = changed(source)
+      change(root)
+      expect(await told).toBeLessThan(2_000)
+    },
+  )
+
+  it('lists what is there now within the round of the scan, whether or not the watching said anything', async () => {
+    const { root, source } = deaf()
+    expect((await listed(source)).map(each => each.manifest.name)).toEqual(['notes'])
+    write(root, 'board/plugin.json', manifest('board'))
+    write(root, 'board/main.js', 'export const page = 2\n')
+    await new Promise(resolve => setTimeout(resolve, 1_100))
+    expect((await listed(source)).map(each => each.manifest.name)).toEqual(['board', 'notes'])
+  })
+
+  it('spends at most a twentieth of the time on scans nobody asked for: a round is twenty times as long as a scan took', async () => {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'plugin-dev-')))
+    write(root, 'notes/plugin.json', manifest('notes'))
+    write(root, 'notes/main.js', 'export const page = 1\n')
+    let scans = 0
+    const source = createDevDirectorySource({
+      root,
+      warn: () => undefined,
+      watch: () => () => undefined,
+      scanned: () => {
+        scans += 1
+        return new Promise(resolve => setTimeout(resolve, 120))
+      },
+    })
+    opened.push({ root, source })
+    await source.settled()
+    const first = scans
+    await new Promise(resolve => setTimeout(resolve, 2_000))
+    expect(scans - first).toBeLessThanOrEqual(1)
+  })
 })

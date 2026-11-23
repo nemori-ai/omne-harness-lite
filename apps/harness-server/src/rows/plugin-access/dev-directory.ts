@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { watch, type FSWatcher } from 'node:fs'
+import { watch } from 'node:fs'
 import { readdir, realpath, stat } from 'node:fs/promises'
 import { join, sep } from 'node:path'
 import { MANIFEST_FILE, judgePackage, readManifest } from '@omne-harness/plugin-protocol'
@@ -17,13 +17,27 @@ export type DevDirectorySource = PluginSource & {
   close(): void
 }
 
+/** Asks the platform to say when something under a directory changes; answers how to stop. It may throw, and it may say nothing. */
+export type Watch = (
+  root: string,
+  onEvent: () => void,
+  onError: (error: unknown) => void,
+) => () => void
+
+const nodeWatch: Watch = (root, onEvent, onError) => {
+  const watcher = watch(root, { recursive: true }, onEvent)
+  watcher.on('error', onError)
+  return () => watcher.close()
+}
+
 type Held = Readonly<{ plugin: SourcePlugin; directory: string }>
 type Scan = ReadonlyMap<string, Held>
 
 const QUIET_MS = 150
-/** A burst that does not end is not waited out: the directory is scanned this long after its first event at the latest. */
 const MOST_WAIT_MS = 500
 const POLL_MS = 1_000
+/** Scans nobody asked for take one part in this many of the time: a round is this many times as long as a scan took. */
+const POLL_SHARE = 20
 type Absent = Extract<SourceRead, { kind: 'absent' }>
 const ABSENT_PLUGIN: Absent = Object.freeze({ kind: 'absent', what: 'plugin' })
 const ABSENT_FILE: Absent = Object.freeze({ kind: 'absent', what: 'file' })
@@ -38,10 +52,10 @@ const sha256 = (bytes: Uint8Array | string): string =>
 
 type Known = Readonly<{ size: bigint; changed: bigint; digest: string; text: string | null }>
 
-/** What is known of each file, for as long as its size and its time of change stay: a scan digests only what changed. */
-type Reading = Readonly<{ io: FileIo; known: Map<string, Known> }>
+type Reading = Readonly<{ io: FileIo; known: Map<string, Known>; visited: Set<string> }>
 
 async function knownOf(reading: Reading, path: string, keepText: boolean): Promise<Known> {
+  reading.visited.add(path)
   const { size, mtimeNs: changed } = await stat(path, { bigint: true })
   const before = reading.known.get(path)
   if (before !== undefined && before.size === size && before.changed === changed) return before
@@ -165,26 +179,34 @@ const EMPTY: DevDirectorySource = {
 
 /** The plugins of a directory the operator names: one per sub-directory, the same for every tenant. */
 export function createDevDirectorySource(
-  input: Readonly<{ root: string | undefined; warn: (line: string) => void; io?: FileIo }>,
+  input: Readonly<{
+    root: string | undefined
+    warn: (line: string) => void
+    io?: FileIo
+    watch?: Watch
+    scanned?: () => Promise<void>
+  }>,
 ): DevDirectorySource {
   const { root, warn } = input
   if (root === undefined) return EMPTY
-  const reading: Reading = { io: input.io ?? nodeFileIo, known: new Map<string, Known>() }
+  const reading: Reading = {
+    io: input.io ?? nodeFileIo,
+    known: new Map<string, Known>(),
+    visited: new Set<string>(),
+  }
   let events = 0
   let scanned = -1
   let scannedAt = 0
-  let watching = false
+  let round = POLL_MS
   const listeners = new Set<() => void>()
   let last: Scan = new Map()
   let warned = new Map<string, string>()
   let signature: string | undefined
   let readable = true
-  const fresh = (): boolean =>
-    readable && scanned === events && (watching || now() - scannedAt < POLL_MS)
+  const fresh = (): boolean => readable && scanned === events && now() - scannedAt < round
   let queue: Promise<Scan> = Promise.resolve(last)
   let quiet: ReturnType<typeof setTimeout> | undefined
-  let watcher: FSWatcher | undefined
-  let poll: ReturnType<typeof setInterval> | undefined
+  let unwatch: (() => void) | undefined
 
   const tell = (listener: () => void): void => {
     try {
@@ -196,9 +218,13 @@ export function createDevDirectorySource(
   const rescan = (): Promise<Scan> => {
     queue = queue.then(async () => {
       const seen = events
+      const startedAt = now()
+      reading.visited.clear()
       const found = await scan(reading, root)
+      await input.scanned?.()
+      round = Math.max(POLL_MS, POLL_SHARE * (now() - startedAt))
       for (const path of reading.known.keys())
-        if (!path.startsWith(root + sep)) reading.known.delete(path)
+        if (!reading.visited.has(path)) reading.known.delete(path)
       scanned = seen
       scannedAt = now()
       for (const [name, fault] of found.faults)
@@ -230,19 +256,25 @@ export function createDevDirectorySource(
     )
   }
   try {
-    watcher = watch(root, { recursive: true }, soon)
-    watching = true
-    watcher.on('error', error => {
-      watching = false
-      warn(`the plugin dev directory stopped being watched: ${String(error)}`)
-    })
-  } catch (error) {
-    warn(
-      `the plugin dev directory ${root} cannot be watched, it is scanned each second: ${String(error)}`,
+    unwatch = (input.watch ?? nodeWatch)(root, soon, error =>
+      warn(`the plugin dev directory stopped being watched: ${String(error)}`),
     )
-    poll = setInterval(() => void rescan(), POLL_MS)
+  } catch (error) {
+    warn(`the plugin dev directory ${root} cannot be watched: ${String(error)}`)
   }
-  void rescan()
+  let poll: ReturnType<typeof setTimeout> | undefined
+  let closed = false
+  const pollLater = (): void => {
+    if (closed) return
+    poll = setTimeout(
+      () => {
+        const due = now() - scannedAt >= round
+        void (due ? rescan() : queue).then(pollLater, pollLater)
+      },
+      Math.max(50, round - (now() - scannedAt)),
+    )
+  }
+  void rescan().then(pollLater, pollLater)
 
   return {
     async list() {
@@ -267,8 +299,9 @@ export function createDevDirectorySource(
     },
     close() {
       clearTimeout(quiet)
-      clearInterval(poll)
-      watcher?.close()
+      closed = true
+      clearTimeout(poll)
+      unwatch?.()
       listeners.clear()
     },
   }
