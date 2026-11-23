@@ -5,7 +5,7 @@ export {
   extensionsToolModule,
 } from './author.ts'
 export { attachExtensionsSource, extensionsSourceOf } from './port.ts'
-export type { ExtensionsCallSource, ExtensionsFaces } from './port.ts'
+export type { ExtensionsCallSource, ExtensionsFaces, Placed } from './port.ts'
 export {
   extensionsAdoption,
   extensionsCommandNames,

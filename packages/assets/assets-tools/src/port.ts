@@ -14,6 +14,13 @@ export type ExtensionsFaces = Readonly<{
   publishing: TenantPublishing<unknown>
 }>
 
+export type Placed =
+  | Readonly<{ kind: 'written'; files: number; bytes: number }>
+  | Readonly<{ kind: 'same' }>
+  | Readonly<{ kind: 'differs'; paths: readonly string[]; more: number }>
+  | Readonly<{ kind: 'absent' }>
+  | Readonly<{ kind: 'unavailable' }>
+
 /** What one call needs, given by the binding. The tenant and the principal come from the call; the model cannot give them. */
 export type ExtensionsCallSource = Readonly<{
   tenant: string
@@ -22,6 +29,8 @@ export type ExtensionsCallSource = Readonly<{
   faces(): ExtensionsFaces | undefined
   /** A directory of this call's workspace, as a package; absent when the path is not a directory there. */
   directory(path: string): Promise<PackageReader | 'absent' | 'unavailable'>
+  /** Writes a package into a workspace directory only when it is missing or empty: same, or differs naming at most 10 paths; absent is no place for a directory. */
+  place(dir: string, from: PackageReader): Promise<Placed>
   impact: ChangeImpact
   placement: Placement
   /** The revision of the extension tree now; null when it cannot be read. */

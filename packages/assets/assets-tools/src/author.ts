@@ -33,13 +33,16 @@ import { HOW, noCategory } from './text.ts'
 const GATES: readonly ToolGate[] = [
   { id: 'read', title: '查看', default: 'auto' },
   { id: 'change', title: '改动', default: 'auto' },
+  { id: 'export', title: '取到工作区', default: 'auto' },
 ]
-const WRITES: ReadonlySet<ExtensionsCommandName> = new Set([
-  'publish',
-  'enable',
-  'disable',
-  'remove',
-])
+/** Export changes no asset but writes into the workspace: it has a gate of its own. */
+const GATE_OF: Readonly<Partial<Record<ExtensionsCommandName, 'change' | 'export'>>> = {
+  publish: 'change',
+  enable: 'change',
+  disable: 'change',
+  remove: 'change',
+  export: 'export',
+}
 const ENCODING = 'wrapped' as const
 const encoder = new TextEncoder()
 const utf8 = (text: string) => encoder.encode(text)
@@ -51,6 +54,7 @@ const guide = [
   'Give every publish, enable, disable and remove an id of your own. After a failure that says unknown, send the same command with the same id, or ask result: what took effect is recalled, not done twice.',
   'Categories come and go while the system runs. They are not listed in this text; categories reads what exists now.',
   'Ask impact before you publish: a new holding is enabled when it is made, so publishing takes effect at once.',
+  'To change an extension that is already held: export it to a directory, edit the files there, ask impact with that directory, then publish from it. The held version is the source; the directory is your working copy.',
   'You act for the acting tenant: what you publish is held by this tenant and changes only what this tenant sees.',
   'A failure starts with its reason, then says what to do.',
 ].join('\n\n')
@@ -201,7 +205,7 @@ function operationOf(name: ExtensionsCommandName, maximum: number) {
       renderer: { render: (value: string) => succeed(value) },
       program: { kind: 'none' },
     },
-    ...(WRITES.has(name) ? { describeRelease: describeWrite } : {}),
+    ...(GATE_OF[name] === undefined ? {} : { describeRelease: describeWrite }),
   })
 }
 
@@ -225,7 +229,7 @@ export function createExtensionsAuthor(
     operations[name] = {
       summary: extensionsSummaries[name],
       operation: operation.ok,
-      release: { gate: WRITES.has(name) ? 'change' : 'read' },
+      release: { gate: GATE_OF[name] ?? 'read' },
     }
   }
   const author = defineCommandTool({

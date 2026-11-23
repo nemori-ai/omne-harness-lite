@@ -107,6 +107,7 @@ export {
   type AssetRow,
   type AssetRowPage,
   type AssetStanding,
+  type HeldFiles,
   type HoldingChange,
   type HoldingOutcome,
   type ManagedAsset,

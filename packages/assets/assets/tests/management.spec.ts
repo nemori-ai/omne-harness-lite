@@ -118,6 +118,7 @@ function setup(
       content: { kind: 'data', body: { kind: 'null' } },
       settings: false,
     }),
+    files: async () => ({ kind: 'body', version: 'v1', body: { kind: 'null' } }),
     async holding(ref) {
       reads.push(ref)
       const holding = options.holding ?? HELD
@@ -656,4 +657,45 @@ describe('describe one asset', () => {
       kind: 'denied',
     })
   })
+})
+
+describe('the files of the held version', () => {
+  const asking = { ...scope, capability: id('note', 'a') }
+
+  it('gives what the store gives for the held version', async () => {
+    expect(await setup().management.files(asking)).toEqual({
+      kind: 'body',
+      version: 'v1',
+      body: { kind: 'null' },
+    })
+  })
+
+  it('a principal for another tenant is denied, before the store is opened', async () => {
+    const s = setup({ store: { files: async () => ({ kind: 'absent' as const }) } })
+    expect(await s.management.files({ ...asking, tenant: 'bob' })).toEqual({ kind: 'denied' })
+    expect(s.asked).toEqual(['alice->bob'])
+  })
+
+  it.each([
+    ['answers absent', { files: async () => ({ kind: 'absent' as const }) }, 'absent'],
+    ['cannot read', { files: async () => ({ kind: 'unavailable' as const }) }, 'unavailable'],
+    [
+      'throws',
+      {
+        files: async (): Promise<{ kind: 'absent' }> => {
+          throw new Error('read failed')
+        },
+      },
+      'unavailable',
+    ],
+  ])('a store that %s answers %s, never none', async (_, store, kind) => {
+    expect(await setup({ store }).management.files(asking)).toEqual({ kind })
+  })
+
+  it.each(['missing', 'throws'] as const)(
+    'a store of the tenant that is %s is unavailable',
+    async store => {
+      expect(await setup({ store }).management.files(asking)).toEqual({ kind: 'unavailable' })
+    },
+  )
 })

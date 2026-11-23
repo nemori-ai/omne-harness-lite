@@ -32,11 +32,11 @@ async function described(command: string, params: unknown) {
   return checked.ok.rows
 }
 
-it('the release card is described for the four writes alone', () => {
+it('the release card is described for the four writes and export alone', () => {
   const describing = tool.registration.operations
     .filter(([, slot]) => slot.describeRelease !== null)
     .map(([name]) => name)
-  expect(describing.sort()).toEqual(['disable', 'enable', 'publish', 'remove'])
+  expect(describing.sort()).toEqual(['disable', 'enable', 'export', 'publish', 'remove'])
 })
 
 describe('what a write would do, shown on its release card', () => {
@@ -52,6 +52,17 @@ describe('what a write would do, shown on its release card', () => {
       label: '从哪发布',
       value: '一份正文',
     })
+  })
+
+  it('an export names the category, the name and the workspace directory it writes to', async () => {
+    expect(
+      await described('export', { category: 'bundle', name: 'pill-send', dir: 'work/pill' }),
+    ).toEqual([
+      { label: '动作', value: '取到工作区' },
+      { label: '类别', value: 'bundle' },
+      { label: '名字', value: 'pill-send' },
+      { label: '写到哪', value: '工作区目录 work/pill' },
+    ])
   })
 
   it.each([
