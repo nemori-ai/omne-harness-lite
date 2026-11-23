@@ -281,6 +281,7 @@ describe('where a held plugin is placed now', () => {
       enabled: true,
       held: [],
       clients: [loaded],
+      server: null,
     })
     expect(answer.places).toEqual([
       { point: 'shell.part-style', key: 'session.composer.send', standing: 'in effect', says: '' },
@@ -302,6 +303,7 @@ describe('where a held plugin is placed now', () => {
       enabled: true,
       held: [],
       clients: [failed],
+      server: null,
     })
     expect(answer.places.map(place => [place.standing, place.says])).toEqual([
       ['not in effect', 'the client could not load it'],
@@ -321,6 +323,7 @@ describe('where a held plugin is placed now', () => {
       enabled: true,
       held: [],
       clients: [stopped],
+      server: null,
     })
     expect(answer.clients).toEqual([
       {
@@ -338,6 +341,7 @@ describe('where a held plugin is placed now', () => {
       enabled: true,
       held: [held('round', manifest('round', [SEND]))],
       clients: [loaded],
+      server: null,
     })
     expect(answer.places[0]).toEqual({
       point: 'shell.part-style',
@@ -355,6 +359,7 @@ describe('where a held plugin is placed now', () => {
       enabled: true,
       held: [],
       clients: [],
+      server: null,
     })
     expect(none.places[0]).toMatchObject({
       standing: 'not known',
@@ -367,6 +372,7 @@ describe('where a held plugin is placed now', () => {
       enabled: false,
       held: [],
       clients: [loaded],
+      server: null,
     })
     expect(off.places[0]).toMatchObject({ standing: 'not in effect', says: 'it is disabled' })
   })
@@ -378,9 +384,39 @@ describe('where a held plugin is placed now', () => {
       enabled: true,
       held: [],
       clients: [{ client: 'desktop-1', state: null, reason: null }],
+      server: null,
     })
     expect(answer.clients).toEqual([{ label: 'desktop-1, connected', says: 'not loaded yet' }])
     expect(answer.places[0]?.standing).toBe('not known')
+  })
+
+  it('tells each place on the server from the server, and each place on a client from the clients', () => {
+    const label = { point: 'notes.labels', key: 'urgent', data: 1 }
+    const both = manifest('pill', [SEND], [label])
+    const at = (state: 'loading' | 'loaded' | 'failed' | 'held' | null) =>
+      pluginPlacement({
+        name: 'pill',
+        manifest: both,
+        enabled: true,
+        held: [],
+        clients: [loaded],
+        server: { state, reason: state === 'failed' ? 'labels.js threw: boom' : null },
+      }).places.map(place => [place.point, place.standing, place.says])
+    expect(at('loaded')).toEqual([
+      ['shell.part-style', 'in effect', ''],
+      ['notes.labels', 'in effect', ''],
+    ])
+    expect(at('failed')[1]).toEqual([
+      'notes.labels',
+      'not in effect',
+      'the server could not load it: labels.js threw: boom',
+    ])
+    expect(at('held')[1]?.[2]).toBe(
+      'the server stopped loading it: it went down twice in a row while loading it. Publish a new version, or disable it and enable it again.',
+    )
+    expect(at('loading')[1]?.slice(1)).toEqual(['not known', 'the server is loading it'])
+    expect(at(null)[1]?.slice(1)).toEqual(['not known', 'the server has not loaded it yet'])
+    expect(at('failed')[0]?.[1]).toBe('in effect')
   })
 
   it('clients are not known when they cannot be read', () => {
@@ -390,6 +426,7 @@ describe('where a held plugin is placed now', () => {
       enabled: true,
       held: [],
       clients: null,
+      server: null,
     })
     expect(answer.clients).toBeNull()
     expect(answer.places[0]).toMatchObject({ standing: 'not known' })

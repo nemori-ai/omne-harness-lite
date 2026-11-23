@@ -2,12 +2,8 @@ import { stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { AssetChanges } from '@omne-harness/assets-cordis-contract/cordis'
 import type { PluginSource } from '@omne-harness/plugin-access'
-import {
-  createKeptContents,
-  heldPlugins,
-  readHeldPart,
-  type HeldPluginPorts,
-} from '@omne-harness/plugin-host-local'
+import { createKeptContents, heldPlugins, readHeldPart } from '@omne-harness/plugin-host-local'
+import { heldPluginPorts } from '../plugin-host/held-ports.ts'
 import type { TenantAssetsService } from '../tenant-assets/service.ts'
 import { nodeFileIo, type FileIo } from './file-io.ts'
 
@@ -74,14 +70,7 @@ export function createHeldSource(ports: HeldSourcePorts): PluginSource & { close
     const standing = await assets.standing(tenant)
     if (standing === 'unregistered') return NOTHING
     if (standing === 'unknown') return UNAVAILABLE
-    const reading: HeldPluginPorts = {
-      sources: of => assets.layerSources(of),
-      async body(of, { asset, version }) {
-        const read = await (await assets.open(of))?.readVersion({ assetRef: asset, version })
-        return read?.kind === 'version' ? read.version.body : undefined
-      },
-    }
-    const read = await heldPlugins(reading, tenant)
+    const read = await heldPlugins(heldPluginPorts(assets), tenant)
     return read.kind === 'read' ? { ...read, assets } : UNAVAILABLE
   }
   return {

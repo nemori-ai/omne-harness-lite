@@ -1,7 +1,12 @@
 import type { CategoryEffect, PublishContent } from '@omne-harness/assets'
-import { MANIFEST_FILE, readManifest, type PluginManifest } from '@omne-harness/plugin-protocol'
+import {
+  MANIFEST_FILE,
+  readManifest,
+  type Kept,
+  type PluginManifest,
+} from '@omne-harness/plugin-protocol'
 import { pluginImpact, type KnownPoint } from './effect.ts'
-import { pluginPlacement } from './placement.ts'
+import { pluginPlacement, type ServerTold } from './placement.ts'
 import type { ListedPlugins } from './held.ts'
 
 /** What one connected client last told: the points it has, and how each plugin it was to load came out. */
@@ -25,8 +30,14 @@ export type PluginEffectPorts = Readonly<{
   serverPoints(): readonly KnownPoint[]
   /** The connected clients of one tenant; undefined when they cannot be read now. */
   clients(tenant: string): readonly ToldByClient[] | undefined
-  serverLoads: boolean
+  /** How the server stands with each plugin of one tenant, by name; null when this tree loads no plugin on the server. */
+  server(tenant: string): ReadonlyMap<string, Kept> | null
 }>
+
+function serverTold(kept: Kept | undefined, held: string): ServerTold {
+  if (kept === undefined || `sha256:${kept.version}` !== held) return { state: null, reason: null }
+  return { state: kept.kind, reason: kept.kind === 'failed' ? kept.reason : null }
+}
 
 const unreadAdvice = (unread: readonly string[]): string | null =>
   unread.length === 0
@@ -40,7 +51,6 @@ const UNREAD = Object.freeze({
 const notHeld = (name: string) =>
   ({ kind: 'unavailable', reason: `the tenant holds no plugin named ${name}` }) as const
 
-/** The manifest of a directory not yet published, or why it cannot be had. */
 type Written = Readonly<{ manifest: PluginManifest; unread: readonly string[] }>
 
 async function manifestIn(content: PublishContent): Promise<Written | string> {
@@ -93,7 +103,7 @@ export function pluginEffect(ports: PluginEffectPorts): CategoryEffect {
           held: holding.plugins,
           points: [...ports.serverPoints(), ...clientPoints(clients)],
           unknownSides: clients.length === 0 ? ['client'] : [],
-          serverLoads: ports.serverLoads,
+          serverLoads: ports.server(tenant) !== null,
         })
         const advice = [unreadAdvice(unread), told.advice].filter(each => each !== null)
         return { kind: 'changes', ...told, advice: advice.length === 0 ? null : advice.join(' ') }
@@ -112,12 +122,14 @@ export function pluginEffect(ports: PluginEffectPorts): CategoryEffect {
           )
           return { client, state: one?.state ?? null, reason: one?.reason ?? null }
         })
+        const server = ports.server(tenant)
         const told = pluginPlacement({
           name: mine.name,
           manifest: mine.manifest,
           enabled: mine.enabled,
           held: holding.plugins,
           clients: clients ?? null,
+          server: server === null ? null : serverTold(server.get(mine.name), mine.held.version),
         })
         return { kind: 'placed', ...told }
       },

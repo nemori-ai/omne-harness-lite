@@ -221,6 +221,16 @@ flowchart LR
 - 没送到（服务端没有答收下）不算报过：下一次读表、或下一次有变化时再报全量。同一时刻至多一次回报在途，在途时又有变化，送完再报一次最新的。
 - 客户端的标识是这个页面实例自己起的，观察 `observe-wanted` 与回报用同一个。页面重新加载就是另一个客户端。
 
+### 服务端的装载方
+
+服务端照「一份 plugin 在一侧」的两张表、同一个回路与同一个底装，装的是每个租户在持的 plugin 清单里 `server` 一段。与客户端不同的地方：
+
+- 每个租户各有一个回路与一份底的记录（`createServerSide`）：为一个租户装什么、装没装成、停没停，不改别的租户的。读不到一个租户在持什么，它装着的不动。
+- 一份怎样放（`serverInstall`）：数据成员放成一条条目；代码成员只放在给了客人写法的点上（点的拥有者把导出交回的东西做成它收的一项），文件按清单里的摘要取，导出的函数被调时只拿到 `{ ports }`，拿不到上下文、服务或宿主的任何东西。条目的作用域由装载方打上，是持有它的那个租户的范围；清单里写不出作用域。
+- 点此刻不在、写法与点收的不合、点在构建时定死、点归一个类别、包里没有那个文件、导入或调用抛出、点不收交回的东西、同一份两个成员在同一处、登记表不收：各有原因，指到成员。有一个成员不成，这一份什么都不放。
+- 服务端应用把一份放成它自己的一个 fiber，名字是 `plugin:<名字>@<版本>`；卸下就是撤掉这个 fiber，它放的条目一起撤下。
+- 类别答生效情况时读服务端每份的状态：服务端那一侧的成员看服务端，客户端那一侧的成员看客户端；状态是别的版本的不算。这棵树不在服务端装 plugin 时，服务端那一侧的成员写明不装。
+
 ### 底
 
 底回答一个问题：一份 plugin 让应用起不来的时候，应用还打不打得开。答法是应用先起自带的，plugin 是之后补装的；补装连着让应用倒下，就不再补装，并说出停掉了哪几份。底怎样算归 [Dynamis](../dynamis/SPEC.md)（`Floor`），存在哪、怎样认出「倒了一次」归宿主应用，装载器只经一个端口用它：
@@ -282,3 +292,4 @@ flowchart LR
 | PL-I14 | 一份 plugin 的包被判为合格，当且仅当清单读得懂、包对得上清单、每个指向一个类别的点的成员被那个类别的正文契约判为合格；有一个成员不合格或它的类别不可用，整份不发，原因指到成员 | 持有里出现一份带着坏成员的 plugin，装上之后那一类读到不合它契约的正文 | `plugin-host-local/tests/category.spec.ts`、`cordis-entry.spec.ts`；`apps/harness-server/tests/rows/plugin-host/release.spec.ts` |
 | PL-I15 | 一个租户从资产得到的要装的，恰好是它持有的 plugin 里求值胜出的那些：被禁用的不在，别的租户持有的不在；读不到时答不可用，不答空 | 禁用了还装着；一个租户装上别的租户的 plugin；一次读不到把装着的都卸了 | `plugin-host-local/tests/held.spec.ts`；`apps/harness-server/tests/rows/plugin-access/held-source.spec.ts`、`held-release.spec.ts` |
 | PL-I16 | 开发目录里的一处变化在一轮之内通知到监听，与平台的文件监视送不送事件无关；没人要的扫描至多占二十分之一的时间 | 监视丢了事件，放进去的 plugin 要等到别人碰巧来读表才装上；或者保底的扫描把一个核占掉 | `apps/harness-server/tests/rows/plugin-access/dev-directory.spec.ts`（不送事件的监视；慢的扫描） |
+| PL-I17 | 服务端放的条目在持有这份 plugin 的那个租户的范围里，作用域由装载方打上；plugin 的代码只拿到口，它的 fiber 所在的上下文里取不到任何受信名；被底停掉的一份在同一版仍被要的时候一直停着 | 一个租户的 plugin 放的东西被别的租户读到；plugin 的代码拿到存储、签发者或秘密；一份让服务起不来的 plugin 每次起来都被装上 | `plugin-host-local/tests/server-install.spec.ts`、`server-side.spec.ts`；服务端应用 `tests/rows/plugin-server/isolation.spec.ts`、`floor-file.spec.ts`、`release.spec.ts` |

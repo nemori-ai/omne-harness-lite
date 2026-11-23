@@ -22,6 +22,7 @@ export type ServerLocations = Readonly<{
   assetsRoot: string
   historyIndexRoot: string
   mediaRoot: string
+  pluginFloorDir: string
 }>
 
 export type Located =
@@ -91,6 +92,7 @@ export function resolveLocations(input: LocationInput): Located {
       assetsRoot: path.join(stateDir, 'assets'),
       historyIndexRoot: path.join(stateDir, 'history-index'),
       mediaRoot: path.join(stateDir, 'media'),
+      pluginFloorDir: path.join(stateDir, 'plugin-floor'),
     },
   }
 }

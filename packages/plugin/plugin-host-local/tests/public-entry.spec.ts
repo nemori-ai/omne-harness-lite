@@ -6,6 +6,7 @@ it('the root entry exports the category, its contract and its point', async () =
     'PLUGIN_CATEGORY',
     'PLUGIN_PACKAGE_LIMITS',
     'createKeptContents',
+    'createServerSide',
     'heldPlugins',
     'listedPlugins',
     'pluginBodyContract',

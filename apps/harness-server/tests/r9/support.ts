@@ -473,6 +473,11 @@ export function operatorLayer(options: {
         id: 'media-storage-local',
         config: { root: join(dirname(options.storageRoot), 'media') },
       },
+      {
+        kind: 'replace',
+        id: 'plugin-server',
+        config: { floorDirectory: join(dirname(options.storageRoot), 'plugin-floor') },
+      },
       { kind: 'replace', id: 'skills', config: { ranking: SEARCH_RANKING } },
       { kind: 'replace', id: 'notification', config: { policy: NOTIFICATION_POLICY } },
       { kind: 'replace', id: 'dispatch', config: { policy: DISPATCH_POLICY } },

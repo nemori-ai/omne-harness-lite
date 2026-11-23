@@ -9,7 +9,9 @@ import {
   type PluginEffectPorts,
 } from '@omne-harness/plugin-host-local'
 import { pluginReportsKey, type PluginReportsService } from '../plugin-access/reports-service.ts'
+import { pluginServerKey, type PluginServerService } from '../plugin-server/service.ts'
 import { tenantAssetsKey, type TenantAssetsService } from '../tenant-assets/service.ts'
+import { heldPluginPorts } from './held-ports.ts'
 
 /** The points of the server tree: a category's point takes what the category is made from, another what it declared. */
 export function serverPointsOf(
@@ -35,16 +37,7 @@ export function pluginEffectPorts(ctx: Context): PluginEffectPorts {
     async listed(tenant) {
       const held = assets()
       if (held === undefined) return { kind: 'unavailable' }
-      return listedPlugins(
-        {
-          sources: each => held.layerSources(each),
-          async body(each, { asset, version }) {
-            const read = await (await held.open(each))?.readVersion({ assetRef: asset, version })
-            return read?.kind === 'version' ? read.version.body : undefined
-          },
-        },
-        tenant,
-      )
+      return listedPlugins(heldPluginPorts(held), tenant)
     },
     serverPoints: () =>
       serverPointsOf(
@@ -53,7 +46,9 @@ export function pluginEffectPorts(ctx: Context): PluginEffectPorts {
       ),
     clients: tenant =>
       (ctx.get(pluginReportsKey) as PluginReportsService | undefined)?.reportsOf(tenant),
-    // The server side loads no plugin in this build; the slices that load them turn this on.
-    serverLoads: false,
+    server: tenant => {
+      const loading = ctx.get(pluginServerKey) as PluginServerService | undefined
+      return loading === undefined ? null : (loading.states(tenant) ?? new Map())
+    },
   }
 }

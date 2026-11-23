@@ -48,7 +48,7 @@ it('tells of its own only when given the ports: what the tenant holds is asked t
         listed: async tenant => (asked.push(tenant), { kind: 'unavailable' }),
         serverPoints: () => [],
         clients: () => [],
-        serverLoads: false,
+        server: () => null,
       })),
     )
     .await()

@@ -61,7 +61,7 @@ function world(over: Partial<PluginEffectPorts> = {}) {
       { name: 'skill.skills', side: 'server', takes: 'directory', when: 'running' },
     ],
     clients: tenant => (asked.push(`clients ${tenant}`), []),
-    serverLoads: false,
+    server: () => null,
     ...over,
   })
   return { effect, asked }
@@ -245,6 +245,51 @@ describe('where a held plugin is placed now', () => {
     expect(stale.kind === 'placed' && stale.clients).toEqual([
       { label: 'desktop-1, connected', says: 'not loaded yet' },
     ])
+  })
+
+  it('tells a place on the server from what the server says of the version the tenant holds', async () => {
+    const read = readManifest(
+      JSON.stringify({
+        schema: 1,
+        name: 'tidy',
+        summary: 'The tidy plugin.',
+        server: { members: [{ point: 'notes.labels', key: 'urgent', data: 1 }] },
+      }),
+    )
+    if (read.kind !== 'read') throw new Error(read.reason)
+    const serverSide = { ...listed('tidy', []), manifest: read.manifest }
+    const at = (server: PluginEffectPorts['server']) =>
+      world({
+        listed: async () => ({ kind: 'read', plugins: [serverSide] }),
+        clients: () => [],
+        server,
+      }).effect.placement.of({ tenant: 'alice', capability: plugin('tidy') })
+    const says = async (server: PluginEffectPorts['server']) => {
+      const answer = await at(server)
+      return answer.kind === 'placed'
+        ? [answer.places[0]?.standing, answer.places[0]?.says]
+        : answer
+    }
+    const failed = { kind: 'failed', version: 'a'.repeat(64), reason: 'boom' } as const
+    expect(await says(() => new Map([['tidy', failed]]))).toEqual([
+      'not in effect',
+      'the server could not load it: boom',
+    ])
+    expect(
+      await says(() => new Map([['tidy', { kind: 'loaded', version: 'a'.repeat(64) }]])),
+    ).toEqual(['in effect', ''])
+    expect(
+      await says(() => new Map([['tidy', { kind: 'loaded', version: 'b'.repeat(64) }]])),
+    ).toEqual(['not known', 'the server has not loaded it yet'])
+    expect(await says(() => new Map())).toEqual(['not known', 'the server has not loaded it yet'])
+    expect(await says(() => null)).toEqual([
+      'not in effect',
+      'the server side does not load plugins in this build',
+    ])
+    const advised = await at(() => new Map([['tidy', failed]]))
+    expect(advised.kind === 'placed' && advised.advice).toBe(
+      'Fix the file and publish again, or disable it.',
+    )
   })
 
   it('gives no clients when they cannot be read, and says one it does not hold', async () => {

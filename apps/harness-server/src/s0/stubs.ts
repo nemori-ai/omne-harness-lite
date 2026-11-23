@@ -80,6 +80,17 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'plugin-access': { provides: ['pluginReports'], injects: ['accessRegistry', 'principalIssuer'] },
   'plugin-host': { injects: ['assetCategories'] },
   'plugin-notification': { provides: [], injects: [], phase: 'composition' },
+  'plugin-server': {
+    provides: ['pluginServer'],
+    injects: [
+      'dynamis',
+      'tenantAssets',
+      'assetChanges',
+      'tenantDomains',
+      'tenantDomainScannerPrincipal',
+    ],
+    phase: 'business',
+  },
   'session-intake-budget': {
     provides: [],
     injects: ['runtimeContextTenantBlocks', 'tenantIndependentSettings'],

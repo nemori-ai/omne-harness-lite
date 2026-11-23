@@ -917,6 +917,11 @@
       "id": "plugin-notification",
       "plugin": "pluginNotificationRow",
       "config": {}
+    },
+    {
+      "id": "plugin-server",
+      "plugin": "pluginServerRow",
+      "config": {}
     }
   ]
 }

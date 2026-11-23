@@ -233,6 +233,9 @@ describe('localOperatorLayer over the bundled distribution', () => {
     expect(configOf(layer, 'media-storage-local')).toEqual({
       root: input('linux').locations.mediaRoot,
     })
+    expect(configOf(layer, 'plugin-server')).toEqual({
+      floorDirectory: input('linux').locations.pluginFloorDir,
+    })
     const without = localOperatorLayer({
       ...input('linux'),
       distribution: { rows: [{ id: 'session-handoff', config: { combinationVersion: 'v' } }] },
@@ -251,6 +254,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
               'workspace',
               'session-history-index',
               'media-storage-local',
+              'plugin-server',
             ].includes(id),
         ),
     )

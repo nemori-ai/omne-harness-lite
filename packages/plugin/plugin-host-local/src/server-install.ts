@@ -31,8 +31,8 @@ export type ServerInstallPorts = Readonly<{
   point(name: string): ServerPoint | undefined
   guestForm(point: string): GuestForm | undefined
   load(file: PackageFile): Promise<unknown>
-  /** Puts the entries as this plugin; the answer takes them back. It throws when the registry refuses them. */
-  put(entries: readonly ServerEntry[]): () => unknown
+  /** Puts the entries as this plugin; the answer takes them back. It rejects when the registry refuses them. */
+  put(entries: readonly ServerEntry[]): Promise<() => unknown>
 }>
 
 const reasonOf = (error: unknown): string =>
@@ -115,7 +115,7 @@ export function serverInstall(ports: ServerInstallPorts): (wanted: Wanted) => Pr
     }
     if (entries.length === 0) return { kind: 'installed', remove: () => undefined }
     try {
-      return { kind: 'installed', remove: ports.put(entries) }
+      return { kind: 'installed', remove: await ports.put(entries) }
     } catch (error) {
       return failed(`the registry refused it: ${reasonOf(error)}`)
     }

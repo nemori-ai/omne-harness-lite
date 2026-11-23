@@ -45,7 +45,7 @@ function world(over: Partial<ServerInstallPorts> = {}) {
       loaded.push(`${file.path} ${file.digest}`)
       return { make: () => 'hello' }
     },
-    put(entries) {
+    async put(entries) {
       placed.push(entries)
       const at = placed.length
       return () => void removed.push(at)
@@ -215,7 +215,7 @@ describe('the members a plugin writes for the server, put by the loader', () => 
 
   it('fails as a whole when the registry refuses what is put, with what it said', async () => {
     const w = world({
-      put: () => {
+      put: async () => {
         throw new Error('held: another item is at notes.labels urgent')
       },
     })

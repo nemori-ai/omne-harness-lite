@@ -39,3 +39,4 @@ export {
   type ServerInstallPorts,
   type ServerPoint,
 } from './server-install.ts'
+export { createServerSide, type ServerSide, type ServerSidePorts } from './server-side.ts'
