@@ -584,6 +584,24 @@ describe('show', () => {
     )
   })
 
+  it('one of a category that is not made through here says it cannot be changed with this tool', async () => {
+    const w = world()
+    w.holdings.set('kit/base', {
+      ref: 'held-kit',
+      capability: id('kit', 'base'),
+      version: 'sha256:k1',
+      enabled: true,
+      removed: false,
+      body: { kind: 'object', entries: [] },
+    })
+    w.official.add('kit/base')
+    const text = await bound(w).text('show', { category: 'kit', name: 'base' })
+    expect(text).toContain(
+      'it is installed with the deployment and cannot be changed in place.\nthis category is not made through here: it cannot be changed with this tool.\n',
+    )
+    expect(text).not.toContain('to change it')
+  })
+
   it('a name not held says so', async () => {
     expect((await bound(world()).failure('show', { category: 'note', name: 'a' })).reason).toBe(
       'note a is not held by this tenant. list note shows what is held.',

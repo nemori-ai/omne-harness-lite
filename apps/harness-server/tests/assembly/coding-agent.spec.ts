@@ -129,6 +129,11 @@ describe('the coding entry of the release mapping', () => {
       'You have thirteen resident command tools: Files, Shell, Tools, TodoItems, BkgToolCalls, Ask, Web, Calendar, Schedules, Notifications, Sessions, Agents and Skills.',
     )
     expect(fullText).toContain('## BkgToolCalls')
+    const extending = instructions.find(section => section.id === 'extensions')?.text ?? ''
+    for (const word of ['OmneExtensionPoints', 'OmneExtensions', 'Files', 'impact', 'disable'])
+      expect(extending, word).toContain(word)
+    for (const named of ['shell.', 'plugin', 'skill.', 'session.'])
+      expect(extending, named).not.toContain(named)
     expect(fullText).toContain('Do not poll: you are woken when a background call ends.')
     expect(fullText).toContain('## Web')
     expect(fullText).toContain('exa.apiKey')

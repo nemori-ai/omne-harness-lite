@@ -128,8 +128,8 @@ async function heldAsset(
 
 const show: Handler<'show'> = async (ready, { category, name }) => {
   const { source, faces, scope } = ready
-  if (faces.categories.describe(category) === undefined)
-    return invalid(noCategory(faces.categories, category))
+  const listing = faces.categories.describe(category)
+  if (listing === undefined) return invalid(noCategory(faces.categories, category))
   const capability = capabilityOf(category, name)
   const asset = await heldAsset(ready, 'show', capability)
   if (!('kind' in asset)) return asset
@@ -137,9 +137,10 @@ const show: Handler<'show'> = async (ready, { category, name }) => {
   const placed = (await settle(() =>
     source.placement.of({ tenant: scope.tenant, capability }),
   )) ?? { kind: 'unavailable' as const, reason: 'the placement did not answer' }
+  const closed = 'creation' in listing && listing.creation === 'none'
   return done(
     'show',
-    [...assetHead(asset), ...placedLines(placed), ...sourceLines(asset)],
+    [...assetHead(asset), ...placedLines(placed), ...sourceLines(asset, closed)],
     revisionOf(source),
   )
 }

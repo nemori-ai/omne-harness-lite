@@ -269,6 +269,28 @@ describe('OmneExtensions on the release tree', () => {
         )
         expect(JSON.parse((await wantedNames())[0]!.manifest)).toEqual(JSON.parse(TEAL))
 
+        // Every category of the release answers list, and one held in each of two of them answers show.
+        const every = await ask(
+          ['AgentDefinition', 'converter', 'model-provider', 'plugin', 'skill', 'tool'].map(
+            category => extensions('list', { category }),
+          ),
+          [extensions('show', { category: 'converter', name: 'voice' })],
+          [extensions('show', { category: 'tool', name: 'Files' })],
+          [extensions('publish', { id: 'op-tool-1', category: 'tool', name: 'mine', data: {} })],
+        )
+        expect(every.match(/done OmneExtensions list/gu)).toHaveLength(6)
+        // What the deployment installed and the tenant does not hold is on the tree of points, not here.
+        expect(every).toContain('converter voice is not held by this tenant.')
+        expect(every).toMatch(/tool Files\s+\S+\s+enabled\s+installed with the deployment/u)
+        expect(every).toContain(
+          'it is installed with the deployment and cannot be changed in place.',
+        )
+        expect(every).toContain('category tool is not made through here; nothing was changed.')
+        expect(every).toContain(
+          'this category is not made through here: it cannot be changed with this tool.',
+        )
+        expect(every).not.toContain('to change it: publish a new body as data.')
+
         const off = await ask(
           [extensions('impact', { ...TIDY, change: 'disable' })],
           [extensions('disable', { id: 'op-disable-1', ...TIDY })],

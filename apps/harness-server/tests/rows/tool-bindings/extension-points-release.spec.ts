@@ -1,4 +1,7 @@
 // @module-tag slow
+import type { Context } from '@deepseek-ai/cordis'
+import { heldPoint } from '@omne-harness/assets'
+import { assetCategoriesKey } from '@omne-harness/assets-cordis-contract'
 import { pluginProtocol } from '@omne-harness/plugin-protocol'
 import { createClient } from '@omne-harness/sdk/core'
 import { describe, expect, it } from 'vitest'
@@ -52,6 +55,9 @@ const STEPS: Readonly<Record<string, readonly [string, unknown]>> = {
   'points: show point': ['show', { name: 'plugin.plugins' }],
   'points: show nothing': ['show', { name: 'session.composer.sned' }],
   'points: changes': ['changes', {}],
+  'points: show late': ['show', { name: 'note.notes' }],
+  'points: tree notes': ['tree', { side: 'server', under: 'note' }],
+  'extensions: categories': ['categories', {}],
 }
 
 describe('OmneExtensionPoints on the release tree', () => {
@@ -63,9 +69,8 @@ describe('OmneExtensionPoints on the release tree', () => {
         const step = Object.keys(STEPS).find(text => body.includes(text))
         if (step === undefined) return []
         const [command, params] = STEPS[step]!
-        return [
-          { id: 'call_points', tool: 'OmneExtensionPoints', arguments: call(command, params) },
-        ]
+        const tool = step.startsWith('extensions:') ? 'OmneExtensions' : 'OmneExtensionPoints'
+        return [{ id: 'call_points', tool, arguments: call(command, params) }]
       })
       const exitCode = await onReleaseTree({ script }, async tree => {
         const ask = async (text: string): Promise<string> => {
@@ -140,6 +145,44 @@ describe('OmneExtensionPoints on the release tree', () => {
         const missing = await ask('points: show nothing')
         expect(missing).not.toContain('done OmneExtensionPoints show')
         expect(missing).toContain('session.composer.send')
+
+        // A category that comes while the tree runs brings its point: both tools read them at the next call.
+        expect(await ask('points: show late')).not.toContain('done OmneExtensionPoints show')
+        const late = tree.scope.plugin({
+          name: 'late-notes',
+          inject: [assetCategoriesKey],
+          apply(ctx: Context) {
+            ctx[assetCategoriesKey].contribute(
+              {
+                display: { title: 'Note', summary: 'A note that came later.' },
+                contract: {
+                  category: 'note',
+                  schema: { kind: 'null' },
+                  judge: () => ({ ok: true }),
+                  deriveDeclarations: () => ({ entries: [] }),
+                  references: () => [],
+                },
+              },
+              heldPoint({
+                name: 'note.notes',
+                key: 'the name of a note',
+                summary: 'The notes held.',
+              }),
+            )
+          },
+        })
+        await late.await()
+        const shown = await ask('points: show late')
+        expect(shown).toContain('done OmneExtensionPoints show')
+        expect(shown).toMatch(/note\.notes\s+point, server/u)
+        expect(shown).toContain('key: the name of a note')
+        expect(await ask('points: tree notes')).toContain('note.notes')
+        const categories = await ask('extensions: categories')
+        expect(categories).toMatch(/^note\s+from a body\s+Note — A note that came later\.$/mu)
+        expect(categories).toContain('7 categories now.')
+        await late.dispose()
+        expect(await ask('points: show late')).not.toContain('done OmneExtensionPoints show')
+        expect(await ask('extensions: categories')).toContain('6 categories now.')
 
         watching.abort()
         await until(

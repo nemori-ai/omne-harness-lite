@@ -101,7 +101,9 @@ export function namedPaths(paths: readonly string[]): string {
 
 export const fileCount = (count: number) => `${count} ${count === 1 ? 'file' : 'files'}`
 
-export function sourceLines(asset: Asset): string[] {
+const CLOSED = 'this category is not made through here: it cannot be changed with this tool.'
+
+export function sourceLines(asset: Asset, closed: boolean): string[] {
   const fixed =
     asset.row.origin === 'customized'
       ? []
@@ -113,7 +115,9 @@ export function sourceLines(asset: Asset): string[] {
     return [
       `source: this held version, ${fileCount(content.entries.length)} (${bytes} bytes): ${paths}`,
       ...fixed,
-      'to change it: export it to a directory, edit there, publish from that directory.',
+      closed
+        ? CLOSED
+        : 'to change it: export it to a directory, edit there, publish from that directory.',
     ]
   }
   const text = writeJsonText(content.body)
@@ -122,13 +126,15 @@ export function sourceLines(asset: Asset): string[] {
     return [
       `source: this held version, a body of ${bytes} bytes, too long to print here.`,
       ...fixed,
-      'to read or change it: export it to a directory.',
+      closed
+        ? `to read it: export it to a directory. ${CLOSED}`
+        : 'to read or change it: export it to a directory.',
     ]
   return [
     `source: this held version, a body of ${bytes} bytes:`,
     text,
     ...fixed,
-    'to change it: publish a new body as data.',
+    closed ? CLOSED : 'to change it: publish a new body as data.',
   ]
 }
 
