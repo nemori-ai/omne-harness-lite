@@ -24,7 +24,7 @@ export type MappingTable = Readonly<{
 const candidateKey = (candidate: Adoption): string => canonicalText(candidate)
 
 /** The category of a tool, as a reference of a definition writes it: the name the tool category is registered under. */
-const TOOL_CATEGORY = 'tool'
+export const TOOL_CATEGORY = 'tool'
 
 /** The tools a definition keeps resident; a resident reference of another category is kept and plans nothing. */
 export function residentToolsOf(definition: AgentDefinition): readonly string[] {

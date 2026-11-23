@@ -51,7 +51,8 @@ function candidateOf(name: string, held: Candidate): Adoption {
 const heldOf = (candidate: Adoption): Candidate =>
   candidateOfRevision(candidate.revision, candidate.digest)
 
-async function definitionOf(body: JsonValue): Promise<AgentDefinition | string> {
+/** The definition a body writes, as a tenant or a workspace may bring one; a text says why it is not used. */
+export async function writtenDefinitionOf(body: JsonValue): Promise<AgentDefinition | string> {
   const { manifest: _manifest, ...fields } = JSON.parse(writeJsonText(body)) as Record<
     string,
     unknown
@@ -73,7 +74,7 @@ export function createDefinitionReading(input: DefinitionReadingInput): Definiti
   ): Promise<DefinitionLookup> {
     const body = await layers.body(held)
     if (body === undefined) return unavailable(`the definition ${name} is held and cannot be read`)
-    const definition = await definitionOf(body)
+    const definition = await writtenDefinitionOf(body)
     if (typeof definition === 'string')
       return absent(`the definition ${name} is not used: ${definition}`)
     if (definition.name !== name)

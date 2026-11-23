@@ -269,6 +269,8 @@
 - `ScriptConstruction` · `script-tool.d.ts`
 - `ScriptParameters` · `script-tool.d.ts`
 - `ScriptProperty` · `script-tool.d.ts`
+- `ScriptToolLoad` · `script-tool-effect.d.ts`
+- `ScriptToolPublishFacts` · `script-tool-effect.d.ts`
 - `SealedToolBody` · `body-writer.d.ts`
 - `StartGuard` · `records.d.ts`
 - `StartPermit` · `records.d.ts`
@@ -476,7 +478,9 @@
 - `scriptConstructionOf` · `script-tool.d.ts`
 - `scriptParametersSchema` · `script-tool.d.ts`
 - `scriptToolAuthoring` · `script-tool.d.ts`
+- `scriptToolImpact` · `script-tool-effect.d.ts`
 - `scriptToolLayout` · `script-tool.d.ts`
+- `scriptToolPlace` · `script-tool-effect.d.ts`
 - `sha256Hex` · `body-store.d.ts`
 - `shapeOf` · `dynamics.d.ts`
 - `signBodyPermit` · `body-store.d.ts`
@@ -3364,6 +3368,7 @@ export type { ToolForwardParent, ToolForwardBinding, ToolForwardSourceOutcome, T
 export { returnGuide } from './return-description.ts';
 export { DEFAULT_RELEASE_DETAIL_POLICY, judgeReleaseDescription } from './release-detail.ts';
 export { SCRIPT_EXECUTOR, SCRIPT_MODULE, SCRIPT_TOOL_FILE, checkScriptArguments, readScriptConstruction, scriptConstructionOf, scriptParametersSchema, scriptToolAuthoring, scriptToolLayout, type ScriptConstruction, type ScriptParameters, type ScriptProperty, } from './script-tool.ts';
+export { scriptToolImpact, scriptToolPlace, type ScriptToolLoad, type ScriptToolPublishFacts, } from './script-tool-effect.ts';
 ```
 
 ## 声明文件 `records.d.ts`
@@ -4498,6 +4503,26 @@ export type ToolCallContact = Readonly<{
 import type { ToolReturnDeclaration } from './definitions.ts';
 export declare function returnSummary(returns: ToolReturnDeclaration): string;
 export declare function returnGuide(returns: ToolReturnDeclaration): string;
+```
+
+## 声明文件 `script-tool-effect.d.ts`
+
+```ts
+import type { AssetStanding, ImpactLine, PlacedLine } from '@omne-harness/assets';
+export type ScriptToolPublishFacts = Readonly<{
+    name: string;
+    deployed: boolean;
+    refused: string | null;
+}>;
+export type Told = Readonly<{
+    lines: readonly ImpactLine[];
+    advice: string | null;
+}>;
+export declare function scriptToolImpact(point: string, facts: ScriptToolPublishFacts): Told;
+export type ScriptToolLoad = 'callable' | 'unknown' | Readonly<{
+    failed: string;
+}>;
+export declare function scriptToolPlace(point: string, name: string, standing: AssetStanding | undefined, load: ScriptToolLoad): PlacedLine;
 ```
 
 ## 声明文件 `script-tool.d.ts`

@@ -3,13 +3,14 @@ import {
   agentAdoptionsKey,
   agentDefinitionsPoint,
 } from '@omne-harness/agent-cordis-contract/cordis'
-import { agentDefinitionCategoryPlugin } from '@omne-harness/agent-host-local/cordis'
+import { agentDefinitionCategory } from '@omne-harness/agent-host-local/cordis'
 import { broughtDefinitionsPlugin } from '@omne-harness/assets-cordis-contract/cordis'
 import { agentDefinitionCatalogKey } from './definition-catalog.ts'
 import { definitionMappingsKey } from './definition-mappings.ts'
 import { officialItem } from '../../assets/official-holdings.ts'
 import { defineRow } from '../../row.ts'
 import { agentAdoptionsConfig, type AgentAdoptionsConfig } from './config.ts'
+import { definitionEffectOf } from './definition-effect.ts'
 import { createDefinitionReading } from './held-definitions.ts'
 import {
   AgentAdoptionsImpl,
@@ -25,7 +26,11 @@ const plugin: Plugin.Object = {
   Config: agentAdoptionsConfig,
   async apply(ctx: Context, config: AgentAdoptionsConfig) {
     const table = await buildTable(config)
-    ctx.plugin(agentDefinitionCategoryPlugin)
+    ctx.plugin(
+      agentDefinitionCategory(
+        definitionEffectOf(ctx, name => table.mappings.byName(name) !== undefined),
+      ),
+    )
     ctx.plugin(
       broughtDefinitionsPlugin(
         'agent-definitions-official',
