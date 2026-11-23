@@ -1,9 +1,11 @@
 import { Context, type Fiber, type Plugin } from '@deepseek-ai/cordis'
-import { ask, declare, type Contract } from '@omne-harness/dynamis'
+import { ask, declare, type Contract, type Scope } from '@omne-harness/dynamis'
 import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import type { ReactNode } from 'react'
+import { LAYOUT_POINT, STYLE_POINT, TOKENS_POINT, type PartStyle } from './change.ts'
 import { ShellService } from './cordis.ts'
-import type { ScopeSource, ShellLogin } from './host.ts'
+import type { Hosted, ScopeSource, ShellLogin } from './host.ts'
+import type { KeyRender } from './point.ts'
 import { PROTOCOLS_POINT } from './needs.ts'
 import type { ServiceKey } from './service-key.ts'
 import type { AttachedLayout } from './slots.ts'
@@ -143,4 +145,59 @@ export async function provideOn<T>(root: Context, key: ServiceKey<T>, value: T):
   })
   await fiber
   return fiber
+}
+
+export type ExampleMember = Readonly<{
+  point: string
+  key: string
+  data?: unknown
+  module?: string
+  export?: string
+}>
+
+/** The member the example of a point writes, and the text of the file it names when the member is code. */
+export function exampleOf(contract: Contract): Readonly<{ member: ExampleMember; file?: string }> {
+  const [first = '', head, ...rest] = (contract.example ?? '').split('\n')
+  const member = JSON.parse(first) as ExampleMember
+  if (member.point !== contract.name) throw new Error(`the example is a member of ${member.point}`)
+  if (member.module === undefined) return { member }
+  if (head !== `${member.module}:`) throw new Error(`the example writes no ${member.module}`)
+  return { member, file: rest.join('\n') }
+}
+
+type Put = (shell: ShellService, key: string, data: never, scope: Scope) => unknown
+
+const DATA: Readonly<Record<string, Put>> = {
+  [TOKENS_POINT]: (shell, key, data: Readonly<Record<string, string>>, scope) =>
+    shell.putTokens(key, data, scope),
+  [STYLE_POINT]: (shell, key, data: PartStyle, scope) => shell.putStyle(key, data, scope),
+  [LAYOUT_POINT]: (shell, key, data: readonly string[], scope) => shell.putLayout(key, data, scope),
+}
+
+async function drawingOf(member: ExampleMember, file: string, given: object): Promise<KeyRender> {
+  const url = `data:text/javascript,${encodeURIComponent(file)}`
+  const loaded = (await import(/* @vite-ignore */ url)) as Readonly<Record<string, unknown>>
+  const made = loaded[member.export ?? '']
+  if (typeof made !== 'function') throw new Error(`${member.module} exports no ${member.export}`)
+  const drawing: unknown = made(Object.freeze({ ...given, shell: Object.freeze({}) }))
+  if (typeof drawing !== 'function') throw new Error(`${member.export} gave no drawing`)
+  return drawing as KeyRender
+}
+
+/** Puts the example of a point as the plugin loader puts a member: its data on its point, or the drawing the export of its file gives. */
+export async function putExample(
+  shell: ShellService,
+  contract: Contract,
+  given: object = {},
+  scope: Scope = [],
+): Promise<Hosted> {
+  const { member, file } = exampleOf(contract)
+  const { point, key } = member
+  if (file === undefined) {
+    const put = DATA[point]
+    if (put === undefined) throw new Error(`${point} takes no data`)
+    return shell.host('example', inside => put(inside, key, member.data as never, scope))
+  }
+  const drawing = await drawingOf(member, file, given)
+  return shell.host('example', inside => inside.putDrawing(point, key, drawing, scope))
 }

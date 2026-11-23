@@ -25,6 +25,7 @@ import {
   styleContract,
   styleEntry,
   tenantScope,
+  TOKENS_POINT,
   tokensContract,
   tokensEntry,
   type Changes,
@@ -255,7 +256,9 @@ export abstract class ShellService extends Service implements ShellSlots {
     const tenant = this.scope.get()
     if (this.read?.registry !== registry || this.read.tenant !== tenant) {
       const known = (name: string): boolean => this.knowsToken(name)
-      this.read = { registry, tenant, changes: changesOn(registry, tenantScope(tenant), known) }
+      const names = () => this.dataKeysOf(TOKENS_POINT)?.map(token => token.name)
+      const changes = changesOn(registry, tenantScope(tenant), known, names)
+      this.read = { registry, tenant, changes }
     }
     return this.read.changes
   }
