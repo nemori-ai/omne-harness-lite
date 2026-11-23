@@ -14,8 +14,11 @@ function preparationFailure(failure: CredentialFailure): ModelFailure {
       return { kind: 'denied', action: 'model-credential' }
     case 'unavailable':
       return unavailable('credential-custody-unavailable')
-    default:
-      return unavailable(`credential-${failure.kind}`)
+    case 'missing':
+    case 'incomplete':
+    case 'revoked':
+    case 'unreadable':
+      return { kind: 'invalid', field: 'credential', reason: `credential-${failure.kind}` }
   }
 }
 

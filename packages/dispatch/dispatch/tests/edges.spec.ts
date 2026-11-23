@@ -228,7 +228,7 @@ describe('the steps after a change', () => {
       clock: fakeClock(),
       limits: { maxOpen: 4 },
     }
-    const ctx = { tenant: TENANT, subject: { verified: PARENT }, session: PARENT }
+    const ctx = { tenant: TENANT, subject: { verified: PARENT }, session: PARENT, asking: null }
     return { store, deps, ctx }
   }
 

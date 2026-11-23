@@ -57,6 +57,18 @@ describe('a command declares where the background is permitted', () => {
     expect(judgeToolDefinition(commands(true, { unless: [] }))).toHaveProperty('ok')
   })
 
+  it('accepts a command whose calls all start in the background, and refuses one that also names exceptions', () => {
+    expect(judgeToolDefinition(commands(true, { unless: [], start: 'launch' }))).toHaveProperty(
+      'ok',
+    )
+    expect(judgeToolDefinition(commands(true, { unless: ['terminal'], start: 'launch' }))).toEqual({
+      failure: { field: 'commands[1].background', reason: 'launch-with-unless' },
+    })
+    expect(judgeToolDefinition(commands(true, { unless: [], start: 'soon' }))).toHaveProperty(
+      'failure',
+    )
+  })
+
   it('refuses a declaration in a tool that does not permit the background', () => {
     expect(judgeToolDefinition(commands(false, { unless: [] }))).toEqual({
       failure: { field: 'commands[1].background', reason: 'background-not-allowed' },

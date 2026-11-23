@@ -1,0 +1,49 @@
+{
+  "name": "@omne-harness/pi-ai-kimi",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Kimi model records, profiles, replay and calibrated input estimates on OpenRouter Chat Completions.",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false",
+    "fingerprints": "node --conditions=source --experimental-strip-types tests/support/append-fingerprints.ts",
+    "fixtures": "node --conditions=source --experimental-strip-types tests/live/capture-records.ts --replay"
+  },
+  "dependencies": {
+    "@omne-harness/json-text": "workspace:*",
+    "@omne-harness/model-contract": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*",
+    "@omne-harness/pi-ai-transport": "workspace:*",
+    "@omne-harness/tokenizer-tiktoken": "workspace:*"
+  },
+  "devDependencies": {
+    "@omne-harness/pi-ai-openai": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "omneHarness": {
+    "packageTemplate": {
+      "id": "typescript-package",
+      "version": "5.0.0",
+      "variant": "module"
+    }
+  }
+}

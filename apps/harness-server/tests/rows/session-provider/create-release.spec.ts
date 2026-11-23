@@ -87,6 +87,8 @@ const residentNames = [
   'Sessions',
   'Agents',
   'SwitchWorkspace',
+  'OmneExtensionPoints',
+  'OmneExtensions',
   'Screen',
   'Skills',
 ]
@@ -153,6 +155,7 @@ async function start(
       assetsRoot: `${base.stateRoot}/assets`,
       historyIndexRoot: `${base.stateRoot}/history-index`,
       mediaRoot: `${base.stateRoot}/media`,
+      pluginFloorDir: `${base.stateRoot}/plugin-floor`,
     },
     settings: {
       version: 1,

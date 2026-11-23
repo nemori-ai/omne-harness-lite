@@ -519,6 +519,21 @@
       "id": "plugin-access",
       "plugin": "stubPlugin",
       "config": {}
+    },
+    {
+      "id": "plugin-host",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "plugin-notification",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "plugin-server",
+      "plugin": "stubPlugin",
+      "config": {}
     }
   ]
 }

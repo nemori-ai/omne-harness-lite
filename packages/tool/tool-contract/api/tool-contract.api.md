@@ -652,6 +652,7 @@ export type ToolWaitProtocolDefinition<A, K extends 'ask' | 'resource'> = Readon
     request: ToolValueSchema<unknown>;
     response: ToolValueSchema<A>;
     expiry: K extends 'ask' ? 'forbidden' : 'forbidden' | 'supported';
+    background?: 'waits' | 'never';
 }>;
 export type ToolWaitContract<A, K extends 'ask' | 'resource'> = ToolWaitProtocolDefinition<A, K> & Readonly<{
     [toolWaitContract]: true;
@@ -713,6 +714,7 @@ export type ToolWaitSchemaSnapshot = Readonly<{
     requestMaxBytes: number;
     responseMaxBytes: number;
     expiry: 'forbidden' | 'supported';
+    background?: 'waits' | 'never';
     source: DurableEvidence;
 }>;
 export type ToolResponseCandidate = Readonly<{
@@ -1851,6 +1853,7 @@ export type ToolGovernance = Readonly<{
 }>;
 export type ToolCommandBackground = Readonly<{
     unless: readonly string[];
+    start?: 'launch';
 }>;
 export type ToolGateDefault = 'deny' | 'ask' | 'auto';
 export type ToolGate = Readonly<{
@@ -4509,8 +4512,8 @@ export type ActiveRelation = Readonly<{
     wait: WaitState;
 }> | Readonly<{
     relation: 'background';
-    wait: Readonly<{
-        kind: 'none';
+    wait: Extract<WaitState, {
+        kind: 'none' | 'ask';
     }>;
 }>;
 export type ResultPage<B extends ContentBlock> = Readonly<{

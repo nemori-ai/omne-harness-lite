@@ -8,8 +8,9 @@ import {
   createDevDirectorySource,
   type DevDirectorySource,
 } from '../../../src/rows/plugin-access/dev-directory.ts'
+import { nodeFileIo } from '../../../src/rows/plugin-access/file-io.ts'
 
-const principal = {} as Principal
+const principal = { principal: {} as Principal, tenant: 'any tenant' }
 const opened: { root: string; source?: DevDirectorySource }[] = []
 
 afterEach(() => {
@@ -57,7 +58,7 @@ const sha = (text: string) => createHash('sha256').update(text).digest('hex')
 function changed(source: DevDirectorySource): Promise<number> {
   const started = Date.now()
   return new Promise(resolve => {
-    const stop = source.subscribe(() => {
+    const stop = source.subscribe('any tenant', () => {
       stop()
       resolve(Date.now() - started)
     })
@@ -167,7 +168,7 @@ describe('the dev directory as a source of plugins', () => {
     await listed(source)
     await source.settled()
     let calls = 0
-    source.subscribe(() => (calls += 1))
+    source.subscribe('any tenant', () => (calls += 1))
     write(root, 'notes/main.js', 'export const page = 1\n')
     await new Promise(resolve => setTimeout(resolve, 600))
     await source.settled()
@@ -178,7 +179,7 @@ describe('the dev directory as a source of plugins', () => {
     const { root, source } = directory()
     await source.settled()
     let calls = 0
-    source.subscribe(() => (calls += 1))
+    source.subscribe('any tenant', () => (calls += 1))
     source.close()
     write(root, 'notes/main.js', 'export const page = 5\n')
     await new Promise(resolve => setTimeout(resolve, 600))
@@ -215,8 +216,202 @@ describe('the dev directory as a source of plugins', () => {
       await source.read(principal, { name: 'n', version: 'v', path: 'p', offset: 0, limit: 1 }),
     ).toEqual({ kind: 'absent', what: 'plugin' })
     let calls = 0
-    source.subscribe(() => (calls += 1))()
+    source.subscribe('any tenant', () => (calls += 1))()
     source.close()
     expect(calls).toBe(0)
+  })
+
+  /** A directory with two plugins, and a source that records each digest it takes and each range it reads. */
+  function counted() {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'plugin-dev-')))
+    write(root, 'notes/plugin.json', manifest('notes'))
+    write(root, 'notes/main.js', 'export const page = 1\n'.repeat(1000))
+    write(root, 'board/plugin.json', manifest('board'))
+    write(root, 'board/main.js', 'export const page = 2\n')
+    const reads: string[] = []
+    const ranges: number[] = []
+    const source = createDevDirectorySource({
+      root,
+      warn: () => undefined,
+      io: {
+        digest(path, keepText) {
+          reads.push(path.slice(root.length + 1))
+          return nodeFileIo.digest(path, keepText)
+        },
+        range(path, offset, length) {
+          ranges.push(length)
+          return nodeFileIo.range(path, offset, length)
+        },
+      },
+    })
+    opened.push({ root, source })
+    return { root, source, reads, ranges }
+  }
+
+  it('lists again without digesting any file while nothing changed', async () => {
+    const { source, reads } = counted()
+    await listed(source)
+    await source.settled()
+    const before = reads.length
+    expect((await listed(source)).map(each => each.manifest.name)).toEqual(['board', 'notes'])
+    await listed(source)
+    expect(reads.slice(before)).toEqual([])
+  })
+
+  it('reads a part by reading that part alone: the file is not read whole, whatever its size', async () => {
+    const { source, reads, ranges } = counted()
+    const notes = (await listed(source)).find(each => each.manifest.name === 'notes')
+    await source.settled()
+    const before = reads.length
+    const at = { name: 'notes', version: notes!.version, path: 'main.js' }
+    const parts: Uint8Array[] = []
+    for (let offset: number | null = 0; offset !== null;) {
+      const read = await source.read(principal, { ...at, offset, limit: 4096 })
+      if (read.kind !== 'read') throw new Error(read.kind)
+      parts.push(read.part)
+      offset = read.next
+    }
+    expect(parts.length).toBeGreaterThan(4)
+    expect(Buffer.concat(parts).toString()).toBe('export const page = 1\n'.repeat(1000))
+    expect(reads.slice(before)).toEqual([])
+    expect(ranges.length).toBe(parts.length)
+    expect(Math.max(...ranges)).toBeLessThanOrEqual(4096)
+  })
+
+  it('after one file changes, digests that file again and no other', async () => {
+    const { root, source, reads } = counted()
+    await listed(source)
+    await source.settled()
+    const told = changed(source)
+    const before = reads.length
+    write(root, 'board/main.js', 'export const page = 3\n')
+    await told
+    const board = (await listed(source)).find(each => each.manifest.name === 'board')
+    expect(board?.files.find(file => file.path === 'main.js')?.digest).toBe(
+      sha('export const page = 3\n'),
+    )
+    expect(new Set(reads.slice(before))).toEqual(new Set(['board/main.js']))
+  })
+
+  it('answers that the plugin is absent for a version the directory has moved on from', async () => {
+    const { root, source } = counted()
+    const notes = (await listed(source)).find(each => each.manifest.name === 'notes')
+    const at = { name: 'notes', version: notes!.version, path: 'main.js' }
+    const first = await source.read(principal, { ...at, offset: 0, limit: 22 })
+    expect(first.kind).toBe('read')
+    writeFileSync(join(root, 'notes', 'main.js'), 'export const page = 9\n')
+    const told = changed(source)
+    await told
+    expect(await source.read(principal, { ...at, offset: 22, limit: 22 })).toEqual({
+      kind: 'absent',
+      what: 'plugin',
+    })
+  })
+
+  it('does not pass a file that changed since it was listed as the version listed', async () => {
+    const { root, source } = counted()
+    const notes = (await listed(source)).find(each => each.manifest.name === 'notes')
+    await source.settled()
+    const at = { name: 'notes', version: notes!.version, path: 'main.js', offset: 0, limit: 22 }
+    expect((await source.read(principal, at)).kind).toBe('read')
+    writeFileSync(join(root, 'notes', 'main.js'), 'export const page = 9\n'.repeat(1000))
+    expect(await source.read(principal, at)).toEqual({ kind: 'absent', what: 'plugin' })
+  })
+
+  it('reads past the end as nothing more, and a part that runs over the end as what is left', async () => {
+    const { source } = counted()
+    const board = (await listed(source)).find(each => each.manifest.name === 'board')
+    const at = { name: 'board', version: board!.version, path: 'main.js' }
+    const tail = await source.read(principal, { ...at, offset: 16, limit: 100 })
+    expect(tail).toMatchObject({ kind: 'read', next: null, bytes: 22 })
+    expect(Buffer.from((tail as { part: Uint8Array }).part).toString()).toBe('e = 2\n')
+    const past = await source.read(principal, { ...at, offset: 500, limit: 100 })
+    expect(past).toMatchObject({ kind: 'read', next: null, bytes: 22 })
+    expect((past as { part: Uint8Array }).part.byteLength).toBe(0)
+  })
+
+  it('tells of a change while something keeps writing into the directory: it does not wait for the writing to stop', async () => {
+    const { root, source } = counted()
+    await listed(source)
+    await source.settled()
+    let told: number | undefined
+    const started = Date.now()
+    const stop = source.subscribe('any tenant', () => (told ??= Date.now() - started))
+    write(root, 'board/main.js', 'export const page = 4\n')
+    const noise = setInterval(() => write(root, 'notes/.scratch', String(Date.now())), 40)
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1_500))
+    } finally {
+      clearInterval(noise)
+      stop()
+    }
+    expect(told).toBeDefined()
+    expect(told!).toBeLessThan(1_000)
+  })
+
+  /** A source over a platform whose watching says nothing: it takes the watch and never sends an event. */
+  function deaf() {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'plugin-dev-')))
+    write(root, 'notes/plugin.json', manifest('notes'))
+    write(root, 'notes/main.js', 'export const page = 1\n')
+    const source = createDevDirectorySource({
+      root,
+      warn: () => undefined,
+      watch: () => () => undefined,
+    })
+    opened.push({ root, source })
+    return { root, source }
+  }
+
+  it.each([
+    [
+      'a plugin is put in',
+      (root: string) => {
+        write(root, 'board/plugin.json', manifest('board'))
+        write(root, 'board/main.js', 'export const page = 2\n')
+      },
+    ],
+    ['a file changes', (root: string) => write(root, 'notes/main.js', 'export const page = 7\n')],
+    ['a plugin is taken away', (root: string) => rmSync(join(root, 'notes'), { recursive: true })],
+  ] as const)(
+    'tells of a change within two seconds when the watching sends no event at all: %s',
+    async (_name, change) => {
+      const { root, source } = deaf()
+      await listed(source)
+      await source.settled()
+      const told = changed(source)
+      change(root)
+      expect(await told).toBeLessThan(2_000)
+    },
+  )
+
+  it('lists what is there now within the round of the scan, whether or not the watching said anything', async () => {
+    const { root, source } = deaf()
+    expect((await listed(source)).map(each => each.manifest.name)).toEqual(['notes'])
+    write(root, 'board/plugin.json', manifest('board'))
+    write(root, 'board/main.js', 'export const page = 2\n')
+    await new Promise(resolve => setTimeout(resolve, 1_100))
+    expect((await listed(source)).map(each => each.manifest.name)).toEqual(['board', 'notes'])
+  })
+
+  it('spends at most a twentieth of the time on scans nobody asked for: a round is twenty times as long as a scan took', async () => {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'plugin-dev-')))
+    write(root, 'notes/plugin.json', manifest('notes'))
+    write(root, 'notes/main.js', 'export const page = 1\n')
+    let scans = 0
+    const source = createDevDirectorySource({
+      root,
+      warn: () => undefined,
+      watch: () => () => undefined,
+      scanned: () => {
+        scans += 1
+        return new Promise(resolve => setTimeout(resolve, 120))
+      },
+    })
+    opened.push({ root, source })
+    await source.settled()
+    const first = scans
+    await new Promise(resolve => setTimeout(resolve, 2_000))
+    expect(scans - first).toBeLessThanOrEqual(1)
   })
 })

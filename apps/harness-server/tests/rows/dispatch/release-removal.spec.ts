@@ -8,7 +8,7 @@ import {
   toolCallsThenText,
   toolResults,
 } from '../../support/release-tree.ts'
-import { call, dispatchGrantAnswer, registryAs, settled } from './release-support.ts'
+import { call, dispatchGrantAnswer, outcomesOf, registryAs, settled } from './release-support.ts'
 
 const DISPATCH_ROWS = ['dispatch', 'dispatch-session', 'dispatch-tool']
 const todo = {
@@ -78,7 +78,12 @@ describe('the release tree without dispatch rows', () => {
             ]
           : [],
       )
-      const options = { script, withoutRows: [row], permission: 'bypass-permissions' }
+      const options = {
+        script,
+        withoutRows: [row],
+        permission: 'bypass-permissions',
+        extraHistoryKinds: ['message.system_reminder'],
+      }
       const exitCode = await onReleaseTree(options, async tree => {
         const started = rowsOf(tree.records).filter(id => DISPATCH_ROWS.includes(id))
         expect(started).toEqual(DISPATCH_ROWS.filter(id => id !== row))
@@ -91,7 +96,7 @@ describe('the release tree without dispatch rows', () => {
         expect(await dispatchGrantAnswer(tree, greeted)).toMatchObject({ kind: 'allowed' })
         if (row !== 'dispatch-session') return
         const parent = await tree.startSession('agents: delegate')
-        const { results } = await settled(tree, parent)
+        const results = await outcomesOf(tree, parent, 1)
         expect(results).toContain('the dispatch services cannot answer now; nothing was changed')
         expect(await (await registryAs(tree, parent)).made()).toEqual([])
       })

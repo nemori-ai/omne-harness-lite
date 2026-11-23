@@ -15,9 +15,13 @@ import { TENANT_A, textOf, type App } from './app.ts'
 export const T = textOf(TENANT_A)
 export const DOMAIN = 'dom_0'
 
-export const messageText = (role: string, content: string): string =>
+export const messageText = (
+  role: string,
+  content: string,
+  id = 'msg_abcdefghijklmnopqrstuv',
+): string =>
   JSON.stringify({
-    id: 'msg_abcdefghijklmnopqrstuv',
+    id,
     role,
     blocks: [
       { kind: 'text', id: 't', text: content, visibility: { toModel: true, toHuman: true } },
@@ -34,6 +38,10 @@ export const tailOf = (a: App, session: string): bigint =>
   )
 
 /** Gives a session `count` more rows of its current view, each with an entry of its own. */
+/** The id of the message a seeded row holds: one per row, so a read can name it. */
+export const seededId = (session: string, position: bigint): string =>
+  `msg_seed_${session}_${position}`
+
 export function seedRows(a: App, session: string, count: number, role = 'user'): void {
   const from = tailOf(a, session)
   const last = a.provider.select(
@@ -59,7 +67,7 @@ export function seedRows(a: App, session: string, count: number, role = 'user'):
         String(position),
         40n,
         `digest-${session}-${position}`,
-        messageText(role, `row ${index} of ${session}`),
+        messageText(role, `row ${index} of ${session}`, seededId(session, position)),
       ],
     )
   }

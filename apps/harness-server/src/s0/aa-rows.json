@@ -104,7 +104,10 @@
     "tool-access",
     "model-access",
     "usage-access",
-    "plugin-access"
+    "plugin-access",
+    "plugin-host",
+    "plugin-notification",
+    "plugin-server"
   ],
   "trusted": [
     {
@@ -591,6 +594,18 @@
       "names": [
         "principalIssuer",
         "tenantStanding"
+      ]
+    },
+    {
+      "row": "plugin-notification",
+      "names": [
+        "tenantDomainScannerPrincipal"
+      ]
+    },
+    {
+      "row": "plugin-server",
+      "names": [
+        "tenantDomainScannerPrincipal"
       ]
     }
   ]

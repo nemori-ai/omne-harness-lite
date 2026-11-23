@@ -3,7 +3,7 @@ import { definePart } from '@omne-harness/shell-contract'
 export const shellApp = definePart({
   name: 'shell.app',
   label: '整个应用',
-  summary: '窗口里的一切',
+  summary: '窗口里的一切。换主题、换品牌色，就是给它放令牌。',
   depths: ['tokens', 'style'],
 })
 

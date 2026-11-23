@@ -9,12 +9,14 @@ import {
   type ShellLogin,
   type SlotName,
   type ToastBoard,
+  TOKENS_POINT,
 } from '@omne-harness/shell-contract'
 import { ShellService } from '@omne-harness/shell-contract/cordis'
 import { Arranged, Attached } from './attached.tsx'
 import { Drawn } from './drawn.tsx'
 import { lackOf, type Lack, type LackSlot, type Standing } from './lacks.ts'
 import { shellParts } from './parts.ts'
+import type { TokenNow } from './changes-sheet.ts'
 import type { ShellState } from './state.ts'
 
 const SLOT_NAMES: readonly SlotName[] = ['gate', 'pages', 'sidebar', 'attached']
@@ -97,6 +99,10 @@ export class DesktopShell extends ShellService {
 
   protected override knowsToken(name: string): boolean {
     return this.state.knowsToken(name)
+  }
+
+  protected override dataKeysOf(point: string): readonly TokenNow[] | undefined {
+    return point === TOKENS_POINT ? this.state.tokens() : undefined
   }
 
   private refell(): void {

@@ -22,7 +22,7 @@ describe('the starting input of a dispatched session', () => {
     expect(instructionText(work)).toBe(
       [
         'Another agent dispatched one piece of work to you. Nobody attends this session: do the work with what you have, and do not ask a person.',
-        'When the work is done, hand back one report with the command `report` of the tool `Agents`. There is one report for this work. If your turn ends without it, your last reply is taken as the report.',
+        'When the work is done, hand back one report with the command `report` of the tool `Agents`. There is one report for this work. If you stop without it, with no turn going, no input waiting and no call of yours in the background, your last reply is taken as the report.',
         `Dispatching session: ${PARENT}\nDispatch: ${work.id}`,
         'Work:\nCount the files.\n\nThe shape the dispatcher hopes the report has:\nOne number.',
       ].join('\n\n'),

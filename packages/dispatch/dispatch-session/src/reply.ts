@@ -1,5 +1,5 @@
 import type { PortRead } from '@omne-harness/dispatch'
-import type { HistoryEntry, HistoryPage, RunId } from '@omne-harness/session-contract'
+import type { HistoryEntry, HistoryPage } from '@omne-harness/session-contract'
 import type { Called } from './ports.ts'
 
 export const REPLY_KINDS = ['message.assistant', 'run.started', 'run.terminal'] as const
@@ -25,26 +25,31 @@ function said(entry: HistoryEntry): string {
     .join('\n')
 }
 
-const endsRun = (entry: HistoryEntry, run: RunId): boolean =>
-  entry.kind === 'run.terminal' && textOf(member(member(entry.payload, 'terminal'), 'run')) === run
+const outcomeOf = (entry: HistoryEntry): string | undefined =>
+  entry.kind === 'run.terminal'
+    ? textOf(member(member(entry.payload, 'terminal'), 'outcome'))
+    : undefined
 
 type Read = (cursor: string | null, pageBytes: number) => Promise<Called<HistoryPage>>
 
-/** The text of the last assistant message of a run, read back from the end of the history.
+export type RunEnd = Readonly<{ outcome: string; reply: string }>
+
+/** How the latest run of a session ended and the text of its last assistant message, read back from the end of the history.
  * Runs of one session do not overlap: after the end of the run is seen, the next assistant message is its last. */
-export async function lastReplyOf(read: Read, run: RunId): Promise<PortRead<string>> {
+export async function latestEndOf(read: Read): Promise<PortRead<RunEnd>> {
   let cursor: string | null = null
-  let within = false
+  let outcome: string | undefined
   for (let page = 0; page < PAGES; page += 1) {
     const answer: Called<HistoryPage> = await read(cursor, PAGE_BYTES).catch(
       () => 'unknown' as const,
     )
     if (answer === 'unknown' || 'failure' in answer) return { kind: 'unavailable' }
     for (const entry of answer.ok.entries) {
-      if (!within) within = endsRun(entry, run)
+      if (outcome === undefined) outcome = outcomeOf(entry)
       else if (entry.kind === 'message.assistant')
-        return { kind: 'read', value: said(entry) || SILENT_REPLY }
-      else if (entry.kind === 'run.started') return { kind: 'read', value: SILENT_REPLY }
+        return { kind: 'read', value: { outcome, reply: said(entry) || SILENT_REPLY } }
+      else if (entry.kind === 'run.started')
+        return { kind: 'read', value: { outcome, reply: SILENT_REPLY } }
     }
     cursor = answer.ok.next
     if (cursor === null) break

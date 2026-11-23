@@ -1,0 +1,411 @@
+[
+  {
+    "kind": "block-open",
+    "index": "0",
+    "mode": "append",
+    "content": "thinking"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "The"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " user wants me"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to compute"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ":"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " positive integers below "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "100 ("
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "i"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ".e., 1"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to 99)"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " divisible by 3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " or "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "7 but not both"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " (X"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "OR).\n\nCount divisible"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " by 3:"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " floor(99/"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "3)"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " = 33.\n"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "Count divisible by "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "7:"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " floor(99/"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "7) = "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "14.\nCount divisible"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " by both ("
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "21): floor("
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "99/21)"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " = 4.\n\n"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "Div"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "isible by "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "3 or 7"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " but not both ="
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " ("
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "33 -"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 4) +"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " (14 - "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "4)"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " = 29 +"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 10 = "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "39."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Alternatively |"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "A ∪"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " B| -"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " |A ∩"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " B| = ("
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "33+14"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "-4) -"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 4 = "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "43 - 4"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " = 39.\n\n"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "39 is odd,"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " so get weather of"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Lima."
+  },
+  {
+    "kind": "block-open",
+    "index": "1",
+    "mode": "append",
+    "content": "tool-arguments"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "{"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\"city\":\"Lima"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\""
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "}"
+  },
+  {
+    "kind": "block-seal",
+    "index": "0",
+    "block": {
+      "kind": "thinking",
+      "id": "b0",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "The user wants me to compute: positive integers below 100 (i.e., 1 to 99) divisible by 3 or 7 but not both (XOR).\n\nCount divisible by 3: floor(99/3) = 33.\nCount divisible by 7: floor(99/7) = 14.\nCount divisible by both (21): floor(99/21) = 4.\n\nDivisible by 3 or 7 but not both = (33 - 4) + (14 - 4) = 29 + 10 = 39. Alternatively |A ∪ B| - |A ∩ B| = (33+14-4) - 4 = 43 - 4 = 39.\n\n39 is odd, so get weather of Lima."
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "1",
+    "block": {
+      "kind": "tool_call",
+      "id": "b1",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "callId": "get_weather_0_ba7333ad",
+      "name": "get_weather",
+      "arguments": {
+        "kind": "object",
+        "entries": [
+          {
+            "key": "city",
+            "value": {
+              "kind": "string",
+              "value": "Lima"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "2",
+    "block": {
+      "kind": "reasoning_state",
+      "id": "b2",
+      "visibility": {
+        "toHuman": false,
+        "toModel": true
+      },
+      "payload": "{\"format\":\"unknown\",\"index\":0,\"text\":\"The user wants me to compute: positive integers below 100 (i.e., 1 to 99) divisible by 3 or 7 but not both (XOR).\\n\\nCount divisible by 3: floor(99/3) = 33.\\nCount divisible by 7: floor(99/7) = 14.\\nCount divisible by both (21): floor(99/21) = 4.\\n\\nDivisible by 3 or 7 but not both = (33 - 4) + (14 - 4) = 29 + 10 = 39. Alternatively |A ∪ B| - |A ∩ B| = (33+14-4) - 4 = 43 - 4 = 39.\\n\\n39 is odd, so get weather of Lima.\",\"type\":\"reasoning.text\"}",
+      "pairs": [
+        "b0"
+      ]
+    }
+  },
+  {
+    "kind": "account",
+    "event": "usage",
+    "value": {
+      "usage": [
+        {
+          "name": "input",
+          "state": "known",
+          "lexeme": "230",
+          "unit": "token"
+        },
+        {
+          "name": "output",
+          "state": "known",
+          "lexeme": "215",
+          "unit": "token"
+        },
+        {
+          "name": "cache-read",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "cache-write",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "reasoning",
+          "state": "known",
+          "lexeme": "164",
+          "unit": "token"
+        }
+      ],
+      "cost": [
+        {
+          "state": "known",
+          "lexeme": "0.003915",
+          "unit": "openrouter-credit",
+          "source": "billable"
+        }
+      ],
+      "trimmed": {
+        "state": "unknown",
+        "unit": "token"
+      },
+      "place": "openrouter/Moonshot AI",
+      "duration": {
+        "state": "unknown"
+      },
+      "revision": "1"
+    }
+  },
+  {
+    "kind": "ended",
+    "termination": {
+      "kind": "completed",
+      "reason": "tool-suggestions"
+    }
+  }
+]

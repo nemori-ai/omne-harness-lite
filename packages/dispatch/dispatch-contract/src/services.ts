@@ -23,7 +23,13 @@ export type Outcome<T, R> =
 export type ParseRefusal = 'invalid-request'
 
 /** Who calls, as a trusted adapter states it. `subject` is the verified principal; a model never builds this. */
-export type CallContext = Readonly<{ tenant: TenantId; subject: unknown; session: SessionRef }>
+export type CallContext = Readonly<{
+  tenant: TenantId
+  subject: unknown
+  session: SessionRef
+  /** The message of the session that made this call: a spawn is forked before it. Null where no model step made it. */
+  asking: string | null
+}>
 
 const text = z.string().min(1).max(TEXT_CEILING)
 

@@ -46,6 +46,7 @@ describe('a dispatch on the release tree, asked through the service', () => {
             tenant: tenantIdSchema.parse(text.value),
             subject: issued.ok,
             session: parent as unknown as SessionRef,
+            asking: null,
           }
           const request = {
             mode: 'delegate',

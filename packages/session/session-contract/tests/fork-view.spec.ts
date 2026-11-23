@@ -11,6 +11,7 @@ import {
   rows,
   talking,
   view,
+  latestAsking,
 } from './fork-scene.ts'
 
 describe('the point a session can be forked at', () => {
@@ -28,7 +29,12 @@ describe('the point a session can be forked at', () => {
   it('is none while the view holds no assistant message', async () => {
     const s = scene()
     await s.create()
-    expect(succeeded(await s.port.history.readForkPoint(s.access), 'point')).toEqual({
+    expect(
+      succeeded(
+        await s.port.history.readForkPoint({ ...s.access, asking: await latestAsking(s) }),
+        'point',
+      ),
+    ).toEqual({
       kind: 'none',
     })
   })

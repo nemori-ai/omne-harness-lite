@@ -27,6 +27,7 @@ export const modelRequestPreparationConfig = z.strictObject({
   openai: family,
   anthropic: family,
   qwen: family,
+  kimi: family,
 })
 
 export type ModelRequestPreparationConfig = z.output<typeof modelRequestPreparationConfig>

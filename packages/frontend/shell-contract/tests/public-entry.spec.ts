@@ -63,7 +63,8 @@ it('declares the three points of the shell itself as fixed when the application 
       arity: 'one',
       gives: 'nothing',
       onError: 'the gate shows that this item cannot be read',
-      summary: 'The login gate: all the shell shows while nobody is signed in.',
+      summary:
+        'The login gate: all the shell shows while nobody is signed in. Fixed when the app is built: a plugin cannot add to it while the app runs.',
     },
     {
       ...shared,
@@ -71,7 +72,8 @@ it('declares the three points of the shell itself as fixed when the application 
       arity: 'list',
       gives: 'the tenant scope, and a subject when the page is brought up on one',
       onError: 'only this page shows that it cannot be read',
-      summary: 'The pages of the shell, in the order of their order and id.',
+      summary:
+        'The pages of the shell, in the order of their order and id. Fixed when the app is built: a plugin cannot add to it while the app runs.',
     },
     {
       ...shared,
@@ -79,7 +81,8 @@ it('declares the three points of the shell itself as fixed when the application 
       arity: 'list',
       gives: 'the tenant scope',
       onError: 'only this section shows that it cannot be read',
-      summary: 'The sections of the sidebar, in the order of their order and id.',
+      summary:
+        'The sections of the sidebar, in the order of their order and id. Fixed when the app is built: a plugin cannot add to it while the app runs.',
     },
   ])
 })

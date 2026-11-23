@@ -174,6 +174,7 @@ describe('assets-access row', () => {
           ['converter', '转换件'],
           ['mcp', 'MCP'],
           ['model-provider', '模型供应商'],
+          ['plugin', 'Plugin'],
           ['skill', '技能'],
           ['tool', '工具'],
         ])

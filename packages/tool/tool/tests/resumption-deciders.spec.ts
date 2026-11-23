@@ -540,6 +540,21 @@ describe('resumePlanningBody: where a resume segment can be planned again', () =
     })
   })
 
+  it('keeps a call that waits in the background in the background, suspended or starting its resume', async () => {
+    const { suspended, starting, start } = await started()
+    if (suspended.state.phase !== 'suspended') throw new Error('not suspended')
+    const behind = { ...suspended.state, relation: 'background' } as typeof suspended.state
+    expect(resumePlanningBody(behind, suspended.start)).toMatchObject({
+      phase: 'suspended',
+      relation: 'background',
+    })
+    const resuming = { ...starting, relation: 'background' } as typeof starting
+    expect(resumePlanningBody(resuming, start)).toMatchObject({
+      phase: 'starting',
+      relation: 'background',
+    })
+  })
+
   it('has no body for a call starting its first segment, or starting with no start record', async () => {
     const { starting, start } = await started()
     expect(resumePlanningBody(starting, { ...start, kind: 'start' } as never)).toBeNull()

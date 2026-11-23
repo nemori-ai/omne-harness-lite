@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createLoader, type Listed, type Outcome } from '@omne-harness/plugin-ui'
+import { createLoader, type Listed, type Outcome } from '@omne-harness/plugin-protocol'
 
 const listed = (version: string, name = 'p'): Listed => ({ name, version, members: [] })
 

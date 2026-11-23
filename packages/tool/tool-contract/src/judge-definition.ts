@@ -281,7 +281,7 @@ const conditionName: Check<string> = (value, at) => {
 }
 export const callConditions = nonEmpty(names(conditionName))
 const command = record(commandFields, {
-  background: record({ unless: names(filled) }),
+  background: record({ unless: names(filled) }, { start: literal('launch') }),
   release: commandRelease,
   modalities: commandModalities,
   conditions: callConditions,
@@ -318,6 +318,11 @@ function backgroundDeclared(
   const index = commands.findIndex(entry => entry.background !== undefined)
   if (!allowed && index >= 0)
     return { field: member(item(at, index), 'background'), reason: 'background-not-allowed' }
+  const launched = commands.findIndex(
+    entry => entry.background?.start === 'launch' && entry.background.unless.length > 0,
+  )
+  if (launched >= 0)
+    return { field: member(item(at, launched), 'background'), reason: 'launch-with-unless' }
   return allowed && index < 0 ? { field: at, reason: 'no-background-command' } : undefined
 }
 

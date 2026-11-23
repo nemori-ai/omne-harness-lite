@@ -329,7 +329,24 @@ function standingRoute(app: Hono<Env>, rules: ForwardingRules, observations: Obs
   })
 }
 
-const PLUGIN_STATUS = { 'not-found': 404, denied: 403, unavailable: 503, 'too-large': 502 } as const
+const PLUGIN_STATUS = { 'not-found': 404, denied: 403, unavailable: 503 } as const
+
+function bodyOf(parts: AsyncIterableIterator<Uint8Array>): ReadableStream<Uint8Array> {
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      try {
+        const next = await parts.next()
+        if (next.done === true) controller.close()
+        else controller.enqueue(new Uint8Array(next.value))
+      } catch (error) {
+        controller.error(error)
+      }
+    },
+    async cancel() {
+      await parts.return?.()
+    },
+  })
+}
 
 function pluginRoute(app: Hono<Env>, rules: ForwardingRules): void {
   app.get(`${PLUGIN_FILES}*`, async c => {
@@ -339,8 +356,12 @@ function pluginRoute(app: Hono<Env>, rules: ForwardingRules): void {
     if (login === undefined) return text(401, 'not signed in')
     const answer = await rules.pluginFile(at, login)
     if (answer.kind !== 'file') return text(PLUGIN_STATUS[answer.kind], answer.kind)
-    const body = new Uint8Array(answer.bytes)
-    return new Response(body, { headers: { 'content-type': at.type, ...BASE_HEADERS } })
+    const headers = {
+      'content-type': at.type,
+      'content-length': String(answer.bytes),
+      ...BASE_HEADERS,
+    }
+    return new Response(bodyOf(answer.parts), { headers })
   })
 }
 

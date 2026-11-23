@@ -8,6 +8,7 @@ import {
   type ToolCallId,
   type ToolOperationId,
   type ToolTiming,
+  type WaitIntent,
 } from '@omne-harness/tool-contract'
 import type { ToolTask } from '@omne-harness/tool-contract/provider'
 import { deliveryId, sameFactValue } from './evidence.ts'
@@ -66,6 +67,30 @@ export function backgroundAllowed(
   if ('failure' in call || call.ok.command !== request.command) return false
   const given = new Set(call.ok.params.entries.map(entry => entry.key))
   return declared.background.unless.every(name => !given.has(name))
+}
+
+/** A command that declares `start: 'launch'` is accepted in the background, whatever the request asks. */
+export function launchedInBackground(
+  request: Pick<FixedToolRequest, 'availability' | 'command'>,
+): boolean {
+  const { definition } = request.availability
+  if (!definition.backgroundAllowed || definition.kind === 'function') return false
+  const declared = definition.commands.find(command => command.name === request.command)
+  return declared?.background?.start === 'launch'
+}
+
+/** The relation a call is accepted in: what the request asks, or the background its command starts in. */
+export function acceptedRelation(
+  request: Pick<FixedToolRequest, 'availability' | 'command' | 'mode'>,
+): 'foreground' | 'background' {
+  return request.mode === 'background' || launchedInBackground(request)
+    ? 'background'
+    : 'foreground'
+}
+
+/** A call already in the background may wait only on an ask whose contract declares it may. */
+export function mayWaitInBackground(wait: Pick<WaitIntent, 'kind' | 'schemas'>): boolean {
+  return wait.kind === 'ask' && wait.schemas.background === 'waits'
 }
 
 export function backgroundCell(call: CallRecord): BackgroundCell {

@@ -1,3 +1,4 @@
+import type { JsonValue } from '@omne-harness/json-text'
 import { randomUUID } from 'node:crypto'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { ClientOf, Credentials } from '@omne-harness/sdk/core'
@@ -27,7 +28,7 @@ export type HistoryEntry = Readonly<{
   entryId: string
   revision: string
   kind: string
-  payload: unknown
+  payload: JsonValue
 }>
 
 export type HistoryRead = Readonly<{

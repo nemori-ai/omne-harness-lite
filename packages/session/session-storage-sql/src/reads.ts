@@ -365,7 +365,15 @@ export function historyFace<P>(context: Context<P>): SessionHistory<P> {
       )
     },
     readForkPoint: async input => {
-      const read = await sessionRead(context, input, 'history.readModelView', 'session.fork-point')
+      const read = await sessionRead(
+        context,
+        input,
+        'history.readModelView',
+        'session.fork-point',
+        {
+          asking: input.asking,
+        },
+      )
       if ('failure' in read) return read
       const point = read.ok.out['point'] as ForkPoint | undefined
       if (read.ok.out['kind'] !== 'point' || point === undefined) return succeed({ kind: 'none' })

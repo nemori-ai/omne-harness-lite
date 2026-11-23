@@ -38,7 +38,7 @@ import {
   type HoldOutcome,
   type WriteCommand,
 } from './ledger-start.ts'
-import { commonOf, resumePlanningBody, type StateBody } from './ledger-state.ts'
+import { commonOf, keptRelation, resumePlanningBody, type StateBody } from './ledger-state.ts'
 import type { CallRecord, OperationReceipt, TenantId, WaitLedgerRecord } from './ledger-store.ts'
 
 type Resume = Extract<ToolStartRecord, { kind: 'resume' }>
@@ -120,7 +120,7 @@ export function decideAcceptDecision(
     ...commonOf(record.state),
     phase: 'suspended',
     checkpoint: record.state.checkpoint,
-    relation: 'foreground',
+    ...keptRelation(record.state),
     wait: value,
   }
   const state = nextState(record, body, mint.revision)
@@ -331,7 +331,7 @@ export function decidePrepareResume(
     execution: { kind: 'starting', start: command.operation },
     phase: 'starting',
     wait: { kind: 'none' },
-    relation: 'foreground',
+    ...keptRelation(record.state),
   }
   const state = nextState(record, body, mint.revision)
   const task: ToolTask = {

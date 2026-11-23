@@ -24,6 +24,7 @@ import type {
   versionsLookupSchema,
   versionsResultSchema,
 } from './schema.ts'
+import type { Mutation } from './schema.ts'
 export type AssetsLocalOptions = Readonly<{
   storage: SqlStorage
   domain: DomainRef
@@ -52,6 +53,13 @@ export type AssetsMutationResult =
   | z.infer<typeof failureSchema>
   | Readonly<{ kind: 'unknown'; operationId: string }>
 export type AssetsOperationResult = AssetsMutationResult | Readonly<{ kind: 'not_found' }>
+export type AssetsOperationRecord =
+  | Readonly<{
+      kind: 'recorded'
+      command: Mutation
+      result: z.infer<typeof committedSchema> | z.infer<typeof failureSchema>
+    }>
+  | Exclude<AssetsOperationResult, Readonly<{ kind: 'committed' }>>
 export type AssetsReadResult = z.infer<typeof assetResultSchema>
 export type AssetsHoldingResult = z.infer<typeof holdingResultSchema>
 export type AssetsVersionResult = z.infer<typeof versionResultSchema>
@@ -77,6 +85,8 @@ export interface AssetsLocal {
   readonly uploads: LocalUploads
   domainRevision(): Promise<z.infer<typeof domainResultSchema>>
   getOperation(operationId: string): Promise<AssetsOperationResult>
+  /** The command recorded under this operation, with its receipt; it reads and writes nothing else. */
+  readOperation(operationId: string): Promise<AssetsOperationRecord>
   /** The outcome of the publication made under this operation, as the publisher answered it. */
   recallPublication(operationId: string): Promise<PublicationRecall>
   /** The receipt of an earlier change of this holding; a receipt for another change is a conflict. */

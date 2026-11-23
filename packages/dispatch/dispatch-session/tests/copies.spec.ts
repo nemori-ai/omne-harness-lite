@@ -8,6 +8,8 @@ import {
 import { DISPATCH_SOURCES, createContextCopies } from '../src/index.ts'
 import { LEGAL_TENANT, OTHER_TENANT, PARENT, TENANT, dispatchOf, world } from './world.ts'
 
+const ASKING = 'msg_asking-1'
+
 const POINT: ForkPoint = { epoch: 'key/epoch:0', upper: '3', position: '44' }
 const read = (value: unknown) => ({ kind: 'read', value })
 
@@ -27,18 +29,24 @@ function copies(answer: unknown) {
 describe('the moment of a spawn', () => {
   it('is the point Session names for the dispatching session, handed on as one text', async () => {
     const c = copies(read(POINT))
-    expect(await c.copies.moment(TENANT, PARENT, 'call-1')).toEqual(
+    expect(await c.copies.moment(TENANT, PARENT, ASKING)).toEqual(
       read({ kind: 'moment', moment: forkPointText(POINT) }),
     )
-    expect(c.asked).toEqual([{ tenant: LEGAL_TENANT, session: PARENT }])
+    expect(c.asked).toEqual([{ tenant: LEGAL_TENANT, session: PARENT, asking: ASKING }])
+  })
+
+  it('is none without asking Session when no model step made the call', async () => {
+    const c = copies(read(POINT))
+    expect(await c.copies.moment(TENANT, PARENT, null)).toEqual(read({ kind: 'none' }))
+    expect(c.asked).toEqual([])
   })
 
   it('is none when the session names no point, and for a tenant text that is no tenant without asking', async () => {
-    expect(await copies(read(null)).copies.moment(TENANT, PARENT, 'call-1')).toEqual(
+    expect(await copies(read(null)).copies.moment(TENANT, PARENT, ASKING)).toEqual(
       read({ kind: 'none' }),
     )
     const stranger = copies(read(POINT))
-    expect(await stranger.copies.moment(OTHER_TENANT, PARENT, 'call-1')).toEqual(
+    expect(await stranger.copies.moment(OTHER_TENANT, PARENT, ASKING)).toEqual(
       read({ kind: 'none' }),
     )
     expect(stranger.asked).toEqual([])
@@ -48,7 +56,7 @@ describe('the moment of a spawn', () => {
     ['the point cannot be read', { kind: 'unavailable' }],
     ['the read is thrown', new Error('down')],
   ])('is unreadable when %s', async (_name, answer) => {
-    expect(await copies(answer).copies.moment(TENANT, PARENT, 'call-1')).toEqual({
+    expect(await copies(answer).copies.moment(TENANT, PARENT, ASKING)).toEqual({
       kind: 'unavailable',
     })
   })

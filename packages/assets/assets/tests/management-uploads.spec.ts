@@ -103,6 +103,7 @@ function setup(options: Options = {}) {
   const store: TenantLayerStore = {
     list: async () => ({ kind: 'invalid' }),
     held: async () => ({ kind: 'absent' }),
+    files: async () => ({ kind: 'absent' }),
     holding: async () => ({ kind: 'absent' }),
     change: async () => ({ kind: 'unknown' }),
     recall: async () => options.recall ?? { kind: 'not-found' },
@@ -111,6 +112,7 @@ function setup(options: Options = {}) {
       if (options.publication === 'throws') throw new Error('the receipts cannot be read')
       return options.publication ?? { kind: 'not-found' }
     },
+    recallById: async () => ({ kind: 'not-found' }),
     uploads,
     layers: [
       {

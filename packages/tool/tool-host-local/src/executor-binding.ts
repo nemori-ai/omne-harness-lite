@@ -129,6 +129,18 @@ function argumentsOf<P, E>(input: StartInput<P, E>, operation: ToolOperationSlot
   return argumentsValue.ok
 }
 
+function waitSchemasOf(contract: AuthorWait['contract']) {
+  return {
+    contract: contract.adoption,
+    request: contract.request.identity,
+    response: contract.response.identity,
+    requestMaxBytes: contract.request.maxBytes,
+    responseMaxBytes: contract.response.maxBytes,
+    expiry: 'forbidden' as const,
+    ...(contract.background === undefined ? {} : { background: contract.background }),
+  }
+}
+
 function declaredWait(operation: ToolOperationSlot, wait: AuthorWait): boolean {
   return (
     wait.kind === 'ask' &&
@@ -296,14 +308,7 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
     if (Buffer.byteLength(request) > contract.request.maxBytes)
       return 'the request of the segment wait exceeds the declared size'
     const key = startKey(input, input.start)
-    const schemas = {
-      contract: contract.adoption,
-      request: contract.request.identity,
-      response: contract.response.identity,
-      requestMaxBytes: contract.request.maxBytes,
-      responseMaxBytes: contract.response.maxBytes,
-      expiry: 'forbidden' as const,
-    }
+    const schemas = waitSchemasOf(contract)
     const waitId = segmentWait(input.start.operation)
     if ('failure' in waitId) return 'the start cannot name the wait of its segment'
     const kept = Buffer.from(state).toString('base64')

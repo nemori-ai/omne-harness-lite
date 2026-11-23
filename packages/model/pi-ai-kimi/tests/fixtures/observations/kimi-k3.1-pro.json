@@ -1,0 +1,849 @@
+{
+  "observedOn": "2026-11-23",
+  "model": "moonshotai/kimi-k3.1-pro",
+  "providerOrder": [
+    "moonshotai/mxfp4"
+  ],
+  "allowFallbacks": false,
+  "requireParameters": true,
+  "samples": {
+    "plain": {
+      "status": 200,
+      "requestSha256": "9f71c8905040c664b887d82b4d2fa383683979f57b9cf47c3d518734310a12bf",
+      "responseSha256": "a55ae17dd1373ccb95ce9cee362748320215b6dd9624944c820197e3d5e938a5",
+      "requestId": "gen-1795425467-vpJ6iaFMGLGEdPkl3Wim",
+      "provider": "Moonshot AI",
+      "upstreamModel": "moonshotai/kimi-k3.1-pro",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 97,
+        "completion_tokens": 43,
+        "total_tokens": 140,
+        "cost": "0.000624",
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.000624,
+          "upstream_inference_prompt_cost": 0.000194,
+          "upstream_inference_completions_cost": 0.00043
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 27,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    },
+    "assistant-last": {
+      "status": 200,
+      "requestSha256": "2bb1d717c53fec1ab17d8ff0abe2b682c097aff58a983e4c37d5caddd431d675",
+      "responseSha256": "e6f9df9b684ce18afcab28627321ff05ad9e8e1d6fc7b7291456c63c30467bdf",
+      "requestId": "gen-1795426726-vkdmjdSYUeNGyFKeBJ81",
+      "provider": "Moonshot AI",
+      "upstreamModel": "moonshotai/kimi-k3.1-pro",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 122,
+        "completion_tokens": 119,
+        "total_tokens": 241,
+        "cost": "0.001434",
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.001434,
+          "upstream_inference_prompt_cost": 0.000244,
+          "upstream_inference_completions_cost": 0.00119
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 103,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    },
+    "cache-1": {
+      "status": 200,
+      "requestSha256": "6e77a4b6c19c2f21784a4cdd7a69e8d022a986f760d6a80b6fbd3d2d0dca35a6",
+      "responseSha256": "4cbdd57f6c13a2323e3ce653471df6573dd600747b68b5ba4447a7d3cfdb906a",
+      "requestId": "gen-1795425903-fEzhGrAJgy9KZp9b79YP",
+      "provider": "Moonshot AI",
+      "upstreamModel": "moonshotai/kimi-k3.1-pro",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 3718,
+        "completion_tokens": 56,
+        "total_tokens": 3774,
+        "cost": "0.007996",
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.007996,
+          "upstream_inference_prompt_cost": 0.007436,
+          "upstream_inference_completions_cost": 0.00056
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 40,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    },
+    "cache-2": {
+      "status": 200,
+      "requestSha256": "cff18bc10ec0f2ff0b1844434413aa697381e2a8444d680a92039d94cc3c9eff",
+      "responseSha256": "89db6a84f1ede55cc6ad7032cf3d8cd66d60a25b7bedf5850239744f8d8667ad",
+      "requestId": "gen-1795425913-vS3WiuJHJ4JvpV4dXFCJ",
+      "provider": "Moonshot AI",
+      "upstreamModel": "moonshotai/kimi-k3.1-pro",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 3767,
+        "completion_tokens": 78,
+        "total_tokens": 3845,
+        "cost": "0.0018628",
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 3584,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.0018628,
+          "upstream_inference_prompt_cost": 0.0010828,
+          "upstream_inference_completions_cost": 0.00078
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 62,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    },
+    "cache-3": {
+      "status": 200,
+      "requestSha256": "957e4130086858a5c04523a14e4d24a3f403e9777d5f7737f1d02be7a55af7d5",
+      "responseSha256": "d549749133eaa145c02a534e0d4d4f6461590d44939401d021160d7f936ec698",
+      "requestId": "gen-1795425922-KTLicItI1xtQwctFKJvp",
+      "provider": "Moonshot AI",
+      "upstreamModel": "moonshotai/kimi-k3.1-pro",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 3816,
+        "completion_tokens": 69,
+        "total_tokens": 3885,
+        "cost": "0.0018708",
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 3584,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.0018708,
+          "upstream_inference_prompt_cost": 0.0011808,
+          "upstream_inference_completions_cost": 0.00069
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 52,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    },
+    "calib-code": {
+      "status": 200,
+      "requestSha256": "44eabc8da856a2b2495f4022695cdcfd9d17819d8a8866893bf5cb4f2ab02947",
+      "responseSha256": "84cfb1760dc812c0425305b596289ce2c9ee3712abd6b9daa3a217afb77e0031",
+      "requestId": "gen-1795425892-1SWFm9fAFJ9HatUURGxc",
+      "provider": "Moonshot AI",
+      "upstreamModel": "moonshotai/kimi-k3.1-pro",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 112,
+        "completion_tokens": 52,
+        "total_tokens": 164,
+        "cost": "0.000744",
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.000744,
+          "upstream_inference_prompt_cost": 0.000224,
+          "upstream_inference_completions_cost": 0.00052
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 36,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    },
+    "calib-zh": {
+      "status": 200,
+      "requestSha256": "095d194e7be8c0cee08a719ac065e165c6532de04b89f0a333264363e14a6c10",
+      "responseSha256": "2800697d91f1f0c73ece319cfc9289d583dc77cc79d41af6371461821851b4d7",
+      "requestId": "gen-1795425884-ApZMD1MczDtFs0TGG5xU",
+      "provider": "Moonshot AI",
+      "upstreamModel": "moonshotai/kimi-k3.1-pro",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 96,
+        "completion_tokens": 51,
+        "total_tokens": 147,
+        "cost": "0.000702",
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.000702,
+          "upstream_inference_prompt_cost": 0.000192,
+          "upstream_inference_completions_cost": 0.00051
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 35,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    },
+    "changed-prefix": {
+      "status": 200,
+      "requestSha256": "35dd32a7b0443c5f5245442c19e09886d2f2afde7023f914dfb8f1dcbe29c6cd",
+      "responseSha256": "fc3b2f42a04bbfa77f0e910a5aba8cf77796f49506f34cd992d198dc66f8d86e",
+      "requestId": "gen-1795425931-uoVicS7G595ns4Wz18nM",
+      "provider": "Moonshot AI",
+      "upstreamModel": "moonshotai/kimi-k3.1-pro",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 328,
+        "completion_tokens": 54,
+        "total_tokens": 382,
+        "cost": "0.001196",
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.001196,
+          "upstream_inference_prompt_cost": 0.000656,
+          "upstream_inference_completions_cost": 0.00054
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 28,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    },
+    "effort-high": {
+      "status": 200,
+      "requestSha256": "fdc12215fca2a701791dca18206370715d98781136696eacd52a789b4e098fa3",
+      "responseSha256": "2a667a932fb4ae0482b00f3d21f8b869413878c0b86194c13fa681ae9196b6c7",
+      "requestId": "gen-1795426119-I61WKix0vanzUd9SYp4T",
+      "provider": "Moonshot AI",
+      "upstreamModel": "moonshotai/kimi-k3.1-pro",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 97,
+        "completion_tokens": 54,
+        "total_tokens": 151,
+        "cost": "0.000734",
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.000734,
+          "upstream_inference_prompt_cost": 0.000194,
+          "upstream_inference_completions_cost": 0.00054
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 38,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    },
+    "effort-low": {
+      "status": 200,
+      "requestSha256": "92afe756ace941b6b812af3d82bccabebed3988de50392b724228b263114a59d",
+      "responseSha256": "f0f85ac69864f45cc20f05bad4e9c5468cf3428f73b9690362a95577ec4e0473",
+      "requestId": "gen-1795426106-ZTJSxFzBNJ2dCgilYI6Y",
+      "provider": "Moonshot AI",
+      "upstreamModel": "moonshotai/kimi-k3.1-pro",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 97,
+        "completion_tokens": 30,
+        "total_tokens": 127,
+        "cost": "0.000494",
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.000494,
+          "upstream_inference_prompt_cost": 0.000194,
+          "upstream_inference_completions_cost": 0.0003
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 14,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    },
+    "effort-max": {
+      "status": 200,
+      "requestSha256": "1d35b2eaa5237ead66641ace1c8ad8470bedc8f8c6d64346f99bd83aa60ea1c9",
+      "responseSha256": "57adb2a368e8dac28ff03cf772b241dc299547608e0ccae61666750cde7b986a",
+      "requestId": "gen-1795426125-ozkmJANmkfGGGnmjoyBs",
+      "provider": "Moonshot AI",
+      "upstreamModel": "moonshotai/kimi-k3.1-pro",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 96,
+        "completion_tokens": 35,
+        "total_tokens": 131,
+        "cost": "0.000542",
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.000542,
+          "upstream_inference_prompt_cost": 0.000192,
+          "upstream_inference_completions_cost": 0.00035
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 19,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    },
+    "effort-medium": {
+      "status": 200,
+      "requestSha256": "f8257368b740486160826df13dd55809608be48657dbfc630b2ba0f04083ee37",
+      "responseSha256": "0d785e95775ad65d9f57a76c39ce14a3f736103ad52dd0b076a39b41639612f5",
+      "requestId": "gen-1795426112-ujSyZcyliWMUaJkrYKFX",
+      "provider": "Moonshot AI",
+      "upstreamModel": "moonshotai/kimi-k3.1-pro",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 97,
+        "completion_tokens": 33,
+        "total_tokens": 130,
+        "cost": "0.000524",
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.000524,
+          "upstream_inference_prompt_cost": 0.000194,
+          "upstream_inference_completions_cost": 0.00033
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 17,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    },
+    "effort-minimal": {
+      "status": 200,
+      "requestSha256": "3449baa6f92f8fe9410a70d0e531f3ea019f911b4641e5eeeaa9d356c3288f5f",
+      "responseSha256": "c312262b6c12eb7a11c0fd7515b721bbf06f6dcee11cf9cadc4b19ed1a264695",
+      "requestId": "gen-1795426733-nlxZZoVdPnsKy2J6Xead",
+      "provider": "Moonshot AI",
+      "upstreamModel": "moonshotai/kimi-k3.1-pro",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 97,
+        "completion_tokens": 35,
+        "total_tokens": 132,
+        "cost": "0.000544",
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.000544,
+          "upstream_inference_prompt_cost": 0.000194,
+          "upstream_inference_completions_cost": 0.00035
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 19,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    },
+    "effort-none": {
+      "status": 200,
+      "requestSha256": "ef8959579b0d8c21554cf7262d8ac8d8728e84adaa358e1deda4cd0f060c81aa",
+      "responseSha256": "f27821e2650683667ddef1c5e1ce544fb2ce25f3119e87150acc8b11da95fc45",
+      "requestId": "gen-1795426749-1XKl0RdKThz36ZSBxKm6",
+      "provider": "Moonshot AI",
+      "upstreamModel": "moonshotai/kimi-k3.1-pro",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 29,
+        "completion_tokens": 11,
+        "total_tokens": 40,
+        "cost": "0.000168",
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.000168,
+          "upstream_inference_prompt_cost": 5.8e-05,
+          "upstream_inference_completions_cost": 0.00011
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    },
+    "effort-xhigh": {
+      "status": 200,
+      "requestSha256": "1f9dd479e835538b2cfdfb339e1516e5b6cc065e6432e243331e5ae0866b448d",
+      "responseSha256": "b303f694cb2994b8b34b3b86e3a6735d83ca5a95b577637784ec5c28d8cb5146",
+      "requestId": "gen-1795426740-641KMrb0RZDcwUKPrznE",
+      "provider": "Moonshot AI",
+      "upstreamModel": "moonshotai/kimi-k3.1-pro",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 97,
+        "completion_tokens": 31,
+        "total_tokens": 128,
+        "cost": "0.000504",
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.000504,
+          "upstream_inference_prompt_cost": 0.000194,
+          "upstream_inference_completions_cost": 0.00031
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 15,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    },
+    "image-0": {
+      "status": 200,
+      "requestSha256": "a8e78cd977578b4b901dfc7c055b6c21685d309106f53d1bd052f5e8a0e2bddf",
+      "responseSha256": "31ec76132795ccc642374a96e164a71ed3851e22794c29204e9957d7f9087f61",
+      "requestId": "gen-1795426027-mbgLya5FjaNXGMR1cYzl",
+      "provider": "Moonshot AI",
+      "upstreamModel": "moonshotai/kimi-k3.1-pro",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 99,
+        "completion_tokens": 308,
+        "total_tokens": 407,
+        "cost": "0.003278",
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.003278,
+          "upstream_inference_prompt_cost": 0.000198,
+          "upstream_inference_completions_cost": 0.00308
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 267,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    },
+    "image-1024": {
+      "status": 200,
+      "requestSha256": "db9ab38998086ce5de4ea7d2f588a683903cbf76fc24a194bd2416d557192bd3",
+      "responseSha256": "2b61f544fc6da413cec2de0cd1c6dbe2c4667374c1f522b26e6160b86a1efccc",
+      "requestId": "gen-1795426085-KWJs0l1QMMRchUE4jehu",
+      "provider": "Moonshot AI",
+      "upstreamModel": "moonshotai/kimi-k3.1-pro",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 1478,
+        "completion_tokens": 100,
+        "total_tokens": 1578,
+        "cost": "0.003956",
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.003956,
+          "upstream_inference_prompt_cost": 0.002956,
+          "upstream_inference_completions_cost": 0.001
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 77,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    },
+    "image-192": {
+      "status": 200,
+      "requestSha256": "1f8b18c71d01144487ab1bded74a5752a7c8ee55cd533813d507e3f8729916b3",
+      "responseSha256": "2ee679904562b3d4f9a2b037d58621a53aaa1d4a616c02d5104e9684bbe7952e",
+      "requestId": "gen-1795426046-agxFlxXkRoRLJur3rhTY",
+      "provider": "Moonshot AI",
+      "upstreamModel": "moonshotai/kimi-k3.1-pro",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 156,
+        "completion_tokens": 78,
+        "total_tokens": 234,
+        "cost": "0.001092",
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.001092,
+          "upstream_inference_prompt_cost": 0.000312,
+          "upstream_inference_completions_cost": 0.00078
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 53,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    },
+    "image-384": {
+      "status": 200,
+      "requestSha256": "87831edc0cfcac3600d3c75e84a6ecedd48cc976e736b6e3af0ee6d0b541c054",
+      "responseSha256": "bbb7ebed06da1bfd70860455be8c840d64a9185decaff96470fc2551458cfa98",
+      "requestId": "gen-1795426056-oYMF5OwwqzspOMzlS8nE",
+      "provider": "Moonshot AI",
+      "upstreamModel": "moonshotai/kimi-k3.1-pro",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 303,
+        "completion_tokens": 82,
+        "total_tokens": 385,
+        "cost": "0.001426",
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.001426,
+          "upstream_inference_prompt_cost": 0.000606,
+          "upstream_inference_completions_cost": 0.00082
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 62,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    },
+    "image-768": {
+      "status": 200,
+      "requestSha256": "fde84b39bc91e912378f5cf73f7de1ead4205bf653bade3a4a72f1339c8df866",
+      "responseSha256": "f3929c394e8d733c367949c477e591c054061adcc75ccb0d07a927d5129c9e1d",
+      "requestId": "gen-1795426070-Lg1nR008IZYZnIHcnw21",
+      "provider": "Moonshot AI",
+      "upstreamModel": "moonshotai/kimi-k3.1-pro",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 891,
+        "completion_tokens": 112,
+        "total_tokens": 1003,
+        "cost": "0.002902",
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.002902,
+          "upstream_inference_prompt_cost": 0.001782,
+          "upstream_inference_completions_cost": 0.00112
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 92,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    },
+    "reasoning-hidden": {
+      "status": 200,
+      "requestSha256": "efc1f4213c74dfc1116b880b3c7db451ff2d2565245e593759421106a25eaae9",
+      "responseSha256": "ea3b36b2311eef671812b903d4adc3e1af5fcffd36bb28c80b7de7ea5f7aec29",
+      "requestId": "gen-1795426263-m1awtKd4FnCETwrD4ukN",
+      "provider": "Moonshot AI",
+      "upstreamModel": "moonshotai/kimi-k3.1-pro",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 96,
+        "completion_tokens": 60,
+        "total_tokens": 156,
+        "cost": "0.000792",
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.000792,
+          "upstream_inference_prompt_cost": 0.000192,
+          "upstream_inference_completions_cost": 0.0006
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 44,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    },
+    "reasoning-off": {
+      "status": 200,
+      "requestSha256": "2621a63f91f8730c40a444d9529b49f1e8f9f833c9b8eb3b94192890d4348275",
+      "responseSha256": "d098af6fbc800a9bb8a8d39a651ce1846024fe49e48ef23cca2030a41fbe4989",
+      "requestId": "gen-1795426270-ZkYf9rnpEA5uI8YaoUsW",
+      "provider": "Moonshot AI",
+      "upstreamModel": "moonshotai/kimi-k3.1-pro",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 29,
+        "completion_tokens": 11,
+        "total_tokens": 40,
+        "cost": "0.000168",
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.000168,
+          "upstream_inference_prompt_cost": 5.8e-05,
+          "upstream_inference_completions_cost": 0.00011
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    },
+    "tool": {
+      "status": 200,
+      "requestSha256": "210b5225659bdfb04224407f3feefeb5ad07c18a3dc2531def6752789853f8d9",
+      "responseSha256": "5fe82e796983f60cc3db38d564bc85003dba713dfa7044b86d99053b451ab6db",
+      "requestId": "gen-1795425531-fkp0b20WxEifHcLI8HLw",
+      "provider": "Moonshot AI",
+      "upstreamModel": "moonshotai/kimi-k3.1-pro",
+      "finish": "tool_calls",
+      "usage": {
+        "prompt_tokens": 202,
+        "completion_tokens": 86,
+        "total_tokens": 288,
+        "cost": "0.001264",
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.001264,
+          "upstream_inference_prompt_cost": 0.000404,
+          "upstream_inference_completions_cost": 0.00086
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 34,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    },
+    "tool-continuation": {
+      "status": 200,
+      "requestSha256": "34482afde39c0c67cd956418dd9479d80b0b5a96894e346557d7824a388cc0a5",
+      "responseSha256": "b36d6aae6cd982cfdd83fcaa8b07db54667c1deca248c6d148d1000891a6b5a0",
+      "requestId": "gen-1795425658-3iMMf8sBoJFjn6D0Ibnx",
+      "provider": "Moonshot AI",
+      "upstreamModel": "moonshotai/kimi-k3.1-pro",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 325,
+        "completion_tokens": 46,
+        "total_tokens": 371,
+        "cost": "0.00111",
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.00111,
+          "upstream_inference_prompt_cost": 0.00065,
+          "upstream_inference_completions_cost": 0.00046
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 20,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    },
+    "tool-named": {
+      "status": 404,
+      "requestSha256": "1c52a9f7b7ff4063c3e7a31c0448987101b2af5e75fe20a7412229127575d867",
+      "responseSha256": "3a84f7c483285d38f21142a4f4cf66d63f8f642e25823f04bcaecb956d084eab",
+      "error": "No endpoints found for moonshotai/kimi-k3.1-pro."
+    },
+    "tool-required": {
+      "status": 200,
+      "requestSha256": "2e2d062eb85b8730b191f9ecc138366a97110aeecffca636758cdf9dd932a5cd",
+      "responseSha256": "8cec7b2794acba78a545d748c01d0de8c27d134684ad2c8f81fa349f17a48a92",
+      "requestId": "gen-1795426155-EOeI2raByHmWhPU3beCL",
+      "provider": "Moonshot AI",
+      "upstreamModel": "moonshotai/kimi-k3.1-pro",
+      "finish": "tool_calls",
+      "usage": {
+        "prompt_tokens": 238,
+        "completion_tokens": 81,
+        "total_tokens": 319,
+        "cost": "0.001286",
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.001286,
+          "upstream_inference_prompt_cost": 0.000476,
+          "upstream_inference_completions_cost": 0.00081
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 29,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    },
+    "vision": {
+      "status": 200,
+      "requestSha256": "403a1436451a33e310032273c7e8b191faff101fd70a0a6429cbfdbc89f6aa91",
+      "responseSha256": "44b4fbc2fcecf195a74bf414d520c51060440aadffa4f25819c845e0fdd3d54e",
+      "requestId": "gen-1795425524-Er6xj7LPAkdbR3ag7I1l",
+      "provider": "Moonshot AI",
+      "upstreamModel": "moonshotai/kimi-k3.1-pro",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 123,
+        "completion_tokens": 116,
+        "total_tokens": 239,
+        "cost": "0.001406",
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.001406,
+          "upstream_inference_prompt_cost": 0.000246,
+          "upstream_inference_completions_cost": 0.00116
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 91,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    }
+  }
+}

@@ -46,7 +46,10 @@ const protocol = {
 const waitProtocol: Check<ToolWaitProtocolDefinition<unknown, 'ask' | 'resource'>> = variant(
   'kind',
   {
-    ask: record({ ...protocol, kind: literal('ask'), expiry: literal('forbidden') }),
+    ask: record(
+      { ...protocol, kind: literal('ask'), expiry: literal('forbidden') },
+      { background: literal('waits', 'never') },
+    ),
     resource: record({
       ...protocol,
       kind: literal('resource'),

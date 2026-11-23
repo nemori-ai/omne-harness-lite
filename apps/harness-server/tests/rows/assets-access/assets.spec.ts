@@ -71,6 +71,7 @@ describe('assets/v1 asset operations on the release tree', () => {
           ['converter', 'data'],
           ['mcp', 'data'],
           ['model-provider', 'none'],
+          ['plugin', 'directory'],
           ['skill', 'directory'],
           ['tool', 'none'],
         ])

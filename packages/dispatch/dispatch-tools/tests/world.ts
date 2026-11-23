@@ -4,7 +4,12 @@ import { bindAgents, type AgentsCallSource, type SessionsAnswer } from '../src/p
 
 export const TENANT = 'tenant-a' as CallContext['tenant']
 export const SELF = 'a'.repeat(64) as CallContext['session']
-export const CONTEXT: CallContext = { tenant: TENANT, subject: { who: 'work' }, session: SELF }
+export const CONTEXT: CallContext = {
+  tenant: TENANT,
+  subject: { who: 'work' },
+  session: SELF,
+  asking: 'msg_asking-1',
+}
 export const done = <T>(value: T, recalled = false): Outcome<T, never> => ({
   kind: 'done',
   value,
