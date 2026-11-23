@@ -224,6 +224,44 @@ describe('the management service over the local assets of a tenant', () => {
     })
   })
 
+  it('gives the files of the held version: a directory as its package, data as its body, none when not held', async () => {
+    const w = await world()
+    await w.publisher.publish({
+      operationId: 'publish-bundle',
+      capability: id('bundle', 'b'),
+      content: { kind: 'directory', from: files({ 'README.md': 'hello', 'docs/a.txt': 'abc' }) },
+    })
+    const held = await w.management.files({ ...ALICE, capability: id('bundle', 'b') })
+    if (held.kind !== 'files') throw new Error(JSON.stringify(held))
+    const described = await w.management.describe({ ...ALICE, capability: id('bundle', 'b') })
+    expect(described).toMatchObject({ row: { version: held.version } })
+    const manifest = await held.from.manifest()
+    if (!('ok' in manifest)) throw new Error(JSON.stringify(manifest))
+    const hello = digestBytes(encoder.encode('hello'))
+    expect(manifest.ok.entries).toEqual([
+      { path: 'README.md', bytes: 5, digest: hello },
+      { path: 'docs/a.txt', bytes: 3, digest: digestBytes(encoder.encode('abc')) },
+    ])
+    const opened = await held.from.open('README.md', hello)
+    if (!('ok' in opened)) throw new Error(JSON.stringify(opened))
+    expect(new TextDecoder().decode(opened.ok)).toBe('hello')
+    await w.publish('a', '{"a":7}')
+    expect(await w.management.files({ ...ALICE, capability: id('note', 'a') })).toMatchObject({
+      kind: 'body',
+      body: read('{"a":7}'),
+    })
+    expect(await w.management.files({ ...ALICE, capability: id('note', 'z') })).toEqual({
+      kind: 'absent',
+    })
+    expect(
+      await w.management.files({
+        ...ALICE,
+        principal: { tenant: 'tenant-b' },
+        capability: id('note', 'a'),
+      }),
+    ).toEqual({ kind: 'denied' })
+  })
+
   it('a disabled asset is described as filtered out for being disabled; a removed one is absent', async () => {
     const w = await world()
     const a = await w.publish('a')
@@ -395,6 +433,11 @@ describe('the management service over the local assets of a tenant', () => {
       reason: 'official',
     })
     expect(await w.names()).toEqual(['d:on'])
+    expect(await w.management.files({ ...ALICE, capability: id('note', 'd') })).toEqual({
+      kind: 'body',
+      version: 'v1',
+      body: read('1'),
+    })
   })
 
   it('the old reference of a holding removed and created again never reaches the new one', async () => {

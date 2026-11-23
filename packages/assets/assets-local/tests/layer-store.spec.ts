@@ -145,6 +145,63 @@ describe('the tenant layer over the local store', () => {
     expect(await storeOver(answers).held(id('note', 'a'))).toEqual({ kind })
   })
 
+  it('gives the files of the held version: a package in a category with a layout, else the body', async () => {
+    const asked: unknown[] = []
+    const answers = {
+      readHeldCapability: {
+        kind: 'holding',
+        holding: HOLDING,
+        selected: { version: 'v1', body: { text: 'hi' }, definitionRef: null },
+      },
+    }
+    const reader = { manifest: async () => ({ ok: { entries: [] } }), open: async () => ({}) }
+    const local = {
+      readHeldCapability: async () => answers.readHeldCapability,
+      packages: {
+        reader: (input: unknown) => {
+          asked.push(input)
+          return reader
+        },
+      },
+    } as unknown as AssetsLocal
+    const directory = createTenantLayerStore(
+      local,
+      'tenant-a',
+      {
+        lookup: () => ({ layout: {} }),
+      } as never,
+      [],
+    )
+    expect(await directory.files(id('note', 'a'))).toEqual({
+      kind: 'files',
+      version: 'v1',
+      from: reader,
+    })
+    expect(asked).toEqual([{ assetRef: 'asset-1', version: 'v1' }])
+    const data = createTenantLayerStore(local, 'tenant-a', { lookup: () => ({}) } as never, [])
+    expect(await data.files(id('note', 'a'))).toEqual({
+      kind: 'body',
+      version: 'v1',
+      body: { text: 'hi' },
+    })
+  })
+
+  it.each([
+    [
+      'a refused read',
+      { readHeldCapability: { kind: 'rejected', reason: 'unavailable' } },
+      'unavailable',
+    ],
+    ['no holding', { readHeldCapability: { kind: 'absent' } }, 'absent'],
+    [
+      'a holding with nothing selected',
+      { readHeldCapability: { kind: 'holding', holding: HOLDING, selected: null } },
+      'absent',
+    ],
+  ] as const)('reads %s of the files of one capability as %s', async (_case, answers, kind) => {
+    expect(await storeOver(answers, 'directory').files(id('note', 'a'))).toEqual({ kind })
+  })
+
   it('reads a holding; a refused read is unavailable', async () => {
     expect(
       await storeOver({

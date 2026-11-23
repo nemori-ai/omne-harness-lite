@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { ALICE, BUNDLE, PLACED, bound, id, world, type World } from './world.ts'
+import { digestBytes } from '@omne-harness/assets'
+import { ALICE, BUNDLE, PLACED, bound, directoryOf, id, world, type World } from './world.ts'
 
 const PILL = { category: 'bundle', name: 'pill-send', dir: 'plugins/pill-send' }
 const lines = (...body: string[]) => body.join('\n')
@@ -483,7 +484,8 @@ describe('show', () => {
         '  shell.part-style / session.composer.send   [in effect]   shadows built-in',
         'clients:',
         '  desktop, connected   loaded',
-        'files: bundle.json, a.js',
+        'source: this held version, 2 files (11 bytes): bundle.json, a.js',
+        'to change it: export it to a directory, edit there, publish from that directory.',
         'tree rev 7c1f.41',
       ),
     )
@@ -491,7 +493,7 @@ describe('show', () => {
 
   it('no client connected is said; no client tree at all is not shown', async () => {
     expect(await shown({ of: async () => ({ ...PLACED, clients: [] }) })).toContain(
-      '\nclients:\n  none connected\nfiles:',
+      '\nclients:\n  none connected\nsource:',
     )
     const none = await shown({
       of: async () => ({
@@ -502,7 +504,7 @@ describe('show', () => {
     })
     expect(none).not.toContain('clients:')
     expect(none).toContain(
-      'shadows built-in\nFix the file and publish again, or disable it.\nfiles:',
+      'shadows built-in\nFix the file and publish again, or disable it.\nsource:',
     )
   })
 
@@ -513,9 +515,47 @@ describe('show', () => {
       lines(
         ...HEAD,
         'places: cannot be read now: the trees are not read',
-        'files: bundle.json, a.js',
+        'source: this held version, 2 files (11 bytes): bundle.json, a.js',
+        'to change it: export it to a directory, edit there, publish from that directory.',
         'tree rev 7c1f.41',
       ),
+    )
+  })
+
+  async function shownNote(w: World, data: unknown) {
+    const s = bound(w)
+    await s.text('publish', { id: 'p1', category: 'note', name: 'n', data })
+    const text = await s.text('show', { category: 'note', name: 'n' })
+    return text.slice(text.indexOf('\nsource:') + 1)
+  }
+
+  it('a body short enough is printed as its source, with how to change it', async () => {
+    expect(await shownNote(world(), { text: 'hi' })).toBe(
+      lines(
+        'source: this held version, a body of 13 bytes:',
+        '{"text":"hi"}',
+        'to change it: publish a new body as data.',
+        'tree rev 7c1f.41',
+      ),
+    )
+  })
+
+  it('a body too long to print says so and points to export', async () => {
+    expect(await shownNote(world(), { text: 'x'.repeat(5000) })).toBe(
+      lines(
+        'source: this held version, a body of 5011 bytes, too long to print here.',
+        'to read or change it: export it to a directory.',
+        'tree rev 7c1f.41',
+      ),
+    )
+  })
+
+  it('one installed with the deployment says it cannot be changed in place, before how to change it', async () => {
+    const w = world()
+    w.official.add('note/n')
+    const said = await shownNote(w, { text: 'hi' })
+    expect(said).toContain(
+      '{"text":"hi"}\nit is installed with the deployment and cannot be changed in place.\nto change it: publish a new body as data.\n',
     )
   })
 
@@ -552,6 +592,7 @@ describe('when the assets cannot be had', () => {
     ['categories', {}],
     ['list', { category: 'note' }],
     ['show', { category: 'note', name: 'a' }],
+    ['export', { category: 'note', name: 'a', dir: 'work/a' }],
     ['impact', { category: 'bundle', dir: 'plugins/pill-send' }],
     ['publish', { id: 'p1', ...PILL }],
     ['enable', { id: 'e1', category: 'note', name: 'a' }],
@@ -575,4 +616,173 @@ describe('when the assets cannot be had', () => {
       expect(w.calls).toEqual([])
     },
   )
+})
+
+describe('export', () => {
+  const EXPORT = { category: 'bundle', name: 'pill-send', dir: 'work/pill' }
+  async function held(w: World = world()) {
+    const s = bound(w)
+    await s.text('publish', { id: 'p1', ...PILL })
+    return s
+  }
+
+  it('writes the held files into a new directory, names them, and says what to do next', async () => {
+    const w = world()
+    const s = await held(w)
+    expect(await s.text('export', EXPORT)).toBe(
+      lines(
+        'done OmneExtensions export bundle pill-send',
+        'sha256:v1   wrote 2 files (11 bytes) to work/pill',
+        'files: bundle.json, a.js',
+        'Edit them there, then: impact with dir work/pill, then publish from it.',
+        'tree rev 7c1f.41',
+      ),
+    )
+    expect(w.placeAsked.map(asked => asked.dir)).toEqual(['work/pill'])
+    expect(w.writes().map(call => call.method)).toEqual(['publish'])
+  })
+
+  it('a data one is written as body.json: its JSON text and one newline', async () => {
+    const w = world()
+    const s = bound(w)
+    await s.text('publish', { id: 'p1', category: 'note', name: 'n', data: { text: 'hi' } })
+    expect(await s.text('export', { category: 'note', name: 'n', dir: 'work/n' })).toBe(
+      lines(
+        'done OmneExtensions export note n',
+        'sha256:v1   wrote 1 file (14 bytes) to work/n',
+        'files: body.json',
+        'Edit body.json there, then publish its content as data.',
+        'tree rev 7c1f.41',
+      ),
+    )
+    const from = w.placeAsked[0]?.from
+    const manifest = await from?.manifest()
+    if (manifest === undefined || !('ok' in manifest)) throw new Error('manifest')
+    const text = '{"text":"hi"}\n'
+    const digest = digestBytes(new TextEncoder().encode(text))
+    expect(manifest.ok.entries).toEqual([{ path: 'body.json', bytes: 14, digest }])
+    const opened = await from?.open('body.json', digest)
+    if (opened === undefined || !('ok' in opened)) throw new Error('open')
+    expect(new TextDecoder().decode(opened.ok)).toBe(text)
+  })
+
+  it('names twenty files at most, then how many more', async () => {
+    const w = world()
+    const s = await held(w)
+    const many = Object.fromEntries(Array.from({ length: 22 }, (_, n) => [`f${n}.js`, 'x']))
+    w.filesOver.answer = async () => ({
+      kind: 'files',
+      version: 'sha256:v1',
+      from: directoryOf(many),
+    })
+    const text = await s.text('export', EXPORT)
+    const names = Array.from({ length: 20 }, (_, n) => `f${n}.js`).join(', ')
+    expect(text).toContain(`\nfiles: ${names}, and 2 more\n`)
+    expect(text).toContain('wrote 22 files (22 bytes)')
+  })
+
+  it('a directory that holds exactly this version already: nothing was written, and it says so', async () => {
+    const w = world({ place: async () => ({ kind: 'same' }) })
+    const s = await held(w)
+    expect(await s.text('export', EXPORT)).toBe(
+      lines(
+        'done OmneExtensions export bundle pill-send',
+        'work/pill already holds exactly version sha256:v1; nothing was written.',
+        'tree rev 7c1f.41',
+      ),
+    )
+  })
+
+  it.each([
+    [[], 0, 'a.js'],
+    [['notes.md'], 3, 'a.js, notes.md and 3 more'],
+  ])(
+    'a directory with other content is a conflict that names where it differs',
+    async (more, count, named) => {
+      const paths = ['a.js', ...more]
+      const w = world({ place: async () => ({ kind: 'differs', paths, more: count }) })
+      const s = await held(w)
+      expect(await s.failure('export', EXPORT)).toEqual({
+        kind: 'conflict',
+        reason: `work/pill is not empty and differs from the held version in: ${named}. Nothing was written. Give a directory that does not exist yet; or, if that directory is the newer work, ask impact with it and publish it.`,
+      })
+    },
+  )
+
+  it('a path that is no place for a directory in the workspace is invalid', async () => {
+    const s = await held(world({ place: async () => ({ kind: 'absent' }) }))
+    expect(await s.failure('export', EXPORT)).toEqual({
+      kind: 'invalid',
+      reason:
+        'dir "work/pill" is not a place for a directory in this workspace: give a relative path inside it; nothing was written.',
+    })
+  })
+
+  it.each([
+    ['answers unavailable', async () => ({ kind: 'unavailable' as const })],
+    [
+      'throws',
+      async (): Promise<never> => {
+        throw new Error('the disk went away')
+      },
+    ],
+  ])('a workspace that %s: unavailable, nothing was written', async (_, place) => {
+    const s = await held(world({ place }))
+    expect(await s.failure('export', EXPORT)).toEqual({
+      kind: 'unavailable',
+      operation: 'OmneExtensions.export',
+      reason: 'the workspace cannot be written now; nothing was written',
+    })
+  })
+
+  it('held files whose list cannot be read: unavailable, and nothing is placed', async () => {
+    const w = world()
+    const s = await held(w)
+    w.filesOver.answer = async () => ({
+      kind: 'files',
+      version: 'sha256:v1',
+      from: {
+        manifest: async () => ({ failure: 'unavailable' }),
+        open: async () => ({ failure: 'unavailable' }),
+      },
+    })
+    expect(await s.failure('export', EXPORT)).toEqual({
+      kind: 'unavailable',
+      operation: 'OmneExtensions.export',
+      reason: 'the held files cannot be read now; nothing was written',
+    })
+    expect(w.placeAsked).toEqual([])
+  })
+
+  it('a name not held says so, and nothing is placed', async () => {
+    const w = world()
+    expect(await bound(w).failure('export', { category: 'note', name: 'a', dir: 'w' })).toEqual({
+      kind: 'invalid',
+      reason: 'note a is not held by this tenant. list note shows what is held.',
+    })
+    expect(w.placeAsked).toEqual([])
+  })
+
+  it('a category not there now names the ones that are', async () => {
+    expect(
+      (await bound(world()).failure('export', { category: 'plugin', name: 'a', dir: 'w' })).reason,
+    ).toBe('there is no category "plugin" now. Categories now: bundle, kit, note.')
+  })
+
+  it.each([
+    ['denied', async () => ({ kind: 'denied' as const }), 'unsupported'],
+    ['unavailable', async () => ({ kind: 'unavailable' as const }), 'unavailable'],
+    [
+      'a throw',
+      async (): Promise<never> => {
+        throw new Error('read failed')
+      },
+      'unavailable',
+    ],
+  ])('files that answer %s fail as the other reads do', async (_, answer, kind) => {
+    const w = world()
+    w.filesOver.answer = answer
+    expect((await bound(w).failure('export', EXPORT)).kind).toBe(kind)
+    expect(w.placeAsked).toEqual([])
+  })
 })

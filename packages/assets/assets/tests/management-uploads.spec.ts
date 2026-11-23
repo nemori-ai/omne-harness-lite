@@ -103,6 +103,7 @@ function setup(options: Options = {}) {
   const store: TenantLayerStore = {
     list: async () => ({ kind: 'invalid' }),
     held: async () => ({ kind: 'absent' }),
+    files: async () => ({ kind: 'absent' }),
     holding: async () => ({ kind: 'absent' }),
     change: async () => ({ kind: 'unknown' }),
     recall: async () => options.recall ?? { kind: 'not-found' },

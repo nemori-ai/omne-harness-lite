@@ -40,6 +40,7 @@ export const extensionsCommandNames = [
   'categories',
   'list',
   'show',
+  'export',
   'impact',
   'publish',
   'enable',
@@ -67,6 +68,7 @@ const shapes = {
     limit: z.int().min(1).max(100).optional(),
   }),
   show: z.strictObject({ category: name, name }),
+  export: z.strictObject({ category: name, name, dir: path }),
   impact: z.strictObject({
     category: name,
     dir: path.optional(),
@@ -100,6 +102,8 @@ export const extensionsSummaries: Readonly<Record<ExtensionsCommandName, string>
     'List the categories that exist now, each with a line from its owner on what it is and how one is made: from a directory, from a body, or not through this tool.',
   list: 'List what the tenant holds in one category: name, version, enabled.',
   show: 'Read one held extension: version, enabled, origin, summary, what it places and whether each is in effect, with the reason when it is not.',
+  export:
+    'Write the files of a held extension into a directory of the workspace, so they can be edited and published again. Changes nothing that is held.',
   impact:
     'What would change if this were done: which contributions would appear, go away, or stop being in effect. Changes nothing. Give dir for a directory not yet published, or name for a held one.',
   publish:

@@ -18,10 +18,11 @@ const PURPOSE =
   "Manage what extends this system for the acting tenant, in every category the system has now: publish one from a workspace directory or a body, ask what it would change, see whether it is in effect, enable, disable, remove. Write the files in the workspace first, then publish here; the app's own files are not edited."
 const MENU = [
   'Call with {"command": <name>, "params": {…fields}}. In signatures, ? marks an optional field and a|b lists the allowed values.',
-  'help {name?=help|categories|list|show|impact|publish|enable|disable|remove|result, category?} - Read command usage. With publish and a category: the layout that category asks for.',
+  'help {name?=help|categories|list|show|export|impact|publish|enable|disable|remove|result, category?} - Read command usage. With publish and a category: the layout that category asks for.',
   'categories {} - List the categories that exist now, each with a line from its owner on what it is and how one is made: from a directory, from a body, or not through this tool.',
   'list {category, after?, limit?} - List what the tenant holds in one category: name, version, enabled.',
   'show {category, name} - Read one held extension: version, enabled, origin, summary, what it places and whether each is in effect, with the reason when it is not.',
+  'export {category, name, dir} - Write the files of a held extension into a directory of the workspace, so they can be edited and published again. Changes nothing that is held.',
   'impact {category, dir?, name?, change?=publish|enable|disable|remove} - What would change if this were done: which contributions would appear, go away, or stop being in effect. Changes nothing. Give dir for a directory not yet published, or name for a held one.',
   'publish {id, category, name, dir?, data?} - Publish a new version and hold it. A new holding is enabled, so it takes effect at once; a held one that follows the latest moves to the new version at once.',
   'enable {id, category, name} - Enable a held extension. It takes effect at once.',
@@ -33,6 +34,7 @@ const GUIDE = [
   'Give every publish, enable, disable and remove an id of your own. After a failure that says unknown, send the same command with the same id, or ask result: what took effect is recalled, not done twice.',
   'Categories come and go while the system runs. They are not listed in this text; categories reads what exists now.',
   'Ask impact before you publish: a new holding is enabled when it is made, so publishing takes effect at once.',
+  'To change an extension that is already held: export it to a directory, edit the files there, ask impact with that directory, then publish from it. The held version is the source; the directory is your working copy.',
   'You act for the acting tenant: what you publish is held by this tenant and changes only what this tenant sees.',
   'A failure starts with its reason, then says what to do.',
 ].join('\n\n')
@@ -61,7 +63,7 @@ describe('the OmneExtensions declaration', () => {
       expect(said).not.toMatch(new RegExp(`\\b${name}\\b`))
   })
 
-  it('reads with one gate and changes with another, both released without asking', () => {
+  it('reads with one gate, writes into the workspace with another and changes with a third, all released without asking', () => {
     const { definition } = author()
     if (definition.kind !== 'commands') throw new Error('commands')
     const gates = Object.fromEntries(
@@ -74,6 +76,7 @@ describe('the OmneExtensions declaration', () => {
       show: 'read',
       impact: 'read',
       result: 'read',
+      export: 'export',
       publish: 'change',
       enable: 'change',
       disable: 'change',
@@ -82,6 +85,7 @@ describe('the OmneExtensions declaration', () => {
     expect(definition.gates).toEqual([
       { id: 'read', title: '查看', default: 'auto' },
       { id: 'change', title: '改动', default: 'auto' },
+      { id: 'export', title: '取到工作区', default: 'auto' },
     ])
   })
 

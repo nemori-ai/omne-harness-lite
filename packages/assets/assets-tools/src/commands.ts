@@ -1,14 +1,19 @@
 import {
   capabilityId,
+  digestBytes,
   type CapabilityId,
+  type HeldFiles,
   type HoldingOutcome,
+  type JsonValue,
+  type PackageReader,
   type ManagedAsset,
   type RecalledOperation,
   type PublishContent,
   type TenantPublishOutcome,
 } from '@omne-harness/assets'
-import { readJsonText } from '@omne-harness/json-text'
-import type { ExtensionsCallSource, ExtensionsFaces } from './port.ts'
+import { readJsonText, writeJsonText } from '@omne-harness/json-text'
+import { fail, succeed } from '@omne-harness/operation-result'
+import type { ExtensionsCallSource, ExtensionsFaces, Placed } from './port.ts'
 import { limits, type ArgumentsOf, type ExtensionsCommandName } from './protocol.ts'
 import {
   columns,
@@ -23,13 +28,15 @@ import {
 import {
   HOW,
   assetHead,
-  filesLine,
+  fileCount,
   impactBody,
+  namedPaths,
   noCategory,
   notHeld,
   placedLines,
   publishedLine,
   reused,
+  sourceLines,
 } from './text.ts'
 
 type Asset = Extract<ManagedAsset, Readonly<{ kind: 'asset' }>>
@@ -131,9 +138,106 @@ const show: Handler<'show'> = async (ready, { category, name }) => {
   )) ?? { kind: 'unavailable' as const, reason: 'the placement did not answer' }
   return done(
     'show',
-    [...assetHead(asset), ...placedLines(placed), ...filesLine(asset)],
+    [...assetHead(asset), ...placedLines(placed), ...sourceLines(asset)],
     revisionOf(source),
   )
+}
+
+const BODY_FILE = 'body.json'
+
+/** A body as a package of one file, body.json: its JSON text and one newline, in UTF-8. */
+function bodyPackage(body: JsonValue): PackageReader {
+  const bytes = new TextEncoder().encode(`${writeJsonText(body)}\n`)
+  const digest = digestBytes(bytes)
+  return {
+    manifest: async () =>
+      succeed({ entries: [{ path: BODY_FILE, bytes: bytes.byteLength, digest }] }),
+    open: async (path, expected) =>
+      path === BODY_FILE && expected === digest ? succeed(bytes) : fail('entry-not-found'),
+  }
+}
+
+type Held = Extract<HeldFiles, Readonly<{ kind: 'files' | 'body' }>>
+
+async function heldFiles(
+  { faces, scope }: Ready,
+  capability: CapabilityId,
+): Promise<Held | Answer> {
+  const read = await settle(() => faces.management.files({ ...scope, capability }))
+  if (read === undefined) return unavailable('export')
+  switch (read.kind) {
+    case 'files':
+    case 'body':
+      return read
+    case 'denied':
+      return denied()
+    case 'absent':
+      return invalid(notHeld(capability.category, capability.name))
+    default:
+      return unavailable('export')
+  }
+}
+
+const NOTHING_WRITTEN = 'nothing was written'
+
+function placedAnswer(
+  params: ArgumentsOf<'export'>['params'],
+  version: string,
+  placed: Placed,
+  paths: readonly string[],
+  body: boolean,
+  revision: string | null,
+): Answer {
+  const { category, name, dir } = params
+  const head = `export ${category} ${name}`
+  switch (placed.kind) {
+    case 'same':
+      return done(
+        head,
+        [`${dir} already holds exactly version ${version}; ${NOTHING_WRITTEN}.`],
+        revision,
+      )
+    case 'differs': {
+      const more = placed.more > 0 ? ` and ${placed.more} more` : ''
+      return conflict(
+        `${dir} is not empty and differs from the held version in: ${placed.paths.join(', ')}${more}. Nothing was written. Give a directory that does not exist yet; or, if that directory is the newer work, ask impact with it and publish it.`,
+      )
+    }
+    case 'absent':
+      return invalid(
+        `dir "${dir}" is not a place for a directory in this workspace: give a relative path inside it; ${NOTHING_WRITTEN}.`,
+      )
+    case 'unavailable':
+      return unavailable('export', `the workspace cannot be written now; ${NOTHING_WRITTEN}`)
+    case 'written':
+      return done(
+        head,
+        [
+          `${version}   wrote ${fileCount(placed.files)} (${placed.bytes} bytes) to ${dir}`,
+          `files: ${namedPaths(paths)}`,
+          body
+            ? 'Edit body.json there, then publish its content as data.'
+            : `Edit them there, then: impact with dir ${dir}, then publish from it.`,
+        ],
+        revision,
+      )
+  }
+}
+
+const exportHeld: Handler<'export'> = async (ready, params) => {
+  const { source, faces } = ready
+  const { category, name, dir } = params
+  if (faces.categories.describe(category) === undefined)
+    return invalid(noCategory(faces.categories, category))
+  const held = await heldFiles(ready, capabilityOf(category, name))
+  if (!('kind' in held)) return held
+  const from = held.kind === 'files' ? held.from : bodyPackage(held.body)
+  const manifest = await settle(() => from.manifest())
+  if (manifest === undefined || 'failure' in manifest)
+    return unavailable('export', `the held files cannot be read now; ${NOTHING_WRITTEN}`)
+  const paths = manifest.ok.entries.map(entry => entry.path)
+  const placed = (await settle(() => source.place(dir, from))) ?? { kind: 'unavailable' }
+  return placedAnswer(params, held.version, placed, paths, held.kind === 'body', revisionOf(source))
 }
 
 const lastSegment = (path: string) =>
@@ -448,6 +552,7 @@ export const HANDLERS: { readonly [K in Reaching]: Handler<K> } = {
   categories,
   list,
   show,
+  export: exportHeld,
   impact,
   publish,
   enable: changeOf('enable') as Handler<'enable'>,

@@ -5,6 +5,7 @@ import {
   type CapabilityId,
   type CategoryContribution,
   type ChangeImpact,
+  type HeldFiles,
   type HoldingOutcome,
   type JsonValue,
   type ManagedAsset,
@@ -21,6 +22,7 @@ import {
   createExtensionsAuthor,
   extensionsToolModule,
   type ExtensionsCallSource,
+  type Placed,
 } from '@omne-harness/assets-tools'
 import { readJsonText, writeJsonText } from '@omne-harness/json-text'
 import { createIndependentToolScope } from '@omne-harness/tool'
@@ -125,6 +127,7 @@ type Holding = {
   version: string
   enabled: boolean
   removed: boolean
+  body?: JsonValue
 }
 type Operation = Readonly<{ input: string; recall: RecalledOperation }>
 
@@ -141,6 +144,9 @@ export function services(categories = createCategoryPoint()) {
   const operations = new Map<string, Operation>()
   const calls: Call[] = []
   const script: { next?: 'unknown' | 'throws' | 'conflict' } = {}
+  /** Keys of holdings the deployment installed; a scripted answer of files replaces the service's. */
+  const official = new Set<string>()
+  const filesOver: { answer?: () => Promise<HeldFiles | Readonly<{ kind: 'denied' }>> } = {}
   let made = 0
   const admitted = (input: Readonly<{ tenant: string; principal: unknown }>) =>
     (input.principal as Principal).tenant === input.tenant
@@ -192,10 +198,11 @@ export function services(categories = createCategoryPoint()) {
       made += 1
       const version = `sha256:v${made}`
       const held = holdings.get(keyOf(capability))
-      const holding =
-        held === undefined || held.removed
-          ? { ref: `held-${made}`, capability, version, enabled: true, removed: false }
-          : { ...held, version }
+      const fresh = { ref: `held-${made}`, capability, version, enabled: true, removed: false }
+      const holding = {
+        ...(held === undefined || held.removed ? fresh : { ...held, version }),
+        ...(content.kind === 'data' ? { body: content.body } : {}),
+      }
       holdings.set(keyOf(capability), holding)
       const outcome: TenantPublishOutcome = {
         kind: 'published',
@@ -290,10 +297,24 @@ export function services(categories = createCategoryPoint()) {
                   { path: 'a.js', bytes: 9 },
                 ],
               }
-            : { kind: 'data', body: json({ text: 'hi' }) },
+            : { kind: 'data', body: held.body ?? json({ text: 'hi' }) },
         standing: held.enabled ? { kind: 'selected' } : { kind: 'filtered', reason: 'disabled' },
         settings: false,
       }
+    },
+    async files(input) {
+      calls.push({ method: 'files', tenant: input.tenant, principal: input.principal })
+      if (filesOver.answer !== undefined) return filesOver.answer()
+      if (!admitted(input)) return { kind: 'denied' }
+      const held = holdings.get(keyOf(input.capability))
+      if (held === undefined || held.removed) return { kind: 'absent' }
+      return held.capability.category === 'bundle'
+        ? {
+            kind: 'files',
+            version: held.version,
+            from: directoryOf({ 'bundle.json': '{}', 'a.js': 'let a = 1' }),
+          }
+        : { kind: 'body', version: held.version, body: held.body ?? json({ text: 'hi' }) }
     },
     setEnabled: async input => change('setEnabled', input),
     remove: async input => change('remove', input),
@@ -317,7 +338,7 @@ export function services(categories = createCategoryPoint()) {
       selection: 'follow' as const,
       enabled: one.enabled,
       holding: one.ref,
-      origin: 'customized' as const,
+      origin: official.has(keyOf(one.capability)) ? ('official' as const) : ('customized' as const),
       summary:
         one.capability.name === 'plain'
           ? null
@@ -330,7 +351,17 @@ export function services(categories = createCategoryPoint()) {
   }
   const writes = () =>
     calls.filter(call => ['publish', 'setEnabled', 'remove'].includes(call.method))
-  return { categories, publishing, management, calls, writes, script, holdings }
+  return {
+    categories,
+    publishing,
+    management,
+    calls,
+    writes,
+    script,
+    holdings,
+    official,
+    filesOver,
+  }
 }
 
 export const PLACED: Awaited<ReturnType<Placement['of']>> = {
@@ -385,6 +416,8 @@ export type World = ReturnType<typeof services> & {
   impact: ChangeImpact
   impactAsked: Parameters<ChangeImpact['of']>[0][]
   placement: Placement
+  place: ExtensionsCallSource['place']
+  placeAsked: Readonly<{ dir: string; from: PackageReader }>[]
 }
 
 export function world(over: Partial<World> = {}): World {
@@ -394,6 +427,7 @@ export function world(over: Partial<World> = {}): World {
   categories.contribute(KIT)
   const made = services(categories)
   const impactAsked: Parameters<ChangeImpact['of']>[0][] = []
+  const placeAsked: World['placeAsked'][number][] = []
   return {
     ...made,
     faces: 'present',
@@ -411,6 +445,16 @@ export function world(over: Partial<World> = {}): World {
       },
     },
     placement: { of: async () => PLACED },
+    placeAsked,
+    /** Writes into a fresh directory: as many files and bytes as the manifest says. */
+    async place(dir, from) {
+      placeAsked.push({ dir, from })
+      const manifest = await from.manifest()
+      if ('failure' in manifest) return { kind: 'unavailable' }
+      const entries = manifest.ok.entries
+      const bytes = entries.reduce((sum, entry) => sum + entry.bytes, 0)
+      return { kind: 'written', files: entries.length, bytes } satisfies Placed
+    },
     ...over,
   }
 }
@@ -435,6 +479,7 @@ export function bound(w: World) {
     },
     impact: { of: input => w.impact.of(input) },
     placement: { of: input => w.placement.of(input) },
+    place: (dir, from) => w.place(dir, from),
     revision: () => w.revision,
   }
   const execution = attachExtensionsSource(scope(), source)

@@ -50,6 +50,11 @@ export type ManagedAsset =
     }>
   | Readonly<{ kind: 'absent' | 'denied' | 'unavailable' }>
 
+export type HeldFiles =
+  | Readonly<{ kind: 'files'; version: string; from: PackageReader }>
+  | Readonly<{ kind: 'body'; version: string; body: JsonValue }>
+  | Readonly<{ kind: 'absent' | 'unavailable' }>
+
 export type HoldingChange =
   | Readonly<{ kind: 'remove' }>
   | Readonly<{ kind: 'setEnabled'; enabled: boolean }>
@@ -196,6 +201,7 @@ export type TenantLayerStore = Readonly<{
       }>
     | Readonly<{ kind: 'absent' | 'unavailable' }>
   >
+  files(capability: CapabilityId): Promise<HeldFiles>
   holding(holdingRef: string): Promise<
     | Readonly<{
         kind: 'holding'
@@ -231,6 +237,9 @@ export type TenantManagement<P> = Readonly<{
     input: Scope<P> & Readonly<{ category: string; after: string | null; limit: number }>,
   ): Promise<ManagedList>
   describe(input: Scope<P> & Readonly<{ capability: CapabilityId }>): Promise<ManagedAsset>
+  files(
+    input: Scope<P> & Readonly<{ capability: CapabilityId }>,
+  ): Promise<HeldFiles | Readonly<{ kind: 'denied' }>>
   setEnabled(
     input: Scope<P> & Readonly<{ operationId: string; holding: string; enabled: boolean }>,
   ): Promise<HoldingOutcome>
@@ -384,6 +393,19 @@ async function describe<P>(
     const { row, revision, content, settings } = held
     const standing = standingOf(evaluate({ layers, eligible: () => 'yes' }), row)
     return { kind: 'asset', row, revision, content, standing, settings }
+  } catch {
+    return UNAVAILABLE
+  }
+}
+
+async function files<P>(
+  storeFor: StoreFor<P>,
+  input: Parameters<TenantManagement<P>['files']>[0],
+): Promise<HeldFiles | Readonly<{ kind: 'denied' }>> {
+  const store = await storeFor(input)
+  if ('kind' in store) return store
+  try {
+    return await store.files(input.capability)
   } catch {
     return UNAVAILABLE
   }
@@ -573,6 +595,7 @@ export function createTenantManagement<P>(ports: Ports<P>): TenantManagement<P> 
   return Object.freeze({
     list: input => list(storeFor, ports.categories, input),
     describe: input => describe(storeFor, input),
+    files: input => files(storeFor, input),
     setEnabled: input =>
       changeHolding(storeFor, input, { kind: 'setEnabled', enabled: input.enabled }),
     remove: input => changeHolding(storeFor, input, { kind: 'remove' }),

@@ -5,6 +5,7 @@ import type {
   ManagedAsset,
   Placement,
 } from '@omne-harness/assets'
+import { writeJsonText } from '@omne-harness/json-text'
 import { columns } from './results.ts'
 
 export const HOW: Readonly<Record<CategoryListing['creation'], string>> = {
@@ -88,10 +89,47 @@ export function placedLines(placed: Placed): string[] {
   return lines
 }
 
-export function filesLine(asset: Asset): string[] {
-  return asset.content.kind === 'directory'
-    ? [`files: ${asset.content.entries.map(entry => entry.path).join(', ')}`]
-    : []
+const NAMED = 20
+const PRINTED = 4096
+const encoder = new TextEncoder()
+const byteLength = (text: string) => encoder.encode(text).byteLength
+
+export function namedPaths(paths: readonly string[]): string {
+  const named = paths.slice(0, NAMED).join(', ')
+  return paths.length > NAMED ? `${named}, and ${paths.length - NAMED} more` : named
+}
+
+export const fileCount = (count: number) => `${count} ${count === 1 ? 'file' : 'files'}`
+
+export function sourceLines(asset: Asset): string[] {
+  const fixed =
+    asset.row.origin === 'customized'
+      ? []
+      : ['it is installed with the deployment and cannot be changed in place.']
+  const { content } = asset
+  if (content.kind === 'directory') {
+    const bytes = content.entries.reduce((sum, entry) => sum + entry.bytes, 0)
+    const paths = namedPaths(content.entries.map(entry => entry.path))
+    return [
+      `source: this held version, ${fileCount(content.entries.length)} (${bytes} bytes): ${paths}`,
+      ...fixed,
+      'to change it: export it to a directory, edit there, publish from that directory.',
+    ]
+  }
+  const text = writeJsonText(content.body)
+  const bytes = byteLength(text)
+  if (bytes > PRINTED)
+    return [
+      `source: this held version, a body of ${bytes} bytes, too long to print here.`,
+      ...fixed,
+      'to read or change it: export it to a directory.',
+    ]
+  return [
+    `source: this held version, a body of ${bytes} bytes:`,
+    text,
+    ...fixed,
+    'to change it: publish a new body as data.',
+  ]
 }
 
 /** The second line of a publish: what the data says about it now, nothing more. */

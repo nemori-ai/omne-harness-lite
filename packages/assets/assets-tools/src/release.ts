@@ -1,10 +1,16 @@
 import type { ReleaseRow, ToolReleaseDescriber } from '@omne-harness/tool-contract'
 import type { ExtensionsArguments } from './protocol.ts'
 
-const ACTIONS = { publish: '发布并持有', enable: '启用', disable: '禁用', remove: '移除' } as const
+const ACTIONS = {
+  publish: '发布并持有',
+  enable: '启用',
+  disable: '禁用',
+  remove: '移除',
+  export: '取到工作区',
+} as const
 type Writing = keyof typeof ACTIONS
 
-/** What one write would do, for the person who releases it: the category, the name and where a publish comes from. */
+/** What one write would do, for the person who releases it: the category, the name, where a publish comes from and where an export goes. */
 export const describeWrite: ToolReleaseDescriber<ExtensionsArguments> = async ({
   arguments: args,
 }) => {
@@ -21,5 +27,7 @@ export const describeWrite: ToolReleaseDescriber<ExtensionsArguments> = async ({
       label: '从哪发布',
       value: args.params.dir === undefined ? '一份正文' : `工作区目录 ${args.params.dir}`,
     })
+  if (args.command === 'export')
+    rows.push({ label: '写到哪', value: `工作区目录 ${args.params.dir}` })
   return { rows }
 }

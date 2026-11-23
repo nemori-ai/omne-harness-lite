@@ -181,6 +181,16 @@ export function createTenantLayerStore(
         settings: selected.definitionRef !== null,
       }
     },
+    async files(capability) {
+      const read = await local.readHeldCapability({ capability })
+      if (read.kind === 'rejected') return UNAVAILABLE
+      if (read.kind === 'absent' || read.selected === null) return { kind: 'absent' }
+      const { version, body } = read.selected
+      if (categories.lookup(capability.category)?.layout === undefined)
+        return { kind: 'body', version, body }
+      const from = local.packages.reader({ assetRef: read.holding.assetRef, version })
+      return { kind: 'files', version, from }
+    },
     async holding(holdingRef) {
       const read = await local.readHolding({ holdingRef, scopeRef: tenantRef })
       if (read.kind === 'rejected') return UNAVAILABLE
