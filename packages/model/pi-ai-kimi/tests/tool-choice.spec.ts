@@ -5,6 +5,7 @@ import { expect, it } from 'vitest'
 import { writeJsonText } from '@omne-harness/json-text'
 import { judgeFixedModelRequest } from '@omne-harness/model-contract/provider'
 import { composeFamilies } from '@omne-harness/pi-ai-transport'
+import { KIMI_RECORDS } from '../src/records.ts'
 import { FAMILY } from './support/kimi.ts'
 
 const captures = fileURLToPath(new URL('./fixtures/records/', import.meta.url))
@@ -15,7 +16,9 @@ const cases = [
 ]
 
 it.each(cases)('encodes only tool choices the pinned endpoint accepts for $route', async record => {
-  const file = join(captures, encodeURIComponent(record.route), '1', 'request.json')
+  const current = KIMI_RECORDS.find(candidate => candidate.name === record.route)
+  if (!current) throw new Error(`Missing Kimi record for ${record.route}`)
+  const file = join(captures, encodeURIComponent(record.route), current.revision, 'request.json')
   const fixture = JSON.parse(readFileSync(file, 'utf8')) as { request: object }
   for (const [choice, supported, wire] of [
     ['required', record.required, 'required'],
