@@ -41,6 +41,8 @@ export type McpBridgeDependencies<P> = Readonly<{
   invoker: Pick<ActionInvoker<P>, 'invoke' | 'cancelTask'>
   principalKey(principal: P): string
   shape: BridgeShape
+  /** What one result of a tool may weigh, as the tool host checks it. */
+  resultMaxBytes: number
   /** How long one listing waits for the first acquisition of an endpoint's actions. */
   acquireWaitMs: number
 }>
@@ -210,7 +212,7 @@ export function createMcpEntrySource<P>(
       correlationKey: call.invocation,
       signal: call.signal,
     })
-    const came = settle(call.name, declared.name, result)
+    const came = settle(call.name, declared.name, result, deps.resultMaxBytes)
     if (came.effect === 'unknown' && came.cancelTask !== undefined)
       await deps.invoker.cancelTask(access, { ref, ...came.cancelTask })
     return came

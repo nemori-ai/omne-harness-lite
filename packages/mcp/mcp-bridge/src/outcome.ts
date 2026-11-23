@@ -150,27 +150,52 @@ function carries(item: DeliveredContent, structured: JsonValue): boolean {
   return read.kind === 'ok' && sameJson(read.value, structured)
 }
 
+const ENVELOPE_BYTES = 2048
+const encodedBytes = (text: string) => Buffer.byteLength(JSON.stringify(text))
+
+// The longest head of the text that fits the result budget once it is written as JSON.
+function fitted(text: string, maxBytes: number): Readonly<{ text: string; cutFrom?: number }> {
+  const budget = Math.max(maxBytes - ENVELOPE_BYTES, Math.floor(maxBytes / 2))
+  const whole = encodedBytes(text)
+  if (whole <= budget) return { text }
+  const points = [...text]
+  let low = 0
+  let high = points.length
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2)
+    if (encodedBytes(points.slice(0, middle).join('')) <= budget) low = middle
+    else high = middle - 1
+  }
+  return { text: points.slice(0, low).join(''), cutFrom: whole }
+}
+
 function answered(
   head: string,
   outcome: Extract<CallOutcome, { kind: 'complete' | 'toolError' }>,
+  maxBytes: number,
 ): BridgeResult {
   const parts = outcome.content.map(deliveredText)
   const { structured } = outcome
   if (structured !== undefined && !outcome.content.some(item => carries(item, structured)))
     parts.push(`structured content: ${writeJsonText(structured)}`)
+  const peer = fitted(parts.join('\n'), maxBytes)
   const body =
     parts.length === 0
       ? 'The endpoint returned no content.'
-      : `${PEER_TEXT_BEGIN}\n${parts.join('\n')}\n${PEER_TEXT_END}`
-  const note =
+      : `${PEER_TEXT_BEGIN}\n${peer.text}\n${PEER_TEXT_END}`
+  const notes = [
+    peer.cutFrom === undefined
+      ? ''
+      : `\nThe result is cut here: the endpoint returned about ${String(peer.cutFrom)} bytes, more than one result of this tool carries. Ask the action for less at a time.`,
     outcome.kind === 'complete' && outcome.output.kind === 'violates'
       ? `\nThe structured content does not match the output schema the endpoint declared: ${outcome.output.reason}`
-      : ''
+      : '',
+  ]
   const judged = judgeContentBlock({
     kind: 'text',
     id: 'mcp.result',
     visibility: { toHuman: true, toModel: true },
-    text: `${head}\n${body}${note}`,
+    text: `${head}\n${body}${notes.join('')}`,
   })
   if (!('ok' in judged) || judged.ok.kind !== 'text')
     throw new TypeError('the result text of the endpoint is not a text block')
@@ -203,19 +228,28 @@ function unknown(tool: string, action: string, what: string): string {
   return `${tool} ${action} was sent, and ${what}. ${NOT_KNOWN}`
 }
 
-/** The whole mapping from what MCP gave back to what the tool call came to. */
-export function settle(tool: string, action: string, result: InvokeResult): Settlement {
+/**
+ * The whole mapping from what MCP gave back to what the tool call came to. `maxBytes` is what one
+ * result of the tool may weigh; a longer answer of the endpoint is cut, and the result says so.
+ */
+export function settle(
+  tool: string,
+  action: string,
+  result: InvokeResult,
+  maxBytes: number,
+): Settlement {
   if (result.kind === 'not-sent') return notStarted(tool, action, failureText(result.reason))
   const { outcome } = result
   switch (outcome.kind) {
     case 'complete':
-      return { effect: 'happened', result: answered(`done ${tool} ${action}`, outcome) }
+      return { effect: 'happened', result: answered(`done ${tool} ${action}`, outcome, maxBytes) }
     case 'toolError':
       return {
         effect: 'happened',
         result: answered(
           `${tool} ${action}: the endpoint reported that the action failed. Its report follows.`,
           outcome,
+          maxBytes,
         ),
       }
     case 'protocolError':

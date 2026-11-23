@@ -9,7 +9,8 @@ import { describe, expect, it } from 'vitest'
 import { PEER_TEXT_BEGIN, PEER_TEXT_END, settle, type Settlement } from '../src/index.ts'
 
 const sent = (outcome: CallOutcome): InvokeResult => ({ kind: 'sent', outcome })
-const came = (result: InvokeResult) => settle('mcp__docs', 'search', result)
+const came = (result: InvokeResult, maxBytes = 65_536) =>
+  settle('mcp__docs', 'search', result, maxBytes)
 
 function textOf(settlement: Settlement): string {
   if (settlement.effect !== 'happened') throw new Error(`no result: ${settlement.message}`)
@@ -162,6 +163,26 @@ describe('what a call came to', () => {
     expect(text).toContain(
       `${PEER_TEXT_END}\nThe structured content does not match the output schema the endpoint declared: answer must be a number`,
     )
+  })
+
+  it('an answer larger than one result carries is cut, says so, and still fits as JSON', () => {
+    const long = `${'字"\n'.repeat(4000)}tail`
+    const settlement = came(
+      sent({
+        kind: 'complete',
+        content: toContentBlocks([jsonOf({ type: 'text', text: long })]),
+        output: { kind: 'no-schema' },
+      }),
+      8192,
+    )
+    const text = textOf(settlement)
+    expect(Buffer.byteLength(JSON.stringify(text))).toBeLessThanOrEqual(8192)
+    expect(Buffer.byteLength(JSON.stringify(text))).toBeGreaterThan(8192 - 2048 - 16)
+    expect(text).not.toContain('tail')
+    expect(text).toMatch(
+      /\[external data ends\]\nThe result is cut here: the endpoint returned about \d+ bytes/u,
+    )
+    expect(text.startsWith(`done mcp__docs search\n${PEER_TEXT_BEGIN}\n字"\n`)).toBe(true)
   })
 
   it('content that is not text is named, not dropped silently', () => {

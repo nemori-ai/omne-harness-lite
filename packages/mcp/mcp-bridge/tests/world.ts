@@ -103,6 +103,7 @@ export function world(acquireWaitMs = 50) {
     invoker,
     principalKey: principal => principal.id,
     shape,
+    resultMaxBytes: 65_536,
     acquireWaitMs,
   })
 
