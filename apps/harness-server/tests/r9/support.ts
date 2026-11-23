@@ -110,6 +110,7 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
     anthropic: structuredClone(family),
     qwen: structuredClone(family),
     kimi: structuredClone(family),
+    deepseek: structuredClone(family),
   }
   const host = {
     host: { concurrencyLimit: 4, wakeCapacity: 64, scanBatchSize: 10, scanIntervalMs: 1000 },

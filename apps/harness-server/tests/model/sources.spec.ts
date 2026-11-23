@@ -19,13 +19,13 @@ const REQUIRED = {
 }
 
 describe('the official send sources', () => {
-  it('name every official profile of the three families with the adoption the real profiles plugin resolves, and are official', async () => {
+  it('name every official profile of the release families with the adoption the real profiles plugin resolves, and are official', async () => {
     const sources = officialSendSources({
       profiles: PROFILES,
       current: () => ({ ok: { authorized: false } }),
     })
     const families = new Set(sources.map(source => source.model.split('/')[0]))
-    expect(families).toEqual(new Set(['openai', 'anthropic', 'qwen', 'moonshotai']))
+    expect(families).toEqual(new Set(['openai', 'anthropic', 'qwen', 'moonshotai', 'deepseek']))
     expect(sources.map(source => source.model)).toEqual(
       expect.arrayContaining([
         'moonshotai/kimi-k3.1-pro',
@@ -33,6 +33,22 @@ describe('the official send sources', () => {
         'moonshotai/kimi-k2.7-code',
       ]),
     )
+    expect(
+      sources
+        .filter(source => source.model.startsWith('deepseek/'))
+        .map(source => source.model)
+        .toSorted(),
+    ).toEqual([
+      'deepseek/deepseek-v3.2',
+      'deepseek/deepseek-v3.2-exp',
+      'deepseek/deepseek-v4-flash',
+      'deepseek/deepseek-v4-flash-0731',
+      'deepseek/deepseek-v4-flash-vision-exp',
+      'deepseek/deepseek-v4-pro',
+      'deepseek/deepseek-v4-pro-0813',
+      'deepseek/deepseek-v4.1-flash',
+      'deepseek/deepseek-v4.1-flash-1017',
+    ])
     const ctx = new Context()
     await ctx.plugin(ModelProfilesLocalPlugin, { ...PROFILES, updatedAt: '2026-11-02T00:00:00Z' })
     const profiles = ctx.get(modelProfilesKey) as ModelProfiles<unknown>

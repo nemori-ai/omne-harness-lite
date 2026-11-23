@@ -6,6 +6,7 @@ import { createScriptedModelProfiles } from '@omne-harness/model-contract/testin
 import { ModelProfilesService } from '@omne-harness/model-cordis-contract/cordis'
 import { officialOpenAiProfiles, OPENAI_RECORDS } from '@omne-harness/pi-ai-openai'
 import { ANTHROPIC_RECORDS, officialAnthropicProfiles } from '@omne-harness/pi-ai-anthropic'
+import { DEEPSEEK_RECORDS, officialDeepSeekProfiles } from '@omne-harness/pi-ai-deepseek'
 import { officialKimiProfiles, KIMI_RECORDS } from '@omne-harness/pi-ai-kimi'
 import { officialQwenProfiles, QWEN_RECORDS } from '@omne-harness/pi-ai-qwen'
 import { expect, it } from 'vitest'
@@ -50,7 +51,13 @@ const requirement = (modalities: ModalityRequirement['modalities']): ModalityReq
   source: MODALITY_SOURCE,
 })
 
-const ROUTES = [...OPENAI_RECORDS, ...ANTHROPIC_RECORDS, ...QWEN_RECORDS, ...KIMI_RECORDS]
+const ROUTES = [
+  ...OPENAI_RECORDS,
+  ...ANTHROPIC_RECORDS,
+  ...QWEN_RECORDS,
+  ...KIMI_RECORDS,
+  ...DEEPSEEK_RECORDS,
+]
   .filter(record => record.status === 'current')
   .map(record => record.name)
 
@@ -82,6 +89,7 @@ it('resolves every official route of the installed families to the profile defin
     ...officialAnthropicProfiles(input),
     ...officialQwenProfiles(input),
     ...officialKimiProfiles(input),
+    ...officialDeepSeekProfiles(input),
   ]
   expect(official).toHaveLength(ROUTES.length)
   for (const [index, route] of ROUTES.entries()) {

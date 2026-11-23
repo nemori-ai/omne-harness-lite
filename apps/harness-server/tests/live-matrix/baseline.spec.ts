@@ -79,6 +79,7 @@ describe('the cells come from the records', () => {
         '@omne-harness/pi-ai-anthropic',
         '@omne-harness/pi-ai-qwen',
         '@omne-harness/pi-ai-kimi',
+        '@omne-harness/pi-ai-deepseek',
       ]),
     )
     expect(currentModels().every(model => model.revision !== '')).toBe(true)
