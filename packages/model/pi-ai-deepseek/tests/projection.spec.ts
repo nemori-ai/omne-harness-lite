@@ -126,22 +126,19 @@ it('counts the format and detail of inline and referenced images without countin
       widthPixels: '1',
       heightPixels: '1',
     }
+    const referenced = { ...image, id: 'two', ref: reference, transcript: null, facts }
     const next = checked({
       ...request,
       messages: [
         {
           id: 'msg_' + 'c'.repeat(22),
           role: 'user',
-          blocks: [
-            { ...image, id: 'one', mediaType: reference.mediaType, inline },
-            { ...image, id: 'two', ref: reference, transcript: null, facts },
-          ],
+          blocks: [{ ...image, id: 'one', mediaType: reference.mediaType, inline }, referenced],
         },
       ],
     })
-    const output = encoded(binding, next, [
-      { reference, bytes, mime: reference.mediaType, measurement },
-    ])
+    const media = [{ reference, bytes, mime: reference.mediaType, measurement }]
+    const output = encoded(binding, next, media)
     const wire = JSON.parse(writeJsonText(output.body)).messages.at(-1).content
     const counted = JSON.parse(writeJsonText(output.representation.tokenInput)).messages.at(
       -1,
@@ -155,6 +152,31 @@ it('counts the format and detail of inline and referenced images without countin
     expect(counted).toEqual(
       Array.from({ length: 2 }, () => ({ type: 'image', mediaType: 'image/png', detail: 'auto' })),
     )
+
+    const profile = officialDeepSeekProfiles({
+      retryPolicy: request.retryPolicy,
+      compactionTriggerPercent: '80',
+    }).find(p => p.suppliers[0].model === route)
+    if (!profile) throw Error('missing vision profile')
+    const measure = (assembled: typeof next) =>
+      binding.meter.measure({
+        profile: assembled.profile,
+        supplier: profile.suppliers[0],
+        context: profile.context,
+        limits: profile.limits,
+        assembled,
+        parameters: assembled.parameterAdoptions,
+        representation: encoded(binding, assembled, media).representation,
+      })
+    const single = checked({ ...next, messages: [{ ...next.messages[0], blocks: [referenced] }] })
+    const metered = await measure(single)
+    if ('failure' in metered) throw Error(JSON.stringify(metered.failure))
+    expect(metered.ok.checks.find(check => check.metric === 'input-tokens')?.measurement.kind).toBe(
+      'estimate',
+    )
+    expect(await measure(next)).toMatchObject({
+      failure: { kind: 'unavailable', diagnostic: 'image-measurement-missing' },
+    })
   }))
 it('preserves tool arguments, results and replay information from a recorded continuation', () =>
   withBinding(async binding => {
@@ -249,10 +271,14 @@ it.each(
       type: 'object',
       properties: {
         options: bare,
+        forbidden: false,
+        label: { type: 'string' },
+        note: { description: 'object' },
         format: { enum: [bare], default: bare },
         limited: { type: 'object', additionalProperties: false },
         nested: { type: 'object', properties: { inner: bare } },
       },
+      const: { options: bare },
       default: bare,
       required: ['options'],
       additionalProperties: false,
