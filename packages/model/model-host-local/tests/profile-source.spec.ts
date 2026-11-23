@@ -288,3 +288,25 @@ it('keeps uncertain credential presence unknown while the official profiles rema
     })
   }
 })
+
+it('reports unreadable custody distinctly from missing, revoked or incomplete credentials', async () => {
+  const cases = [
+    [{ kind: 'unreadable' }, 'unreadable'],
+    [{ kind: 'revoked' }, 'missing'],
+    [{ kind: 'incomplete', missing: ['apiKey'] }, 'missing'],
+    [{ kind: 'missing' }, 'missing'],
+  ] as const
+  for (const [failure, expected] of cases) {
+    const source = createOfficialProfileSource(
+      { definitions: [definitionOf('alpha/route')], updatedAt: UPDATED_AT },
+      () => ({
+        layerOf: () => ({ failure }),
+        resolve: () => {
+          throw new Error('listing must not read secrets')
+        },
+      }),
+    )
+    const snapshot = await source.read({ principal, tenant: TENANT })
+    expect(snapshot).toMatchObject({ ok: { candidates: [{ credential: expected }] } })
+  }
+})
