@@ -378,7 +378,7 @@ function assistantMessage(
           }),
         )
         pending.set(id, at)
-        blocks.push({ ...block, name })
+        blocks.push({ ...block, callId: id, name })
         continue
       }
       case 'tool_call_incomplete':
@@ -453,7 +453,7 @@ function toolMessage(
   const id = normalizeToolCallId(result.callId)
   if (!pending.delete(id)) return invalid(`${path}/blocks/0`, 'orphan-tool-result')
   const parts: WirePart[] = []
-  const blocks: ProjectedPart[] = [result]
+  const blocks: ProjectedPart[] = [{ ...result, callId: id }]
   const images: WirePart[] = []
   const imageBlocks: ProjectedPart[] = []
   for (const [offset, block] of body.entries()) {

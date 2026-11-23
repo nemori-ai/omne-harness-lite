@@ -310,16 +310,25 @@ describe('encode: tool calls and results', () => {
   const hashed = `call_${createHash('sha256').update(longId).digest('base64url').slice(0, 32)}`
 
   it('keeps a valid call id, normalizes any other, and writes the tool message with the same id', () => {
+    const probe = engineProbe()
     const messages = messagesOf(
-      encode(testRecord(), {
-        messages: [
-          message('u1', 'user', [textBlock('b1', 'go')]),
-          message('a1', 'assistant', [callBlock('c1', 'call_ok'), callBlock('c2', longId)]),
-          message('t1', 'tool', [resultBlock('r1', 'call_ok'), textBlock('b2', 'one')]),
-          message('t2', 'tool', [resultBlock('r2', longId), textBlock('b3', 'two')]),
-        ],
-      }),
+      encode(
+        testRecord(),
+        {
+          messages: [
+            message('u1', 'user', [textBlock('b1', 'go')]),
+            message('a1', 'assistant', [callBlock('c1', 'call_ok'), callBlock('c2', longId)]),
+            message('t1', 'tool', [resultBlock('r1', 'call_ok'), textBlock('b2', 'one')]),
+            message('t2', 'tool', [resultBlock('r2', longId), textBlock('b3', 'two')]),
+          ],
+        },
+        probe,
+      ),
     )
+    const meteredIds = probe.views[0]?.turns.flatMap(turn =>
+      turn.blocks.flatMap(block => ('callId' in block ? [block.callId] : [])),
+    )
+    expect(meteredIds).toEqual(['call_ok', hashed, 'call_ok', hashed])
     expect(messages).toEqual([
       { role: 'user', content: 'go' },
       {
