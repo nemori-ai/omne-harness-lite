@@ -580,6 +580,12 @@
       ]
     },
     {
+      "row": "plugin-notification",
+      "names": [
+        "tenantDomainScannerPrincipal"
+      ]
+    },
+    {
       "row": "plugin-server",
       "names": [
         "tenantDomainScannerPrincipal"

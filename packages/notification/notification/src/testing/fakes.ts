@@ -82,6 +82,7 @@ export type FakeCreators = SubscriptionCreators &
 
 function namedIn(ctx: CallContext): Creator | null {
   if (ctx.actor.kind === 'owner') return { kind: 'human', actorRef: 'owner' }
+  if (ctx.actor.kind === 'system') return { kind: 'system', principalRef: ctx.actor.source }
   const { ref } = ctx.actor.recipient
   return ctx.call === undefined
     ? null

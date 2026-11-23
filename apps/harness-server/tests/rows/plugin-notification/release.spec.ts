@@ -92,6 +92,8 @@ describe('the plugin-notification row', () => {
         )
         expect(extensions?.types.map((type: any) => [type.name, type.kind])).toEqual([
           ['load-failed', 'standing'],
+          ['point-added', 'event'],
+          ['category-added', 'event'],
         ])
         expect(await extensionItems(tree)).toEqual([])
 
