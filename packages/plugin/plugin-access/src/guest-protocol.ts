@@ -53,7 +53,10 @@ function shapeOf(made: unknown): GuestProtocolMade {
   const { name, major, operations } = made['contract']
   if (typeof name !== 'string' || !Number.isInteger(major) || !isRecord(operations))
     throw new Error('a contract is { name, major, operations }')
-  return made as GuestProtocolMade
+  // Read once: what is checked is what is used, whatever getters the code of the plugin wrote.
+  const handlers = { ...made['handlers'] } as GuestProtocolMade['handlers']
+  const contract = { name, major: major as number, operations: { ...operations } }
+  return { contract, handlers } as GuestProtocolMade
 }
 
 function contractOf(name: string, operation: GuestOperation): OperationContract {

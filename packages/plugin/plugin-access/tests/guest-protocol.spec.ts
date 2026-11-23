@@ -152,6 +152,24 @@ describe('a protocol written by the code of a plugin', () => {
     expect(() => guestProtocol(given, { key, bind: world().bind })).toThrow(reason)
   })
 
+  it('reads what the plugin wrote once: a name that changes between reads is checked and used as first read', () => {
+    let reads = 0
+    const contract = {
+      get name() {
+        reads += 1
+        return reads === 1 ? 'tidy' : 'session'
+      },
+      major: 1,
+      operations: made({}).contract.operations,
+    }
+    const contribution = guestProtocol(
+      { contract, handlers: { greet: async () => ({ outcome: 'denied' }) } },
+      { key: 'tidy/v1', bind: world().bind },
+    )
+    expect(contribution.protocol.name).toBe('tidy')
+    expect(reads).toBe(1)
+  })
+
   it('refuses a rule the access contract refuses, naming the operation', () => {
     const late = { kind: 'object', fields: { who: { rule: TEXT, since: 2 } } } as never
     const bad: GuestProtocolMade = {

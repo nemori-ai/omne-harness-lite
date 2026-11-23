@@ -109,6 +109,26 @@ describe('the ports of one call', () => {
     })
   })
 
+  it('a factory that throws answers unavailable; an answer that is not done reaches the plugin as a copy', async () => {
+    const kept = { outcome: 'refused', reason: 'no' } as const
+    const bound = bindPorts<Caller>(
+      {
+        throws: () => () => {
+          throw new Error('cannot make')
+        },
+        refuses: () => () => ({ go: async () => kept }),
+      },
+      CALLER,
+    )
+    expect(await bound.ports['throws']?.['go']?.(null)).toEqual({
+      outcome: 'unavailable',
+      reason: 'cannot make',
+    })
+    const answer = await bound.ports['refuses']?.['go']?.(null)
+    expect(answer).toEqual(kept)
+    expect(answer).not.toBe(kept)
+  })
+
   it('the ports and their methods are frozen; there is no port the call was not bound with', () => {
     const bound = bindPorts({ notifications: () => echoes([]) }, CALLER)
     expect(Object.isFrozen(bound.ports)).toBe(true)

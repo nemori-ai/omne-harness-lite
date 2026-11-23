@@ -41,6 +41,24 @@ function copyOf(value: unknown): PortData | undefined {
     : (Object.fromEntries(entries) as Readonly<{ [key: string]: PortData }>)
 }
 
+/** What a domain answered, as a copy: nothing the plugin holds afterwards is the domain's own. */
+function answerOf(name: string, answer: PortAnswer): PortAnswer {
+  switch (answer.outcome) {
+    case 'done': {
+      const value = copyOf(answer.value)
+      return value === undefined
+        ? { outcome: 'unavailable', reason: `${name} answered what is not data` }
+        : { outcome: 'done', value }
+    }
+    case 'refused':
+    case 'unavailable':
+      return { outcome: answer.outcome, reason: String(answer.reason) }
+    case 'unknown':
+    case 'closed':
+      return { outcome: answer.outcome }
+  }
+}
+
 const reasonOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
 
@@ -62,16 +80,11 @@ export function bindPorts<Caller>(
               const made = factory()
               if (made === undefined)
                 return { outcome: 'unavailable', reason: `${name} is not there now` }
-              const call = made(caller)[String(method)]
-              if (call === undefined)
-                return { outcome: 'refused', reason: `${name} has no method ${String(method)}` }
               try {
-                const answer = await call(data)
-                if (answer.outcome !== 'done') return answer
-                const value = copyOf(answer.value)
-                return value === undefined
-                  ? { outcome: 'unavailable', reason: `${name} answered what is not data` }
-                  : { outcome: 'done', value }
+                const call = made(caller)[String(method)]
+                if (call === undefined)
+                  return { outcome: 'refused', reason: `${name} has no method ${String(method)}` }
+                return answerOf(name, await call(data))
               } catch (error) {
                 return { outcome: 'unavailable', reason: reasonOf(error) }
               }
