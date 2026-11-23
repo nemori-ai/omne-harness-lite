@@ -127,6 +127,7 @@
 }
 
 .omne-session-page {
+  position: relative;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   width: 100%;
@@ -135,6 +136,21 @@
   min-height: 0;
   /* conversation.css `.conversation-page`: 0 40 32 at the standard size, drawn at the size step. */
   padding: 0 calc(var(--spacing) * 10) calc(var(--spacing) * 8);
+}
+/* The page's backdrop (`session.backdrop`) exists only when a plugin drew one: it covers the whole page, padding
+   included, under everything on it, and takes no room, no pointer and no reading. The page isolates its stacking only
+   then, so with no backdrop nothing stacks differently. */
+.omne-session-page:has(> .omne-session-backdrop) {
+  isolation: isolate;
+}
+.omne-session-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  place-self: stretch;
+  overflow: clip;
+  overflow-clip-margin: var(--omne-ring-room);
+  pointer-events: none;
 }
 /* The heading is 84 high at the standard size (`--spacing` is 4 there and moves with the size step, as the shell's
    rows do), over one hairline, in three columns with 12 between (conversation.css `.conversation-header`, and
@@ -658,13 +674,13 @@
   letter-spacing: var(--omne-reading-tracking);
   overflow-wrap: anywhere;
 }
-.omne-message:not([data-role='user']) > .omne-message-body {
+.omne-message-body:not([data-role='user']) {
   max-width: min(100%, var(--omne-measure-reading));
 }
-.omne-message:not([data-role='user']) > .omne-message-body:has(pre, table) {
+.omne-message-body:not([data-role='user']):has(pre, table) {
   width: 100%;
 }
-.omne-message[data-role='user'] > .omne-message-body {
+.omne-message-body[data-role='user'] {
   margin-left: auto;
   background: var(--omne-bubble-user);
   color: var(--omne-bubble-ink);

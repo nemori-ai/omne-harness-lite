@@ -4,6 +4,12 @@ import type { ReactNode } from 'react'
 /** What the drawing of a message is given: who spoke, whether it is still being written, and its content drawn. */
 export type MessageDrawing = Readonly<{ role: string; live: boolean; content: ReactNode }>
 
+/** What the drawing of a bubble is given: whose words, whether they are still being written, and the words drawn. */
+export type BubbleDrawing = Readonly<{ role: string; live: boolean; content: ReactNode }>
+
+/** What the drawing of the page's backdrop is given: whether no session is open. */
+export type BackdropDrawing = Readonly<{ empty: boolean }>
+
 export const sessionList = definePart({
   name: 'session.list',
   label: '会话列表',
@@ -125,6 +131,23 @@ export const sessionTranscriptAgentMessage = definePart<MessageDrawing>({
   when: '有回复时',
 })
 
+export const sessionTranscriptBubble = definePart<BubbleDrawing>({
+  name: 'session.transcript.bubble',
+  label: '气泡',
+  summary: '一条消息里连着的一段话',
+  within: 'session.transcript',
+  depths: ['tokens', 'style', 'render'],
+  when: '有消息时',
+})
+
+export const sessionBackdrop = definePart<BackdropDrawing>({
+  name: 'session.backdrop',
+  label: '对话页的背景',
+  summary: '垫在对话页一切之下的一层，自带的什么都不画',
+  depths: ['render'],
+  when: '有画法放在它上面时',
+})
+
 export const sessionTranscriptToolCall = definePart({
   name: 'session.transcript.tool-call',
   label: '工具调用行',
@@ -234,6 +257,8 @@ export const sessionParts = [
   sessionTranscript,
   sessionTranscriptUserMessage,
   sessionTranscriptAgentMessage,
+  sessionTranscriptBubble,
+  sessionBackdrop,
   sessionTranscriptToolCall,
   sessionTranscriptReasoning,
   sessionTranscriptFailure,

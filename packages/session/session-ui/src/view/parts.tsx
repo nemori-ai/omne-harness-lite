@@ -18,6 +18,7 @@ import { BlockSlotContext, ToolCallSlotContext, type ToolCallPart } from './bloc
 import { PartDrawContext } from './part-draw.ts'
 import {
   sessionTranscriptAgentMessage,
+  sessionTranscriptBubble,
   sessionTranscriptReasoning,
   sessionTranscriptToolCall,
   sessionTranscriptUserMessage,
@@ -164,7 +165,7 @@ function NoteParts({ parts }: { readonly parts: readonly Part[] }) {
         part.kind === 'text' ? (
           <NoteText key={part.key} text={part.text} />
         ) : (
-          <Parts key={part.key} parts={[part]} live={false} bubble={false} />
+          <Parts key={part.key} parts={[part]} live={false} />
         ),
       )}
     </>
@@ -184,7 +185,7 @@ function Result({ parts }: { readonly parts: readonly Part[] }) {
   return (
     <>
       {text.length === 0 ? null : <CodeSurface name="结果" text={text.join('\n')} />}
-      <Parts parts={others} live={false} bubble={false} />
+      <Parts parts={others} live={false} />
     </>
   )
 }
@@ -313,29 +314,51 @@ function runsOf(parts: readonly Part[]): readonly Run[] {
   return runs
 }
 
+export function Bubble({
+  role,
+  live,
+  children,
+}: {
+  readonly role: string
+  readonly live: boolean
+  readonly children: ReactNode
+}) {
+  const drawer = useContext(PartDrawContext)
+  const builtIn = (): ReactNode => (
+    <div className="omne-message-body" data-role={role} {...sessionTranscriptBubble.props}>
+      {children}
+    </div>
+  )
+  if (drawer === null) return builtIn()
+  return sessionTranscriptBubble.draw(drawer, builtIn, { role, live, content: children })
+}
+
 function Parts({
   parts,
   live,
-  bubble,
+  role,
 }: {
   readonly parts: readonly Part[]
   readonly live: boolean
-  readonly bubble: boolean
+  readonly role?: string
 }) {
   const last = parts.at(-1)?.key
   return (
     <>
-      {runsOf(parts).map(run =>
-        'line' in run ? (
-          <LinePart key={run.key} part={run.line} live={live && run.key === last} />
-        ) : (
-          <div key={run.key} className={bubble ? 'omne-message-body' : 'omne-process-reading'}>
-            {run.words.map(part => (
-              <BubblePart key={part.key} part={part} live={live} />
-            ))}
+      {runsOf(parts).map(run => {
+        if ('line' in run)
+          return <LinePart key={run.key} part={run.line} live={live && run.key === last} />
+        const words = run.words.map(part => <BubblePart key={part.key} part={part} live={live} />)
+        return role === undefined ? (
+          <div key={run.key} className="omne-process-reading">
+            {words}
           </div>
-        ),
-      )}
+        ) : (
+          <Bubble key={run.key} role={role} live={live}>
+            {words}
+          </Bubble>
+        )
+      })}
     </>
   )
 }
@@ -355,7 +378,7 @@ const messagePart = (role: string): typeof sessionTranscriptUserMessage =>
 function Message({ item }: { readonly item: Extract<Item, { kind: 'message' }> }) {
   const drawer = useContext(PartDrawContext)
   const part = messagePart(item.role)
-  const content = <Parts parts={item.parts} live={item.live} bubble />
+  const content = <Parts parts={item.parts} live={item.live} role={item.role} />
   const builtIn = (): ReactNode => (
     <article className="omne-message" data-role={item.role} data-live={item.live} {...part.props}>
       <span className="omne-message-speaker">{SPEAKER[item.role]}</span>

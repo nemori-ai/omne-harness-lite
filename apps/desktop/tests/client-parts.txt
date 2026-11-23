@@ -66,6 +66,7 @@ schedule.title | 日程的名字 | 打开的这条日程叫什么 | schedule.rea
 schedule.upcoming | 接下来几次 | 这条日程之后几次的时间 | schedule.reading | tokens style | 打开一条日程且读到预览时 | schedule-ui
 session.archived | 已归档 | 收起来的归档会话 | shell.sidebar | tokens style | 一直在 | session-ui
 session.archived.item | 归档的一行 | 一段已归档的会话 | session.archived | tokens style | 展开已归档且有归档时 | session-ui
+session.backdrop | 对话页的背景 | 垫在对话页一切之下的一层，自带的什么都不画 | – | render | 有画法放在它上面时 | session-ui
 session.composer | 输入区 | 底部写消息的地方 | – | tokens style | 打开一段会话时 | session-ui
 session.composer.input | 输入框 | 写消息的框 | session.composer | tokens style | 打开一段会话时 | session-ui
 session.composer.send | 发送按钮 | 发出这条消息；一轮在跑时是停止 | session.composer | tokens style | 打开一段会话时 | session-ui
@@ -85,6 +86,7 @@ session.side | 侧边区 | 对话旁边的面板 | – | tokens style | 打开�
 session.side.background-call | 后台调用 | 一项在后台跑的调用 | session.side | tokens style | 后台有调用时 | session-ui
 session.transcript | 转写区 | 对话往下滚的地方 | – | tokens style | 打开一段会话时 | session-ui
 session.transcript.agent-message | Agent 的回复 | Agent 说的一条话 | session.transcript | tokens style render | 有回复时 | session-ui
+session.transcript.bubble | 气泡 | 一条消息里连着的一段话 | session.transcript | tokens style render | 有消息时 | session-ui
 session.transcript.failure | 失败的通知 | 一轮失败了，可以重试 | session.transcript | tokens style | 一轮失败时 | session-ui
 session.transcript.reasoning | 推理行 | Agent 想的过程 | session.transcript | tokens style | 有推理内容时 | session-ui
 session.transcript.tool-call | 工具调用行 | 一次工具调用的过程行 | session.transcript | tokens style | 有工具调用时 | session-ui
