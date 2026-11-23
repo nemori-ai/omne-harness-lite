@@ -9,16 +9,20 @@ import { toolRuntimeHolder } from '../../../src/rows/tool-runtime/holder.ts'
 import {
   historyOf,
   pollUntil,
+  textsOf,
   toolResults,
   type ReleaseTree,
   type ScriptedToolCall,
 } from '../../support/release-tree.ts'
 
+/** A call of Agents; a dispatch starts in the background, so it carries the intent its command requires. */
 export const call = (id: string, command: string, params: Record<string, unknown> = {}) =>
   ({
     id,
     tool: 'Agents',
-    arguments: JSON.stringify({ command, params }),
+    arguments: JSON.stringify(
+      command === 'dispatch' ? { command, intent: `dispatch ${id}`, params } : { command, params },
+    ),
   }) satisfies ScriptedToolCall
 
 /** The starting input of a dispatched session carries this sentence; a request with it is the dispatched agent's. */
@@ -34,8 +38,19 @@ export async function settled(tree: ReleaseTree, session: string, runs = 1) {
     () => historyOf(tree, session),
     value => value.filter(entry => entry.kind === 'run.terminal').length >= runs,
   )
-  return { entries, results: toolResults(entries).join('\n') }
+  return {
+    entries,
+    results: toolResults(entries).join('\n'),
+    outcomes: outcomes(entries).join('\n'),
+  }
 }
+
+/** What came back of the background calls of a session: the reminders that name a call, as their words read. */
+export const outcomes = (entries: readonly { kind: string; payload: unknown }[]) =>
+  entries
+    .filter(entry => entry.kind === 'message.system_reminder')
+    .map(entry => textsOf(entry.payload).join('\n'))
+    .filter(text => text.includes('This is background call'))
 
 export const reminders = (entries: readonly { kind: string; payload: unknown }[]) =>
   entries
@@ -57,6 +72,7 @@ export async function registryAs(tree: ReleaseTree, session: string) {
     tenant: tenantIdSchema.parse(text.value),
     subject: issued.ok,
     session: session as unknown as SessionRef,
+    asking: null,
   }
   const shown = async (id: DispatchId) => {
     const answer = await dispatching.show(ctx, id)
@@ -98,3 +114,50 @@ export async function dispatchGrantAnswer(tree: ReleaseTree, session: string) {
     },
   })
 }
+
+/** The outcomes of a session once this many of its background calls came back, as reminders. */
+export async function outcomesOf(tree: ReleaseTree, session: string, count: number) {
+  const entries = await pollUntil(
+    `${String(count)} background outcomes of ${session}`,
+    () => historyOf(tree, session),
+    value => outcomes(value).length >= count,
+  )
+  return outcomes(entries).join('\n')
+}
+
+type Settled = Awaited<ReturnType<typeof settled>>
+
+/** The session once `done` holds of it and no run of it is going: wait for the fact itself, not for a count of runs. */
+export async function settledWhen(
+  tree: ReleaseTree,
+  session: string,
+  what: string,
+  done: (seen: Settled) => boolean,
+): Promise<Settled> {
+  const seenOf = (entries: Awaited<ReturnType<typeof historyOf>>): Settled => ({
+    entries,
+    results: toolResults(entries).join('\n'),
+    outcomes: outcomes(entries).join('\n'),
+  })
+  const quiet = (entries: Awaited<ReturnType<typeof historyOf>>) =>
+    entries.filter(entry => entry.kind === 'run.started').length ===
+    entries.filter(entry => entry.kind === 'run.terminal').length
+  const entries = await pollUntil(
+    `${what} in ${session}`,
+    () => historyOf(tree, session),
+    value => quiet(value) && done(seenOf(value)),
+  )
+  return seenOf(entries)
+}
+
+/** How many runs of the session have ended. */
+export const runsEnded = async (tree: ReleaseTree, session: string) =>
+  (await historyOf(tree, session)).filter(entry => entry.kind === 'run.terminal').length
+
+/** A run ended after the entry that carries `text`: the turn that took it is over. */
+export const endedAfter =
+  (text: string) =>
+  (seen: Settled): boolean => {
+    const at = seen.entries.findIndex(entry => JSON.stringify(entry.payload).includes(text))
+    return at >= 0 && seen.entries.slice(at).some(entry => entry.kind === 'run.terminal')
+  }

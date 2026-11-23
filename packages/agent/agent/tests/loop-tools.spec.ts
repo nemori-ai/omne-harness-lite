@@ -153,6 +153,44 @@ describe('tool action dispatch', () => {
       complete: true,
     })
   })
+
+  // The Session learns a binding from the events; a call may deliver before any later event
+  // (session-adapters binding-order).
+  it('names a call in its events in the commit that records its association', async () => {
+    const commits: { associated: string[]; named: string[] }[] = []
+    const assembly = await toolAssembly({ toolConcurrency: 2 }, {}, {}, dependencies => ({
+      ...dependencies,
+      journal: {
+        ...dependencies.journal,
+        async commit(write) {
+          const answer = await dependencies.journal.commit(write)
+          if ('ok' in answer)
+            commits.push({
+              associated: (write.checkpoint?.calls ?? []).flatMap(call =>
+                call.kind === 'tool' && call.association === 'associated' ? [call.action] : [],
+              ),
+              named: (write.events ?? []).flatMap(event =>
+                event.kind === 'waiting'
+                  ? event.waits.flatMap(wait =>
+                      wait.kind === 'producer' ? [wait.pending.action] : [],
+                    )
+                  : [],
+              ),
+            })
+          return answer
+        },
+      },
+    }))
+    acceptEach(assembly)
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a'), toolCall('call-b')])
+    const calls = await associatedTools(assembly, 2)
+    expect(calls).toHaveLength(2)
+    for (const pending of calls)
+      expect(commits.find(commit => commit.associated.includes(pending.action))?.named).toContain(
+        pending.action,
+      )
+  })
 })
 
 describe('tool result round', () => {

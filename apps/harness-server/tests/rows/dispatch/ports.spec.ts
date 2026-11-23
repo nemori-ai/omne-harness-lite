@@ -53,6 +53,7 @@ const ctx = (subject: unknown, tenant = A, session = 'session-1'): CallContext =
   tenant: textOf(tenant),
   subject,
   session: session as SessionRef,
+  asking: null,
 })
 
 describe('who may ask dispatch for what on the release', () => {

@@ -22,7 +22,7 @@ export function instructionText(work: Work): string {
     ].join('\n\n')
   return [
     'Another agent dispatched one piece of work to you. Nobody attends this session: do the work with what you have, and do not ask a person.',
-    'When the work is done, hand back one report with the command `report` of the tool `Agents`. There is one report for this work. If your turn ends without it, your last reply is taken as the report.',
+    'When the work is done, hand back one report with the command `report` of the tool `Agents`. There is one report for this work. If you stop without it, with no turn going, no input waiting and no call of yours in the background, your last reply is taken as the report.',
     `Dispatching session: ${work.dispatcher}\nDispatch: ${work.id}`,
     ...(work.mode === 'spawn' ? [FORKED] : []),
     `Work:\n${work.instruction}${hope(work.expectation)}`,

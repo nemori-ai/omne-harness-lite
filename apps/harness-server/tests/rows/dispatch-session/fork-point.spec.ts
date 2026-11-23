@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest'
 import type { ForkPoint, SessionAccess } from '@omne-harness/session-contract'
 import { readForkPointOf } from '../../../src/rows/dispatch-session/fork-point.ts'
 
-const ACCESS = { principal: 'p', tenant: 't', session: 's' } as unknown as SessionAccess<string>
+const ACCESS = {
+  principal: 'p',
+  tenant: 't',
+  session: 's',
+  asking: 'msg_asking-1',
+} as unknown as SessionAccess<string> & { asking: string }
 const POINT: ForkPoint = { epoch: 'key/epoch:0', upper: '3', position: '44' }
 
 describe('the fork point of a session as a dispatch reads it', () => {

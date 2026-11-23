@@ -94,7 +94,14 @@ import {
   type MemoryAgentJournalOptions,
   type MemoryExecution,
 } from '../testing/journal.ts'
-import { JOURNAL_OWNER, operationText, revisionOf } from '../testing/journal-values.ts'
+import {
+  JOURNAL_OWNER,
+  named,
+  operationText,
+  revisionOf,
+  targetOf,
+} from '../testing/journal-values.ts'
+import { READS, ROUTE_ONLY } from './journal-methods.ts'
 import {
   createCell,
   operationSemantic,
@@ -243,24 +250,6 @@ type Book<P> = {
 
 const PARTICIPANTS = ['message', 'context-transition', 'custody', 'processed'] as const
 const LOST_RACES = 4
-const READS: ReadonlySet<string> = new Set([
-  'load',
-  'readCancellationInstallation',
-  'inputs',
-  'readReplyAdmissions',
-  'query',
-  'inputAcceptance',
-  'output.read',
-  'materials.read',
-  'materials.describe',
-  'entries.read',
-  'entries.receivedOf',
-  'received.query',
-  'targets.forExecution',
-  'targets.resolve',
-  'toolTargets.forExecution',
-  'toolTargets.resolve',
-])
 const OWNER = JOURNAL_PROVIDER
 const BLOBS_WITH_BATCH_BYTES = 256 * 1024
 const unread = <T>(answer: Outcome<T, Failure> | undefined, what: string): Outcome<T, Failure> =>
@@ -282,8 +271,6 @@ type Written = Readonly<{
   operation: string | null
   digest: string
 }>
-
-const ROUTE_ONLY: ReadonlySet<string> = new Set(['preserve'])
 
 function writtenOf(method: string, input: object): Written {
   const value = input as { execution?: unknown; operation?: unknown }
@@ -1501,14 +1488,14 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       }
       const domain = await domainOf(book)
       if ('failure' in domain) return domain
-      const named = (input as { execution?: unknown }).execution
+      const target = targetOf(input)
       for (let lost = 0; lost < LOST_RACES;) {
         let synced = await sync(book, domain.ok)
         if ('failure' in synced) return synced
-        if (typeof named === 'string' && !ROUTE_ONLY.has(method)) {
-          if (book.settled.has(named)) return fail({ kind: 'terminal' })
-          if (!book.loaded.has(named) && !book.view.executions.has(named as AgentExecutionId))
-            synced = await loadExecution(book, domain.ok, named)
+        if (typeof target === 'string' && !ROUTE_ONLY.has(method)) {
+          if (book.settled.has(target)) return fail({ kind: 'terminal' })
+          if (!book.loaded.has(target) && !book.view.executions.has(target as AgentExecutionId))
+            synced = await loadExecution(book, domain.ok, target)
         }
         if ('failure' in synced) return synced
         const copy = synced.ok
@@ -1653,7 +1640,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       targets: {
         forExecution: input =>
           run(input.access, 'targets.forExecution', core => core.targets.forExecution(input)),
-        resolve: input => run(input.access, 'targets.resolve', core => core.targets.resolve(input)),
+        resolve: input => run(named(input), 'targets.resolve', core => core.targets.resolve(input)),
       },
       toolTargets: {
         forExecution: input =>
@@ -1661,7 +1648,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
             core.toolTargets.forExecution(input),
           ),
         resolve: input =>
-          run(input.access, 'toolTargets.resolve', core => core.toolTargets.resolve(input)),
+          run(named(input), 'toolTargets.resolve', core => core.toolTargets.resolve(input)),
       },
     }
   }

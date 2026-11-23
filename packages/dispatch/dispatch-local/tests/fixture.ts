@@ -107,6 +107,7 @@ export const ctx = (session: SessionRef = PARENT): CallContext => ({
   tenant: T1,
   subject: { verified: session },
   session,
+  asking: null,
 })
 
 /** Lets the promises a fired timer started run to their end. */

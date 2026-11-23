@@ -426,7 +426,7 @@ export type ForkPointRead =
   | Readonly<{ kind: 'point'; point: import('./fork.ts').ForkPoint }>
   | Readonly<{ kind: 'none' }>
 export interface SessionHistory<P> {
-  readForkPoint(input: SessionAccess<P>): Reply<ForkPointRead>
+  readForkPoint(input: SessionAccess<P> & Readonly<{ asking: string }>): Reply<ForkPointRead>
   readCompactionContext(
     input: SessionAccess<P> & Readonly<{ basis: ModelViewBasis; coverTo: RecordEntryRef | null }>,
   ): Reply<CompactionContextRead>

@@ -8,7 +8,7 @@ import {
 } from '@omne-harness/message'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
-  forkPointAfterRows,
+  forkPointBefore,
   isAcceptedInputRecord,
   openWork,
   type ForkPointRead,
@@ -208,17 +208,19 @@ export function compactionReads(
 type Held = Readonly<{ modelView: MaterializedModelView; entries: readonly HistoryEntry[] }>
 type Keyed = Outcome<string, SessionFailure>
 
-/** The point before the latest assistant message of the view of a memory session. */
+/** The point before the asking message of the view of a memory session. */
 export function forkPointRead(
   store: Outcome<Held, SessionFailure>,
   key: Keyed,
+  asking: string,
 ): Outcome<ForkPointRead, SessionFailure> {
   if ('failure' in store) return fail(store.failure)
   if ('failure' in key) return fail(key.failure)
   const view = store.ok.modelView
-  const newest = view.rows.map(row => ({ seq: row.seq, role: row.message.role }))
+  const row = view.rows.find(item => item.message.id === asking)
+  const found = row === undefined ? undefined : { seq: row.seq, role: row.message.role }
   const tail = store.ok.entries.at(-1)?.id ?? '0'
-  const point = forkPointAfterRows(`${key.ok}/${view.epoch}`, newest, tail)
+  const point = forkPointBefore(`${key.ok}/${view.epoch}`, found, tail)
   return succeed(point === null ? { kind: 'none' } : { kind: 'point', point })
 }
 

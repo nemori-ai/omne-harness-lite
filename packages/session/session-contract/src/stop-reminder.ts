@@ -45,6 +45,16 @@ function callText(record: BackgroundCallRecord): string {
   return intent === null ? action : `${action}: ${intent}`
 }
 
+/** The block that opens a background outcome: which call it is, by its short id, tool and intent. */
+export function namedText(message: string, record: BackgroundCallRecord): Block {
+  return {
+    kind: 'text',
+    id: `blk_${digestOf(['named', message, record.consumption]).slice(0, 32)}`,
+    visibility: VISIBLE,
+    text: `This is background call ${shortCallId(record.ordinal)} (${callText(record)}).`,
+  } as Block
+}
+
 // The reminder a person's stop leaves: which call, why, and that its outcome still comes back.
 export function stopReminderInput(
   record: BackgroundCallRecord,

@@ -81,7 +81,7 @@
       "packages/mcp/mcp-contract/src/testing-transport.ts": 2360,
       "packages/model/model-storage-sql/src/commit.ts": 1097,
       "packages/model/model/src/commands/commands.ts": 1054,
-      "packages/session/session-adapters/src/cordis/agent-journal.ts": 1676,
+      "packages/session/session-adapters/src/cordis/agent-journal.ts": 1663,
       "packages/session/session-adapters/src/cordis/context-holder.ts": 1148,
       "packages/session/session-adapters/src/cordis/context-input.ts": 1109,
       "packages/session/session-adapters/src/testing/factory.ts": 1239,
@@ -163,7 +163,7 @@
       },
       "packages/agent/agent/src/loop/coordinator.ts": {
         "count": 1,
-        "longest": 2814
+        "longest": 2812
       },
       "packages/agent/agent/src/provider.ts": {
         "count": 1,
@@ -659,7 +659,7 @@
       },
       "packages/tool/tool-host-local/src/executor-binding.ts": {
         "count": 2,
-        "longest": 491
+        "longest": 484
       },
       "packages/tool/tool-host-local/src/invocation-forwarding.ts": {
         "count": 1,

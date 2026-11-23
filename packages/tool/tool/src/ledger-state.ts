@@ -22,6 +22,13 @@ export type StateBody = ToolState extends infer S
     : never
   : never
 
+/** The relation a call keeps through its waits: pausing, resuming and closing a wait never move it. */
+export function keptRelation(
+  state: Pick<ToolState, 'relation'>,
+): Readonly<{ relation: 'background' }> | Readonly<{ relation: 'foreground' }> {
+  return state.relation === 'background' ? { relation: 'background' } : { relation: 'foreground' }
+}
+
 export function commonOf(state: ToolState): CommonState {
   const { call, label, revision, foreground, effect, execution, timing, queue } = state
   const { controls, delivery, supplements } = state
@@ -44,15 +51,13 @@ export function resumePlanningBody(
   state: ToolState,
   start: ToolStartRecord | null,
 ): StateBody | null {
-  if (state.phase === 'suspended')
-    return {
-      ...commonOf(state),
-      phase: 'suspended',
-      checkpoint: state.checkpoint,
-      relation: 'foreground',
-      wait: state.wait,
-    }
+  if (state.phase === 'suspended') {
+    const shared = { ...commonOf(state), phase: 'suspended', checkpoint: state.checkpoint } as const
+    return state.relation === 'background'
+      ? { ...shared, relation: 'background', wait: state.wait }
+      : { ...shared, relation: 'foreground', wait: state.wait }
+  }
   if (state.phase === 'starting' && start?.kind === 'resume')
-    return { ...commonOf(state), phase: 'starting', relation: 'foreground', wait: { kind: 'none' } }
+    return { ...commonOf(state), phase: 'starting', ...keptRelation(state), wait: { kind: 'none' } }
   return null
 }

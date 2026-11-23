@@ -23,7 +23,7 @@ const REQUEST = JSON.stringify({ question: 'which file?' })
 const resume = { ...evidence('resume'), digest: canonicalDigest(STATE) }
 const schema = adoption('state-codec')
 
-function askFact(waitId: string) {
+function askFact(waitId: string, background?: 'waits' | 'never') {
   const shape = { id: 'schema', revision: '1', digest: 'sha256:schema' }
   return {
     kind: 'wait',
@@ -40,13 +40,14 @@ function askFact(waitId: string) {
         requestMaxBytes: 1024,
         responseMaxBytes: 2048,
         expiry: 'forbidden',
+        ...(background === undefined ? {} : { background }),
         source: evidence('schemas'),
       },
     },
   }
 }
 
-async function waiting(withWait = true, waitId: string = wait) {
+async function waiting(withWait = true, waitId: string = wait, background?: 'waits' | 'never') {
   const harness = startHarness()
   await admitCall(harness, 'facts')
   await harness.drive('facts')
@@ -66,7 +67,7 @@ async function waiting(withWait = true, waitId: string = wait) {
             batch: 'first',
             after: null,
             cursor: 'opaque/end',
-            events: [{ event: 'event-1', fact: askFact(waitId) }],
+            events: [{ event: 'event-1', fact: askFact(waitId, background) }],
           },
         },
       ]),
@@ -217,6 +218,52 @@ const CONSUMER = {
   position: 'position-1',
   purpose: 'tool-result',
 } as const
+
+const IN_BACKGROUND = {
+  relation: 'background',
+  foreground: {
+    kind: 'background',
+    call: callId('facts'),
+    source: { kind: 'launched' },
+    delivery: { kind: 'pending', delivery: 'd0', consumer: CONSUMER },
+  },
+}
+
+describe('a background call waiting on an ask whose contract lets it wait in the background', () => {
+  it('records the wait fact while in the background', async () => {
+    const f = await waiting(false)
+    await f.withState(IN_BACKGROUND)
+    const answer = await Reflect.apply(f.harness.commands.receiveFacts, null, [
+      {
+        ...f.access,
+        start: f.start,
+        batch: {
+          start: f.start,
+          source: evidence('facts-source'),
+          batch: 'first',
+          after: null,
+          cursor: 'opaque/end',
+          events: [{ event: 'event-1', fact: askFact(wait, 'waits') }],
+        },
+      },
+    ])
+    expect(answer).not.toHaveProperty('failure')
+  })
+
+  it('plans its suspension', async () => {
+    const f = await waiting(true, wait, 'waits')
+    await f.withState(IN_BACKGROUND)
+    expect(await f.plan()).not.toHaveProperty('failure')
+  })
+
+  it('still refuses an ask whose contract says never', async () => {
+    const f = await waiting(true, wait, 'never')
+    await f.withState(IN_BACKGROUND)
+    expect(await f.plan()).toEqual({
+      failure: { kind: 'invalid', field: 'call', reason: 'background-cannot-wait' },
+    })
+  })
+})
 
 describe('planning a suspension on a call that cannot suspend', () => {
   it('refuses a background call: only a foreground call opens a wait', async () => {

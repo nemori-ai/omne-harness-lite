@@ -24,6 +24,7 @@ it('root entry exports the factory, evaluator, checkpoint, control advance, step
     'agentModelDeliverySchema',
     'agentPassSegments',
     'agentToolDeliverySchema',
+    'askingMessageOf',
     'createAgentActionQualification',
     'createAgentCompactionCustodyEvidence',
     'createAgentCustodyEvidence',

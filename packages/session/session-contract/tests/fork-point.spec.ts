@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  forkPointAfterRows,
+  forkPointBefore,
   forkPointText,
   judgeForkPoint,
   ownPositionAfter,
@@ -141,22 +141,16 @@ describe('the position axis of a forked session goes on after the fork point (SF
     expect(ownPositionAfter('3', null)).toBe(4n)
   })
 
-  it('names the point before the latest assistant message by the rows behind it', () => {
-    const rows = [
-      { seq: '1', role: 'user' },
-      { seq: '2', role: 'assistant' },
-      { seq: '3', role: 'tool' },
-      { seq: '4', role: 'assistant' },
-      { seq: '5', role: 'tool' },
-    ] as const
-    expect(forkPointAfterRows('key/epoch:0', rows, '44')).toEqual({
+  it('names the point before the asking message, an assistant message, whatever came after it', () => {
+    expect(forkPointBefore('key/epoch:0', { seq: '4', role: 'assistant' }, '44')).toEqual({
       epoch: 'key/epoch:0',
       upper: '3',
       position: '44',
     })
-    expect(forkPointAfterRows('key/epoch:0', rows.slice(0, 2), '44')?.upper).toBe('1')
-    expect(forkPointAfterRows('key/epoch:0', rows.slice(0, 1), '44')).toBeNull()
-    expect(forkPointAfterRows('key/epoch:0', [{ seq: '1', role: 'assistant' }], '44')).toBeNull()
+    expect(forkPointBefore('key/epoch:0', { seq: '2', role: 'assistant' }, '44')?.upper).toBe('1')
+    expect(forkPointBefore('key/epoch:0', undefined, '44')).toBeNull()
+    expect(forkPointBefore('key/epoch:0', { seq: '3', role: 'tool' }, '44')).toBeNull()
+    expect(forkPointBefore('key/epoch:0', { seq: '1', role: 'assistant' }, '44')).toBeNull()
   })
 })
 

@@ -1189,7 +1189,10 @@ describe('a backgrounded call: the placeholder and the outcome', () => {
     expect(work.pending.filter(item => item === input)).toHaveLength(1)
     const stored = ok(await s.backend.transactions.readInput({ ...s.access, input }))
     expect(stored.message.role).toBe('system_reminder')
-    const [head, ...rest] = stored.message.blocks
+    const [named, head, ...rest] = stored.message.blocks
+    expect((named as { text: string }).text).toMatch(
+      /^This is background call b1 \(Shell execute: /u,
+    )
     expect(head).toMatchObject({ kind: 'text' })
     expect((head as { text: string }).text).toContain(`The background call ${s.call} completed`)
     expect(rest).toEqual([OUTCOME_CONTENT])

@@ -86,6 +86,27 @@
 | `SuspendedSlots-unsafe-parkdelete.cfg`    | 负控 | 违反 `NoResurrection`（动作性质）        |
 | `SuspendedSlots-unsafe-parkanyholder.cfg` | 负控 | 违反 `RunningImpliesHeld`                |
 
+## BackgroundWaits
+
+模型 [BackgroundWaits.tla](models/BackgroundWaits.tla)。它是 2 个调用、名额 1 的有界实例，只看一次调用的前后台关系、暂停时等的那种 Ask、控制、收场与名额；等待被答与被关竞争同一次提交，交付的细节（占位与 final 怎样送到消费者）只数份数。等人的 Ask 记作 `askFg`（契约不声明能在后台等），等报告的记作 `askBg`。
+
+| 性质                               | 守的规则                                                                               | 代码位置                                                                                                                                                                                                                                                                                                                                         |
+| ---------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `BackgroundWaitsOnlyWhereDeclared` | 后台在等的只会是契约声明能在后台等的 Ask                                               | [ledger-background.ts](../src/ledger-background.ts) 的 `mayWaitInBackground`；[ledger-facts.ts](../src/ledger-facts.ts) 的 `refuseOrder`；[ledger-suspension.ts](../src/ledger-suspension.ts) 的 `runningCall`                                                                                                                                   |
+| `HumanAskStaysForeground`          | 等人的 Ask 永远在前台                                                                  | 同上：`human-intervention-tool` 的契约不声明 `background`，缺省是 `never`                                                                                                                                                                                                                                                                        |
+| `PlaceholderOnlyBackground`        | 占位只给转了后台的调用，至多一份；占位不撤，所以它也守住「后台不回前台」               | [ledger-decider.ts](../src/ledger-decider.ts) 的 `launchedPlaceholder` 与 `acceptedRelation`；暂停、恢复与收场不改关系：[ledger-state.ts](../src/ledger-state.ts) 的 `keptRelation` 与 `resumePlanningBody`，[ledger-suspension.ts](../src/ledger-suspension.ts)、[ledger-resumption.ts](../src/ledger-resumption.ts) 里用 `keptRelation` 的四处 |
+| `OneFinal`                         | final 恰好一份，只在收场之后                                                           | [ledger-control.ts](../src/ledger-control.ts) 的 `decideSuspendedControl`；[ledger-settlement.ts](../src/ledger-settlement.ts)                                                                                                                                                                                                                   |
+| `RunCancelNeverEndsBackground`     | 原 Run 取消（`withdraw` 的 `foreground-and-unadmitted`）够不到后台调用，暂停中的也一样 | [ledger-control.ts](../src/ledger-control.ts) 的 `decideControl` 与 `outOfReach`                                                                                                                                                                                                                                                                 |
+| `SuspendedHoldsNoSlot`             | 暂停（不论前后台）不持有名额                                                           | 暂停的关系由 [ledger-state.ts](../src/ledger-state.ts) 的 `keptRelation` 保持，停泊照 `SuspendedSlots` 的路径走                                                                                                                                                                                                                                  |
+| `SlotsWithinLimit`                 | 持有名额的调用数不超过上限                                                             | [ledger-start.ts](../src/ledger-start.ts) 的 `decideQueueHold`                                                                                                                                                                                                                                                                                   |
+
+| 配置                                   | 种类 | 预期                                       |
+| -------------------------------------- | ---- | ------------------------------------------ |
+| `BackgroundWaits.cfg`                  | 正控 | 全部不变式成立（关闭死锁检查，192 个状态） |
+| `BackgroundWaits-unsafe-bganywait.cfg` | 负控 | 违反 `BackgroundWaitsOnlyWhereDeclared`    |
+| `BackgroundWaits-unsafe-runcancel.cfg` | 负控 | 违反 `RunCancelNeverEndsBackground`        |
+| `BackgroundWaits-unsafe-waitslot.cfg`  | 负控 | 违反 `SuspendedHoldsNoSlot`                |
+
 ## CallLifecycle
 
 模型 [CallLifecycle.tla](models/call-lifecycle/CallLifecycle.tla)。它假设消费者先保存再确认、保存后不重发，`ack-before-save` 与 `consumer-resends-after-save` 是这两条前提的负控；清扫删除与并发写入的竞争不建模。

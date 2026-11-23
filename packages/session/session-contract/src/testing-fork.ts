@@ -1,5 +1,5 @@
 import {
-  forkPointAfterRows,
+  forkPointBefore,
   ownPositionAfter,
   type ForkFacts,
   type ForkPoint,
@@ -145,15 +145,16 @@ export const chained = <S extends Held>(store: S) => ({
 export function pointRead(
   store: Outcome<Held, SessionFailure>,
   key: Outcome<string, SessionFailure>,
+  asking: string,
 ): Outcome<ForkPointRead, SessionFailure> {
   if ('failure' in store) return fail(store.failure)
   if ('failure' in key) return fail(key.failure)
   const view = store.ok.modelView
   const from = BigInt(store.ok.fork?.fork.point.position ?? '0')
-  const own = view.rows.filter(row => BigInt(row.entry) > from)
-  const newest = own.map(row => ({ seq: row.seq, role: row.message.role }))
+  const own = view.rows.find(row => BigInt(row.entry) > from && row.message.id === asking)
+  const found = own === undefined ? undefined : { seq: own.seq, role: own.message.role }
   const tail = String(tailOf(store.ok))
-  const point = forkPointAfterRows(`${key.ok}/${view.epoch}`, newest, tail)
+  const point = forkPointBefore(`${key.ok}/${view.epoch}`, found, tail)
   return succeed(point === null ? { kind: 'none' } : { kind: 'point', point })
 }
 
