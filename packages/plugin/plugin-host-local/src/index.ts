@@ -5,6 +5,7 @@ export {
   pluginCategoryDisplay,
   pluginPluginsPoint,
 } from './category.ts'
+export { createKeptContents, type KeptContents } from './contents.ts'
 export {
   heldPlugins,
   readHeldPart,

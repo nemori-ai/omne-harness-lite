@@ -61,6 +61,7 @@ export const pluginAccessRow = defineRow({
         assets: () => ctx.get(tenantAssetsKey) as TenantAssetsService | undefined,
         changes: () => ctx.get(assetChangesKey) as AssetChangesService | undefined,
       })
+      ctx.effect(() => () => held.close(), 'plugin-access.held.close')
       const source = combineSources([dev, held])
       const reports = createPluginReports({ perTenant: reportsPerTenant })
       ctx.plugin(

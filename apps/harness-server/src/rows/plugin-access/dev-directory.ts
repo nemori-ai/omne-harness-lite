@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { watch, type FSWatcher } from 'node:fs'
-import { readdir, readFile, realpath } from 'node:fs/promises'
+import { readdir, realpath, stat } from 'node:fs/promises'
 import { join, sep } from 'node:path'
 import { MANIFEST_FILE, judgePackage, readManifest } from '@omne-harness/plugin-protocol'
 import type {
@@ -9,6 +9,7 @@ import type {
   SourcePlugin,
   SourceRead,
 } from '@omne-harness/plugin-access'
+import { nodeFileIo, type FileIo } from './file-io.ts'
 
 export type DevDirectorySource = PluginSource & {
   /** Resolves once the scans started so far have ended. */
@@ -19,19 +20,37 @@ export type DevDirectorySource = PluginSource & {
 type Held = Readonly<{ plugin: SourcePlugin; directory: string }>
 type Scan = ReadonlyMap<string, Held>
 
-/** A burst of file events is one change: the directory is scanned once it has been quiet this long. */
 const QUIET_MS = 150
-/** Where the directory cannot be watched, it is scanned this often instead. */
+/** A burst that does not end is not waited out: the directory is scanned this long after its first event at the latest. */
+const MOST_WAIT_MS = 500
 const POLL_MS = 1_000
-const ABSENT_PLUGIN: SourceRead = Object.freeze({ kind: 'absent', what: 'plugin' })
-const ABSENT_FILE: SourceRead = Object.freeze({ kind: 'absent', what: 'file' })
+type Absent = Extract<SourceRead, { kind: 'absent' }>
+const ABSENT_PLUGIN: Absent = Object.freeze({ kind: 'absent', what: 'plugin' })
+const ABSENT_FILE: Absent = Object.freeze({ kind: 'absent', what: 'file' })
 
 const hidden = (name: string): boolean => name.startsWith('.')
+
+const now = (): number =>
+  /* wall-clock: operation-timing -- how long ago the directory was scanned, or a burst of file events began */ performance.now()
 
 const sha256 = (bytes: Uint8Array | string): string =>
   createHash('sha256').update(bytes).digest('hex')
 
-async function filesUnder(directory: string): Promise<readonly SourceFile[]> {
+type Known = Readonly<{ size: bigint; changed: bigint; digest: string; text: string | null }>
+
+/** What is known of each file, for as long as its size and its time of change stay: a scan digests only what changed. */
+type Reading = Readonly<{ io: FileIo; known: Map<string, Known> }>
+
+async function knownOf(reading: Reading, path: string, keepText: boolean): Promise<Known> {
+  const { size, mtimeNs: changed } = await stat(path, { bigint: true })
+  const before = reading.known.get(path)
+  if (before !== undefined && before.size === size && before.changed === changed) return before
+  const now = { size, changed, ...(await reading.io.digest(path, keepText)) }
+  reading.known.set(path, now)
+  return now
+}
+
+async function filesUnder(reading: Reading, directory: string): Promise<readonly SourceFile[]> {
   const entries = await readdir(directory, { recursive: true, withFileTypes: true })
   const files = await Promise.all(
     entries
@@ -43,8 +62,13 @@ async function filesUnder(directory: string): Promise<readonly SourceFile[]> {
       )
       .filter(segments => !segments.some(hidden))
       .map(async segments => {
-        const content = await readFile(join(directory, ...segments))
-        return { path: segments.join('/'), digest: sha256(content), bytes: content.byteLength }
+        const path = segments.join('/')
+        const { digest, size } = await knownOf(
+          reading,
+          join(directory, ...segments),
+          path === MANIFEST_FILE,
+        )
+        return { path, digest, bytes: Number(size) }
       }),
   )
   return files.sort((left, right) => (left.path < right.path ? -1 : 1))
@@ -54,10 +78,10 @@ async function filesUnder(directory: string): Promise<readonly SourceFile[]> {
 const versionOf = (files: readonly SourceFile[]): string =>
   sha256(files.map(file => `${file.path}\0${file.digest}\n`).join('')).slice(0, 16)
 
-async function heldIn(directory: string, name: string): Promise<Held | string> {
-  const files = await filesUnder(directory)
+async function heldIn(reading: Reading, directory: string, name: string): Promise<Held | string> {
+  const files = await filesUnder(reading, directory)
   if (!files.some(file => file.path === MANIFEST_FILE)) return `it has no ${MANIFEST_FILE}`
-  const manifestText = await readFile(join(directory, MANIFEST_FILE), 'utf8')
+  const manifestText = (await knownOf(reading, join(directory, MANIFEST_FILE), true)).text ?? ''
   const read = readManifest(manifestText)
   if (read.kind !== 'read') return read.reason
   if (read.manifest.name !== name)
@@ -70,8 +94,7 @@ async function heldIn(directory: string, name: string): Promise<Held | string> {
 
 type Scanned = Readonly<{ held: Scan; faults: Map<string, string>; readable: boolean }>
 
-/** What one scan found: the plugins that hold, and why each other directory is left out. */
-async function scan(root: string): Promise<Scanned> {
+async function scan(reading: Reading, root: string): Promise<Scanned> {
   const held = new Map<string, Held>()
   const faults = new Map<string, string>()
   let entries
@@ -82,7 +105,7 @@ async function scan(root: string): Promise<Scanned> {
     return { held, faults, readable: false }
   }
   for (const entry of entries.filter(each => each.isDirectory() && !hidden(each.name))) {
-    const found = await heldIn(join(root, entry.name), entry.name).catch(String)
+    const found = await heldIn(reading, join(root, entry.name), entry.name).catch(String)
     if (typeof found === 'string') faults.set(entry.name, found)
     else held.set(entry.name, found)
   }
@@ -95,7 +118,22 @@ const signatureOf = (held: Scan): string =>
     .map(name => `${name}@${held.get(name)!.plugin.version}`)
     .join(',')
 
+async function unchanged(
+  reading: Reading,
+  path: string,
+  digest: string,
+): Promise<bigint | undefined> {
+  const known = reading.known.get(path)
+  if (known === undefined || known.digest !== digest) return undefined
+  const now = await stat(path, { bigint: true }).catch(() => undefined)
+  return now !== undefined && now.size === known.size && now.mtimeNs === known.changed
+    ? known.size
+    : undefined
+}
+
+/** One part of a listed file, read from inside the plugin's directory: only that part is read, whatever the size of the file. */
 async function readHeld(
+  reading: Reading,
   held: Held,
   path: string,
   offset: number,
@@ -103,20 +141,18 @@ async function readHeld(
 ): Promise<SourceRead> {
   const listed = held.plugin.files.find(file => file.path === path)
   if (listed === undefined) return ABSENT_FILE
+  const file = join(held.directory, ...path.split('/'))
   const inside = await realpath(held.directory)
-  const real = await realpath(join(held.directory, ...path.split('/'))).catch(() => undefined)
+  const real = await realpath(file).catch(() => undefined)
   if (real === undefined) return ABSENT_PLUGIN
   if (!real.startsWith(inside + sep)) return ABSENT_FILE
-  const content = await readFile(real)
-  if (sha256(content) !== listed.digest) return ABSENT_PLUGIN
-  const part = new Uint8Array(content.subarray(offset, offset + limit))
-  const end = Math.min(offset, content.byteLength) + part.byteLength
-  return {
-    kind: 'read',
-    part,
-    next: end < content.byteLength ? end : null,
-    bytes: content.byteLength,
-  }
+  const size = await unchanged(reading, file, listed.digest)
+  if (size === undefined) return ABSENT_PLUGIN
+  const bytes = Number(size)
+  const part = await reading.io.range(real, offset, Math.min(limit, Math.max(0, bytes - offset)))
+  if ((await unchanged(reading, file, listed.digest)) === undefined) return ABSENT_PLUGIN
+  const end = Math.min(offset, bytes) + part.byteLength
+  return { kind: 'read', part, next: end < bytes ? end : null, bytes }
 }
 
 const EMPTY: DevDirectorySource = {
@@ -129,15 +165,22 @@ const EMPTY: DevDirectorySource = {
 
 /** The plugins of a directory the operator names: one per sub-directory, the same for every tenant. */
 export function createDevDirectorySource(
-  input: Readonly<{ root: string | undefined; warn: (line: string) => void }>,
+  input: Readonly<{ root: string | undefined; warn: (line: string) => void; io?: FileIo }>,
 ): DevDirectorySource {
   const { root, warn } = input
   if (root === undefined) return EMPTY
+  const reading: Reading = { io: input.io ?? nodeFileIo, known: new Map<string, Known>() }
+  let events = 0
+  let scanned = -1
+  let scannedAt = 0
+  let watching = false
   const listeners = new Set<() => void>()
   let last: Scan = new Map()
   let warned = new Map<string, string>()
   let signature: string | undefined
   let readable = true
+  const fresh = (): boolean =>
+    readable && scanned === events && (watching || now() - scannedAt < POLL_MS)
   let queue: Promise<Scan> = Promise.resolve(last)
   let quiet: ReturnType<typeof setTimeout> | undefined
   let watcher: FSWatcher | undefined
@@ -152,7 +195,12 @@ export function createDevDirectorySource(
   }
   const rescan = (): Promise<Scan> => {
     queue = queue.then(async () => {
-      const found = await scan(root)
+      const seen = events
+      const found = await scan(reading, root)
+      for (const path of reading.known.keys())
+        if (!path.startsWith(root + sep)) reading.known.delete(path)
+      scanned = seen
+      scannedAt = now()
       for (const [name, fault] of found.faults)
         if (warned.get(name) !== fault)
           warn(`the plugin dev directory leaves out ${name}: ${fault}`)
@@ -167,15 +215,27 @@ export function createDevDirectorySource(
     })
     return queue
   }
+  let began: number | undefined
   const soon = (): void => {
+    events += 1
+    const at = now()
+    const first = (began ??= at)
     clearTimeout(quiet)
-    quiet = setTimeout(() => void rescan(), QUIET_MS)
+    quiet = setTimeout(
+      () => {
+        began = undefined
+        void rescan()
+      },
+      Math.max(0, Math.min(QUIET_MS, first + MOST_WAIT_MS - at)),
+    )
   }
   try {
     watcher = watch(root, { recursive: true }, soon)
-    watcher.on('error', error =>
-      warn(`the plugin dev directory stopped being watched: ${String(error)}`),
-    )
+    watching = true
+    watcher.on('error', error => {
+      watching = false
+      warn(`the plugin dev directory stopped being watched: ${String(error)}`)
+    })
   } catch (error) {
     warn(
       `the plugin dev directory ${root} cannot be watched, it is scanned each second: ${String(error)}`,
@@ -186,14 +246,14 @@ export function createDevDirectorySource(
 
   return {
     async list() {
-      const held = await rescan()
+      const held = fresh() ? last : await rescan()
       if (!readable) return { kind: 'unavailable' }
       return { kind: 'read', offered: [...held.values()].map(each => each.plugin) }
     },
     async read(_principal, at) {
       const held = (await queue).get(at.name)
       if (held === undefined || held.plugin.version !== at.version) return ABSENT_PLUGIN
-      return readHeld(held, at.path, at.offset, at.limit).catch(() => ({
+      return readHeld(reading, held, at.path, at.offset, at.limit).catch(() => ({
         kind: 'unavailable' as const,
       }))
     },

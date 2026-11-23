@@ -196,7 +196,7 @@ describe('read-file', () => {
     expect(await read(world, { limit: 0 })).toEqual({ outcome: 'limited', body: {} })
     world.answerRead({ kind: 'read', part: bytes, next: null, bytes: 12 })
     await read(world, { limit: 10_000_000 })
-    expect(world.reads[0]?.at.limit).toBe(262_144)
+    expect(world.reads[0]?.at.limit).toBe(720_000)
   })
 
   it('a source that is unavailable or throws, in listing or in reading, is basis-unavailable', async () => {

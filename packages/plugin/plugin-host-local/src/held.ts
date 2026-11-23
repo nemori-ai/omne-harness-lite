@@ -13,6 +13,7 @@ import {
 import { writeJsonText } from '@omne-harness/json-text'
 import { readManifest, type PluginManifest } from '@omne-harness/plugin-protocol'
 import { PLUGIN_CATEGORY } from './category.ts'
+import type { KeptContents } from './contents.ts'
 
 export type HeldFile = Readonly<{ path: string; digest: string; bytes: number }>
 
@@ -126,20 +127,26 @@ export type HeldPart =
   | Readonly<{ kind: 'absent'; what: 'file' }>
   | Readonly<{ kind: 'unavailable' }>
 
-/** One part of one file of a held plugin, read through the package of its version. */
+/** One part of one file of a held plugin, read through the package of its version. With kept contents, the parts of one file are cut from one opening of it. */
 export async function readHeldPart(
   reader: PackageReader,
   file: HeldFile,
   offset: number,
   limit: number,
+  kept?: KeptContents,
 ): Promise<HeldPart> {
-  const opened = await reader.open(file.path, file.digest)
-  if (!('ok' in opened))
-    return opened.failure === 'entry-not-found'
-      ? { kind: 'absent', what: 'file' }
-      : { kind: 'unavailable' }
-  const bytes = opened.ok.length
-  const part = opened.ok.subarray(offset, offset + limit)
+  let content = kept?.get(file.digest)
+  if (content === undefined) {
+    const opened = await reader.open(file.path, file.digest)
+    if (!('ok' in opened))
+      return opened.failure === 'entry-not-found'
+        ? { kind: 'absent', what: 'file' }
+        : { kind: 'unavailable' }
+    content = opened.ok
+    kept?.keep(file.digest, content)
+  }
+  const bytes = content.length
+  const part = content.subarray(offset, offset + limit)
   const end = offset + part.length
   return { kind: 'read', part, next: end < bytes ? end : null, bytes }
 }

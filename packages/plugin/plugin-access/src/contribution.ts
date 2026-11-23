@@ -20,8 +20,8 @@ type Answer<K extends keyof PluginProtocol['operations']> = AnswerOf<
   PluginProtocol['operations'][K]
 >
 
-/** The most one read gives back; a larger limit reads one part of this size. */
-const PART_BYTES = 262_144
+/** The most one read gives back; a larger limit reads one part of this size. A part travels as text, and this many bytes fit the text one answer may carry. */
+const PART_BYTES = 720_000
 
 const UNAVAILABLE = Object.freeze({ outcome: 'basis-unavailable' as const })
 const UNKNOWN = Object.freeze({ outcome: 'unknown' as const })

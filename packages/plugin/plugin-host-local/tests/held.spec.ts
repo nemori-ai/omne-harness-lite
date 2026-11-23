@@ -9,7 +9,12 @@ import {
   type PackageReader,
 } from '@omne-harness/assets'
 import { fail, succeed } from '@omne-harness/operation-result'
-import { heldPlugins, readHeldPart, type HeldPluginPorts } from '@omne-harness/plugin-host-local'
+import {
+  createKeptContents,
+  heldPlugins,
+  readHeldPart,
+  type HeldPluginPorts,
+} from '@omne-harness/plugin-host-local'
 
 const encoder = new TextEncoder()
 const LIMITS = {
@@ -259,5 +264,45 @@ describe('reading a part of a file of a held plugin', () => {
       open: async () => fail('material-unavailable'),
     }
     expect(await readHeldPart(broken, file, 0, 4)).toEqual({ kind: 'unavailable' })
+  })
+})
+
+describe('the contents kept between the parts of a file', () => {
+  const text = '0123456789'
+  const file = { path: 'main.js', digest: digestBytes(encoder.encode(text)), bytes: 10 }
+
+  it('cuts every part of a file from one opening of it', async () => {
+    let opened = 0
+    const reader: PackageReader = {
+      manifest: async () => fail('unavailable'),
+      open: async () => ((opened += 1), succeed(encoder.encode(text))),
+    }
+    const kept = createKeptContents(1000)
+    const parts: string[] = []
+    for (let offset: number | null = 0; offset !== null;) {
+      const read = await readHeldPart(reader, file, offset, 3, kept)
+      if (read.kind !== 'read') throw new Error(read.kind)
+      parts.push(new TextDecoder().decode(read.part))
+      offset = read.next
+    }
+    expect(parts).toEqual(['012', '345', '678', '9'])
+    expect(opened).toBe(1)
+  })
+
+  it('keeps by digest, the last used longest, within its budget; a content over the budget is not kept', () => {
+    const kept = createKeptContents(10)
+    const bytes = (size: number): Uint8Array => new Uint8Array(size)
+    kept.keep('a', bytes(4))
+    kept.keep('b', bytes(4))
+    expect(kept.get('a')?.byteLength).toBe(4)
+    kept.keep('c', bytes(4))
+    expect([kept.get('a'), kept.get('b'), kept.get('c')].map(each => each?.byteLength)).toEqual([
+      4,
+      undefined,
+      4,
+    ])
+    kept.keep('huge', bytes(11))
+    expect(kept.get('huge')).toBeUndefined()
+    expect(kept.get('a')?.byteLength).toBe(4)
   })
 })

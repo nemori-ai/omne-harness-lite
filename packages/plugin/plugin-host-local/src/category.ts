@@ -39,14 +39,15 @@ export const pluginPluginsPoint = heldPoint({
     'The plugins held: each is a manifest of members, and its members are put when it is loaded.',
 })
 
+/** A plugin package is held to no most: not in the number of its files, nor in the size of one or of all. */
 export const PLUGIN_PACKAGE_LIMITS = Object.freeze({
-  files: 400,
-  fileBytes: 1024 * 1024,
-  totalBytes: 16 * 1024 * 1024,
+  files: Number.MAX_SAFE_INTEGER,
+  fileBytes: Number.MAX_SAFE_INTEGER,
+  totalBytes: Number.MAX_SAFE_INTEGER,
 })
 
 const BODY_LIMITS = Object.freeze({
-  maxBytes: PLUGIN_PACKAGE_LIMITS.fileBytes,
+  maxBytes: 1024 * 1024,
   maxDepth: 32,
   maxItems: 50_000,
   maxMembers: 1024,

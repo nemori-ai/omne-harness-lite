@@ -5,6 +5,7 @@ it('the root entry exports the category, its contract and its point', async () =
   expect(Object.keys(root).sort()).toEqual([
     'PLUGIN_CATEGORY',
     'PLUGIN_PACKAGE_LIMITS',
+    'createKeptContents',
     'heldPlugins',
     'pluginBodyContract',
     'pluginCategoryDisplay',
