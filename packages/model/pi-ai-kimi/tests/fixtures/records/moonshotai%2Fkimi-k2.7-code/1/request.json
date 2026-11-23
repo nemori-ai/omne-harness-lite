@@ -1,0 +1,243 @@
+{
+  "request": {
+    "profile": {
+      "owner": "pi-ai-kimi-tests",
+      "name": "profile",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-kimi",
+          "name": "moonshotai/kimi-k2.7-code",
+          "revision": "1",
+          "digest": "49e137a1bad2fe4e30980a730cd98f66edacb2cea3252693551b6f8187acc0e3"
+        },
+        "provider": "openrouter",
+        "model": "moonshotai/kimi-k2.7-code",
+        "credential": {
+          "layer": "official"
+        }
+      }
+    ],
+    "fallback": false,
+    "retryPolicy": {
+      "owner": "pi-ai-kimi-tests",
+      "name": "retry",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "parameters": [
+      {
+        "kind": "max-output-tokens",
+        "value": "1024"
+      },
+      {
+        "kind": "reasoning-effort",
+        "value": "high"
+      }
+    ],
+    "system": [
+      {
+        "kind": "text",
+        "id": "s1",
+        "visibility": {
+          "toHuman": true,
+          "toModel": true
+        },
+        "text": "Answer briefly. Call tools one at a time."
+      }
+    ],
+    "messages": [
+      {
+        "id": "msg_u100000000000000000000",
+        "role": "user",
+        "blocks": [
+          {
+            "kind": "text",
+            "id": "b1",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "Work out how many positive integers below 100 are divisible by 3 or by 7 but not by both. If the count is even, get the weather of Oslo, otherwise of Lima. Use the tool."
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "get_weather",
+        "description": "Read the current weather of one city.",
+        "argumentsSchema": {
+          "kind": "object",
+          "entries": [
+            {
+              "key": "type",
+              "value": {
+                "kind": "string",
+                "value": "object"
+              }
+            },
+            {
+              "key": "properties",
+              "value": {
+                "kind": "object",
+                "entries": [
+                  {
+                    "key": "city",
+                    "value": {
+                      "kind": "object",
+                      "entries": [
+                        {
+                          "key": "type",
+                          "value": {
+                            "kind": "string",
+                            "value": "string"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "key": "required",
+              "value": {
+                "kind": "array",
+                "items": [
+                  {
+                    "kind": "string",
+                    "value": "city"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "toolChoice": "auto",
+    "declarations": [
+      {
+        "produces": "openrouter/moonshotai/kimi-k2.7-code",
+        "accepts": [
+          "openrouter/moonshotai/kimi-k2.7-code"
+        ],
+        "foreignThinking": "omit"
+      }
+    ],
+    "representation": {
+      "owner": "@omne-harness/pi-ai-kimi",
+      "name": "moonshotai/kimi-k2.7-code#representation",
+      "revision": "1",
+      "digest": "49e137a1bad2fe4e30980a730cd98f66edacb2cea3252693551b6f8187acc0e3"
+    },
+    "parameterAdoptions": [
+      {
+        "supplier": {
+          "owner": "@omne-harness/pi-ai-kimi",
+          "name": "moonshotai/kimi-k2.7-code",
+          "revision": "1",
+          "digest": "49e137a1bad2fe4e30980a730cd98f66edacb2cea3252693551b6f8187acc0e3"
+        },
+        "applied": {
+          "kind": "max-output-tokens",
+          "value": "1024"
+        },
+        "origin": {
+          "kind": "explicit",
+          "requested": {
+            "kind": "max-output-tokens",
+            "value": "1024"
+          },
+          "source": {
+            "owner": "pi-ai-kimi-tests",
+            "name": "source",
+            "revision": "1",
+            "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        }
+      },
+      {
+        "supplier": {
+          "owner": "@omne-harness/pi-ai-kimi",
+          "name": "moonshotai/kimi-k2.7-code",
+          "revision": "1",
+          "digest": "49e137a1bad2fe4e30980a730cd98f66edacb2cea3252693551b6f8187acc0e3"
+        },
+        "applied": {
+          "kind": "reasoning-effort",
+          "value": "high"
+        },
+        "origin": {
+          "kind": "explicit",
+          "requested": {
+            "kind": "reasoning-effort",
+            "value": "high"
+          },
+          "source": {
+            "owner": "pi-ai-kimi-tests",
+            "name": "source",
+            "revision": "1",
+            "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        }
+      }
+    ],
+    "source": {
+      "owner": "pi-ai-kimi-tests",
+      "name": "source",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  },
+  "body": {
+    "max_tokens": 1024,
+    "messages": [
+      {
+        "content": "Answer briefly. Call tools one at a time.",
+        "role": "system"
+      },
+      {
+        "content": "Work out how many positive integers below 100 are divisible by 3 or by 7 but not by both. If the count is even, get the weather of Oslo, otherwise of Lima. Use the tool.",
+        "role": "user"
+      }
+    ],
+    "model": "moonshotai/kimi-k2.7-code",
+    "provider": {
+      "allow_fallbacks": false,
+      "order": [
+        "moonshotai"
+      ],
+      "require_parameters": true
+    },
+    "reasoning": {
+      "effort": "high"
+    },
+    "stream": true,
+    "tool_choice": "auto",
+    "tools": [
+      {
+        "function": {
+          "description": "Read the current weather of one city.",
+          "name": "get_weather",
+          "parameters": {
+            "properties": {
+              "city": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "city"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      }
+    ]
+  }
+}

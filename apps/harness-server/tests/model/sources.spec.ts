@@ -25,7 +25,14 @@ describe('the official send sources', () => {
       current: () => ({ ok: { authorized: false } }),
     })
     const families = new Set(sources.map(source => source.model.split('/')[0]))
-    expect(families).toEqual(new Set(['openai', 'anthropic', 'qwen']))
+    expect(families).toEqual(new Set(['openai', 'anthropic', 'qwen', 'moonshotai']))
+    expect(sources.map(source => source.model)).toEqual(
+      expect.arrayContaining([
+        'moonshotai/kimi-k3.1-pro',
+        'moonshotai/kimi-k3',
+        'moonshotai/kimi-k2.7-code',
+      ]),
+    )
     const ctx = new Context()
     await ctx.plugin(ModelProfilesLocalPlugin, { ...PROFILES, updatedAt: '2026-11-02T00:00:00Z' })
     const profiles = ctx.get(modelProfilesKey) as ModelProfiles<unknown>

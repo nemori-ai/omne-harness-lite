@@ -89,6 +89,7 @@ export type CalibratedMeterRules<U extends MeteredUnit> = Readonly<{
   basis: ModelCountingBasis
   margin: MeterMargin
   outputGroup: string
+  coldRequestTokens?: string
   uncountable: string
   tokens: Readonly<{ tokenizer: ModelTextTokenizer; form: 'as-written' | 'nfkc' }>
   contentOf(tokenInput: JsonValue): readonly U[] | null
@@ -227,6 +228,9 @@ async function measureCalibrated<U extends MeteredUnit>(
     uncountable: rules.uncountable,
     dependency: rules.owner,
     marginPercent: rules.margin.percent,
+    ...(rules.coldRequestTokens === undefined
+      ? {}
+      : { coldRequestTokens: rules.coldRequestTokens }),
   })
   if (!('ok' in amount)) return amount
   const pending:
