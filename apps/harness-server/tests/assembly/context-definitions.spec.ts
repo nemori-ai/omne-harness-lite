@@ -178,12 +178,13 @@ describe('adoptedContextDefinitions: the definitions the release adopted', () =>
         { capability: { category: 'Tool', name: 'Agents' }, resident: true },
         { capability: { category: 'Tool', name: 'SwitchWorkspace' }, resident: true },
         { capability: { category: 'Tool', name: 'OmneExtensionPoints' }, resident: true },
+        { capability: { category: 'Tool', name: 'OmneExtensions' }, resident: true },
         { capability: { category: 'Tool', name: 'Screen' }, resident: true },
         { capability: { category: 'Tool', name: 'Skills' }, resident: true },
       ],
       attributes: [{ item: 'model' }],
     })
-    expect((coding.definition as { instructions?: unknown[] }).instructions).toHaveLength(11)
+    expect((coding.definition as { instructions?: unknown[] }).instructions).toHaveLength(12)
   })
 
   it('does not mistake an Agent definition for the independently adopted modes carrier', () => {

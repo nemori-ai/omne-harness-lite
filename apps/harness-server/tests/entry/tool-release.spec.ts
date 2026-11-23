@@ -281,6 +281,7 @@ describe('the startup snapshot', () => {
       '@omne-harness/dispatch-tools',
       '@omne-harness/workspace-tools',
       '@omne-harness/plugin-tools',
+      '@omne-harness/assets-tools',
     ])
   })
 

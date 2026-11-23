@@ -17,8 +17,8 @@ import {
   type ExtensionsCallSource,
   type ExtensionsFaces,
 } from '@omne-harness/assets-tools'
-import { tenantCodec } from '@omne-harness/legal-identity'
-import type { FixedToolRequest } from '@omne-harness/tool-contract'
+import { tenantCodec, workspaceCodec } from '@omne-harness/legal-identity'
+import type { FixedToolRequest, ToolCallDirectory } from '@omne-harness/tool-contract'
 import type { CallAccess, ToolExecutionScope } from '@omne-harness/tool-contract/provider'
 import { workspaceInstancesKey } from '@omne-harness/workspace-cordis-contract/cordis'
 import { nodeFileIo } from '../plugin-access/file-io.ts'
@@ -145,6 +145,14 @@ export function createExtensionsSource(
   }
 }
 
+/** The directory the request pins. The request may be a copy, so the identity of its workspace is read again from its text. */
+function pinnedOf(request: FixedToolRequest): ToolCallDirectory | undefined | null {
+  const pinned = request.directory
+  if (pinned === undefined || pinned.workspace === null) return pinned
+  const parsed = workspaceCodec.parse(String((pinned.workspace.id as { text?: unknown }).text))
+  return parsed.ok ? { ...pinned, workspace: { ...pinned.workspace, id: parsed.value } } : null
+}
+
 /** OmneExtensions acts for the tenant of the call, with its principal; the model gives neither. */
 export function bindReleaseExtensions(
   ctx: Context,
@@ -164,11 +172,14 @@ export function bindReleaseExtensions(
           : { categories, management, publishing }
       },
       async workingDirectory() {
-        if (parent.request.directory === undefined) return 'absent'
-        const admitted = await admittedDirectory(
-          () => ctx.get(workspaceInstancesKey, false),
-          parent,
-        )
+        const directory = pinnedOf(parent.request)
+        if (directory === undefined) return 'absent'
+        if (directory === null) return 'unavailable'
+        const admitted = await admittedDirectory(() => ctx.get(workspaceInstancesKey, false), {
+          principal: parent.principal,
+          tenant: parent.tenant,
+          request: { directory },
+        })
         if (!('ok' in admitted)) return 'unavailable'
         return admitted.ok?.path ?? 'absent'
       },

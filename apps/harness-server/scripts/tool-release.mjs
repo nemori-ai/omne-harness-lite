@@ -29,6 +29,7 @@ const PROBES = [
     Sessions: { resultMaxBytes: 1024 },
     Agents: { resultMaxBytes: 64 },
     SwitchWorkspace: { resultMaxBytes: 16 },
+    OmneExtensions: { resultMaxBytes: 64 },
     OmneExtensionPoints: { resultMaxBytes: 64 },
     Screen: {
       resultMaxBytes: 1,
@@ -66,6 +67,7 @@ const PROBES = [
     Sessions: { resultMaxBytes: 1048576 },
     Agents: { resultMaxBytes: 1048576 },
     SwitchWorkspace: { resultMaxBytes: 1048576 },
+    OmneExtensions: { resultMaxBytes: 1048576 },
     OmneExtensionPoints: { resultMaxBytes: 1048576 },
     Screen: {
       resultMaxBytes: 65536,
