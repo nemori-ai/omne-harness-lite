@@ -36,6 +36,7 @@ import { bindReleaseNotifications } from './notifications.ts'
 import { bindReleaseSessions } from './sessions.ts'
 import { bindReleaseAgents } from './agents.ts'
 import { bindReleaseSwitchWorkspace } from './switch-workspace.ts'
+import { bindReleaseExtensionPoints } from './extension-points.ts'
 
 export const toolBindingsConfig = z
   .strictObject({ tools: toolsCapabilityConfig.optional(), web: webBindingConfig.optional() })
@@ -51,6 +52,7 @@ const DOMAIN_TOOLS = [
   ['Sessions', bindReleaseSessions],
   ['Agents', bindReleaseAgents],
   ['SwitchWorkspace', bindReleaseSwitchWorkspace],
+  ['OmneExtensionPoints', bindReleaseExtensionPoints],
 ] as const
 type Attachments = Readonly<{
   tools: ReturnType<typeof createReleaseToolsCapability> | null

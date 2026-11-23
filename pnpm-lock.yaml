@@ -879,6 +879,9 @@ importers:
       '@omne-harness/plugin-protocol':
         specifier: workspace:*
         version: link:../../packages/plugin/plugin-protocol
+      '@omne-harness/plugin-tools':
+        specifier: workspace:*
+        version: link:../../packages/plugin/plugin-tools
       '@omne-harness/public-contract':
         specifier: workspace:*
         version: link:../../packages/access/public-contract

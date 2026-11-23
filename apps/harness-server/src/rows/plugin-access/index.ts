@@ -16,6 +16,7 @@ import { memberActingOfCall } from '../server-entry/identity.ts'
 import { createDevDirectorySource } from './dev-directory.ts'
 import { tenantAssetsKey, type TenantAssetsService } from '../tenant-assets/service.ts'
 import { createHeldSource } from './held-source.ts'
+import { pluginReportsKey, providePluginReports } from './reports-service.ts'
 
 export const pluginAccessConfig = z.strictObject({
   devDirectory: z
@@ -40,7 +41,7 @@ export const pluginAccessRow = defineRow({
   row: 'plugin-access',
   implementation: 'real',
   manifest: {
-    provides: [],
+    provides: [pluginReportsKey],
     injects: [accessRegistryKey, principalIssuerKey],
     sameProviderGroup: null,
   },
@@ -64,6 +65,7 @@ export const pluginAccessRow = defineRow({
       ctx.effect(() => () => held.close(), 'plugin-access.held.close')
       const source = combineSources([dev, held])
       const reports = createPluginReports({ perTenant: reportsPerTenant })
+      providePluginReports(ctx, reports)
       ctx.plugin(
         createPluginAccessPlugin({
           principals,
