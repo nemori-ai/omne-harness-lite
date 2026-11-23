@@ -19,6 +19,7 @@ export type Placed =
   | Readonly<{ kind: 'same' }>
   | Readonly<{ kind: 'differs'; paths: readonly string[]; more: number }>
   | Readonly<{ kind: 'absent' }>
+  | Readonly<{ kind: 'outside' }>
   | Readonly<{ kind: 'unavailable' }>
 
 /** What one call needs, given by the binding. The tenant and the principal come from the call; the model cannot give them. */
@@ -27,9 +28,9 @@ export type ExtensionsCallSource = Readonly<{
   principal: unknown
   /** The three faces of the assets, read at each call; undefined when they cannot be had now. */
   faces(): ExtensionsFaces | undefined
-  /** A directory of this call's workspace, as a package; absent when the path is not a directory there. */
-  directory(path: string): Promise<PackageReader | 'absent' | 'unavailable'>
-  /** Writes a package into a workspace directory only when it is missing or empty: same, or differs naming at most 10 paths; absent is no place for a directory. */
+  /** A directory as a package, by a path from the working directory of the call or an absolute one; absent when it is not a directory, outside when the files this call may read do not reach it. */
+  directory(path: string): Promise<PackageReader | 'absent' | 'outside' | 'unavailable'>
+  /** Writes a package into a directory only when it is missing or empty: same, or differs naming at most 10 paths; absent is no place for a directory, outside is where this call may not write. */
   place(dir: string, from: PackageReader): Promise<Placed>
   impact: ChangeImpact
   placement: Placement

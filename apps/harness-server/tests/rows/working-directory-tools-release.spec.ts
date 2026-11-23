@@ -497,7 +497,7 @@ describe('a tenant removed from a workspace', () => {
 
 describe('files outside the workspace of a session', () => {
   it(
-    'a session with a workspace keeps to it by the setting, Shell is stopped before it starts and names the path; a session with none is as before',
+    'a session with a workspace keeps to it by the setting, Shell is stopped before it starts and names the path; a session with none has no boundary',
     { tags: ['slow'], timeout: 360_000 },
     async () => {
       const base = realpathSync(mkdtempSync(join(tmpdir(), 'outside-files-')))
@@ -539,9 +539,19 @@ describe('files outside the workspace of a session', () => {
           `rejected reason=outsideScope path=${JSON.stringify(written)} effect=write`,
         )
         expect(existsSync(written)).toBe(false)
-        // A session with no workspace reads no setting and runs its scripts as before.
+        // A session with no workspace draws no boundary: the setting, which still forbids writing outside,
+        // is not read, and the file tool reads and writes where a command always could.
         const plain = await sessionIn(tree, [])
-        expect(await ran(tree, plain, 1, plan([shell(`cat ${secret}`)]))).toContain('outside-bytes')
+        const free = join(outside, 'free.txt')
+        const unbounded = await ran(
+          tree,
+          plain,
+          1,
+          plan([shell(`cat ${secret}`), readFile(secret), write(free, 'written outside')]),
+        )
+        expect(unbounded.match(/outside-bytes/gu)?.length).toBe(2)
+        expect(unbounded).not.toContain('reason=outsideScope')
+        expect(read(free)).toBe('written outside')
       })
     },
   )

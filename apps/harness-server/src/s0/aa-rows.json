@@ -83,6 +83,7 @@
     "runtime-context",
     "runtime-context-tenant-scope",
     "session-intake-budget",
+    "workspace-outside-files",
     "session-observation",
     "dispatch",
     "dispatch-session",
@@ -198,6 +199,12 @@
         "storage",
         "principalVerifier",
         "tenantStanding"
+      ]
+    },
+    {
+      "row": "workspace-outside-files",
+      "names": [
+        "tenantScopePrincipals"
       ]
     },
     {

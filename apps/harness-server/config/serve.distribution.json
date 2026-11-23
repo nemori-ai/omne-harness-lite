@@ -812,6 +812,11 @@
       "config": {}
     },
     {
+      "id": "workspace-outside-files",
+      "plugin": "workspaceOutsideFilesRow",
+      "config": {}
+    },
+    {
       "id": "session-observation",
       "plugin": "sessionObservationRow",
       "config": {}

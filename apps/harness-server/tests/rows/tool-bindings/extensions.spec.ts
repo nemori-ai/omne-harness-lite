@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import {
   capabilityId,
   createCategoryPoint,
@@ -43,6 +43,9 @@ function workspace(files: Readonly<Record<string, string>>): string {
   return root
 }
 
+/** A call whose files stay in its working directory: what the setting gives when nothing outside is allowed. */
+const kept = (root: string) => ({ path: root, files: { read: root, write: root } })
+
 function world(over: Partial<ExtensionsPorts> = {}) {
   const ports: ExtensionsPorts = {
     faces: () => undefined,
@@ -62,7 +65,7 @@ describe('a directory of the working directory of the call, as a package', () =>
       'plugins/tidy/.DS_Store': 'finder',
       'plugins/other/plugin.json': '{}',
     })
-    const { source } = world({ workingDirectory: async () => root })
+    const { source } = world({ workingDirectory: async () => kept(root) })
     const pkg = await source.directory('plugins/tidy')
     if (typeof pkg === 'string') throw new Error(pkg)
     const manifest = await pkg.manifest()
@@ -87,24 +90,43 @@ describe('a directory of the working directory of the call, as a package', () =>
   })
 
   it.each([
-    ['a path that steps up', '../outside'],
-    ['an absolute path', '/etc'],
+    ['a path that steps up to nothing', '../outside'],
     ['an empty path', ''],
-    ['a path with an empty segment', 'plugins//tidy'],
     ['a file, not a directory', 'plugins/tidy/plugin.json'],
     ['a directory that is not there', 'plugins/none'],
   ])('answers absent for %s', async (_name, path) => {
     const root = workspace({ 'plugins/tidy/plugin.json': '{}' })
-    const { source } = world({ workingDirectory: async () => root })
+    const { source } = world({ workingDirectory: async () => kept(root) })
     expect(await source.directory(path)).toBe('absent')
   })
 
-  it('answers absent for a link that leads out of the working directory', async () => {
-    const outside = workspace({ 'secret/plugin.json': '{}' })
+  it('answers outside for a directory the files of the call do not reach: by an absolute path, by stepping up, by a link', async () => {
+    const other = workspace({ 'secret/plugin.json': '{}' })
     const root = workspace({ 'plugins/tidy/plugin.json': '{}' })
-    symlinkSync(join(outside, 'secret'), join(root, 'plugins', 'leak'))
-    const { source } = world({ workingDirectory: async () => root })
-    expect(await source.directory('plugins/leak')).toBe('absent')
+    symlinkSync(join(other, 'secret'), join(root, 'plugins', 'leak'))
+    const { source } = world({ workingDirectory: async () => kept(root) })
+    expect(await source.directory(join(other, 'secret'))).toBe('outside')
+    expect(await source.directory(join('..', basename(other), 'secret'))).toBe('outside')
+    expect(await source.directory('plugins/leak')).toBe('outside')
+  })
+
+  it.each<[string, (root: string) => { read?: string; write?: string }]>([
+    ['reading is not limited', () => ({})],
+    ['only writing is limited', root => ({ write: root })],
+  ])('reads a directory outside the working directory when %s', async (_name, files) => {
+    const other = workspace({ 'skins/sea/plugin.json': '{"schema":1}' })
+    const root = workspace({})
+    const { source } = world({
+      workingDirectory: async () => ({ path: root, files: files(root) }),
+    })
+    for (const path of [join(other, 'skins/sea'), join('..', basename(other), 'skins/sea')]) {
+      const pkg = await source.directory(path)
+      if (typeof pkg === 'string') throw new Error(pkg)
+      const manifest = await pkg.manifest()
+      expect('ok' in manifest && manifest.ok.entries.map(entry => entry.path)).toEqual([
+        'plugin.json',
+      ])
+    }
   })
 
   it('says what the call has for a working directory: none, or one that cannot be asked about', async () => {
@@ -140,7 +162,7 @@ const TIDY = { 'plugin.json': '{"schema":1}', 'client/card.js': 'export const a 
 describe('a held version written into a directory of the working directory', () => {
   it('writes every file into a directory that is not there yet, parents included, and leaves nothing else', async () => {
     const root = workspace({ 'README.md': '# project\n' })
-    const { source } = world({ workingDirectory: async () => root })
+    const { source } = world({ workingDirectory: async () => kept(root) })
     expect(await source.place('ext/tidy', held(TIDY))).toEqual({
       kind: 'written',
       files: 2,
@@ -153,7 +175,7 @@ describe('a held version written into a directory of the working directory', () 
 
   it('reads back as the same package: publishing it unchanged gives the version it came from', async () => {
     const root = workspace({})
-    const { source } = world({ workingDirectory: async () => root })
+    const { source } = world({ workingDirectory: async () => kept(root) })
     await source.place('tidy', held(TIDY))
     const back = await source.directory('tidy')
     if (typeof back === 'string') throw new Error(back)
@@ -169,7 +191,7 @@ describe('a held version written into a directory of the working directory', () 
   ])('writes into %s', async (_name, there) => {
     const root = workspace(there)
     mkdirSync(join(root, 'tidy'), { recursive: true })
-    const { source } = world({ workingDirectory: async () => root })
+    const { source } = world({ workingDirectory: async () => kept(root) })
     expect((await source.place('tidy', held(TIDY))).kind).toBe('written')
     expect(existsSync(join(root, 'tidy/client/card.js'))).toBe(true)
   })
@@ -179,7 +201,7 @@ describe('a held version written into a directory of the working directory', () 
       'tidy/plugin.json': TIDY['plugin.json'],
       'tidy/client/card.js': TIDY['client/card.js'],
     })
-    const { source } = world({ workingDirectory: async () => root })
+    const { source } = world({ workingDirectory: async () => kept(root) })
     expect(await source.place('tidy', held(TIDY))).toEqual({ kind: 'same' })
   })
 
@@ -188,7 +210,7 @@ describe('a held version written into a directory of the working directory', () 
       'tidy/plugin.json': '{"schema":1,"edited":true}',
       'tidy/notes.md': 'mine',
     })
-    const { source } = world({ workingDirectory: async () => root })
+    const { source } = world({ workingDirectory: async () => kept(root) })
     expect(await source.place('tidy', held(TIDY))).toEqual({
       kind: 'differs',
       paths: ['client/card.js', 'notes.md', 'plugin.json'],
@@ -203,33 +225,58 @@ describe('a held version written into a directory of the working directory', () 
       Array.from({ length: 13 }, (_, index) => [`f${String(index).padStart(2, '0')}.txt`, 'x']),
     )
     const root = workspace({ 'tidy/other.txt': 'y' })
-    const { source } = world({ workingDirectory: async () => root })
+    const { source } = world({ workingDirectory: async () => kept(root) })
     const answer = await source.place('tidy', held(many))
     expect(answer).toMatchObject({ kind: 'differs', more: 4 })
     expect(answer.kind === 'differs' && answer.paths).toHaveLength(10)
   })
 
   it.each([
-    ['a path that steps up', '../outside'],
-    ['an absolute path', '/tmp/outside'],
     ['an empty path', ''],
     ['a file', 'README.md'],
     ['a path under a file', 'README.md/tidy'],
-    ['a link that leads out', 'leak'],
-    ['a path under a link that leads out', 'leak/tidy'],
   ])('answers absent for %s, and writes nothing', async (_name, path) => {
-    const outside = workspace({ 'kept.txt': 'kept' })
     const root = workspace({ 'README.md': '# project\n' })
-    symlinkSync(outside, join(root, 'leak'))
-    const { source } = world({ workingDirectory: async () => root })
+    const { source } = world({ workingDirectory: async () => kept(root) })
     expect(await source.place(path, held(TIDY))).toEqual({ kind: 'absent' })
-    expect(readdirSync(outside)).toEqual(['kept.txt'])
-    expect(readdirSync(root).sort()).toEqual(['README.md', 'leak'])
+    expect(readdirSync(root)).toEqual(['README.md'])
+  })
+
+  it.each<[string, (other: string) => string]>([
+    ['a path that steps up', other => join('..', basename(other), 'tidy')],
+    ['an absolute path', other => join(other, 'tidy')],
+    ['a link that leads out', () => 'leak'],
+    ['a path under a link that leads out', () => 'leak/tidy'],
+  ])(
+    'answers outside for %s when writing stays in the working directory, and writes nothing',
+    async (_name, path) => {
+      const other = workspace({ 'kept.txt': 'kept' })
+      const root = workspace({ 'README.md': '# project\n' })
+      symlinkSync(other, join(root, 'leak'))
+      for (const files of [{ read: root, write: root }, { write: root }]) {
+        const { source } = world({ workingDirectory: async () => ({ path: root, files }) })
+        expect(await source.place(path(other), held(TIDY))).toEqual({ kind: 'outside' })
+      }
+      expect(readdirSync(other)).toEqual(['kept.txt'])
+      expect(readdirSync(root).sort()).toEqual(['README.md', 'leak'])
+    },
+  )
+
+  it('writes into a directory outside the working directory when writing is not limited', async () => {
+    const other = workspace({})
+    const root = workspace({})
+    const { source } = world({ workingDirectory: async () => ({ path: root, files: {} }) })
+    expect(await source.place(join(other, 'ext/tidy'), held(TIDY))).toMatchObject({
+      kind: 'written',
+      files: 2,
+    })
+    expect(readFileSync(join(other, 'ext/tidy/plugin.json'), 'utf8')).toBe(TIDY['plugin.json'])
+    expect(readdirSync(root)).toEqual([])
   })
 
   it('leaves nothing behind when a file of the held version cannot be read', async () => {
     const root = workspace({})
-    const { source } = world({ workingDirectory: async () => root })
+    const { source } = world({ workingDirectory: async () => kept(root) })
     expect(await source.place('ext/tidy', held(TIDY, ['client/card.js']))).toEqual({
       kind: 'unavailable',
     })
@@ -238,7 +285,7 @@ describe('a held version written into a directory of the working directory', () 
 
   it('writes nothing for a held version that names a path outside its own directory', async () => {
     const root = workspace({})
-    const { source } = world({ workingDirectory: async () => root })
+    const { source } = world({ workingDirectory: async () => kept(root) })
     expect(await source.place('tidy', held({ '../escaped.txt': 'x' }))).toEqual({
       kind: 'unavailable',
     })
