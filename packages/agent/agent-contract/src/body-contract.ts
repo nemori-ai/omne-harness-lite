@@ -31,9 +31,9 @@ export const agentDefinitionCategoryDisplay: CategoryDisplay = Object.freeze({
     '---',
     'You review code. Read the file you are given and report the problems you find, the worst first.',
     'name is the name it is published under, and the name of its directory. summary is read by the agent that chooses whom to hand work to: say what this one is fit for.',
-    'references lists the capabilities it uses, each {category, name, resident?}. A tool with resident: true is in every request it makes. A reference of another category is kept and has no effect yet.',
+    'references lists the capabilities it uses, each {category, name, resident?}. A tool with resident: true is in every request it makes: a tool of the release, or one published here under category tool. A reference of another category is kept and has no effect yet.',
     'Other fields: attributes (a list of names: model, first_token_wait_limit, post_first_token_stall_limit) and permissionBounds. type is non-master and can be left out.',
-    'It is handed work with Agents, or a session is made with it by its name. Published again, it is used from the next run.',
+    'It is handed work with Agents, or a session is made with it by its name; its last reply is what the one who handed it the work receives. Published again, it is used from the next run.',
   ].join('\n'),
 })
 

@@ -204,11 +204,9 @@ async function availabilityOf(
   if (catalog === undefined) return unavailable('tool catalog absent')
   const name = input.original.name
   const access = { principal: input.principal, tenant: input.tenant, session }
-  if (!release.manifest.entries.some(entry => entry.asset.name === name)) {
-    const held = await ports.held?.(access, name)
-    if (held?.kind === 'unavailable') return unavailable(held.diagnostic)
-    if (held?.kind !== 'held') return unavailable(`${name} is not a tool that is lawful now`)
-  }
+  const released = release.manifest.entries.some(entry => entry.asset.name === name)
+  const held = released ? undefined : await ports.held?.(access, name)
+  if (held?.kind === 'unavailable') return unavailable(held.diagnostic)
   let answer: Awaited<ReturnType<ToolCatalog<unknown>['inspect']>>
   try {
     answer = await catalog.inspect({
@@ -231,8 +229,13 @@ async function availabilityOf(
       kind: 'answered',
       text: `${name} is not available now (${availability.reason}). Continue without it.`,
     })
-  const own = ownLayer(availability.layer, input.tenant)
-  if (availability.layer.kind !== 'official' && !own) return unavailable(`${name} is not available`)
+  const own =
+    held?.kind === 'held' &&
+    ownLayer(availability.layer, input.tenant) &&
+    canonicalDigest(availability.definition.adoption) ===
+      canonicalDigest(held.authority.asset.adoption)
+  if (released ? availability.layer.kind !== 'official' : !own)
+    return unavailable(`${name} is not available`)
   const selected = callOf(availability.definition, input.effectiveArguments)
   if ('answer' in selected) return succeed({ kind: 'answered', text: selected.answer })
   const asked = { catalog, release, input, definition: availability.definition }

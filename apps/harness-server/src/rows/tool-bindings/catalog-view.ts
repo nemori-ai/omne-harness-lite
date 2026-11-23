@@ -19,6 +19,11 @@ import type { ToolBindingKey } from '@omne-harness/tool-contract/provider'
 import { releaseDefinitionOf, releaseOf, type ToolRelease } from '../../entry/tool-release.ts'
 import { heldDefinitionOf } from '../tool-host/held-definitions.ts'
 import { currentHeldTool, heldToolNames, type CurrentHeldTool } from '../tool-host/held-current.ts'
+import {
+  recordedHeldTool,
+  type RecordedHeldTool,
+  type RecordedResident,
+} from '../tool-host/held-recorded.ts'
 import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
 import { verifySessionWork } from '../tool-runtime/session-work.ts'
 
@@ -39,6 +44,10 @@ export type ReleaseCatalogViewPorts = Readonly<{
     names(access: Access<unknown>): Promise<readonly string[] | undefined>
     current(access: Access<unknown>, name: string): Promise<CurrentHeldTool>
     definition(key: ToolBindingKey): ToolDefinition | undefined
+    recorded?(
+      access: Access<unknown>,
+      resident: RecordedResident,
+    ): Promise<RecordedHeldTool | undefined>
   }>
 }>
 
@@ -57,12 +66,13 @@ async function heldEntries(
   held: ReleaseCatalogViewPorts['held'],
   access: Access<unknown>,
   official: ReadonlySet<string>,
-  residents: ReadonlySet<string>,
+  work: CatalogWork,
 ): Promise<readonly Entry[] | undefined> {
   if (held === undefined) return []
   const names = await held.names(access)
   if (names === undefined) return undefined
-  const entries: Entry[] = []
+  const residents = new Set(work.residents.map(item => item.capability))
+  const entries = new Map<string, Entry>()
   for (const name of names) {
     if (official.has(name)) continue
     const current = await held.current(access, name)
@@ -70,13 +80,19 @@ async function heldEntries(
     if (current.kind !== 'held') continue
     const key = { layer: current.authority.layer, asset: current.authority.asset }
     const knownDefinition = held.definition(key)
-    entries.push({
+    entries.set(name, {
       key,
       resident: residents.has(name),
       ...(knownDefinition === undefined ? {} : { knownDefinition }),
     })
   }
-  return entries
+  // A resident whose tool is not in force now keeps the version the session took: the catalog answers for it in its shape.
+  for (const resident of work.residents) {
+    if (official.has(resident.capability) || entries.has(resident.capability)) continue
+    const recorded = await held.recorded?.(access, resident)
+    if (recorded !== undefined) entries.set(resident.capability, { ...recorded, resident: true })
+  }
+  return [...entries.values()]
 }
 
 export function createReleaseCatalogView(
@@ -113,7 +129,7 @@ export function createReleaseCatalogView(
           }
         })
         const official = new Set(release.manifest.entries.map(entry => entry.asset.name))
-        const held = await heldEntries(ports.held, access, official, residents)
+        const held = await heldEntries(ports.held, access, official, work.ok)
         if (held === undefined) return unavailable('what the tenant holds cannot be read')
         entries.push(...held)
         const identity = {
@@ -157,6 +173,7 @@ export function releaseCatalogViewOf(ctx: Context): LocalToolCatalogViewSource<u
       names: access => heldToolNames(ctx, access.tenant),
       current: (access, name) => currentHeldTool(ctx, access, name),
       definition: key => heldDefinitionOf(ctx, key),
+      recorded: (access, resident) => recordedHeldTool(ctx, access, resident),
     },
   })
 }

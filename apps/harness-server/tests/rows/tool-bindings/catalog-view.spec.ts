@@ -132,6 +132,36 @@ describe('release catalog lawful inclusion', () => {
     expect(after.revision).not.toBe(before.revision)
   })
 
+  it('keeps the version a session took as a resident when the tenant no longer holds that tool in force', async () => {
+    const w = await setup()
+    const taken = {
+      asset: 'tool/wordcount',
+      version: 'sha256:taken',
+      disabled: false,
+      immutable: false,
+      replaceLocked: false,
+    }
+    const { layer, asset } = heldToolAuthority(w.tenant, 'wordcount', taken)
+    const asked: unknown[] = []
+    const held: Held = {
+      ...holding(w.tenant, { wordcount: 'none', other: 'held' }),
+      recorded: async (_access, resident) => {
+        asked.push(resident.capability)
+        return resident.capability === 'wordcount' ? { key: { layer, asset } } : undefined
+      },
+    }
+    w.admit(['Files', 'wordcount', 'other'])
+    const view = okOf(await createReleaseCatalogView({ ...w.ports, held }).read(w), 'view')
+    const mine = view.entries.filter(entry => entry.key.layer.kind === 'tenant')
+    expect(mine.map(entry => [entry.key.asset.name, entry.resident])).toEqual([
+      ['other', true],
+      ['wordcount', true],
+    ])
+    expect(mine[1]?.key).toEqual({ layer, asset })
+    // A resident of the release, and one whose tool is in force, are not asked for.
+    expect(asked).toEqual(['wordcount'])
+  })
+
   it('asks what is held as the tenant of the call', async () => {
     const w = await setup()
     const asked: unknown[] = []

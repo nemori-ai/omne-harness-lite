@@ -15,6 +15,7 @@ import {
 } from '@omne-harness/tool-cordis-contract/cordis'
 import { releaseOf, type ToolRelease } from '../../entry/tool-release.ts'
 import { TOOL_RELEASE_FILE } from '../../entry/tool-release-manifest.ts'
+import { currentHeldTool } from '../tool-host/held-current.ts'
 import { createAdoptionPlanner, type AdoptionDefinition } from './planner.ts'
 
 const OWNER = '@omne-harness/harness-server'
@@ -52,6 +53,25 @@ export function releaseDefinitionOf(
   return Object.freeze({ authority, version: adoption.revision, admitted })
 }
 
+/** The tool the tenant of the session holds in force under a name, loaded; a text says why there is none to plan. */
+async function heldDefinitionOf<P>(
+  ctx: Context,
+  access: SessionAccess<P>,
+  capability: string,
+): Promise<AdoptionDefinition | string> {
+  const held = await currentHeldTool(ctx, access, capability)
+  if (held.kind === 'unavailable') return held.diagnostic
+  if (held.kind === 'unfit') return held.reason
+  if (held.kind === 'none')
+    return `${capability} is not a tool of the trusted release, nor one this tenant holds in force`
+  const { authority } = held
+  return Object.freeze({
+    authority,
+    version: authority.asset.adoption.digest,
+    admitted: authority.holding,
+  })
+}
+
 function current<T>(ctx: Context, key: string, kind: abstract new (...args: never[]) => T) {
   const service: unknown = ctx.get(key, false)
   return service instanceof kind ? service : undefined
@@ -68,9 +88,9 @@ export async function plannedResidents<P>(
   if (release.kind !== 'trusted') return unavailable(`tool release: ${release.diagnostic}`)
   const definitions = new Map<string, AdoptionDefinition>()
   for (const capability of capabilities) {
-    const definition = releaseDefinitionOf(release, capability)
-    if (definition === undefined)
-      return unavailable(`${capability} is not a tool of the trusted release`)
+    const definition =
+      releaseDefinitionOf(release, capability) ?? (await heldDefinitionOf(ctx, access, capability))
+    if (typeof definition === 'string') return unavailable(definition)
     definitions.set(capability, definition)
   }
   if (current(ctx, toolBindingsKey, ToolBindingsService) === undefined)

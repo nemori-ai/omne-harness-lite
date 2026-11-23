@@ -23,7 +23,7 @@ type Plain = Record<string, unknown>
 type Create = Extract<AdoptionEvidenceCommand, { kind: 'create' }>
 
 const toolRef = (name: string, resident = true) => ({
-  capability: { category: 'Tool', name },
+  capability: { category: 'tool', name },
   resident,
 })
 
@@ -138,7 +138,7 @@ describe('a mapping that names resident tools', () => {
     ).toHaveLength(2)
   })
 
-  it('a tool the release does not hold fails the creation with a diagnostic; no resident is left out', async () => {
+  it('a tool the release does not hold, where what the tenant holds cannot be read, fails the creation with a diagnostic; no resident is left out', async () => {
     const config = mappingConfig(
       withReferences('alpha', [toolRef('Files'), toolRef('Browser'), toolRef('Shell')]),
     )
@@ -147,7 +147,7 @@ describe('a mapping that names resident tools', () => {
       failure: {
         kind: 'unavailable',
         owner: '@omne-harness/harness-server',
-        diagnostic: 'resident tools: Browser is not a tool of the trusted release',
+        diagnostic: 'resident tools: what the tenant holds as Browser cannot be read',
       },
     })
   })
@@ -230,6 +230,17 @@ describe('the mapping table', () => {
   it('copies the resident Tool references of the definition into the entry, in order', async () => {
     const table = await buildTable(agentAdoptionsConfig.parse(mappingConfig(CODING)))
     expect(table.mappings.byName('alpha')?.residentCapabilities).toEqual(['Files', 'Shell'])
+  })
+
+  it('takes one spelling of the tool category: the name the category is registered under', async () => {
+    const config = mappingConfig(
+      withReferences('alpha', [
+        { capability: { category: 'Tool', name: 'Files' }, resident: true },
+      ]),
+    )
+    await expect(buildTable(agentAdoptionsConfig.parse(config))).rejects.toThrow(
+      'mappings.0.definition.references.0: a resident reference must name a Tool',
+    )
   })
 
   it('refuses a resident reference that is not a tool', async () => {

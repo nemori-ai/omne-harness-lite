@@ -415,7 +415,7 @@
               "owner": "harness-server-release",
               "name": "coding",
               "revision": "1",
-              "digest": "sha256:87fed6fee48782b7bfaa1881e52f6aa8f36d4b0f9e6507826c45df3c464befbf"
+              "digest": "sha256:b96d5838141b1ee1df91bf88e19a99c6f89b07757d8b16e9291a6c27b1c1c59a"
             },
             "execution": {
               "owner": "harness-server-release",
@@ -457,119 +457,119 @@
               "references": [
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "Files"
                   },
                   "resident": true
                 },
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "Shell"
                   },
                   "resident": true
                 },
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "Tools"
                   },
                   "resident": true
                 },
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "TodoItems"
                   },
                   "resident": true
                 },
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "BkgToolCalls"
                   },
                   "resident": true
                 },
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "Ask"
                   },
                   "resident": true
                 },
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "Web"
                   },
                   "resident": true
                 },
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "Calendar"
                   },
                   "resident": true
                 },
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "Schedules"
                   },
                   "resident": true
                 },
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "Notifications"
                   },
                   "resident": true
                 },
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "Sessions"
                   },
                   "resident": true
                 },
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "Agents"
                   },
                   "resident": true
                 },
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "SwitchWorkspace"
                   },
                   "resident": true
                 },
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "OmneExtensionPoints"
                   },
                   "resident": true
                 },
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "OmneExtensions"
                   },
                   "resident": true
                 },
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "Screen"
                   },
                   "resident": true
                 },
                 {
                   "capability": {
-                    "category": "Tool",
+                    "category": "tool",
                     "name": "Skills"
                   },
                   "resident": true

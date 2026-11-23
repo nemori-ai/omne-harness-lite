@@ -5,6 +5,8 @@ import { tenantCodec, type Access } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { Reply, ToolDefinition } from '@omne-harness/tool-contract'
 import {
+  deriveDefinition,
+  judgeToolDefinition,
   scriptConstructionOf,
   type ToolAuthority,
   type ToolLoader,
@@ -76,6 +78,21 @@ function accessOf(ctx: Context, authority: ToolAuthority): Access<unknown> | und
 function scriptModule(ctx: Context) {
   const release = releaseOf(ctx)
   return release.kind === 'trusted' ? release.modules.scriptToolModule : undefined
+}
+
+/** The definition a held version gives, read from its body without loading it; undefined when it cannot be read or made. */
+export async function heldDefinitionFromBody(
+  ctx: Context,
+  authority: ToolAuthority,
+): Promise<ToolDefinition | undefined> {
+  const module = scriptModule(ctx)
+  const construction = await constructionOf(ctx, authority)
+  if (module === undefined || 'failure' in construction) return undefined
+  const created = module.createAuthor(construction.ok)
+  if ('failure' in created) return undefined
+  const governance = { asset: authority.asset, requiredCapabilities: [] }
+  const judged = judgeToolDefinition(deriveDefinition(governance, created.ok.facts))
+  return 'ok' in judged ? judged.ok : undefined
 }
 
 /** Where the author of a tool that a tenant holds comes from: its body, and the script executor of the trusted release. */

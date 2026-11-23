@@ -1,5 +1,6 @@
 // @module-tag slow
 // Starts the release tree: an agent publishes a tool and, in the same run, finds it with Tools and calls it.
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { heldKeyNow, isHeldNow } from '../../src/rows/tool-host/held-current.ts'
 import { fixtureTenant } from '../entry/support.ts'
@@ -12,6 +13,26 @@ const count = (text: string) =>
 
 /** A script takes longer than Tools waits for a call: its result is read by the reference execute gave. */
 const result = tools('read_result', { kind: 'invocation', reference: LAST_REFERENCE, after: null })
+
+/** The tools the coding definition of the release keeps resident: what a coding session declares, no more. */
+const CODING_RESIDENTS = (
+  JSON.parse(
+    readFileSync(new URL('../../config/serve.distribution.json', import.meta.url), 'utf8'),
+  ) as {
+    rows: {
+      id: string
+      config?: {
+        mappings?: {
+          definition: { name: string; references: { capability: { name: string } }[] }
+        }[]
+      }
+    }[]
+  }
+).rows
+  .find(row => row.id === 'agent-adoptions')
+  ?.config?.mappings?.find(mapping => mapping.definition.name === 'coding')
+  ?.definition.references.map(reference => reference.capability.name)
+  .toSorted()
 
 const toolNamesOf = (body: string): string[] =>
   ((JSON.parse(body) as { tools?: { function?: { name?: string } }[] }).tools ?? []).map(
@@ -53,6 +74,7 @@ describe('a tool a tenant published, used in the run that published it, on the r
           const offered = model.bodies.map(body => toolNamesOf(body).join(','))
           expect(new Set(offered).size).toBe(1)
           expect(offered[0]).not.toContain('wordcount')
+          expect(toolNamesOf(model.bodies[0] ?? '{}').toSorted()).toEqual(CODING_RESIDENTS)
 
           // What may start: the version this tenant holds now, for this tenant, also as a record gives it back.
           const { tenant } = tree.registrar()

@@ -23,16 +23,15 @@ export type MappingTable = Readonly<{
 
 const candidateKey = (candidate: Adoption): string => canonicalText(candidate)
 
-/** The spellings of the tool category a resident reference may carry: the category, and the one the release wrote before. */
-const TOOL_CATEGORIES: readonly string[] = ['tool', 'Tool']
+/** The category of a tool, as a reference of a definition writes it: the name the tool category is registered under. */
+const TOOL_CATEGORY = 'tool'
 
 /** The tools a definition keeps resident; a resident reference of another category is kept and plans nothing. */
 export function residentToolsOf(definition: AgentDefinition): readonly string[] {
   return Object.freeze(
     definition.references
       .filter(
-        reference =>
-          reference.resident === true && TOOL_CATEGORIES.includes(reference.capability.category),
+        reference => reference.resident === true && reference.capability.category === TOOL_CATEGORY,
       )
       .map(reference => reference.capability.name),
   )
@@ -40,7 +39,7 @@ export function residentToolsOf(definition: AgentDefinition): readonly string[] 
 
 function residentCapabilitiesOf(definition: AgentDefinition, at: string): readonly string[] {
   for (const [index, reference] of definition.references.entries())
-    if (reference.resident === true && !TOOL_CATEGORIES.includes(reference.capability.category))
+    if (reference.resident === true && reference.capability.category !== TOOL_CATEGORY)
       throw new Error(`${at}.definition.references.${index}: a resident reference must name a Tool`)
   return residentToolsOf(definition)
 }
