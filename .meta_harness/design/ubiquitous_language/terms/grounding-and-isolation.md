@@ -200,7 +200,7 @@
 > environment**, so when it goes, **all of them go with it**.
 
 - **形态**：对象
-- **出处**：[元能力：`Shell()`](../../product/meta-capabilities/design.md#meta-shell)（rev 17） · [PF-005 §6.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 9）
+- **出处**：[元能力：`Shell()`](../../product/meta-capabilities/design.md#meta-shell)（rev 18） · [PF-005 §6.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 9）
 - **⚠️ 别混**：**不是[会话](agent-runtime-loop.md#ul-session--会话--session)。**
   两者**毫无关系**——一个是协作的归属边界，一个是执行环境里的一条命令行。
   **`Shell()` 的命令名 `create_session` / `close_session` 不改**（那是接口），
@@ -225,7 +225,7 @@
 > coordinates.
 
 - **形态**：对象
-- **出处**：[元能力：Computer() 图形界面操作](../../product/meta-capabilities/design.md#meta-computer)（rev 17）
+- **出处**：[元能力：Computer() 图形界面操作](../../product/meta-capabilities/design.md#meta-computer)（rev 18）
 - **别混**：**不是交付面上的一个页面**——屏幕在执行环境里，是 agent 观察与操作的对象，不是人看会话的那一面
 - **注意**：列出屏幕与截屏也以一个只读的截屏工具提供，与 Computer 用同一个图形界面设施、同样的规则；那是一个工具，不另立词条
 
@@ -663,7 +663,7 @@
 > decide which package from which layer to use, or who may read it.
 
 - **形态**：属性
-- **出处**：缺产品原文。[Skill 产品页 J-SK01](../../product/skills/design.md#j-sk01-将合法方法来源交给消费者)（rev 6）只要求来源不可读时报告具体失败，不当作空方法。按内容摘要交字节的这一方来自 Skill 与 MCP 领域的候选技术设计，那不是本词表的合法出处。出处缺口由产品负责人闭合：在 Skill 产品页写出它，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决
+- **出处**：缺产品原文。[Skill 产品页 J-SK01](../../product/skills/design.md#j-sk01-将合法方法来源交给消费者)（rev 7）只要求来源不可读时报告具体失败，不当作空方法。按内容摘要交字节的这一方来自 Skill 与 MCP 领域的候选技术设计，那不是本词表的合法出处。出处缺口由产品负责人闭合：在 Skill 产品页写出它，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决
 - **⚠️ 别混 ①**：**不是[资产来源](circulation-and-entitlement.md#ul-asset-origin--资产来源--asset-origin)**（official 还是 customized），
   **也不是[来源层](scope-and-resolution.md#ul-source-layer--来源层--source-layer)**。用哪一层的哪一份，由资产求值与装配决定；Skill 包来源只按给定的内容摘要交出字节
 - **别混 ②**：产品正文说方法「来源」时，指的是方法从哪个工作区、哪种格式、哪一层来，是给人看的出处，不是这一方。**正文裸写「来源」不指它**
