@@ -411,6 +411,11 @@
       "config": {}
     },
     {
+      "id": "workspace-outside-files",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "session-observation",
       "plugin": "stubPlugin",
       "config": {}

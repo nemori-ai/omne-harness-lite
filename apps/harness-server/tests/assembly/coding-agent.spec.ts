@@ -146,6 +146,18 @@ describe('the coding entry of the release mapping', () => {
       )
   })
 
+  it('tells the model how far its files reach by the state of the working directory, and does not call the directory an authorized workspace', () => {
+    const environment = instructions.find(section => section.id === 'environment')?.text ?? ''
+    expect(environment).toContain('session.working-directory')
+    for (const state of ['"default"', '"attached"', '"unusable"'])
+      expect(environment).toContain(state)
+    expect(environment).toContain('nothing limits the paths that you read or write')
+    expect(environment).toContain(
+      'Do not tell the user that a path is out of reach before a call has refused it.',
+    )
+    expect(fullText).not.toContain('one workspace that the harness authorized')
+  })
+
   it('the adoption face resolves the candidate to the definition with its instructions, and a digest off by one is invalid', async () => {
     const face = await adoptionsFace()
     const resolved = await face.resolve({ ...access, adoption: entry.candidate })

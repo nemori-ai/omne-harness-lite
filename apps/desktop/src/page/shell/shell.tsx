@@ -24,6 +24,8 @@ import {
   type Box,
 } from '@omne-harness/ui-kit'
 import type { Connectivity } from '../connectivity.ts'
+import { Float } from './float.tsx'
+import type { FloatPlaces } from './float-place.ts'
 import { useConflicts, useSlot, useWatched } from './hooks.ts'
 import { Item } from './item.tsx'
 import { bindRegionKeys } from './keys.ts'
@@ -55,6 +57,7 @@ export type ShellProps = Readonly<{
   connectivity: ConnectivitySource
   theme: ThemeSwitch
   size: SizeSwitch
+  floats: FloatPlaces
   missingAtForwarding?: readonly string[]
 }>
 
@@ -264,7 +267,7 @@ function useLacks(state: ShellState): (slot: LackSlot, id: string) => readonly L
   return (slot, id) => state.lacks.of(slot, id)
 }
 
-function Workspace(props: SidebarProps & { missing: readonly string[] }) {
+function Workspace(props: SidebarProps & { missing: readonly string[]; floats: FloatPlaces }) {
   const { state, pages, shown } = props
   const focus = useWatched(state.page.focus)
   const scope = useWatched(state.scope)
@@ -322,6 +325,7 @@ function Workspace(props: SidebarProps & { missing: readonly string[] }) {
           )
         })}
       </main>
+      <Float state={state} scope={scope} places={props.floats} inert={!wide && covered} />
     </div>
   )
 }
@@ -360,6 +364,7 @@ export function Shell(props: ShellProps) {
             shown={shown}
             homePage={homePage}
             missing={missing}
+            floats={props.floats}
           />
         ) : (
           <Outside state={state} login={login} connectivity={connectivity} missing={missing} />

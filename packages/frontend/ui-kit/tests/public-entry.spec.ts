@@ -128,6 +128,7 @@ const REST = [
   'InlineConfirm',
   'InlineNotice',
   'InkBubble',
+  'InkMotes',
   'Input',
   'Label',
   'LoadingIndicator',

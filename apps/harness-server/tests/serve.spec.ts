@@ -178,6 +178,7 @@ describe('serve: the release tree of doubles', () => {
         'runtime-context:real',
         'runtime-context-tenant-scope:real',
         'session-intake-budget:real',
+        'workspace-outside-files:real',
         'session-observation:real',
         'dispatch:real',
         'dispatch-session:real',
@@ -207,9 +208,9 @@ describe('serve: the release tree of doubles', () => {
         scope: 'serving',
         accepting: true,
         outcome: 'ready',
-        enabledRows: 104,
+        enabledRows: 105,
         barrierCalls: 1,
-        implementations: { real: 102, 'contract-double': 0, 's0-double': 2 },
+        implementations: { real: 103, 'contract-double': 0, 's0-double': 2 },
       })
       expect(run.of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
       expect(run.stderr).toEqual(['serve: stop requested: test: startup seen'])

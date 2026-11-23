@@ -4,6 +4,7 @@ import { deployment, tree, type Registry } from '@omne-harness/dynamis'
 import {
   type AttachedLayout,
   type FigureBoard,
+  slots,
   type ItemOf,
   type ScopeSource,
   type ShellLogin,
@@ -19,7 +20,7 @@ import { shellParts } from './parts.ts'
 import type { TokenNow } from './changes-sheet.ts'
 import type { ShellState } from './state.ts'
 
-const SLOT_NAMES: readonly SlotName[] = ['gate', 'pages', 'sidebar', 'attached']
+const SLOT_NAMES = Object.keys(slots) as SlotName[]
 const NO_LACKS: readonly Lack[] = Object.freeze([])
 const UNTOLD: Standing = () => ({ kind: 'connecting' })
 

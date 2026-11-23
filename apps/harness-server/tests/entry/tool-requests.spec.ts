@@ -14,11 +14,12 @@ import type { FilesScope } from '@omne-harness/execution-environment-contract'
 import type { OutsideFiles } from '@omne-harness/workspace-local'
 import type { SessionFaces, WorkSnapshot } from '@omne-harness/session-contract'
 import { SessionService } from '@omne-harness/session-cordis-contract/cordis'
-import type {
-  ToolAvailability,
-  ToolCatalog,
-  ToolDefinition,
-  ToolInvokeRequest,
+import {
+  pinnedFiles,
+  type ToolAvailability,
+  type ToolCatalog,
+  type ToolDefinition,
+  type ToolInvokeRequest,
 } from '@omne-harness/tool-contract'
 import { toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
 import {
@@ -136,7 +137,7 @@ async function world() {
     interaction: async () =>
       succeed({ attendance: 'attended', humanInteraction: true, child: false }),
     workingDirectory: async () => succeed({ state: 'default', directory: '/srv/default' }),
-    outsideFiles: async () => 'none',
+    outsideFiles: async () => succeed('none' as const),
   }
   return { fixture, ports, principalA, principalB, snapshot, definitions }
 }
@@ -344,7 +345,7 @@ describe('the trusted Tool request source', () => {
       requesterScope: SCOPE,
       scope: runToolScope(TENANT_A, actionInput(principalA).consumer),
       workspace: null,
-      directory: { path: '/srv/default', workspace: null },
+      directory: { path: '/srv/default', workspace: null, files: {} },
       resources: [],
       mode: 'foreground',
       consumer: { owner: '@omne-harness/agent', work: 'exec-1', purpose: 'action' },
@@ -400,7 +401,10 @@ describe('the trusted Tool request source', () => {
       const asked: unknown[] = []
       return {
         asked,
-        outsideFiles: async (tenant: unknown) => (asked.push(tenant), setting),
+        outsideFiles: async (tenant: unknown) => (
+          asked.push(tenant),
+          setting === null ? fail('read: missing') : succeed(setting)
+        ),
       }
     }
 
@@ -418,6 +422,7 @@ describe('the trusted Tool request source', () => {
       }
       const request = okOf(await prepared(source, principalA), 'prepared') as ToolInvokeRequest
       expect(request.directory?.files).toEqual(files)
+      // The setting is asked for the tenant of the call, when it is described and when it is pinned.
       expect(setting$.asked).toEqual([TENANT_A, TENANT_A])
       // The setting changing after the call was prepared does not change what it was pinned to.
       const pinned = structuredClone(request.directory)
@@ -437,13 +442,29 @@ describe('the trusted Tool request source', () => {
         failure: {
           kind: 'unavailable',
           owner: TOOL_REQUESTS_OWNER,
-          diagnostic: 'the setting for files outside the workspace is not readable',
+          diagnostic: 'the setting for files outside the workspace is not readable: read: missing',
         },
       })
     })
 
+    it.each<[OutsideFiles | null]>([['none'], ['read'], ['read-write'], [null]])(
+      'a session with no workspace has no boundary whatever the setting is (%s): neither side is limited, and the setting is not read',
+      async setting => {
+        const { ports, principalA } = await world()
+        const setting$ = reads(setting)
+        const source: ToolRequestPorts = {
+          ...ports,
+          workingDirectory: async () => succeed({ state: 'default', directory: '/srv/default' }),
+          outsideFiles: setting$.outsideFiles,
+        }
+        const request = okOf(await prepared(source, principalA), 'prepared') as ToolInvokeRequest
+        expect(request.directory).toEqual({ path: '/srv/default', workspace: null, files: {} })
+        expect(pinnedFiles(request.directory!)).toEqual({})
+        expect(setting$.asked).toEqual([])
+      },
+    )
+
     it.each<[string, WorkingDirectory | null]>([
-      ['no workspace', { state: 'default', directory: '/srv/default' }],
       [
         'a workspace that cannot be used',
         { state: 'unusable', workspace: blog, instance: 'wsi_blog', reason: 'not-permitted' },
@@ -457,16 +478,10 @@ describe('the trusted Tool request source', () => {
         workingDirectory: async () => succeed(value),
         outsideFiles: setting$.outsideFiles,
       })
-      const described = await source.describe(actionInput(principalA))
+      expect(await source.describe(actionInput(principalA))).toMatchObject({
+        ok: { kind: 'answered' },
+      })
       expect(setting$.asked).toEqual([])
-      if (value?.state === 'default') {
-        const request = okOf(
-          await prepared({ ...ports, outsideFiles: setting$.outsideFiles }, principalA),
-          'prepared',
-        ) as ToolInvokeRequest
-        expect(request.directory).toEqual({ path: '/srv/default', workspace: null })
-        expect(setting$.asked).toEqual([])
-      } else expect(described).toMatchObject({ ok: { kind: 'answered' } })
     })
   })
 
@@ -541,6 +556,7 @@ describe('the trusted Tool request source', () => {
       expect(await directoryFor(succeed({ state: 'default', directory: '/srv/default' }))).toEqual({
         path: '/srv/default',
         workspace: null,
+        files: {},
       })
       const blog = {
         state: 'attached',

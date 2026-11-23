@@ -17,6 +17,9 @@ import type {
   AttachedLayout,
   AttachedProps,
   FigureReport,
+  FloatCorner,
+  FloatItem,
+  FloatProps,
   GateItem,
   GateProps,
   ItemOf,
@@ -33,11 +36,24 @@ import type {
 import { ShellService, defineUiModule } from '@omne-harness/shell-contract/cordis'
 
 test('each slot takes its own item', () => {
-  expectTypeOf<SlotName>().toEqualTypeOf<'gate' | 'pages' | 'sidebar' | 'attached'>()
+  expectTypeOf<SlotName>().toEqualTypeOf<'gate' | 'pages' | 'sidebar' | 'float' | 'attached'>()
   expectTypeOf<ItemOf<'gate'>>().toEqualTypeOf<GateItem>()
   expectTypeOf<ItemOf<'pages'>>().toEqualTypeOf<PageItem>()
   expectTypeOf<ItemOf<'sidebar'>>().toEqualTypeOf<SidebarItem>()
+  expectTypeOf<ItemOf<'float'>>().toEqualTypeOf<FloatItem>()
   expectTypeOf<ItemOf<'attached'>>().toEqualTypeOf<AttachedItem>()
+  expectTypeOf<FloatItem>().toEqualTypeOf<
+    Readonly<{ id: string; order: number; render: (props: FloatProps) => ReactNode }>
+  >()
+  expectTypeOf<FloatProps>().toEqualTypeOf<
+    Readonly<{
+      scope: string | undefined
+      grip: Readonly<{ 'data-omne-float-grip': '' }>
+      corner: FloatCorner
+      dragging: boolean
+    }>
+  >()
+  expectTypeOf<FloatCorner>().toEqualTypeOf<Readonly<{ x: 'start' | 'end'; y: 'start' | 'end' }>>()
   expectTypeOf<AttachedItem>().toEqualTypeOf<
     Readonly<{
       id: string
