@@ -7,6 +7,7 @@ import { ModelProfilesService } from '@omne-harness/model-cordis-contract/cordis
 import { officialOpenAiProfiles, OPENAI_RECORDS } from '@omne-harness/pi-ai-openai'
 import { ANTHROPIC_RECORDS, officialAnthropicProfiles } from '@omne-harness/pi-ai-anthropic'
 import { DEEPSEEK_RECORDS, officialDeepSeekProfiles } from '@omne-harness/pi-ai-deepseek'
+import { GLM_RECORDS, officialGlmProfiles } from '@omne-harness/pi-ai-glm'
 import { officialKimiProfiles, KIMI_RECORDS } from '@omne-harness/pi-ai-kimi'
 import { officialQwenProfiles, QWEN_RECORDS } from '@omne-harness/pi-ai-qwen'
 import { expect, it } from 'vitest'
@@ -57,6 +58,7 @@ const ROUTES = [
   ...QWEN_RECORDS,
   ...KIMI_RECORDS,
   ...DEEPSEEK_RECORDS,
+  ...GLM_RECORDS,
 ]
   .filter(record => record.status === 'current')
   .map(record => record.name)
@@ -90,6 +92,7 @@ it('resolves every official route of the installed families to the profile defin
     ...officialQwenProfiles(input),
     ...officialKimiProfiles(input),
     ...officialDeepSeekProfiles(input),
+    ...officialGlmProfiles(input),
   ]
   expect(official).toHaveLength(ROUTES.length)
   for (const [index, route] of ROUTES.entries()) {
@@ -167,6 +170,36 @@ it('serves qwen/qwen3.8-omni-flash as the official profile that takes voice', as
   if (voice.kind !== 'resolved') throw new Error(`the Qwen route is ${voice.kind}`)
   expect(voice.selectable).toBe(true)
   expect(voice.profile.definition.input).toEqual(['text', 'voice'])
+})
+
+it('offers image input on the three GLM Flash routes when an image is required', async () => {
+  const { ctx, fiber } = await loaded()
+  try {
+    const service = ctx.modelProfiles
+    if (service === undefined) throw new Error('no modelProfiles service')
+    const choices = must(
+      await service.list({
+        principal,
+        tenant: TENANT,
+        selected: null,
+        required: requirement(['text', 'image']),
+      }),
+    )
+    const selectable = choices.choices.flatMap(choice =>
+      choice.kind === 'resolved' &&
+      choice.selectable &&
+      choice.profile.identity.route.startsWith('z-ai/')
+        ? [choice.profile.identity.route]
+        : [],
+    )
+    expect(selectable.toSorted()).toEqual([
+      'z-ai/glm-5.3-flash',
+      'z-ai/glm-5.3-flashx',
+      'z-ai/glm-5.3-flashx-legal',
+    ])
+  } finally {
+    await fiber.dispose()
+  }
 })
 
 it('publishes modelProfiles while it lives and withdraws it when disposed', async () => {

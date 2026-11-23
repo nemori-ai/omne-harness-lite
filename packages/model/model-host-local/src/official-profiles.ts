@@ -2,6 +2,7 @@ import type { ModelProfileDefinition } from '@omne-harness/model-contract'
 import { officialAnthropicProfiles } from '@omne-harness/pi-ai-anthropic'
 import { officialOpenAiProfiles, type OfficialProfilesInput } from '@omne-harness/pi-ai-openai'
 import { officialDeepSeekProfiles } from '@omne-harness/pi-ai-deepseek'
+import { officialGlmProfiles } from '@omne-harness/pi-ai-glm'
 import { officialKimiProfiles } from '@omne-harness/pi-ai-kimi'
 import { officialQwenProfiles } from '@omne-harness/pi-ai-qwen'
 
@@ -13,5 +14,6 @@ export function officialProfiles(input: OfficialProfilesInput): readonly ModelPr
     ...officialQwenProfiles(input),
     ...officialKimiProfiles(input),
     ...officialDeepSeekProfiles(input),
+    ...officialGlmProfiles(input),
   ]
 }

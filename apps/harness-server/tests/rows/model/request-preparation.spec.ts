@@ -49,6 +49,7 @@ const config = {
   qwen: family,
   kimi: family,
   deepseek: family,
+  glm: family,
 }
 const profilesConfig = {
   retryPolicy: ADOPTION,

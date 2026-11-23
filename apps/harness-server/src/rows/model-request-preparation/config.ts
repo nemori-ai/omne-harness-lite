@@ -29,6 +29,7 @@ export const modelRequestPreparationConfig = z.strictObject({
   qwen: family,
   kimi: family,
   deepseek: family,
+  glm: family,
 })
 
 export type ModelRequestPreparationConfig = z.output<typeof modelRequestPreparationConfig>

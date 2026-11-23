@@ -150,6 +150,76 @@
       "dropped": 0,
       "costUsd": 0.006017
     },
+    "alternate:z-ai/glm-5.1~anthropic/claude-haiku-5.5": {
+      "measuredOn": "2026-11-23",
+      "revisions": {
+        "z-ai/glm-5.1": "1",
+        "anthropic/claude-haiku-5.5": "3"
+      },
+      "hitRate": 0.979,
+      "dropped": 0,
+      "costUsd": 0.011558
+    },
+    "alternate:z-ai/glm-5.2~anthropic/claude-haiku-5.5": {
+      "measuredOn": "2026-11-23",
+      "revisions": {
+        "z-ai/glm-5.2": "1",
+        "anthropic/claude-haiku-5.5": "3"
+      },
+      "hitRate": 0.979,
+      "dropped": 0,
+      "costUsd": 0.011558
+    },
+    "alternate:z-ai/glm-5.3-flashx-legal~anthropic/claude-haiku-5.5": {
+      "measuredOn": "2026-11-23",
+      "revisions": {
+        "z-ai/glm-5.3-flashx-legal": "1",
+        "anthropic/claude-haiku-5.5": "3"
+      },
+      "hitRate": 0.994,
+      "dropped": 0,
+      "costUsd": 0.005851
+    },
+    "alternate:z-ai/glm-5.3-flashx~anthropic/claude-haiku-5.5": {
+      "measuredOn": "2026-11-23",
+      "revisions": {
+        "z-ai/glm-5.3-flashx": "1",
+        "anthropic/claude-haiku-5.5": "3"
+      },
+      "hitRate": 0.995,
+      "dropped": 0,
+      "costUsd": 0.005817
+    },
+    "alternate:z-ai/glm-5.3-flash~anthropic/claude-haiku-5.5": {
+      "measuredOn": "2026-11-23",
+      "revisions": {
+        "z-ai/glm-5.3-flash": "1",
+        "anthropic/claude-haiku-5.5": "3"
+      },
+      "hitRate": 0.946,
+      "dropped": 0,
+      "costUsd": 0.005126
+    },
+    "alternate:z-ai/glm-5.3-prime~anthropic/claude-haiku-5.5": {
+      "measuredOn": "2026-11-23",
+      "revisions": {
+        "z-ai/glm-5.3-prime": "1",
+        "anthropic/claude-haiku-5.5": "3"
+      },
+      "hitRate": 0.977,
+      "dropped": 0,
+      "costUsd": 0.013845
+    },
+    "alternate:z-ai/glm-5.3~anthropic/claude-haiku-5.5": {
+      "measuredOn": "2026-11-23",
+      "revisions": {
+        "z-ai/glm-5.3": "1",
+        "anthropic/claude-haiku-5.5": "3"
+      },
+      "hitRate": 0.995,
+      "dropped": 0,
+      "costUsd": 0.025146
+    },
     "single:anthropic/claude-fable-5.1": {
       "measuredOn": "2026-11-23",
       "revisions": {
@@ -473,6 +543,69 @@
       "hitRate": 0.945,
       "dropped": 0,
       "costUsd": 0.00266
+    },
+    "single:z-ai/glm-5.1": {
+      "measuredOn": "2026-11-23",
+      "revisions": {
+        "z-ai/glm-5.1": "1"
+      },
+      "hitRate": 0.979,
+      "dropped": 0,
+      "costUsd": 0.011621
+    },
+    "single:z-ai/glm-5.2": {
+      "measuredOn": "2026-11-23",
+      "revisions": {
+        "z-ai/glm-5.2": "1"
+      },
+      "hitRate": 0.98,
+      "dropped": 0,
+      "costUsd": 0.011539
+    },
+    "single:z-ai/glm-5.3": {
+      "measuredOn": "2026-11-23",
+      "revisions": {
+        "z-ai/glm-5.3": "1"
+      },
+      "hitRate": 0.981,
+      "dropped": 0,
+      "costUsd": 0.01159
+    },
+    "single:z-ai/glm-5.3-flash": {
+      "measuredOn": "2026-11-23",
+      "revisions": {
+        "z-ai/glm-5.3-flash": "1"
+      },
+      "hitRate": 0.97,
+      "dropped": 0,
+      "costUsd": 0.00188
+    },
+    "single:z-ai/glm-5.3-flashx": {
+      "measuredOn": "2026-11-23",
+      "revisions": {
+        "z-ai/glm-5.3-flashx": "1"
+      },
+      "hitRate": 0.971,
+      "dropped": 0,
+      "costUsd": 0.004688
+    },
+    "single:z-ai/glm-5.3-flashx-legal": {
+      "measuredOn": "2026-11-23",
+      "revisions": {
+        "z-ai/glm-5.3-flashx-legal": "1"
+      },
+      "hitRate": 0.97,
+      "dropped": 0,
+      "costUsd": 0.004646
+    },
+    "single:z-ai/glm-5.3-prime": {
+      "measuredOn": "2026-11-23",
+      "revisions": {
+        "z-ai/glm-5.3-prime": "1"
+      },
+      "hitRate": 0.981,
+      "dropped": 0,
+      "costUsd": 0.014642
     }
   }
 }

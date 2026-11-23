@@ -52,7 +52,7 @@ describe('the cells come from the records', () => {
       expect([first, peer].join('/')).not.toMatch(/fable|opus|astra/i)
       expect(['anthropic/claude-haiku-5.5', 'qwen/qwen3.8-omni-flash']).toContain(peer)
     }
-    for (const model of models.filter(model => model.route.startsWith('deepseek/'))) {
+    for (const model of models.filter(model => /^(deepseek|moonshotai|z-ai)\//.test(model.route))) {
       expect(alternating.filter(cell => cell.turns[0] === model.route)).toHaveLength(1)
     }
   })
@@ -108,6 +108,7 @@ describe('the cells come from the records', () => {
         '@omne-harness/pi-ai-qwen',
         '@omne-harness/pi-ai-kimi',
         '@omne-harness/pi-ai-deepseek',
+        '@omne-harness/pi-ai-glm',
       ]),
     )
     expect(currentModels().every(model => model.revision !== '')).toBe(true)

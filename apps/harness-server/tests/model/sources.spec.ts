@@ -25,18 +25,13 @@ describe('the official send sources', () => {
       current: () => ({ ok: { authorized: false } }),
     })
     const families = new Set(sources.map(source => source.model.split('/')[0]))
-    expect(families).toEqual(new Set(['openai', 'anthropic', 'qwen', 'moonshotai', 'deepseek']))
-    expect(sources.map(source => source.model)).toEqual(
-      expect.arrayContaining([
-        'moonshotai/kimi-k3.1-pro',
-        'moonshotai/kimi-k3',
-        'moonshotai/kimi-k2.7-code',
-      ]),
+    expect(families).toEqual(
+      new Set(['openai', 'anthropic', 'qwen', 'moonshotai', 'deepseek', 'z-ai']),
     )
     expect(
       sources
-        .filter(source => source.model.startsWith('deepseek/'))
         .map(source => source.model)
+        .filter(model => /^(deepseek|moonshotai|z-ai)\//.test(model))
         .toSorted(),
     ).toEqual([
       'deepseek/deepseek-v3.2',
@@ -48,6 +43,16 @@ describe('the official send sources', () => {
       'deepseek/deepseek-v4-pro-0813',
       'deepseek/deepseek-v4.1-flash',
       'deepseek/deepseek-v4.1-flash-1017',
+      'moonshotai/kimi-k2.7-code',
+      'moonshotai/kimi-k3',
+      'moonshotai/kimi-k3.1-pro',
+      'z-ai/glm-5.1',
+      'z-ai/glm-5.2',
+      'z-ai/glm-5.3',
+      'z-ai/glm-5.3-flash',
+      'z-ai/glm-5.3-flashx',
+      'z-ai/glm-5.3-flashx-legal',
+      'z-ai/glm-5.3-prime',
     ])
     const ctx = new Context()
     await ctx.plugin(ModelProfilesLocalPlugin, { ...PROFILES, updatedAt: '2026-11-02T00:00:00Z' })
