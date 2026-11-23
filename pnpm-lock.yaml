@@ -786,6 +786,21 @@ importers:
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../packages/common/legal-identity
+      '@omne-harness/mcp':
+        specifier: workspace:*
+        version: link:../../packages/mcp/mcp
+      '@omne-harness/mcp-bridge':
+        specifier: workspace:*
+        version: link:../../packages/mcp/mcp-bridge
+      '@omne-harness/mcp-contract':
+        specifier: workspace:*
+        version: link:../../packages/mcp/mcp-contract
+      '@omne-harness/mcp-cordis-contract':
+        specifier: workspace:*
+        version: link:../../packages/mcp/mcp-cordis-contract
+      '@omne-harness/mcp-host-local':
+        specifier: workspace:*
+        version: link:../../packages/mcp/mcp-host-local
       '@omne-harness/media':
         specifier: workspace:*
         version: link:../../packages/media/media
@@ -1096,9 +1111,6 @@ importers:
       '@omne-harness/identity-protocol':
         specifier: workspace:*
         version: link:../../packages/identity/identity-protocol
-      '@omne-harness/mcp-host-local':
-        specifier: workspace:*
-        version: link:../../packages/mcp/mcp-host-local
       '@omne-harness/media-protocol':
         specifier: workspace:*
         version: link:../../packages/media/media-protocol
@@ -3669,6 +3681,37 @@ importers:
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/mcp/mcp-bridge:
+    dependencies:
+      '@omne-harness/content-block':
+        specifier: workspace:*
+        version: link:../../common/content-block
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/mcp-contract':
+        specifier: workspace:*
+        version: link:../mcp-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/tool-contract':
+        specifier: workspace:*
+        version: link:../../tool/tool-contract
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

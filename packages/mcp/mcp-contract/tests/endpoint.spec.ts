@@ -207,7 +207,7 @@ describe('mcpEndpointGates', () => {
     expect(mcpEndpointGates).toEqual({
       category: 'mcp',
       ownerId: 'mcp.endpoint-gates',
-      gates: [{ id: 'call', title: '调用这个接入点的动作', default: 'ask' }],
+      gates: [{ id: 'invoke', title: '调用这个接入点的动作', default: 'ask' }],
     })
     expect(Object.isFrozen(mcpEndpointGates) && Object.isFrozen(mcpEndpointGates.gates)).toBe(true)
   })

@@ -109,6 +109,163 @@ function bounded<T>(work: Promise<T>, timeoutMs: number): Promise<T | 'timeout'>
   return Promise.race([work, timeout]).finally(() => clearTimeout(timer))
 }
 
+type ParameterCodec = Extract<ReturnType<typeof createDefaultParameterCodec>, { ok: unknown }>['ok']
+type Authoring<B extends ContentBlock> = Readonly<{
+  parameters: ParameterCodec
+  codec: OutputCodec<ToolRenderedResult<B>>
+}>
+type Declared = { kind: 'declared'; value: ParameterContract }
+
+function operationOf<P, E, B extends ContentBlock>(
+  authoring: Authoring<B>,
+  source: ToolEntrySource<P, B>,
+  name: string,
+  declared: ToolCommandDeclaration | null,
+  contract: ParameterContract,
+  returns: ToolReturnDeclaration,
+): Outcome<ToolOperation<E, B, Declared>, string> {
+  if (returns.kind !== 'structured') return fail('returns-not-structured')
+  const { codec, parameters } = authoring
+  const made = defineToolOperation<JsonValue, ToolRenderedResult<B>, E, B, Declared>({
+    parameters: { kind: 'declared', value: contract },
+    returns: returns as ToolReturnDeclaration & { kind: 'structured' },
+    author: {
+      kind: 'structured',
+      parameters,
+      waits: [],
+      codec,
+      output: {
+        adoption: codec.adoption,
+        check: ({ value }) => {
+          const encoded = codec.encode(value)
+          return 'failure' in encoded ? encoded : codec.decode(encoded.ok)
+        },
+      },
+      program: { kind: 'none' },
+      executor: {
+        execute: (args, _environment, context) => {
+          const facts = callFacts.get(context) as CallFacts<P> | undefined
+          if (facts === undefined) throw new Error('the call of the source entry is not known')
+          return source.execute({
+            principal: facts.principal,
+            tenant: facts.tenant,
+            name,
+            command: declared?.name ?? null,
+            declared,
+            arguments: args,
+            invocation: facts.call,
+            signal: context.signal,
+          })
+        },
+      },
+    },
+  })
+  return 'failure' in made ? fail(`operation ${made.failure.field}`) : succeed(made.ok)
+}
+
+function implementationOf<P, E, B extends ContentBlock>(
+  authoring: Authoring<B>,
+  source: ToolEntrySource<P, B>,
+  definition: ToolDefinition,
+) {
+  const implementation = {
+    description: definition.description,
+    backgroundAllowed: definition.backgroundAllowed,
+    declarations: definition.declarations,
+  }
+  const operation = (
+    declared: ToolCommandDeclaration | null,
+    contract: ParameterContract,
+    returns: ToolReturnDeclaration,
+  ) => operationOf<P, E, B>(authoring, source, definition.name, declared, contract, returns)
+  if (definition.kind === 'function') {
+    const made = operation(null, definition.parameters, definition.returns)
+    if ('failure' in made) return made
+    const tool = defineFunctionTool<E, B>({
+      implementation,
+      operation: made.ok,
+      ...(definition.conditions === undefined ? {} : { conditions: definition.conditions }),
+    })
+    return 'failure' in tool ? fail(`function ${tool.failure.field}`) : succeed(tool.ok)
+  }
+  type Commands = Parameters<typeof defineCommandTool<E, B>>[0]['commands']
+  const commands: Record<string, Commands[string]> = {}
+  for (const command of definition.commands) {
+    if (command.parameters.kind !== 'declared') return fail('executor-owned-parameters')
+    const made = operation(command, command.parameters.value, command.returns)
+    if ('failure' in made) return made
+    const { name: _name, parameters: _parameters, returns: _returns, ...rest } = command
+    commands[command.name] = { ...rest, operation: made.ok }
+  }
+  const tool = defineCommandTool<E, B>({
+    implementation,
+    encoding: definition.encoding,
+    ...(definition.guide === undefined ? {} : { guide: definition.guide }),
+    ...(definition.gates === undefined ? {} : { gates: definition.gates }),
+    commands,
+  })
+  return 'failure' in tool ? fail(`commands ${tool.failure.field}`) : succeed(tool.ok)
+}
+
+async function listedBy<P, B extends ContentBlock>(
+  source: ToolEntrySource<P, B>,
+  access: Access<P>,
+  timeoutMs: number,
+): Promise<Outcome<ToolSourceListing, string>> {
+  try {
+    const answer = await bounded(source.list(access), timeoutMs)
+    if (answer === 'timeout') return fail('timeout')
+    if ('failure' in answer) return fail(answer.failure.kind)
+    const judged = judgeToolSourceListing(source.prefix, answer.ok)
+    return 'failure' in judged ? fail(`breach ${judged.failure.reason}`) : succeed(judged.ok)
+  } catch {
+    return fail('threw')
+  }
+}
+
+async function readEntries<P, B extends ContentBlock>(
+  offered: readonly ToolEntrySource<P, B>[],
+  access: Access<P>,
+  timeoutMs: number,
+): Promise<SourcedCatalogEntries> {
+  const live: ToolListing[] = []
+  const known: SourcedCatalogEntries['known'][number][] = []
+  const withheld: ToolSourceWithheld[] = []
+  const failed: string[] = []
+  const sources = offered.toSorted((left, right) => (left.prefix < right.prefix ? -1 : 1))
+  for (const source of sources) {
+    if (sourceOf(sources, source.prefix) !== source) continue
+    const listed = await listedBy(source, access, timeoutMs)
+    if ('failure' in listed) {
+      failed.push(source.prefix)
+      withheld.push({
+        name: `${source.prefix}*`,
+        reason: `the source of these entries is unavailable (${listed.failure})`,
+      })
+      continue
+    }
+    for (const entry of listed.ok.entries) {
+      const key = keyOf(access, entry.definition)
+      if (entry.availability.kind === 'available')
+        live.push({
+          entry: {
+            key,
+            ordinal: SOURCE_ORDINAL,
+            digest: entry.executor.digest,
+            shape: shapeOf(entry.definition),
+            state: 'live',
+            fiber: `entry-source:${source.prefix}`,
+          },
+          definition: entry.definition,
+          executor: entry.executor,
+        })
+      else known.push({ key, definition: entry.definition, reason: entry.availability.reason })
+    }
+    withheld.push(...listed.ok.withheld)
+  }
+  return { live, known, withheld, unavailable: failed }
+}
+
 export function createLocalEntrySources<P, E, B extends ContentBlock>(
   input: LocalEntrySourcesInput<P, B>,
 ) {
@@ -117,110 +274,8 @@ export function createLocalEntrySources<P, E, B extends ContentBlock>(
   const policy = input.policy ?? DEFAULT_ENTRY_SOURCE_POLICY
   const codec = createDefaultParameterCodec(policy.arguments)
   if ('failure' in codec) throw new TypeError('the source argument limits are not lawful')
-  const parameters = codec.ok
+  const authoring: Authoring<B> = { parameters: codec.ok, codec: input.codec }
   const loadedByDefinition = new WeakMap<ToolDefinition, Outcome<Loaded, string>>()
-
-  function operationOf(
-    source: Source,
-    name: string,
-    declared: ToolCommandDeclaration | null,
-    contract: ParameterContract,
-    returns: ToolReturnDeclaration,
-  ): Outcome<ToolOperation<E, B>, string> {
-    if (returns.kind !== 'structured') return fail('returns-not-structured')
-    const made = defineToolOperation<
-      JsonValue,
-      ToolRenderedResult<B>,
-      E,
-      B,
-      { kind: 'declared'; value: ParameterContract }
-    >({
-      parameters: { kind: 'declared', value: contract },
-      returns: returns as ToolReturnDeclaration & { kind: 'structured' },
-      author: {
-        kind: 'structured',
-        parameters,
-        waits: [],
-        codec: input.codec,
-        output: {
-          adoption: input.codec.adoption,
-          check: ({ value }) => {
-            const encoded = input.codec.encode(value)
-            return 'failure' in encoded ? encoded : input.codec.decode(encoded.ok)
-          },
-        },
-        program: { kind: 'none' },
-        executor: {
-          execute: (args, _environment, context) => {
-            const facts = callFacts.get(context) as CallFacts<P> | undefined
-            if (facts === undefined) throw new Error('the call of the source entry is not known')
-            return source.execute({
-              principal: facts.principal,
-              tenant: facts.tenant,
-              name,
-              command: declared?.name ?? null,
-              declared,
-              arguments: args,
-              invocation: facts.call,
-              signal: context.signal,
-            })
-          },
-        },
-      },
-    })
-    return 'failure' in made ? fail(`operation ${made.failure.field}`) : succeed(made.ok)
-  }
-
-  function implementationOf(source: Source, definition: ToolDefinition) {
-    const implementation = {
-      description: definition.description,
-      backgroundAllowed: definition.backgroundAllowed,
-      declarations: definition.declarations,
-    }
-    if (definition.kind === 'function') {
-      const operation = operationOf(
-        source,
-        definition.name,
-        null,
-        definition.parameters,
-        definition.returns,
-      )
-      if ('failure' in operation) return operation
-      const made = defineFunctionTool<E, B>({
-        implementation,
-        operation: operation.ok as ToolOperation<
-          E,
-          B,
-          { kind: 'declared'; value: ParameterContract }
-        >,
-        ...(definition.conditions === undefined ? {} : { conditions: definition.conditions }),
-      })
-      return 'failure' in made ? fail(`function ${made.failure.field}`) : succeed(made.ok)
-    }
-    type Commands = Parameters<typeof defineCommandTool<E, B>>[0]['commands']
-    const commands: Record<string, Commands[string]> = {}
-    for (const command of definition.commands) {
-      if (command.parameters.kind !== 'declared') return fail('executor-owned-parameters')
-      const operation = operationOf(
-        source,
-        definition.name,
-        command,
-        command.parameters.value,
-        command.returns,
-      )
-      if ('failure' in operation) return operation
-      const { name: _name, parameters: _parameters, returns: _returns, ...rest } = command
-      commands[command.name] = { ...rest, operation: operation.ok }
-    }
-    const made = defineCommandTool<E, B>({
-      implementation,
-      encoding: definition.encoding,
-      ...(definition.guide === undefined ? {} : { guide: definition.guide }),
-      ...(definition.gates === undefined ? {} : { gates: definition.gates }),
-      commands,
-    })
-    return 'failure' in made ? fail(`commands ${made.failure.field}`) : succeed(made.ok)
-  }
 
   function loadedOf(
     access: Access<P>,
@@ -229,7 +284,7 @@ export function createLocalEntrySources<P, E, B extends ContentBlock>(
   ): Outcome<Loaded, string> {
     const known = loadedByDefinition.get(entry.definition)
     if (known !== undefined) return known
-    const implementation = implementationOf(source, entry.definition)
+    const implementation = implementationOf<P, E, B>(authoring, source, entry.definition)
     const answer: Outcome<Loaded, string> =
       'failure' in implementation
         ? implementation
@@ -282,62 +337,8 @@ export function createLocalEntrySources<P, E, B extends ContentBlock>(
     return 'failure' in loaded ? loaded : succeed({ source, loaded: loaded.ok })
   }
 
-  async function listedBy(
-    source: Source,
-    access: Access<P>,
-  ): Promise<Outcome<ToolSourceListing, string>> {
-    try {
-      const answer = await bounded(source.list(access), policy.listTimeoutMs)
-      if (answer === 'timeout') return fail('timeout')
-      if ('failure' in answer) return fail(answer.failure.kind)
-      const judged = judgeToolSourceListing(source.prefix, answer.ok)
-      return 'failure' in judged ? fail(`breach ${judged.failure.reason}`) : succeed(judged.ok)
-    } catch {
-      return fail('threw')
-    }
-  }
-
   const entries: LocalToolSourcedEntries<P> = {
-    async read(access) {
-      const live: ToolListing[] = []
-      const known: SourcedCatalogEntries['known'][number][] = []
-      const withheld: ToolSourceWithheld[] = []
-      const failed: string[] = []
-      const sources = input
-        .sources()
-        .toSorted((left, right) => (left.prefix < right.prefix ? -1 : 1))
-      for (const source of sources) {
-        if (sourceOf(sources, source.prefix) !== source) continue
-        const listed = await listedBy(source, access)
-        if ('failure' in listed) {
-          failed.push(source.prefix)
-          withheld.push({
-            name: `${source.prefix}*`,
-            reason: `the source of these entries is unavailable (${listed.failure})`,
-          })
-          continue
-        }
-        for (const entry of listed.ok.entries) {
-          const key = keyOf(access, entry.definition)
-          if (entry.availability.kind === 'available')
-            live.push({
-              entry: {
-                key,
-                ordinal: SOURCE_ORDINAL,
-                digest: entry.executor.digest,
-                shape: shapeOf(entry.definition),
-                state: 'live',
-                fiber: `entry-source:${source.prefix}`,
-              },
-              definition: entry.definition,
-              executor: entry.executor,
-            })
-          else known.push({ key, definition: entry.definition, reason: entry.availability.reason })
-        }
-        withheld.push(...listed.ok.withheld)
-      }
-      return { live, known, withheld, unavailable: failed }
-    },
+    read: access => readEntries(input.sources(), access, policy.listTimeoutMs),
   }
 
   return {

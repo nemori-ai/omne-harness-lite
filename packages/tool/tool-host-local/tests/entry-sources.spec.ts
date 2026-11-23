@@ -151,7 +151,7 @@ const searching = (access: Access<string>, after: string | null = null, limit = 
   ...access,
   query: '',
   consumer,
-  invocation: 'model' as const,
+  invocation: 'direct' as const,
   after,
   limit,
 })

@@ -1075,6 +1075,14 @@
       "source": "packages/mcp/SPEC.md"
     },
     {
+      "id": "packages/mcp/mcp-bridge",
+      "paths": ["packages/mcp/mcp-bridge/src/**"],
+      "layer": "unknown",
+      "domains": ["mcp"],
+      "status": "candidate",
+      "source": "packages/mcp/SPEC.md"
+    },
+    {
       "id": "packages/mcp/mcp-host-local",
       "paths": ["packages/mcp/mcp-host-local/src/**"],
       "layer": "assembly",
@@ -1841,7 +1849,11 @@
     {
       "id": "DIR-MCP-PURE",
       "from": ["packages/mcp/mcp-contract", "packages/mcp/mcp"],
-      "to": ["packages/mcp/mcp-cordis-contract", "packages/mcp/mcp-host-local"],
+      "to": [
+        "packages/mcp/mcp-cordis-contract",
+        "packages/mcp/mcp-host-local",
+        "packages/mcp/mcp-bridge"
+      ],
       "source": "packages/mcp/SPEC.md"
     },
     {

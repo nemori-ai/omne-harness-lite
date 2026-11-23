@@ -5,6 +5,14 @@ import {
   judgeToolSourceListing,
   type ToolSourceEntry,
 } from '@omne-harness/tool-contract/provider'
+import type { ContentBlock } from '@omne-harness/content-block'
+import {
+  createMemoryToolEntrySource,
+  runConformanceCase,
+  testingSourceEntry,
+  testingTenant,
+  toolEntrySourceConformance,
+} from '@omne-harness/tool-contract/testing'
 import { adoption, metadata, parameters, structuredReturns } from './tool-values.ts'
 
 function definition(name: string): ToolDefinition {
@@ -148,4 +156,36 @@ describe('the listing of a tool entry source', () => {
       reason: 'prefix',
     })
   })
+})
+
+describe('the memory source stands as an entry source', () => {
+  const owner = {
+    principal: 'owner',
+    tenant: testingTenant(`org_${'a'.repeat(26)}`, `acc_${'1'.repeat(26)}`),
+  }
+  const stranger = {
+    principal: 'stranger',
+    tenant: testingTenant(`org_${'b'.repeat(26)}`, `acc_${'2'.repeat(26)}`),
+  }
+  for (const conformance of toolEntrySourceConformance<string, ContentBlock>()) {
+    it(`${conformance.clause}: ${conformance.name}`, async () => {
+      const source = createMemoryToolEntrySource<string, ContentBlock>({
+        prefix: 'probe__',
+        listing: access =>
+          access.principal === 'owner'
+            ? {
+                entries: [
+                  testingSourceEntry({ name: 'probe__a', category: 'probe' }),
+                  testingSourceEntry({ name: 'probe__b', category: 'probe', unavailable: 'down' }),
+                ],
+                withheld: [{ name: 'probe__c', reason: 'not acquired' }],
+              }
+            : { entries: [], withheld: [] },
+        execute: () => Promise.reject(new Error('the conformance suite does not call')),
+      })
+      expect(await runConformanceCase(conformance, { source, owner, stranger })).toEqual({
+        kind: 'passed',
+      })
+    })
+  }
 })

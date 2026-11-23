@@ -98,7 +98,7 @@ export const mcpEndpointGates = Object.freeze({
   category: 'mcp',
   ownerId: 'mcp.endpoint-gates',
   gates: Object.freeze([
-    Object.freeze({ id: 'call', title: '调用这个接入点的动作', default: 'ask' as const }),
+    Object.freeze({ id: 'invoke', title: '调用这个接入点的动作', default: 'ask' as const }),
   ]),
 })
 
