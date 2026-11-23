@@ -217,6 +217,8 @@ describe('the Agents tool on the release tree', () => {
         expect(dispatch.context).toMatch(/^\["[^"]+","\d+","\d+"\]$/u)
 
         // The input of the dispatched session holds the work alone; the conversation is not in it.
+        // Read it once it is quiet: its run may still be ending after the report.
+        await settledWhen(tree, dispatch.session, 'the dispatched session', () => true)
         const child = await historyOf(tree, dispatch.session)
         const told = reminders(child)
         const starting = told.find(text => text.includes(DISPATCHED))
