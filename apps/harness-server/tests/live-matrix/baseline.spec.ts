@@ -36,9 +36,37 @@ const MODELS: readonly LiveModel[] = [
   { route: 'b/one', revision: '3', family: B },
 ]
 
+const cheapPeers = ['b/one', 'a/one']
+
 describe('the cells come from the records', () => {
-  it('gives every model one single-model cell and leads one alternating cell with it, paired in order', () => {
-    const cells = liveCells(MODELS)
+  it('keeps premium models in their own single-model tests and uses cheap peers for switching', () => {
+    const models = currentModels()
+    const cells = liveCells(models)
+    const alternating = cells.filter(cell => cell.kind === 'alternate')
+    expect(alternating.length).toBeGreaterThan(0)
+    expect(cells.filter(cell => cell.kind === 'single')).toHaveLength(models.length)
+    for (const {
+      turns: [first, peer, last],
+    } of alternating) {
+      expect(first).toBe(last)
+      expect([first, peer].join('/')).not.toMatch(/fable|opus|astra/i)
+      expect(['anthropic/claude-haiku-5.5', 'qwen/qwen3.8-omni-flash']).toContain(peer)
+    }
+    for (const model of models.filter(model => model.route.startsWith('deepseek/'))) {
+      expect(alternating.filter(cell => cell.turns[0] === model.route)).toHaveLength(1)
+    }
+  })
+
+  it('refuses a multi-family matrix without an installed inexpensive peer', () => {
+    expect(() => liveCells(MODELS, [])).toThrow(/peer/)
+    const withoutHaiku = currentModels().filter(
+      model => model.route !== 'anthropic/claude-haiku-5.5',
+    )
+    expect(() => liveCells(withoutHaiku)).toThrow(/haiku/)
+  })
+
+  it('gives every model one single-model cell and leads one alternating cell with an inexpensive peer', () => {
+    const cells = liveCells(MODELS, cheapPeers)
     expect(cells.map(cell => cell.id)).toEqual([
       'single:a/one',
       'single:a/three',
@@ -46,10 +74,10 @@ describe('the cells come from the records', () => {
       'single:b/one',
       'single:b/two',
       'alternate:a/one~b/one',
-      'alternate:a/three~b/two',
+      'alternate:a/three~b/one',
       'alternate:a/two~b/one',
       'alternate:b/one~a/one',
-      'alternate:b/two~a/three',
+      'alternate:b/two~a/one',
     ])
     expect(cells.find(cell => cell.id === 'alternate:a/two~b/one')?.turns).toEqual([
       'a/two',
@@ -87,7 +115,7 @@ describe('the cells come from the records', () => {
 })
 
 describe('the expectations follow the records', () => {
-  const cells = liveCells(MODELS)
+  const cells = liveCells(MODELS, cheapPeers)
   const entry = (models: readonly string[]) => ({
     measuredOn: '2026-11-18',
     revisions: Object.fromEntries(
@@ -116,6 +144,7 @@ describe('the expectations follow the records', () => {
     expect(baselineProblems(cells, moved, complete)).toEqual([
       'single:b/one: measured b/one at revision 3, the record is at 4',
       'alternate:a/one~b/one: measured b/one at revision 3, the record is at 4',
+      'alternate:a/three~b/one: measured b/one at revision 3, the record is at 4',
       'alternate:a/two~b/one: measured b/one at revision 3, the record is at 4',
       'alternate:b/one~a/one: measured b/one at revision 3, the record is at 4',
     ])

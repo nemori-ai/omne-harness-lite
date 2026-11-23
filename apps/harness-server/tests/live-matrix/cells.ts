@@ -49,22 +49,40 @@ export function currentModels(): readonly LiveModel[] {
     .sort(byRoute)
 }
 
-/**
- * One single-model cell per model, and one alternating cell that leads with it: model i of a family
- * is paired with model i modulo n of the other families, both lists sorted by route.
- */
-export function liveCells(models: readonly LiveModel[]): readonly LiveCell[] {
+// These inexpensive counterparts exercise Messages, Chat Completions and Responses.
+const haiku = 'anthropic/claude-haiku-5.5'
+const luna = 'openai/gpt-6-luna'
+const switchingPeers = [haiku, 'qwen/qwen3.8-omni-flash', luna]
+const protocolRepresentatives = new Map([
+  ['@omne-harness/pi-ai-anthropic', haiku],
+  ['@omne-harness/pi-ai-openai', luna],
+])
+
+export function liveCells(
+  models: readonly LiveModel[],
+  peerRoutes: readonly string[] = switchingPeers,
+): readonly LiveCell[] {
   const sorted = [...models].sort(byRoute)
   const singles = sorted.map(model => ({
     id: `single:${model.route}`,
     kind: 'single' as const,
     turns: [model.route, model.route, model.route],
   }))
+  const families = new Set(sorted.map(model => model.family))
+  if (families.size < 2) return singles
+  for (const [family, route] of protocolRepresentatives) {
+    if (
+      families.has(family) &&
+      !sorted.some(model => model.family === family && model.route === route)
+    )
+      throw new Error('Missing inexpensive protocol representative: ' + route)
+  }
+  const peers = peerRoutes.flatMap(route => sorted.filter(model => model.route === route))
   const alternates = sorted.flatMap(model => {
-    const own = sorted.filter(other => other.family === model.family)
-    const others = sorted.filter(other => other.family !== model.family)
-    const partner = others[own.indexOf(model) % Math.max(others.length, 1)]
-    if (partner === undefined) return []
+    const representative = protocolRepresentatives.get(model.family)
+    if (representative !== undefined && model.route !== representative) return []
+    const partner = peers.find(other => other.family !== model.family)
+    if (partner === undefined) throw new Error('No inexpensive switching peer for ' + model.route)
     return [
       {
         id: `alternate:${model.route}~${partner.route}`,
