@@ -264,6 +264,17 @@ describe('a part a view module declares', () => {
     expect(read.kind === 'read' && read.conflicts).toEqual([])
   })
 
+  it('the twelfth copy of a module declares under the same host as the first', async () => {
+    const { root, shell } = await startShell()
+    for (let copy = 0; copy < 12; copy += 1)
+      await place(root, 'notes-ui', ctx => definePart(composer).declare(ctx.shell))
+    const read = partsOn(shell.registry())
+    expect(read.kind === 'read' && read.parts.map(part => part.name)).toEqual(['notes.composer'])
+    expect(read.kind === 'read' && read.conflicts).toEqual([])
+    const holders = shell.registry().placed.filter(placed => placed.key === 'notes.composer')
+    expect(holders.map(placed => placed.instance.fiber)).toContain('notes-ui~12')
+  })
+
   it('two declarations of one name that differ are a conflict: the name stands for no part, both modules are named', async () => {
     const { root, shell } = await startShell()
     await place(root, 'notes-ui', ctx => definePart(composer).declare(ctx.shell))
