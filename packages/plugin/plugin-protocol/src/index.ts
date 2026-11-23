@@ -38,4 +38,20 @@ export {
   type SideState,
   type SideStep,
 } from './side-state.ts'
+export {
+  NO_FLOOR,
+  fiberOf,
+  heldOf,
+  standingOf,
+  type FloorPort,
+  type FloorStanding,
+} from './floor.ts'
+export {
+  createLoader,
+  type Kept,
+  type Listed,
+  type Loader,
+  type LoaderDeps,
+  type Outcome,
+} from './loader.ts'
 export { wantedOf, type Offered, type Wanted } from './wanted.ts'

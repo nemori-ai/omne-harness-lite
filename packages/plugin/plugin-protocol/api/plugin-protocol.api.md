@@ -9,14 +9,22 @@
 - `DataMember` · `manifest.d.ts`
 - `DirectoryMember` · `manifest.d.ts`
 - `FILE_SUFFIXES` · `package.d.ts`
+- `FloorPort` · `floor.d.ts`
+- `FloorStanding` · `floor.d.ts`
 - `JsonValue` · `manifest.d.ts`
+- `Kept` · `loader.d.ts`
+- `Listed` · `loader.d.ts`
+- `Loader` · `loader.d.ts`
+- `LoaderDeps` · `loader.d.ts`
 - `MANIFEST_FILE` · `manifest.d.ts`
 - `MANIFEST_SCHEMA` · `manifest.d.ts`
 - `ManifestRead` · `manifest.d.ts`
 - `Member` · `manifest.d.ts`
 - `MemberPlace` · `manifest.d.ts`
 - `ModuleMember` · `manifest.d.ts`
+- `NO_FLOOR` · `floor.d.ts`
 - `Offered` · `wanted.d.ts`
+- `Outcome` · `loader.d.ts`
 - `PackageFile` · `package.d.ts`
 - `PackageJudgment` · `package.d.ts`
 - `PlacedMember` · `package.d.ts`
@@ -32,6 +40,9 @@
 - `SideStep` · `side-state.d.ts`
 - `UNWANTED` · `side-state.d.ts`
 - `Wanted` · `wanted.d.ts`
+- `createLoader` · `loader.d.ts`
+- `fiberOf` · `floor.d.ts`
+- `heldOf` · `floor.d.ts`
 - `insidePackage` · `manifest.d.ts`
 - `judgePackage` · `package.d.ts`
 - `memberDigest` · `package.d.ts`
@@ -39,8 +50,33 @@
 - `membersOf` · `package.d.ts`
 - `pluginProtocol` · `plugin-protocol.d.ts`
 - `readManifest` · `manifest.d.ts`
+- `standingOf` · `floor.d.ts`
 - `stepSide` · `side-state.d.ts`
 - `wantedOf` · `wanted.d.ts`
+
+## 声明文件 `floor.d.ts`
+
+```ts
+import type { Kept } from './loader.ts';
+export type FloorPort = Readonly<{
+    rise(tenant: string): Readonly<{
+        want: readonly string[];
+        held: boolean;
+    }>;
+    want(tenant: string, fiber: string): void;
+    unwant(tenant: string, fiber: string): void;
+    settle(tenant: string): void;
+}>;
+export declare const NO_FLOOR: FloorPort;
+export declare const fiberOf: (name: string, version: string) => string;
+export declare function heldOf(fibers: readonly string[]): ReadonlyMap<string, string>;
+export type FloorStanding = Readonly<{
+    wanted: ReadonlySet<string>;
+    held: ReadonlySet<string>;
+    loading: boolean;
+}>;
+export declare function standingOf(states: ReadonlyMap<string, Kept>): FloorStanding;
+```
 
 ## 声明文件 `index.d.ts`
 
@@ -49,7 +85,47 @@ export { MANIFEST_FILE, MANIFEST_SCHEMA, insidePackage, memberKind, readManifest
 export { FILE_SUFFIXES, judgePackage, memberDigest, membersOf, type PackageFile, type PackageJudgment, type PlacedMember, } from './package.ts';
 export { pluginProtocol, type PluginProtocol, type ReportedPoint, type ReportedPointContract, } from './plugin-protocol.ts';
 export { UNWANTED, stepSide, type SideEffect, type SideEvent, type SideState, type SideStep, } from './side-state.ts';
+export { NO_FLOOR, fiberOf, heldOf, standingOf, type FloorPort, type FloorStanding, } from './floor.ts';
+export { createLoader, type Kept, type Listed, type Loader, type LoaderDeps, type Outcome, } from './loader.ts';
 export { wantedOf, type Offered, type Wanted } from './wanted.ts';
+```
+
+## 声明文件 `loader.d.ts`
+
+```ts
+import type { Member } from './manifest.ts';
+import { type SideState } from './side-state.ts';
+export type Listed = Readonly<{
+    name: string;
+    version: string;
+    members: readonly Member[];
+    fault?: string;
+}>;
+export type Kept = Exclude<SideState, {
+    kind: 'unwanted';
+}>;
+export type Outcome = Readonly<{
+    kind: 'installed';
+    remove: () => unknown;
+}> | Readonly<{
+    kind: 'failed';
+    reason: string;
+}> | Readonly<{
+    kind: 'held';
+}>;
+export type LoaderDeps = Readonly<{
+    install: (listed: Listed) => Promise<Outcome>;
+    held?: ReadonlyMap<string, string>;
+}>;
+export type Loader = Readonly<{
+    converge(list: readonly Listed[]): void;
+    states(): ReadonlyMap<string, Kept>;
+    held(): ReadonlyMap<string, string>;
+    watch(listener: () => void): () => void;
+    idle(): Promise<void>;
+    stop(): Promise<void>;
+}>;
+export declare function createLoader(deps: LoaderDeps): Loader;
 ```
 
 ## 声明文件 `manifest.d.ts`

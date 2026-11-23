@@ -1,7 +1,5 @@
-import type { ReportedPoint } from '@omne-harness/plugin-protocol'
+import { fiberOf, type Kept, type ReportedPoint } from '@omne-harness/plugin-protocol'
 import type { Changes, Described } from '@omne-harness/shell-contract'
-import { fiberOf } from './floor.ts'
-import type { Kept } from './loader.ts'
 
 export type PluginReport = Readonly<{
   name: string
