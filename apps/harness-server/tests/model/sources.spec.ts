@@ -19,20 +19,41 @@ const REQUIRED = {
 }
 
 describe('the official send sources', () => {
-  it('name every official profile of the three families with the adoption the real profiles plugin resolves, and are official', async () => {
+  it('name every official profile of the release families with the adoption the real profiles plugin resolves, and are official', async () => {
     const sources = officialSendSources({
       profiles: PROFILES,
       current: () => ({ ok: { authorized: false } }),
     })
     const families = new Set(sources.map(source => source.model.split('/')[0]))
-    expect(families).toEqual(new Set(['openai', 'anthropic', 'qwen', 'moonshotai']))
-    expect(sources.map(source => source.model)).toEqual(
-      expect.arrayContaining([
-        'moonshotai/kimi-k3.1-pro',
-        'moonshotai/kimi-k3',
-        'moonshotai/kimi-k2.7-code',
-      ]),
+    expect(families).toEqual(
+      new Set(['openai', 'anthropic', 'qwen', 'moonshotai', 'deepseek', 'z-ai']),
     )
+    expect(
+      sources
+        .map(source => source.model)
+        .filter(model => /^(deepseek|moonshotai|z-ai)\//.test(model))
+        .toSorted(),
+    ).toEqual([
+      'deepseek/deepseek-v3.2',
+      'deepseek/deepseek-v3.2-exp',
+      'deepseek/deepseek-v4-flash',
+      'deepseek/deepseek-v4-flash-0731',
+      'deepseek/deepseek-v4-flash-vision-exp',
+      'deepseek/deepseek-v4-pro',
+      'deepseek/deepseek-v4-pro-0813',
+      'deepseek/deepseek-v4.1-flash',
+      'deepseek/deepseek-v4.1-flash-1017',
+      'moonshotai/kimi-k2.7-code',
+      'moonshotai/kimi-k3',
+      'moonshotai/kimi-k3.1-pro',
+      'z-ai/glm-5.1',
+      'z-ai/glm-5.2',
+      'z-ai/glm-5.3',
+      'z-ai/glm-5.3-flash',
+      'z-ai/glm-5.3-flashx',
+      'z-ai/glm-5.3-flashx-legal',
+      'z-ai/glm-5.3-prime',
+    ])
     const ctx = new Context()
     await ctx.plugin(ModelProfilesLocalPlugin, { ...PROFILES, updatedAt: '2026-11-02T00:00:00Z' })
     const profiles = ctx.get(modelProfilesKey) as ModelProfiles<unknown>

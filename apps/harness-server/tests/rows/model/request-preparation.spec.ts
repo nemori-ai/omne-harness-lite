@@ -1,3 +1,4 @@
+import { officialSendSources } from '../../../src/model/sources.ts'
 import { modelTokenizersRow } from '../../../src/rows/model-tokenizers/index.ts'
 import { LOCAL_TOKENIZERS } from '../../../src/local/operator-defaults.ts'
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -41,7 +42,15 @@ const family = {
   },
   margin: { percent: '10', source: ADOPTION },
 }
-const config = { maxCitedCalls: 8, openai: family, anthropic: family, qwen: family, kimi: family }
+const config = {
+  maxCitedCalls: 8,
+  openai: family,
+  anthropic: family,
+  qwen: family,
+  kimi: family,
+  deepseek: family,
+  glm: family,
+}
 const profilesConfig = {
   retryPolicy: ADOPTION,
   compactionTriggerPercent: '80',
@@ -120,11 +129,14 @@ const REQUIRED = {
 }
 const ACCESS = { principal: Object.freeze({ subject: 'test' }), tenant: TENANT }
 
-async function profileOf(ctx: { get(name: string): unknown }): Promise<ModelProfile> {
+async function profileOf(
+  ctx: { get(name: string): unknown },
+  route = 'openai/gpt-5.6-sol',
+): Promise<ModelProfile> {
   const profiles = ctx.get('modelProfiles') as ModelProfilesLike
   const resolved = await profiles.resolve({
     ...ACCESS,
-    route: 'openai/gpt-5.6-sol',
+    route,
     required: REQUIRED,
   })
   if (!('ok' in resolved) || resolved.ok.kind !== 'resolved')
@@ -164,26 +176,37 @@ describe('the model-request-preparation row', () => {
     expect(run.result.exitCode).toBe(0)
   })
 
-  it('gives a lease over the real OpenAI family for an official profile and takes it back', async () => {
+  it('leases every official send source for preparation at the same supplier adoption', async () => {
+    const sources = officialSendSources({
+      profiles: profilesConfig,
+      current: () => ({ ok: { authorized: false } }),
+    })
     const { value } = await withLiveRows({ rows, plugins, probe }, async ctx => {
-      const profile = await profileOf(ctx)
       const leases = ctx.get(
         'modelPreparationResources',
       ) as ModelPreparationResourcesService<unknown>
-      const leased = await leases.acquire({ ...ACCESS, profile })
-      if (!('ok' in leased)) return { leased, suppliers: null, released: null, expected: [] }
-      const suppliers = leased.ok.bindings.map(binding => binding.supplier)
-      const released = await leased.ok.release()
-      return { leased: null, suppliers, released, expected: profile.definition.suppliers }
+      for (const source of sources) {
+        const profile = await profileOf(ctx, source.model)
+        const leased = await leases.acquire({ ...ACCESS, profile })
+        if (!('ok' in leased))
+          throw new Error(`lease refused for ${source.model}: ${JSON.stringify(leased.failure)}`)
+        try {
+          expect(
+            leased.ok.bindings.map(binding => binding.supplier),
+            source.model,
+          ).toContainEqual({
+            adoption: source.supplier,
+            provider: source.provider,
+            model: source.model,
+            credential: { layer: 'official' },
+          })
+        } finally {
+          expect(await leased.ok.release()).toEqual({})
+        }
+      }
+      return sources.length
     })
-    if (value.suppliers === null) throw new Error(`lease refused: ${JSON.stringify(value.leased)}`)
-    expect(value.suppliers.map(supplier => supplier.credential)).toEqual(
-      value.suppliers.map(() => ({ layer: 'official' })),
-    )
-    expect(value.suppliers.map(supplier => [supplier.provider, supplier.model])).toEqual(
-      value.expected.map(supplier => [supplier.provider, supplier.model]),
-    )
-    expect(value.released).toEqual({})
+    expect(value).toBeGreaterThan(0)
   })
 
   it('prepares a fixed request for a text input and keeps the profile adoption', async () => {

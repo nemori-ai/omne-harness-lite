@@ -1,0 +1,1091 @@
+{
+  "model": "deepseek/deepseek-v4.1-flash",
+  "measuredAt": "2026-11-23",
+  "pin": "deepinfra/fp8",
+  "allowFallbacks": false,
+  "endpointSnapshotSha256": "6d507bf23290782329c30d17c462bfdbc973259a2c47efeb33a2c43d05b0986d",
+  "endpoint": {
+    "tag": "deepinfra/fp8",
+    "context_length": 1048576,
+    "max_completion_tokens": 393216,
+    "max_prompt_tokens": null
+  },
+  "samples": {
+    "adjacent-users": {
+      "requestSha256": "3946096f0d2c80f52f3da9384cecf5d0d394cd78239ca0d091b4b3119814934b",
+      "responseSha256": "8f42fe60217348e122e87868944a2799f104efc81923d47ee2e85c7abb2a9282",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795449280-9NVGVwWKuflkQU0dSG1h",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 48,
+        "completion_tokens": 21,
+        "cost": "0.00001554",
+        "completion_tokens_details": {
+          "reasoning_tokens": 18,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "40"
+    },
+    "assistant-last": {
+      "requestSha256": "126727b49e2911a601cbf6667c20bd7144126d3981007d2562926b6484775e65",
+      "responseSha256": "e8ca3db131b776bf4610c028be3a4171c5123168337f0610e1ea3aee28d6721b",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795449245-nhPHeh9juKjdGRRIYQtw",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 48,
+        "completion_tokens": 3,
+        "cost": "0.00000798",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": " \n\n\n40"
+    },
+    "cache-1": {
+      "requestSha256": "cc2d53028e5dc82a0bb9540cc02f523b948a0bb1e5dabf02cfe6a6bf595f2f51",
+      "responseSha256": "dd01a360a873bdf48c3bc18209371a1c1dc14fb8b23e821f8b1ad6c8490dddfb",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795448354-K22wTfTOhMeRwtTuRhpD",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 3651,
+        "completion_tokens": 32,
+        "cost": "0.00052458",
+        "completion_tokens_details": {
+          "reasoning_tokens": 29,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "Blue"
+    },
+    "cache-2": {
+      "requestSha256": "3f4f8c7c21251abe370922044d3de9ebdac6c5a5fd84c38461a7ed5d55941713",
+      "responseSha256": "4e146abc8e247fb377d435a8cfb55fe4e23042c2f928ad3a55ffa24a12bb96ff",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795448402-1lQyEsox8OjgGSETQF4r",
+      "finish": "stop",
+      "cachedTokens": 3584,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 3670,
+        "completion_tokens": 25,
+        "cost": "0.0000375928",
+        "completion_tokens_details": {
+          "reasoning_tokens": 21,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "Blue."
+    },
+    "cache-3": {
+      "requestSha256": "afa370bbf6b4c3b08aea34ee8405602d9d7144a49d98178d0bc4915974e7a983",
+      "responseSha256": "c4842a8942a540189dba0228f6e0f508ec48f37e8737b682f7b6e7077a41ab1b",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795448456-maXA5zq2SVLiacnH5yoo",
+      "finish": "stop",
+      "cachedTokens": 3584,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 3689,
+        "completion_tokens": 21,
+        "cost": "0.0000385728",
+        "completion_tokens_details": {
+          "reasoning_tokens": 17,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "Blue."
+    },
+    "calib-code": {
+      "requestSha256": "8ebd39737dff3e389a3ae2674ff64f21a18a3407cb9b2be50ae49a58fc831ec0",
+      "responseSha256": "be61d3c75f8dd5e9861748bafd2cef80f517c0d522ffc81317dc1c6901d20703",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795448662-IeTN4flzP0uBU5C5UrwW",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 56,
+        "completion_tokens": 39,
+        "cost": "0.00002422",
+        "completion_tokens_details": {
+          "reasoning_tokens": 36,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "10"
+    },
+    "calib-zh": {
+      "requestSha256": "f7782ae176d3fc667ea801e94d2c6ca30df6d63f9a1ac91ea4a2ff8fbebb4d8e",
+      "responseSha256": "9f39342d17a28ef0fd114e23ca1adbb0580f4dabfb6fd6f108b1aea8ccb6a044",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795448570-a9FKivMYdOaouQWBrNX2",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 41,
+        "completion_tokens": 44,
+        "cost": "0.00002422",
+        "completion_tokens_details": {
+          "reasoning_tokens": 41,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "16"
+    },
+    "changed-prefix": {
+      "requestSha256": "967cd474bcc5135d18e9d02d90c5a28f8c92d0ab6034ac9b4f5ce81e2b5f315c",
+      "responseSha256": "0615250bdc2dd60459d4d17e6a043533f3105b131b9e74035ac92132a2ac3e8f",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795448511-nwIwBysVYYaQONeCZLrA",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 397,
+        "completion_tokens": 14,
+        "cost": "0.00006146",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": "Ticket A17 reads **SAPPHIRE-614**."
+    },
+    "continuation": {
+      "requestSha256": "d416f4f13306d60e512d274f315d113c634acec057db590b7a55ccecf40f8865",
+      "responseSha256": "5c5ee93c52ab64643f18e07c7111991f2769ce89c6e587db1b070700471a9dbb",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795448268-NzE8NgDP9SnouLUtJvpD",
+      "finish": "stop",
+      "cachedTokens": 256,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 394,
+        "completion_tokens": 18,
+        "cost": "0.0000279552",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": "The value printed on ticket A17 is **SAPPHIRE-614**."
+    },
+    "effort-high": {
+      "requestSha256": "4924dbc1ff6acfb685fce24cf8429b87c6cb772759adbbfa6db545ff993c914d",
+      "responseSha256": "71d8f2fee857e5d2767d19a00a884d1481b56e41f370602da44d17cd96673866",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795448900-8c8Uh1kLvTzvZHABwNf5",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 43,
+        "completion_tokens": 22,
+        "cost": "0.00001526",
+        "completion_tokens_details": {
+          "reasoning_tokens": 19,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "40"
+    },
+    "effort-low": {
+      "requestSha256": "264dd40726838be9ea6076dfa47cc1921ea7f62d88d923d5b8ea700d45ba489d",
+      "responseSha256": "8d54680d91796fbe6f06153e527fa51d964db59c49fa6fbc1154670931740607",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795448840-PaDt4YOVktAJMJp1dtGh",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 43,
+        "completion_tokens": 19,
+        "cost": "0.000014",
+        "completion_tokens_details": {
+          "reasoning_tokens": 16,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "40"
+    },
+    "effort-max": {
+      "requestSha256": "9e702a88cd1ffbbdaf1a565db524290917c989ba5df32b92c41e8caeed8d1e4c",
+      "responseSha256": "922c6705f9adfad7ad7fd6e84bdad31aee0c1ae3ad4672fe14ac2a8410058a09",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795448941-eOmXVJ3XPro15oiJDjHu",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 43,
+        "completion_tokens": 24,
+        "cost": "0.0000161",
+        "completion_tokens_details": {
+          "reasoning_tokens": 21,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "40"
+    },
+    "effort-medium": {
+      "requestSha256": "59138d0cea7a7e4f4db5813289071a7c4ec54e39c4a7b301b436b62330af4eb4",
+      "responseSha256": "2194ba143afca95937be82e2ee0de617fc0dc1f91a3a279d67f627f5e2ce624b",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795448870-ZiXeKaTlHNVDGZg0zDTs",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 43,
+        "completion_tokens": 19,
+        "cost": "0.000014",
+        "completion_tokens_details": {
+          "reasoning_tokens": 16,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "40"
+    },
+    "effort-minimal": {
+      "requestSha256": "9fd0f7d3b1749ff2e26f58390e9651a72add5ecf9fe643457cbb8ef8564fed86",
+      "responseSha256": "d92af36c4f7459984754ddd2871610dc0b51cdc53768a4eeb38a3296f9537d59",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795449072-i6fhw8WFwEUadE9rAksW",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 43,
+        "completion_tokens": 20,
+        "cost": "0.00001442",
+        "completion_tokens_details": {
+          "reasoning_tokens": 17,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "40"
+    },
+    "effort-none": {
+      "requestSha256": "fcc9335d622f7d7a01e42f1ea029fd60249a6c49653b4cd8b9a1594aed73f14a",
+      "responseSha256": "daeed320cbcf4e3186ec54ec0a4e5a99963275838af15a6d1e63a7bd9064d0e2",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795448978-COz50DjCybcuBJAcKUMW",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 17,
+        "completion_tokens": 2,
+        "cost": "0.00000322",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": "40"
+    },
+    "effort-xhigh": {
+      "requestSha256": "14022da16af0e21dadeb7afc9b7339dc8db875896790163659960d8a779f00d5",
+      "responseSha256": "585819aa51a2e1f7110ea06b3eff984537ddbb641716359e2c885a06bd0acbae",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795449024-J225FWzJOp9jcg7ubctG",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 43,
+        "completion_tokens": 21,
+        "cost": "0.00001484",
+        "completion_tokens_details": {
+          "reasoning_tokens": 18,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "40"
+    },
+    "empty-content": {
+      "requestSha256": "9253b7bd5974571a89eb770d83e66fb616a374399d95e92aceda9a1c8bab8acd",
+      "responseSha256": "52df838c066c987ac955a981223aeb221fe46259c16cde6fab3f7de403dfcad4",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795449308-WnjwXWz7EAL92nMvwpjR",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 43,
+        "completion_tokens": 21,
+        "cost": "0.00001484",
+        "completion_tokens_details": {
+          "reasoning_tokens": 18,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "40"
+    },
+    "fixture": {
+      "requestSha256": "777dc8847ad3f3f633a0e01c94d04fc255cd301adbf30223067aae119a943257",
+      "responseSha256": "40579b1c33986d06cc268588a00b76e9b7a44a1e53cf4eff77c69711fda4689e",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795449381-9YhPFvUXdMg7dknNXAOI",
+      "finish": "tool_calls",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 293,
+        "completion_tokens": 39,
+        "cost": "0.0000574",
+        "completion_tokens_details": {
+          "reasoning_tokens": 15,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "",
+      "tool": "read_ticket",
+      "arguments": "{}"
+    },
+    "image-0": {
+      "requestSha256": "c38dfbd287334605634fe5a2eb0dc6c43e297addf96d0587be6f041dc80bb751",
+      "responseSha256": "ca5639785d1effff6e4ccf38fc9402d54de8f90220cae54291df6447aff14200",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795448275-eLVPfB7WJqHrNGo65oZC",
+      "finish": "length",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 44,
+        "completion_tokens": 256,
+        "cost": "0.00011368",
+        "completion_tokens_details": {
+          "reasoning_tokens": 256,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": ""
+    },
+    "image-1024": {
+      "requestSha256": "0e1cb15ee38b2f7bd2d122812fa27ff3cbe3167e448fbf854692c2f26ec10b05",
+      "responseSha256": "e8faec9ddf3c2cb114b129dbb528f06b5c4aa4718b664f5b0164b23514cadc14",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795448312-DEwEksc7CBFX5RPSWfSH",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 696,
+        "completion_tokens": 50,
+        "cost": "0.00011844",
+        "completion_tokens_details": {
+          "reasoning_tokens": 44,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "Red, blue."
+    },
+    "image-192": {
+      "requestSha256": "ca4dbb9a57f24fb00b986a00334dbb6a49e8e1d62b4f9ff6b5a0bae236cfefb9",
+      "responseSha256": "fefb40fcd8e739a30758e692745a8b80447447989de5921707ce8fd9e346b34a",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795448284-gMneSGMDdRF9uumjCt2q",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 228,
+        "completion_tokens": 71,
+        "cost": "0.00006174",
+        "completion_tokens_details": {
+          "reasoning_tokens": 59,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "Left color: red, right color: blue."
+    },
+    "image-224x896": {
+      "requestSha256": "b26e4b98ec0b733d04695880a4d64ecce99555a2b990b42cbc71205bbc82b7b8",
+      "responseSha256": "934dfa41d1ee8d6ed3f2729b8974ebde82df4e8663d9d156213104265987bf80",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795449411-KhnNfkaDnpAxQcFME8mv",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 254,
+        "completion_tokens": 63,
+        "cost": "0.00006202",
+        "completion_tokens_details": {
+          "reasoning_tokens": 58,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "Red, Blue"
+    },
+    "image-384": {
+      "requestSha256": "93e2bb476eb38e9dffe53d902423decfa85f820d766147dd80c61b9f8a59beb9",
+      "responseSha256": "80aa6f63a4fd9061a7d71949a1109929b45411d126ad3de3a30cebb3897bffcd",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795448291-nqxtXIgHv9x0e0ZZw8xa",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 228,
+        "completion_tokens": 42,
+        "cost": "0.00004956",
+        "completion_tokens_details": {
+          "reasoning_tokens": 37,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "Red, blue"
+    },
+    "image-768": {
+      "requestSha256": "c6f5ba0c7b773d106fe958713bba41c0a3bd7e0f56b9a20a78d7e62ad4c37701",
+      "responseSha256": "373152ece2afce82acd67814cf55847554f157a88a0fb20a7fcbc76f341e54d7",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795448299-Ff0DefGVWcc2feBhaeJT",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 426,
+        "completion_tokens": 65,
+        "cost": "0.00008694",
+        "completion_tokens_details": {
+          "reasoning_tokens": 55,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "Left: red. Right: blue."
+    },
+    "image-896x224": {
+      "requestSha256": "c63b61b38cd1791da951412f99ad4db34f77a5d949182e743bb63ed0fb4e9f6a",
+      "responseSha256": "ac91720c2be15f8665bb7188d3f696a3e18fd9acd1e4295697434e7729fc2732",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795449395-39XySG45EmzftV6AnnEx",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 235,
+        "completion_tokens": 55,
+        "cost": "0.000056",
+        "completion_tokens_details": {
+          "reasoning_tokens": 40,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "The left color is red, and the right color is blue."
+    },
+    "plain": {
+      "requestSha256": "ca8b1fe46f5427fb466fc4ed71967bc5fcf49e2bf92ecc0f7de41959eab982d8",
+      "responseSha256": "1e885c705681288ee78fa21eaa4b9bed6569fbd8bc464c3f2b3b5943b94c8d64",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795448002-sTrwQr3pTInG8JrICw9x",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 42,
+        "completion_tokens": 28,
+        "cost": "0.00001764",
+        "completion_tokens_details": {
+          "reasoning_tokens": 25,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "21"
+    },
+    "reasoning-off": {
+      "requestSha256": "cf316741e312cf727ababf09c974772ad0de4f3aa1a682f8c335e16f92423d2e",
+      "responseSha256": "66511f7b68f2275a4bc749949793f3011b602eff6ee0dec7ed3c32950cdb46b2",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795448801-YPBfCqXaLSLBgfwq7DHr",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 17,
+        "completion_tokens": 2,
+        "cost": "0.00000322",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": "40"
+    },
+    "release-tools": {
+      "requestSha256": "c3b87578671dff261e6b53a80e7954a43af901cabe67decbed17a66b243e8f84",
+      "responseSha256": "0e96eb71ea2f67d4de354007c8f4ef9c4059c70570393c95936c5de15180a0a6",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795449747-87l1dAXMgOGNGRCPJMX9",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 8056,
+        "completion_tokens": 3,
+        "cost": "0.0011291",
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [],
+      "answer": "51"
+    },
+    "replay-altered": {
+      "requestSha256": "cfffebafe90d8d2e201641607f8191090d5e5503dcb2bd291571b0dbc3bfd72d",
+      "responseSha256": "8ffc49b20eeac03a0afad1fa2aa367ffad1e370701b9a09f74982ca522ba56e8",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795449606-sKrFbfJwNwLKkbqEgxht",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 62,
+        "completion_tokens": 25,
+        "cost": "0.00001918",
+        "completion_tokens_details": {
+          "reasoning_tokens": 22,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "41"
+    },
+    "replay-changed": {
+      "requestSha256": "d70edf2f7368e4bb5e0e69ed291113b36b5409f26c6da5132fc062787ee8be1f",
+      "responseSha256": "8defdb86730a7f5e555a4dee1b146b147a1e9b6fe82a8a4d6c0e2b1f18e4fb74",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795449547-3a9S0G8dx5wRoaQEPvxU",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 67,
+        "completion_tokens": 23,
+        "cost": "0.00001904",
+        "completion_tokens_details": {
+          "reasoning_tokens": 20,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "41"
+    },
+    "replay-omitted": {
+      "requestSha256": "60b070c1bb427b88731e54691d1497da8df0ff5c4d09d9a86501a5dc8ba11e4d",
+      "responseSha256": "ea39cc2567cd047f3b13684fc5813d841ff3689df1cb77423ae9d4ac3643b79e",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795449658-AdOEEo8UbBwCEYny8Vim",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 62,
+        "completion_tokens": 23,
+        "cost": "0.00001834",
+        "completion_tokens_details": {
+          "reasoning_tokens": 20,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "41"
+    },
+    "replay-retained": {
+      "requestSha256": "1f1a4b2a66794e6e6287a9c3abbf04a13271b6d7506c4a185aa254fc7f61e09e",
+      "responseSha256": "6ae74ece7744f48fb5af54058f3831a8e091ebedd97b01f6b2083d7cc0beb9f8",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795449469-bxXWsvxtHLETJzGajU6i",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 62,
+        "completion_tokens": 26,
+        "cost": "0.0000196",
+        "completion_tokens_details": {
+          "reasoning_tokens": 23,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "41"
+    },
+    "sampling-seed": {
+      "requestSha256": "9d7c33451022ee3e67792bc9a1daeb31141e8fcbe2b1e33841a7aaffa616e439",
+      "responseSha256": "c0bbd476039e58f4622aabf45290a88a8b6b10c5f1ef85cdc50bf1bfbc709447",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795449216-gZfXNlZkdI6bsdU6R3Od",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 43,
+        "completion_tokens": 21,
+        "cost": "0.00001484",
+        "completion_tokens_details": {
+          "reasoning_tokens": 18,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "40"
+    },
+    "sampling-temperature": {
+      "requestSha256": "4a694462db9d54d819555d51814e15d16b5e16e907482b5bda199d7df059bdd4",
+      "responseSha256": "825ee2fe987136332512e4bd8f873b0421f47f1122e8e9abddc83ad0cd69f4aa",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795449106-VMDx6Ulywf0izCHPrz7M",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 43,
+        "completion_tokens": 21,
+        "cost": "0.00001484",
+        "completion_tokens_details": {
+          "reasoning_tokens": 18,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "40"
+    },
+    "sampling-top_k": {
+      "requestSha256": "85ee39181cbf3c547f7c08a8945c3710dc69569e44eb2dbe4facbd692931fe3b",
+      "responseSha256": "24a26d5cd0ac70dbae1aab04acacbb8f7c54d5385c3015f274d4a0ff20fe6dbe",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795449159-wUJjsSsHa4Muc2uj6PXY",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 43,
+        "completion_tokens": 21,
+        "cost": "0.00001484",
+        "completion_tokens_details": {
+          "reasoning_tokens": 18,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "40"
+    },
+    "sampling-top_p": {
+      "requestSha256": "9a0396c0b99668da219a9ebabc3d9ed37c3cba72aa3cb1e37ccb798027a8d184",
+      "responseSha256": "b0bffd8d8865af80ad82f3b37ba24df8e00a2dd99bf03e84a321501a3df401c6",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795449132-bCImZdmqEot8h3L7iPHS",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 43,
+        "completion_tokens": 21,
+        "cost": "0.00001484",
+        "completion_tokens_details": {
+          "reasoning_tokens": 18,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "40"
+    },
+    "short-output": {
+      "requestSha256": "6409d8e3aa9f122a2d75d9e818e43effb51cacd35fce35ec133292ea364be751",
+      "responseSha256": "502c00b3e90440394a08f0af3e2f706cec87e2c5c9fc715b069ee7b10c49bffd",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795449346-JNRegdAyBGHHhzdBfIBF",
+      "finish": "length",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 43,
+        "completion_tokens": 1,
+        "cost": "0.00000644",
+        "completion_tokens_details": {
+          "reasoning_tokens": 1,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": ""
+    },
+    "tool": {
+      "requestSha256": "ecbe0036ae7edd9ba50c0cb0d759c451c11fa8ca9e2e14f39a8bbf5cbbcffcd6",
+      "responseSha256": "7d4600aa9b0c59dcccdbf847b5bc5bdb5fa1032ec4a920d1d35bab51c0ef984f",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795448003-6aorzvHgPbaCj0Pbvg7z",
+      "finish": "tool_calls",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 317,
+        "completion_tokens": 57,
+        "cost": "0.00006832",
+        "completion_tokens_details": {
+          "reasoning_tokens": 16,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "",
+      "tool": "read_ticket",
+      "arguments": "{\"id\": \"A17\"}"
+    },
+    "tool-named": {
+      "requestSha256": "595848d34c4ac12107404ec386162d0fa82aa4077994d671f77ca60ca0d17946",
+      "responseSha256": "9d603c1da231cb475fd070dc12495a61ecabfe59cd1ef85213f0f9a6f6d0658d",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795448712-PhgPtb4X2Hzw1WMYPHGe",
+      "finish": "tool_calls",
+      "cachedTokens": 256,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 317,
+        "completion_tokens": 57,
+        "cost": "0.0000335552",
+        "completion_tokens_details": {
+          "reasoning_tokens": 16,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "",
+      "tool": "read_ticket",
+      "arguments": "{\"id\": \"A17\"}"
+    },
+    "tool-none": {
+      "requestSha256": "1ed3ca97382e8f4a958e7ce41ee2175418cd2f6d543426b9264d18e9adb69ace",
+      "responseSha256": "e263317c57c1c59e14daa19adcbf4fef5d26d34c0a58e39e7eca3037d27215b7",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795448760-wncwfBoDuvWrVCqjE6Zv",
+      "finish": "length",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 51,
+        "completion_tokens": 256,
+        "cost": "0.00011466",
+        "completion_tokens_details": {
+          "reasoning_tokens": 256,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": ""
+    },
+    "tool-required": {
+      "requestSha256": "f86dffd0799841c0eabb7bed5ebb4dfaf86f698fc2cd3fdd2c73d3ef8a746e92",
+      "responseSha256": "85c36a8a3e0fb02a550aac273e7bbca40735627887ed818aed4b99704035dad6",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795448683-RK2Y4CrZQE5nFHjdhOnt",
+      "finish": "tool_calls",
+      "cachedTokens": 256,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 317,
+        "completion_tokens": 57,
+        "cost": "0.0000335552",
+        "completion_tokens_details": {
+          "reasoning_tokens": 16,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "",
+      "tool": "read_ticket",
+      "arguments": "{\"id\": \"A17\"}"
+    },
+    "vision": {
+      "requestSha256": "49260562af47ada680cd507650b5db3e9020d293278b2570eaec1062ff1383e5",
+      "responseSha256": "e7911ac0d784ba7e02e1401f5f1a8b4698bbcf9cc5ca1f347468d994f93b9a51",
+      "status": 200,
+      "provider": "DeepInfra",
+      "upstreamModel": "deepseek/deepseek-v4.1-flash",
+      "requestId": "gen-1795448004-M1mLCbABKBFtY1KkcDNb",
+      "finish": "stop",
+      "cachedTokens": 0,
+      "cacheWriteTokens": 0,
+      "usage": {
+        "prompt_tokens": 228,
+        "completion_tokens": 154,
+        "cost": "0.0000966",
+        "completion_tokens_details": {
+          "reasoning_tokens": 127,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailFormats": [
+        "reasoning.text:unknown"
+      ],
+      "answer": "Based on the image provided:\n\n*   The left color is **red**.\n*   The right color is **blue**."
+    }
+  },
+  "coldCalibration": {
+    "tokenizer": "o200k_base",
+    "measuredRequests": 37,
+    "allowanceTokens": "803",
+    "sampleWithLargestResidual": {
+      "name": "deepseek-v4.1-flash",
+      "case": "release-tools",
+      "prompt": 8056,
+      "visible": 7253,
+      "media": 0,
+      "residual": 803,
+      "replay": false
+    }
+  },
+  "imageCalibration": {
+    "rule": {
+      "tilePixels": "384",
+      "tokensPerTile": "66",
+      "overheadTokens": "118"
+    },
+    "textOnlyPromptTokens": 44,
+    "sizesMeasured": [
+      "1024",
+      "192",
+      "224x896",
+      "384",
+      "768",
+      "896x224"
+    ]
+  }
+}
