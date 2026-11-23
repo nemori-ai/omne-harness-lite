@@ -91,7 +91,7 @@ session.transcript.failure | 失败的通知 | 一轮失败了，可以重试 | 
 session.transcript.reasoning | 推理行 | Agent 想的过程 | session.transcript | tokens style | 有推理内容时 | session-ui
 session.transcript.tool-call | 工具调用行 | 一次工具调用的过程行 | session.transcript | tokens style | 有工具调用时 | session-ui
 session.transcript.user-message | 你的消息 | 你说的一条话 | session.transcript | tokens style render | 有消息时 | session-ui
-shell.app | 整个应用 | 窗口里的一切 | – | tokens style | 一直在 | DesktopShell
+shell.app | 整个应用 | 窗口里的一切。换主题、换品牌色，就是给它放令牌。 | – | tokens style | 一直在 | DesktopShell
 shell.gate | 登录门 | 没登录时屏幕中间的一块 | shell.app | tokens style | 没登录时 | DesktopShell
 shell.sidebar | 侧栏 | 左边放家、导航与账号的一列 | shell.app | tokens style | 登录之后 | DesktopShell
 shell.sidebar.appearance | 外观钮 | 换主题与字号 | shell.sidebar.footer | tokens style | 登录之后 | DesktopShell

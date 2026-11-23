@@ -85,6 +85,20 @@ export type SessionBlockSubject = Readonly<{
   read?: 'original' | 'fitted' | 'derived' | 'transcript'
 }>
 
+const BLOCK_EXAMPLE = [
+  '{"point":"session.block-render","key":"image","module":"image-block.js","export":"block"}',
+  'image-block.js:',
+  'export const block = ({ React }) => ({ subject, generic }) =>',
+  "  React.createElement('figure', null, generic(), React.createElement('figcaption', null, subject.block))",
+].join('\n')
+
+const TOOL_CALL_EXAMPLE = [
+  '{"point":"session.tool-call","key":"Web","module":"web-card.js","export":"card"}',
+  'web-card.js:',
+  'export const card = ({ React }) => ({ subject }) =>',
+  "  React.createElement('div', null, subject.name + ': ' + subject.state)",
+].join('\n')
+
 export const SESSION_COMPOSER_ATTACHMENTS = 'session.composer-attachments'
 export const SESSION_BLOCK_RENDER = 'session.block-render'
 export const SESSION_TOOL_CALL = 'session.tool-call'
@@ -99,8 +113,12 @@ export const sessionComposerAttachments: Point<SessionDraftSubject> = definePoin
 
 export const sessionBlockRender: RenderPoint<SessionBlockSubject> = defineRenderPoint({
   name: SESSION_BLOCK_RENDER,
-  key: 'the kind of the block',
-  summary: 'How a block of a message that is not text is drawn, by its kind.',
+  key: 'the kind of the block, such as image, file or voice',
+  summary:
+    'How a block of a message that is not text is drawn in the conversation, by its kind: an image, a file, a voice note.',
+  subject:
+    'one block of a message: session, message and block, its ids; content, the block as the history holds it; read, which form of it the model read last (original, fitted, derived or transcript), when known',
+  example: BLOCK_EXAMPLE,
 })
 
 /** One call of a tool, as the transcript holds it. */
@@ -115,7 +133,11 @@ export type SessionToolCallSubject = Readonly<{
 
 export const sessionToolCall: RenderPoint<SessionToolCallSubject> = defineRenderPoint({
   name: SESSION_TOOL_CALL,
-  key: 'the name of the tool, as the server holds it on tool.tools',
-  summary: 'How a call of one tool is drawn in the transcript.',
+  key: 'the name of the tool, as the server holds it on tool.tools: OmneExtensionPoints show tool.tools lists the names',
+  summary:
+    'How a call of one tool is drawn in the conversation: the card of the call, by the tool.',
   keysFrom: TOOL_NAMES,
+  subject:
+    'one call of the tool: session; call, its reference, or null before it has one; name; arguments; state, which is working, completed or no-result; result, its text, or null',
+  example: TOOL_CALL_EXAMPLE,
 })

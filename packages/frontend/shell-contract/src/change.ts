@@ -70,18 +70,21 @@ export const tokensContract: Contract = {
   tree: 'client',
   arity: 'keyed-one',
   keyFrom: PARTS_POINT,
-  key: 'the name of a part that opens tokens; shell.app is the whole application',
-  gives: 'nothing: the item is data',
+  key: 'the name of a part that opens tokens; shell.app is the whole app',
+  gives: 'nothing: the item is data, a record of token names and values',
   item: { kind: 'data', fields: { tokens: 'object' } },
   resolve: 'most-specific',
   binding: 'run',
-  onError: 'an item the rule refuses does not count, and what the application shipped with shows',
+  onError:
+    'an item with a name that is not a token, or a value that is not plain, does not count, and the theme the app shipped with shows; the client says which name and the nearest tokens',
   version: 1,
   revision: 1,
   keys: 'private',
   conformance:
-    'a token is one the interface has; a value is plain text of a value, with no call but the listed ones',
-  summary: 'The tokens put on a part: names of the interface and the values they take there.',
+    'a name is a token of the interface: OmneExtensionPoints show shell.tokens lists each with its value now; a value is plain text of a value, with no call but var, calc, min, max, clamp and the colour functions',
+  summary:
+    'The theme: the colours, sizes and other design tokens of the interface, for the whole app or for one part. To change the theme or a brand colour, put tokens on shell.app.',
+  example: '{"point":"shell.tokens","key":"shell.app","data":{"--omne-accent":"#0a7a4a"}}',
 }
 
 export const styleContract: Contract = {
@@ -90,18 +93,29 @@ export const styleContract: Contract = {
   arity: 'keyed-one',
   keyFrom: PARTS_POINT,
   key: 'the name of a part that opens style',
-  gives: 'nothing: the item is data',
+  gives:
+    'nothing: the item is data, a record of states, each a record of CSS properties and values',
   item: { kind: 'data', fields: { style: 'object' } },
   resolve: 'most-specific',
   binding: 'run',
-  onError: 'an item the rule refuses does not count, and what the application shipped with shows',
+  onError:
+    'an item the rule refuses does not count as a whole, and the style the app shipped with shows',
   version: 1,
   revision: 1,
   keys: 'private',
-  conformance:
-    'a state is one of the listed ones; a property is the name of a property, not a token; a value is plain text of a value',
-  summary: 'The declarations put on a part: its own style at rest and in the states it can be in.',
+  conformance: `a state is base or one of ${STATES.join(', ')}; a property is the name of a CSS property, not a token (a name that starts with -- goes on shell.tokens); a value is plain text of a value`,
+  summary:
+    'The style of one part: its own CSS declarations at rest and in each state it can be in. Use it when no token does the job.',
+  example:
+    '{"point":"shell.part-style","key":"session.composer.send","data":{"base":{"border-radius":"999px"},"hover":{"opacity":"0.9"}}}',
 }
+
+const RENDER_EXAMPLE = [
+  '{"point":"shell.part-render","key":"session.transcript.agent-message","module":"agent-message.js","export":"message"}',
+  'agent-message.js:',
+  'export const message = ({ React }) => ({ part, builtIn }) =>',
+  "  React.createElement('div', { ...part, style: { borderLeft: '3px solid #0a7a4a' } }, builtIn())",
+].join('\n')
 
 export const renderContract: Contract = {
   name: RENDER_POINT,
@@ -110,7 +124,7 @@ export const renderContract: Contract = {
   keyFrom: PARTS_POINT,
   key: 'the name of a part that opens render',
   gives:
-    'what the host gives its own drawing, the name of the part, and the drawing it stands in for',
+    'the export of the file is called once, with an object that holds React, and gives back the drawing; the drawing is called with props, what the module gives its own drawing; part, the attribute that names the part, to spread on the outermost element, or the part cannot be found; and builtIn, a function that gives the drawing the part shipped with',
   item: { kind: 'pure', fields: { render: 'function' } },
   resolve: 'most-specific',
   binding: 'run',
@@ -119,7 +133,9 @@ export const renderContract: Contract = {
   revision: 1,
   keys: 'private',
   conformance: 'the part opens render',
-  summary: 'The drawing put on a part in place of the one it shipped with.',
+  summary:
+    'The drawing of one part, in place of the one it shipped with: code. Use it only when tokens and style cannot do the job.',
+  example: RENDER_EXAMPLE,
 }
 
 export const layoutContract: Contract = {
@@ -127,8 +143,8 @@ export const layoutContract: Contract = {
   tree: 'client',
   arity: 'keyed-one',
   keyFrom: null,
-  key: 'what is laid out: shell.pages, the pages of the shell',
-  gives: 'nothing: the item is data',
+  key: 'what is laid out: only shell.pages, the pages in the navigation',
+  gives: 'nothing: the item is data, a list of page ids',
   item: { kind: 'data', fields: { order: 'array' } },
   resolve: 'most-specific',
   binding: 'run',
@@ -136,8 +152,10 @@ export const layoutContract: Contract = {
   version: 1,
   revision: 1,
   keys: 'private',
-  conformance: 'the order is ids of pages, each once',
-  summary: 'The order of what the shell lays out: the ids it names come first, in its order.',
+  conformance: 'the order is ids of pages, each once; an id that no page has is skipped',
+  summary:
+    'The order of the pages in the navigation: the page ids an item names come first, in its order, and the other pages follow as they were.',
+  example: '{"point":"shell.layout","key":"shell.pages","data":["assets","conversation"]}',
 }
 
 /** The scope of what one tenant put, and of the one who asks as that tenant; nobody signed in asks as the deployment. */
@@ -241,9 +259,13 @@ export function tokensEntry(
 
 type Known = (token: string) => boolean
 
+type Names = () => readonly string[] | undefined
+
+type Tokens = Readonly<{ known: Known; names: Names }>
+
 type Kind<I> = Readonly<{
   point: string
-  fault: (key: string, item: I, parts: readonly DeclaredPart[], known: Known) => string | null
+  fault: (key: string, item: I, parts: readonly DeclaredPart[], tokens: Tokens) => string | null
   builtIn?: (item: I) => boolean
 }>
 
@@ -262,10 +284,48 @@ function declarationsOf(values: Readonly<Record<string, string>>): string {
   return names.map(name => `${name}:${(values[name] ?? '').trim()};`).join('')
 }
 
-function tokensFault(item: TokensItem, known: Known): string | null {
+function distance(left: string, right: string): number {
+  let above = Array.from({ length: right.length + 1 }, (_, index) => index)
+  for (const [row, char] of Array.from(left).entries()) {
+    const line = [row + 1]
+    for (const [column, other] of Array.from(right).entries())
+      line.push(
+        Math.min(
+          (above[column + 1] ?? 0) + 1,
+          (line[column] ?? 0) + 1,
+          (above[column] ?? 0) + (char === other ? 0 : 1),
+        ),
+      )
+    above = line
+  }
+  return above[right.length] ?? 0
+}
+
+const bare = (name: string): string => name.replace(/^--(omne-)?/u, '')
+
+function nearest(name: string, names: readonly string[]): readonly string[] {
+  const reach = Math.max(2, Math.floor(name.length / 4))
+  return names
+    .map(token => ({ token, apart: bare(token) === bare(name) ? -1 : distance(name, token) }))
+    .filter(near => near.apart <= reach)
+    .sort((left, right) => left.apart - right.apart || (left.token < right.token ? -1 : 1))
+    .slice(0, 3)
+    .map(near => near.token)
+}
+
+function unknownToken(name: string, names: Names): string {
+  const said = `${name} is not a token of the interface`
+  const listed = names() ?? []
+  if (listed.length === 0) return said
+  const near = nearest(name, listed)
+  const nearby = near.length === 0 ? '' : ` Nearest: ${near.join(', ')}.`
+  return `${said}.${nearby} OmneExtensionPoints show ${TOKENS_POINT} lists them all.`
+}
+
+function tokensFault(item: TokensItem, tokens: Tokens): string | null {
   for (const name of Object.keys(item.tokens).sort()) {
     const value: unknown = item.tokens[name]
-    if (!known(name)) return `${name} is not a token of the interface`
+    if (!tokens.known(name)) return unknownToken(name, tokens.names)
     if (typeof value !== 'string') return `the token ${name} has no text for a value`
     const fault = valueFault(value)
     if (fault !== null) return `the token ${name}: ${fault}`
@@ -335,7 +395,8 @@ function layoutFault(key: string, item: LayoutItem): string | null {
 
 const TOKENS: Kind<TokensItem> = {
   point: TOKENS_POINT,
-  fault: (key, item, parts, known) => partFaultOf(key, 'tokens', parts) ?? tokensFault(item, known),
+  fault: (key, item, parts, tokens) =>
+    partFaultOf(key, 'tokens', parts) ?? tokensFault(item, tokens),
   builtIn: item => item.builtIn === true,
 }
 const STYLE: Kind<StyleItem> = {
@@ -364,7 +425,7 @@ type Asked = Readonly<{
   registry: Registry
   asker: Scope
   parts: readonly DeclaredPart[]
-  known: Known
+  tokens: Tokens
   found: Found
 }>
 
@@ -376,7 +437,7 @@ function standingOn<I>(kind: Kind<I>, asked: Asked): Map<string, I> {
   if (read.kind !== 'read') return stands
   found.refused.push(...read.filtered.map(out => refusal(out.entry, out.detail)))
   const sound = read.entries.filter(entry => {
-    const fault = kind.fault(entry.key, entry.item, asked.parts, asked.known)
+    const fault = kind.fault(entry.key, entry.item, asked.parts, asked.tokens)
     if (fault !== null) found.refused.push(refusal(entry, fault))
     return fault === null
   })
@@ -406,11 +467,16 @@ function rulesOf<I>(stands: Map<string, I>, write: (key: string, item: I) => str
 }
 
 /** What the changes put on the parts come to for one asker: the sheet, the drawings, the layouts, who stands on each key, and what does not count. */
-export function changesOn(registry: Registry, asker: Scope, known: Known): Changes {
+export function changesOn(
+  registry: Registry,
+  asker: Scope,
+  known: Known,
+  names: Names = () => undefined,
+): Changes {
   const found: Found = { standing: [], refused: [], conflicts: [] }
   const declared = partsOn(registry)
   const parts = declared.kind === 'read' ? declared.parts : []
-  const asked: Asked = { registry, asker, parts, known, found }
+  const asked: Asked = { registry, asker, parts, tokens: { known, names }, found }
   const tokens = standingOn(TOKENS, asked)
   const css = rulesOf(tokens, tokensRules) + rulesOf(standingOn(STYLE, asked), styleRules)
   const tint = Object.entries(tokens.get(APP)?.tokens ?? {})

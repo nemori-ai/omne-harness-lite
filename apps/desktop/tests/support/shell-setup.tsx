@@ -18,6 +18,7 @@ import type { Connectivity } from '../../src/page/connectivity.ts'
 import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { DesktopShell, shellPlugin } from '../../src/page/shell/service.ts'
 import { Shell } from '../../src/page/shell/shell.tsx'
+import type { TokenNow } from '../../src/page/shell/changes-sheet.ts'
 import { createShellState } from '../../src/page/shell/state.ts'
 import { serveProtocol } from '@omne-harness/shell-contract/testing'
 import { fakeGate, fakePage, type Gated } from './fake-modules.tsx'
@@ -84,6 +85,8 @@ export async function setup(
     connection?: object | null
     /** The tokens the page knows; none unless a case says so. */
     knowsToken?: (name: string) => boolean
+    /** The tokens the page lists for shell.tokens; none unless a case says so. */
+    tokens?: () => readonly TokenNow[]
   } = {},
 ) {
   const login = source<ShellLoginState>(options.login ?? 'signed-out')
@@ -104,10 +107,10 @@ export async function setup(
       return options.logout ?? 'signed-out'
     },
   }
-  const state = createShellState(
-    inner,
-    options.knowsToken === undefined ? {} : { knowsToken: options.knowsToken },
-  )
+  const state = createShellState(inner, {
+    ...(options.knowsToken === undefined ? {} : { knowsToken: options.knowsToken }),
+    ...(options.tokens === undefined ? {} : { tokens: options.tokens }),
+  })
   const root = new Context()
   await root.plugin(DynamisService)
   await root.plugin(shellPlugin(state))
