@@ -19,10 +19,11 @@ import {
 import type { LocalToolHostPluginInput } from '@omne-harness/tool-host-local/cordis'
 import { registrantOf, releaseOf } from '../../entry/tool-release.ts'
 import { sameAdoption } from '../../entry/tool-release-manifest.ts'
-import { tenantLayers } from '../tenant-assets/layers.ts'
+import { inWorkspace, tenantLayers } from '../tenant-assets/layers.ts'
 import { tenantAssetsKey } from '../tenant-assets/service.ts'
 import { rememberHeldDefinition } from './held-definitions.ts'
 import { HELD_TOOL_SETTINGS, TOOL_CATEGORY, heldCandidateOf } from './held-tools.ts'
+import { workspaceToolBody } from './workspace-tools.ts'
 
 type B = ToolMessageContentBlock
 type Input = LocalToolHostPluginInput<unknown, unknown, B>
@@ -42,15 +43,15 @@ function memberOf(value: JsonValue | undefined, key: string): JsonValue | undefi
 async function bodyOf(ctx: Context, authority: ToolAuthority): Promise<JsonValue | undefined> {
   const { layer } = authority
   if (layer.kind !== 'tenant') return undefined
+  const taken = heldCandidateOf(authority)
+  if (inWorkspace(taken.asset)) return workspaceToolBody(ctx, layer.tenant, taken)
   const encoded = tenantCodec.encode(layer.tenant)
   const service = ctx.get(tenantAssetsKey)
   if (!encoded.ok || service === undefined) return undefined
   const assets = await service.open(encoded.value)
   if (assets === undefined) return undefined
   const contract = () => ctx.get(assetCategoriesKey)?.view.lookup(TOOL_CATEGORY)
-  return tenantLayers(assets, service.layerSources(encoded.value), contract).body(
-    heldCandidateOf(authority),
-  )
+  return tenantLayers(assets, service.layerSources(encoded.value), contract).body(taken)
 }
 
 /** The construction a held tool is made with: what its body gives the script executor, whole. */

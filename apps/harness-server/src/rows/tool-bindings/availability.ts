@@ -20,7 +20,7 @@ import { sessionKey, sessionSearchKey } from '@omne-harness/session-cordis-contr
 import type { TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { heldDefinitionOf } from '../tool-host/held-definitions.ts'
-import { isHeldNow } from '../tool-host/held-current.ts'
+import { isHeldNow } from '../tool-host/held-now.ts'
 import { canonicalDigest } from '@omne-harness/tool'
 import type { ToolConsumerProfile, ToolDefinition } from '@omne-harness/tool-contract'
 import { commandAddedModalities } from '@omne-harness/tool-contract/provider'

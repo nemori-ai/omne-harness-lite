@@ -4,13 +4,12 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { answerCard, pendingCard } from '../rows/authorization/release-flow-support.ts'
-import { extensions, LAST_REFERENCE, tools } from '../support/planned-model.ts'
+import { extensions, follow, tools } from '../support/planned-model.ts'
 import { toolCalls } from '../support/release-tree.ts'
 import { COUNT_PY, inWorkspace, WORDCOUNT } from './support.ts'
 
 const count = (text: string) =>
   tools('execute', { name: 'wordcount', command: null, arguments: { text } })
-const result = tools('read_result', { kind: 'invocation', reference: LAST_REFERENCE, after: null })
 const publish = extensions('publish', {
   id: 'op-1',
   category: 'tool',
@@ -43,7 +42,7 @@ describe('the gate of a tool a tenant published, where gates ask, on the release
           expect(said).not.toMatch(/^2$/mu)
           expect(ran()).toEqual([])
 
-          const released = ask([count('one two three')], [result])
+          const released = ask([count('one two three')], [follow], [follow])
           const second = await pendingCard(tree, session, 'the released call')
           await answerCard(tree, second, ['--option', 'allow-once'], 'reply-allow')
           expect(await released).toMatch(/^3$/mu)

@@ -19,6 +19,7 @@ import type { ToolBindingKey } from '@omne-harness/tool-contract/provider'
 import { releaseDefinitionOf, releaseOf, type ToolRelease } from '../../entry/tool-release.ts'
 import { heldDefinitionOf } from '../tool-host/held-definitions.ts'
 import { currentHeldTool, heldToolNames, type CurrentHeldTool } from '../tool-host/held-current.ts'
+import { turnOfAccess, type Turn } from '../tenant-assets/turn.ts'
 import {
   recordedHeldTool,
   type RecordedHeldTool,
@@ -41,8 +42,10 @@ export type ReleaseCatalogViewPorts = Readonly<{
   knownDefinition?(name: string): ToolDefinition | undefined
   /** The tools a tenant holds: their names, each one loaded, and the definition it was loaded with. */
   held?: Readonly<{
-    names(access: Access<unknown>): Promise<readonly string[] | undefined>
-    current(access: Access<unknown>, name: string): Promise<CurrentHeldTool>
+    /** The turn the asker works in: with it the tools of its workspace are read too. Absent: no turn is looked for. */
+    turn?(access: Access<unknown>): Promise<Turn | null | undefined>
+    names(access: Access<unknown>, turn: Turn | null): Promise<readonly string[] | undefined>
+    current(access: Access<unknown>, name: string, turn: Turn | null): Promise<CurrentHeldTool>
     definition(key: ToolBindingKey): ToolDefinition | undefined
     recorded?(
       access: Access<unknown>,
@@ -69,13 +72,15 @@ async function heldEntries(
   work: CatalogWork,
 ): Promise<readonly Entry[] | undefined> {
   if (held === undefined) return []
-  const names = await held.names(access)
+  const turn = held.turn === undefined ? null : await held.turn(access)
+  if (turn === undefined) return undefined
+  const names = await held.names(access, turn)
   if (names === undefined) return undefined
   const residents = new Set(work.residents.map(item => item.capability))
   const entries = new Map<string, Entry>()
   for (const name of names) {
     if (official.has(name)) continue
-    const current = await held.current(access, name)
+    const current = await held.current(access, name, turn)
     if (current.kind === 'unavailable') return undefined
     if (current.kind !== 'held') continue
     const key = { layer: current.authority.layer, asset: current.authority.asset }
@@ -170,8 +175,9 @@ export function releaseCatalogViewOf(ctx: Context): LocalToolCatalogViewSource<u
     release: () => releaseOf(ctx),
     knownDefinition: name => releaseDefinitionOf(ctx, name),
     held: {
-      names: access => heldToolNames(ctx, access.tenant),
-      current: (access, name) => currentHeldTool(ctx, access, name),
+      turn: access => turnOfAccess(ctx, access),
+      names: (access, turn) => heldToolNames(ctx, access.tenant, turn),
+      current: (access, name, turn) => currentHeldTool(ctx, access, name, turn),
       definition: key => heldDefinitionOf(ctx, key),
       recorded: (access, resident) => recordedHeldTool(ctx, access, resident),
     },

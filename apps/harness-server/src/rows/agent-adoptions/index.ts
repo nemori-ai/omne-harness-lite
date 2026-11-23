@@ -32,7 +32,7 @@ const plugin: Plugin.Object = {
         agentDefinitionsPoint.name,
         table.mappings.entries().map(({ name, candidate }) => ({
           name,
-          item: officialItem(DEFINITION_CATEGORY, name, candidate.digest),
+          item: officialItem(DEFINITION_CATEGORY, name, candidate.digest, true),
         })),
       ),
     )

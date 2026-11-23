@@ -15,6 +15,7 @@ import {
 } from '@omne-harness/tool-cordis-contract/cordis'
 import { releaseOf, type ToolRelease } from '../../entry/tool-release.ts'
 import { TOOL_RELEASE_FILE } from '../../entry/tool-release-manifest.ts'
+import type { Turn } from '../tenant-assets/turn.ts'
 import { currentHeldTool } from '../tool-host/held-current.ts'
 import { createAdoptionPlanner, type AdoptionDefinition } from './planner.ts'
 
@@ -58,8 +59,9 @@ async function heldDefinitionOf<P>(
   ctx: Context,
   access: SessionAccess<P>,
   capability: string,
+  turn: Turn | null,
 ): Promise<AdoptionDefinition | string> {
-  const held = await currentHeldTool(ctx, access, capability)
+  const held = await currentHeldTool(ctx, access, capability, turn)
   if (held.kind === 'unavailable') return held.diagnostic
   if (held.kind === 'unfit') return held.reason
   if (held.kind === 'none')
@@ -81,6 +83,7 @@ export async function plannedResidents<P>(
   ctx: Context,
   capabilities: readonly string[],
   access: SessionAccess<P> | undefined,
+  turn: Turn | null = null,
 ): Promise<ResidentsAnswer> {
   if (capabilities.length === 0) return succeed(NO_RESIDENTS)
   if (access === undefined) return unavailable('the create carries no access to plan them with')
@@ -89,7 +92,8 @@ export async function plannedResidents<P>(
   const definitions = new Map<string, AdoptionDefinition>()
   for (const capability of capabilities) {
     const definition =
-      releaseDefinitionOf(release, capability) ?? (await heldDefinitionOf(ctx, access, capability))
+      releaseDefinitionOf(release, capability) ??
+      (await heldDefinitionOf(ctx, access, capability, turn))
     if (typeof definition === 'string') return unavailable(definition)
     definitions.set(capability, definition)
   }

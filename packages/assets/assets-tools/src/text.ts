@@ -149,7 +149,15 @@ export function sourceLines(asset: Asset, creation: 'none' | 'data' | 'directory
 /** The second line of a publish: what the data says about it now, nothing more. */
 export function publishedLine(enabled: boolean | undefined, placed: Placed | undefined): string[] {
   const parts: string[] = []
-  if (enabled === true) parts.push('in effect from now.')
+  const places = placed?.kind === 'placed' ? placed.places : []
+  const out = places.find(place => place.standing === 'not in effect')
+  const stands = places.some(place => ['selected', 'in effect'].includes(place.standing))
+  if (enabled === true)
+    parts.push(
+      out !== undefined && !stands
+        ? `held, and not in effect: ${out.says}.`
+        : 'in effect from now.',
+    )
   if (enabled === false) parts.push('held disabled: not in effect.')
   if (placed?.kind === 'placed' && placed.clients !== null)
     parts.push(

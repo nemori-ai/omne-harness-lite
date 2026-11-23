@@ -40,6 +40,7 @@ import {
 import { prepareInitialContext, type PreparedBlock } from './initial-context.ts'
 import { jsonOf } from './json.ts'
 import { recallInitialContext } from './recall-context.ts'
+import { lastTurnOf, madeFrom, type Turn } from '../tenant-assets/turn.ts'
 import { plannedResidents } from './residents.ts'
 import { adoptForStartedRun, adoptWorkspace, type RunSourcesPorts } from './run-sources.ts'
 
@@ -319,11 +320,12 @@ async function addedResidents<P>(
   work: WorkSnapshot,
   entry: DefinitionMappingEntry,
   access: SessionAccess<P>,
+  turn: Turn | null,
 ): Promise<Outcome<ResidentAdoption | undefined, SessionFailure>> {
   const kept = new Set(work.residents.map(resident => resident.capability))
   const added = (entry.residentCapabilities ?? []).filter(capability => !kept.has(capability))
   if (added.length === 0) return succeed(undefined)
-  const planned = await plannedResidents(ctx, added, access)
+  const planned = await plannedResidents(ctx, added, access, turn)
   if ('failure' in planned) return planned
   return succeed({
     residents: planned.ok.residents,
@@ -341,14 +343,13 @@ async function runAdoption<P>(
 ): Promise<Outcome<RunAdoption, SessionFailure>> {
   const { name, adopted: pinned } = work.definition
   let entry = mappings.byName(name)
+  let turn: Turn | null = null
   if (entry === undefined) {
     const given = access as SessionAccess<unknown>
     const failed = await adoptWorkspace(runSources, given, work, run)
     if (failed !== null) runSources.report(failed)
-    const read = await mappings.named(
-      { tenant: access.tenant, turn: { access: given, key: run } },
-      name,
-    )
+    turn = { access: given, key: run }
+    const read = await mappings.named({ tenant: access.tenant, turn }, name)
     if (read.kind !== 'found')
       return unreadable(
         read.kind === 'absent'
@@ -358,7 +359,7 @@ async function runAdoption<P>(
     entry = read.entry
   }
   if (same(entry.candidate, pinned)) return succeed({ candidate: pinned })
-  const residents = await addedResidents(ctx, work, entry, access)
+  const residents = await addedResidents(ctx, work, entry, access, turn)
   if ('failure' in residents) return residents
   return succeed({
     candidate: entry.candidate,
@@ -379,7 +380,12 @@ async function prepareFrom<P>(
       if ('failure' in recalled) return recalled
       if (recalled.ok !== undefined) return initializationMaterial(recalled.ok)
       const { creation, tenant } = command.input
-      const read = await mappings.named({ tenant }, creation.definition.name)
+      // A session made from another is made as that one's turn saw things: its workspace is read too.
+      const from = madeFrom(creation.relation)
+      const turn = from === null ? null : await lastTurnOf(ctx, tenant, from)
+      if (turn === undefined) return unreadable('the session this one is made from cannot be read')
+      const asker = turn === null ? { tenant } : { tenant, turn }
+      const read = await mappings.named(asker, creation.definition.name)
       if (read.kind === 'unavailable') return unreadable(read.diagnostic)
       if (read.kind === 'absent')
         return invalid('definition', 'the definition name is not in the deployment mapping')
@@ -389,7 +395,7 @@ async function prepareFrom<P>(
         return invalid(mismatch, 'the creation does not match the mapping entry of its definition')
       const undeclared = undeclaredByMapping(entry, command)
       if (undeclared !== undefined) return undeclared
-      const residents = await plannedResidents(ctx, entry.residentCapabilities ?? [], access)
+      const residents = await plannedResidents(ctx, entry.residentCapabilities ?? [], access, turn)
       if ('failure' in residents) return residents
       const preparation = await prepareInitialContext(ctx, command, access)
       if ('failure' in preparation) return preparation

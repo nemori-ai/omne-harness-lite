@@ -16,8 +16,16 @@ import {
 } from '@omne-harness/tool-cordis-contract/cordis'
 import { pauseAfterFailures } from '../retry-pause.ts'
 import { heldDefinitionOf } from '../rows/tool-host/held-definitions.ts'
-import { heldKeyNow, heldReadingOf } from '../rows/tool-host/held-current.ts'
-import { heldToolAuthority, heldToolStanding, sameHeld } from '../rows/tool-host/held-tools.ts'
+import { currentHeldTool } from '../rows/tool-host/held-current.ts'
+import { heldReadingOf } from '../rows/tool-host/held-now.ts'
+import { workspaceToolBody } from '../rows/tool-host/workspace-tools.ts'
+import { inWorkspace } from '../rows/tenant-assets/layers.ts'
+import {
+  heldCandidateOf,
+  heldToolAuthority,
+  heldToolStanding,
+  sameHeld,
+} from '../rows/tool-host/held-tools.ts'
 import { monotonicClock } from '../shutdown.ts'
 import type { EntryEnv, EntryObjectModule } from '../types.ts'
 import { issueEntrySystemPrincipal } from './agent-host-principal.ts'
@@ -105,13 +113,21 @@ function mismatchOf(
   return null
 }
 
-type HeldRead = Parameters<typeof heldToolStanding>[0]
+type HeldRead = Readonly<{
+  held: Parameters<typeof heldToolStanding>[0]
+  adopted(tenant: TenantId, version: Readonly<{ asset: string; version: string }>): boolean
+}>
 
-/** A tool of the tenant layer is the one its tenant holds in force now: the same asset, the same version, not disabled. */
+/** A tool of the tenant layer is the one its tenant holds in force now, or one a turn of it adopted from its workspace. */
 function verifyHeld(read: HeldRead, authority: ToolAuthority): ReturnType<Verify> {
   const { layer, asset } = authority
   if (layer.kind !== 'tenant' || Object.keys(layer).length !== 2) return fail({ kind: 'denied' })
-  const standing = heldToolStanding(read, layer.tenant, asset.name)
+  const taken = heldCandidateOf(authority)
+  if (inWorkspace(taken.asset))
+    return read.adopted(layer.tenant, taken)
+      ? succeed(heldToolAuthority(layer.tenant, asset.name, taken) as VerifiedAuthority)
+      : fail({ kind: 'denied' })
+  const standing = heldToolStanding(read.held, layer.tenant, asset.name)
   if (standing.kind === 'unavailable') return unavailable('what the tenant holds cannot be read')
   if (standing.kind === 'none') return fail({ kind: 'denied' })
   if (!sameHeld(authority, standing.candidate))
@@ -209,7 +225,10 @@ export class ReleaseToolContributionAuthority extends ToolContributionAuthorityS
       const release = releaseNow()
       if (release.kind !== 'trusted') return unavailable('release snapshot unavailable')
       try {
-        return verifyAgainst(release, authority, heldReadingOf(ctx))
+        return verifyAgainst(release, authority, {
+          held: heldReadingOf(ctx),
+          adopted: (tenant, version) => workspaceToolBody(ctx, tenant, version) !== undefined,
+        })
       } catch {
         return fail({ kind: 'invalid', reason: 'authority is unreadable' })
       }
@@ -414,25 +433,34 @@ export function releaseDefinitionOf(ctx: Context, name: string): ToolDefinition 
   return known.entries.get(name)
 }
 
-/** The definition of the tool a tenant holds in force under a name, as it was loaded; null when it holds none or it is not loaded. */
-function heldDefinitionNow(ctx: Context, tenant: TenantId, name: string): ToolDefinition | null {
-  const key = heldKeyNow(ctx, tenant, name)
-  return key === null ? null : (heldDefinitionOf(ctx, key) ?? null)
+/** The definition of the tool in force under a name for who asks, as it was loaded; null when there is none. */
+async function heldDefinitionNow(ctx: Context, access: Access<unknown>, name: string) {
+  const held = await currentHeldTool(ctx, access, name)
+  if (held.kind === 'unavailable')
+    return fail({
+      kind: 'unavailable' as const,
+      dependency: 'tool-release',
+      diagnostic: held.diagnostic,
+    })
+  if (held.kind !== 'held') return succeed(null)
+  const { layer, asset } = held.authority
+  return succeed(heldDefinitionOf(ctx, { layer, asset }) ?? null)
 }
 
 export function releaseCurrentDefinitions<P>(ctx: Context): LocalCurrentDefinitions<P> {
   return {
-    current: ({ name, tenant }) => {
+    async current({ name, tenant, principal }) {
       const release = releaseOf(ctx)
-      return Promise.resolve(
-        release.kind === 'trusted'
-          ? succeed(releaseDefinitionOf(ctx, name) ?? heldDefinitionNow(ctx, tenant, name))
-          : fail({
-              kind: 'unavailable',
-              dependency: 'tool-release',
-              diagnostic: release.diagnostic,
-            }),
-      )
+      if (release.kind !== 'trusted')
+        return fail({
+          kind: 'unavailable',
+          dependency: 'tool-release',
+          diagnostic: release.diagnostic,
+        })
+      const released = releaseDefinitionOf(ctx, name)
+      return released === undefined
+        ? heldDefinitionNow(ctx, { principal, tenant }, name)
+        : succeed(released)
     },
   }
 }

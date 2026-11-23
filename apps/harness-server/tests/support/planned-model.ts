@@ -48,15 +48,30 @@ const textOf = (message: Message): string =>
 /** A person's words are a user message; the work dispatched to a session reaches its model as a developer message. */
 const PLAN_ROLES = ['user', 'developer']
 
-/** In a planned call, stands for the reference the latest tool result gave: a call that is still running is read by it. */
-export const LAST_REFERENCE = '$reference'
+/** In a planned call, stands for what the latest tool result said to read next: a call still running is followed by it. */
+const NEXT = '$next'
+const NOTHING_TO_READ = { kind: 'invocation', reference: 'nothing-was-pending', after: null }
 
-function lastReference(messages: readonly Message[]): string {
-  const found = messages
+/** Reads on as Tools told: the params of the `next` it gave last. A result that is already there gives nothing to follow. */
+export const follow: PlannedCall = Object.freeze({
+  tool: 'Tools',
+  arguments: { command: 'read_result', params: NEXT },
+})
+
+function nextParams(messages: readonly Message[]): string {
+  const told = messages
     .filter(message => message.role === 'tool')
-    .flatMap(message => [...textOf(message).matchAll(/"reference":("(?:[^"\\]|\\.)*")/gu)])
+    .flatMap(message => textOf(message).split('\n'))
+    .flatMap(line => {
+      try {
+        const next = (JSON.parse(line) as { next?: { params?: unknown } }).next
+        return next?.params === undefined ? [] : [next.params]
+      } catch {
+        return []
+      }
+    })
     .at(-1)
-  return found?.[1] ?? '""'
+  return JSON.stringify(told ?? NOTHING_TO_READ)
 }
 
 /** The model makes the calls of the step it is at: one step for each of its earlier turns with calls. */
@@ -73,11 +88,11 @@ export const plannedModel = toolCallsByRequest(body => {
   const done = messages
     .slice(at + 1)
     .filter(message => message.role === 'assistant' && (message.tool_calls?.length ?? 0) > 0).length
-  const reference = lastReference(messages)
+  const next = nextParams(messages)
   return (steps[done] ?? []).map((call, index) => ({
     id: `call_${String(at)}_${String(done)}_${String(index)}`,
     tool: call.tool,
-    arguments: JSON.stringify(call.arguments).replaceAll(`"${LAST_REFERENCE}"`, reference),
+    arguments: JSON.stringify(call.arguments).replaceAll(`"${NEXT}"`, next),
   }))
 })
 

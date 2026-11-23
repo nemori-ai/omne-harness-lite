@@ -16,8 +16,6 @@ import {
 } from '@omne-harness/agent-contract'
 import { AgentAdoptionsService } from '@omne-harness/agent-cordis-contract/cordis'
 import { fail, succeed } from '@omne-harness/operation-result'
-import { assetCategoriesKey } from '@omne-harness/assets-cordis-contract'
-import { workspaceSourcesKey } from '@omne-harness/workspace-cordis-contract/cordis'
 import {
   DefinitionMappingsService,
   type DefinitionAsker,
@@ -26,47 +24,20 @@ import {
   type DefinitionReading,
 } from './definition-mappings.ts'
 import { DEFINITION_CATEGORY, type DefinitionReadingInput } from './held-definitions.ts'
-import {
-  tenantLayers,
-  turnLayers,
-  type AssetLayers,
-  type WorkspaceLayerPorts,
-} from '../tenant-assets/layers.ts'
+import { askerLayersOf } from '../tenant-assets/asker-layers.ts'
+import { inWorkspace, type AssetLayers } from '../tenant-assets/layers.ts'
+import { turnOfAccess } from '../tenant-assets/turn.ts'
+import { tenantAssetsKey } from '../tenant-assets/service.ts'
 import type { Adoption } from '@omne-harness/session-contract'
 import { AgentDefinitionCatalogService } from './definition-catalog.ts'
 import { officialAssetRef } from '../../assets/official-holdings.ts'
-import { tenantAssetsKey } from '../tenant-assets/service.ts'
 import type { MappingTable } from './table.ts'
 
 export { DEFINITION_CATEGORY }
 
-/** The layers of a tenant that has no assets yet: it holds nothing, which is read, not unknown. */
-const NOTHING_HELD: AssetLayers = Object.freeze({
-  sources: Object.freeze([]),
-  body: async () => undefined,
-  readerOf: () => {
-    throw new Error('a tenant without assets has no package to read')
-  },
-})
-
 /** The layers a tenant reads a definition from, and with a turn the workspace as that turn adopted it. */
 export function definitionLayersOf(ctx: Context): DefinitionReadingInput['layers'] {
-  const workspace: WorkspaceLayerPorts = {
-    sources: () => ctx.get(workspaceSourcesKey),
-    contractOf: category => ctx.get(assetCategoriesKey)?.view.lookup(category),
-  }
-  return async ({ tenant, turn }) => {
-    const encoded = tenantCodec.encode(tenant)
-    const service = ctx.get(tenantAssetsKey)
-    if (!encoded.ok || service === undefined) return undefined
-    const assets = await service.open(encoded.value)
-    if (assets === undefined)
-      return (await service.standing(encoded.value)) === 'unregistered' ? NOTHING_HELD : undefined
-    const held = tenantLayers(assets, service.layerSources(encoded.value), () =>
-      workspace.contractOf(DEFINITION_CATEGORY),
-    )
-    return turn === undefined ? held : turnLayers(held, workspace, turn.access, turn.key)
-  }
+  return askerLayersOf(ctx, DEFINITION_CATEGORY)
 }
 
 /** The names a tenant holds or the workspace of a turn carries in the definition category; undefined when a layer cannot be listed. */
@@ -183,7 +154,21 @@ export class AgentAdoptionsImpl extends AgentAdoptionsService<unknown> {
     const judged = judgeAdoption(input.adoption)
     if ('failure' in judged)
       return fail({ kind: 'invalid', field: 'adoption', reason: judged.failure.reason })
-    const read = await this.reading.adopted({ tenant: input.tenant }, judged.ok)
+    const { tenant, principal } = input
+    // A definition of a workspace is read as the turn that runs it adopted the workspace.
+    const turn = inWorkspace(judged.ok.revision)
+      ? await turnOfAccess(this.ctx, { principal, tenant })
+      : null
+    if (turn === undefined)
+      return fail({
+        kind: 'unavailable',
+        owner: OWNER,
+        diagnostic: 'the turn that runs this definition cannot be read',
+      })
+    const read = await this.reading.adopted(
+      turn === null ? { tenant } : { tenant, turn },
+      judged.ok,
+    )
     if (read.kind === 'unavailable')
       return fail({ kind: 'unavailable', owner: OWNER, diagnostic: read.diagnostic })
     if (read.kind === 'absent')

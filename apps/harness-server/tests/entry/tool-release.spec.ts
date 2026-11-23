@@ -44,6 +44,8 @@ import {
   releaseFrom,
   tree,
 } from '../rows/tool-host/support.ts'
+import { heldToolAuthority } from '../../src/rows/tool-host/held-tools.ts'
+import { rememberWorkspaceTool } from '../../src/rows/tool-host/workspace-tools.ts'
 import { fixtureEnv, fixtureTenant, got, okOf } from './support.ts'
 
 const unavailableSnapshot = async () =>
@@ -118,6 +120,32 @@ describe('toolContributionAuthority.verify', () => {
     expect(authority.verify({ ...shell, asset: { ...shell.asset, name: 'Other' } })).toEqual(
       fail({ kind: 'denied' }),
     )
+  })
+
+  it('verifies a version of a workspace tool only for the tenant a turn of which adopted that very version', async () => {
+    const { authority, root } = await releaseFixture()
+    const [a, b] = [fixtureTenant('a'), fixtureTenant('b')]
+    const taken = {
+      asset: 'workspace/shared/tool/wordcount',
+      version: 'sha256:taken',
+      disabled: false,
+      immutable: false,
+      replaceLocked: false,
+    }
+    const given = heldToolAuthority(a, 'wordcount', taken)
+    expect(authority.verify(given)).toEqual(fail({ kind: 'denied' }))
+    rememberWorkspaceTool(root, a, taken, { kind: 'null' })
+    expect(okOf(authority.verify(given), 'verify the adopted version')).toEqual(given)
+    expect(authority.verify(heldToolAuthority(b, 'wordcount', taken))).toEqual(
+      fail({ kind: 'denied' }),
+    )
+    const other = { ...taken, version: 'sha256:other' }
+    expect(authority.verify(heldToolAuthority(a, 'wordcount', other))).toEqual(
+      fail({ kind: 'denied' }),
+    )
+    // What the caller wrote beside the asset is not taken: the verified value is built again.
+    const forged = { ...given, holding: { ...given.holding, record: 'forged' } }
+    expect(okOf(authority.verify(forged), 'verify the forged one')).toEqual(given)
   })
 
   it('answers unavailable for every call while the snapshot is unavailable', async () => {

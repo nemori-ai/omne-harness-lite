@@ -14,6 +14,7 @@ import {
   mappedDefinitionFor,
 } from '../agent-adoptions/definition-mappings.ts'
 import { sessionModesInstallationKey } from '../session-ad03/modes.ts'
+import { lastTurnOf, madeFrom } from '../tenant-assets/turn.ts'
 import { readForkPointOf } from './fork-point.ts'
 
 const OWNER = 'harness-server/dispatch-session'
@@ -54,7 +55,11 @@ export function sessionCallsOf(ctx: Context, ports: SessionCallPorts): SessionCa
     const mappings = ctx.get(definitionMappingsKey)
     if (mappings === undefined) return undefined
     const { tenant } = input
-    const resolved = await mappedDefinitionFor(mappings, { tenant }, input.creation.agent)
+    const from = madeFrom(input.creation.standing.relation)
+    const turn = from === null ? null : await lastTurnOf(ctx, tenant, from)
+    if (turn === undefined) return undefined
+    const asker = turn === null ? { tenant } : { tenant, turn }
+    const resolved = await mappedDefinitionFor(mappings, asker, input.creation.agent)
     if (resolved === undefined || resolved === 'unavailable') return undefined
     const { tenantDefaults, ...mapped } = resolved
     const { agent, workspace, modes, standing } = input.creation

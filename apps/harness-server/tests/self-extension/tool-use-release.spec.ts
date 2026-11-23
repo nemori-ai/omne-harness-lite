@@ -2,17 +2,14 @@
 // Starts the release tree: an agent publishes a tool and, in the same run, finds it with Tools and calls it.
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { heldKeyNow, isHeldNow } from '../../src/rows/tool-host/held-current.ts'
+import { heldKeyNow, isHeldNow } from '../../src/rows/tool-host/held-now.ts'
 import { fixtureTenant } from '../entry/support.ts'
-import { cliOk, extensions, LAST_REFERENCE, planner, tools } from '../support/planned-model.ts'
+import { cliOk, extensions, follow, planner, tools } from '../support/planned-model.ts'
 import { COUNT_PY, inWorkspace, otherTenant, recordingModel, WORDCOUNT, write } from './support.ts'
 
 const search = (query: string) => tools('search', { query, after: null, limit: 10 })
 const count = (text: string) =>
   tools('execute', { name: 'wordcount', command: null, arguments: { text } })
-
-/** A script takes longer than Tools waits for a call: its result is read by the reference execute gave. */
-const result = tools('read_result', { kind: 'invocation', reference: LAST_REFERENCE, after: null })
 
 /** The tools the coding definition of the release keeps resident: what a coding session declares, no more. */
 const CODING_RESIDENTS = (
@@ -63,7 +60,8 @@ describe('a tool a tenant published, used in the run that published it, on the r
             [search('count words')],
             [tools('inspect', { name: 'wordcount', command: null })],
             [count('one two three four')],
-            [result],
+            [follow],
+            [follow],
           )
           expect(said).toContain('done OmneExtensions publish')
           expect(said).toContain('wordcount')
@@ -98,7 +96,8 @@ describe('a tool a tenant published, used in the run that published it, on the r
             String(made.body['session']),
             [search('count words')],
             [count('one two')],
-            [result],
+            [follow],
+            [follow],
           )
           expect(theirs).not.toContain('Count the words of a text')
           expect(theirs).not.toMatch(/^2$/mu)

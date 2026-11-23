@@ -3,7 +3,7 @@ import { TOOL_READ_ARGUMENTS } from '../../entry/tool-read-budget.ts'
 import { releaseCatalogViewOf } from '../tool-bindings/catalog-view.ts'
 import type { Context } from '@deepseek-ai/cordis'
 import { createRecoveryAccess } from '@omne-harness/execution-environment-contract'
-import { isHeldNow } from '../tool-host/held-current.ts'
+import { isHeldNow } from '../tool-host/held-now.ts'
 import { canonicalDigest } from '@omne-harness/tool'
 import {
   toolBindingsKey,

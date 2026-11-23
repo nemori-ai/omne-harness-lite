@@ -2,7 +2,8 @@
 // Starts the release tree: a tool a tenant published is loaded for that tenant, and for no other.
 import { describe, expect, it } from 'vitest'
 import { toolBindingsKey, toolGenerationsKey } from '@omne-harness/tool-cordis-contract/cordis'
-import { currentHeldTool, heldReadingOf } from '../../src/rows/tool-host/held-current.ts'
+import { currentHeldTool } from '../../src/rows/tool-host/held-current.ts'
+import { heldReadingOf } from '../../src/rows/tool-host/held-now.ts'
 import { heldToolAuthority, heldToolStanding } from '../../src/rows/tool-host/held-tools.ts'
 import { fixtureTenant } from '../entry/support.ts'
 import { extensions, files } from '../support/planned-model.ts'

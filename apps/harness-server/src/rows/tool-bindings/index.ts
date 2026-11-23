@@ -106,7 +106,10 @@ export function releaseCapability(
     const held = heldKeyOfRequest(input.request)
     return held === undefined
       ? withWeb
-      : attachScriptHost(withWeb, heldScriptHost(ctx, input.tenant, held))
+      : attachScriptHost(
+          withWeb,
+          heldScriptHost(ctx, { principal: input.principal, tenant: input.tenant }, held),
+        )
   }
 }
 
