@@ -37,7 +37,6 @@ export const LISTING_DEFECTS = [
 ] as const satisfies readonly ListingDefect[]
 
 export const UNAVAILABLE_REASONS = [
-  'no-longer-offered',
   'connection-unavailable',
   'authorization-required',
   'credential-unavailable',

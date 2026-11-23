@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { readJsonText } from '@omne-harness/json-text'
 import {
   mcpEndpointBodyContract,
+  mcpEndpointGates,
   parseEndpointBody,
   type EndpointDefinition,
 } from '@omne-harness/mcp-contract'
@@ -144,6 +145,71 @@ describe('mcpEndpointBodyContract', () => {
     expect(() => contract.references(readBody({ ...http, transport: 'sse' }))).toThrow(
       /transport-unknown/,
     )
+  })
+
+  const settingsOf = (body: unknown, definition?: string) => {
+    const settings = contract.settings?.(readBody(body), {
+      capabilityName: 'search',
+      ...(definition === undefined ? {} : { definition }),
+    })
+    if (settings === null || settings === undefined) throw new Error('no settings')
+    return settings
+  }
+
+  it('defines the target and the connect timeout of an endpoint without authentication', () => {
+    const settings = settingsOf({ ...http, auth: 'none' })
+    expect(settings.items.map(item => [item.id, item.category, item.sensitivity])).toEqual([
+      ['target', 'placement-identity', 'ordinary'],
+      ['connect-timeout', 'preference', 'ordinary'],
+    ])
+  })
+
+  it.each(['static', 'oauth'])('adds the credential, a secret, when the endpoint uses %s', auth => {
+    const settings = settingsOf({ ...http, auth })
+    expect(settings.items.map(item => [item.id, item.category, item.sensitivity])).toEqual([
+      ['target', 'placement-identity', 'ordinary'],
+      ['credential', 'placement-identity', 'secret'],
+      ['connect-timeout', 'preference', 'ordinary'],
+    ])
+  })
+
+  it('gives no item a default, and puts every item in its one group', () => {
+    const settings = settingsOf(http)
+    expect(settings.items.map(item => item.default)).toEqual(
+      settings.items.map(() => ({ kind: 'absent' })),
+    )
+    expect(settings.groups.map(group => group.id)).toEqual(['connection'])
+    expect(new Set(settings.items.map(item => item.groupId))).toEqual(new Set(['connection']))
+  })
+
+  it('names the definition after the endpoint and the version after the pinned definition', () => {
+    expect(settingsOf(http, 'sha256-abc')).toMatchObject({
+      definitionId: 'search',
+      version: 'sha256-abc',
+    })
+    expect(settingsOf(http).version).toBe('unpinned')
+  })
+
+  it('gives the same body the same definition, byte for byte', () => {
+    expect(JSON.stringify(settingsOf(http, 'v'))).toBe(JSON.stringify(settingsOf(http, 'v')))
+    expect(JSON.stringify(settingsOf(http, 'v'))).not.toBe(
+      JSON.stringify(settingsOf({ ...http, auth: 'none' }, 'v')),
+    )
+  })
+
+  it('throws instead of defining settings for a rejected body', () => {
+    expect(() => contract.settings?.(readBody({ ...http, auth: 'bearer' }))).toThrow(/auth-unknown/)
+  })
+})
+
+describe('mcpEndpointGates', () => {
+  it('is one gate of the category mcp, asking by default', () => {
+    expect(mcpEndpointGates).toEqual({
+      category: 'mcp',
+      ownerId: 'mcp.endpoint-gates',
+      gates: [{ id: 'call', title: '调用这个接入点的动作', default: 'ask' }],
+    })
+    expect(Object.isFrozen(mcpEndpointGates) && Object.isFrozen(mcpEndpointGates.gates)).toBe(true)
   })
 })
 

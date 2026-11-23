@@ -395,10 +395,7 @@ describe('the MCP plugin on a Cordis context, with a scripted HTTP peer', () => 
     adoptFiles(replacement, other)
     await load(ctx, adoptionService(replacement), undefined)
     expect(await refreshed(ctx)).toMatchObject({ ok: { kind: 'published' } })
-    expect(await availabilities(ctx)).toEqual([
-      ['echo', { kind: 'unavailable', reason: 'no-longer-offered' }],
-      ['other', { kind: 'available' }],
-    ])
+    expect(await availabilities(ctx)).toEqual([['other', { kind: 'available' }]])
   })
 
   it('removes the three services and releases the credential handle when the plugin unloads', async () => {

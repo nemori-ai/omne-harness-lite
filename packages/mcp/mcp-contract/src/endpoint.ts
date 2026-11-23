@@ -93,6 +93,98 @@ function judgedDefinition(body: unknown, context?: JudgeContext): EndpointDefini
   return parsed.ok
 }
 
+/** The gates of the category: one for each endpoint, calling its actions. The assembly names it. */
+export const mcpEndpointGates = Object.freeze({
+  category: 'mcp',
+  ownerId: 'mcp.endpoint-gates',
+  gates: Object.freeze([
+    Object.freeze({ id: 'call', title: '调用这个接入点的动作', default: 'ask' as const }),
+  ]),
+})
+
+type EndpointSettingDefinitions = NonNullable<ReturnType<NonNullable<BodyContract['settings']>>>
+type EndpointSettingItem = EndpointSettingDefinitions['items'][number]
+
+const CONNECTION_GROUP = 'connection'
+const UNPINNED_VERSION = 'unpinned'
+const NO_DEFAULT = { kind: 'absent' as const }
+
+function settingItem(
+  item: Pick<EndpointSettingItem, 'id' | 'category' | 'valueSchema' | 'sensitivity'> &
+    Pick<EndpointSettingItem['presentation'], 'title' | 'description' | 'impact' | 'clear'> &
+    Readonly<{ unit?: string }>,
+): EndpointSettingItem {
+  const { title, description, impact, clear, unit, ...rest } = item
+  return {
+    ...rest,
+    groupId: CONNECTION_GROUP,
+    presentation: {
+      title,
+      description,
+      impact,
+      clear,
+      adoption: 'next-read',
+      ...(unit === undefined ? {} : { unit }),
+    },
+    default: NO_DEFAULT,
+    merge: 'override',
+  }
+}
+
+const TARGET_ITEM = settingItem({
+  id: 'target',
+  category: 'placement-identity',
+  title: '连接目标',
+  description: '这个接入点的地址：https，或本机回环地址上的 http。',
+  impact: '下一次连接按这个地址去连；没有设时连不上。',
+  clear: '这一层不再提供地址。',
+  valueSchema: { type: 'string', minLength: 1, maxLength: 2048 },
+  sensitivity: 'ordinary',
+})
+const CREDENTIAL_ITEM = settingItem({
+  id: 'credential',
+  category: 'placement-identity',
+  title: '凭据',
+  description: '连接这个接入点时出示的凭据。',
+  impact: '下一次连接带这份凭据；没有设时对端会拒绝。',
+  clear: '这一层不再提供凭据。',
+  valueSchema: { type: 'string', minLength: 1 },
+  sensitivity: 'secret',
+})
+const CONNECT_TIMEOUT_ITEM = settingItem({
+  id: 'connect-timeout',
+  category: 'preference',
+  title: '连接超时',
+  description: '建立连接最多等多久。',
+  impact: '下一次连接等这么久；没有设时连不上。',
+  clear: '这一层不再提供连接超时。',
+  unit: '毫秒',
+  valueSchema: { type: 'integer', minimum: 1 },
+  sensitivity: 'ordinary',
+})
+
+function settingsOf(definition: EndpointDefinition, version: string): EndpointSettingDefinitions {
+  return {
+    providerId: mcpEndpointGates.ownerId,
+    definitionId: definition.name,
+    version,
+    groups: [
+      {
+        id: CONNECTION_GROUP,
+        parentId: null,
+        title: '连接',
+        description: `怎样连到接入点 ${definition.name}。`,
+        order: 0,
+      },
+    ],
+    items: [
+      TARGET_ITEM,
+      ...(definition.auth === 'none' ? [] : [CREDENTIAL_ITEM]),
+      CONNECT_TIMEOUT_ITEM,
+    ],
+  }
+}
+
 export function mcpEndpointBodyContract(): BodyContract {
   return {
     category: 'mcp',
@@ -100,6 +192,9 @@ export function mcpEndpointBodyContract(): BodyContract {
     judge,
     deriveDeclarations(body, context) {
       return { entries: declarationsOf(judgedDefinition(body, context)) }
+    },
+    settings(body, context) {
+      return settingsOf(judgedDefinition(body, context), context?.definition ?? UNPINNED_VERSION)
     },
     references(body, context) {
       judgedDefinition(body, context)

@@ -57,7 +57,7 @@ export type EnsureFailure =
   | Readonly<{ stage: 'settings'; reason: EnsureRefusal }>
   | Readonly<{ stage: 'connect'; reason: ConnectionFailure | EffectUnknown; catalog: CatalogMark }>
 
-export type UnavailableMark = Exclude<UnavailableReason, 'no-longer-offered'>
+export type UnavailableMark = UnavailableReason
 
 export type Resources = {
   transport: McpTransport | undefined

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { JsonValue } from '@omne-harness/json-text'
 import {
-  actionPermissionItems,
   completeListing,
   digestDefinition,
   isCatalogRevision,
@@ -246,24 +245,20 @@ describe('mergeListing', () => {
   it('records an empty listing as acquired with zero actions', () => {
     const record = merged(notAcquired, [])
     expect(record).toMatchObject({ revision: 1, actions: [] })
-    expect(actionPermissionItems(adopted(record))).toEqual([])
   })
 
-  it('keeps an action that the peer no longer offers, with its last lawful definition', () => {
+  it('drops an action that the peer no longer offers', () => {
     const first = merged(notAcquired, [tool('a', { description: 'old' }), tool('b')])
     const second = merged(adopted(first), [tool('b')], 2)
-    const a = second.actions.find(action => action.name === 'a')
     expect(second.revision).toBe(2)
-    expect(a).toEqual({
-      ...first.actions.find(action => action.name === 'a'),
-      availability: { kind: 'unavailable', reason: 'no-longer-offered' },
-    })
+    expect(second.actions).toEqual(first.actions.filter(action => action.name === 'b'))
     expect(second.basis.generation).toBe(2)
   })
 
-  it('replaces the definition of an offered action and makes it available again', () => {
+  it('takes an action that is offered again with the definition offered now', () => {
     const first = merged(notAcquired, [tool('a')])
     const gone = merged(adopted(first), [])
+    expect(gone.actions).toEqual([])
     const back = merged(adopted(gone), [tool('a', { description: 'new' })])
     const [a] = back.actions
     expect(a?.availability).toEqual({ kind: 'available' })
@@ -313,7 +308,7 @@ describe('mergeListing', () => {
     expect(Object.isFrozen(complete.actions[0])).toBe(true)
   })
 
-  it('keeps every known action through any sequence of listings (seeded walk)', () => {
+  it('publishes exactly the listing acquired, through any sequence of listings (seeded walk)', () => {
     let seed = 7
     const next = (bound: number): number => {
       seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648
@@ -321,18 +316,18 @@ describe('mergeListing', () => {
     }
     const names = ['a', 'b', 'c', 'd', 'e', 'f']
     let state: CatalogState = notAcquired
-    const seen = new Map<string, JsonValue>()
     for (let round = 1; round <= 200; round += 1) {
       const offered = names.filter(() => next(2) === 1)
       const tools = offered.map(name => tool(name, { description: `r${next(3)}` }))
       const record = merged(state, tools, round)
-      tools.forEach((raw, index) => seen.set(offered[index] ?? '', raw))
       expect(record.revision).toBe(round)
-      expect(record.actions.map(action => action.name)).toEqual([...seen.keys()].sort())
-      for (const action of record.actions) {
-        expect(action.lastLawful.definition).toEqual(seen.get(action.name))
-        expect(action.availability.kind === 'available').toBe(offered.includes(action.name))
-      }
+      expect(
+        record.actions.map(action => [
+          action.name,
+          action.lastLawful.definition,
+          action.availability,
+        ]),
+      ).toEqual(offered.map((name, index) => [name, tools[index], { kind: 'available' }]))
       state = adopted(record)
     }
   })
@@ -371,27 +366,5 @@ describe('markUnavailable', () => {
         availability: { kind: 'unavailable', reason: 'credential-unavailable' },
       })),
     )
-  })
-
-  it('keeps the reason of an action that the peer no longer offers', () => {
-    const first = merged(notAcquired, [tool('a'), tool('b')])
-    const second = merged(adopted(first), [tool('b')])
-    const marked = markUnavailable(second, 'connection-unavailable')
-    expect(marked.actions.map(action => action.availability)).toEqual([
-      { kind: 'unavailable', reason: 'no-longer-offered' },
-      { kind: 'unavailable', reason: 'connection-unavailable' },
-    ])
-  })
-})
-
-describe('actionPermissionItems', () => {
-  it('derives nothing before a catalog was acquired', () => {
-    expect(actionPermissionItems(notAcquired)).toBe('not-acquired')
-  })
-
-  it('names one item per known action, available or not, by the action name only', () => {
-    const first = merged(notAcquired, [tool('read'), tool('write')])
-    const second = merged(adopted(first), [tool('read', { description: 'changed' })])
-    expect(actionPermissionItems(adopted(second))).toEqual(['execute:read', 'execute:write'])
   })
 })
