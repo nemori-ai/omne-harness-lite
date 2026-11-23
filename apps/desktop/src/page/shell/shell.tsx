@@ -125,6 +125,28 @@ function StaleApp(props: { missing: readonly string[] }) {
   )
 }
 
+export const THREW_TEXT = '界面有几块启动时出错，没有起来'
+export const HELD_TEXT = '连着两次让应用起不来，已经停掉'
+export const HELD_HINT = '换一版，或者不再装它，就放开'
+
+function Fallen(props: { state: ShellState }) {
+  const fallen = useWatched(props.state.fallen)
+  const named = (why: 'threw' | 'held'): string =>
+    fallen
+      .filter(each => each.why === why)
+      .map(each => each.name)
+      .join('、')
+  const threw = named('threw')
+  const held = named('held')
+  if (threw === '' && held === '') return null
+  return (
+    <InlineNotice tone="caution" role="alert" className="shell-banner" still>
+      {threw === '' ? '' : `${THREW_TEXT}：${threw}。别的照常。`}
+      {held === '' ? '' : `${held} ${HELD_TEXT}。${HELD_HINT}。`}
+    </InlineNotice>
+  )
+}
+
 /** What the figure on the gate says, in full ink out of its gap and down, once the login gate is back. */
 function GateNotice(props: { text: string; seat: React.RefObject<HTMLElement | null> }) {
   const factor = useSizeFactor()
@@ -210,6 +232,7 @@ function Outside(props: {
         <LoadingState className="shell-reconnecting" label={RECONNECTING_TEXT} />
       ) : null}
       <StaleApp missing={props.missing} />
+      <Fallen state={props.state} />
       {props.login === 'signing-out' ? (
         <LoadingState label="正在退出……" />
       ) : (
@@ -277,6 +300,7 @@ function Workspace(props: SidebarProps & { missing: readonly string[] }) {
       >
         <div className="shell-drag-strip" aria-hidden="true" />
         <StaleApp missing={props.missing} />
+        <Fallen state={state} />
         {pages.map(page => {
           const lacks = lacksOf('pages', page.id)
           const toPage = focus?.page === page.id ? { scope, subject: focus.subject } : { scope }

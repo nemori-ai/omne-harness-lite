@@ -100,7 +100,8 @@
     "workspace-access",
     "tool-access",
     "model-access",
-    "usage-access"
+    "usage-access",
+    "plugin-access"
   ],
   "trusted": [
     {
@@ -563,6 +564,13 @@
     },
     {
       "row": "usage-access",
+      "names": [
+        "principalIssuer",
+        "tenantStanding"
+      ]
+    },
+    {
+      "row": "plugin-access",
       "names": [
         "principalIssuer",
         "tenantStanding"

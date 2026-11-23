@@ -1,7 +1,9 @@
 import { CordisError, Service, type Context, type Plugin } from '@deepseek-ai/cordis'
 import {
+  CATALOG,
   adopt,
   declare,
+  list,
   standingOf,
   type Adoption,
   type Contract,
@@ -29,7 +31,7 @@ import {
   type PartStyle,
 } from './change.ts'
 import type { FigureBoard, FigureReport } from './figure-store.ts'
-import type { ScopeSource, ShellLogin } from './host.ts'
+import type { Described, Fallen, Hosted, ScopeSource, ShellLogin } from './host.ts'
 import {
   pinnedClient,
   pointReader,
@@ -44,6 +46,7 @@ import {
   partFault,
   partHostOf,
   partsContract,
+  partsOn,
   type PartDeclaration,
   type PartRender,
 } from './part.ts'
@@ -131,6 +134,7 @@ export abstract class ShellService extends Service implements ShellSlots {
   private readonly watchers = new Set<Watcher>()
   private readonly required = new Map<string, Readonly<Record<string, Reference>>>()
   private readonly adoptionWatchers = new Set<() => void>()
+  private readonly fell = new Map<string, Fallen['why']>()
   private readonly changeWatchers = new Set<() => void>()
   private read:
     | Readonly<{ registry: Registry; tenant: string | undefined; changes: Changes }>
@@ -189,8 +193,57 @@ export abstract class ShellService extends Service implements ShellSlots {
     ])
   }
 
+  described(): Described {
+    const registry = this.registry()
+    const catalog = list<Contract>(registry, CATALOG, null, [])
+    const declared = catalog.kind === 'read' ? catalog.items : []
+    const parts = partsOn(registry)
+    return {
+      points: declared
+        .map(({ entry }) => ({ name: entry.key, summary: entry.item.summary }))
+        .sort((left, right) => (left.name < right.name ? -1 : 1)),
+      parts: (parts.kind === 'read' ? parts.parts : [])
+        .map(({ name, label, summary, depths, within }) => ({
+          name,
+          label,
+          summary,
+          depths,
+          within,
+        }))
+        .sort((left, right) => (left.name < right.name ? -1 : 1)),
+    }
+  }
+
+  takesDrawing(point: string): boolean {
+    const standing = standingOf(this.registry(), point, [])
+    if (standing.kind !== 'declared') return false
+    const { arity, resolve, item } = standing.contract
+    return (
+      arity === 'keyed-one' && resolve === 'most-specific' && item.fields['render'] === 'function'
+    )
+  }
+
   putLayout(key: string, order: readonly string[], scope: Scope = []): () => unknown {
     return this.ctx.dynamis.put([layoutEntry(key, order, scope)])
+  }
+
+  async host(name: string, apply: (shell: ShellService) => void): Promise<Hosted> {
+    let by = name
+    const fiber = this.ctx.plugin({
+      name,
+      inject: [ShellService.provide, 'dynamis'],
+      apply: (ctx: Context) => {
+        ctx.dynamis.put(instance => ((by = instance.fiber), []))
+        apply(ctx.shell)
+      },
+    })
+    try {
+      await fiber
+    } catch (error) {
+      await fiber.dispose()
+      throw error
+    }
+    return { by, dispose: () => fiber.dispose() }
   }
 
   changes(): Changes {
@@ -293,6 +346,22 @@ export abstract class ShellService extends Service implements ShellSlots {
     const made = adoptOn(registry, references)
     this.adopted.of.set(module, made)
     return made
+  }
+
+  fallen(): readonly Fallen[] {
+    return Array.from(this.fell, ([name, why]) => ({ name, why })).sort((left, right) =>
+      left.name < right.name ? -1 : 1,
+    )
+  }
+
+  markStart(name: string, outcome: Fallen['why'] | 'started' | 'gone'): void {
+    const before = this.fell.get(name)
+    const after = outcome === 'threw' || outcome === 'held' ? outcome : undefined
+    if (after === undefined) this.fell.delete(name)
+    else this.fell.set(name, after)
+    if (after === 'threw') this.ctx.logger.warn(`shell: the module ${name} threw while it started`)
+    if (after === before) return
+    for (const listener of Array.from(this.adoptionWatchers)) listener()
   }
 
   offer<T>(key: ServiceKey<T>, value: NoInfer<T>): void {
@@ -469,6 +538,17 @@ function lacking(shell: ShellService): ShellService {
   })
 }
 
+function started<T>(shell: ShellService, module: string, apply: () => T): T {
+  try {
+    const back = apply()
+    shell.markStart(module, 'started')
+    return back
+  } catch (error) {
+    shell.markStart(module, 'threw')
+    throw error
+  }
+}
+
 function turnOf(definition: NeedsModule, bound: object, whole: boolean): Plugin.Object {
   return {
     name: definition.name,
@@ -478,7 +558,9 @@ function turnOf(definition: NeedsModule, bound: object, whole: boolean): Plugin.
         if (whole) ctx.shell.offer(key, value)
       }
       const shell = whole ? ctx.shell : lacking(ctx.shell)
-      const back = definition.apply(shell, bound as BoundOf<Record<string, Need>>, provide)
+      const back = started(ctx.shell, definition.name, () =>
+        definition.apply(shell, bound as BoundOf<Record<string, Need>>, provide),
+      )
       if (back !== undefined) ctx.effect(() => back, 'ui-module.apply')
     },
   }
@@ -514,6 +596,7 @@ function followAdoption(ctx: Context, definition: NeedsModule, bound: object): v
     return () => {
       gone = true
       stop()
+      shell.markStart(definition.name, 'gone')
     }
   }, 'ui-module.adoption')
   settle()

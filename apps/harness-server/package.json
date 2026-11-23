@@ -116,6 +116,8 @@
     "@omne-harness/pi-ai-openai": "workspace:*",
     "@omne-harness/pi-ai-qwen": "workspace:*",
     "@omne-harness/pi-ai-transport": "workspace:*",
+    "@omne-harness/plugin-access": "workspace:*",
+    "@omne-harness/plugin-protocol": "workspace:*",
     "@omne-harness/public-contract": "workspace:*",
     "@omne-harness/request-context": "workspace:*",
     "@omne-harness/request-context-contract": "workspace:*",

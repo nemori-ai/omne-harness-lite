@@ -11,7 +11,7 @@ const jsonBudgets = z.strictObject({
 })
 
 const observation = z.strictObject({
-  perLogin: positive.default(4),
+  perLogin: positive.default(16),
   perInstance: positive.default(1000),
 })
 

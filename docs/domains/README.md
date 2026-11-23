@@ -7,7 +7,7 @@
 | 阅读组 | 入口 |
 | --- | --- |
 | 治理与资源 | [身份与授权](identity-and-authorization/README.md)、[资产与规则](assets-and-rules/README.md)、[工作区](workspaces/README.md) |
-| 专有类别知识 | [Slash Command](slash-commands/README.md)、[Skill](skills/README.md)、[MCP](mcp/README.md)、[拓展件](loop-extensions/README.md) |
+| 专有类别知识 | [Slash Command](slash-commands/README.md)、[Skill](skills/README.md)、[MCP](mcp/README.md)、[拓展件](loop-extensions/README.md)、[Plugin](plugins/README.md) |
 | 工作、装配与执行 | [会话与工作](sessions-and-work/README.md)、[装配交接](assembly-and-handoff/README.md)、[Agent推进](agent-progression/README.md)、[模型调用](model-invocation/README.md)、[工具执行](tool-execution/README.md)、[Context](runtime-context/README.md)、[HITL](human-intervention/README.md) |
 | 执行资源 | [执行环境](execution-environments/README.md) |
 | 业务服务 | [日历](calendars/README.md)、[日程与Job](schedules-and-jobs/README.md) |

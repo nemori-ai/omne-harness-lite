@@ -10,6 +10,7 @@ import {
 import { CONTENT_SECURITY_POLICY } from '../src/shared/page-policy.ts'
 import { SIZE_KEY, bindSizeKeys, storedSizePreference } from '../src/page/shell/size.ts'
 import { THEME_KEY, storedThemePreference } from '../src/page/shell/theme.ts'
+import { TOKENS_KEY, dropBootTokens, storedTokens } from '../src/page/shell/boot-tokens.ts'
 
 // The query the theme controller follows (`colorSchemeQuery` in the shared interface kit).
 const COLOR_SCHEME_QUERY = '(prefers-color-scheme: dark)'
@@ -152,5 +153,105 @@ describe('字号档的按键', () => {
     unbind()
     expect(press('=', { ctrlKey: true })).toBe(false)
     expect(size.current()).toBe('small')
+  })
+})
+
+describe('首帧之前整个应用的令牌', () => {
+  /** Runs the boot script with what is stored under the tokens key; gives what it wrote on the root. */
+  function tinted(stored: string | null | 'throws') {
+    const written = new Map<string, string>()
+    const dataset: Record<string, string> = {}
+    const window = {
+      localStorage: {
+        getItem(key: string) {
+          if (stored === 'throws') throw new Error('blocked')
+          return key === TOKENS_KEY ? stored : null
+        },
+      },
+    }
+    const style = { setProperty: (name: string, value: string) => void written.set(name, value) }
+    new Function('window', 'document', source)(window, { documentElement: { dataset, style } })
+    return { written: Object.fromEntries(written), names: dataset['bootTokens'] }
+  }
+
+  it('存着的令牌在首帧之前写到根上，并记下写了哪几个', () => {
+    const stored = JSON.stringify({
+      '--omne-accent': '#0a7a4a',
+      '--omne-surface': 'oklch(98% 0.01 90)',
+    })
+    expect(tinted(stored)).toEqual({
+      written: { '--omne-accent': '#0a7a4a', '--omne-surface': 'oklch(98% 0.01 90)' },
+      names: '--omne-accent --omne-surface',
+    })
+  })
+
+  it.each([
+    ['没有存', null],
+    ['读不到', 'throws'],
+    ['不是 JSON', '{ not json'],
+    ['不是对象', '["--omne-accent"]'],
+    ['是空的', '{}'],
+  ] as const)('%s时什么都不写', (_name, stored) => {
+    expect(tinted(stored)).toEqual({ written: {}, names: undefined })
+  })
+
+  it('名字不是界面令牌的样子、值不是文字或带着不许有的写法的，那一个不写，别的照写', () => {
+    const stored = JSON.stringify({
+      '--omne-accent': '#0a7a4a',
+      '--kami-ink': '#000',
+      color: 'red',
+      '--omne-surface': 'url(https://example.com/x.png)',
+      '--omne-radius-control': 4,
+      '--omne-line': 'red; background: blue',
+      '--omne-shadow': '',
+    })
+    expect(tinted(stored)).toEqual({
+      written: { '--omne-accent': '#0a7a4a' },
+      names: '--omne-accent',
+    })
+  })
+})
+
+describe('整个应用的令牌存到下一次冷启动', () => {
+  function store(initial: Record<string, string> = {}) {
+    const held = new Map(Object.entries(initial))
+    return {
+      held,
+      getItem: (key: string) => held.get(key) ?? null,
+      setItem: (key: string, value: string) => void held.set(key, value),
+      removeItem: (key: string) => void held.delete(key),
+    }
+  }
+
+  it('有令牌时存成一段 JSON，没有时把这个键去掉；存的东西首帧脚本读得回来', () => {
+    const local = store()
+    const kept = storedTokens(() => local)
+    kept.write({ '--omne-accent': '#0a7a4a' })
+    expect(local.held.get(TOKENS_KEY)).toBe('{"--omne-accent":"#0a7a4a"}')
+    kept.write({})
+    expect(local.held.has(TOKENS_KEY)).toBe(false)
+  })
+
+  it('存不进去时不抛出', () => {
+    const blocked = () => {
+      throw new Error('blocked')
+    }
+    expect(() => storedTokens(blocked).write({ '--omne-accent': '#0a7a4a' })).not.toThrow()
+  })
+
+  it('样式表接手之后，把首帧脚本写在根上的那几个去掉，别的不动', () => {
+    const removed: string[] = []
+    const root = {
+      dataset: { bootTokens: '--omne-accent --omne-surface', theme: 'dark' } as Record<
+        string,
+        string
+      >,
+      style: { removeProperty: (name: string) => void removed.push(name) },
+    }
+    dropBootTokens(root)
+    expect(removed).toEqual(['--omne-accent', '--omne-surface'])
+    expect(root.dataset).toEqual({ theme: 'dark' })
+    dropBootTokens(root)
+    expect(removed).toHaveLength(2)
   })
 })

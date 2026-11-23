@@ -15,4 +15,20 @@
   document.documentElement.dataset.theme = dark ? 'dark' : 'light'
   if (size === 'small' || size === 'large' || size === 'reading')
     document.documentElement.dataset.size = size
+  // What the whole application was last tinted with: written on the root until the sheet of the changes takes over.
+  var tokens = null
+  try {
+    tokens = JSON.parse(window.localStorage.getItem('omne.tokens'))
+  } catch {}
+  if (tokens === null || typeof tokens !== 'object' || Array.isArray(tokens)) return
+  var written = []
+  for (var name in tokens) {
+    var value = tokens[name]
+    if (!/^--omne-[a-z0-9-]+$/.test(name)) continue
+    if (typeof value !== 'string' || !/^[A-Za-z0-9 #%.,()+*/_-]+$/.test(value)) continue
+    if (/(^|[^a-z-])url\(/i.test(value)) continue
+    document.documentElement.style.setProperty(name, value)
+    written.push(name)
+  }
+  if (written.length > 0) document.documentElement.dataset.bootTokens = written.join(' ')
 })()

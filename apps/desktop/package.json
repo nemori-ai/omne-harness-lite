@@ -52,6 +52,8 @@
     "@omne-harness/model-ui": "workspace:*",
     "@omne-harness/notification-protocol": "workspace:*",
     "@omne-harness/notification-ui": "workspace:*",
+    "@omne-harness/plugin-protocol": "workspace:*",
+    "@omne-harness/plugin-ui": "workspace:*",
     "@omne-harness/public-contract": "workspace:*",
     "@omne-harness/retry": "workspace:*",
     "@omne-harness/schedule-protocol": "workspace:*",

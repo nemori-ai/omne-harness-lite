@@ -90,6 +90,11 @@
       "id": "dispatch",
       "label": "派发与 agent 间消息",
       "source": "packages/dispatch/SPEC.md"
+    },
+    {
+      "id": "plugin",
+      "label": "Plugin 的清单与送达",
+      "source": "packages/plugin/SPEC.md"
     }
   ],
   "roles": [
@@ -1316,6 +1321,30 @@
       "domains": ["media"],
       "status": "candidate",
       "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "packages/plugin/plugin-protocol",
+      "paths": ["packages/plugin/plugin-protocol/src/**"],
+      "layer": "contract",
+      "domains": ["plugin"],
+      "status": "candidate",
+      "source": "packages/plugin/SPEC.md"
+    },
+    {
+      "id": "packages/plugin/plugin-access",
+      "paths": ["packages/plugin/plugin-access/src/**"],
+      "layer": "unknown",
+      "domains": ["plugin"],
+      "status": "candidate",
+      "source": "packages/plugin/SPEC.md"
+    },
+    {
+      "id": "packages/plugin/plugin-ui",
+      "paths": ["packages/plugin/plugin-ui/src/**"],
+      "layer": "unknown",
+      "domains": ["plugin"],
+      "status": "candidate",
+      "source": "packages/plugin/SPEC.md"
     },
     {
       "id": "packages/dispatch/dispatch-contract",

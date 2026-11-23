@@ -36,6 +36,7 @@ description: "本项目各领域的心智模型与跨领域协调的模型：每
 | 谁持有一份能力、选哪一版；类别怎样登记；内容存在哪、怎样读、怎样发布 | [references/assets.md](references/assets.md) |
 | 在 Skill 这个领域里：目录、三层披露、`Skills` 入口、脚本由谁运行、提交 | [references/skill.md](references/skill.md) |
 | 在 MCP 这个领域里：接入点、连接、动作清单、动作怎样成为工具条目、认证 | [references/mcp.md](references/mcp.md) |
+| 写一份 Plugin、让它装上或卸下；判断一样东西该写成成员还是新开一个点；装载、换代、应用起不来时怎样兜住 | [references/plugin.md](references/plugin.md) |
 | 在拓展件这个领域里：包与声明、租户启用了哪些、实现怎样取得与运行、命令型 | [references/loop-extension.md](references/loop-extension.md) |
 | 一个动作许不许、在哪判、结论记在哪；资格与许可的分别；撤回影响什么 | [references/authorization.md](references/authorization.md) |
 | 卡片、人的答复交回哪里；谁出卡、卡上的字谁写 | [references/human-intervention.md](references/human-intervention.md) |

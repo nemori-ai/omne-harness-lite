@@ -38,4 +38,60 @@ describe('defineUiModule', () => {
     const next = root.shell as unknown as ReferenceShell
     expect(next.items('pages').map(item => item.id)).toEqual(['notes'])
   })
+
+  it('a module that throws while it starts is named, puts nothing, and leaves the others up', async () => {
+    const { root, shell } = await startShell()
+    const warned: string[] = []
+    root.logger.warn = (text: string) => void warned.push(text)
+    let told = 0
+    shell.watchAdoptions(() => {
+      told += 1
+    })
+    const broken = defineUiModule({
+      name: 'broken-ui',
+      needs: {},
+      apply(inner) {
+        inner.contribute('pages', { id: 'half', title: 'half', order: 1, icon: 'topics', render })
+        throw new Error('this module is broken on purpose')
+      },
+    })
+    expect(shell.fallen()).toEqual([])
+    const fiber = root.plugin(broken)
+    await fiber
+    await root.plugin(notesUi)
+    for (let round = 0; round < 4; round += 1) await new Promise(resolve => setTimeout(resolve, 0))
+    expect(shell.fallen()).toEqual([{ name: 'broken-ui', why: 'threw' }])
+    expect(shell.items('pages').map(item => item.id)).toEqual(['notes'])
+    expect(warned).toContain('shell: the module broken-ui threw while it started')
+    expect(told).toBeGreaterThan(0)
+    await fiber.dispose()
+    for (let round = 0; round < 4; round += 1) await new Promise(resolve => setTimeout(resolve, 0))
+    expect(shell.fallen()).toEqual([])
+  })
+
+  it('names what a module says is held back, with why, until that module says it is gone', async () => {
+    const { shell } = await startShell()
+    let told = 0
+    shell.watchAdoptions(() => {
+      told += 1
+    })
+    shell.markStart('plugin:brand@v1', 'held')
+    shell.markStart('broken-ui', 'threw')
+    expect(shell.fallen()).toEqual([
+      { name: 'broken-ui', why: 'threw' },
+      { name: 'plugin:brand@v1', why: 'held' },
+    ])
+    expect(told).toBe(2)
+    shell.markStart('plugin:brand@v1', 'held')
+    expect(told).toBe(2)
+    shell.markStart('plugin:brand@v1', 'gone')
+    expect(shell.fallen()).toEqual([{ name: 'broken-ui', why: 'threw' }])
+    expect(told).toBe(3)
+  })
+
+  it('a module that starts is not named', async () => {
+    const { root, shell } = await startShell()
+    await root.plugin(notesUi)
+    expect(shell.fallen()).toEqual([])
+  })
 })

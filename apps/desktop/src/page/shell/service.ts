@@ -47,6 +47,7 @@ export class DesktopShell extends ShellService {
     ctx.on('dynamis-cordis/changed', () => this.restyle())
     ctx.effect(() => state.scope.subscribe(() => this.rescoped()), 'desktop-shell.sheet')
     this.restyle()
+    ctx.effect(() => this.watchAdoptions(() => this.refell()), 'desktop-shell.fallen')
     ctx.effect(
       () =>
         state.lacks.bind({
@@ -98,14 +99,20 @@ export class DesktopShell extends ShellService {
     return this.state.knowsToken(name)
   }
 
+  private refell(): void {
+    const now = this.fallen()
+    if (JSON.stringify(now) !== JSON.stringify(this.state.fallen.get())) this.state.fallen.set(now)
+  }
+
   private rescoped(): void {
     this.rescope()
     this.restyle()
   }
 
   private restyle(): void {
-    const { css, refused, conflicts } = this.changes()
+    const { css, refused, conflicts, app } = this.changes()
     this.state.sheet.set(css)
+    this.state.appTokens.set(app)
     const said = [
       ...refused.map(
         out => `${out.point} ${out.key} put by ${out.by} does not count: ${out.reason}`,

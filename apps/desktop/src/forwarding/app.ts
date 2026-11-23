@@ -2,6 +2,8 @@ import { Hono, type Context } from 'hono'
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie'
 import type { LogoutResult } from '../shared/channel.ts'
 import { answerPageFile, type PageFileReader } from '../shared/page-files.ts'
+import { PLUGIN_FILES } from '../shared/plugin-path.ts'
+import { pluginFileAt } from './plugin-files.ts'
 import {
   BRIDGE,
   WIRE_LIMITS,
@@ -327,6 +329,21 @@ function standingRoute(app: Hono<Env>, rules: ForwardingRules, observations: Obs
   })
 }
 
+const PLUGIN_STATUS = { 'not-found': 404, denied: 403, unavailable: 503, 'too-large': 502 } as const
+
+function pluginRoute(app: Hono<Env>, rules: ForwardingRules): void {
+  app.get(`${PLUGIN_FILES}*`, async c => {
+    const at = pluginFileAt(new URL(c.req.url).pathname)
+    if (at === undefined) return text(404, 'not found')
+    const login = c.get('login')
+    if (login === undefined) return text(401, 'not signed in')
+    const answer = await rules.pluginFile(at, login)
+    if (answer.kind !== 'file') return text(PLUGIN_STATUS[answer.kind], answer.kind)
+    const body = new Uint8Array(answer.bytes)
+    return new Response(body, { headers: { 'content-type': at.type, ...BASE_HEADERS } })
+  })
+}
+
 function fallbackRoutes(app: Hono<Env>, readPageFile: PageFileReader | undefined, log: Log): void {
   app.all(`${BRIDGE_PREFIX}*`, () => text(404, 'not found'))
 
@@ -357,6 +374,7 @@ export function createForwarding(options: ForwardingOptions): Forwarding {
   callRoute(app, rules)
   loginRoutes(app, rules, observations)
   standingRoute(app, rules, observations)
+  pluginRoute(app, rules)
   fallbackRoutes(app, options.readPageFile, log)
 
   return {

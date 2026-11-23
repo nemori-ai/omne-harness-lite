@@ -15,6 +15,7 @@ export { runtimeContextTenantScopeRow } from './rows/runtime-context-tenant-scop
 export { calendarNotificationRow } from './rows/calendar-notification/index.ts'
 export { usageRow, usageAdaptersRow } from './rows/usage/index.ts'
 export { usageAccessRow } from './rows/usage-access/index.ts'
+export { pluginAccessRow } from './rows/plugin-access/index.ts'
 export { sessionIntakeBudgetRow } from './rows/session-intake-budget/index.ts'
 export { tenantAssetsRow } from './rows/tenant-assets/index.ts'
 export { governanceRow } from './rows/governance/index.ts'

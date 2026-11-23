@@ -4,9 +4,10 @@ import type { ShellLogin } from '@omne-harness/shell-contract'
 import { colorSchemeQuery, createSizeController, createThemeController } from '@omne-harness/ui-kit'
 import type { ForwardingBridge } from '../shared/channel.ts'
 import { missingAtForwarding } from '../shared/wire.ts'
-import { assembly } from './assembly.tsx'
+import { assembly, pageFloor } from './assembly.tsx'
 import { connectPageBridge, httpChannel } from './bridge.ts'
 import { watchConnectivity } from './connectivity.ts'
+import { keepBootTokens } from './shell/boot-tokens.ts'
 import { adoptChanges, tokenOf } from './shell/changes-sheet.ts'
 import { shellPlugin } from './shell/service.ts'
 import { Shell } from './shell/shell.tsx'
@@ -43,6 +44,13 @@ async function main(): Promise<void> {
   })
   await tree.install(shellPlugin(state))
   adoptChanges(document, state.sheet)
+  keepBootTokens({
+    store: () => window.localStorage,
+    root: document.documentElement,
+    app: state.appTokens,
+    login: bridge.loginState,
+    outcomes: pageFloor.outcomes,
+  })
   for (const module of assembly.modules) await tree.install(module)
   const preference = storedThemePreference(() => window.localStorage)
   const theme = createThemeController({ ...preference, system: colorSchemeQuery() })

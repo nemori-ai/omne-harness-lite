@@ -130,6 +130,7 @@ describe('tokens put on a part', () => {
       conflicts: [],
       renders: new Map(),
       layouts: {},
+      app: {},
     })
   })
 
@@ -211,6 +212,31 @@ describe('tokens put on a part', () => {
     const read = w.read()
     expect(read.conflicts).toEqual([])
     expect(read.standing.find(item => item.key === 'shell.app')?.by).toEqual(['a', 'b'])
+  })
+
+  it('says what the whole application is tinted with for the asker: the tokens that stand on it, and none while only what shipped does', async () => {
+    const w = await world()
+    expect(w.read().app).toEqual({})
+    await place(w.root, 'operator', ctx => {
+      ctx.shell.putTokens('notes.composer.send', { '--omne-accent': '#111' }, alice)
+    })
+    expect(w.read().app).toEqual({})
+    const brand = await place(w.root, 'brand', ctx => {
+      ctx.shell.putTokens(
+        'shell.app',
+        { '--omne-accent': ' #0a7 ', '--omne-surface': '#fff' },
+        alice,
+      )
+    })
+    expect(w.read().app).toEqual({ '--omne-accent': '#0a7', '--omne-surface': '#fff' })
+    expect(w.read(tenantScope(BOB)).app).toEqual({})
+    await place(w.root, 'bad', ctx => {
+      ctx.shell.putTokens('shell.app', { '--omne-accent': 'url(x)' }, tenantScope(BOB))
+    })
+    expect(w.read(tenantScope(BOB)).app).toEqual({})
+    await brand.dispose()
+    await new Promise(resolve => setTimeout(resolve, 5))
+    expect(w.read().app).toEqual({})
   })
 
   it('taken back, what the application shipped with stands again, and the sheet is as it was', async () => {
@@ -421,6 +447,7 @@ describe('tokens put on a part', () => {
       conflicts: [],
       renders: new Map(),
       layouts: {},
+      app: {},
     })
   })
 
@@ -439,6 +466,7 @@ describe('tokens put on a part', () => {
       conflicts: [],
       renders: new Map(),
       layouts: {},
+      app: {},
     })
   })
 
