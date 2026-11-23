@@ -114,6 +114,7 @@
     "@omne-harness/operation-result": "workspace:*",
     "@omne-harness/permissions": "workspace:*",
     "@omne-harness/pi-ai-anthropic": "workspace:*",
+    "@omne-harness/pi-ai-kimi": "workspace:*",
     "@omne-harness/pi-ai-openai": "workspace:*",
     "@omne-harness/pi-ai-qwen": "workspace:*",
     "@omne-harness/pi-ai-transport": "workspace:*",
