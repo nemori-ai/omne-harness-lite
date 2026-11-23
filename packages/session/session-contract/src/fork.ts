@@ -47,15 +47,14 @@ export function ownPositionAfter(last: string | null, point: ForkPoint | null): 
   return point === null ? 1n : BigInt(point.position) + 1n
 }
 
-/** The point before the latest assistant message among the newest rows a session wrote: the input of that request. */
-export function forkPointAfterRows(
+/** The point before the asking message, an assistant message the session wrote itself: the input of that request. */
+export function forkPointBefore(
   epoch: string,
-  newest: readonly Readonly<{ seq: string; role: string }>[],
+  asking: Readonly<{ seq: string; role: string }> | undefined,
   tail: string,
 ): ForkPoint | null {
-  const asked = newest.findLast(row => row.role === 'assistant')
-  if (asked === undefined || BigInt(asked.seq) < 2n) return null
-  return { epoch, upper: String(BigInt(asked.seq) - 1n), position: tail }
+  if (asking === undefined || asking.role !== 'assistant' || BigInt(asking.seq) < 2n) return null
+  return { epoch, upper: String(BigInt(asking.seq) - 1n), position: tail }
 }
 
 export function forkPointText(point: ForkPoint): string {

@@ -5,6 +5,7 @@ import type {
   AgentExecutionId,
   AgentJournal,
   AgentJournalEntries,
+  ReceivedEntry,
 } from '@omne-harness/agent-contract'
 import { agentJournalEntriesKey, agentJournalKey } from '@omne-harness/agent-cordis-contract/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
@@ -145,6 +146,11 @@ function unbound(work: WorkSnapshot, item: SessionLogConsequence): boolean {
     : held?.registration.kind !== 'associated'
 }
 
+// A placeholder comes before every result of its call; a result is matched by its version.
+const processes = (key: ReceivedEntry['delivery']['key'], version: string | undefined) =>
+  version !== undefined &&
+  (key.kind === 'placeholder' || (key.kind === 'result' && String(key.result) === version))
+
 function createJournalInterpretation<P>(
   given: SessionJournalInterpretationInput<P>,
   ports: Ports<P>,
@@ -168,8 +174,8 @@ function createJournalInterpretation<P>(
     return answer
   }
 
-  // An event that processes a delivery comes after the delivery: the Session interprets it once
-  // the entries consumption of the producer wrote every received delivery of that call.
+  // An event that processes a delivery waits until the entries consumption wrote that delivery,
+  // not for a later delivery of the call (verification/binding-order).
   async function awaitsDelivery(
     access: SessionAccess<P>,
     work: WorkSnapshot,
@@ -177,14 +183,17 @@ function createJournalInterpretation<P>(
     execution: AgentExecutionId,
     event: InterpretableEvent,
   ): Promise<Answer<boolean>> {
-    const calls = new Map<keyof typeof RECEIVED, Set<string>>()
+    const calls = new Map<keyof typeof RECEIVED, Map<string, string>>()
     for (const item of event.consequences ?? [])
       if (item.kind === 'producer' && item.result !== null) {
         const producer = item.binding.producer.kind
-        calls.set(producer, (calls.get(producer) ?? new Set()).add(item.consumption))
+        calls.set(
+          producer,
+          (calls.get(producer) ?? new Map()).set(item.consumption, item.result.version),
+        )
       }
     const reading = { principal: access.principal, tenant: access.tenant, execution }
-    for (const [producer, named] of calls) {
+    for (const [producer, processed] of calls) {
       const saved = savedProgress(work, run, execution, RECEIVED[producer])
       const unread = await entriesAfter(ports.entries, reading, saved?.position ?? null)
       if ('failure' in unread)
@@ -193,7 +202,7 @@ function createJournalInterpretation<P>(
         ({ entry }) =>
           entry.kind === 'received' &&
           entry.delivery.producer === producer &&
-          named.has(entry.consumption),
+          processes(entry.delivery.key, processed.get(entry.consumption)),
       )
       if (waits) return succeed(true)
     }

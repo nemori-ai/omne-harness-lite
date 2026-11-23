@@ -1008,7 +1008,7 @@ export function createMemorySessionTransactionPair<P>(
       },
       readForkPoint: async input => {
         const store = await storeOf(input, 'history.readModelView')
-        return forks.pointRead(store, keyOf(input.tenant, input.session))
+        return forks.pointRead(store, keyOf(input.tenant, input.session), input.asking)
       },
     }
 

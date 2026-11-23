@@ -11,6 +11,7 @@ import type { StoredFactBatch } from './fact-values.ts'
 import type { ToolCanonicalFingerprint } from '@omne-harness/tool-contract/provider'
 import { invalid, tenantKey } from './boundary.ts'
 import { checkBodyReferences } from './ledger-body-entries.ts'
+import { mayWaitInBackground } from './ledger-background.ts'
 import { sameFactValue, factTaskOperation, mintEvidence } from './evidence.ts'
 import { put, reply, type Decision, type Mint, type Snapshot } from './ledger-decider.ts'
 import {
@@ -137,7 +138,7 @@ function refuseOrder(
   if (fact.kind === 'wait') {
     if (seen.final) return invalid('batch.events.fact', 'wait-after-final')
     if (seen.wait) return invalid('batch.events.fact', 'second-wait-of-a-segment')
-    if (call.state.relation !== 'foreground')
+    if (call.state.relation !== 'foreground' && !mayWaitInBackground(fact.value))
       return invalid('batch.events.fact', 'background-cannot-wait')
     return succeed(undefined)
   }

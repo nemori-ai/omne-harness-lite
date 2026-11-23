@@ -122,11 +122,11 @@ export function sessionCallsOf(ctx: Context, ports: SessionCallPorts): SessionCa
         ? service.history.begin({ ...access, kinds, from: null, direction: 'backward', pageBytes })
         : service.history.next({ ...access, cursor })
     },
-    async forkPoint({ tenant, session }) {
+    async forkPoint({ tenant, session, asking }) {
       const as = await asSession(tenant, session)
       const service = reader()
       if (typeof as === 'string' || service === undefined) return UNAVAILABLE
-      const access = { principal: as.principal, tenant, session }
+      const access = { principal: as.principal, tenant, session, asking }
       return readForkPointOf(input => service.history.readForkPoint(input), access)
     },
   }

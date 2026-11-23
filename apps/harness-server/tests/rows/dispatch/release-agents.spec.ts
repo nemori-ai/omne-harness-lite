@@ -19,8 +19,10 @@ import {
   call,
   dispatchIn,
   registryAs,
+  endedAfter,
   reminders,
   settled,
+  settledWhen,
 } from './release-support.ts'
 
 const OPTIONS = {
@@ -201,8 +203,14 @@ describe('the Agents tool on the release tree', () => {
           'agents: spawn now',
         ])
         expect(sent.status, sent.stderr).toBe(0)
-        const { results } = await settled(tree, parent, 2)
-        expect(results).toContain('"report":"I know the word"')
+        // The dispatch starts in the background; its report comes back as the outcome of the call.
+        const { outcomes } = await settledWhen(tree, parent, 'the report', seen =>
+          seen.outcomes.includes('I know the word'),
+        )
+        expect(outcomes).toContain('"report":"I know the word"')
+        expect(outcomes).toContain(
+          'This is background call b1 (Agents dispatch: dispatch c_spawn).',
+        )
         const [dispatch] = await (await registryAs(tree, parent)).made()
         if (dispatch === undefined) throw new Error('no dispatch')
         expect(dispatch).toMatchObject({ mode: 'spawn', state: 'reported' })
@@ -261,7 +269,7 @@ describe('the Agents tool on the release tree', () => {
           'The word changed to EGRET.',
         ])
         expect(later.status, later.stderr).toBe(0)
-        await settled(tree, parent, 3)
+        await settledWhen(tree, parent, 'the turn of the later input', endedAfter('EGRET'))
         expect(JSON.stringify(await historyOf(tree, dispatch.session))).not.toContain('EGRET')
         expect(JSON.stringify(await historyOf(tree, parent))).not.toContain(dispatch.session + '/')
 
@@ -333,7 +341,12 @@ describe('the Agents tool on the release tree', () => {
 
         const sent = await tree.cli(['send-input', '--session', parent, '--text', 'sessions: look'])
         expect(sent.status, sent.stderr).toBe(0)
-        const { results } = await settled(tree, parent, 2)
+        const { results } = await settledWhen(
+          tree,
+          parent,
+          'the turn that looks',
+          endedAfter('sessions: look'),
+        )
         const [children, mains] = results
           .split('done Sessions list ')
           .slice(1)
@@ -384,8 +397,10 @@ describe('the Agents tool on the release tree', () => {
       })
       const exitCode = await onReleaseTree({ ...OPTIONS, script }, async tree => {
         const parent = await tree.startSession('agents: delegate late')
-        const { results } = await settled(tree, parent)
-        expect(results).toContain('"report":"worked with a tool"')
+        const { outcomes } = await settledWhen(tree, parent, 'the report', seen =>
+          seen.outcomes.includes('worked with a tool'),
+        )
+        expect(outcomes).toContain('"report":"worked with a tool"')
         const [dispatch] = await (await registryAs(tree, parent)).made()
         if (dispatch === undefined) throw new Error('no dispatch')
         const child = await settled(tree, dispatch.session)
@@ -434,13 +449,20 @@ describe('the Agents tool on the release tree', () => {
       })
       const exitCode = await onReleaseTree({ ...OPTIONS, script }, async tree => {
         const parent = await tree.startSession('agents: delegate')
-        const first = await settled(tree, parent)
+        // The dispatch answers at once with a placeholder; its result comes back as a reminder that wakes the parent.
+        const first = await settledWhen(tree, parent, 'the report', seen =>
+          seen.outcomes.includes('PELICAN'),
+        )
         expect(first.results).toContain('done Agents targets')
         expect(first.results).toMatch(/"agent":"coding","type":"master"/u)
-        expect(first.results).toContain('done Agents dispatch')
-        expect(first.results).toContain('"report":"the word is PELICAN"')
-        expect(first.results).toContain('"reportIs":"what the dispatched agent handed back"')
-        expect(first.results).toContain('"expectation":"One line with the word."')
+        expect(first.results).toContain('started in the background')
+        expect(first.outcomes).toContain(
+          'This is background call b1 (Agents dispatch: dispatch c_dispatch).',
+        )
+        expect(first.outcomes).toContain('done Agents dispatch')
+        expect(first.outcomes).toContain('"report":"the word is PELICAN"')
+        expect(first.outcomes).toContain('"reportIs":"what the dispatched agent handed back"')
+        expect(first.outcomes).toContain('"expectation":"One line with the word."')
 
         const registry = await registryAs(tree, parent)
         const [dispatch] = await registry.made()
@@ -456,7 +478,9 @@ describe('the Agents tool on the release tree', () => {
           true,
         )
         expect(child.results).toContain('done Agents report')
-        expect(reminders(first.entries).some(text => text.includes('PELICAN'))).toBe(false)
+        // One place only: the outcome of the call, not also an input of the report.
+        expect(reminders(first.entries).filter(text => text.includes('PELICAN'))).toHaveLength(1)
+        expect(reminders(first.entries).some(text => text.includes('arrived after'))).toBe(false)
 
         expect(declared.parent).toContain('"name":"Agents"')
         expect(declared.parent).toContain('dispatch {mode=')
@@ -465,7 +489,12 @@ describe('the Agents tool on the release tree', () => {
 
         const sent = await tree.cli(['send-input', '--session', parent, '--text', 'agents: look'])
         expect(sent.status, sent.stderr).toBe(0)
-        const second = await settled(tree, parent, 2)
+        const second = await settledWhen(
+          tree,
+          parent,
+          'the turn that looks',
+          endedAfter('agents: look'),
+        )
         const line = new RegExp(
           `"session":"${dispatch.session}","title":[^{}]*"relation":"child","attendance":"unattended","definition":"coding","lifecycle":"[a-z]+","dispatch":\\{"id":"${dispatch.id}","state":"reported","mode":"delegate"\\}`,
           'u',
@@ -477,11 +506,15 @@ describe('the Agents tool on the release tree', () => {
         expect(second.results).toContain(
           '"delivery":"delivered as the result of the dispatching call"',
         )
-        expect(second.results).toContain(
+        // A dispatch starts in the background before its parameters are read: their failure comes back as its outcome.
+        const failed = await settledWhen(tree, parent, 'the outcome of the bad dispatch', seen =>
+          seen.outcomes.includes('Agents dispatch: agent: Invalid input'),
+        )
+        expect(failed.outcomes).toContain(
           'Agents dispatch: agent: Invalid input: expected string, received undefined',
         )
-        expect(second.results).toMatch(
-          /Usage: Agents \{"command": "dispatch", "params": \{mode=spawn\|delegate\|handoff, agent, instruction, expectation\?\}\}/u,
+        expect(failed.outcomes).toMatch(
+          /Usage: Agents \{"command": "dispatch", [^\n]*"params": \{mode=spawn\|delegate\|handoff, agent, instruction, expectation\?\}\}/u,
         )
         expect(second.results).toContain('done Sessions list sessions=')
         const listed =
@@ -493,11 +526,32 @@ describe('the Agents tool on the release tree', () => {
   )
 
   it(
-    'sends a report that comes after the dispatching run was cancelled into the dispatching session and wakes it, and takes one report only',
+    'keeps waiting in the background when the dispatching run is cancelled, takes the report as the outcome of the call, and takes one report only',
     { tags: ['slow'], timeout: 300_000 },
     async () => {
+      // The parent dispatches and, in the same step, waits in a foreground Shell call: its run is still going
+      // when it is cancelled, so the cancellation reaches the step and not a run that has already ended.
+      const hold = {
+        id: 'c_hold',
+        tool: 'Shell',
+        arguments: JSON.stringify({
+          command: 'execute',
+          intent: 'hold the run',
+          params: { script: 'while [ ! -f hold ]; do sleep 0.1; done; echo held' },
+        }),
+      }
       const { script, release } = busyChildren(body => {
-        if (!body.includes(DISPATCHED)) return lateDispatch(body)
+        if (!body.includes(DISPATCHED))
+          return body.includes('agents: delegate late') && !answered(body)
+            ? [
+                call('c_dispatch', 'dispatch', {
+                  mode: 'delegate',
+                  agent: 'coding',
+                  instruction: 'Say the late word.',
+                }),
+                hold,
+              ]
+            : []
         if (!body.includes('c_report'))
           return [call('c_report', 'report', { text: 'the late word is HERON' })]
         if (body.includes('c_again')) return []
@@ -509,45 +563,101 @@ describe('the Agents tool on the release tree', () => {
       const exitCode = await onReleaseTree({ ...OPTIONS, script }, async tree => {
         const parent = await tree.startSession('agents: delegate late')
         await parked(tree)
+        await pollUntil(
+          'the Shell call to hold the run',
+          () => toolLedger(tree.storageRoot).find(row => row.tool === 'Shell')?.execution,
+          execution => execution === 'live',
+        )
         const registry = await registryAs(tree, parent)
         const [dispatch] = await registry.made()
         if (dispatch === undefined) throw new Error('the registry has no dispatch of the parent')
         expect(dispatch.state).toBe('started')
 
+        // The cancellation stops the foreground call and leaves the background one waiting for the report.
         await cancelFirstRun(tree, parent)
-        const stopped = await settled(tree, parent)
-        expect(stopped.results).toContain('the run was cancelled before the call returned')
-        expect(stopped.results).not.toContain('HERON')
-        const ended = await pollUntil(
-          'the dispatch call to end',
-          () => toolLedger(tree.storageRoot).find(row => row.tool === 'Agents'),
-          row => row?.phase === 'settled',
+        const cancelled = await settled(tree, parent)
+        expect(
+          JSON.stringify(cancelled.entries.find(entry => entry.kind === 'run.terminal')),
+        ).toContain('"outcome":"cancelled"')
+        expect(cancelled.outcomes).not.toContain('HERON')
+        expect(toolLedger(tree.storageRoot).find(row => row.tool === 'Agents')?.phase).toBe(
+          'suspended',
         )
-        expect(ended).toMatchObject({
-          terminal: 'interrupted',
-          waits: [{ phase: 'closed', cause: 'cancelled' }],
-        })
-        expect(toolLedgerText(tree.storageRoot)).toContain('The dispatch is still in progress')
-        expect((await registry.shown(dispatch.id)).state).toBe('started')
 
         release(tree)
         expect(await registry.delivered(dispatch.id)).toMatchObject({
           state: 'reported',
           report: { text: 'the late word is HERON', origin: 'report' },
-          delivery: { kind: 'delivered', to: 'input' },
+          delivery: { kind: 'delivered', to: 'result' },
         })
-        const woken = await settled(tree, parent, 2)
+        const woken = await settledWhen(tree, parent, 'the report', seen =>
+          seen.outcomes.includes('the late word is HERON'),
+        )
         const arrived = reminders(woken.entries).filter(text =>
           text.includes('the late word is HERON'),
         )
         expect(arrived).toHaveLength(1)
-        expect(arrived[0]).toContain(dispatch.session)
-        expect(arrived[0]).toContain('arrived after your call stopped waiting')
+        expect(arrived[0]).toContain(
+          'This is background call b1 (Agents dispatch: dispatch c_dispatch).',
+        )
 
         const child = await settled(tree, dispatch.session)
         expect(child.results).toMatch(/done Agents report\n\{[^\n]*"recalled":true/u)
         expect(child.results).toContain('already-reported: the dispatch already has its one report')
         expect((await registry.shown(dispatch.id)).report?.text).toBe('the late word is HERON')
+      })
+      expect(exitCode).toBe(0)
+    },
+  )
+
+  it(
+    'stops waiting when a person stops the background dispatch: the dispatch goes on, and its report arrives once as an input that wakes the session',
+    { tags: ['slow'], timeout: 300_000 },
+    async () => {
+      const { script, release } = busyChildren(body =>
+        body.includes(DISPATCHED)
+          ? body.includes('c_report')
+            ? []
+            : [call('c_report', 'report', { text: 'the stopped word is IBIS' })]
+          : lateDispatch(body),
+      )
+      const exitCode = await onReleaseTree({ ...OPTIONS, script }, async tree => {
+        const parent = await tree.startSession('agents: delegate late')
+        await parked(tree)
+        const registry = await registryAs(tree, parent)
+        const [dispatch] = await registry.made()
+        if (dispatch === undefined) throw new Error('the registry has no dispatch of the parent')
+
+        const listed = await tree.cli(['calls', 'list', '--session', parent, '--json'])
+        expect(listed.status, listed.stderr).toBe(0)
+        const [reference] = (
+          JSON.parse(listed.stdout) as { body: { calls: { producer: { call: string } }[] } }
+        ).body.calls.map(item => item.producer.call)
+        if (reference === undefined) throw new Error('the dispatch is not in the background')
+        const stop = await tree.cli(['calls', 'stop', '--session', parent, '--call', reference])
+        expect(stop.status, stop.stderr).toBe(0)
+        expect(
+          await pollUntil(
+            'the dispatch call to end',
+            () => toolLedger(tree.storageRoot).find(row => row.tool === 'Agents'),
+            row => row?.phase === 'settled',
+          ),
+        ).toMatchObject({ terminal: 'interrupted', waits: [{ phase: 'closed' }] })
+        expect((await registry.shown(dispatch.id)).state).toBe('started')
+
+        release(tree)
+        expect(await registry.delivered(dispatch.id)).toMatchObject({
+          state: 'reported',
+          delivery: { kind: 'delivered', to: 'input' },
+        })
+        const woken = await settledWhen(tree, parent, 'the report as an input', seen =>
+          reminders(seen.entries).some(text => text.includes('the stopped word is IBIS')),
+        )
+        const arrived = reminders(woken.entries).filter(text =>
+          text.includes('the stopped word is IBIS'),
+        )
+        expect(arrived).toHaveLength(1)
+        expect(arrived[0]).toContain('arrived after your call stopped waiting')
       })
       expect(exitCode).toBe(0)
     },
@@ -684,8 +794,6 @@ describe('the Agents tool on the release tree', () => {
             delivery: { kind: 'delivered', to: 'result' },
           })
 
-        await cancelFirstRun(tree, parent)
-        await settled(tree, parent)
         target.id = first.id
         const sent = await tree.cli([
           'send-input',
@@ -695,7 +803,12 @@ describe('the Agents tool on the release tree', () => {
           'agents: withdraw',
         ])
         expect(sent.status, sent.stderr).toBe(0)
-        const second = await settled(tree, parent, 2)
+        const second = await settledWhen(
+          tree,
+          parent,
+          'the turn that withdraws',
+          endedAfter('agents: withdraw'),
+        )
         const withdrew = `done Agents withdraw\n{"dispatch":"${first.id}","state":"withdrawn","stop":`
         expect(second.results.split(withdrew)).toHaveLength(3)
         expect(second.results).toContain('"recalled":false')
