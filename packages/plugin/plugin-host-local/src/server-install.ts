@@ -21,7 +21,7 @@ export type ServerEntry = Readonly<{
 /** What a point of the server tree is to a plugin: how a member of it is written and when, or that a category owns it. */
 export type ServerPoint =
   | Readonly<{ kind: 'takes'; takes: 'data' | 'code'; when: 'running' | 'build' }>
-  | Readonly<{ kind: 'category' }>
+  | Readonly<{ kind: 'category'; place(directory: string): unknown }>
 
 export type GuestContext = Readonly<{ key: string; bind: (principal: unknown) => Bound }>
 
@@ -59,9 +59,16 @@ function stepOf(
 ): Readonly<{ item: unknown }> | Pending | string {
   const point = ports.point(member.point)
   if (point === undefined) return `${member.point} is not a point now`
-  if (point.kind === 'category')
-    return 'this build places no member of a plugin on the point of a category'
   const way = wayOf(member)
+  if (point.kind === 'category') {
+    if (!('directory' in member))
+      return `the point of a category takes a directory; this member gives ${WAY[way]}`
+    try {
+      return { item: point.place(member.directory) }
+    } catch (error) {
+      return reasonOf(error)
+    }
+  }
   const taken = point.takes === 'code' ? 'module' : 'data'
   if (way !== taken) return `the point takes ${WAY[taken]}; this member gives ${WAY[way]}`
   if (point.when === 'build') return 'the point is fixed when the application is built'

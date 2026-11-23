@@ -1,6 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
-import { scopeOfLayer } from '@omne-harness/assets'
+import { scopeOfLayer, type HeldItem } from '@omne-harness/assets'
 import { assetCategoriesKey, assetChangesKey } from '@omne-harness/assets-cordis-contract'
 import type { AssetChanges } from '@omne-harness/assets-cordis-contract/cordis'
 import { dynamisKey, type DynamisService } from '@omne-harness/dynamis-cordis/cordis'
@@ -86,12 +86,31 @@ function needsOf(ctx: Context, tenant: string, names: readonly string[]): Needed
   return { kind: 'adopted', bind: principal => bindPorts(factories, { principal, tenant }) }
 }
 
-function pointOf(ctx: Context, name: string): ServerPoint | undefined {
+const heldWithin =
+  (held: HeldRef | undefined) =>
+  (directory: string): HeldItem => {
+    if (held === undefined) throw new Error('the tenant no longer holds this version')
+    const { asset, version } = held
+    return {
+      asset,
+      version,
+      disabled: false,
+      immutable: true,
+      replaceLocked: false,
+      within: directory,
+    }
+  }
+
+function pointOf(
+  ctx: Context,
+  name: string,
+  place: (directory: string) => unknown,
+): ServerPoint | undefined {
   const categories = ctx.get(assetCategoriesKey)?.view
   const registry = (ctx.get(dynamisKey) as DynamisService | undefined)?.registry()
   const known = serverPointsOf(registry, categories).find(point => point.name === name)
   if (known === undefined) return undefined
-  if (categories?.atPoint(name) !== undefined) return { kind: 'category' }
+  if (categories?.atPoint(name) !== undefined) return { kind: 'category', place }
   const takes = known.takes === 'data' ? 'data' : 'code'
   return { kind: 'takes', takes, when: known.when === 'running' ? 'running' : 'build' }
 }
@@ -159,7 +178,7 @@ export const pluginServerRow = defineRow({
       const held = refs.get(tenant)?.get(`${wanted.name}\n${wanted.version}`)
       return serverInstall({
         scope: scopeOfLayer('tenant', tenant),
-        point: name => pointOf(ctx, name),
+        point: name => pointOf(ctx, name, heldWithin(held)),
         guestForm: point => guestFormOf(ctx, point),
         needs: names => needsOf(ctx, tenant, names),
         async load(file) {

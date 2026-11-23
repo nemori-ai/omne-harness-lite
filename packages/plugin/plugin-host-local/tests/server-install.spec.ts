@@ -14,7 +14,7 @@ const POINTS: Readonly<Record<string, ServerPoint>> = {
   'notes.labels': DATA,
   'notes.greeters': CODE,
   'notes.pages': { kind: 'takes', takes: 'data', when: 'build' },
-  'skill.skills': { kind: 'category' },
+  'skill.skills': { kind: 'category', place: directory => ({ within: directory }) },
 }
 const FILES = [{ path: 'greet.js', digest: 'sha256:g' }]
 const LABEL: Member = { point: 'notes.labels', key: 'urgent', data: { colour: 'red' } }
@@ -148,9 +148,9 @@ describe('the members a plugin writes for the server, put by the loader', () => 
       'member 1 (notes.pages k): the point is fixed when the application is built',
     ],
     [
-      'the point of a category',
-      { point: 'skill.skills', key: 'k', directory: 'd' },
-      'member 1 (skill.skills k): this build places no member of a plugin on the point of a category',
+      'data on the point of a category',
+      { point: 'skill.skills', key: 'k', data: 1 },
+      'member 1 (skill.skills k): the point of a category takes a directory; this member gives data',
     ],
     [
       'a file the package does not have',
@@ -160,6 +160,43 @@ describe('the members a plugin writes for the server, put by the loader', () => 
   ] as const)('refuses %s, and puts nothing', async (_name, member, reason) => {
     const w = world()
     expect(await reasonOf(w, LABEL, member as Member)).toBe(reason.replace('member 1', 'member 2'))
+    expect(w.placed).toEqual([])
+  })
+
+  it('puts a directory on the point of a category as the item that category makes of it', async () => {
+    const w = world()
+    const skill: Member = { point: 'skill.skills', key: 'notes', directory: 'skills/notes' }
+    expect((await w.install(wanted(skill))).kind).toBe('installed')
+    expect(w.placed).toEqual([
+      [
+        {
+          point: 'skill.skills',
+          key: 'notes',
+          id: '',
+          scope: SCOPE,
+          rank: 0,
+          digest: memberDigest(skill, FILES),
+          item: { within: 'skills/notes' },
+        },
+      ],
+    ])
+  })
+
+  it('a category that cannot make an item of the directory fails the plugin, with what it said', async () => {
+    const w = world({
+      point: name =>
+        name === 'skill.skills'
+          ? {
+              kind: 'category',
+              place: () => {
+                throw new Error('skill is not there now')
+              },
+            }
+          : POINTS[name],
+    })
+    expect(
+      await reasonOf(w, { point: 'skill.skills', key: 'notes', directory: 'skills/notes' }),
+    ).toBe('member 1 (skill.skills notes): skill is not there now')
     expect(w.placed).toEqual([])
   })
 

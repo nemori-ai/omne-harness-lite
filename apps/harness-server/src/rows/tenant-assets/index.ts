@@ -15,6 +15,7 @@ import {
 } from '@omne-harness/assets-cordis-contract/cordis'
 import { principalVerifierKey, tenantStandingKey } from '@omne-harness/identity/cordis'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
+import { dynamisKey, type DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { defineRow } from '../../row.ts'
 import { releaseOf } from '../../entry/tool-release.ts'
 import { productionStorageCatalog } from '../storage/production-catalog.ts'
@@ -78,6 +79,7 @@ export const tenantAssetsRow = defineRow({
     const held = heldOnRegistry(
       () => ctx.assetCategories,
       message => logger.warn(message),
+      () => (ctx.get(dynamisKey) as DynamisService | undefined)?.registry(),
     )
     ctx.on('dynamis-cordis/changed', () => held.registryChanged())
     const idleMs = config.uploads.idleSeconds * 1000

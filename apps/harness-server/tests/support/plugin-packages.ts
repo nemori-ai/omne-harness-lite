@@ -4,18 +4,28 @@ import type { ProtocolClients } from './protocol-clients.ts'
 type Assets = ProtocolClients['assets']
 
 /** Publishes one plugin directory through assets/v1, file by file, and answers what the commit answered. */
-export async function uploadPlugin(
+export const uploadPlugin = (
   assets: Assets,
   tenant: TenantId,
   name: string,
   files: Readonly<Record<string, string>>,
   operation = `up-${name}`,
+) => uploadAsset(assets, tenant, 'plugin', name, files, operation)
+
+/** Publishes one directory of a category through assets/v1, file by file. */
+export async function uploadAsset(
+  assets: Assets,
+  tenant: TenantId,
+  category: string,
+  name: string,
+  files: Readonly<Record<string, string>>,
+  operation = `up-${category}-${name}`,
 ) {
   const encoder = new TextEncoder()
   const begun = await assets['begin-asset-upload']({
     tenant,
     operation,
-    category: 'plugin',
+    category,
     name,
     manifest: Object.entries(files).map(([path, text]) => ({
       path,

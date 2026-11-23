@@ -87,6 +87,8 @@ const residentNames = [
   'Sessions',
   'Agents',
   'SwitchWorkspace',
+  'OmneExtensionPoints',
+  'OmneExtensions',
   'Screen',
   'Skills',
 ]
