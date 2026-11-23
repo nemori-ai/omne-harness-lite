@@ -7,6 +7,7 @@ import {
   type PartStyle,
 } from '@omne-harness/shell-contract'
 import type { ShellService } from '@omne-harness/shell-contract/cordis'
+import { fiberOf } from './floor.ts'
 import type { Listed, Outcome } from './loader.ts'
 
 /** How the application loads the code of a plugin, and what it hands that code beside the shell. */
@@ -138,7 +139,7 @@ export async function installOn(
     puts.push({ label, put })
   }
   const hosted = await shell
-    .host(`plugin:${listed.name}@${listed.version}`, inside => {
+    .host(fiberOf(listed.name, listed.version), inside => {
       for (const { label, put } of puts) {
         try {
           put(inside)

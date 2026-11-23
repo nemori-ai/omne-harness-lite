@@ -29,7 +29,7 @@ import {
   type PartStyle,
 } from './change.ts'
 import type { FigureBoard, FigureReport } from './figure-store.ts'
-import type { Hosted, ScopeSource, ShellLogin } from './host.ts'
+import type { Fallen, Hosted, ScopeSource, ShellLogin } from './host.ts'
 import {
   pinnedClient,
   pointReader,
@@ -131,7 +131,7 @@ export abstract class ShellService extends Service implements ShellSlots {
   private readonly watchers = new Set<Watcher>()
   private readonly required = new Map<string, Readonly<Record<string, Reference>>>()
   private readonly adoptionWatchers = new Set<() => void>()
-  private readonly fell = new Set<string>()
+  private readonly fell = new Map<string, Fallen['why']>()
   private readonly changeWatchers = new Set<() => void>()
   private read:
     | Readonly<{ registry: Registry; tenant: string | undefined; changes: Changes }>
@@ -324,17 +324,19 @@ export abstract class ShellService extends Service implements ShellSlots {
     return made
   }
 
-  fallen(): readonly string[] {
-    return Array.from(this.fell).sort()
+  fallen(): readonly Fallen[] {
+    return Array.from(this.fell, ([name, why]) => ({ name, why })).sort((left, right) =>
+      left.name < right.name ? -1 : 1,
+    )
   }
 
-  markStart(module: string, outcome: 'started' | 'threw' | 'gone'): void {
-    const before = this.fell.size
-    if (outcome === 'threw') this.fell.add(module)
-    else this.fell.delete(module)
-    if (outcome === 'threw')
-      this.ctx.logger.warn(`shell: the module ${module} threw while it started`)
-    if (this.fell.size === before) return
+  markStart(name: string, outcome: Fallen['why'] | 'started' | 'gone'): void {
+    const before = this.fell.get(name)
+    const after = outcome === 'threw' || outcome === 'held' ? outcome : undefined
+    if (after === undefined) this.fell.delete(name)
+    else this.fell.set(name, after)
+    if (after === 'threw') this.ctx.logger.warn(`shell: the module ${name} threw while it started`)
+    if (after === before) return
     for (const listener of Array.from(this.adoptionWatchers)) listener()
   }
 

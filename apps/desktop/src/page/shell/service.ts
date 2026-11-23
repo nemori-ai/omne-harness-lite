@@ -47,6 +47,7 @@ export class DesktopShell extends ShellService {
     ctx.on('dynamis-cordis/changed', () => this.restyle())
     ctx.effect(() => state.scope.subscribe(() => this.rescoped()), 'desktop-shell.sheet')
     this.restyle()
+    ctx.effect(() => this.watchAdoptions(() => this.refell()), 'desktop-shell.fallen')
     ctx.effect(
       () =>
         state.lacks.bind({
@@ -96,6 +97,11 @@ export class DesktopShell extends ShellService {
 
   protected override knowsToken(name: string): boolean {
     return this.state.knowsToken(name)
+  }
+
+  private refell(): void {
+    const now = this.fallen()
+    if (JSON.stringify(now) !== JSON.stringify(this.state.fallen.get())) this.state.fallen.set(now)
   }
 
   private rescoped(): void {

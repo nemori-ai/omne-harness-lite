@@ -1,5 +1,6 @@
 import {
   createFigureStore,
+  type Fallen,
   type FigureStore,
   type ItemOf,
   type LogoutResult,
@@ -135,6 +136,7 @@ export type ShellState = {
   readonly page: PageChoice
   readonly notice: Watched<string | undefined>
   readonly sheet: Watched<string> & { set(css: string): void }
+  readonly fallen: Watched<readonly Fallen[]> & { set(fallen: readonly Fallen[]): void }
   readonly knowsToken: (name: string) => boolean
   dispose(): void
 }
@@ -269,6 +271,7 @@ export function createShellState(
     page,
     notice: { get: notice.get, subscribe: notice.subscribe },
     sheet: cell(''),
+    fallen: cell<readonly Fallen[]>([]),
     knowsToken: options.knowsToken ?? (() => false),
     dispose() {
       stopLogin()

@@ -5,11 +5,17 @@ import { readTenantText } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import { needProtocol, tenantScope } from '@omne-harness/shell-contract'
 import { defineUiModule, type ShellService } from '@omne-harness/shell-contract/cordis'
+import { NO_FLOOR, fiberOf, heldOf, standingOf, type FloorPort } from './floor.ts'
 import { followWanted, type Sleep } from './follow.ts'
 import { installOn, type Code } from './install.ts'
 import { createLoader } from './loader.ts'
 
-export type PluginUiOptions = Readonly<{ backoff?: Backoff; sleep?: Sleep; code?: Code }>
+export type PluginUiOptions = Readonly<{
+  backoff?: Backoff
+  sleep?: Sleep
+  code?: Code
+  floor?: FloorPort
+}>
 
 type Running = Readonly<{ stop: () => Promise<void> }>
 
@@ -21,19 +27,57 @@ function loadFor(
   options: PluginUiOptions,
 ): Running | undefined {
   const tenant = readTenantText(text ?? '')
-  if (tenant === undefined) return undefined
+  if (tenant === undefined || text === undefined) return undefined
   const scope = tenantScope(text)
-  const { code, ...pace } = options
-  const loader = createLoader({ install: listed => installOn(shell, listed, scope, code) })
+  const { code, floor = NO_FLOOR, ...pace } = options
+  const risen = floor.rise(text)
+  const known = new Set(risen.want)
+  const marked = new Set<string>()
+  const loader = createLoader({
+    held: risen.held ? heldOf(risen.want) : new Map(),
+    install(listed) {
+      const fiber = fiberOf(listed.name, listed.version)
+      floor.want(text, fiber)
+      known.add(fiber)
+      return installOn(shell, listed, scope, code)
+    },
+  })
+  const mark = (held: ReadonlySet<string>): void => {
+    for (const fiber of marked) {
+      if (held.has(fiber)) continue
+      marked.delete(fiber)
+      shell.markStart(fiber, 'gone')
+    }
+    for (const fiber of held) {
+      marked.add(fiber)
+      shell.markStart(fiber, 'held')
+    }
+  }
+  /** Brings the floor and the marks on the shell to what the loader holds now. */
+  const settle = (): void => {
+    const standing = standingOf(loader.states())
+    for (const fiber of known) {
+      if (standing.wanted.has(fiber)) continue
+      known.delete(fiber)
+      floor.unwant(text, fiber)
+    }
+    mark(standing.held)
+    if (!standing.loading) floor.settle(text)
+  }
+  loader.watch(settle)
   const stopFollowing = followWanted({
     client,
     tenant,
-    onList: list => loader.converge(list),
+    onList(list) {
+      loader.converge(list)
+      settle()
+    },
     ...pace,
   })
   return {
     async stop() {
       await stopFollowing()
+      mark(new Set())
       await loader.stop()
     },
   }

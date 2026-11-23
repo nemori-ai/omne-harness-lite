@@ -46,6 +46,7 @@ import { createUsageUiModule } from '@omne-harness/usage-ui/cordis'
 import '@omne-harness/usage-ui/usage-ui.css'
 import { workspaceChoicesKey, workspaceUiModule } from '@omne-harness/workspace-ui/cordis'
 import { pluginFilePath } from '../shared/plugin-path.ts'
+import { storedFloor } from './shell/floor.ts'
 import { domainProtocols } from '../shared/protocols.ts'
 
 export const USAGE_REFRESH_MS = 60_000
@@ -86,6 +87,7 @@ export const assembly: Assembly = {
     }),
     sessionReadsUiModule,
     createPluginUiModule({
+      floor: storedFloor(() => window.localStorage),
       code: {
         given: { React, ui },
         load: (name, version, path) =>

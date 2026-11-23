@@ -126,6 +126,47 @@ describe('外壳：登录之外', () => {
   })
 })
 
+describe('外壳：没起来的', () => {
+  it.each(['signed-out', 'signed-in'] as const)(
+    '%s 时一个界面模块启动时出错：主区上方写明是哪一个，别的照常；它走了这句话也走',
+    async login => {
+      const broken = defineUiModule({
+        name: 'broken-ui',
+        needs: {},
+        apply() {
+          throw new Error('this module is broken on purpose')
+        },
+      })
+      const t = await setup({ login })
+      vi.spyOn(t.root.logger, 'warn').mockImplementation(() => undefined)
+      expect(screen.queryByRole('alert')).toBeNull()
+      let fiber: { dispose(): unknown } | undefined
+      await act(async () => {
+        fiber = await t.root.plugin(broken)
+        await settle()
+      })
+      expect(screen.getByRole('alert').textContent).toBe(
+        '界面有几块启动时出错，没有起来：broken-ui。别的照常。',
+      )
+      await act(async () => {
+        await fiber?.dispose()
+        await settle()
+      })
+      expect(screen.queryByRole('alert')).toBeNull()
+    },
+  )
+
+  it('底停掉了一份 plugin：写明是哪一份、为什么停、怎样放开；放开了这句话就走', async () => {
+    const t = await setup({ login: 'signed-in' })
+    act(() => t.root.shell.markStart('plugin:fancy@0123456789abcdef', 'held'))
+    expect(screen.getByRole('alert').textContent).toBe(
+      'plugin:fancy@0123456789abcdef 连着两次让应用起不来，已经停掉。换一版，或者不再装它，就放开。',
+    )
+    act(() => t.root.shell.markStart('plugin:fancy@0123456789abcdef', 'gone'))
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+})
+
 describe('外壳：连接', () => {
   it.each(['signed-out', 'signed-in'] as const)(
     '%s 时连接断开：一行中性的字写原因、说正在重连，带活动标记；连上了这行就走',

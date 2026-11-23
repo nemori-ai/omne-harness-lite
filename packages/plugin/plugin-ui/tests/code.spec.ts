@@ -329,6 +329,26 @@ describe('a member that is code', () => {
     expect(t.placed()).toEqual([])
   })
 
+  it('is loaded all the same when its drawing throws as it draws: that place falls back, and the rest of the plugin stands', async () => {
+    const t = await world({
+      'send.js': {
+        send: () => () => {
+          throw new Error('drawn badly')
+        },
+      },
+      'cards/todo.js': {
+        todo:
+          ({ React: R }: Given) =>
+          ({ subject }: { subject: { title: string } }) =>
+            R.createElement('h3', null, subject.title),
+      },
+    })
+    const outcome = await t.install(brand(sendCode, cardCode))
+    expect(outcome.kind).toBe('installed')
+    expect(t.sendDrawn()).toBe('<i>built in</i>')
+    expect(t.cardDrawn('todo', '买菜')).toBe('<h3>买菜</h3>')
+  })
+
   it('is not loaded by an application that loads no code', async () => {
     expect(await failure(brand(sendCode), {}, 'none')).toBe(
       'member 1 (shell.part-render notes.send): this application loads no code',

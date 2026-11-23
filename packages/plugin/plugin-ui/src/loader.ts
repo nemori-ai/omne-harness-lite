@@ -14,6 +14,9 @@ export type Listed = Readonly<{
   fault?: string
 }>
 
+/** A state the loader keeps for a plugin: one it does not want it keeps nothing for. */
+export type Kept = Exclude<SideState, { kind: 'unwanted' }>
+
 export type Outcome =
   | Readonly<{ kind: 'installed'; remove: () => unknown }>
   | Readonly<{ kind: 'failed'; reason: string }>
@@ -27,7 +30,7 @@ export type LoaderDeps = Readonly<{
 
 export type Loader = Readonly<{
   converge(list: readonly Listed[]): void
-  states(): ReadonlyMap<string, SideState>
+  states(): ReadonlyMap<string, Kept>
   held(): ReadonlyMap<string, string>
   watch(listener: () => void): () => void
   idle(): Promise<void>
@@ -47,7 +50,7 @@ function attempt(install: () => Promise<Outcome>): Promise<Outcome> {
 
 /** Brings what is loaded to what the list has, one plugin at a time, by the table of `stepSide`. */
 export function createLoader(deps: LoaderDeps): Loader {
-  const sides = new Map<string, SideState>()
+  const sides = new Map<string, Kept>()
   const live = new Map<string, () => unknown>()
   const listeners = new Set<() => void>()
   const work = new Set<Promise<void>>()

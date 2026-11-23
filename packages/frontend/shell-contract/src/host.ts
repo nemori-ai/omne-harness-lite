@@ -21,3 +21,6 @@ export interface ScopeSource {
 
 /** A scope a module opened under itself: `by` is the name its entries carry on the registry. */
 export type Hosted = Readonly<{ by: string; dispose(): Promise<void> }>
+
+/** What did not come up: a module that threw while it started, or what a module holds back and says so. */
+export type Fallen = Readonly<{ name: string; why: 'threw' | 'held' }>

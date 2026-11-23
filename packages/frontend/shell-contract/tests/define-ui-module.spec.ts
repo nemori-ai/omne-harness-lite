@@ -60,13 +60,33 @@ describe('defineUiModule', () => {
     await fiber
     await root.plugin(notesUi)
     for (let round = 0; round < 4; round += 1) await new Promise(resolve => setTimeout(resolve, 0))
-    expect(shell.fallen()).toEqual(['broken-ui'])
+    expect(shell.fallen()).toEqual([{ name: 'broken-ui', why: 'threw' }])
     expect(shell.items('pages').map(item => item.id)).toEqual(['notes'])
     expect(warned).toContain('shell: the module broken-ui threw while it started')
     expect(told).toBeGreaterThan(0)
     await fiber.dispose()
     for (let round = 0; round < 4; round += 1) await new Promise(resolve => setTimeout(resolve, 0))
     expect(shell.fallen()).toEqual([])
+  })
+
+  it('names what a module says is held back, with why, until that module says it is gone', async () => {
+    const { shell } = await startShell()
+    let told = 0
+    shell.watchAdoptions(() => {
+      told += 1
+    })
+    shell.markStart('plugin:brand@v1', 'held')
+    shell.markStart('broken-ui', 'threw')
+    expect(shell.fallen()).toEqual([
+      { name: 'broken-ui', why: 'threw' },
+      { name: 'plugin:brand@v1', why: 'held' },
+    ])
+    expect(told).toBe(2)
+    shell.markStart('plugin:brand@v1', 'held')
+    expect(told).toBe(2)
+    shell.markStart('plugin:brand@v1', 'gone')
+    expect(shell.fallen()).toEqual([{ name: 'broken-ui', why: 'threw' }])
+    expect(told).toBe(3)
   })
 
   it('a module that starts is not named', async () => {
