@@ -22,8 +22,17 @@ const entry = z.strictObject({
   extensions: z.array(z.unknown()).default([]),
 })
 
+/** How a definition that a tenant holds or a workspace carries runs: what an entry gives besides its definition. */
+const custom = entry.pick({
+  execution: true,
+  entryContract: true,
+  requiredIdentities: true,
+  modes: true,
+  initialModelSelection: true,
+})
+
 export const agentAdoptionsConfig = z
-  .strictObject({ mappings: z.array(entry).min(1) })
+  .strictObject({ mappings: z.array(entry).min(1), custom: custom.optional() })
   .superRefine((config, issues) => {
     const names = new Set<string>()
     const candidates = new Set<string>()
@@ -52,3 +61,4 @@ export const agentAdoptionsConfig = z
   })
 
 export type AgentAdoptionsConfig = z.output<typeof agentAdoptionsConfig>
+export type CustomDefaults = z.output<typeof custom>

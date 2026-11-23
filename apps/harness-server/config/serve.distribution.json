@@ -628,7 +628,41 @@
             },
             "extensions": []
           }
-        ]
+        ],
+        "custom": {
+          "execution": {
+            "owner": "harness-server-release",
+            "name": "generic",
+            "revision": "1",
+            "digest": "sha256:generic"
+          },
+          "entryContract": {
+            "owner": "harness-server-release",
+            "name": "chat",
+            "revision": "1",
+            "digest": "sha256:chat"
+          },
+          "requiredIdentities": [],
+          "modes": {
+            "permission": "bypass-permissions",
+            "environment": {
+              "owner": "harness-server-release",
+              "name": "local",
+              "revision": "1",
+              "digest": "sha256:local"
+            },
+            "collaboration": "co-work"
+          },
+          "initialModelSelection": {
+            "name": "openai/gpt-6.1-sol",
+            "basis": {
+              "owner": "harness-server-release",
+              "record": "serve.distribution.json#agent-adoptions/custom/initialModelSelection",
+              "revision": "1",
+              "digest": "sha256:752f5b2b80e183167c034e8e4919404d7d8b36db26b941f3cadf4836a245df47"
+            }
+          }
+        }
       }
     },
     {

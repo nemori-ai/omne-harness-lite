@@ -9,18 +9,42 @@ import {
 } from '@omne-harness/agent-contract'
 import { AgentAdoptionsService } from '@omne-harness/agent-cordis-contract/cordis'
 import { fail, succeed } from '@omne-harness/operation-result'
+import { assetCategoriesKey } from '@omne-harness/assets-cordis-contract'
+import { workspaceSourcesKey } from '@omne-harness/workspace-cordis-contract/cordis'
 import {
   DefinitionMappingsService,
   type DefinitionMappingEntry,
   type DefinitionMappings,
+  type DefinitionReading,
 } from './definition-mappings.ts'
+import { DEFINITION_CATEGORY, type DefinitionReadingInput } from './held-definitions.ts'
+import { tenantLayers, turnLayers, type WorkspaceLayerPorts } from '../tenant-assets/layers.ts'
 import type { Adoption } from '@omne-harness/session-contract'
 import { AgentDefinitionCatalogService } from './definition-catalog.ts'
 import { officialAssetRef } from '../../assets/official-holdings.ts'
 import { tenantAssetsKey } from '../tenant-assets/service.ts'
 import type { MappingTable } from './table.ts'
 
-export const DEFINITION_CATEGORY = 'AgentDefinition'
+export { DEFINITION_CATEGORY }
+
+/** The layers a tenant reads a definition from, and with a turn the workspace as that turn adopted it. */
+export function definitionLayersOf(ctx: Context): DefinitionReadingInput['layers'] {
+  const workspace: WorkspaceLayerPorts = {
+    sources: () => ctx.get(workspaceSourcesKey),
+    contractOf: category => ctx.get(assetCategoriesKey)?.view.lookup(category),
+  }
+  return async ({ tenant, turn }) => {
+    const encoded = tenantCodec.encode(tenant)
+    const service = ctx.get(tenantAssetsKey)
+    if (!encoded.ok || service === undefined) return undefined
+    const assets = await service.open(encoded.value)
+    if (assets === undefined) return undefined
+    const held = tenantLayers(assets, service.layerSources(encoded.value), () =>
+      workspace.contractOf(DEFINITION_CATEGORY),
+    )
+    return turn === undefined ? held : turnLayers(held, workspace, turn.access, turn.key)
+  }
+}
 
 /** A tenant sees a definition of the table while, over its layers, the official one is the one in force under its name. */
 export class AgentDefinitionCatalogImpl extends AgentDefinitionCatalogService {
@@ -52,10 +76,14 @@ export class AgentDefinitionCatalogImpl extends AgentDefinitionCatalogService {
 export class DefinitionMappingsImpl extends DefinitionMappingsService {
   readonly identity: string
   readonly table: DefinitionMappings
-  constructor(ctx: Context, table: DefinitionMappings) {
+  readonly named: DefinitionReading['named']
+  readonly adopted: DefinitionReading['adopted']
+  constructor(ctx: Context, table: DefinitionMappings, reading: DefinitionReading) {
     super(ctx)
     this.table = table
     this.identity = table.identity
+    this.named = reading.named
+    this.adopted = reading.adopted
   }
   entries(): readonly DefinitionMappingEntry[] {
     return this.table.entries()
@@ -70,31 +98,33 @@ export class DefinitionMappingsImpl extends DefinitionMappingsService {
 
 type Resolved = Awaited<ReturnType<AgentAdoptions<unknown>['resolve']>>
 
+const OWNER = '@omne-harness/harness-server'
+
 export class AgentAdoptionsImpl extends AgentAdoptionsService<unknown> {
   readonly mappings: DefinitionMappings
   private readonly agentSideOf: MappingTable['agentSide']
+  private readonly reading: DefinitionReading
 
-  constructor(ctx: Context, table: MappingTable) {
+  constructor(ctx: Context, table: MappingTable, reading: DefinitionReading) {
     super(ctx)
     this.mappings = table.mappings
     this.agentSideOf = table.agentSide
+    this.reading = reading
   }
 
   readonly resolve: AgentAdoptions<unknown>['resolve'] = async (input): Promise<Resolved> => {
     const judged = judgeAdoption(input.adoption)
     if ('failure' in judged)
       return fail({ kind: 'invalid', field: 'adoption', reason: judged.failure.reason })
-    const side = this.agentSideOf(judged.ok)
-    if (side === undefined)
-      return fail({
-        kind: 'invalid',
-        field: 'adoption',
-        reason: 'not a definition adoption of this deployment',
-      })
+    const read = await this.reading.adopted({ tenant: input.tenant }, judged.ok)
+    if (read.kind === 'unavailable')
+      return fail({ kind: 'unavailable', owner: OWNER, diagnostic: read.diagnostic })
+    if (read.kind === 'absent')
+      return fail({ kind: 'invalid', field: 'adoption', reason: read.reason })
     return succeed({
-      definition: side.definition,
+      definition: read.side.definition,
       evaluator: agentEvaluator,
-      extensions: side.extensions,
+      extensions: read.side.extensions,
     })
   }
 

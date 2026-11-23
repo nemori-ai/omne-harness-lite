@@ -15,6 +15,7 @@ import { contentDigest } from '../../src/rows/agent-adoptions/definition-mapping
 import { agentAdoptionsConfig } from '../../src/rows/agent-adoptions/config.ts'
 import { AgentAdoptionsImpl } from '../../src/rows/agent-adoptions/services.ts'
 import { buildTable } from '../../src/rows/agent-adoptions/table.ts'
+import { tableReading } from '../../src/rows/agent-adoptions/held-definitions.ts'
 import { TENANT_A } from '../rows/storage/fixtures/tree.ts'
 
 type Distribution = Readonly<{ rows: readonly Readonly<{ id: string; config: unknown }>[] }>
@@ -35,7 +36,7 @@ const access = { principal: 'tester', tenant: TENANT_A }
 
 async function adoptionsFace() {
   const table = await buildTable(config)
-  return new AgentAdoptionsImpl(new Context(), table)
+  return new AgentAdoptionsImpl(new Context(), table, tableReading(table))
 }
 
 describe('the coding entry of the release mapping', () => {

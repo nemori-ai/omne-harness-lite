@@ -1,11 +1,37 @@
 import { createHash } from 'node:crypto'
 import { Service, type Context } from '@deepseek-ai/cordis'
+import type { AgentDefinition, LoopExtensionDeclaration } from '@omne-harness/agent-contract'
+import type { Access, TenantId } from '@omne-harness/legal-identity'
 import type {
   Adoption,
   Modes,
   SavedModelSelection,
   SessionAdoptionPlanInput,
 } from '@omne-harness/session-contract'
+
+/** Who asks for a definition: the tenant, and the turn whose workspace layer is read with it. */
+export type DefinitionAsker = Readonly<{
+  tenant: TenantId
+  turn?: Readonly<{ access: Access<unknown>; key: string }>
+}>
+
+export type DefinitionLookup =
+  | Readonly<{ kind: 'found'; entry: DefinitionMappingEntry; side: AgentSide }>
+  | Readonly<{ kind: 'absent'; reason: string }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+
+/** A definition as one tenant sees it: of the deployment, held by the tenant, or carried by the workspace of a turn. */
+export interface DefinitionReading {
+  /** The definition in force under a name for the asker. */
+  named(asker: DefinitionAsker, name: string): Promise<DefinitionLookup>
+  /** The definition of one exact candidate, in force or not. */
+  adopted(asker: DefinitionAsker, candidate: Adoption): Promise<DefinitionLookup>
+}
+
+export type AgentSide = Readonly<{
+  definition: AgentDefinition
+  extensions: readonly LoopExtensionDeclaration[]
+}>
 
 export type DefinitionMappingEntry = Readonly<{
   name: string
@@ -18,6 +44,7 @@ export type DefinitionMappingEntry = Readonly<{
   residentCapabilities?: SessionAdoptionPlanInput['capabilities']
 }>
 
+/** The definitions the deployment brings: the table built at start. What a tenant holds is read with DefinitionReading. */
 export interface DefinitionMappings {
   readonly identity: string
   entries(): readonly DefinitionMappingEntry[]
@@ -31,7 +58,10 @@ export interface DefinitionMappings {
  *
  * @owner packages/access/server-entry
  */
-export abstract class DefinitionMappingsService extends Service implements DefinitionMappings {
+export abstract class DefinitionMappingsService
+  extends Service
+  implements DefinitionMappings, DefinitionReading
+{
   static readonly provide = 'definitionMappings'
   constructor(ctx: Context) {
     super(ctx, DefinitionMappingsService.provide)
@@ -40,6 +70,8 @@ export abstract class DefinitionMappingsService extends Service implements Defin
   abstract entries(): readonly DefinitionMappingEntry[]
   abstract byName(name: string): DefinitionMappingEntry | undefined
   abstract byCandidate(candidate: Adoption): DefinitionMappingEntry | undefined
+  abstract named(asker: DefinitionAsker, name: string): Promise<DefinitionLookup>
+  abstract adopted(asker: DefinitionAsker, candidate: Adoption): Promise<DefinitionLookup>
 }
 export const definitionMappingsKey = DefinitionMappingsService.provide
 

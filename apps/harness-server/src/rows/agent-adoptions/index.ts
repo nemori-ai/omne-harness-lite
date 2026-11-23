@@ -10,10 +10,12 @@ import { definitionMappingsKey } from './definition-mappings.ts'
 import { officialItem } from '../../assets/official-holdings.ts'
 import { defineRow } from '../../row.ts'
 import { agentAdoptionsConfig, type AgentAdoptionsConfig } from './config.ts'
+import { createDefinitionReading } from './held-definitions.ts'
 import {
   AgentAdoptionsImpl,
   AgentDefinitionCatalogImpl,
   DEFINITION_CATEGORY,
+  definitionLayersOf,
   DefinitionMappingsImpl,
 } from './services.ts'
 import { buildTable } from './table.ts'
@@ -34,8 +36,13 @@ const plugin: Plugin.Object = {
         })),
       ),
     )
-    new AgentAdoptionsImpl(ctx, table)
-    new DefinitionMappingsImpl(ctx, table.mappings)
+    const reading = createDefinitionReading({
+      table,
+      custom: config.custom,
+      layers: definitionLayersOf(ctx),
+    })
+    new AgentAdoptionsImpl(ctx, table, reading)
+    new DefinitionMappingsImpl(ctx, table.mappings, reading)
     new AgentDefinitionCatalogImpl(ctx, table)
   },
 }
