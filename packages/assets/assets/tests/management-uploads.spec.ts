@@ -111,6 +111,7 @@ function setup(options: Options = {}) {
       if (options.publication === 'throws') throw new Error('the receipts cannot be read')
       return options.publication ?? { kind: 'not-found' }
     },
+    recallById: async () => ({ kind: 'not-found' }),
     uploads,
     layers: [
       {

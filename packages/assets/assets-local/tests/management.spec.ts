@@ -304,6 +304,52 @@ describe('the management service over the local assets of a tenant', () => {
     })
   })
 
+  it('recalls an operation by its id alone: what it was, on which capability, and its first outcome', async () => {
+    const w = await world()
+    const made = await w.management.createFromData({
+      ...ALICE,
+      operationId: 'make-a',
+      capability: id('note', 'a'),
+      body: read('{"a":1}'),
+    })
+    if (made.kind !== 'published') throw new Error(JSON.stringify(made))
+    const byId = (operationId: string) => w.management.recallById({ ...ALICE, operationId })
+    expect(await byId('make-a')).toEqual({
+      kind: 'publish',
+      capability: id('note', 'a'),
+      version: made.version,
+      outcome: made,
+    })
+    const holding = made.holdingRef
+    await w.management.setEnabled({ ...ALICE, operationId: 'off', holding, enabled: false })
+    await w.management.setEnabled({ ...ALICE, operationId: 'off-again', holding, enabled: false })
+    await w.management.remove({ ...ALICE, operationId: 'rm', holding })
+    expect(await byId('off')).toEqual({
+      kind: 'setEnabled',
+      holding,
+      capability: id('note', 'a'),
+      enabled: false,
+      outcome: { kind: 'changed' },
+    })
+    // A change the service decides is no change writes nothing, so there is no operation to recall.
+    expect(await byId('off-again')).toEqual({ kind: 'absent' })
+    expect(await byId('rm')).toEqual({
+      kind: 'remove',
+      holding,
+      capability: id('note', 'a'),
+      outcome: { kind: 'changed' },
+    })
+    expect(await byId('never')).toEqual({ kind: 'absent' })
+    expect(
+      await w.management.recallById({
+        ...ALICE,
+        principal: { tenant: 'tenant-b' },
+        operationId: 'rm',
+      }),
+    ).toEqual({ kind: 'denied' })
+    expect(await w.names()).toEqual([])
+  })
+
   it('a holding the deployment installed is official: it is listed, but not disabled or removed', async () => {
     const w = await world()
     await w.owner.publish({
