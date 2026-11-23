@@ -57,7 +57,7 @@
 > **EN**: A configurable aspect of how a capability works, declared by its owner. A setting can be used independently or composed into an asset definition. Its declaration defines meaning and valid values. Assignments follow the management authority, sources and lifetime of their target; evaluation does not authorize an action.
 
 - **形态**：属性
-- **出处**：[资产与规则：设置独立使用与资产组合](../../product/assets-and-rules/design.md#settings-composition)（rev 10）
+- **出处**：[资产与规则：设置独立使用与资产组合](../../product/assets-and-rules/design.md#settings-composition)（rev 11）
 - **注意 ①**：资产设置的配值依附合法持有；独立设置不要求创建资产或持有。两者复用设置契约，不复用未经采用的资格或来源链。
 - **注意 ②**：资产声明哪些部分可配置。未声明部分仍按资产编辑与发布规则维护；配值不改写已发布定义。
 - **注意 ③**：属性锁、持有替换锁和定义的不可替换声明分别处理；不得因同名而合并。
@@ -106,7 +106,7 @@
 > holds, what happens at the moment a person should be asked) **— if so, governance**.
 
 - **形态**：属性
-- **出处**：[资产与规则：设置组合](../../product/assets-and-rules/design.md#settings-composition)（rev 10）；[PF-002 §5.2 设置项分四类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 32）
+- **出处**：[资产与规则：设置组合](../../product/assets-and-rules/design.md#settings-composition)（rev 11）；[PF-002 §5.2 设置项分四类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#设置项分四类资产声明每一项时必须标类别)（rev 32）
 - **别混**：与[能力标识](scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)里的「类别」不是一回事——
   那是**资产**的类别（工具、技能、模型供应商……），这是**设置项**的四类之一；正文里裸写「类别」指前者
 - **注意**：工作区**自己带来的**资产，其落点类声明随资产一起来——这条限定挡的是**改别人资产的落点**。独立设置按其目标策略确定来源，不自动继承资产层序。
@@ -505,20 +505,24 @@
 
 ### UL-plugin · 插件 · Plugin
 
-> **中**：**把若干资产打包在一起分发与启用的单元。**装一个 plugin，等于一次性获得
-> 它里面的全部东西；停用它，那些东西一起退场。
-> **内含成员不取得独立的顶层生命周期**——不能单独卸载 plugin 里的某一个 skill。
+> **中**：**一份定义：它列出若干成员，每个成员是某个[拓展点](architecture-core-and-extension.md#ul-extension-point--拓展点--extension-point)上的一项。**
+> 成员可以是另一类资产，也可以是不单独持有的东西：界面的样子与画法、一份对客户端开放的协议。
+> 装一个 plugin，它的全部成员一起出现；停用它，全部一起退场。
+> **内含成员不取得独立的顶层生命周期**——不能单独卸载 plugin 里的某一个成员。
 >
-> **EN**: **A unit for distributing and enabling a bundle of assets together.**
-> Installing one grants everything inside at once; disabling it withdraws them all.
-> **Its members have no independent top-level lifecycle** — one cannot uninstall a
-> single skill out of a plugin.
+> **EN**: **A definition that lists members, each one item on an extension point.**
+> A member may be an asset of another category, or something that is not held on its own:
+> a look or a drawing of the interface, a protocol open to clients.
+> Loading one brings all its members up together; disabling it withdraws them all.
+> **Its members have no independent top-level lifecycle** — one cannot unload a
+> single member out of a plugin.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-001 §4 资产的种类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 26） · [PF-002 §4 Plugin](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#plugin)（rev 32）
-- **别混 ①**：**不是 Cordis plugin**——那是运行时的代码装载单元，属技术设计。指它时**必须写全 `Cordis plugin`**
+- **出处**：[资产与规则：把资产加入使用范围，并看清为什么采用这份实现](../../product/assets-and-rules/design.md#把资产加入使用范围并看清为什么采用这份实现)（rev 11）
+- **别混 ①**：Plugin 是定义，是数据；它装上之后由一个 Cordis fiber 承载，那是它的活体。指运行时的代码装载单元本身时仍**写全 `Cordis plugin`**
 - **别混 ②**：Plugin 组合出来的**还是资产**，可以继续被组合；[Agent Definition](#ul-agent-definition--agent-定义--agent-definition) 组合出来的是**一个能跑的 agent**
-- **能组合**：Skill、Tool、Slash Command、MCP、Connector、[拓展件](#ul-loop-extension--拓展件--loop-extension)，以及 Rules 这类声明性成员
+- **别混 ③**：把 Skill、Agent、Hook 打包在一起的那种 plugin 是它的一种：成员都落在这几类资产的拓展点上
+- **能组合**：Skill、Tool、Slash Command、MCP、Connector、[拓展件](#ul-loop-extension--拓展件--loop-extension)，以及 Rules 这类声明性成员；界面的令牌、样式、画法与布局；对客户端开放的协议
 
 ### UL-agent-definition · Agent 定义 · Agent Definition
 
@@ -632,7 +636,7 @@
 > uses it to know what the package holds and to check the bytes of each file it reads.
 
 - **形态**：属性
-- **出处**：[资产与规则：已发布的内容由资产存放，类别经读口读取](../../product/assets-and-rules/design.md#content-storage)（rev 10）
+- **出处**：[资产与规则：已发布的内容由资产存放，类别经读口读取](../../product/assets-and-rules/design.md#content-storage)（rev 11）
 - **别混**：**不是[装配清单](agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest)**——那是「当时那个 agent 是什么样」；这一条只列一个版本里的文件。也不是 MCP 对端的动作清单
 - **注意**：清单在记录里，字节在内容存放处；两边靠摘要对上，对不上答材料不可用
 - **注意**：Skill 这一侧对应的值是 [Skill 包快照](#ul-package-snapshot--skill-包快照--skill-package-snapshot)。读已发布版本时，快照由包的清单封出，两者列的是同一批文件
@@ -650,7 +654,7 @@
 > the manifest, and never hands over bytes that do not match the digest.
 
 - **形态**：视图
-- **出处**：[资产与规则：已发布的内容由资产存放，类别经读口读取](../../product/assets-and-rules/design.md#content-storage)（rev 10）
+- **出处**：[资产与规则：已发布的内容由资产存放，类别经读口读取](../../product/assets-and-rules/design.md#content-storage)（rev 11）
 - **别混**：**不是[绑定读者](scope-and-resolution.md#ul-bound-reader--绑定读者--bound-reader)**——那是 Runtime Context 里按读取资格建立、带游标的读取入口；这一条读的是一份不变的已发布内容，没有游标，丢了按同一组（层、能力标识、版本）再取一个即可
 - **注意**：「许不许读」不由它回答。主体能不能读一份 Skill，仍由使用资格与授权每次判断
 - **注意**：它不给路径，这一条不变。「这份目录加载到本机之后在哪」是另一件事：单机装配下它是一个事实，`Skills` 把它告诉 agent，供 Shell 使用
@@ -728,7 +732,7 @@
 > content, so a reference to a snapshot needs only its content digest.
 
 - **形态**：属性
-- **出处**：缺产品原文。[Skill 产品页 J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 6）只要求一次读取对应一个可成立的版本和范围，不把旧正文与新资源拼成成功。条目清单与内容摘要的做法来自 Skill 与 MCP 领域的候选技术设计，那不是本词表的合法出处。出处缺口由产品负责人闭合：在 Skill 产品页写出 Skill 包快照，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决。已发布版本一侧的文件清单见[资产与规则：已发布的内容由资产存放，类别经读口读取](../../product/assets-and-rules/design.md#content-storage)（rev 10），那是[包的清单](#ul-package-manifest--包的清单--package-manifest)的出处
+- **出处**：缺产品原文。[Skill 产品页 J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 6）只要求一次读取对应一个可成立的版本和范围，不把旧正文与新资源拼成成功。条目清单与内容摘要的做法来自 Skill 与 MCP 领域的候选技术设计，那不是本词表的合法出处。出处缺口由产品负责人闭合：在 Skill 产品页写出 Skill 包快照，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决。已发布版本一侧的文件清单见[资产与规则：已发布的内容由资产存放，类别经读口读取](../../product/assets-and-rules/design.md#content-storage)（rev 11），那是[包的清单](#ul-package-manifest--包的清单--package-manifest)的出处
 - **别混 ①**：**不是[资产版本](#ul-asset-version--资产版本--asset-version)**。资产版本按发布计数，内容摘要按内容计算。工作区目录中的技能没有发布，也有 Skill 包快照
 - **别混 ②**：**不是[上下文快照提醒](record-and-context.md#ul-context-snapshot-reminder--上下文快照提醒--context-snapshot-reminder)**，与 runtime context 的快照无关
 - **注意 ①**：**这里的「内容摘要」指按内容算出的散列值（digest），不是文字摘要**。不要裸写「摘要」指它，见 [C-82](../conflicts.md#c-82摘要的两种意思)
@@ -1065,7 +1069,7 @@
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
 - **出处**：[模型调用：凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 6） ·
-  [资产与规则：让共同能力可治理，也让具体资产独立发展](../../product/assets-and-rules/design.md#让共同能力可治理也让具体资产独立发展)（rev 10）
+  [资产与规则：让共同能力可治理，也让具体资产独立发展](../../product/assets-and-rules/design.md#让共同能力可治理也让具体资产独立发展)（rev 11）
 - **别混 ①**：**不是[允许的供应商](#ul-allowed-providers--允许的供应商--allowed-providers)里的一项**——那一项是档案对它的引用；档案不是资产，模型供应商是
 - **别混 ②**：**不是 [Cordis 服务提供者](architecture-core-and-extension.md#ul-cordis-service-provider--cordis-服务提供者--cordis-service-provider)、
   [环境提供者](grounding-and-isolation.md#ul-environment-provider--环境提供者--environment-provider)这类「提供者」**——那些是系统里兑现一项能力的角色；
@@ -1093,7 +1097,7 @@
 
 - **形态**：属性
 - **出处**：[模型调用：凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 6） ·
-  [资产与规则：设置组合](../../product/assets-and-rules/design.md#settings-composition)（rev 10）
+  [资产与规则：设置组合](../../product/assets-and-rules/design.md#settings-composition)（rev 11）
 - **⚠️ 别混 ①**：**不在档案上**——[档案](#ul-model-profile--模型档案--model-profile)不是资产，自身不存凭据；
   凭据是模型供应商这份资产的设置值，依附对它的持有
 - **别混 ②**：**裸写「凭据」不作数**——账号的登录凭据、[连接件](#ul-connector--连接件--connector)的接入凭据、
