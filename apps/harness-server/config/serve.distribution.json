@@ -912,6 +912,11 @@
       "id": "plugin-host",
       "plugin": "pluginHostRow",
       "config": {}
+    },
+    {
+      "id": "plugin-notification",
+      "plugin": "pluginNotificationRow",
+      "config": {}
     }
   ]
 }

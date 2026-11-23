@@ -509,6 +509,11 @@
       "id": "plugin-host",
       "plugin": "stubPlugin",
       "config": {}
+    },
+    {
+      "id": "plugin-notification",
+      "plugin": "stubPlugin",
+      "config": {}
     }
   ]
 }
