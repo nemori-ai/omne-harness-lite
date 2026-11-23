@@ -217,6 +217,23 @@ describe('the drawing of a part', () => {
     expect((failure as Error).message).toContain('a part of the shell does not open render')
   })
 
+  it('tells the other watchers of the changes when one of them throws, and says so', async () => {
+    const w = await world()
+    let told = 0
+    w.shell.watchChanges(() => {
+      throw new Error('watcher')
+    })
+    w.shell.watchChanges(() => {
+      told += 1
+    })
+    const warned: string[] = []
+    w.root.logger.warn = (text: string) => void warned.push(text)
+    await place(w.root, 'brand', ctx => void ctx.shell.putRender('notes.message', shout, alice))
+    expect(told).toBeGreaterThan(0)
+    expect(new Set(warned)).toEqual(new Set(['shell: a watcher of the changes threw']))
+    expect(w.draw('abc')).toBe('shout:ABC')
+  })
+
   it('tells its watchers when the drawings change, and when the tenant on show changes', async () => {
     class Rescoping extends Framed {
       show(tenant: string | undefined): void {
