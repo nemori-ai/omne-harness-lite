@@ -32,7 +32,15 @@ export const NOTIFICATION_SOURCES = 'notification.sources'
 /** Where the domain of a source draws the rows of its own notifications. */
 export const notificationEntry: RenderPoint<NotificationEntrySubject> = defineRenderPoint({
   name: NOTIFICATION_ENTRY,
-  key: 'the name of the source, as the server registers it on notification.sources',
-  summary: 'How a row of the inbox is drawn, by the source of the notification.',
+  key: 'the name of the source, as the server registers it on notification.sources: OmneExtensionPoints show notification.sources lists the names',
+  summary: 'How a row of the notification inbox is drawn, by the source of the notification.',
   keysFrom: NOTIFICATION_SOURCES,
+  subject:
+    'one notification of the inbox: source and event; recipient; sequence; type; title; level, which is weak or strong; cause; acceptedAt; marks, with seenAt, resolved and supersededBy',
+  example: [
+    '{"point":"notification.entry","key":"agent.posts","module":"post-row.js","export":"row"}',
+    'post-row.js:',
+    'export const row = ({ React }) => ({ subject }) =>',
+    "  React.createElement('div', null, React.createElement('strong', null, subject.title), ' ' + subject.level)",
+  ].join('\n'),
 })

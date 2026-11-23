@@ -16,7 +16,7 @@ import {
 import type { JsonValue } from '@omne-harness/json-text'
 import type { LoginCredentials, LoginResult, LogoutResult } from '../shared/channel.ts'
 import { tenantText } from '../shared/tenant.ts'
-import { readPluginFile, type PluginFileAnswer, type PluginFileAt } from './plugin-files.ts'
+import { openPluginFile, type PluginFileAnswer, type PluginFileAt } from './plugin-files.ts'
 import type { CookieLogin } from './login-cookie.ts'
 
 export type ServerConnector = (credentials: Credentials) => Transport
@@ -126,7 +126,7 @@ export function createForwardingRules(options: RulesOptions): ForwardingRules {
       const tenant = readTenantText(login.tenant)
       if (tenant === undefined) return { kind: 'unavailable' }
       const transport = connect(credentialsFor(login, 'login'))
-      return readPluginFile(transport, tenant, at).catch(() => ({ kind: 'unavailable' as const }))
+      return openPluginFile(transport, tenant, at).catch(() => ({ kind: 'unavailable' as const }))
     },
 
     async call(request, login) {

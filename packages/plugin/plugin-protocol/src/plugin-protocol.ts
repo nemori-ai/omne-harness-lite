@@ -1,6 +1,8 @@
-import { defineProtocol, ruleCodec, type Rule } from '@omne-harness/public-contract'
+import { defineProtocol, ruleCodec, type Rule, type RuleValue } from '@omne-harness/public-contract'
 
-type Fields = Readonly<Record<string, { readonly rule: Rule; readonly optional?: true }>>
+type Fields = Readonly<
+  Record<string, { readonly rule: Rule; readonly optional?: true; readonly since?: number }>
+>
 
 const text = { kind: 'text' } as const
 const count = { kind: 'count' } as const
@@ -31,10 +33,44 @@ const report = object({
   reason: { rule: oneOf(text, nothing) },
 })
 
+/** The rules of a point as its owner declared them: what the key is, what an item gives and is given, and one to copy. */
+const contract = object({
+  arity: { rule: literal('one', 'list', 'keyed-one', 'keyed-list') },
+  keyFrom: { rule: oneOf(text, nothing) },
+  key: { rule: text },
+  gives: { rule: text },
+  item: {
+    rule: object({
+      kind: { rule: literal('data', 'pure', 'effect') },
+      fields: {
+        rule: array(
+          object({
+            name: { rule: text },
+            kind: { rule: literal('string', 'number', 'boolean', 'function', 'object', 'array') },
+          }),
+        ),
+      },
+    }),
+  },
+  resolve: { rule: literal('conflict', 'most-specific') },
+  binding: { rule: literal('build', 'run') },
+  onError: { rule: text },
+  version: { rule: count },
+  revision: { rule: count },
+  example: { rule: oneOf(text, nothing) },
+})
+const dataKey = object({ name: { rule: text }, now: { rule: oneOf(text, nothing) } })
+const point = object({
+  name: { rule: text },
+  summary: { rule: text },
+  contract: { rule: contract, optional: true, since: 2 },
+  dataKeys: { rule: array(dataKey), optional: true, since: 2 },
+})
+
 /** What a client says of itself: how each plugin stands, and the points and the parts its tree has now. */
 const reported = {
   plugins: { rule: array(report) },
-  points: { rule: array(object({ name: { rule: text }, summary: { rule: text } })) },
+  points: { rule: array(point) },
   parts: {
     rule: array(
       object({
@@ -114,3 +150,7 @@ export const pluginProtocol = defineProtocol({
   },
 })
 export type PluginProtocol = typeof pluginProtocol
+
+/** One point as a client tells of it: its name, a line on it, and, from revision 2, its rules and the names its data may use. */
+export type ReportedPoint = RuleValue<typeof point>
+export type ReportedPointContract = NonNullable<ReportedPoint['contract']>

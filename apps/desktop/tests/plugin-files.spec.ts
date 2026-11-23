@@ -157,15 +157,73 @@ describe('the path a page takes a file of a plugin from', () => {
     expect(got.headers.get('content-type')).not.toBe('text/javascript; charset=utf-8')
   })
 
-  it('a file that never ends is cut off: it answers 502 and stops asking', async () => {
+  it('gives a file of any size: there is no most a file may be', async () => {
+    const t = await start()
+    const size = 4096
+    const count = 300
+    t.reads(record => {
+      const { offset } = record.body as { offset: number }
+      const at = offset / size
+      return part(String(at % 10).repeat(size), at + 1 < count ? offset + size : null, size * count)
+    })
+    const answer = await t.get('/bridge/plugins/p/v1/a.js')
+    expect(answer.status).toBe(200)
+    expect(answer.headers.get('content-length')).toBe(String(size * count))
+    const text = await answer.text()
+    expect(text.length).toBe(size * count)
+    expect(text.slice(size * 299, size * 299 + 3)).toBe('999')
+    expect(t.seen.length).toBe(count)
+  })
+
+  it('passes each part on as it is read: the page has the first before the last is asked for', async () => {
+    const t = await start()
+    let release = (): void => undefined
+    const held = new Promise<void>(resolve => (release = resolve))
+    t.server.answer('plugin/v1 read-file', async record => {
+      t.seen.push(record)
+      const { offset } = record.body as { offset: number }
+      if (offset === 0) return part('first,', 6, 11)
+      await held
+      return part('last.', null, 11)
+    })
+    const answer = await t.get('/bridge/plugins/p/v1/a.js')
+    expect(answer.status).toBe(200)
+    const reader = answer.body!.getReader()
+    const first = await reader.read()
+    expect(new TextDecoder().decode(first.value)).toBe('first,')
+    release()
+    const second = await reader.read()
+    expect(new TextDecoder().decode(second.value)).toBe('last.')
+    expect((await reader.read()).done).toBe(true)
+  })
+
+  it.each([
+    ['says the next part starts where this one did', () => part('x'.repeat(8), 0, 100)],
+    ['says the next part starts past the end', () => part('x'.repeat(8), 500, 100)],
+    ['ends before the size it said', () => part('x'.repeat(8), null, 100)],
+  ] as const)('a file that %s is broken off, not passed as whole', async (_name, answer) => {
+    const t = await start()
+    t.reads(answer)
+    const got = await t.get('/bridge/plugins/p/v1/a.js')
+    expect(got.status).toBe(200)
+    await expect(got.text()).rejects.toThrow()
+    expect(t.seen.length).toBeLessThan(4)
+  })
+
+  it.each([
+    ['the server stops answering', () => answered('basis-unavailable')],
+    ['the file is no more there', () => answered('not-found', { reason: 'plugin' })],
+    ['the file changes its size', () => part('y'.repeat(8), null, 9)],
+  ] as const)('when after the first part %s, the body is broken off', async (_name, later) => {
     const t = await start()
     t.reads(record => {
       const { offset } = record.body as { offset: number }
-      return part('x'.repeat(262_144), offset + 262_144, 1_000_000_000)
+      return offset === 0 ? part('x'.repeat(8), 8, 16) : later()
     })
-    const answer = await t.get('/bridge/plugins/p/v1/a.js')
-    expect(answer.status).toBe(502)
-    expect(t.seen.length).toBeLessThan(80)
+    const got = await t.get('/bridge/plugins/p/v1/a.js')
+    expect(got.status).toBe(200)
+    await expect(got.text()).rejects.toThrow()
+    expect(t.seen.length).toBe(2)
   })
 
   it('writes no line that carries the proof of the login, whatever it answers', async () => {

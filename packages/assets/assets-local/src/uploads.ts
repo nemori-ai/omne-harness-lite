@@ -13,6 +13,7 @@ import {
 import { dirname, join } from 'node:path'
 import {
   capabilityId,
+  declarationRejection,
   digestBytes,
   type CapabilityId,
   type CategoryView,
@@ -22,7 +23,6 @@ import {
 } from '@omne-harness/assets'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { digest, equal } from './encoding.ts'
-import { declarationRejection } from './packages.ts'
 
 /** How long an untouched upload is kept, how many a tenant may have open, and how big one part is. */
 export type UploadPolicy = Readonly<{ idleMs: number; maxOpen: number; partBytes: number }>

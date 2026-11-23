@@ -1,10 +1,5 @@
-import {
-  UNWANTED,
-  stepSide,
-  type Member,
-  type SideEvent,
-  type SideState,
-} from '@omne-harness/plugin-protocol'
+import type { Member } from './manifest.ts'
+import { UNWANTED, stepSide, type SideEvent, type SideState } from './side-state.ts'
 
 /** One plugin as the list has it for this side; `fault` is why it cannot be loaded as listed. */
 export type Listed = Readonly<{

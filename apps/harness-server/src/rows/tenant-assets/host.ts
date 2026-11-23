@@ -79,6 +79,21 @@ export class TenantAssetsHost {
     return made
   }
 
+  /** Whether a tenant has assets to speak of. One whose domain was never registered holds nothing; that is not the same as not knowing. */
+  async standing(tenantRef: string): Promise<'registered' | 'unregistered' | 'unknown'> {
+    try {
+      const found = await this.options.domains.lookup({ tenant: tenantRef })
+      if (found.kind === 'unregistered') return 'unregistered'
+      const own =
+        found.kind === 'ready' &&
+        found.domain.scope.kind === 'tenant' &&
+        found.domain.scope.tenant === tenantRef
+      return own ? 'registered' : 'unknown'
+    } catch {
+      return 'unknown'
+    }
+  }
+
   private async make(tenantRef: string): Promise<AssetsLocal | undefined> {
     try {
       const found = await this.options.domains.lookup({ tenant: tenantRef })

@@ -1,15 +1,22 @@
 import type { Plugin } from '@deepseek-ai/cordis'
 import type { Backoff } from '@omne-harness/client-assembly'
-import { pluginProtocol, type PluginProtocol } from '@omne-harness/plugin-protocol'
+import {
+  NO_FLOOR,
+  createLoader,
+  fiberOf,
+  heldOf,
+  pluginProtocol,
+  standingOf,
+  type FloorPort,
+  type PluginProtocol,
+} from '@omne-harness/plugin-protocol'
 import { readTenantText } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import { needProtocol, tenantScope } from '@omne-harness/shell-contract'
 import { defineUiModule, type ShellService } from '@omne-harness/shell-contract/cordis'
-import { NO_FLOOR, fiberOf, heldOf, standingOf, type FloorPort } from './floor.ts'
 import { followWanted, type Sleep } from './follow.ts'
 import { installOn, type Code } from './install.ts'
-import { createReporter, reportsOf } from './report.ts'
-import { createLoader } from './loader.ts'
+import { createReporter, describedOf, reportsOf } from './report.ts'
 
 export type PluginUiOptions = Readonly<{
   backoff?: Backoff
@@ -72,7 +79,7 @@ function loadFor(
   const reporter = createReporter(
     () => ({
       plugins: reportsOf(loader.states(), shell.changes().conflicts),
-      ...shell.described(),
+      ...describedOf(shell.described()),
     }),
     async reported =>
       (await client['report-loaded']({ tenant, client: id, ...reported })).outcome === 'succeeded',

@@ -103,9 +103,9 @@ export function createDesk(read: () => Registry, options: DeskOptions = {}): Pro
   }
 
   return {
-    enter(key, name) {
+    enter(key, name, scope) {
       const text = keyOf(key)
-      const outcome = enter(read(), calls, text, name)
+      const outcome = enter(read(), calls, text, name, scope)
       if (outcome.kind === 'conflict')
         return { refused: 'conflict', by: outcome.by.map(by => `${by.fiber}#${by.generation}`) }
       if (outcome.kind !== 'entered') return { refused: outcome.kind }

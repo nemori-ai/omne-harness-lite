@@ -5,6 +5,7 @@ import type {
   LoginIdentity,
   LoginResult,
 } from '@omne-harness/access-cordis-contract'
+import type { Scope } from '@omne-harness/dynamis'
 import { readJsonBytes, type JsonLimits } from '@omne-harness/json-text'
 import { livesAt, type Codec, type OperationContract } from '@omne-harness/public-contract'
 import {
@@ -13,7 +14,7 @@ import {
   type ObservationHub,
 } from '../observation-hub/hub.ts'
 import type { LoginCheck } from '../observation-hub/records.ts'
-import type { Entered, RegistryForPipeline } from '../registry/registry.ts'
+import type { Entered, Refusal, RegistryForPipeline } from '../registry/registry.ts'
 import {
   settleCall,
   systemClock,
@@ -26,13 +27,14 @@ import { parseAddress, pathOf, type Address } from './address.ts'
 import { EMPTY_BODY, writeAnswer, writeBare, writeNotExecuted, type NotExecuted } from './answer.ts'
 import { readBody } from './body.ts'
 import { contentTypeAccepted, countHeader, hostAccepted } from './headers.ts'
-import { establish, type Established, type SignedIn } from './identity-rule.ts'
+import { establish, proofOf, tenantOf, type Established, type SignedIn } from './identity-rule.ts'
 import { watchCall, type CallWatch, type Interruption } from './watch.ts'
 
 export type PipelineAccess = Readonly<{
   registry: RegistryForPipeline
   identity: AccessIdentity
   graceMs: number
+  tenantScope?: (tenant: string) => Scope
   frameQueueBytes: number
   availabilityBacklog: number
   clock?: Clock
@@ -122,6 +124,10 @@ export function admit(
   const key = { name: address.protocol, major: address.major }
   const entered = registry.enter(key, address.name)
   if (!('refused' in entered)) return { kind: 'entered', address, entered }
+  return refusedBy(address, entered)
+}
+
+function refusedBy(address: Address, entered: Refusal): Admission {
   return {
     kind: 'refused',
     status: 404,
@@ -131,6 +137,42 @@ export function admit(
     notExecuted: entered.refused,
     ...(entered.by !== undefined && { by: entered.by }),
   }
+}
+
+/** A protocol the deployment does not have may be the caller's tenant's own: asked again in that scope only once the login may act for it. */
+async function ownAdmission(
+  req: IncomingMessage,
+  first: Admission,
+  access: PipelineAccess,
+): Promise<Admission | undefined> {
+  const { tenantScope } = access
+  if (first.kind !== 'refused' || first.notExecuted !== 'not-mounted') return undefined
+  const proof = proofOf(req)
+  const tenant = tenantOf(req)
+  if (tenantScope === undefined || first.address === undefined) return undefined
+  if (proof === undefined || tenant === undefined) return undefined
+  try {
+    const login = await access.identity.identifyLogin(proof)
+    if (login.outcome !== 'identified') return undefined
+    const acting = await access.identity.actFor(login.login, tenant)
+    if (acting.outcome !== 'issued') return undefined
+  } catch {
+    return undefined
+  }
+  const { address } = first
+  const key = { name: address.protocol, major: address.major }
+  const entered = access.registry.enter(key, address.name, tenantScope(tenant))
+  if (!('refused' in entered)) return { kind: 'entered', address, entered }
+  return entered.refused === 'not-mounted' ? undefined : refusedBy(address, entered)
+}
+
+async function admitFor(
+  req: IncomingMessage,
+  access: PipelineAccess,
+  loopback: string,
+): Promise<Admission> {
+  const first = admit(req, access.registry, loopback)
+  return (await ownAdmission(req, first, access)) ?? first
 }
 
 const NOT_EXECUTED_CODE = {
@@ -431,7 +473,7 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
   }
 
   async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    const admission = admit(req, access.registry, settings.loopback)
+    const admission = await admitFor(req, access, settings.loopback)
     if (admission.kind === 'refused') {
       diagnose(eventOf(admission.code, admission.path, admission.address, admission.by))
       return refuse(res, admission)

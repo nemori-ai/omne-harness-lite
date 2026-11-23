@@ -339,7 +339,29 @@ describe('contributions the point refuses', () => {
     expect(() =>
       point.contribute({ ...contribution('tool'), display: { title: 't', summary: '' } }),
     ).toThrow(TypeError)
+    expect(() =>
+      point.contribute({
+        ...contribution('tool'),
+        display: { title: 't', summary: 's', authoring: '' },
+      }),
+    ).toThrow(/category display is incomplete/)
     expect(point.list()).toEqual([])
+  })
+
+  it('keeps what the owner says to whoever writes one by hand, and leaves it out when the owner says nothing', () => {
+    const point = createCategoryPoint()
+    const authoring = 'tool.json, whole:\n{}'
+    point.contribute({
+      ...contribution('tool'),
+      display: { title: 't', summary: 's', authoring },
+    })
+    point.contribute(contribution('note'))
+    expect((point.describe('tool') as CategoryListing).display).toEqual({
+      title: 't',
+      summary: 's',
+      authoring,
+    })
+    expect((point.describe('note') as CategoryListing).display).not.toHaveProperty('authoring')
   })
 
   it('copies a deep schema and rejects a cycle', () => {
@@ -364,5 +386,43 @@ describe('contributions the point refuses', () => {
       }),
     ).toThrow(/schema could not be copied/)
     expect(point.lookup('cycle')).toBeUndefined()
+  })
+})
+
+describe('which category a point is the point of', () => {
+  it('gives the listing of the category that named it', () => {
+    const point = createCategoryPoint()
+    point.contribute(contribution('tool'))
+    point.contribute(contribution('note'))
+    expect(point.atPoint('note.items')).toBe(point.describe('note'))
+  })
+
+  it('answers nothing for a point no category named', () => {
+    const point = createCategoryPoint()
+    point.contribute(contribution('tool'))
+    expect(point.atPoint('shell.tokens')).toBeUndefined()
+  })
+
+  it('says the category is unusable when two categories name the point', () => {
+    const point = createCategoryPoint()
+    point.contribute(contribution('gadget'))
+    point.contribute({ ...contribution('widget'), point: 'gadget.items' })
+    expect(point.atPoint('gadget.items')).toMatchObject({ unusable: 'conflict' })
+  })
+
+  it('says the category is unusable when it is contributed twice', () => {
+    const point = createCategoryPoint()
+    point.contribute(contribution('tool'))
+    point.contribute(contribution('tool'))
+    expect(point.atPoint('tool.items')).toMatchObject({ category: 'tool', unusable: 'conflict' })
+  })
+
+  it('says unread for any point when the contributions cannot be read', () => {
+    const view = categoryViewOf(() => ({ kind: 'unavailable', detail: 'the tree is gone' }))
+    expect(view.atPoint('tool.items')).toEqual({
+      category: '',
+      unusable: 'unread',
+      detail: 'the tree is gone',
+    })
   })
 })

@@ -102,3 +102,107 @@ sequenceDiagram
 客户端读到一次表之后报一份全量：每份有了结局的 Plugin 的状态与原因，这棵树上声明了的点与部位。之后状态动了或树变了再报；和服务端上一次收下的相同就不报；没被收下的下一次再报。
 
 服务端只记现在连着的客户端：客户端开着「要装的」那条观察就算在，最后一条观察结束，它报的就去掉；不在的客户端报的不记。读回报与别的操作一样先核登录可为那个租户行事。
+
+## F-PL07 发布一份 Plugin
+
+对应 PL-I14、PL-I15。
+
+agent 在工作区写好一个目录，可以先问 `OmneExtensions impact category=plugin dir=<目录>`：它只读清单，列出这一份会往哪些点放什么、哪些放不上、会和同一个租户的另一份撞在哪个键上。再用 `publish` 发布。人从资产页发布，走的是同一个发布服务。
+
+```mermaid
+sequenceDiagram
+  participant A as agent
+  participant T as OmneExtensions
+  participant R as 资产的发布
+  participant C as Plugin 类别
+  participant K as 成员指向的类别
+  participant L as 两棵树的装载方
+  A->>T: publish category=plugin dir
+  T->>R: 带操作标识发布这个目录
+  R->>C: 判这份包
+  C->>C: 清单读得懂 包对得上清单
+  loop 每个指向一个类别的点的成员
+    C->>K: 只看得见那个子目录的读口 或这一项数据
+    K-->>C: 合格 或说出原因
+  end
+  alt 有一个不合格 或类别不可用
+    C-->>A: 整份不发 原因指到成员
+  else 都合格
+    R-->>A: 已发布 在持
+    R-->>L: 这个租户的资产变了
+    L->>L: 重算要装的 照状态表走一步
+  end
+```
+
+发布按操作标识幂等，结果不知道时用同一个标识认回。启用、禁用、移除同样经 `OmneExtensions` 或资产页。禁用就是这个租户不再要它：两棵树的装载方都卸下它。
+
+## F-PL08 服务端为一个租户装一份 Plugin
+
+对应 PL-I15、PL-I17、PL-I18。
+
+```mermaid
+sequenceDiagram
+  participant A as 资产
+  participant L as 这个租户的回路
+  participant F as 底
+  participant P as 这一份的 fiber
+  participant R as 服务端的登记表
+  A-->>L: 这个租户的资产变了
+  L->>A: 这个租户在持并启用的 Plugin
+  L->>L: 取清单里 server 一段 照状态表走一步
+  L->>F: 要装这一份
+  L->>P: 开一个 fiber plugin:名字@版本
+  P->>R: 在这个租户的范围里钉住 needs 写的口
+  alt 有一个口不在
+    P-->>L: 装失败 原因写明缺哪几个
+  else 都钉住了
+    P->>P: 逐个核成员 取代码成员的文件 核摘要 导入 调导出
+    P->>R: 在这个租户的范围里一起放上去
+    R-->>L: 放上了 或说出不收的原因
+  end
+  L->>F: 这一份有了结局
+```
+
+- 每个租户各一个回路。一个租户的 Plugin 装失败或被底停掉，不改别的租户的。
+- 代码成员的导出被调时只拿到 `{ ports }`。它交回的东西由那个点的客人写法做成那个点的一项；没有客人写法的点不收。
+- 类别的点上的目录成员放成那个类别在持的一项，带 `within`。读它的一方分不出它来自一份 Plugin。
+- 有一个成员不成，这一份什么都不放，原因指到成员。
+- 服务在装的时候连着倒下到了上限，下一次起来那几份不装，诊断写明租户与停掉的几份。换一版或不再被要才放开。有序的停止不算倒下。
+
+## F-PL09 调一个租户的 Plugin 挂的协议
+
+对应接入层的 I-20，PL-I18。
+
+```mermaid
+sequenceDiagram
+  participant U as 客户端
+  participant E as 入口
+  participant I as 身份
+  participant G as 客人写法做成的一项
+  participant H as Plugin 的处理函数
+  participant O as 口
+  participant D as 出借口的领域
+  U->>E: 调用 带登录证明与行事租户
+  E->>E: 整个部署这一层 没挂
+  E->>I: 认得这个登录吗 为这个租户签发主体
+  alt 认得 签发得了
+    E->>E: 按这个租户的范围再问一次登记表
+    E->>G: 输入与这次调用者的主体
+    G->>O: 用这次调用者的主体打开钉住的口
+    G->>H: 输入与这次调用的口 不带主体
+    H->>O: 一份数据
+    O->>D: 以这次调用者的名义调已有的入口
+    D->>D: 照自己的规矩判
+    D-->>O: 结果
+    O-->>H: 一份数据
+    H-->>G: 答复
+    G->>O: 关上这次调用的口
+    G-->>E: 答复
+  else 没登录 为别的租户行事 或签发不了
+    E-->>U: not-mounted 与协议不存在时逐字节相同
+  end
+```
+
+- 问不问第二次只看调用者自己的证明，与别的租户挂了什么无关。
+- 处理函数返回或抛出之后，这次调用的口答 `closed`。Plugin 把口存下来，过后用它什么都调不到。
+- 处理函数答的不在结果里时，读答 `basis-unavailable`，写答 `unknown`；抛出也是。

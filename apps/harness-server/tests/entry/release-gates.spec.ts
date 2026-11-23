@@ -51,6 +51,12 @@ const EXPECTED: Readonly<
     ['report', 'auto', ['report']],
   ],
   SwitchWorkspace: [['invoke', 'ask', []]],
+  OmneExtensionPoints: [['read', 'auto', ['help', 'tree', 'find', 'show', 'changes']]],
+  OmneExtensions: [
+    ['read', 'auto', ['help', 'categories', 'list', 'show', 'impact', 'result']],
+    ['change', 'auto', ['publish', 'enable', 'disable', 'remove']],
+    ['export', 'auto', ['export']],
+  ],
   Screen: [
     ['read', 'auto', ['help']],
     ['observe', 'ask', ['screens', 'capture']],
