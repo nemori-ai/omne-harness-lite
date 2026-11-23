@@ -131,6 +131,7 @@ export abstract class ShellService extends Service implements ShellSlots {
   private readonly watchers = new Set<Watcher>()
   private readonly required = new Map<string, Readonly<Record<string, Reference>>>()
   private readonly adoptionWatchers = new Set<() => void>()
+  private readonly fell = new Set<string>()
   private readonly changeWatchers = new Set<() => void>()
   private read:
     | Readonly<{ registry: Registry; tenant: string | undefined; changes: Changes }>
@@ -293,6 +294,20 @@ export abstract class ShellService extends Service implements ShellSlots {
     const made = adoptOn(registry, references)
     this.adopted.of.set(module, made)
     return made
+  }
+
+  fallen(): readonly string[] {
+    return Array.from(this.fell).sort()
+  }
+
+  markStart(module: string, outcome: 'started' | 'threw' | 'gone'): void {
+    const before = this.fell.size
+    if (outcome === 'threw') this.fell.add(module)
+    else this.fell.delete(module)
+    if (outcome === 'threw')
+      this.ctx.logger.warn(`shell: the module ${module} threw while it started`)
+    if (this.fell.size === before) return
+    for (const listener of Array.from(this.adoptionWatchers)) listener()
   }
 
   offer<T>(key: ServiceKey<T>, value: NoInfer<T>): void {
@@ -469,6 +484,17 @@ function lacking(shell: ShellService): ShellService {
   })
 }
 
+function started<T>(shell: ShellService, module: string, apply: () => T): T {
+  try {
+    const back = apply()
+    shell.markStart(module, 'started')
+    return back
+  } catch (error) {
+    shell.markStart(module, 'threw')
+    throw error
+  }
+}
+
 function turnOf(definition: NeedsModule, bound: object, whole: boolean): Plugin.Object {
   return {
     name: definition.name,
@@ -478,7 +504,9 @@ function turnOf(definition: NeedsModule, bound: object, whole: boolean): Plugin.
         if (whole) ctx.shell.offer(key, value)
       }
       const shell = whole ? ctx.shell : lacking(ctx.shell)
-      const back = definition.apply(shell, bound as BoundOf<Record<string, Need>>, provide)
+      const back = started(ctx.shell, definition.name, () =>
+        definition.apply(shell, bound as BoundOf<Record<string, Need>>, provide),
+      )
       if (back !== undefined) ctx.effect(() => back, 'ui-module.apply')
     },
   }
@@ -514,6 +542,7 @@ function followAdoption(ctx: Context, definition: NeedsModule, bound: object): v
     return () => {
       gone = true
       stop()
+      shell.markStart(definition.name, 'gone')
     }
   }, 'ui-module.adoption')
   settle()
