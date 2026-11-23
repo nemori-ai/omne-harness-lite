@@ -12,7 +12,9 @@ import {
 } from '@omne-harness/shell-contract'
 import { ShellService } from '@omne-harness/shell-contract/cordis'
 import { Arranged, Attached } from './attached.tsx'
+import { Drawn } from './drawn.tsx'
 import { lackOf, type Lack, type LackSlot, type Standing } from './lacks.ts'
+import { shellParts } from './parts.ts'
 import type { ShellState } from './state.ts'
 
 const SLOT_NAMES: readonly SlotName[] = ['gate', 'pages', 'sidebar', 'attached']
@@ -24,6 +26,8 @@ export class DesktopShell extends ShellService {
   readonly scope: ScopeSource
   private readonly state: ShellState
   private problems: ReadonlySet<string> = new Set()
+  private unsound: ReadonlySet<string> = new Set()
+  private readonly watching = (listener: () => void): (() => void) => this.watchChanges(listener)
   private standing: Standing = UNTOLD
   private readonly lackWatchers = new Set<() => void>()
 
@@ -32,6 +36,7 @@ export class DesktopShell extends ShellService {
     this.state = state
     this.login = state.login
     this.scope = state.scope
+    this.declareOwn(shellParts.map(part => part.declaration))
     ctx.effect(() => state.slots.bind(this), 'desktop-shell.slots')
     for (const slot of SLOT_NAMES)
       ctx.effect(
@@ -39,6 +44,9 @@ export class DesktopShell extends ShellService {
         'desktop-shell.conflicts',
       )
     ctx.on('dynamis-cordis/changed', registry => this.reportProblems(registry))
+    ctx.on('dynamis-cordis/changed', () => this.restyle())
+    ctx.effect(() => state.scope.subscribe(() => this.rescoped()), 'desktop-shell.sheet')
+    this.restyle()
     ctx.effect(
       () =>
         state.lacks.bind({
@@ -84,6 +92,28 @@ export class DesktopShell extends ShellService {
       stop()
       this.lackWatchers.delete(listener)
     }
+  }
+
+  protected override knowsToken(name: string): boolean {
+    return this.state.knowsToken(name)
+  }
+
+  private rescoped(): void {
+    this.rescope()
+    this.restyle()
+  }
+
+  private restyle(): void {
+    const { css, refused, conflicts } = this.changes()
+    this.state.sheet.set(css)
+    const said = [
+      ...refused.map(
+        out => `${out.point} ${out.key} put by ${out.by} does not count: ${out.reason}`,
+      ),
+      ...conflicts.map(out => `${out.point} ${out.key} is put two ways by ${out.by.join(', ')}`),
+    ]
+    for (const text of said) if (!this.unsound.has(text)) this.ctx.logger.warn(`shell: ${text}`)
+    this.unsound = new Set(said)
   }
 
   /** A point nobody declared, or one declared twice, shows nothing: the log says which point. */
@@ -138,6 +168,19 @@ export class DesktopShell extends ShellService {
       scope: this.state.scope,
       anchor,
       subject,
+    })
+  }
+
+  protected override fallingBack<D>(
+    pick: () => D | undefined,
+    put: (drawing: D) => ReactNode,
+    fallback: () => ReactNode,
+  ): ReactNode {
+    return createElement(Drawn<D & object>, {
+      watch: this.watching,
+      pick: pick as () => (D & object) | undefined,
+      put,
+      fallback,
     })
   }
 

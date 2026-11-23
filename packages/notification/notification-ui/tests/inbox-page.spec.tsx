@@ -143,6 +143,44 @@ describe('the inbox page', () => {
     expect(title.classList.contains('notification-title')).toBe(true)
   })
 
+  it('P0 each part of the page is on its own element', async () => {
+    await shown([
+      entry('e1', 1),
+      entry('d1', 2, { marks: done }),
+      entry('old', 3, { marks: superseded }),
+    ])
+    const on = (name: string) => document.querySelectorAll(`[data-omne-part="${name}"]`)
+    expect(on('notification.page')).toHaveLength(1)
+    expect(on('notification.page')[0]?.classList.contains('notification-page')).toBe(true)
+    expect(on('notification.page.filter')[0]?.classList.contains('notification-scope')).toBe(true)
+    expect(on('notification.page.group')).toHaveLength(2)
+    expect(on('notification.row')).toHaveLength(3)
+    expect(on('notification.row')[0]?.tagName).toBe('LI')
+    expect(on('notification.row.title')[0]?.textContent).toBe('Title e1')
+    expect(on('notification.row.actions')).toHaveLength(3)
+    expect(on('notification.row.actions')[0]?.classList.contains('notification-actions')).toBe(true)
+    expect(on('notification.row.detail')).toHaveLength(0)
+  })
+
+  it('P0 the body of an opened notification is the detail part', async () => {
+    const { fake } = await shown([entry('e1', 1)])
+    await click(screen.getByRole('button', { name: 'Title e1' }))
+    await answer(fake, 'read-notification', {
+      outcome: 'succeeded',
+      body: view(entry('e1', 1), 'Line one'),
+    })
+    const on = document.querySelectorAll('[data-omne-part="notification.row.detail"]')
+    expect(on).toHaveLength(1)
+    expect(on[0]?.classList.contains('notification-detail')).toBe(true)
+  })
+
+  it('P0 a page for a tenant it cannot read still carries the page part', async () => {
+    const fake = createFakeClient()
+    render(<InboxPage hub={new InboxHub({ client: fake.client })} tenant="not a tenant" />)
+    await settle()
+    expect(document.querySelectorAll('[data-omne-part="notification.page"]')).toHaveLength(1)
+  })
+
   it('says in one short line what the page is, and puts everything under the header in one reading column', async () => {
     const { rendered } = await shown([entry('e1', 1)])
     const header = rendered.container.querySelector('header')!

@@ -29,6 +29,7 @@ it('S3 the member reads only its own protocol, the client side of access and the
     '@omne-harness/sdk/core',
     '@omne-harness/shell-contract/cordis',
     '@omne-harness/ui-kit',
+    '@omne-harness/ui-kit/layers.css',
   ])
   const imports = code.flatMap(({ text }) =>
     [...text.matchAll(/(?:from|import)\s+'([^']+)'/g)]

@@ -28,6 +28,7 @@ import { useConflicts, useSlot, useWatched } from './hooks.ts'
 import { Item } from './item.tsx'
 import { bindRegionKeys } from './keys.ts'
 import { lackText, type Lack, type LackSlot } from './lacks.ts'
+import { shellApp, shellGate, shellWorkspace, shellWorkspacePage } from './parts.ts'
 import { pressSeat, useSeatedHome } from './seats.ts'
 import {
   NarrowNavigation,
@@ -166,7 +167,7 @@ function Gate(props: { state: ShellState; connectivity: Connectivity }) {
   const seat = useRef<HTMLDivElement>(null)
   const lacks = useLacks(props.state)('gate', gate?.id ?? '')
   return (
-    <div className="shell-gate">
+    <div className="shell-gate" {...shellGate.props}>
       <div ref={seat}>
         <FigureSeat name="gate" className="shell-gate-seat" />
       </div>
@@ -197,7 +198,13 @@ function Outside(props: {
   missing: readonly string[]
 }) {
   return (
-    <main id="shell-content" className="shell-outside" data-keyboard-region="main" tabIndex={-1}>
+    <main
+      id="shell-content"
+      className="shell-outside"
+      data-keyboard-region="main"
+      tabIndex={-1}
+      {...shellApp.props}
+    >
       <div className="shell-drag-strip" aria-hidden="true" />
       {props.connectivity === 'disconnected' ? (
         <LoadingState className="shell-reconnecting" label={RECONNECTING_TEXT} />
@@ -248,7 +255,7 @@ function Workspace(props: SidebarProps & { missing: readonly string[] }) {
   useEffect(() => state.told.room(room), [state.told, room])
   useEffect(() => () => state.told.room(false), [state.told])
   return (
-    <div className="app-shell">
+    <div className="app-shell" {...shellApp.props}>
       {wide ? (
         <Sidebar
           {...props}
@@ -263,6 +270,7 @@ function Workspace(props: SidebarProps & { missing: readonly string[] }) {
       <main
         id="shell-content"
         className="shell-workspace"
+        {...shellWorkspace.props}
         data-keyboard-region="main"
         tabIndex={-1}
         inert={!wide && covered}
@@ -276,6 +284,7 @@ function Workspace(props: SidebarProps & { missing: readonly string[] }) {
             <section
               key={page.id}
               className="shell-page"
+              {...shellWorkspacePage.props}
               aria-label={page.title}
               data-page={page.id}
               hidden={page.id !== shown}

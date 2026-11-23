@@ -1,6 +1,7 @@
 @import '@omne-harness/ui-kit/styles.css';
 @source '.';
 
+@layer omne-builtin {
 .specimen-family {
   display: grid;
   gap: var(--omne-space-block);
@@ -62,4 +63,5 @@
   max-width: calc(var(--spacing) * 185);
   margin: 0 auto;
   padding: calc(var(--spacing) * 8) calc(var(--spacing) * 1.5);
+}
 }

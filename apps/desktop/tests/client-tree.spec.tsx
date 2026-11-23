@@ -2,7 +2,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import { serverPointsContract } from '@omne-harness/client-assembly'
 import { deployment, render, tree } from '@omne-harness/dynamis'
-import type { ShellLogin } from '@omne-harness/shell-contract'
+import { partsOn, type ShellLogin } from '@omne-harness/shell-contract'
 import { servePoint, serveProtocol } from '@omne-harness/shell-contract/testing'
 import { expect, it, vi } from 'vitest'
 import { assembly } from '../src/page/assembly.tsx'
@@ -27,7 +27,7 @@ const settle = async (): Promise<void> => {
   await new Promise(resolve => setTimeout(resolve, 0))
 }
 
-async function clientTree() {
+async function clientRegistry() {
   const root = new Context()
   await root.plugin(DynamisService)
   await root.plugin(shellPlugin(createShellState(login)))
@@ -39,10 +39,12 @@ async function clientTree() {
   for (const protocol of assembly.protocols) await serveProtocol(root, protocol, silent())
   for (const module of assembly.modules) await root.plugin(module)
   await settle()
-  return tree(root.dynamis.registry(), deployment)
+  return root.dynamis.registry()
 }
 
-it('桌面装配的整棵客户端树：三个外壳位置与 13 个界面拓展点都声明了，问题一栏是空的（FE-I39）', async () => {
+const clientTree = async () => tree(await clientRegistry(), deployment)
+
+it('桌面装配的整棵客户端树：三个外壳位置与 16 个界面拓展点都声明了，问题一栏是空的（FE-I39）', async () => {
   const client = await clientTree()
   expect(client.problems).toEqual([])
   await expect(`${render(client.root)}\n`).toMatchFileSnapshot('./client-tree.txt')
@@ -59,6 +61,7 @@ it('每个点由一个宿主声明，点的名字以宿主开头', async () => {
   expect(points.toSorted()).toEqual([
     'assets.category',
     'assets.category-page',
+    'assets.control',
     'assets.governance',
     'assets.holding',
     'connection.protocols',
@@ -66,18 +69,23 @@ it('每个点由一个宿主声明，点的名字以宿主开头', async () => {
     'dynamis.points',
     'human-intervention.release-detail',
     'model.choices',
+    'notification.entry',
     'notification.inbox-sections',
-    'session.block',
     'session.block-reads-source',
+    'session.block-render',
     'session.call-detail',
     'session.composer-attachments',
     'session.composer-intake',
     'session.dock',
     'session.side',
     'session.status',
+    'session.tool-call',
     'shell.gate',
+    'shell.layout',
     'shell.pages',
+    'shell.parts',
     'shell.sidebar',
+    'shell.tokens',
     'usage.presentation',
     'usage.widget',
     'workspace.choices',
@@ -126,4 +134,26 @@ it('树上每出现一个问题，外壳往日志里记一条错误，同一个�
   await stray('other', 'y')
   const problems = logged.mock.calls.map(([text]) => text).filter(text => text.includes('ghost'))
   expect(problems).toEqual(['shell: the point ghost.point has a problem (stray): forgetful'])
+})
+
+it('桌面装配出的全部部位钉住：每个名字只有一种声明，上一级都声明了（FE-I41）', async () => {
+  const registry = await clientRegistry()
+  const read = partsOn(registry)
+  if (read.kind !== 'read') throw new Error(`the parts cannot be read: ${read.reason}`)
+  expect(read.conflicts).toEqual([])
+  const names = new Set(read.parts.map(part => part.name))
+  const orphans = read.parts.filter(part => part.within !== null && !names.has(part.within))
+  expect(orphans.map(part => `${part.name} is inside ${part.within}`)).toEqual([])
+  const lines = read.parts.map(part =>
+    [
+      part.name,
+      part.label,
+      part.summary,
+      part.within ?? '–',
+      part.depths.join(' '),
+      part.when ?? '一直在',
+      part.by.join(' '),
+    ].join(' | '),
+  )
+  await expect(`${lines.join('\n')}\n`).toMatchFileSnapshot('./client-parts.txt')
 })

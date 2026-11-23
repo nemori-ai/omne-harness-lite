@@ -1,6 +1,7 @@
 @import '@omne-harness/ui-kit/styles.css';
 @source '.';
 
+@layer omne-builtin {
 html,
 body {
   overflow: hidden;
@@ -118,4 +119,5 @@ body {
 .ink-panel-more {
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-lead);
+}
 }

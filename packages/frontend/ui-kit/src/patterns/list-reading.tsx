@@ -3,6 +3,7 @@ import { useRef } from 'react'
 import { Input } from '../controls/input.tsx'
 import { CloseIcon, SearchIcon } from '../icons/index.ts'
 import { cn } from '../lib/utils.ts'
+import { type DataAttributes } from './ai/data-attributes.ts'
 import { GlideMenu } from './ai/glide-menu.tsx'
 import { IconButton } from './icon-button.tsx'
 import { PageHeader } from './page-header.tsx'
@@ -15,7 +16,8 @@ export function ListReadingPage({
   detail,
   className,
   children,
-}: {
+  ...data
+}: DataAttributes & {
   readonly title: React.ReactNode
   readonly titleId?: string
   readonly description?: React.ReactNode
@@ -25,7 +27,7 @@ export function ListReadingPage({
   readonly children: React.ReactNode
 }): React.JSX.Element {
   return (
-    <div className={cn('list-reading', className)} data-detail={detail}>
+    <div {...data} className={cn('list-reading', className)} data-detail={detail}>
       <PageHeader
         title={title}
         {...(titleId !== undefined && { titleId })}
@@ -64,14 +66,15 @@ export function ListReadingDirectory({
   filters,
   className,
   children,
-}: {
+  ...data
+}: DataAttributes & {
   readonly search?: React.ReactNode
   readonly filters?: React.ReactNode
   readonly className?: string
   readonly children: React.ReactNode
 }): React.JSX.Element {
   return (
-    <div className={cn('list-reading-directory', className)}>
+    <div {...data} className={cn('list-reading-directory', className)}>
       {search}
       {filters !== undefined && <div className="list-reading-filters">{filters}</div>}
       <GlideMenu className="list-reading-list">{children}</GlideMenu>
@@ -132,7 +135,8 @@ export function ListReadingRow({
   onSelect,
   id,
   className,
-}: {
+  ...data
+}: DataAttributes & {
   readonly title: React.ReactNode
   readonly mark?: React.ReactNode
   readonly facts?: React.ReactNode
@@ -144,6 +148,7 @@ export function ListReadingRow({
 }): React.JSX.Element {
   return (
     <button
+      {...data}
       type="button"
       id={id}
       data-control="row"
@@ -167,11 +172,16 @@ export function ListReadingRow({
 export function ListReadingMain({
   className,
   children,
-}: {
+  ...data
+}: DataAttributes & {
   readonly className?: string
   readonly children: React.ReactNode
 }): React.JSX.Element {
-  return <div className={cn('list-reading-main', className)}>{children}</div>
+  return (
+    <div {...data} className={cn('list-reading-main', className)}>
+      {children}
+    </div>
+  )
 }
 
 export function ReadingToolbar({

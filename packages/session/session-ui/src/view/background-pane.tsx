@@ -26,6 +26,7 @@ import {
 import type { BackgroundCallItem, BackgroundCallsStore } from '../model/background-calls.ts'
 import { SideFrameContext } from './side-frame.tsx'
 import { SidePanel, type SideEntry } from './side-panel.tsx'
+import { sessionSideBackgroundCall } from '../parts.ts'
 
 export const BACKGROUND_CALLS = 'background-calls'
 
@@ -83,7 +84,12 @@ function CallRow({
     })
   }
   return (
-    <li className="omne-background-call" data-call={call.id} data-status={call.status}>
+    <li
+      className="omne-background-call"
+      {...sessionSideBackgroundCall.props}
+      data-call={call.id}
+      data-status={call.status}
+    >
       <div className="omne-background-call-row">
         <DisclosureTrigger
           open={open}

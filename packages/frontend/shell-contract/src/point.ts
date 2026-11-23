@@ -1,6 +1,6 @@
-import type { Contract } from '@omne-harness/dynamis'
+import { ask, type Contract, type Registry, type Scope } from '@omne-harness/dynamis'
 import type { ReactNode } from 'react'
-import { pointContract } from './placement.ts'
+import { drawingContract, pointContract } from './placement.ts'
 import type { AttachedItem, AttachedLayout } from './slots.ts'
 
 export type PointCodec<S> = Readonly<{
@@ -96,4 +96,93 @@ export function defineKeyedPoint<S>(declaration: PointDeclaration<S>): KeyedPoin
     contribute: (shell, key, item) =>
       shell.contribute('attached', attachedItem(codec, anchorOf(key), item)),
   }
+}
+
+/** What a drawing put on a key is given: the tenant, what the host shows, and the drawing it stands in for. */
+export type KeyDrawing<S> = Readonly<{
+  scope: string | undefined
+  subject: S
+  generic: () => ReactNode
+}>
+
+export type KeyRender<S = never> = (given: KeyDrawing<S>) => ReactNode
+
+export type RenderPutter = Readonly<{
+  putDrawing: (point: string, key: string, render: KeyRender, scope?: Scope) => () => unknown
+}>
+
+export type RenderDrawer = Readonly<{
+  drawnAt: (
+    point: string,
+    key: string,
+    subject: unknown,
+    generic: () => ReactNode,
+    frame?: (drawn: ReactNode) => ReactNode,
+  ) => ReactNode
+}>
+
+export type RenderPointSink<S> = Readonly<{
+  name: string
+  put: (shell: RenderPutter, key: string, render: KeyRender<S>, scope?: Scope) => () => unknown
+}>
+
+export type PublicKeys = Readonly<{ keys: (point: string) => readonly string[] | undefined }>
+
+/** The keys a point draws by: any, those the server tells now, or not known while they cannot be read. */
+export type PointKeys =
+  | Readonly<{ kind: 'any' }>
+  | Readonly<{ kind: 'told'; keys: readonly string[] }>
+  | Readonly<{ kind: 'unavailable' }>
+
+export type RenderPoint<S> = RenderPointSink<S> &
+  Declared &
+  Readonly<{
+    keysFrom: string | null
+    keys: (server: PublicKeys | undefined) => PointKeys
+    draw: (
+      shell: RenderDrawer,
+      key: string,
+      subject: S,
+      generic: () => ReactNode,
+      frame?: (drawn: ReactNode) => ReactNode,
+    ) => ReactNode
+  }>
+
+export type RenderPointDeclaration = Readonly<{
+  name: string
+  key: string
+  summary: string
+  keysFrom?: string
+}>
+
+function keysOf(from: string | null, server: PublicKeys | undefined): PointKeys {
+  if (from === null) return { kind: 'any' }
+  const keys = server?.keys(from)
+  return keys === undefined ? { kind: 'unavailable' } : { kind: 'told', keys }
+}
+
+/** A point whose host draws by key: what is put on the key, or the host's generic drawing. */
+export function defineRenderPoint<S>(declaration: RenderPointDeclaration): RenderPoint<S> {
+  const { name, key, summary } = declaration
+  const keysFrom = declaration.keysFrom ?? null
+  return {
+    name,
+    keysFrom,
+    keys: server => keysOf(keysFrom, server),
+    ...declared(drawingContract({ name, key, summary })),
+    put: (shell, key, render, scope) => shell.putDrawing(name, key, render, scope),
+    draw: (shell, key, subject, generic, frame) =>
+      shell.drawnAt(name, key, subject, generic, frame),
+  }
+}
+
+/** The drawing that stands on one key of a point for one asker; none when nothing does. */
+export function drawingOn(
+  registry: Registry,
+  point: string,
+  key: string,
+  asker: Scope,
+): KeyRender | undefined {
+  const answer = ask<Readonly<{ render: KeyRender }>>(registry, point, key, asker)
+  return answer.kind === 'one' ? answer.entry.item.render : undefined
 }

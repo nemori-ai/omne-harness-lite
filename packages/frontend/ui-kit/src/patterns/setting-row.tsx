@@ -1,4 +1,5 @@
 import { cn } from '../lib/utils.ts'
+import { type DataAttributes } from './ai/data-attributes.ts'
 
 export function SettingRow({
   label,
@@ -8,7 +9,8 @@ export function SettingRow({
   notice,
   className,
   children,
-}: {
+  ...data
+}: DataAttributes & {
   readonly label: React.ReactNode
   readonly labelId?: string
   readonly controlId?: string
@@ -18,7 +20,7 @@ export function SettingRow({
   readonly children?: React.ReactNode
 }): React.JSX.Element {
   return (
-    <div className={cn('setting-row', className)}>
+    <div {...data} className={cn('setting-row', className)}>
       <div className="setting-row-text">
         {controlId === undefined ? (
           <p id={labelId} className="setting-row-label">

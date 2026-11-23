@@ -7,8 +7,10 @@ import { Fragment } from 'react'
 import { assetGovernanceKey, governancePort } from './governance-port.ts'
 import { createCategoryNames } from './model/category-names.ts'
 import { createGovernance } from './model/governance.ts'
-import { assetsCategory, assetsCategoryPage, assetsHolding } from './model/points.ts'
+import { assetsCategory, assetsCategoryPage, assetsControl, assetsHolding } from './model/points.ts'
+import { assetsParts } from './parts.ts'
 import { AssetsPage } from './view/assets-page.tsx'
+import { ControlDrawContext } from './view/control-draw.ts'
 import { boundRow } from './view/setting-row.tsx'
 import { SettingsPage } from './view/settings-page.tsx'
 
@@ -25,10 +27,12 @@ export const assetsUiModule = defineUiModule({
     server: needPoint<ServerPoints>(CONNECTION_SERVER_POINTS),
   },
   apply(shell, { assets: client, server }, provide) {
-    for (const point of [assetsCategoryPage, assetsCategory, assetsHolding]) point.declare(shell)
+    for (const part of assetsParts) part.declare(shell)
+    for (const point of [assetsCategoryPage, assetsCategory, assetsHolding, assetsControl])
+      point.declare(shell)
     const governance = createGovernance({ client })
     const categoryNames = createCategoryNames(client, server.get())
-    provide(assetGovernanceKey, governancePort(governance, boundRow))
+    provide(assetGovernanceKey, governancePort(governance, boundRow(shell)))
     shell.contribute('pages', {
       id: 'assets',
       title: '资产',
@@ -36,16 +40,18 @@ export const assetsUiModule = defineUiModule({
       icon: 'resource',
       render: ({ scope }) =>
         scope === undefined ? null : (
-          <AssetsPage
-            governance={governance}
-            tenant={scope}
-            categoryNames={categoryNames}
-            categorySlot={category => assetsCategory.slot(shell, category, { category }, inOrder)}
-            holdingSlot={(category, name) =>
-              assetsHolding.slot(shell, category, { category, name }, inOrder)
-            }
-            pages={layout => assetsCategoryPage.slot(shell, {}, layout)}
-          />
+          <ControlDrawContext.Provider value={shell}>
+            <AssetsPage
+              governance={governance}
+              tenant={scope}
+              categoryNames={categoryNames}
+              categorySlot={category => assetsCategory.slot(shell, category, { category }, inOrder)}
+              holdingSlot={(category, name) =>
+                assetsHolding.slot(shell, category, { category, name }, inOrder)
+              }
+              pages={layout => assetsCategoryPage.slot(shell, {}, layout)}
+            />
+          </ControlDrawContext.Provider>
         ),
     })
     shell.contribute('pages', {
@@ -55,11 +61,16 @@ export const assetsUiModule = defineUiModule({
       icon: 'settings',
       group: 'utility',
       render: ({ scope }) =>
-        scope === undefined ? null : <SettingsPage client={client} tenant={scope} />,
+        scope === undefined ? null : (
+          <ControlDrawContext.Provider value={shell}>
+            <SettingsPage client={client} tenant={scope} />
+          </ControlDrawContext.Provider>
+        ),
     })
   },
 })
 
+export { assetsParts } from './parts.ts'
 export { assetGovernanceKey, type AssetGovernance, type CategoryView } from './governance-port.ts'
 export type {
   AssetEntry,
@@ -71,10 +82,13 @@ export type { Holding } from './model/holdings.ts'
 export {
   ASSETS_CATEGORY,
   ASSETS_CATEGORY_PAGE,
+  ASSETS_CONTROL,
   ASSETS_HOLDING,
   assetsCategory,
   assetsCategoryPage,
+  assetsControl,
   assetsHolding,
+  type AssetsControlSubject,
   type AssetsPageSubject,
   type CategorySubject,
   type HoldingSubject,

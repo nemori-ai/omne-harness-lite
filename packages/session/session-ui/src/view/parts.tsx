@@ -10,12 +10,18 @@ import {
   TraceHeader,
   type Icon,
 } from '@omne-harness/ui-kit'
+import type { PartProps } from '@omne-harness/shell-contract'
 import { memo, useContext, useId, useState, type ReactNode } from 'react'
-import type { Item, Part } from '../model/conversation.ts'
+import { toolCallState, type Item, type Part } from '../model/conversation.ts'
 import { isRecord, type Plain } from '../model/plain.ts'
-import { BlockSlotContext } from './block-slot.ts'
-
-type ToolCallPart = Extract<Part, { kind: 'tool-call' }>
+import { BlockSlotContext, ToolCallSlotContext, type ToolCallPart } from './block-slot.ts'
+import { PartDrawContext } from './part-draw.ts'
+import {
+  sessionTranscriptAgentMessage,
+  sessionTranscriptReasoning,
+  sessionTranscriptToolCall,
+  sessionTranscriptUserMessage,
+} from '../parts.ts'
 
 /** A process line (`TraceRow` family): icon, name, state word, unfolding in place; quiet, the figure speaks. */
 function ProcessLine({
@@ -25,18 +31,20 @@ function ProcessLine({
   live = false,
   light = false,
   children,
+  partProps,
 }: {
   readonly icon?: Icon
   readonly name: ReactNode
   readonly word?: ReactNode
   readonly live?: boolean
   readonly light?: boolean
+  readonly partProps?: PartProps
   readonly children: ReactNode
 }) {
   const [open, setOpen] = useState(false)
   const region = useId()
   return (
-    <div className="omne-process" data-weight={light ? 'light' : undefined}>
+    <div className="omne-process" data-weight={light ? 'light' : undefined} {...partProps}>
       <TraceHeader
         state={live ? 'live' : 'settled'}
         quiet
@@ -183,8 +191,10 @@ function Result({ parts }: { readonly parts: readonly Part[] }) {
 
 /** A tool result carries no outcome, so the transcript knows of no failed call. */
 function toolWord(part: ToolCallPart): Readonly<{ word: ReactNode; live: boolean }> {
-  if (part.result !== null) return { word: <StateWord state="completed" />, live: false }
-  if (part.ended) return { word: <span className="omne-process-word">没有结果</span>, live: false }
+  const state = toolCallState(part)
+  if (state === 'completed') return { word: <StateWord state="completed" />, live: false }
+  if (state === 'no-result')
+    return { word: <span className="omne-process-word">没有结果</span>, live: false }
   return { word: <StateWord state="working" />, live: true }
 }
 
@@ -197,6 +207,7 @@ function ToolCall({ part }: { readonly part: ToolCallPart }) {
       name={<code className="omne-process-name">{part.name ?? '（名字还没生成）'}</code>}
       word={word}
       live={live}
+      partProps={sessionTranscriptToolCall.props}
     >
       {part.raw === null ? (
         <Arguments value={part.arguments} />
@@ -211,6 +222,12 @@ function ToolCall({ part }: { readonly part: ToolCallPart }) {
   )
 }
 
+function DrawnToolCall({ part }: { readonly part: ToolCallPart }) {
+  const slot = useContext(ToolCallSlotContext)
+  const generic = (): ReactNode => <ToolCall part={part} />
+  return slot === null ? generic() : slot(part, generic)
+}
+
 function Reasoning({ text, live }: { readonly text: string; readonly live: boolean }) {
   return (
     <ProcessLine
@@ -218,6 +235,7 @@ function Reasoning({ text, live }: { readonly text: string; readonly live: boole
       name="推理"
       word={<StateWord state={live ? 'thinking' : 'completed'} />}
       live={live}
+      partProps={sessionTranscriptReasoning.props}
     >
       <div className="omne-process-reading">
         <Prose text={text} isAnimating={live} />
@@ -236,7 +254,9 @@ function MediaPart({ part }: { readonly part: Extract<Part, { kind: 'media' }> }
       〔{part.media}〕{part.detail}
     </p>
   )
-  return slot === null || part.source === null ? placeholder : slot(part.source, placeholder)
+  return slot === null || part.source === null
+    ? placeholder
+    : slot(part.media, part.source, placeholder)
 }
 
 function BubblePart({ part, live }: { readonly part: Part; readonly live: boolean }) {
@@ -257,7 +277,7 @@ function LinePart({ part, live }: { readonly part: Part; readonly live: boolean 
     case 'thinking':
       return <Reasoning text={part.text} live={live} />
     case 'tool-call':
-      return <ToolCall part={part} />
+      return <DrawnToolCall part={part} />
     case 'tool-result':
       return (
         <ProcessLine
@@ -329,6 +349,23 @@ export function speakerOf(item: Item): 'user' | 'agent' | undefined {
   return item.kind === 'note' ? 'agent' : undefined
 }
 
+const messagePart = (role: string): typeof sessionTranscriptUserMessage =>
+  role === 'user' ? sessionTranscriptUserMessage : sessionTranscriptAgentMessage
+
+function Message({ item }: { readonly item: Extract<Item, { kind: 'message' }> }) {
+  const drawer = useContext(PartDrawContext)
+  const part = messagePart(item.role)
+  const content = <Parts parts={item.parts} live={item.live} bubble />
+  const builtIn = (): ReactNode => (
+    <article className="omne-message" data-role={item.role} data-live={item.live} {...part.props}>
+      <span className="omne-message-speaker">{SPEAKER[item.role]}</span>
+      {content}
+    </article>
+  )
+  if (drawer === null) return builtIn()
+  return part.draw(drawer, builtIn, { role: item.role, live: item.live === true, content })
+}
+
 export const ItemView = memo(function ItemView({
   item,
   failed = false,
@@ -339,12 +376,7 @@ export const ItemView = memo(function ItemView({
 }) {
   switch (item.kind) {
     case 'message':
-      return (
-        <article className="omne-message" data-role={item.role} data-live={item.live}>
-          <span className="omne-message-speaker">{SPEAKER[item.role]}</span>
-          <Parts parts={item.parts} live={item.live} bubble />
-        </article>
-      )
+      return <Message item={item} />
     case 'note':
       return (
         <ProcessLine name={item.label} light>

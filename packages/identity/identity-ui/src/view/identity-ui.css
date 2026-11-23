@@ -1,3 +1,6 @@
+@import '@omne-harness/ui-kit/layers.css';
+
+@layer omne-builtin {
 .identity-login {
   width: 100%;
   max-width: var(--omne-measure-decision);
@@ -53,4 +56,5 @@
   width: var(--omne-nav-row-height);
   height: var(--omne-nav-row-height);
   border-radius: var(--omne-radius-pill);
+}
 }

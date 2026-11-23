@@ -61,7 +61,15 @@
 | 墨迹：Agent 形、形座位、一程、墨框、告知笺 | `src/ink/` |
 | 图表：堆叠柱、折线、面积、占比条、读数表、迷你图、数字块，与数字的格式化 | `src/charts/` |
 
-成员导出一个根入口、一份汇总样式 `./styles.css`、字体 `./fonts/*`。汇总样式按次序引入 token、字体、基线、动效、图标、控件与通用件的样式和 Markdown 的样式，并带 `@source`，让用它的应用在构建时扫到成员的类名。
+成员导出一个根入口、一份汇总样式 `./styles.css`、层的次序 `./layers.css`、字体 `./fonts/*`。汇总样式按次序引入 token、字体、基线、动效、图标、控件与通用件的样式和 Markdown 的样式，并带 `@source`，让用它的应用在构建时扫到成员的类名。
+
+#### 样式的层
+
+- 界面的每一条样式规则都在层叠层里。次序只写在一处，`src/styles/layers.css`：Tailwind 自己的层（`properties`、`theme`、`base`、`components`、`utilities`），自带的一层 `omne-builtin`，改动的一层 `omne-changes`。
+- 共用件、每个界面模块、应用页面的样式都在 `omne-builtin` 里。汇总样式把它引入的每一份放进这一层；界面模块与应用的样式文件自己先引入 `@omne-harness/ui-kit/layers.css`，再把全部规则写在 `@layer omne-builtin` 里。
+- 自带的样式只用一层，不按共用件、模块、应用分开。共用件的悬停、按下、选中这套状态规则靠选择器的优先级压过各处的底色规则；分成几层之后层的先后压过优先级，上层的一条底色声明会让下层的状态失效。
+- `omne-changes` 是最后一层，自带的样式不往里写。放在它里面的规则盖过自带的，不用提高选择器的优先级；拿掉之后自带的原样回来。
+- 不在任何层里的规则比所有层都优先，所以层外不许有规则（FE-I40）。
 
 #### 页的骨架
 
@@ -81,6 +89,8 @@
 | `ReadingDocument({ children })` | 阅读面里滚动的文档，阅读量度，居中 | — |
 | `ReadingState({ children })` | 阅读面空闲时的那一句话，放一个 `EmptyState`，没有别的 | — |
 | `SettingRow({ label, labelId?, controlId?, hint?, notice?, children? })` | 设置行：左边是名字与一句弱墨的说明，右边是值或控件，这一行自己的失败通知在整行下面。行与行之间一条细线，最后一行不画 | 1100 及以上两半并排，控件靠右；1100 以下两半叠起，控件回到左边。没有值或控件时只有左边 |
+
+骨架的六个件（`ListReadingPage`、`ListReadingDirectory`、`ListReadingRow`、`ListReadingMain`、`Section`、`SettingRow`）把调用方给的 `data-*` 属性带到自己的根元素上，类型是 `DataAttributes`，和折叠件、状态标是同一种写法；件自己写的 `data-*` 不被盖掉。界面模块靠它把部位的名字挂到这些件的根上。
 
 ### 图表
 
@@ -138,7 +148,7 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 
 | 入口 | 内容 |
 | --- | --- |
-| `.` | 运行时有十样：常量表 `slots`、外壳自己三个位置的规矩 `shellContracts`、错误 `ShellAssemblyError`、声明带类型的拓展点的两个函数 `definePoint` 与 `defineKeyedPoint`、造带类型的键的 `serviceKey`、写需要的 `needProtocol` 与 `needPoint`、跟读口的 `attachWhile`、协议的需要指着的点名 `PROTOCOLS_POINT`（另有瞬时提示与形口的两个工厂，见各自一节）。其余是类型：带类型的键 `ServiceKey`，一处冲突 `SlotConflict`，四种位置的一项 `GateItem`、`PageItem`、`SidebarItem`、`AttachedItem`，位置名 `SlotName`，按位置取项的类型 `ItemOf`，渲染函数的属性 `GateProps`、`ScopedProps`、`AttachedProps`，宿主排版时拿到的一项 `AttachedEntry` 与排版函数 `AttachedLayout`，带类型的拓展点的类型（见「带类型的拓展点」），外壳一侧读位置的接口 `ShellSlots`，租户的形状 `ScopeSource`，登录的端口 `ShellLogin`、登录状态 `ShellLoginState`、凭据与结果 `LoginCredentials`、`LoginResult`、`LogoutResult` |
+| `.` | 运行时有二十三样：常量表 `slots`、外壳自己三个位置的规矩 `shellContracts`、错误 `ShellAssemblyError`、声明带类型的拓展点的两个函数 `definePoint` 与 `defineKeyedPoint`、声明按键选画法的点的 `defineRenderPoint`、声明部位的 `definePart` 与它的核法 `partFault`、读现在声明着哪些部位的 `partsOn`、部位的点名 `PARTS_POINT` 与元素上的属性名 `PART_ATTRIBUTE`、令牌、样式、画法与布局的点名 `TOKENS_POINT`、`STYLE_POINT`、`RENDER_POINT`、`LAYOUT_POINT`、算改动的 `changesOn`、值的核法 `valueFault`、租户的作用域 `tenantScope`、造带类型的键的 `serviceKey`、写需要的 `needProtocol` 与 `needPoint`、跟读口的 `attachWhile`、协议的需要指着的点名 `PROTOCOLS_POINT`（另有瞬时提示与形口的两个工厂，见各自一节）。其余是类型：带类型的键 `ServiceKey`，一处冲突 `SlotConflict`，四种位置的一项 `GateItem`、`PageItem`、`SidebarItem`、`AttachedItem`，位置名 `SlotName`，按位置取项的类型 `ItemOf`，渲染函数的属性 `GateProps`、`ScopedProps`、`AttachedProps`，宿主排版时拿到的一项 `AttachedEntry` 与排版函数 `AttachedLayout`，带类型的拓展点的类型（见「带类型的拓展点」），外壳一侧读位置的接口 `ShellSlots`，租户的形状 `ScopeSource`，登录的端口 `ShellLogin`、登录状态 `ShellLoginState`、凭据与结果 `LoginCredentials`、`LoginResult`、`LogoutResult` |
 | `./cordis` | 服务 `shell` 的抽象类 `ShellService`、它的键 `shellKey`、界面模块的助手 `defineUiModule` 与它的类型 `UiModuleDefinition`、提供服务的函数类型 `Provide`。根入口的源码闭包不含 Cordis 绑定 |
 | `./testing` | 给界面模块的用例用的参考外壳 `ReferenceShell`，与起一棵带登记表和外壳的树的 `startShell`、`startShellOf(外壳的类, 可选的配置)`。它只存不画。另有像连接与别的模块那样往树上放东西的帮手：`serveProtocol(根, 协议, 客户端)`、`servePoint(根, 规矩, 一项)`、`provideOn(根, 键, 值)`，各返回一个 fiber，撤掉它就是收回；它们的插件形是 `protocolsPoint`、`servedProtocol`、`servedPoint`。`providedOn(外壳, 键)` 读一个键下现在提供的值 |
 
@@ -253,6 +263,75 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 - 编解码由宿主交进来。薄壳不导入任何协议契约，也不导入 Cordis：它要的外壳写成三个结构类型，`PointContributor`（有 `contribute`）、`PointHost`（有 `arranged`）与 `PointDeclarer`（有 `declare`），服务 `shell` 三样都满足。
 - 贡献方不导入宿主的界面模块。宿主从自己的 `./cordis` 入口导出拓展点，应用的装配把它交给贡献方。贡献方只要贡献的一面，类型是 `PointSink<S>` 或 `KeyedPointSink<S>`，并用自己要的对象形状写 `S`。宿主的对象比它宽时可以交过去；对不上时，在应用的装配处编译不过。
 
+#### 按键选画法的点
+
+同一类东西按种类各有各的画法时（一种工具的调用、一种来源的通知、一种内容块），宿主用 `defineRenderPoint<S>({ name, key, summary })` 声明一个点：有人在这个键上放了画法就画它，没有就画宿主自己通用的那一份。所以每个键都画得出东西，新的种类一出现就看得见。
+
+- 它是登记表上自己的一个点，不经附着位置：每键一项，一项是 `{ render }`，同一个键上作用域最深的一项算数。整个部署的作用域是空的，一个租户放的只有这个租户看得到（见「改一个部位的样子」里的「谁算数」）。
+- 宿主在 `apply` 里调一次 `point.declare(外壳)`，画的时候调 `point.draw(外壳, 键, 对象, 通用的画法, 可选的外框)`。贡献方调 `point.put(外壳, 键, 画法, 作用域)`，返回撤掉它的函数；放它的模块卸载时也跟着撤掉。
+- 画法收到三样：`scope` 是外壳当前的租户文本，`subject` 是宿主给的对象（类型是 `S`，不编成文本），`generic` 是宿主通用的画法，一个函数，画法可以包着它画。
+- 画一个键，全部情形：
+
+  | 这个键上 | 画什么 |
+  | --- | --- |
+  | 没有画法 | 通用的 |
+  | 有一份算数的 | 这一份；给了外框时，外框包着它 |
+  | 算数的那一份抛出 | 通用的，不带外框；别的键不受影响 |
+  | 同一层有两份 | 通用的；树上这两项标着冲突 |
+  | 放的不是函数 | 通用的 |
+  | 宿主没有声明这个点 | 通用的 |
+
+- 落回只有一处：`ShellService` 的受保护方法 `fallingBack(取画法, 画, 落回)`。部位的画法与按键的画法都经它。抽象类里的那一份接住调用时抛出的；外壳的实现重写它，把渲染当中才抛出的也接住，并在登记表或租户变了时重画。桌面应用里是一层错误边界，画法换了一份就重新试。
+- 外壳要的面写成两个结构类型：贡献方要 `RenderPutter`（有 `putDrawing`），宿主要 `RenderDrawer`（有 `drawnAt`），服务 `shell` 两样都满足。贡献方只拿贡献的一面 `RenderPointSink<S>`（名字与 `put`），由应用的装配交给它。
+- 键从哪来写在声明里：声明带 `keysFrom`（服务端树上一个公开键的点的名字）时，这个点的键就是那个点现在的键，客户端不另抄一份。`point.keys(连接说的)` 给出三种之一：`any`（没写 `keysFrom`，什么键都行）、`told`（服务端现在说的那些键）、`unavailable`（读不到：没有连接说的，或对方没说这个点）。读不到不是空。「连接说的」写成结构类型 `PublicKeys`（有 `keys(点名)`），客户端装配放在 `connection.server-points` 上的那一项满足它。放画法不核键：键不在服务端说的里面，画法照样放得上，宿主画到这个键时就用它。
+- 这个点上的条目不是附着位置的项：`shell.items('attached')` 只收放一列的点上的项。
+- 现有的五个：放行卡的详情（`human-intervention.release-detail`，键是带种类的值的种类）、消息里的内容块（`session.block-render`，键是块的种类）、工具调用（`session.tool-call`，键是工具的名字，取自服务端的 `tool.tools`）、通知的一行（`notification.entry`，键是来源的名字，取自服务端的 `notification.sources`）、设置项的控件（`assets.control`，键是值的种类）。各自给画法什么、通用的是什么，写在宿主所在包组的规格里。
+
+#### 部位
+
+部位是界面上说得出名字的一样东西：一个按钮、一块区域、一行。名字用来指它，改它的样子靠的就是这个名字。
+
+- 界面模块用 `definePart({ name, label, summary, within, depths })` 声明一个部位，在 `apply` 里 `part.declare(shell)`，画它的元素上写 `{...part.props}`（就是 `data-omne-part="<名字>"`，属性名是常量 `PART_ATTRIBUTE`）。`data-slot` 照旧标组件的种类，两样互不相干。属性不叫 `data-part`：共用件的墨迹已经用它标一笔的各段，别的界面库也常用这个名字。
+- 名字的形状：`<宿主>.<区域>`、`<宿主>.<区域>.<部位>`，至多四段，用点隔开；每段是小写字母、数字、连字符，字母开头。宿主是声明它的界面模块的名字去掉末尾的 `-ui`，和这个模块的拓展点用同一个前缀。名字说它是什么，不说它在哪、长什么样。
+- `label` 是给人看的叫法，`summary` 是一句说明，两样都不能空。`within` 是上一级部位的名字，可以不写，可以是别的模块的部位；一个部位不能在自己里面。`depths` 写它开哪几种改法：`tokens`、`style`、`render`，可以一种都不开，不能重复。
+- 不合这些规矩的声明当场抛 `ShellAssemblyError`（原因 `invalid`，写明是哪一条），这个模块放的东西整份不出现（FE-I38）。核法是纯函数 `partFault(声明, 宿主)`：合规矩答 `null`，否则答一句原因。
+- 外壳自己的部位在 `shell` 下（整个应用是 `shell.app`），由外壳的实现调 `ShellService` 的受保护方法 `declareOwn(声明的列表)` 声明；界面模块不能在 `shell` 下声明。
+- 只在某种状态下才画出来的部位，在声明里用 `when` 写一句是什么时候（例如「一轮在跑时」）；一直在的不写。
+- 声明进客户端登记表上的点 `shell.parts`：每键一项，键是部位的名字，一项是数据（叫法、说明、上一级、开了哪几种）。这个点由外壳声明，运行中能变。模块卸载，它声明的部位跟着取走。
+- 同一个名字的两份声明内容相同算同一个部位；内容不同是冲突：这个名字不代表任何部位，两个模块都列出来。`partsOn(登记表)` 按名字给出现在声明着的部位与冲突；点没有声明时答读不出，不答空表。
+- 列表里重复出现的东西是一个部位，不是很多个。名字是承诺：改名是换一个部位，旧名字上的改动不再生效。
+- 元素上的名字只经 `part.props` 写。共用件、界面模块与页面的源码和样式里不手写这个属性，自带的样式也不按它选元素（FE-I41）。
+- 名字只挂在已有的元素上，不为了挂名字加包裹的元素。一个位置的根是共用件时，靠那个共用件把调用方给的 `data-*` 带到自己的根上（见上面「页的骨架」）；不带的共用件画的位置没有名字：各处的分段选择、提示条、导航旁的数字、图表、告知笺现在是这样。
+- 应用装配出的全部部位钉在 `apps/desktop/tests/client-parts.txt`：名字、叫法、说明、上一级、开了哪几种、什么时候画出来、谁声明的。改一个名字就是改这份清单。
+
+#### 改一个部位的样子
+
+样子的改动是放在登记表上的条目，键是部位的名字。改法有三种：令牌、样式、画法。外壳把现在算数的令牌与样式变成一张样式表，写在 `omne-changes` 这一层里；条目撤掉，下一次生成里就没有它，自带的样子原样回来。页面的次序另有一个点，写在本节末尾。
+
+- 第一种改法是令牌：点 `shell.tokens`，每键一项，键取自 `shell.parts`，一项是数据 `{ tokens: { 令牌名: 值 } }`。`shell.putTokens(部位, 令牌, 作用域)` 放一项，返回撤掉它的函数；放它的模块卸载时也跟着撤掉。
+- 写到哪：键是 `shell.app` 的，写成页面根上的自定义属性；别的部位，写在带着这个名字的元素上（`[data-omne-part="<名字>"]`），所以只有那一块和它里面的东西读到新值。
+- 谁算数：同一个键上作用域最深的一项。整个部署的作用域是空的；一个租户放的是 `['tenant', 租户]`（`tenantScope(租户)`），只有这个租户看得到，没登录时谁的都看不到。同一层有两项内容不同是冲突：两项都不算数，自带的样子显示，两家都列出来。
+- 自带的那一份：外壳在 `shell.app` 上放一项空的、标着 `builtIn` 的条目，作用域是整个部署。树上因此看得出整个应用现在是谁的样子。值不搬进条目，仍在 `tokens.css`。所以整个部署这一层再往 `shell.app` 上放一项，是和自带的冲突。
+- 不合规矩的条目不算数，并说出原因，更浅的一层里合规矩的那一项照常算数：
+  - 键不是声明过的部位，或那个部位没有开 `tokens`；
+  - 令牌名不是界面的令牌。界面的令牌由外壳的实现说了算（`knowsToken`）；桌面应用里是 `--omne-` 开头、页面根上有值的名字；
+  - 值不是文字，是空的，或有不许有的东西。
+- 值是数据，里面没有能执行、能引外部东西的写法。值里只许有字母、数字、空格与 `# % . , ( ) + * / _ -`；只许调用 `var`、`calc`、`min`、`max`、`clamp` 与写颜色的函数（`rgb`、`rgba`、`hsl`、`hsla`、`hwb`、`lab`、`lch`、`oklab`、`oklch`、`color`、`color-mix`、`light-dark`）。所以 `url(`、`@`、分号、花括号、尖括号、引号、反斜杠、`!` 都进不来。核法是纯函数 `valueFault(值)`。
+- 第二种改法是样式：点 `shell.part-style`，每键一项，键取自 `shell.parts`，一项是数据 `{ style: { base, hover, focus-visible, active, selected, open, disabled } }`，每一格是一组「属性: 值」，哪一格都可以不写。`shell.putStyle(部位, 样式, 作用域)` 放一项，返回撤掉它的函数。谁算数、冲突、撤掉，和令牌相同。
+- 样式写在带着这个部位名字的元素上；`shell.app` 写在页面的根上。每一格一条规则，状态用固定的选择器：`hover`、`focus-visible`、`active` 是同名的伪类；`selected` 是 `aria-selected`、`data-selected`、`aria-current="page"`、`aria-pressed` 为真，或 `data-state` 是 `active`、`checked`；`open` 是 `data-state="open"` 或 `aria-expanded` 为真；`disabled` 是 `:disabled`、`aria-disabled` 为真或带 `data-disabled`。规则按这个先后写出，所以几种状态同时成立时后面的盖过前面的，`disabled` 最后。
+- 样式不合规矩的情形：部位没有开 `style`；状态不是这六种之一；属性名不是小写字母与连字符（以 `--` 开头的是令牌，要放到 `shell.tokens`）；值过不了上面那一条值的核法。不合规矩的一项整份不算数。
+- 改动的那一层盖过自带的全部规则，包括共用件的状态规则：给一个部位写了平常的底色而没有写悬停的，悬停时显示的就是平常的那个。要悬停时不一样，就把 `hover` 那一格也写上。
+- 第三种改法是画法：点 `shell.part-render`，每键一项，键取自 `shell.parts`，一项是 `{ render }`，`render` 是一个渲染函数。`shell.putRender(部位, 画法, 作用域)` 放一项，返回撤掉它的函数。谁算数、撤掉，和令牌相同；同一层有两份画法就是冲突，两份都不算数。
+- 开了 `render` 的部位由声明它的模块经 `part.draw(外壳, 自带的画法, 给画法的东西)` 画。没有算数的画法时给出自带的画法的结果。有时调那份画法，给它三样：`props` 是模块给的东西，类型是 `definePart<P>` 的 `P`；`part` 是要写在根元素上的名字，就是 `part.props`；`builtIn` 是自带的画法，一个函数，画法可以包着它画。
+- 画法抛出时，这个部位落回自带的画法，别的部位不受影响。调用时抛出的由 `shell.drawn` 落回；外壳的实现重写 `drawn`，把渲染当中才抛出的也落回。
+- 画法不合规矩的情形：键不是声明过的部位；部位没有开 `render`；`render` 不是函数。外壳自己的部位不开 `render`：声明里写了的当场抛 `ShellAssemblyError`。
+- 页面的次序是一份布局：点 `shell.layout`，每键一项，键只有 `shell.pages`，一项是数据 `{ order: [页面的标识, …] }`。`shell.putLayout('shell.pages', 次序, 作用域)` 放一项，返回撤掉它的函数。谁算数、冲突、撤掉，和令牌相同。
+- 布局里写到的页面排在前面，照布局的先后；没写到的照各模块给的次序排在后面；写到而不在的标识略过。`shell.items('pages')` 给出的是排过的次序，次序变了照常通知订阅者。没有算数的布局时是各模块给的次序。布局只排页面，别的位置不动。
+- 布局不合规矩的情形：键不是 `shell.pages`；次序里有一项不是文字或是空的；同一个标识写了两次。
+- `changesOn(登记表, 发问者的作用域, 认不认得这个令牌)` 是纯函数，给出样式表的文字、算数的画法（按部位）与布局（按键）、每个键上现在是谁、不算数的各项与原因、冲突的各项。`shell.changes()` 按外壳正在显示的租户问它；登记表与租户都没变时给出同一份。点没有声明时给出空的一层，不抛出。
+- `shell.watchChanges(监听)` 在登记表变了、或外壳显示的租户变了时通知，返回停止的函数。租户变了由外壳的实现调受保护的 `rescope()` 告诉抽象类：页面的次序与改动都照新的租户重算。
+- 桌面应用把这张表作为可构造的样式表挂在页面自己的样式之后；登记表或租户一变就重写。不算数的与冲突的各写一行警告。开了画法的部位画在一层错误边界里，画法换了就重画。
+
 #### 界面模块
 
 `defineUiModule({ name, needs, apply })` 返回一个 Cordis 插件。它只依赖 `shell`：外壳在它就加载，外壳不在时不加载。
@@ -337,3 +416,11 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 | FE-I37 | 每个抬起的件连同它的投影与焦点环的余地，都在裁切它的每个祖先的可见范围里；件本身滚出视野的不算 | 钮与字段贴着容器的边被切掉边线与投影，看起来像坏了 | 判法的用例 `apps/desktop/tests/raised-edges.spec.ts`；观感走查 `apps/desktop/demo/visual-walk.mjs` 每张截图核一次 |
 | FE-I38 | 一个模块放的东西整份出现、整份消失：`apply` 里放的各项在它就绪时一起可见，`apply` 抛错的模块放的东西从不出现；一个位置的项没变时读到的是同一个数组，别的位置的变化不通知它的订阅者 | 界面闪出半截的页面；一处变了，全部订阅者重画 | `shell-contract/tests/contribute.spec.ts` 的「shows all a module put at once」「shows nothing of a module whose apply throws」「gives the same array」；`dynamis-cordis/tests/service.spec.ts` |
 | FE-I39 | 应用装配出的客户端树上，外壳的三个位置与每个界面拓展点都由它的宿主声明进了目录，树的问题一栏是空的；往没有声明的点上放东西不生效，并在问题一栏写出这个点 | 一个点没有声明，放在上面的东西不出声地不见了 | `apps/desktop/tests/client-tree.spec.tsx` 与它钉住的树 `apps/desktop/tests/client-tree.txt` |
+| FE-I40 | 共用件、装配进来的每个界面模块与应用页面的每一条样式规则都在层里；层的次序只写在一处，改动的那一层在最后 | 一条规则落在层外，它盖过所有的层，放进改动那一层的东西对它不生效 | `apps/desktop/tests/design-gates/layers.spec.ts` |
+| FE-I41 | 元素上部位的名字只经声明过的部位的 `props` 写；应用装配出的部位里每个名字只有一种声明，写了上一级的，上一级也声明了 | 手写的名字没有声明，指着它的改动没有东西可核；同名两种声明时这个名字不代表任何部位 | `apps/desktop/tests/design-gates/parts.spec.ts`；`apps/desktop/tests/client-tree.spec.tsx` 与它钉住的清单 `apps/desktop/tests/client-parts.txt` |
+| FE-I42 | 同一个键上作用域最深的一项算数；它撤掉之后，下一层的那一项或自带的样子原样回来，别的键不受影响 | 撤掉一份改动之后界面回不到原来的样子 | `shell-contract/tests/tokens.spec.ts`、`part-style.spec.ts`、`part-render.spec.ts`、`layout.spec.ts` 里撤掉与换租户的各条；`apps/desktop/tests/shell-changes.spec.tsx` |
+| FE-I43 | 令牌与样式的条目是数据：值里没有能执行、能引外部东西的写法，令牌名是界面的令牌，状态只在那六种里 | 一份「样式」带进了外部的地址或别的规则，改样子成了执行东西的口 | `shell-contract/tests/tokens.spec.ts` 与 `part-style.spec.ts` 里不合规矩的各条 |
+| FE-I44 | 往没开这种改法的部位、或没有声明的名字上放的条目不算数，外壳的答案里写明是谁放的与原因；外壳自己的部位不开画法 | 一份改动不出声地不生效，放它的人不知道为什么 | `shell-contract/tests/part-render.spec.ts` 的「a part that does not open render…」与「the shell does not open render…」；`tokens.spec.ts`、`part-style.spec.ts` 里没开这种改法的各条 |
+| FE-I45 | 部位的画法与按键的画法只经一处落回：没有算数的画法、同一层有两份、或画法抛出时，画自带的或宿主通用的，别的部位与别的键不受影响 | 一份坏的画法让一块界面空白或整页读不出 | `shell-contract/tests/part-render.spec.ts`、`render-point.spec.ts`；`apps/desktop/tests/shell-changes.spec.tsx`（渲染当中抛出的）；`apps/desktop/tests/release-detail-assembly.spec.tsx` |
+| FE-I46 | 按键选画法的点，键取自服务端的事实时只经 `keysFrom` 与 `point.keys` 读，客户端不另抄一份；读不到答读不到，不答空 | 客户端抄的一份键与服务端的对不上；读不到被当成一个都没有 | `shell-contract/tests/render-point.spec.ts` 的「a point whose keys the server tells…」；`apps/harness-server/tests/rows/notification/source-keys-on-the-wire.spec.ts` |
+| FE-I47 | 附着位置只收放一列的点上的项；每键一项的点上的条目不在里面 | 画法的条目混进附着位置的清单，放一份画法惊动附着位置的订阅者 | `shell-contract/tests/render-point.spec.ts` 的「what is put on it is not an item of an attached place」；`part-render.spec.ts` 的同名一条 |

@@ -2,6 +2,7 @@ import { Disclosure } from '@omne-harness/ui-kit'
 import { useCallback, useEffect, useSyncExternalStore } from 'react'
 import { refused } from '../model/notices.ts'
 import type { SessionWorkStore } from '../model/session-work.ts'
+import { sessionQueue } from '../parts.ts'
 
 const because = (outcome: string): string =>
   outcome === 'unavailable' ? '连不上服务。' : refused(outcome, '').text
@@ -38,7 +39,7 @@ export function SessionWork({
   if (pending.kind === 'unread' || (pending.kind === 'read' && pending.items.length === 0))
     return null
   return (
-    <section className="omne-session-work" aria-label="排着的话">
+    <section className="omne-session-work" aria-label="排着的话" {...sessionQueue.props}>
       {pending.kind === 'unreadable' ? (
         <p className="omne-session-work-line">还排着哪些话现在读不到：{because(pending.outcome)}</p>
       ) : (

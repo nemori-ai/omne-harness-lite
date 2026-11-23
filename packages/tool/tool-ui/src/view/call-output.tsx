@@ -1,5 +1,6 @@
 import { CodeSurface, InlineNotice, LoadingState, StateWord } from '@omne-harness/ui-kit'
 import { useCallback, useSyncExternalStore } from 'react'
+import { toolCallOutput } from '../parts.ts'
 import type { CallOutputStore } from '../model/call-output.ts'
 
 /** A refusal and a result nobody knows are neutral; any other outcome is a known fact, said as a caution. */
@@ -33,7 +34,7 @@ export function CallOutput({
     case 'text':
       // The surface scrolls by itself under its header's rule; a finished output says nothing more.
       return (
-        <div role="group" aria-label="调用的输出">
+        <div role="group" aria-label="调用的输出" {...toolCallOutput.props}>
           <CodeSurface name="输出" text={view.text} />
           {view.sealed ? null : <StateWord state="outputOpen" className="mt-1" />}
         </div>

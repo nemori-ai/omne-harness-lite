@@ -1,8 +1,13 @@
 import type { TenantId } from '@omne-harness/public-contract'
 import { Button, LoadingState } from '@omne-harness/ui-kit'
-import { useEffect, useState } from 'react'
+import type { ContentBlockKind } from '@omne-harness/content-block'
+import { useEffect, useState, type ReactNode } from 'react'
 import { IMAGE_TYPES } from '../model/attachment-tray.ts'
+import { mediaFile, mediaPicture, mediaRead } from '../parts.ts'
 import { readWhole, type DisplayTarget, type MediaClient, type Reference } from '../model/upload.ts'
+
+/** The kinds of block that are not words, as both ends name them. */
+export type MediaBlockKind = Exclude<ContentBlockKind, 'text' | 'thinking'>
 
 export type MediaBlockProps = Readonly<{
   client: MediaClient
@@ -91,6 +96,7 @@ function Picture(props: MediaBlockProps & { readonly read: Read }) {
     <Button
       variant="ghost"
       className="omne-media-picture"
+      {...mediaPicture.props}
       data-whole={whole}
       aria-label={whole ? '收起' : '看原图'}
       onClick={() => setWhole(value => !value)}
@@ -112,27 +118,56 @@ function readText(read: string | undefined, kind: string): string | null {
   return read === undefined ? null : (READ[read] ?? null)
 }
 
-function MediaContent(props: MediaBlockProps) {
-  const read = readBlock(props.content)
-  if (typeof read === 'string')
-    return <p className="omne-media-line">〔{read}〕这一块的内容读不懂</p>
-  if (read.kind === 'image') return <Picture {...props} read={read} />
-  return (
-    <p className="omne-media-line">
-      〔{read.kind}〕{read.ref.mediaType} · {sizeText(read.ref.bytes)}
-    </p>
-  )
-}
+type Said = Readonly<{ kind: MediaBlockKind; modelRead: string | undefined; children: ReactNode }>
 
-/** One block of a message that is not words: a picture as a thumbnail, anything else as a line. */
-export function MediaBlock(props: MediaBlockProps) {
-  const block = readBlock(props.content)
-  const said = readText(props.modelRead, typeof block === 'string' ? block : block.kind)
-  if (said === null) return <MediaContent {...props} />
+function WithRead({ kind, modelRead, children }: Said) {
+  const said = readText(modelRead, kind)
+  if (said === null) return children
   return (
     <div className="omne-media-block">
-      <MediaContent {...props} />
-      <p className="omne-media-read">模型读的是{said}</p>
+      {children}
+      <p className="omne-media-read" {...mediaRead.props}>
+        模型读的是{said}
+      </p>
     </div>
   )
 }
+
+const unread = (kind: string) => (
+  <p className="omne-media-line" {...mediaFile.props}>
+    〔{kind}〕这一块的内容读不懂
+  </p>
+)
+
+function ImageBlock(props: MediaBlockProps) {
+  const read = readBlock(props.content)
+  return (
+    <WithRead kind="image" modelRead={props.modelRead}>
+      {typeof read === 'string' ? unread(read) : <Picture {...props} read={read} />}
+    </WithRead>
+  )
+}
+
+const lineBlock = (kind: 'file' | 'voice') =>
+  function LineBlock(props: MediaBlockProps) {
+    const read = readBlock(props.content)
+    return (
+      <WithRead kind={kind} modelRead={props.modelRead}>
+        {typeof read === 'string' ? (
+          unread(read)
+        ) : (
+          <p className="omne-media-line" {...mediaFile.props}>
+            〔{read.kind}〕{read.ref.mediaType} · {sizeText(read.ref.bytes)}
+          </p>
+        )}
+      </WithRead>
+    )
+  }
+
+/** How each kind of block that is not words is drawn: a picture as a thumbnail, a file or a voice as a line. */
+export const MEDIA_BLOCKS: Readonly<Record<MediaBlockKind, (props: MediaBlockProps) => ReactNode>> =
+  {
+    image: ImageBlock,
+    file: lineBlock('file'),
+    voice: lineBlock('voice'),
+  }

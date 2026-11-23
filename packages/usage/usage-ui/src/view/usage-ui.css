@@ -1,3 +1,6 @@
+@import '@omne-harness/ui-kit/layers.css';
+
+@layer omne-builtin {
 .usage-page {
   display: grid;
   gap: var(--omne-space-section);
@@ -139,4 +142,5 @@
 }
 .usage-percent[data-tone='caution'] {
   color: var(--omne-caution-ink);
+}
 }

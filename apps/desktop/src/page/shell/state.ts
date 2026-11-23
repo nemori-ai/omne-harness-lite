@@ -134,6 +134,8 @@ export type ShellState = {
   readonly scope: ScopeSource
   readonly page: PageChoice
   readonly notice: Watched<string | undefined>
+  readonly sheet: Watched<string> & { set(css: string): void }
+  readonly knowsToken: (name: string) => boolean
   dispose(): void
 }
 
@@ -241,6 +243,7 @@ export function createShellState(
   options: Readonly<{
     /** A line for the login gate from outside the shell, such as "the login expired". */
     notices?: (show: (text: string) => void) => () => void
+    knowsToken?: (name: string) => boolean
   }> = {},
 ): ShellState {
   const slots = slotRelay()
@@ -265,6 +268,8 @@ export function createShellState(
     scope: { get: scopeCell.get, set: scopeCell.set, subscribe: scopeCell.subscribe },
     page,
     notice: { get: notice.get, subscribe: notice.subscribe },
+    sheet: cell(''),
+    knowsToken: options.knowsToken ?? (() => false),
     dispose() {
       stopLogin()
       stopNotices?.()

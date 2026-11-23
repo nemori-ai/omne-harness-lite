@@ -3,6 +3,7 @@ import { needProtocol, type PointSink } from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import { toolProtocol, type ToolProtocol } from '@omne-harness/tool-protocol'
 import { CallOutputStore } from './model/call-output.ts'
+import { toolParts } from './parts.ts'
 import { CallOutput } from './view/call-output.tsx'
 
 export const CALL_OUTPUT_ID = 'tool-call-output'
@@ -19,6 +20,7 @@ export function createToolUiModule(options: ToolUiOptions = {}): UiModule {
     name: 'tool-ui',
     needs: { tool: needProtocol<ClientOf<ToolProtocol>>(toolProtocol) },
     apply(shell, { tool: client }) {
+      for (const part of toolParts) part.declare(shell)
       const store = new CallOutputStore(client)
       options.callDetail?.contribute(shell, {
         id: CALL_OUTPUT_ID,

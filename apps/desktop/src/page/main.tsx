@@ -7,6 +7,7 @@ import { missingAtForwarding } from '../shared/wire.ts'
 import { assembly } from './assembly.tsx'
 import { connectPageBridge, httpChannel } from './bridge.ts'
 import { watchConnectivity } from './connectivity.ts'
+import { adoptChanges, tokenOf } from './shell/changes-sheet.ts'
 import { shellPlugin } from './shell/service.ts'
 import { Shell } from './shell/shell.tsx'
 import { bindSizeKeys, storedSizePreference } from './shell/size.ts'
@@ -33,6 +34,7 @@ async function main(): Promise<void> {
   const watched = watchConnectivity(bridge.transport)
   const state = createShellState(shellLogin(bridge), {
     notices: show => bridge.onExpired(() => show(LOGIN_EXPIRED_TEXT)),
+    knowsToken: tokenOf(document),
   })
   const tree = await startClientTree({
     transport: watched.transport,
@@ -40,6 +42,7 @@ async function main(): Promise<void> {
     protocols: assembly.protocols,
   })
   await tree.install(shellPlugin(state))
+  adoptChanges(document, state.sheet)
   for (const module of assembly.modules) await tree.install(module)
   const preference = storedThemePreference(() => window.localStorage)
   const theme = createThemeController({ ...preference, system: colorSchemeQuery() })

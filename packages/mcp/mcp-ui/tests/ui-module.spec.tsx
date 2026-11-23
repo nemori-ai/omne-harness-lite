@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, beforeAll, expect, it } from 'vitest'
-import { definePoint, serviceKey, type AttachedEntry } from '@omne-harness/shell-contract'
+import { definePoint, partsOn, serviceKey, type AttachedEntry } from '@omne-harness/shell-contract'
 import { provideOn } from '@omne-harness/shell-contract/testing'
 import { createMcpUiModule, type McpGovernance } from '../src/cordis.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
@@ -82,4 +82,17 @@ it('UI4 the port absent: the module is not adopted; it comes: the page is placed
     await new Promise(resolve => setTimeout(resolve, 0))
   })
   expect(entries(shell)).toEqual([])
+})
+
+it('M4 declares its three parts', async () => {
+  const { root, shell } = await startShell()
+  await provideOn(root, governanceKey, fakeGovernance(readOf()).governance)
+  await root.plugin(mcpUiModule)
+  const read = partsOn(shell.registry())
+  expect(read.kind === 'read' && read.conflicts).toEqual([])
+  expect(read.kind === 'read' && read.parts.map(part => [part.name, part.within])).toEqual([
+    ['mcp.endpoint', 'mcp.page'],
+    ['mcp.endpoint.permission', 'mcp.endpoint'],
+    ['mcp.page', 'assets.panel'],
+  ])
 })

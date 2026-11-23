@@ -56,6 +56,7 @@ it('一轮失败之后：失败的那一行下面写成因、没处理的条数�
   const block = screen.getByRole('status', { name: '这一轮失败了' })
   expect(block.previousElementSibling?.textContent).toBe('这一轮失败了')
   expect(block.textContent).toContain('模型没有给出有效的回复。')
+  expect(block.getAttribute('data-omne-part')).toBe('session.transcript.failure')
   expect(block.textContent).toContain('还有 2 条消息没有处理')
   // The recovery leads with the retry glyph, as the reference's failure notice does (A4).
   expect(
@@ -77,7 +78,9 @@ it('失败通知：只有说事实的那一句带失败色，后面说条数与�
   const sheet = document.createElement('style')
   sheet.textContent = `:root { --omne-ink-primary: rgb(1, 2, 3); --omne-ink-muted: rgb(4, 5, 6); }
 [data-inline-notice][data-tone='danger'] { color: rgb(150, 63, 54); }
-${readFileSync(join(import.meta.dirname, '../src/view/session-ui.css'), 'utf8')}`
+${readFileSync(join(import.meta.dirname, '../src/view/session-ui.css'), 'utf8')
+  .replace(/^@import[^;]*;\s*@layer omne-builtin \{/u, '')
+  .replace(/\}\s*$/u, '')}`
   document.head.append(sheet)
   try {
     const fake = createFakeClient()

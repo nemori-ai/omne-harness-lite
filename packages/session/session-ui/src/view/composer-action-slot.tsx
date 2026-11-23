@@ -8,6 +8,7 @@ import {
 } from '@omne-harness/ui-kit'
 import { useId, useLayoutEffect, useRef } from 'react'
 import type { StopFace } from '../model/composer.ts'
+import { sessionComposerSend } from '../parts.ts'
 
 const NAME: Readonly<Record<StopFace, string>> = {
   none: '发送',
@@ -71,6 +72,7 @@ export function ComposerActionSlot({
           size="icon"
           aria-label={NAME[face]}
           data-action={face}
+          {...sessionComposerSend.props}
           disabled={disabled}
           {...(sending ? {} : { onClick: onStop, 'aria-describedby': consequence })}
         >

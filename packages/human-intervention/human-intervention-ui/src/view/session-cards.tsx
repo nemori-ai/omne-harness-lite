@@ -6,6 +6,7 @@ import type { CardsHub } from '../model/cards-hub.ts'
 import { CardArea } from './card-area.tsx'
 import { NoticeLine } from './notice.tsx'
 import { useCards, useTenant } from './use-cards.ts'
+import { humanInterventionSessionCards } from '../parts.ts'
 
 export type SessionCardsProps = Readonly<{
   hub: CardsHub
@@ -35,7 +36,12 @@ function Cards({
   const failed = state.read.kind === 'failed' ? state.read.notice : null
   if (sheet.entries.length === 0 && sheet.closed.length === 0 && failed === null) return null
   return (
-    <section className="hitl-session-cards" role="region" aria-label={SESSION_CARDS_LABEL}>
+    <section
+      className="hitl-session-cards"
+      role="region"
+      aria-label={SESSION_CARDS_LABEL}
+      {...humanInterventionSessionCards.props}
+    >
       {failed === null ? null : (
         <NoticeLine
           notice={{ kind: failed.kind, text: `这个会话的问题读不出来：${failed.text}` }}

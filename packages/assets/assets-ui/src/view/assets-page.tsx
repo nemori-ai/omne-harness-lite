@@ -4,6 +4,7 @@ import { Button, EmptyState, LoadingState, PageColumn, PageHeader } from '@omne-
 import { useEffect, useMemo, useState, type JSX, type ReactNode } from 'react'
 import type { CategoriesRead, CategoryNames } from '../model/category-names.ts'
 import type { GovernanceModel } from '../model/governance.ts'
+import { assetsPage, assetsPanel, assetsTabs, assetsTabsTab } from '../parts.ts'
 import { CategoryPage, type Extras } from './category-page.tsx'
 import { NoticeLine } from './notice.tsx'
 
@@ -65,7 +66,7 @@ export function AssetsPage(props: AssetsPageProps): JSX.Element {
   useTenantHold(props.governance, tenant)
   if (tenant === undefined)
     return (
-      <PageColumn className="assets-page">
+      <PageColumn className="assets-page" {...assetsPage.props}>
         <NoticeLine notice={{ kind: 'refused', text: '外壳给的租户读不懂，资产页不能工作。' }} />
       </PageColumn>
     )
@@ -85,7 +86,7 @@ export function AssetsPage(props: AssetsPageProps): JSX.Element {
     />
   )
   return (
-    <PageColumn className="assets-page">
+    <PageColumn className="assets-page" {...assetsPage.props}>
       <PageHeader title="资产" description="这一层：当前租户" />
       {categories.kind === 'failed' && (
         <NoticeLine notice={categories.notice} action={{ label: '重试', onClick: retry }} />
@@ -156,13 +157,19 @@ function Tabs({ entries, data, reading, chosen, choose, extras, generic }: TabsP
   const labelOf = (category: string) => contributed.get(category)?.label ?? extras.label(category)
   return (
     <div className="assets-page-body">
-      <div role="tablist" aria-label="资产的类别" className="assets-page-tabs">
+      <div
+        role="tablist"
+        aria-label="资产的类别"
+        className="assets-page-tabs"
+        {...assetsTabs.props}
+      >
         {ids.map(category => (
           <Button
             key={category}
             role="tab"
             variant="ghost"
             className="assets-page-tab"
+            {...assetsTabsTab.props}
             aria-selected={category === selected}
             data-active={category === selected}
             onClick={() => choose(category)}
@@ -181,6 +188,7 @@ function Tabs({ entries, data, reading, chosen, choose, extras, generic }: TabsP
             aria-label={labelOf(category)}
             hidden={category !== selected}
             className="assets-page-panel"
+            {...assetsPanel.props}
           >
             {page === undefined ? generic(category) : page.node}
           </section>

@@ -7,9 +7,10 @@ import { needProtocol } from '@omne-harness/shell-contract'
 import { defineUiModule, type ShellService } from '@omne-harness/shell-contract/cordis'
 import { InboxHub } from './model/inbox-hub.ts'
 import { watchStrongArrivals } from './model/strong-arrivals.ts'
-import { inboxSections } from './points.ts'
+import { inboxSections, notificationEntry } from './points.ts'
 import { InboxPage } from './view/inbox-page.tsx'
 import { UnresolvedBadge } from './view/unresolved-badge.tsx'
+import { notificationParts } from './parts.ts'
 
 export const PAGE_ID = 'notifications'
 export const PAGE_ORDER = 11
@@ -46,6 +47,7 @@ function contribute(shell: ShellService, hub: InboxHub): void {
           hub={hub}
           tenant={scope}
           sections={sectionsOf(shell)}
+          row={(entry, generic) => notificationEntry.draw(shell, entry.source, entry, generic)}
           {...(subject !== undefined && { focus: subject })}
         />
       ),
@@ -58,7 +60,9 @@ export const notificationUiModule = defineUiModule({
   needs: { notification: needProtocol<ClientOf<NotificationProtocol>>(notificationProtocol) },
   apply(shell, { notification: client }) {
     const hub = new InboxHub({ client })
+    for (const part of notificationParts) part.declare(shell)
     inboxSections.declare(shell)
+    notificationEntry.declare(shell)
     contribute(shell, hub)
     const stopArrivals = watchStrongArrivals({
       hub,

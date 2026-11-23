@@ -18,6 +18,7 @@ import {
 } from '../model/attachment-tray.ts'
 import { Recorder, type Microphone, type RecorderState } from '../model/recorder.ts'
 import type { MediaClient } from '../model/upload.ts'
+import { mediaTray, mediaTrayAttach, mediaTrayChip, mediaTrayRecord } from '../parts.ts'
 
 export type AttachmentTrayProps = Readonly<{
   client: MediaClient
@@ -143,6 +144,7 @@ function RecordButton({
         type="button"
         size="icon-compact"
         label="按住录音"
+        {...mediaTrayRecord.props}
         aria-pressed={state.kind === 'opening' || state.kind === 'recording'}
         disabled={recorder === null || state.kind === 'encoding'}
         onPointerDown={press}
@@ -173,7 +175,7 @@ type ChipProps = Readonly<{ item: Attachment; onRemove: () => void; onRetry: () 
 function Chip({ item, onRemove, onRetry }: ChipProps) {
   const retryable = item.state.kind === 'failed' && item.state.ref !== undefined
   return (
-    <li className="omne-media-chip" data-state={item.state.kind}>
+    <li className="omne-media-chip" {...mediaTrayChip.props} data-state={item.state.kind}>
       {item.preview === null ? null : <img src={item.preview} alt={`${item.name} 的预览`} />}
       <span className="omne-media-chip-name">{item.name}</span>
       <span className="omne-media-chip-status">{statusOf(item)}</span>
@@ -203,7 +205,7 @@ export function AttachmentTrayView(props: AttachmentTrayProps) {
   const input = useRef<HTMLInputElement>(null)
   useFormDrops(root, tray)
   return (
-    <div className="omne-media-tray" ref={root}>
+    <div className="omne-media-tray" {...mediaTray.props} ref={root}>
       {items.length === 0 ? null : (
         <ul className="omne-media-chips">
           {items.map(item => (
@@ -232,6 +234,7 @@ export function AttachmentTrayView(props: AttachmentTrayProps) {
         type="button"
         size="icon-compact"
         label="附加图片、语音或 PDF"
+        {...mediaTrayAttach.props}
         onClick={() => input.current?.click()}
       >
         <AttachIcon />

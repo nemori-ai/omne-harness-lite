@@ -17,7 +17,7 @@ import {
   type StateLabel,
 } from '@omne-harness/ui-kit'
 import { encodeInstant } from '@omne-harness/utc-instant'
-import { useEffect, useRef, useState, type JSX } from 'react'
+import { useEffect, useRef, useState, type JSX, type ReactNode } from 'react'
 import type { InboxDriver } from '../model/inbox-driver.ts'
 import {
   isOpen,
@@ -28,6 +28,12 @@ import {
   type Opened,
   type State,
 } from '../model/inbox-machine.ts'
+import {
+  notificationRow,
+  notificationRowActions,
+  notificationRowDetail,
+  notificationRowTitle,
+} from '../parts.ts'
 
 const NOTICE: Readonly<Record<Notice, string>> = {
   'restore-first': '这一条已经办完或划掉了，要先恢复才能改。',
@@ -116,7 +122,7 @@ function Detail({
       </InlineNotice>
     )
   return (
-    <div className="notification-detail">
+    <div className="notification-detail" {...notificationRowDetail.props}>
       <FactList>
         {view.subject === null ? null : <FactRow term="对象">{view.subject}</FactRow>}
         <FactRow term="类型">
@@ -138,6 +144,8 @@ function Detail({
   )
 }
 
+export type RowDrawer = (entry: Entry, generic: () => ReactNode) => ReactNode
+
 export type EntryRowProps = Readonly<{
   entry: Entry
   /** The source's name for people, from the catalogue; without one the row names no source. */
@@ -145,15 +153,11 @@ export type EntryRowProps = Readonly<{
   state: State
   driver: InboxDriver
   focused?: boolean
+  drawn: RowDrawer
 }>
 
-export function EntryRow({
-  entry,
-  source,
-  state,
-  driver,
-  focused = false,
-}: EntryRowProps): JSX.Element {
+export function EntryRow(props: EntryRowProps): JSX.Element {
+  const { entry, focused = false } = props
   const row = useRef<HTMLLIElement>(null)
   // Found after the first paint, so the row a person was brought to settles once even when it mounts focused.
   const [found, setFound] = useState(false)
@@ -162,13 +166,23 @@ export function EntryRow({
     if (found) row.current?.scrollIntoView({ block: 'nearest' })
   }, [found])
   useSettleCue(row, found, { disabled: !found })
+  return (
+    <li ref={row} className="notification-row" {...notificationRow.props}>
+      {props.drawn(entry, () => (
+        <RowBody {...props} />
+      ))}
+    </li>
+  )
+}
+
+function RowBody({ entry, source, state, driver }: EntryRowProps): JSX.Element {
   const key = keyOf(entry)
   const marking = state.marking[key]
   const notice = state.notices[key]
   const opened = state.opened?.key === key ? state.opened : null
   const label = stateOf(entry)
   return (
-    <li ref={row} className="notification-row">
+    <>
       <div className="notification-head" data-glide-row="">
         <span className="notification-mark">
           {isFresh(entry) ? <span className="notification-dot" aria-hidden="true" /> : null}
@@ -177,6 +191,7 @@ export function EntryRow({
           <Button
             variant="ghost"
             className="notification-title"
+            {...notificationRowTitle.props}
             aria-expanded={opened !== null}
             onClick={() => (opened === null ? driver.open(key) : driver.close())}
           >
@@ -193,7 +208,7 @@ export function EntryRow({
             )}
           </p>
         </div>
-        <span className="notification-actions">
+        <span className="notification-actions" {...notificationRowActions.props}>
           {actionsOf(entry).map(([operation, name, Glyph]) => (
             <IconButton
               key={operation}
@@ -221,6 +236,6 @@ export function EntryRow({
           {opened === null ? null : <Detail opened={opened} driver={driver} />}
         </div>
       )}
-    </li>
+    </>
   )
 }

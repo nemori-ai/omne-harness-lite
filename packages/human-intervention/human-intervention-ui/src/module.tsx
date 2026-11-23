@@ -12,6 +12,7 @@ import { DecisionsPage } from './view/decisions-page.tsx'
 import { PendingBadge } from './view/pending-badge.tsx'
 import { DetailHost, declareReleaseDetail } from './view/release-detail.tsx'
 import { SessionCards } from './view/session-cards.tsx'
+import { humanInterventionParts } from './parts.ts'
 
 export const PAGE_ID = 'decisions'
 export const PAGE_ORDER = 10
@@ -96,6 +97,7 @@ export function createHumanInterventionUiModule(
         needProtocol<ClientOf<HumanInterventionProtocol>>(humanInterventionProtocol),
     },
     apply(shell, { humanIntervention: client }) {
+      for (const part of humanInterventionParts) part.declare(shell)
       const hub = new CardsHub({ client })
       const stopFigure = reportAwaiting(shell, hub)
       declareReleaseDetail(shell)

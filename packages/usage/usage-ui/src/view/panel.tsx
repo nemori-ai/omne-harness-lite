@@ -28,6 +28,7 @@ import {
   type Width,
 } from '../model/layout.ts'
 import { RANGE_LABELS, RANGES, type RangeChoice } from '../model/range.ts'
+import { usageCard, usagePanel, usagePanelBar, usagePanelMenu } from '../parts.ts'
 import { usagePresentation, usageWidget, type WidgetSubject } from '../points.ts'
 import { ItemContext, PanelContext, type ItemValue } from './present.tsx'
 import type { UsageReads } from './reads.ts'
@@ -121,7 +122,12 @@ function CardSlot({
   const { index } = placed
   const missing = entry === undefined
   return (
-    <article className="usage-card" data-width={placed.item.width} data-widget={placed.item.widget}>
+    <article
+      className="usage-card"
+      {...usageCard.props}
+      data-width={placed.item.width}
+      data-widget={placed.item.widget}
+    >
       {missing ? (
         <p className="usage-card-note">这张卡片不可用：带来它的模块不在了。</p>
       ) : (
@@ -230,7 +236,7 @@ function PanelMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <IconButton label="更多操作" tooltipSide="bottom">
+        <IconButton label="更多操作" tooltipSide="bottom" {...usagePanelMenu.props}>
           <MoreIcon aria-hidden="true" />
         </IconButton>
       </DropdownMenuTrigger>
@@ -281,9 +287,14 @@ export function Panel({
   )
   return (
     <PanelContext.Provider value={panel}>
-      <section className="usage-panel" data-position={position} data-editing={editing}>
+      <section
+        className="usage-panel"
+        {...usagePanel.props}
+        data-position={position}
+        data-editing={editing}
+      >
         {position === 'status' ? null : (
-          <header className="usage-panel-bar">
+          <header className="usage-panel-bar" {...usagePanelBar.props}>
             <Segmented
               label="时间段"
               value={range}

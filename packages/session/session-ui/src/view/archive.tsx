@@ -22,6 +22,7 @@ import { sessionName } from '../model/session-list.ts'
 import type { SessionWorkspaces } from '../model/session-workspaces.ts'
 import { ReadOnEnd } from './read-on-end.tsx'
 import { useSession } from './use-session.ts'
+import { sessionArchived, sessionArchivedItem } from '../parts.ts'
 
 type Props = Readonly<{ store: ArchiveStore; workspaces: SessionWorkspaces; tenant: string }>
 
@@ -66,7 +67,7 @@ function ArchivedRow({
   readonly onUnarchive: () => void
 }) {
   return (
-    <li className="omne-archived-row">
+    <li className="omne-archived-row" {...sessionArchivedItem.props}>
       <span className="omne-archived-text">
         <span className="omne-archived-title">{sessionName(item)}</span>
         <span className="omne-archived-meta">
@@ -156,7 +157,7 @@ export function ArchivedSessions({ store, workspaces, tenant }: Props) {
   const [title, setTitle] = useState('')
   const [said, say] = useState<Said | null>(null)
   return (
-    <section className="omne-archived" aria-label="已归档的会话">
+    <section className="omne-archived" aria-label="已归档的会话" {...sessionArchived.props}>
       <Disclosure
         label="已归档"
         onOpenChange={open => {

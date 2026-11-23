@@ -1,3 +1,6 @@
+@import '@omne-harness/ui-kit/layers.css';
+
+@layer omne-builtin {
 .mcp-page {
   display: grid;
   gap: var(--omne-space-block);
@@ -48,4 +51,5 @@
 .mcp-permission-closed {
   margin: 0;
   color: var(--omne-ink-muted);
+}
 }

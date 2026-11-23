@@ -31,7 +31,7 @@ import { sessionName, shownBy, type SessionList } from '../model/session-list.ts
 import type { Open, PendingInput, State } from '../model/session-machine.ts'
 import type { SessionWorkspaces } from '../model/session-workspaces.ts'
 import type { Waiting } from '../model/waiting.ts'
-import { BlockSlotContext } from './block-slot.ts'
+import { BlockSlotContext, ToolCallSlotContext, type ToolCallPart } from './block-slot.ts'
 import { ComposerActionSlot } from './composer-action-slot.tsx'
 import { HeadingFoldContext, useHeadingFold, type HeadingFold } from './heading-fold.tsx'
 import { NoticeLine } from './notice.tsx'
@@ -42,6 +42,15 @@ import { TranscriptRow, usePublication } from './transcript-arrivals.tsx'
 import { useSession } from './use-session.ts'
 import { WaitingNotice, waitingAnchor } from './waiting-notice.tsx'
 import { useShownEntry } from './shown-entry.ts'
+import {
+  sessionComposer,
+  sessionComposerInput,
+  sessionHeader,
+  sessionHeaderMore,
+  sessionHeaderTitle,
+  sessionTranscript,
+  sessionTranscriptUserMessage,
+} from '../parts.ts'
 
 type WaitingCalls = Readonly<{
   subscribe: (tenant: string, session: string, listener: () => void) => () => void
@@ -56,13 +65,9 @@ export type ConversationPageProps = Readonly<{
   status?: (session: string) => ReactNode
   drafts: ComposerDraftStore
   attachments?: (session: string, draft: string) => ReactNode
-  /** What draws a block of a message that is not words; `fallback` when nothing does. */
-  block?: (
-    session: string,
-    source: BlockSource,
-    fallback: ReactNode,
-    revision: string | null,
-  ) => ReactNode
+  /** What draws a block of a message that is not words, by its kind; `fallback` when nothing does. */
+  block?: Parts['block']
+  toolCall?: Parts['toolCall']
   heading?: (session: string) => ReactNode
   /** Verbs on the open session in its `⋯`, such as archiving it; each tells what came of it through `say`. */
   more?: (session: string, say: (text: string) => void) => ReactNode
@@ -80,7 +85,8 @@ export function ConversationPage({
   status = () => null,
   drafts,
   attachments = () => null,
-  block = (_session, _source, fallback) => fallback,
+  block = (_session, _kind, _source, fallback) => fallback,
+  toolCall = (_session, _part, generic) => generic(),
   heading = () => null,
   more = () => null,
   work = () => null,
@@ -110,6 +116,7 @@ export function ConversationPage({
           drafts={drafts}
           attachments={attachments}
           block={block}
+          toolCall={toolCall}
           heading={heading}
           more={more}
           work={work}
@@ -127,10 +134,12 @@ type Parts = Readonly<{
   attachments: (session: string, draft: string) => ReactNode
   block: (
     session: string,
+    kind: string,
     source: BlockSource,
     fallback: ReactNode,
     revision: string | null,
   ) => ReactNode
+  toolCall: (session: string, part: ToolCallPart, generic: () => ReactNode) => ReactNode
   work: (session: string, revision: string | null) => ReactNode
   waitingCalls: WaitingCalls | undefined
 }>
@@ -163,8 +172,8 @@ function Page({
   return (
     <SideFrameContext.Provider value={frame}>
       <div className="omne-session-page" ref={setPage}>
-        <header className="omne-session-bar" ref={frame.header}>
-          <h2 className="omne-session-title" ref={fold.title}>
+        <header className="omne-session-bar" ref={frame.header} {...sessionHeader.props}>
+          <h2 className="omne-session-title" ref={fold.title} {...sessionHeaderTitle.props}>
             {title}
           </h2>
           <FigureControl frame={frame} />
@@ -236,7 +245,7 @@ function SessionMore({
       )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <IconButton label="更多" tooltipSide="bottom">
+          <IconButton label="更多" tooltipSide="bottom" {...sessionHeaderMore.props}>
             <MoreIcon aria-hidden="true" />
           </IconButton>
         </DropdownMenuTrigger>
@@ -372,6 +381,7 @@ function OpenSession({
   drafts,
   attachments,
   block,
+  toolCall,
   work,
   waitingCalls,
 }: Parts & { readonly state: Open; readonly driver: SessionDriver }) {
@@ -379,31 +389,38 @@ function OpenSession({
   const { session } = state
   const { revision } = state
   const drawn = useMemo(
-    () => (source: BlockSource, fallback: ReactNode) => block(session, source, fallback, revision),
+    () => (kind: string, source: BlockSource, fallback: ReactNode) =>
+      block(session, kind, source, fallback, revision),
     [block, session, revision],
+  )
+  const called = useMemo(
+    () => (part: ToolCallPart, generic: () => ReactNode) => toolCall(session, part, generic),
+    [toolCall, session],
   )
   return (
     <BlockSlotContext.Provider value={drawn}>
-      {state.notice === null ? null : <NoticeLine notice={state.notice} />}
-      {state.history.failure === null ? null : <NoticeLine notice={state.history.failure} />}
-      <Conversation
-        epoch={state.session}
-        content={state.content}
-        runActive={state.run.kind !== 'idle'}
-        inputs={state.inputs}
-        waiting={state.waiting}
-        driver={driver}
-        dock={dock(state.session)}
-      />
-      {work(state.session, state.revision)}
-      <Composer
-        state={state}
-        driver={driver}
-        status={status(state.session)}
-        waiting={waiting}
-        drafts={drafts}
-        attachments={attachments}
-      />
+      <ToolCallSlotContext.Provider value={called}>
+        {state.notice === null ? null : <NoticeLine notice={state.notice} />}
+        {state.history.failure === null ? null : <NoticeLine notice={state.history.failure} />}
+        <Conversation
+          epoch={state.session}
+          content={state.content}
+          runActive={state.run.kind !== 'idle'}
+          inputs={state.inputs}
+          waiting={state.waiting}
+          driver={driver}
+          dock={dock(state.session)}
+        />
+        {work(state.session, state.revision)}
+        <Composer
+          state={state}
+          driver={driver}
+          status={status(state.session)}
+          waiting={waiting}
+          drafts={drafts}
+          attachments={attachments}
+        />
+      </ToolCallSlotContext.Provider>
     </BlockSlotContext.Provider>
   )
 }
@@ -492,7 +509,12 @@ function Conversation({
   const found = useShownEntry(epoch, scroller, rows, content.readThrough !== null)
   const notice = <WaitingNotice waiting={waiting} driver={driver} />
   return (
-    <div className="omne-conversation" ref={scroller} onScroll={onScroll}>
+    <div
+      className="omne-conversation"
+      ref={scroller}
+      onScroll={onScroll}
+      {...sessionTranscript.props}
+    >
       {committed.map(item => (
         <Fragment key={item.key}>
           <TranscriptRow
@@ -543,7 +565,12 @@ function PendingInputView({
   readonly driver: SessionDriver
 }) {
   return (
-    <article className="omne-message" data-role="user" data-pending={input.status}>
+    <article
+      className="omne-message"
+      data-role="user"
+      data-pending={input.status}
+      {...sessionTranscriptUserMessage.props}
+    >
       <span className="omne-message-speaker">你</span>
       <div className="omne-message-body">{input.text}</div>
       {input.attachments.length === 0 ? null : (
@@ -614,12 +641,14 @@ function Composer({
   return (
     <form
       className="omne-composer"
+      {...sessionComposer.props}
       onSubmit={event => {
         event.preventDefault()
         submit()
       }}
     >
       <Textarea
+        {...sessionComposerInput.props}
         aria-label="输入消息"
         placeholder={placeholderOf(waiting, state.run.kind !== 'idle')}
         rows={1}

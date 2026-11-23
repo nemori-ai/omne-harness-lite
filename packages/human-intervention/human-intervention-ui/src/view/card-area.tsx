@@ -19,6 +19,12 @@ import {
 } from '../model/cards-machine.ts'
 import { verdictOf, type Exposed } from '../model/verdict.ts'
 import { CardView, itemOf, lastingChosen, type Shown } from './card-view.tsx'
+import {
+  humanInterventionPaper,
+  humanInterventionPaperFoot,
+  humanInterventionPaperFootSubmit,
+  humanInterventionPaperFootActions,
+} from '../parts.ts'
 
 type Props = Readonly<{ driver: CardsDriver; state: State; group: string }>
 
@@ -135,7 +141,7 @@ function Foot({
   const choice = verdict?.draft.choice
   const options = verdict !== null && !foldChosen(verdict) ? verdict.options : null
   return (
-    <div className="hitl-foot">
+    <div className="hitl-foot" {...humanInterventionPaperFoot.props}>
       {!linked ? null : first !== undefined ? (
         <Button variant="link" className="hitl-missing" onClick={() => go(first)}>
           {`还差 ${unanswered.length} 题`}
@@ -145,7 +151,7 @@ function Foot({
           {`另有 ${sheet.open.length} 张放行卡没答，可以先提交已答的`}
         </Button>
       )}
-      <div className="hitl-actions">
+      <div className="hitl-actions" {...humanInterventionPaperFootActions.props}>
         {options !== null ? (
           options.map((option, at) => {
             const waiting =
@@ -171,6 +177,7 @@ function Foot({
             )}
             <Button
               variant={armed ? 'destructive' : 'default'}
+              {...humanInterventionPaperFootSubmit.props}
               disabled={!sheet.ready}
               aria-busy={sheet.running || undefined}
               {...(said && { 'aria-describedby': quiet })}
@@ -240,7 +247,7 @@ export function CardArea({ driver, state, group }: Props): JSX.Element | null {
           },
         }
   return (
-    <div className="hitl-paper" ref={paper}>
+    <div className="hitl-paper" ref={paper} {...humanInterventionPaper.props}>
       {shown.map((card, at) => (
         <CardView
           key={card.key}

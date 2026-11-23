@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { act, cleanup, render, screen } from '@testing-library/react'
-import { definePoint } from '@omne-harness/shell-contract'
+import { definePoint, partsOn } from '@omne-harness/shell-contract'
 import { serveProtocol } from '@omne-harness/shell-contract/testing'
 import { usageProtocol } from '@omne-harness/usage-protocol'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
@@ -90,12 +90,35 @@ describe('the usage interface module in its three places (C27)', () => {
     expect(anchored(shell, 'session.status').map(item => item.id)).toEqual([USAGE_STATUS])
   })
 
+  it('declares its six parts once the protocol is served', async () => {
+    const { shell } = await mounted()
+    const read = partsOn(shell.registry())
+    expect(read.kind === 'read' && read.conflicts).toEqual([])
+    expect(
+      read.kind === 'read' && read.parts.map(part => [part.name, part.within ?? null]),
+    ).toEqual([
+      ['usage.card', 'usage.panel'],
+      ['usage.occupancy', null],
+      ['usage.page', 'shell.workspace.page'],
+      ['usage.panel', null],
+      ['usage.panel.bar', 'usage.panel'],
+      ['usage.panel.menu', 'usage.panel.bar'],
+    ])
+  })
+
   it('draws the tenant panel on the page and the occupancy in the status of a session', async () => {
     const { shell, fake } = await mounted()
     render(<>{shell.items('pages')[0]?.render({ scope: TENANT })}</>)
     await settle()
     expect(screen.getByRole('heading', { name: '用量' })).not.toBeNull()
     expect(document.querySelector('.usage-panel[data-position="tenant"]')).not.toBeNull()
+    const on = (name: string) => document.querySelectorAll(`[data-omne-part="${name}"]`)
+    expect(on('usage.page')[0]?.classList.contains('usage-page')).toBe(true)
+    expect(on('usage.panel')).toHaveLength(1)
+    expect(on('usage.panel')[0]?.closest('[data-omne-part="usage.page"]')).not.toBeNull()
+    expect(on('usage.panel.bar')[0]?.classList.contains('usage-panel-bar')).toBe(true)
+    expect(on('usage.panel.menu')[0]?.getAttribute('aria-label')).toBe('更多操作')
+    expect(on('usage.card')[0]?.classList.contains('usage-card')).toBe(true)
     expect(document.querySelectorAll('svg.recharts-surface').length).toBeGreaterThan(0)
     expect(
       fake.calls.some(call => (call.body['scope'] as { kind: string }).kind === 'tenant'),
@@ -104,6 +127,15 @@ describe('the usage interface module in its three places (C27)', () => {
     render(<>{anchored(shell, 'session.status')[0]?.render({ scope: TENANT, subject: SESSION })}</>)
     await settle()
     expect(document.querySelector('.usage-percent [aria-hidden="true"]')?.textContent).toBe('0.75%')
+    expect(
+      document
+        .querySelector('[data-omne-part="usage.occupancy"]')
+        ?.classList.contains('usage-percent'),
+    ).toBe(true)
+    expect(
+      document.querySelector('[data-omne-part="usage.panel"]')?.getAttribute('data-position'),
+    ).toBe('status')
+    expect(document.querySelector('[data-omne-part="usage.panel.bar"]')).toBeNull()
     expect(
       document.querySelector('.usage-panel[data-position="status"] .usage-panel-bar'),
     ).toBeNull()

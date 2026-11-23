@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { dynamisKey } from '@omne-harness/dynamis-cordis/cordis'
 import { instantSchema, type Instant } from '@omne-harness/notification-contract'
 import {
   notificationCatalogKey,
@@ -82,6 +83,7 @@ export const notificationRow = defineRow({
     ],
     injects: [
       storageKey,
+      dynamisKey,
       tenantDomainLookupKey,
       tenantDomainsKey,
       TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY,

@@ -77,6 +77,18 @@ describe('钮式：一节、露在外面的选项少而短', () => {
     expect(screen.queryByRole('radio', { name: '本次放行' })).toBeNull()
   })
 
+  it('P0 the buttons are in the actions part of the foot, and there is no submit part', async () => {
+    await listed([offering(...ALL)])
+    const verdicts = document.querySelectorAll(
+      '[data-omne-part="human-intervention.paper.foot.actions"]',
+    )
+    expect(verdicts).toHaveLength(1)
+    expect(verdicts[0]?.classList.contains('hitl-actions')).toBe(true)
+    expect(
+      document.querySelectorAll('[data-omne-part="human-intervention.paper.foot.submit"]'),
+    ).toHaveLength(0)
+  })
+
   it('draws a button’s glyph from its role: approve is the check, reject the close glyph; no role, no glyph', async () => {
     await listed([offering(...ALL)])
     expect(glyphOf(button('本次不放行'))).toBe('close')

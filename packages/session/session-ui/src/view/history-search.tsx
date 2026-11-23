@@ -33,6 +33,7 @@ import type { SessionWorkspaces } from '../model/session-workspaces.ts'
 import { ReadOnEnd } from './read-on-end.tsx'
 import { useSession } from './use-session.ts'
 import type { SessionDriver } from '../model/session-driver.ts'
+import { sessionSearch, sessionSearchHit } from '../parts.ts'
 
 type Listed = Extract<SearchView, { kind: 'listed' }>
 
@@ -73,6 +74,7 @@ function HitRow({
   return (
     <li>
       <ListReadingRow
+        {...sessionSearchHit.props}
         mark={<ConversationIcon aria-hidden="true" />}
         title={name ?? hit.session.slice(0, 8)}
         facts={
@@ -173,7 +175,7 @@ export function HistorySearchPage({ store, tenant, nameOf, onOpen }: Props) {
   const now = useAgeClock(hits.length > 0)
   const listed = view.kind === 'listed' ? view : null
   return (
-    <PageColumn className="omne-search">
+    <PageColumn className="omne-search" {...sessionSearch.props}>
       <PageHeader title="搜索" />
       <div className="omne-search-column">
         <form

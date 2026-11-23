@@ -26,7 +26,7 @@ import '@omne-harness/schedule-ui/schedule-ui.css'
 import { createScheduleUiModule } from '@omne-harness/schedule-ui/cordis'
 import {
   createSessionUiModule,
-  sessionBlock,
+  sessionBlockRender,
   sessionCallDetail,
   sessionComposerAttachments,
   sessionComposerIntakeKey,
@@ -77,7 +77,7 @@ export const assembly: Assembly = {
     }),
     createMediaUiModule({
       composerAttachments: sessionComposerAttachments,
-      block: sessionBlock,
+      block: sessionBlockRender,
       drafts: sessionComposerIntakeKey,
     }),
     sessionReadsUiModule,

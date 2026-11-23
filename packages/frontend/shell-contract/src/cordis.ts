@@ -5,11 +5,29 @@ import {
   standingOf,
   type Adoption,
   type Contract,
+  type Entry,
   type Reference,
   type Registry,
+  type Scope,
 } from '@omne-harness/dynamis'
 import { DynamisRefused, type Made } from '@omne-harness/dynamis-cordis/cordis'
 import type { ReactNode } from 'react'
+import {
+  changesOn,
+  laidOut,
+  layoutContract,
+  layoutEntry,
+  RENDER_POINT,
+  renderContract,
+  renderEntry,
+  styleContract,
+  styleEntry,
+  tenantScope,
+  tokensContract,
+  tokensEntry,
+  type Changes,
+  type PartStyle,
+} from './change.ts'
 import type { FigureBoard, FigureReport } from './figure-store.ts'
 import type { ScopeSource, ShellLogin } from './host.ts'
 import {
@@ -20,6 +38,16 @@ import {
   type BoundOf,
   type Need,
 } from './needs.ts'
+import {
+  PART_ATTRIBUTE,
+  partEntry,
+  partFault,
+  partHostOf,
+  partsContract,
+  type PartDeclaration,
+  type PartRender,
+} from './part.ts'
+import { drawingOn, type KeyRender } from './point.ts'
 import type { ServiceKey } from './service-key.ts'
 import { entryOf, sameView, shellContracts, viewOf, type SlotView } from './placement.ts'
 import {
@@ -73,6 +101,22 @@ function adoptOn(registry: Registry, references: Readonly<Record<string, Referen
   return { kind: 'adopted', bindings: { ...made.bindings, ...empty } }
 }
 
+const CONTRACTS = [
+  ...shellContracts,
+  partsContract,
+  tokensContract,
+  styleContract,
+  renderContract,
+  layoutContract,
+]
+
+function checkedPart(declaration: PartDeclaration, host: string): Entry {
+  const drawn = host === 'shell' && declaration.depths.includes('render')
+  const fault = drawn ? 'a part of the shell does not open render' : partFault(declaration, host)
+  if (fault !== null) throw new ShellAssemblyError('attached', declaration.name, 'invalid', fault)
+  return partEntry(declaration)
+}
+
 /** @owner packages/frontend/shell-contract */
 export abstract class ShellService extends Service implements ShellSlots {
   static readonly provide = 'shell'
@@ -87,13 +131,17 @@ export abstract class ShellService extends Service implements ShellSlots {
   private readonly watchers = new Set<Watcher>()
   private readonly required = new Map<string, Readonly<Record<string, Reference>>>()
   private readonly adoptionWatchers = new Set<() => void>()
+  private readonly changeWatchers = new Set<() => void>()
+  private read:
+    | Readonly<{ registry: Registry; tenant: string | undefined; changes: Changes }>
+    | undefined
   private adopted: Readonly<{ registry: Registry; of: Map<string, Adoption> }> | undefined
 
   constructor(ctx: Context) {
     super(ctx, ShellService.provide)
     const { dynamis } = ctx
     for (const slot of SLOT_NAMES) this.views.set(slot, viewOf(dynamis.registry(), slot))
-    dynamis.put(shellContracts.map(contract => declare(contract)))
+    dynamis.put(CONTRACTS.map(contract => declare(contract)))
     ctx.on('dynamis-cordis/changed', registry => this.follow(registry))
   }
 
@@ -103,6 +151,107 @@ export abstract class ShellService extends Service implements ShellSlots {
 
   declare(contract: Contract): void {
     this.put('attached', contract.name, [declare(contract)])
+  }
+
+  declarePart(declaration: PartDeclaration): void {
+    this.put('attached', declaration.name, instance => [
+      checkedPart(declaration, partHostOf(instance.fiber)),
+    ])
+  }
+
+  protected declareOwn(declarations: readonly PartDeclaration[]): void {
+    const whole = declarations.some(declaration => declaration.name === 'shell.app')
+    this.ctx.dynamis.put([
+      ...declarations.map(declaration => checkedPart(declaration, 'shell')),
+      ...(whole ? [tokensEntry('shell.app', {}, [], true)] : []),
+    ])
+  }
+
+  putTokens(
+    part: string,
+    tokens: Readonly<Record<string, string>>,
+    scope: Scope = [],
+  ): () => unknown {
+    return this.ctx.dynamis.put([tokensEntry(part, tokens, scope)])
+  }
+
+  putStyle(part: string, style: PartStyle, scope: Scope = []): () => unknown {
+    return this.ctx.dynamis.put([styleEntry(part, style, scope)])
+  }
+
+  putRender<P>(part: string, render: PartRender<P>, scope: Scope = []): () => unknown {
+    return this.putDrawing(RENDER_POINT, part, render as never, scope)
+  }
+
+  putDrawing(point: string, key: string, render: KeyRender, scope: Scope = []): () => unknown {
+    return this.ctx.dynamis.put(instance => [
+      renderEntry(point, key, render, scope, `${instance.fiber}#${instance.generation}`),
+    ])
+  }
+
+  putLayout(key: string, order: readonly string[], scope: Scope = []): () => unknown {
+    return this.ctx.dynamis.put([layoutEntry(key, order, scope)])
+  }
+
+  changes(): Changes {
+    const registry = this.registry()
+    const tenant = this.scope.get()
+    if (this.read?.registry !== registry || this.read.tenant !== tenant) {
+      const known = (name: string): boolean => this.knowsToken(name)
+      this.read = { registry, tenant, changes: changesOn(registry, tenantScope(tenant), known) }
+    }
+    return this.read.changes
+  }
+
+  drawn(part: string, builtIn: () => ReactNode, props: unknown): ReactNode {
+    const given = { props: props as never, part: { [PART_ATTRIBUTE]: part }, builtIn }
+    return this.fallingBack(
+      () => this.changes().renders.get(part),
+      render => render(given),
+      builtIn,
+    )
+  }
+
+  drawnAt(
+    point: string,
+    key: string,
+    subject: unknown,
+    generic: () => ReactNode,
+    frame: (drawn: ReactNode) => ReactNode = drawn => drawn,
+  ): ReactNode {
+    const tenant = (): string | undefined => this.scope.get()
+    return this.fallingBack(
+      () => drawingOn(this.registry(), point, key, tenantScope(tenant())),
+      render => frame(render({ scope: tenant(), subject: subject as never, generic })),
+      generic,
+    )
+  }
+
+  protected fallingBack<D>(
+    pick: () => D | undefined,
+    put: (drawing: D) => ReactNode,
+    fallback: () => ReactNode,
+  ): ReactNode {
+    const drawing = pick()
+    if (drawing === undefined) return fallback()
+    try {
+      return put(drawing)
+    } catch {
+      return fallback()
+    }
+  }
+
+  watchChanges(listener: () => void): () => void {
+    this.changeWatchers.add(listener)
+    return () => void this.changeWatchers.delete(listener)
+  }
+
+  protected rescope(): void {
+    this.follow(this.registry())
+  }
+
+  protected knowsToken(_name: string): boolean {
+    return false
   }
 
   items<K extends SlotName>(slot: K): readonly ItemOf<K>[] {
@@ -185,8 +334,10 @@ export abstract class ShellService extends Service implements ShellSlots {
   }
 
   private follow(registry: Registry): void {
+    const order = this.changes().layouts['shell.pages']
     const changed = SLOT_NAMES.filter(slot => {
-      const fresh = viewOf(registry, slot)
+      const read = viewOf(registry, slot)
+      const fresh = slot === 'pages' ? { ...read, items: laidOut(read.items, order) } : read
       if (sameView(this.views.get(slot) as SlotView, fresh)) return false
       this.views.set(slot, fresh)
       return true
@@ -204,6 +355,13 @@ export abstract class ShellService extends Service implements ShellSlots {
         listener()
       } catch {
         this.ctx.logger.warn('shell: a watcher of the adoptions threw')
+      }
+    }
+    for (const listener of Array.from(this.changeWatchers)) {
+      try {
+        listener()
+      } catch {
+        this.ctx.logger.warn('shell: a watcher of the changes threw')
       }
     }
   }

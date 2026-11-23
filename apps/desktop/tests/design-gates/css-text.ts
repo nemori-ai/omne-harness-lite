@@ -33,6 +33,8 @@ export interface CssRule {
 
 const CONTAINERS = /^@(?:media|supports|layer|container|scope|starting-style|keyframes)\b/
 
+export const BUILTIN_LAYER = '@layer omne-builtin'
+
 function skipString(text: string, start: number): number {
   const quote = text[start]
   let index = start + 1

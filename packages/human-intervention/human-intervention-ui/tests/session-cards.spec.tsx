@@ -67,6 +67,15 @@ describe('会话里的卡', () => {
     expect(shown.querySelectorAll('.hitl-paper')).toHaveLength(1)
   })
 
+  it('P0 这一段会话的卡带「会话里的卡」与纸的部位', async () => {
+    const { fake, hub } = setup()
+    render(<SessionCards hub={hub} tenant={TENANT} session={SESSION} />)
+    await answer(fake, 'list-cards', page([questionItem()]))
+    const shown = region()!
+    expect(shown.getAttribute('data-omne-part')).toBe('human-intervention.session-cards')
+    expect(shown.querySelectorAll('[data-omne-part="human-intervention.paper"]')).toHaveLength(1)
+  })
+
   it('C2 这个会话没有卡：什么都不渲染', async () => {
     const { fake, hub } = setup()
     const view = render(<SessionCards hub={hub} tenant={TENANT} session={SESSION} />)

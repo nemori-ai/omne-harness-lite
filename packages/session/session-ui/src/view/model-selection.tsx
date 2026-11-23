@@ -10,6 +10,7 @@ import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode 
 import { useOffered } from './use-offered.ts'
 import type { ModelChoice, ModelSelectionStore } from '../model/model-selection.ts'
 import { FOLD_RANK, FoldedChoice, HeadingChoice, useHeadingPlace } from './heading-fold.tsx'
+import { sessionHeaderModel } from '../parts.ts'
 
 const OPTION = 'omne-session-model-option'
 
@@ -82,7 +83,7 @@ export function ModelAction({ store, tenant, session }: Props) {
       <HeadingChoice
         rank={FOLD_RANK.model}
         bar={
-          <span className="omne-session-model" role="status">
+          <span className="omne-session-model" {...sessionHeaderModel.props} role="status">
             {reason}
           </span>
         }
@@ -97,7 +98,7 @@ export function ModelAction({ store, tenant, session }: Props) {
     <HeadingChoice
       rank={FOLD_RANK.model}
       bar={
-        <span className="omne-session-model">
+        <span className="omne-session-model" {...sessionHeaderModel.props}>
           {choices === null ? (
             <span>模型：{view.model}</span>
           ) : (

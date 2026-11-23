@@ -1,59 +1,30 @@
 import type { HumanInterventionCardItem } from '@omne-harness/human-intervention-protocol'
-import { defineKeyedPoint, type KeyedPointSink, type PointHost } from '@omne-harness/shell-contract'
+import {
+  defineRenderPoint,
+  type RenderDrawer,
+  type RenderPointSink,
+} from '@omne-harness/shell-contract'
 import { FactList, FactRow, Segmented } from '@omne-harness/ui-kit'
-import { Component, createContext, useContext, useState, type JSX, type ReactNode } from 'react'
+import { createContext, useContext, useState, type JSX, type ReactNode } from 'react'
+import { humanInterventionPaperCardDetail } from '../parts.ts'
 
 type Question = HumanInterventionCardItem['card']['question']
 type Detail = NonNullable<Extract<Question, { kind: 'release' }>['detail']>
 export type GivenDetail = Extract<Detail, { state: 'given' }>
 
-const point = defineKeyedPoint<string>({
+const point = defineRenderPoint<string>({
   name: 'human-intervention.release-detail',
   summary:
     'How the typed value in the detail of a release card is drawn, by the domain that owns its kind.',
   key: 'the kind of the typed value, with its major version',
-  subject: { encode: value => value, decode: text => text },
 })
-
-const Fallback = createContext<ReactNode>(null)
-
-class Guarded extends Component<Readonly<{ children: ReactNode }>, Readonly<{ failed: boolean }>> {
-  override state = { failed: false }
-
-  static getDerivedStateFromError(): Readonly<{ failed: boolean }> {
-    return { failed: true }
-  }
-
-  override render(): ReactNode {
-    return this.state.failed ? (
-      <Fallback.Consumer>{rows => rows}</Fallback.Consumer>
-    ) : (
-      this.props.children
-    )
-  }
-}
-
-function Drawn({ draw }: Readonly<{ draw: () => ReactNode }>): ReactNode {
-  return draw()
-}
 
 export const declareReleaseDetail = point.declare
 
-// A tool's own UI draws the typed value under its kind; whatever it throws, the card draws the rows.
-export const releaseDetail: KeyedPointSink<string> = {
-  name: point.name,
-  contribute: (shell, key, item) =>
-    point.contribute(shell, key, {
-      ...item,
-      render: props => (
-        <Guarded>
-          <Drawn draw={() => item.render(props)} />
-        </Guarded>
-      ),
-    }),
-}
+/** A tool's own UI puts the drawing of the typed value under its kind; without one, the card draws the rows. */
+export const releaseDetail: RenderPointSink<string> = { name: point.name, put: point.put }
 
-export const DetailHost = createContext<PointHost | undefined>(undefined)
+export const DetailHost = createContext<RenderDrawer | undefined>(undefined)
 
 function Rows({ rows }: Readonly<{ rows: GivenDetail['rows'] }>): JSX.Element {
   return (
@@ -85,24 +56,27 @@ const FACES = [
 function Switchable({ view, rows }: Readonly<{ view: ReactNode; rows: ReactNode }>): JSX.Element {
   const [face, setFace] = useState<Face>('view')
   return (
-    <div className="hitl-detail">
+    <div className="hitl-detail" {...humanInterventionPaperCardDetail.props}>
       <Segmented label="详情的画法" value={face} onValueChange={setFace} options={FACES} />
       {face === 'rows' ? rows : view}
     </div>
   )
 }
 
-export function ReleaseDetailView({ detail }: Readonly<{ detail: GivenDetail }>): JSX.Element {
+export function ReleaseDetailView({ detail }: Readonly<{ detail: GivenDetail }>): ReactNode {
   const host = useContext(DetailHost)
   const rows = <Rows rows={detail.rows} />
-  const plain = <div className="hitl-detail">{rows}</div>
+  const plain = (
+    <div className="hitl-detail" {...humanInterventionPaperCardDetail.props}>
+      {rows}
+    </div>
+  )
   if (detail.typed === undefined || host === undefined) return plain
-  return (
-    <Fallback.Provider value={plain}>
-      {point.slot(host, detail.typed.kind, detail.typed.value, entries => {
-        const first = entries[0]
-        return first === undefined ? plain : <Switchable view={first.node} rows={rows} />
-      })}
-    </Fallback.Provider>
+  return point.draw(
+    host,
+    detail.typed.kind,
+    detail.typed.value,
+    () => plain,
+    view => <Switchable view={view} rows={rows} />,
   )
 }

@@ -3,6 +3,7 @@ import { needProtocol, serviceKey } from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import { workspaceProtocol, type WorkspaceProtocol } from '@omne-harness/workspace-protocol'
 import { createWorkspaceChoices, type WorkspaceChoices } from './model/choices.ts'
+import { workspaceParts } from './parts.ts'
 import { WorkspacesPage } from './view/workspaces-page.tsx'
 
 export const WORKSPACES_PAGE_ID = 'workspaces'
@@ -16,6 +17,7 @@ export const workspaceUiModule = defineUiModule({
   name: 'workspace-ui',
   needs: { workspace: needProtocol<ClientOf<WorkspaceProtocol>>(workspaceProtocol) },
   apply(shell, { workspace: client }, provide) {
+    for (const part of workspaceParts) part.declare(shell)
     const choices = createWorkspaceChoices(client)
     provide(workspaceChoicesKey, choices)
     shell.contribute('pages', {

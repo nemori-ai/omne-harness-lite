@@ -107,6 +107,8 @@
     }
   }
 }
+
+@layer omne-builtin {
 @keyframes omne-shimmer-text {
   from {
     background-position: 150% center;
@@ -208,4 +210,5 @@
 [data-focus-surface]:focus-visible,
 [data-initial-focus][tabindex='-1']:focus-visible {
   outline: none;
+}
 }

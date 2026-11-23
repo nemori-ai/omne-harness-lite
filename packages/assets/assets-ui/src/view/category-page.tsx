@@ -17,6 +17,15 @@ import type {
   CategoryGovernance,
   GovernanceModel,
 } from '../model/governance.ts'
+import {
+  assetsCategory,
+  assetsCategoryCreate,
+  assetsCategoryHead,
+  assetsItem,
+  assetsItemActions,
+  assetsItemDetail,
+  assetsList,
+} from '../parts.ts'
 import { CreateForm } from './create-form.tsx'
 import { NoticeLine } from './notice.tsx'
 import { RowView } from './setting-row.tsx'
@@ -68,13 +77,14 @@ function CategoryBody({ view, category, extras }: Shown): JSX.Element {
     snapshot.assets.kind === 'read' &&
     snapshot.assets.entries.some(entry => entry.row.name === name)
   return (
-    <div className="assets-category">
-      <header className="assets-category-head">
+    <div className="assets-category" {...assetsCategory.props}>
+      <header className="assets-category-head" {...assetsCategoryHead.props}>
         <h2 className="assets-category-title">{extras.label(category)}</h2>
         {creation !== null && (
           <Button
             variant={creating ? 'ghost' : 'outline'}
             aria-expanded={creating}
+            {...assetsCategoryCreate.props}
             onClick={() => setCreating(open => !open)}
           >
             {creating ? '收起' : '新建'}
@@ -113,7 +123,11 @@ function AssetList({ assets, ...shown }: Shown & { readonly assets: CategoryAsse
       {assets.entries.length === 0 ? (
         <EmptyState title="这一类还没有资产。" />
       ) : (
-        <ul className="assets-list" aria-label={`${shown.extras.label(shown.category)}的资产`}>
+        <ul
+          className="assets-list"
+          aria-label={`${shown.extras.label(shown.category)}的资产`}
+          {...assetsList.props}
+        >
           {assets.entries.map(entry => (
             <AssetItem key={entry.row.name} entry={entry} {...shown} />
           ))}
@@ -130,7 +144,7 @@ function AssetItem({ entry, view, category, extras }: Shown & { readonly entry: 
   const opened = entry.detail !== null
   const toggle = () => (opened ? view.closeAsset(row.name) : view.openAsset(row.name))
   return (
-    <li className="assets-item" aria-label={row.name}>
+    <li className="assets-item" aria-label={row.name} {...assetsItem.props}>
       <h3 className="assets-item-title">
         <Button variant="ghost" aria-expanded={opened} onClick={toggle}>
           {row.summary?.title ?? row.name}
@@ -154,7 +168,7 @@ function AssetDetail({ entry, view, category, extras }: Shown & { readonly entry
   const asset =
     detail?.kind === 'read' ? detail.asset : detail?.kind === 'reading' ? detail.shown : undefined
   return (
-    <div className="assets-detail">
+    <div className="assets-detail" {...assetsItemDetail.props}>
       {detail?.kind === 'reading' && asset === undefined && (
         <LoadingState label="正在读取这一份……" />
       )}
@@ -241,7 +255,7 @@ function AssetActions({
 }) {
   const { row, action } = entry
   return (
-    <div className="assets-detail-actions">
+    <div className="assets-detail-actions" {...assetsItemActions.props}>
       {row.origin === 'official' ? (
         <p>这一份是部署装的官方资产，不能停用或移除。</p>
       ) : (

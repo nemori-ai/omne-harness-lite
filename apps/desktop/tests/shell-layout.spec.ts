@@ -1,7 +1,7 @@
 // @module-tag source-text
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { cssRules, normalise, valueOf } from './design-gates/css-text.ts'
+import { BUILTIN_LAYER, cssRules, normalise, valueOf } from './design-gates/css-text.ts'
 
 /** Where the stylesheet puts things: the page under test draws no boxes, so the rendering tests cannot see it. */
 const RULES = cssRules(readFileSync(new URL('../src/page/styles.css', import.meta.url), 'utf8'))
@@ -13,7 +13,9 @@ const NARROW = normalise('@media (max-width: 767px)')
 /** The value of `property` in the one rule with this selector, inside these at-rules. */
 function value(selector: string, property: string, context: readonly string[] = []): string {
   const found = RULES.filter(
-    rule => rule.selector === normalise(selector) && rule.context.join() === context.join(),
+    rule =>
+      rule.selector === normalise(selector) &&
+      rule.context.filter(part => part !== BUILTIN_LAYER).join() === context.join(),
   )
   expect(found, selector).toHaveLength(1)
   return normalise(valueOf(found[0]!, property) ?? '')

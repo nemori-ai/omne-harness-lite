@@ -82,6 +82,8 @@ export async function setup(
     theme?: ThemeChoice
     /** The connection of the tree, for a case that says where a protocol stands. */
     connection?: object | null
+    /** The tokens the page knows; none unless a case says so. */
+    knowsToken?: (name: string) => boolean
   } = {},
 ) {
   const login = source<ShellLoginState>(options.login ?? 'signed-out')
@@ -102,7 +104,10 @@ export async function setup(
       return options.logout ?? 'signed-out'
     },
   }
-  const state = createShellState(inner)
+  const state = createShellState(
+    inner,
+    options.knowsToken === undefined ? {} : { knowsToken: options.knowsToken },
+  )
   const root = new Context()
   await root.plugin(DynamisService)
   await root.plugin(shellPlugin(state))

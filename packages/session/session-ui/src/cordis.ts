@@ -20,23 +20,27 @@ export type {
   WorkspaceChoiceSource,
 } from './model/workspace-selection.ts'
 export {
-  SESSION_BLOCK,
+  SESSION_BLOCK_RENDER,
   SESSION_CALL_DETAIL,
   SESSION_COMPOSER_ATTACHMENTS,
   SESSION_DOCK,
   SESSION_SIDE,
   SESSION_STATUS,
-  sessionBlock,
+  SESSION_TOOL_CALL,
+  sessionBlockRender,
   sessionCallDetail,
   sessionComposerAttachments,
   sessionDock,
   sessionSide,
   sessionStatus,
+  sessionToolCall,
   type SessionBlockSubject,
   type SessionCallSubject,
   type SessionDraftSubject,
   type SessionSubject,
+  type SessionToolCallSubject,
 } from './points.ts'
+export { sessionParts } from './parts.ts'
 export { sessionReadsSourceKey, sessionReadsUiModule } from './reads-module.ts'
 export type {
   BlockRead,

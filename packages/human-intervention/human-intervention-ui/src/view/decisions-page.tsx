@@ -14,6 +14,7 @@ import { groupOf, type Live, type State } from '../model/cards-machine.ts'
 import { CardArea } from './card-area.tsx'
 import { NoticeLine } from './notice.tsx'
 import { useCards, useTenant } from './use-cards.ts'
+import { humanInterventionPage, humanInterventionPageGroup } from '../parts.ts'
 
 export type DecisionsPageProps = Readonly<{
   hub: CardsHub
@@ -24,7 +25,7 @@ export function DecisionsPage(props: DecisionsPageProps): JSX.Element {
   const tenant = useTenant(props.tenant)
   if (tenant === undefined)
     return (
-      <PageColumn className="hitl-decisions">
+      <PageColumn className="hitl-decisions" {...humanInterventionPage.props}>
         <NoticeLine notice={{ kind: 'refused', text: '外壳给的租户读不懂，这一页不能工作。' }} />
       </PageColumn>
     )
@@ -34,7 +35,7 @@ export function DecisionsPage(props: DecisionsPageProps): JSX.Element {
 function Decisions({ hub, tenant }: { readonly hub: CardsHub; readonly tenant: TenantId }) {
   const { driver, state } = useCards(hub, tenant)
   return (
-    <PageColumn className="hitl-decisions">
+    <PageColumn className="hitl-decisions" {...humanInterventionPage.props}>
       <PageHeader title="待你决定" description="Agent 提的问题、要你批准的动作" />
       <LiveLine live={state.live} />
       <Body state={state} driver={driver} />
@@ -91,6 +92,7 @@ function Body({ state, driver }: { readonly state: State; readonly driver: Cards
             <section
               key={group}
               className="hitl-group"
+              {...humanInterventionPageGroup.props}
               role="region"
               aria-label={groupTitle(group)}
             >

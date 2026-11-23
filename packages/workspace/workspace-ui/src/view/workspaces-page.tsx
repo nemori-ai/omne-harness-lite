@@ -24,6 +24,14 @@ import type {
   WorkspaceViewBody,
 } from '@omne-harness/workspace-protocol'
 import { useEffect, useState, type JSX } from 'react'
+import {
+  workspaceDetail,
+  workspaceInstance,
+  workspaceItem,
+  workspaceList,
+  workspacePage,
+  workspaceRegister,
+} from '../parts.ts'
 import { commit, recheck, type Pending, type Told } from '../model/commits.ts'
 import { availabilityText, readRefusal, standingText } from '../model/words.ts'
 
@@ -83,7 +91,7 @@ export function WorkspacesPage({
 }: WorkspacesPageProps): JSX.Element {
   const owner = readTenantText(tenant)
   return (
-    <PageColumn>
+    <PageColumn {...workspacePage.props}>
       <PageHeader
         title="工作区"
         description="登记服务端机器上的目录，看你能在哪些工作区里工作，把别人加进来或移走。"
@@ -136,7 +144,7 @@ function Workspaces({ client, tenant, newId, onChange }: Props): JSX.Element {
     )
   return (
     <>
-      <Section id="workspace-register" title="登记">
+      <Section id="workspace-register" title="登记" {...workspaceRegister.props}>
         <Field id="workspace-register-address" label="要登记的目录" hint={REGISTER_HINT}>
           <Input
             id="workspace-register-address"
@@ -149,7 +157,7 @@ function Workspaces({ client, tenant, newId, onChange }: Props): JSX.Element {
         </Button>
       </Section>
       {told === null ? null : <ToldLine told={told} onAgain={pending => again(pending, changed)} />}
-      <Section id="workspace-list" title="你的工作区">
+      <Section id="workspace-list" title="你的工作区" {...workspaceList.props}>
         <WorkspaceList list={list} onShow={select} />
       </Section>
       {selected === null ? null : (
@@ -197,7 +205,7 @@ function WorkspaceList({
     <Table>
       <TableBody>
         {list.value.map(item => (
-          <TableRow key={item.workspace}>
+          <TableRow key={item.workspace} {...workspaceItem.props}>
             <TableCell>
               <Button
                 variant="link"
@@ -255,14 +263,14 @@ function WorkspaceDetail({
     void onCommit({ name, body: { tenant, operation: newId(), workspace, target: other } })
   }
   return (
-    <Section id="workspace-detail" title={`工作区 ${workspace}`}>
+    <Section id="workspace-detail" title={`工作区 ${workspace}`} {...workspaceDetail.props}>
       {view.kind === 'unread' ? <LoadingState label="正在读……" /> : null}
       {view.kind === 'unreadable' ? <InlineNotice>看不了：{view.reason}</InlineNotice> : null}
       {view.kind === 'read' ? (
         <Table>
           <TableBody>
             {view.value.instances.map(instance => (
-              <TableRow key={instance.instance}>
+              <TableRow key={instance.instance} {...workspaceInstance.props}>
                 <TableCell>{instance.address}</TableCell>
                 <TableCell>
                   <Availability availability={instance.availability} />

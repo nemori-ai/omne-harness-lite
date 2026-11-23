@@ -264,6 +264,38 @@ function Records({
   )
 }
 
+it('the skeleton carries the data attributes its caller gives to its own root, and keeps its own', () => {
+  render(
+    <ListReadingPage title="日程" detail={false} data-mark="page" data-detail="theirs">
+      <ListReadingWorkspace detail={false} empty={false}>
+        <ListReadingDirectory data-mark="directory">
+          <ListReadingRow
+            title="周会"
+            onSelect={() => undefined}
+            data-mark="row"
+            data-control="theirs"
+          />
+        </ListReadingDirectory>
+        <ListReadingMain data-mark="main">
+          <Section id="one" title="生效的日历" data-mark="section">
+            <SettingRow label="一行" data-mark="setting" />
+          </Section>
+        </ListReadingMain>
+      </ListReadingWorkspace>
+    </ListReadingPage>,
+  )
+  const marked = (mark: string) => document.querySelector(`[data-mark="${mark}"]`)
+  expect(marked('page')?.className).toBe('list-reading')
+  expect(marked('page')?.getAttribute('data-detail')).toBe('false')
+  expect(marked('directory')?.className).toBe('list-reading-directory')
+  expect(marked('row')?.className).toBe('list-reading-row')
+  expect(marked('row')?.getAttribute('data-control')).toBe('row')
+  expect(marked('main')?.className).toBe('list-reading-main')
+  expect(marked('section')?.id).toBe('one')
+  expect(marked('setting')?.className).toBe('setting-row')
+  expect(document.querySelectorAll('[data-mark]')).toHaveLength(6)
+})
+
 const shown = (selector: string, width: number): boolean =>
   cascade(document.querySelector(selector), 'display', width) !== 'none'
 

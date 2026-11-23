@@ -4,6 +4,7 @@ import {
   needPoint,
   needProtocol,
   type PointSink,
+  type RenderPointSink,
   type ServiceKey,
 } from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
@@ -11,10 +12,12 @@ import { useMemo, type ReactNode } from 'react'
 import type { Drafts } from './model/attachment-tray.ts'
 import type { Microphone } from './model/recorder.ts'
 import type { MediaClient } from './model/upload.ts'
+import { mediaParts } from './parts.ts'
 import { AttachmentTrayView } from './view/attachment-tray.tsx'
-import { MediaBlock } from './view/media-block.tsx'
+import { MEDIA_BLOCKS } from './view/media-block.tsx'
 import { browserMicrophone } from './view/microphone.ts'
 
+export { mediaParts } from './parts.ts'
 export type { DraftOffer, Drafts } from './model/attachment-tray.ts'
 
 /** The message being written in a session, as the host of the composer names it. */
@@ -31,7 +34,7 @@ export type MediaBlockSubject = Readonly<{
 
 export type MediaUiOptions = Readonly<{
   composerAttachments?: PointSink<MediaDraftSubject>
-  block?: PointSink<MediaBlockSubject>
+  block?: RenderPointSink<MediaBlockSubject>
   /** Where recordings come from; the browser's microphone when not given. */
   microphone?: Microphone
   /** What takes the attachments of a draft, when the assembly names who provides it; the module works without. */
@@ -59,6 +62,7 @@ export function createMediaUiModule(options: MediaUiOptions = {}) {
       intake: needPoint(options.drafts, { optional: true }),
     },
     apply(shell, { media: client, intake }) {
+      for (const part of mediaParts) part.declare(shell)
       const drafts = () => intake.get() ?? null
       options.composerAttachments?.contribute(shell, {
         id: ITEM,
@@ -78,13 +82,11 @@ export function createMediaUiModule(options: MediaUiOptions = {}) {
           </Scoped>
         ),
       })
-      options.block?.contribute(shell, {
-        id: ITEM,
-        order: 0,
-        render: ({ scope, subject }) => (
+      for (const [kind, Block] of Object.entries(MEDIA_BLOCKS))
+        options.block?.put(shell, kind, ({ scope, subject }) => (
           <Scoped scope={scope}>
             {tenant => (
-              <MediaBlock
+              <Block
                 client={client}
                 tenant={tenant}
                 content={subject.content}
@@ -92,8 +94,7 @@ export function createMediaUiModule(options: MediaUiOptions = {}) {
               />
             )}
           </Scoped>
-        ),
-      })
+        ))
     },
   })
 }

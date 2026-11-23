@@ -6,7 +6,7 @@ import { providedOn, serveProtocol } from '@omne-harness/shell-contract/testing'
 import { assetsProtocol } from '@omne-harness/assets-protocol'
 import { readTenantText } from '@omne-harness/public-contract'
 import { permissionView } from './fixtures/views.ts'
-import { needPoint, ShellAssemblyError } from '@omne-harness/shell-contract'
+import { needPoint, partsOn, ShellAssemblyError } from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import {
   ASSETS_CATEGORY_PAGE,
@@ -214,4 +214,30 @@ it('U11 a tree without the connection: the module is not adopted, it lacks what 
     missing: [{ slot: 'server', reference: { point: 'connection.server-points' } }],
   })
   expect(providedOn(shell, assetGovernanceKey)).toBeUndefined()
+})
+
+it('M4 declares its parts', async () => {
+  const { root, shell } = await startShell()
+  await root.plugin(assetsUiModule)
+  const read = partsOn(shell.registry())
+  expect(read.kind === 'read' && read.conflicts).toEqual([])
+  expect(read.kind === 'read' && read.parts.map(part => [part.name, part.within ?? null])).toEqual([
+    ['assets.category', 'assets.panel'],
+    ['assets.category.create', 'assets.category.head'],
+    ['assets.category.head', 'assets.category'],
+    ['assets.create', 'assets.category'],
+    ['assets.create.submit', 'assets.create'],
+    ['assets.item', 'assets.list'],
+    ['assets.item.actions', 'assets.item.detail'],
+    ['assets.item.detail', 'assets.item'],
+    ['assets.list', 'assets.category'],
+    ['assets.page', 'shell.workspace.page'],
+    ['assets.panel', 'assets.page'],
+    ['assets.setting', null],
+    ['assets.setting.control', 'assets.setting'],
+    ['assets.settings-page', 'shell.workspace.page'],
+    ['assets.settings-page.group', 'assets.settings-page'],
+    ['assets.tabs', 'assets.page'],
+    ['assets.tabs.tab', 'assets.tabs'],
+  ])
 })

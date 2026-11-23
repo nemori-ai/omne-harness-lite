@@ -1,9 +1,12 @@
+import type { JsonValue } from '@omne-harness/json-text'
 import {
   defineKeyedPoint,
   definePoint,
+  defineRenderPoint,
   type KeyedPoint,
   type Point,
   type PointCodec,
+  type RenderPoint,
 } from '@omne-harness/shell-contract'
 
 export type CategorySubject = Readonly<{ category: string }>
@@ -62,4 +65,23 @@ export const assetsHolding: KeyedPoint<HoldingSubject> = defineKeyedPoint({
   summary: 'What is shown in the detail of one asset.',
   key: 'the category of the asset',
   subject: holdingSubject,
+})
+
+/** What the control of a setting is given: the value this layer holds or was changed to, and where a change goes. */
+export type AssetsControlSubject = Readonly<{
+  title: string
+  /** The schema the setting declares for its value. */
+  schema: JsonValue
+  value: JsonValue | undefined
+  disabled: boolean
+  /** Takes the value the person chose; the row writes it when they press its button. */
+  change: (value: JsonValue) => void
+}>
+
+export const ASSETS_CONTROL = 'assets.control'
+
+export const assetsControl: RenderPoint<AssetsControlSubject> = defineRenderPoint({
+  name: ASSETS_CONTROL,
+  key: 'the kind of the value: its format, else enum, else its type',
+  summary: 'The control a setting is changed with, by the kind of its value.',
 })

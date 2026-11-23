@@ -1,3 +1,6 @@
+@import '@omne-harness/ui-kit/layers.css';
+
+@layer omne-builtin {
 .assets-page,
 .assets-settings {
   min-height: 0;
@@ -282,4 +285,5 @@
 
 .assets-setting-notice:empty {
   display: none;
+}
 }

@@ -13,6 +13,7 @@ import {
 } from '@omne-harness/ui-kit'
 import type { JSX } from 'react'
 import type { Reading } from '../model/reading.ts'
+import { calendarShippedItem } from '../parts.ts'
 import { ReadNotice } from './drawn.tsx'
 
 type Client = ClientOf<CalendarProtocol>
@@ -75,6 +76,7 @@ function CalendarRow({
   const facts = health === undefined ? [] : factsOf(health)
   return (
     <SettingRow
+      {...calendarShippedItem.props}
       label={
         <span className="calendar-name">
           {title}

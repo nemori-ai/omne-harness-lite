@@ -31,6 +31,7 @@ import type { WorkspaceSelectionStore } from '../model/workspace-selection.ts'
 import { ReadOnEnd } from './read-on-end.tsx'
 import { useNewSessionWorkspace } from './workspace-selection.tsx'
 import { useSession } from './use-session.ts'
+import { sessionList, sessionListItem, sessionListNew } from '../parts.ts'
 
 export type SessionListPanelProps = Readonly<{
   workspaces: SessionWorkspaces
@@ -89,10 +90,11 @@ function Panel({
   const current = conversation ? open : null
   const place = useNewSessionWorkspace(places, tenant)
   return (
-    <div className="omne-session-sidebar">
+    <div className="omne-session-sidebar" {...sessionList.props}>
       <Button
         variant="ghost"
         className="omne-sessions-new"
+        {...sessionListNew.props}
         disabled={state.kind === 'creating'}
         onClick={() => {
           driver.createSession(place.workspace === undefined ? {} : { workspace: place.workspace })
@@ -163,6 +165,7 @@ function SessionRow({
       <button
         type="button"
         className="omne-session-item"
+        {...sessionListItem.props}
         data-glide-row=""
         data-control="row"
         data-selected={current}

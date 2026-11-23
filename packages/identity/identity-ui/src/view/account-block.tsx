@@ -15,6 +15,7 @@ import {
   type AccountPorts,
   type AccountState,
 } from '../model/account.ts'
+import { identityAccount, identityAccountControl, identityAccountRail } from '../parts.ts'
 
 const READING_TEXT = '正在读取当前租户……'
 
@@ -67,7 +68,7 @@ export function AccountBlock(props: { ports: AccountPorts; logout: () => void })
   const model = useAccountModel(props.ports)
   const state = useAccountState(model)
   return (
-    <div className="identity-account">
+    <div className="identity-account" {...identityAccount.props}>
       {state.kind === 'failed' ? (
         <InlineNotice
           tone={state.tone}
@@ -85,6 +86,7 @@ export function AccountBlock(props: { ports: AccountPorts; logout: () => void })
             tooltipSide="top"
             size="default"
             className="identity-account-control"
+            {...identityAccountControl.props}
           >
             {glyph}
             {state.kind === 'read' ? (
@@ -106,7 +108,12 @@ export function AccountRail(props: { ports: AccountPorts; logout: () => void }) 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <IconButton label={hintOf(state)} tooltipSide="right" className="identity-account-rail">
+        <IconButton
+          label={hintOf(state)}
+          tooltipSide="right"
+          className="identity-account-rail"
+          {...identityAccountRail.props}
+        >
           {glyph}
         </IconButton>
       </DropdownMenuTrigger>

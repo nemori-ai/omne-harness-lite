@@ -1,3 +1,6 @@
+@import '@omne-harness/ui-kit/layers.css';
+
+@layer omne-builtin {
 .omne-media-tray {
   display: flex;
   flex-wrap: wrap;
@@ -75,4 +78,5 @@
 .omne-media-picture[data-whole='true'] img {
   max-width: 100%;
   max-height: none;
+}
 }

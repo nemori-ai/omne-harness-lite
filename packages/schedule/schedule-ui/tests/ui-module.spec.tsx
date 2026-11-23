@@ -4,6 +4,7 @@ import { afterEach, beforeAll, expect, it } from 'vitest'
 import { scheduleProtocol, type ScheduleProtocol } from '@omne-harness/schedule-protocol'
 import { readTenantText } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
+import { partsOn } from '@omne-harness/shell-contract'
 import { serveProtocol } from '@omne-harness/shell-contract/testing'
 import { createScheduleUiModule } from '../src/cordis.ts'
 
@@ -19,6 +20,24 @@ const tick = () => new Promise(resolve => setTimeout(resolve, 0))
 
 beforeAll(stubAnimation)
 afterEach(cleanup)
+
+it('M0 declares its nine parts, whether or not the protocol is served', async () => {
+  const { root, shell } = await startShell()
+  await root.plugin(scheduleUiModule)
+  const read = partsOn(shell.registry())
+  expect(read.kind === 'read' && read.conflicts).toEqual([])
+  expect(read.kind === 'read' && read.parts.map(part => [part.name, part.within])).toEqual([
+    ['schedule.activation', 'human-intervention.paper.card.detail'],
+    ['schedule.filter', 'schedule.list'],
+    ['schedule.list', 'schedule.page'],
+    ['schedule.list.row', 'schedule.list'],
+    ['schedule.page', 'shell.workspace.page'],
+    ['schedule.reading', 'schedule.page'],
+    ['schedule.refresh', 'schedule.page'],
+    ['schedule.title', 'schedule.reading'],
+    ['schedule.upcoming', 'schedule.reading'],
+  ])
+})
 
 it('M1 the schedule client present: one schedule page, before the calendar and assets pages', async () => {
   const { root, shell } = await startShell()
