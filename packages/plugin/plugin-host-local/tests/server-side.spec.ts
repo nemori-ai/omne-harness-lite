@@ -107,6 +107,39 @@ describe('what each tenant is to load on the server, brought there one tenant at
     expect(moved.length).toBeGreaterThanOrEqual(2)
   })
 
+  it('lists the tenants it took up in order, and a watcher that stopped hears nothing more', async () => {
+    const { side } = world()
+    const moved: string[] = []
+    const stop = side.watch(tenant => void moved.push(tenant))
+    side.converge('bob', [wanted('tidy')])
+    side.converge('alice', [wanted('tidy')])
+    await side.idle()
+    expect(side.tenants()).toEqual(['alice', 'bob'])
+    stop()
+    const heard = moved.length
+    side.converge('bob', [])
+    await side.idle()
+    expect(moved).toHaveLength(heard)
+  })
+
+  it('a load the list no longer asks for in that version fails without loading', async () => {
+    let release: () => void = () => undefined
+    const loads: string[] = []
+    const { side } = world({
+      install: async (_tenant, { version }) => {
+        loads.push(version)
+        if (version === 'v1') await new Promise<void>(resolve => (release = resolve))
+        return { kind: 'installed', remove: () => undefined }
+      },
+    })
+    side.converge('alice', [wanted('tidy', 'v1')])
+    side.converge('alice', [wanted('tidy', 'v2')])
+    release()
+    await side.idle()
+    expect(loads).toEqual(['v1', 'v2'])
+    expect(side.states('alice')?.get('tidy')).toMatchObject({ kind: 'loaded', version: 'v2' })
+  })
+
   it('stopping takes back everything loaded and tells the floor each tenant settled: an orderly stop is not going down', async () => {
     const { side, log } = world()
     side.converge('alice', [wanted('tidy')])

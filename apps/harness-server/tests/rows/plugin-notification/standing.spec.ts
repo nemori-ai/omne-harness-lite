@@ -136,9 +136,13 @@ describe('the block and the source', () => {
     expect(await noReports.supply({ tenant: {} } as never)).toEqual({ kind: 'unknown' })
   })
 
-  it('declares one standing type bound to the block, on by default for the person', () => {
+  it('declares one standing type bound to the block, on by default for the person, and the two arrivals as one-time events', () => {
     expect(EXTENSIONS_SOURCE.name).toBe('extensions.changes')
-    expect(EXTENSIONS_SOURCE.types).toHaveLength(1)
+    expect(EXTENSIONS_SOURCE.types.map(type => [type.name, type.kind.kind])).toEqual([
+      ['load-failed', 'standing'],
+      ['point-added', 'event'],
+      ['category-added', 'event'],
+    ])
     expect(EXTENSIONS_SOURCE.types[0]).toMatchObject({
       name: 'load-failed',
       kind: { kind: 'standing', binding: PLUGIN_LOAD_FAILURES_KEY },
