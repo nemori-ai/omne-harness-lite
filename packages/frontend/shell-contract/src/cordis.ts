@@ -190,6 +190,15 @@ export abstract class ShellService extends Service implements ShellSlots {
     ])
   }
 
+  takesDrawing(point: string): boolean {
+    const standing = standingOf(this.registry(), point, [])
+    if (standing.kind !== 'declared') return false
+    const { arity, resolve, item } = standing.contract
+    return (
+      arity === 'keyed-one' && resolve === 'most-specific' && item.fields['render'] === 'function'
+    )
+  }
+
   putLayout(key: string, order: readonly string[], scope: Scope = []): () => unknown {
     return this.ctx.dynamis.put([layoutEntry(key, order, scope)])
   }

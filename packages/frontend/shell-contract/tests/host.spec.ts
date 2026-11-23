@@ -1,6 +1,14 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
-import { STYLE_POINT, definePart, type Hosted } from '@omne-harness/shell-contract'
+import {
+  RENDER_POINT,
+  STYLE_POINT,
+  TOKENS_POINT,
+  definePart,
+  definePoint,
+  defineRenderPoint,
+  type Hosted,
+} from '@omne-harness/shell-contract'
 import type { ShellService } from '@omne-harness/shell-contract/cordis'
 import { ReferenceShell, startShellOf } from '@omne-harness/shell-contract/testing'
 
@@ -69,5 +77,27 @@ describe('a scope a module opens under itself', () => {
     await t.shell.host('guest:a', shell => shell.putStyle('notes.send', red))
     await t.module.dispose()
     expect(t.styles()).toEqual([])
+  })
+})
+
+describe('whether a point takes a drawing', () => {
+  it('is so for the drawings of parts and for a point that picks a drawing by key, once it is declared', async () => {
+    const t = await world()
+    const card = defineRenderPoint({ name: 'notes.card', key: 'the kind', summary: 'A note.' })
+    expect(t.shell.takesDrawing(RENDER_POINT)).toBe(true)
+    expect(t.shell.takesDrawing('notes.card')).toBe(false)
+    card.declare(t.shell)
+    expect(t.shell.takesDrawing('notes.card')).toBe(true)
+  })
+
+  it('is not so for a point that takes data, a point that holds a list, or a name nobody declared', async () => {
+    const t = await world()
+    const text = { encode: (value: string) => value, decode: (value: string) => value }
+    definePoint({ name: 'notes.side', subject: text }).declare(t.shell)
+    expect(t.shell.takesDrawing(TOKENS_POINT)).toBe(false)
+    expect(t.shell.takesDrawing(STYLE_POINT)).toBe(false)
+    expect(t.shell.takesDrawing('notes.side')).toBe(false)
+    expect(t.shell.takesDrawing('shell.pages')).toBe(false)
+    expect(t.shell.takesDrawing('notes.nowhere')).toBe(false)
   })
 })

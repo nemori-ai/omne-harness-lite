@@ -1,4 +1,5 @@
 import type { Plugin } from '@deepseek-ai/cordis'
+import * as ui from '@omne-harness/ui-kit'
 import '@omne-harness/assets-ui/assets-ui.css'
 import {
   assetGovernanceKey,
@@ -23,6 +24,7 @@ import { notificationUiModule } from '@omne-harness/notification-ui/cordis'
 import '@omne-harness/notification-ui/notification-ui.css'
 import { createPluginUiModule } from '@omne-harness/plugin-ui/cordis'
 import type { ProtocolContract } from '@omne-harness/public-contract'
+import * as React from 'react'
 import '@omne-harness/schedule-ui/schedule-ui.css'
 import { createScheduleUiModule } from '@omne-harness/schedule-ui/cordis'
 import {
@@ -43,6 +45,7 @@ import { storedLayouts } from '@omne-harness/usage-ui'
 import { createUsageUiModule } from '@omne-harness/usage-ui/cordis'
 import '@omne-harness/usage-ui/usage-ui.css'
 import { workspaceChoicesKey, workspaceUiModule } from '@omne-harness/workspace-ui/cordis'
+import { pluginFilePath } from '../shared/plugin-path.ts'
 import { domainProtocols } from '../shared/protocols.ts'
 
 export const USAGE_REFRESH_MS = 60_000
@@ -82,6 +85,12 @@ export const assembly: Assembly = {
       drafts: sessionComposerIntakeKey,
     }),
     sessionReadsUiModule,
-    createPluginUiModule(),
+    createPluginUiModule({
+      code: {
+        given: { React, ui },
+        load: (name, version, path) =>
+          import(/* @vite-ignore */ pluginFilePath(name, version, path)),
+      },
+    }),
   ],
 }

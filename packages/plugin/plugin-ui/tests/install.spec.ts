@@ -135,7 +135,7 @@ describe('putting the members of one plugin on the points', () => {
     [
       'code',
       { point: 'shell.part-render', key: 'notes.send', module: 'send.js', export: 'send' },
-      'member 2 (shell.part-render notes.send): this side loads no code',
+      'member 2 (shell.part-render notes.send): this application loads no code',
     ],
     [
       'a style that is not a record',

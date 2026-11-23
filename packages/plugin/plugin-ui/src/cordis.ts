@@ -6,10 +6,10 @@ import type { ClientOf } from '@omne-harness/sdk/core'
 import { needProtocol, tenantScope } from '@omne-harness/shell-contract'
 import { defineUiModule, type ShellService } from '@omne-harness/shell-contract/cordis'
 import { followWanted, type Sleep } from './follow.ts'
-import { installOn } from './install.ts'
+import { installOn, type Code } from './install.ts'
 import { createLoader } from './loader.ts'
 
-export type PluginUiOptions = Readonly<{ backoff?: Backoff; sleep?: Sleep }>
+export type PluginUiOptions = Readonly<{ backoff?: Backoff; sleep?: Sleep; code?: Code }>
 
 type Running = Readonly<{ stop: () => Promise<void> }>
 
@@ -23,12 +23,13 @@ function loadFor(
   const tenant = readTenantText(text ?? '')
   if (tenant === undefined) return undefined
   const scope = tenantScope(text)
-  const loader = createLoader({ install: listed => installOn(shell, listed, scope) })
+  const { code, ...pace } = options
+  const loader = createLoader({ install: listed => installOn(shell, listed, scope, code) })
   const stopFollowing = followWanted({
     client,
     tenant,
     onList: list => loader.converge(list),
-    ...options,
+    ...pace,
   })
   return {
     async stop() {
