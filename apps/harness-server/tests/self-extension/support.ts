@@ -32,7 +32,7 @@ export async function otherTenant(tree: ReleaseTree, name = 'frank') {
   const credential = `${name}-pw-self-extension-4c1d`
   expect((await cli(['register', '--login-identifier', name], credential)).status).toBe(0)
   expect((await cli(['login', '--login-identifier', name], credential)).status).toBe(0)
-  return { cli, home }
+  return { cli, home, port: tree.port }
 }
 
 /** The system text of each request the scripted model was sent, in order. */

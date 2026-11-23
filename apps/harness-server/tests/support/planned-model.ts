@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import {
-  historyOf,
+  history,
   pollUntil,
   toolCallsByRequest,
   toolResults,
@@ -24,8 +24,14 @@ export const extensions = (name: string, params: Record<string, unknown>): Plann
   command('OmneExtensions', name, params)
 export const tools = (name: string, params: Record<string, unknown>): PlannedCall =>
   command('Tools', name, params)
-export const agents = (name: string, params: Record<string, unknown>): PlannedCall =>
-  command('Agents', name, params)
+/** A dispatch starts in the background, so it carries the intent its command requires. */
+export const agents = (name: string, params: Record<string, unknown>): PlannedCall => ({
+  tool: 'Agents',
+  arguments:
+    name === 'dispatch'
+      ? { command: name, intent: 'hand the work over', params }
+      : { command: name, params },
+})
 /** A call of a tool by its own arguments, as the model sends them. */
 export const direct = (tool: string, args: Record<string, unknown>): PlannedCall => ({
   tool,
@@ -39,11 +45,14 @@ export const plan = (...steps: readonly (readonly PlannedCall[])[]): string =>
 const textOf = (message: Message): string =>
   typeof message.content === 'string' ? message.content : JSON.stringify(message.content)
 
+/** A person's words are a user message; the work dispatched to a session reaches its model as a developer message. */
+const PLAN_ROLES = ['user', 'developer']
+
 /** The model makes the calls of the step it is at: one step for each of its earlier turns with calls. */
 export const plannedModel = toolCallsByRequest(body => {
   const { messages } = JSON.parse(body) as { messages: readonly Message[] }
   const at = messages.findLastIndex(
-    message => message.role === 'user' && /PLAN /u.test(textOf(message)),
+    message => PLAN_ROLES.includes(message.role) && /PLAN /u.test(textOf(message)),
   )
   const found = at < 0 ? null : /PLAN (.*) END/su.exec(textOf(messages[at]!))?.[1]
   if (found === null || found === undefined) return []
@@ -60,14 +69,17 @@ export const plannedModel = toolCallsByRequest(body => {
   }))
 })
 
-export async function cliOk(tree: ReleaseTree, args: readonly string[]) {
+/** Whoever acts on the tree: its first account, or another with a home of its own. */
+export type Acting = Pick<ReleaseTree, 'cli' | 'port' | 'home'>
+
+export async function cliOk(tree: Pick<Acting, 'cli'>, args: readonly string[]) {
   const ran = await tree.cli(args)
   expect(ran.status, ran.stderr).toBe(0)
   return JSON.parse(ran.stdout) as { outcome: string; body: Record<string, unknown> }
 }
 
 /** Sends plans to sessions one run at a time; each answer is the text of the tool results of that run. */
-export function planner(tree: ReleaseTree) {
+export function planner(tree: Acting) {
   const progress = new Map<string, { runs: number; results: number }>()
   return async (
     session: string,
@@ -80,7 +92,7 @@ export function planner(tree: ReleaseTree) {
     const wanted = at.runs
     const entries = await pollUntil(
       `run ${String(wanted)} to end`,
-      () => historyOf(tree, session),
+      () => history(tree.port, tree.home, session),
       seen => seen.filter(entry => entry.kind === 'run.terminal').length >= wanted,
     )
     const results = toolResults(entries)

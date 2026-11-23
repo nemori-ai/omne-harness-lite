@@ -43,7 +43,7 @@ const plugin: Plugin.Object = {
     })
     new AgentAdoptionsImpl(ctx, table, reading)
     new DefinitionMappingsImpl(ctx, table.mappings, reading)
-    new AgentDefinitionCatalogImpl(ctx, table)
+    new AgentDefinitionCatalogImpl(ctx, table, reading)
   },
 }
 
