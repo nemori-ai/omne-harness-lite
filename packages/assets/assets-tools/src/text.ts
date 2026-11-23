@@ -103,7 +103,12 @@ export const fileCount = (count: number) => `${count} ${count === 1 ? 'file' : '
 
 const CLOSED = 'this category is not made through here: it cannot be changed with this tool.'
 
-export function sourceLines(asset: Asset, closed: boolean): string[] {
+/** How a body that was not made from a directory is changed, in a category that is made from one. */
+const FROM_DIRECTORY =
+  'one made here is a directory: help with name publish and this category says how it is written.'
+
+export function sourceLines(asset: Asset, creation: 'none' | 'data' | 'directory'): string[] {
+  const closed = creation === 'none'
   const fixed =
     asset.row.origin === 'customized'
       ? []
@@ -134,7 +139,11 @@ export function sourceLines(asset: Asset, closed: boolean): string[] {
     `source: this held version, a body of ${bytes} bytes:`,
     text,
     ...fixed,
-    closed ? CLOSED : 'to change it: publish a new body as data.',
+    closed
+      ? CLOSED
+      : creation === 'directory'
+        ? FROM_DIRECTORY
+        : 'to change it: publish a new body as data.',
   ]
 }
 

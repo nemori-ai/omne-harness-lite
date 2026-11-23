@@ -263,6 +263,12 @@
 - `ResidentFoldFailure` · `dynamics.d.ts`
 - `ResidentTool` · `dynamics.d.ts`
 - `ResultPolicy` · `execution.d.ts`
+- `SCRIPT_EXECUTOR` · `script-tool.d.ts`
+- `SCRIPT_MODULE` · `script-tool.d.ts`
+- `SCRIPT_TOOL_FILE` · `script-tool.d.ts`
+- `ScriptConstruction` · `script-tool.d.ts`
+- `ScriptParameters` · `script-tool.d.ts`
+- `ScriptProperty` · `script-tool.d.ts`
 - `SealedToolBody` · `body-writer.d.ts`
 - `StartGuard` · `records.d.ts`
 - `StartPermit` · `records.d.ts`
@@ -406,6 +412,7 @@
 - `actionPreview` · `call-label.d.ts`
 - `attachToolsCapability` · `tools-capability.d.ts`
 - `authorDecision` · `checkpointed-author.d.ts`
+- `checkScriptArguments` · `script-tool.d.ts`
 - `commandAddedModalities` · `catalog.d.ts`
 - `commandArguments` · `command-call.d.ts`
 - `commandExample` · `command-call.d.ts`
@@ -458,6 +465,7 @@
 - `presentTool` · `catalog.d.ts`
 - `projectToolBackgroundCalls` · `background-calls-projection.d.ts`
 - `projectToolResult` · `result-projection.d.ts`
+- `readScriptConstruction` · `script-tool.d.ts`
 - `readToolInvocationRef` · `reference.d.ts`
 - `refreshAvailability` · `dynamics.d.ts`
 - `renderToolResult` · `result-rendering.d.ts`
@@ -465,6 +473,10 @@
 - `sameBindingKey` · `dynamics.d.ts`
 - `sameShape` · `dynamics.d.ts`
 - `sameSourceLayer` · `dynamics.d.ts`
+- `scriptConstructionOf` · `script-tool.d.ts`
+- `scriptParametersSchema` · `script-tool.d.ts`
+- `scriptToolAuthoring` · `script-tool.d.ts`
+- `scriptToolLayout` · `script-tool.d.ts`
 - `sha256Hex` · `body-store.d.ts`
 - `shapeOf` · `dynamics.d.ts`
 - `signBodyPermit` · `body-store.d.ts`
@@ -3351,6 +3363,7 @@ export { attachToolsCapability } from './tools-capability.ts';
 export type { ToolForwardParent, ToolForwardBinding, ToolForwardSourceOutcome, ToolForwardSource, ToolForwardRuntime, } from './forwarding.ts';
 export { returnGuide } from './return-description.ts';
 export { DEFAULT_RELEASE_DETAIL_POLICY, judgeReleaseDescription } from './release-detail.ts';
+export { SCRIPT_EXECUTOR, SCRIPT_MODULE, SCRIPT_TOOL_FILE, checkScriptArguments, readScriptConstruction, scriptConstructionOf, scriptParametersSchema, scriptToolAuthoring, scriptToolLayout, type ScriptConstruction, type ScriptParameters, type ScriptProperty, } from './script-tool.ts';
 ```
 
 ## 声明文件 `records.d.ts`
@@ -4485,6 +4498,55 @@ export type ToolCallContact = Readonly<{
 import type { ToolReturnDeclaration } from './definitions.ts';
 export declare function returnSummary(returns: ToolReturnDeclaration): string;
 export declare function returnGuide(returns: ToolReturnDeclaration): string;
+```
+
+## 声明文件 `script-tool.d.ts`
+
+```ts
+import { type JsonValue, type PackageLayout } from '@omne-harness/assets';
+import { type Outcome } from '@omne-harness/operation-result';
+export declare const SCRIPT_TOOL_FILE = "tool.json";
+export declare const SCRIPT_EXECUTOR = "script";
+export declare const SCRIPT_MODULE = "@omne-harness/tool-definitions#scriptToolModule";
+declare const PRIMITIVES: readonly [
+    'string',
+    'number',
+    'integer',
+    'boolean'
+];
+type Primitive = (typeof PRIMITIVES)[number];
+export type ScriptProperty = Readonly<{
+    type: Primitive | 'array';
+    items?: Primitive;
+    description?: string;
+    enum?: readonly (string | number)[];
+}>;
+export type ScriptParameters = Readonly<{
+    properties: Readonly<Record<string, ScriptProperty>>;
+    required: readonly string[];
+}>;
+export type ScriptConstruction = Readonly<{
+    summary: string;
+    parameters: ScriptParameters;
+    run: Readonly<{
+        program: string;
+        script: string;
+        args: readonly string[];
+    }>;
+    effect: 'read' | 'write';
+    timeoutMs: number;
+}>;
+type Read<Value> = Outcome<Value, Readonly<{
+    reason: string;
+}>>;
+type Plain = Readonly<Record<string, unknown>>;
+export declare function readScriptConstruction(value: unknown): Read<ScriptConstruction>;
+export declare function checkScriptArguments(parameters: ScriptParameters, value: unknown): Read<Plain>;
+export declare function scriptParametersSchema(parameters: ScriptParameters): Plain;
+export declare const scriptToolLayout: PackageLayout;
+export declare function scriptConstructionOf(body: JsonValue): Read<ScriptConstruction> | undefined;
+export declare const scriptToolAuthoring: string;
+export {};
 ```
 
 ## 声明文件 `settings.d.ts`

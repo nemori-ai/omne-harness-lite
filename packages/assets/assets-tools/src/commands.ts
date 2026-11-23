@@ -137,10 +137,10 @@ const show: Handler<'show'> = async (ready, { category, name }) => {
   const placed = (await settle(() =>
     source.placement.of({ tenant: scope.tenant, capability }),
   )) ?? { kind: 'unavailable' as const, reason: 'the placement did not answer' }
-  const closed = 'creation' in listing && listing.creation === 'none'
+  const creation = 'creation' in listing ? listing.creation : 'data'
   return done(
     'show',
-    [...assetHead(asset), ...placedLines(placed), ...sourceLines(asset, closed)],
+    [...assetHead(asset), ...placedLines(placed), ...sourceLines(asset, creation)],
     revisionOf(source),
   )
 }

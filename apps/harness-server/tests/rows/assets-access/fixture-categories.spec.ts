@@ -71,7 +71,7 @@ async function categoriesAndAssets(assets: Assets, tenant: TenantId) {
     ['model-provider', 'none'],
     ['plugin', 'directory'],
     ['skill', 'directory'],
-    ['tool', 'none'],
+    ['tool', 'directory'],
   ])
   expect(await assets['describe-category']({ category: FIXTURE })).toMatchObject({
     outcome: 'succeeded',

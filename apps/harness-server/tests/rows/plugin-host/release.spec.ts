@@ -88,7 +88,7 @@ describe('Plugin as a category on the release tree', () => {
           outcome: 'invalid',
           body: {
             reason:
-              'server.members[0] (tool.tools, Web): the category tool is not created through the general entry',
+              'server.members[0] (tool.tools, Web): the category tool takes a directory',
           },
         })
         const after = await assets['list-assets']({

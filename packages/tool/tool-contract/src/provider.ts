@@ -289,3 +289,17 @@ export type {
 } from './forwarding.ts'
 export { returnGuide } from './return-description.ts'
 export { DEFAULT_RELEASE_DETAIL_POLICY, judgeReleaseDescription } from './release-detail.ts'
+export {
+  SCRIPT_EXECUTOR,
+  SCRIPT_MODULE,
+  SCRIPT_TOOL_FILE,
+  checkScriptArguments,
+  readScriptConstruction,
+  scriptConstructionOf,
+  scriptParametersSchema,
+  scriptToolAuthoring,
+  scriptToolLayout,
+  type ScriptConstruction,
+  type ScriptParameters,
+  type ScriptProperty,
+} from './script-tool.ts'

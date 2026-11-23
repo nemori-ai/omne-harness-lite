@@ -72,7 +72,7 @@ describe('assets/v1 asset operations on the release tree', () => {
           ['model-provider', 'none'],
           ['plugin', 'directory'],
           ['skill', 'directory'],
-          ['tool', 'none'],
+          ['tool', 'directory'],
         ])
         expect(await assets['describe-category']({ category: 'skill' })).toMatchObject({
           outcome: 'succeeded',
@@ -81,12 +81,22 @@ describe('assets/v1 asset operations on the release tree', () => {
         expect(
           await assets['create-asset']({
             tenant,
+            operation: 'make-provider',
+            category: 'model-provider',
+            name: 'mine',
+            body: { kind: 'null' },
+          }),
+        ).toEqual({ outcome: 'invalid', body: { reason: 'creation-closed' } })
+        // A tool is made from a directory: a body alone is refused, and says so.
+        expect(
+          await assets['create-asset']({
+            tenant,
             operation: 'make-tool',
             category: 'tool',
             name: 'shell',
             body: { kind: 'null' },
           }),
-        ).toEqual({ outcome: 'invalid', body: { reason: 'creation-closed' } })
+        ).toEqual({ outcome: 'invalid', body: { reason: 'a-directory-category' } })
 
         const controller = new AbortController()
         const frames: unknown[] = []

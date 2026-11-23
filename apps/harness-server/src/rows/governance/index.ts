@@ -136,7 +136,6 @@ export const governanceRow = defineRow({
       {
         contract: createToolAssetCategory(release),
         display: toolCategoryDisplay,
-        generalCreation: 'closed',
       },
       toolToolsPoint,
     )
