@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { mediaProtocol } from '@omne-harness/media-protocol'
-import { definePoint, partsOn } from '@omne-harness/shell-contract'
+import { definePoint, defineRenderPoint, partsOn } from '@omne-harness/shell-contract'
 import { serviceKey } from '@omne-harness/shell-contract'
 import { provideOn, serveProtocol } from '@omne-harness/shell-contract/testing'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
@@ -24,7 +24,12 @@ const attachments = definePoint<MediaDraftSubject>({
   name: 'session.composer-attachments',
   subject: json(),
 })
-const block = definePoint<MediaBlockSubject>({ name: 'session.block', subject: json() })
+const block = defineRenderPoint<MediaBlockSubject>({
+  name: 'session.block-render',
+  key: 'the kind of the block',
+  summary: 'How a block of a message that is not text is drawn, by its kind.',
+})
+const kindOf = (content: unknown): string => (content as { kind: string }).kind
 
 /** The host of these points is not on this tree: the case stands in for it and declares them. */
 async function startShell() {
@@ -74,7 +79,7 @@ async function mounted(media: FakeMedia, microphone?: Microphone) {
 }
 
 describe('界面模块', () => {
-  it('协议客户端在时往两个拓展点各放一项；客户端不在时这些都不放', async () => {
+  it('协议客户端在时往草稿的拓展点放一项，往块的点上三种媒体各放一项；客户端不在时这些都不放', async () => {
     const { root, shell } = await startShell()
     await root.plugin(createMediaUiModule({ composerAttachments: attachments, block }))
     expect(shell.items('attached')).toEqual([])
@@ -86,9 +91,16 @@ describe('界面模块', () => {
       bindings: { media: { key: 'media/v1' } },
     })
     expect(shell.items('attached').map(item => [item.anchor, item.id])).toEqual([
-      ['session.block', 'media'],
       ['session.composer-attachments', 'media'],
     ])
+    const put = (kind: string) =>
+      block.draw(
+        shell,
+        kind,
+        { session: 'ses_a', message: 'msg_1', block: 'blk_1', content: { kind } },
+        () => 'generic',
+      ) !== 'generic'
+    expect(['image', 'file', 'voice', 'text'].map(put)).toEqual([true, true, true, false])
   })
 
   it('声明七个部位，协议有没有服务都一样', async () => {
@@ -338,7 +350,12 @@ describe('消息里一块非文字内容', () => {
     facts: { kind: 'image', widthPixels: 64, heightPixels: 48 },
   }
   const drawn = (shell: Awaited<ReturnType<typeof mounted>>['shell'], content: unknown) =>
-    block.slot(shell, { session: 'ses_a', message: 'msg_1', block: 'blk_picture', content }, all)
+    block.draw(
+      shell,
+      kindOf(content),
+      { session: 'ses_a', message: 'msg_1', block: 'blk_picture', content },
+      () => null,
+    )
   const stored = (media: FakeMedia) =>
     media.stored.set('key-up', {
       mediaType: 'image/png',
@@ -419,8 +436,9 @@ describe('消息里一块非文字内容', () => {
     const voice = { ...picture, kind: 'voice', ref: { ...ref, mediaType: 'audio/wav' } }
     const file = { ...picture, kind: 'file', ref: { ...ref, mediaType: 'application/pdf' } }
     const told = (content: unknown, read: string | undefined, id: string) =>
-      block.slot(
+      block.draw(
         shell,
+        kindOf(content),
         {
           session: 'ses_a',
           message: 'msg_1',
@@ -428,7 +446,7 @@ describe('消息里一块非文字内容', () => {
           content,
           ...(read === undefined ? {} : { read }),
         },
-        all,
+        () => null,
       )
     render(
       <>

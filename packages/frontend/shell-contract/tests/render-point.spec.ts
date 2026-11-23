@@ -153,6 +153,18 @@ describe('a point that draws by key', () => {
     ).toBe('generic')
   })
 
+  it('what is put on it is not an item of an attached place', async () => {
+    const w = await world()
+    let told = 0
+    w.shell.subscribe('attached', () => {
+      told += 1
+    })
+    await place(w.root, 'files-ui', ctx => void calls.put(ctx.shell, 'files.write', diff))
+    expect(w.shell.items('attached')).toEqual([])
+    expect(w.shell.conflicts('attached')).toEqual([])
+    expect(told).toBe(0)
+  })
+
   it('declares a point of one item to a key, where the most specific stands', () => {
     expect(calls.contract).toMatchObject({
       name: 'notes.tool-call',

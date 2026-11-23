@@ -20,9 +20,11 @@ import {
   type Filter,
   type State,
 } from '../model/inbox-machine.ts'
-import { EntryRow } from './entry-row.tsx'
+import { EntryRow, type RowDrawer } from './entry-row.tsx'
 import { useInbox, useTenant } from './use-inbox.ts'
 import { notificationPage, notificationPageFilter, notificationPageGroup } from '../parts.ts'
+
+const OWN_ROW: RowDrawer = (_entry, generic) => generic()
 
 export type InboxPageProps = Readonly<{
   hub: InboxHub
@@ -31,6 +33,8 @@ export type InboxPageProps = Readonly<{
   sections?: ReactNode
   /** The key of the notification the page was brought up on, such as from a toast. */
   focus?: string
+  /** What draws the inside of a row; `generic` is the row the page draws itself. */
+  row?: RowDrawer
 }>
 
 const FILTERS = [
@@ -48,7 +52,15 @@ export function InboxPage(props: InboxPageProps): JSX.Element {
         </InlineNotice>
       </PageColumn>
     )
-  return <Inbox hub={props.hub} tenant={tenant} sections={props.sections} focus={props.focus} />
+  return (
+    <Inbox
+      hub={props.hub}
+      tenant={tenant}
+      sections={props.sections}
+      focus={props.focus}
+      row={props.row ?? OWN_ROW}
+    />
+  )
 }
 
 type InboxProps = Readonly<{
@@ -56,9 +68,10 @@ type InboxProps = Readonly<{
   tenant: TenantId
   sections: ReactNode
   focus: string | undefined
+  row: RowDrawer
 }>
 
-function Inbox({ hub, tenant, sections, focus }: InboxProps): JSX.Element {
+function Inbox({ hub, tenant, sections, focus, row }: InboxProps): JSX.Element {
   const { driver, state } = useInbox(hub, tenant)
   return (
     <PageColumn className="notification-page" {...notificationPage.props}>
@@ -73,7 +86,7 @@ function Inbox({ hub, tenant, sections, focus }: InboxProps): JSX.Element {
           />
         </div>
         <LiveLine state={state} />
-        <Body state={state} driver={driver} focus={focus} />
+        <Body state={state} driver={driver} focus={focus} row={row} />
         {sections}
       </div>
     </PageColumn>
@@ -96,7 +109,12 @@ function LiveLine({ state }: { readonly state: State }): JSX.Element | null {
   return null
 }
 
-type BodyProps = Readonly<{ state: State; driver: InboxDriver; focus: string | undefined }>
+type BodyProps = Readonly<{
+  state: State
+  driver: InboxDriver
+  focus: string | undefined
+  row: RowDrawer
+}>
 
 function Section({
   title,
@@ -104,6 +122,7 @@ function Section({
   state,
   driver,
   focus,
+  row,
 }: BodyProps & { title: string; entries: readonly Entry[] }) {
   if (entries.length === 0) return null
   return (
@@ -126,6 +145,7 @@ function Section({
               state={state}
               driver={driver}
               focused={keyOf(entry) === focus}
+              drawn={row}
             />
           ))}
         </ul>
@@ -134,7 +154,7 @@ function Section({
   )
 }
 
-function Body({ state, driver, focus }: BodyProps): JSX.Element {
+function Body({ state, driver, focus, row }: BodyProps): JSX.Element {
   const { read } = state
   const { open, settled } = sectionsOf(state)
   const empty = open.length + settled.length === 0
@@ -154,8 +174,22 @@ function Body({ state, driver, focus }: BodyProps): JSX.Element {
           <p>通知太多，这里没有列全。</p>
         </InlineNotice>
       ) : null}
-      <Section title="未了结" entries={open} state={state} driver={driver} focus={focus} />
-      <Section title="已了结" entries={settled} state={state} driver={driver} focus={focus} />
+      <Section
+        title="未了结"
+        entries={open}
+        state={state}
+        driver={driver}
+        focus={focus}
+        row={row}
+      />
+      <Section
+        title="已了结"
+        entries={settled}
+        state={state}
+        driver={driver}
+        focus={focus}
+        row={row}
+      />
       {!empty ? null : read.kind === 'ready' ? (
         <EmptyState title={state.filter === 'all' ? '收件箱是空的' : '没有未了结的通知'} />
       ) : read.kind === 'failed' ? null : (

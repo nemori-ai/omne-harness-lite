@@ -283,7 +283,8 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 
 - 落回只有一处：`ShellService` 的受保护方法 `fallingBack(取画法, 画, 落回)`。部位的画法与按键的画法都经它。抽象类里的那一份接住调用时抛出的；外壳的实现重写它，把渲染当中才抛出的也接住，并在登记表或租户变了时重画。桌面应用里是一层错误边界，画法换了一份就重新试。
 - 外壳要的面写成两个结构类型：贡献方要 `RenderPutter`（有 `putDrawing`），宿主要 `RenderDrawer`（有 `drawnAt`），服务 `shell` 两样都满足。贡献方只拿贡献的一面 `RenderPointSink<S>`（名字与 `put`），由应用的装配交给它。
-- 放行卡的详情（`human-intervention.release-detail`）是这样的一个点。
+- 这个点上的条目不是附着位置的项：`shell.items('attached')` 只收放一列的点上的项。
+- 现有的五个：放行卡的详情（`human-intervention.release-detail`，键是带种类的值的种类）、消息里的内容块（`session.block-render`，键是块的种类）、工具调用（`session.tool-call`，键是工具的名字）、通知的一行（`notification.entry`，键是来源的名字）、设置项的控件（`assets.control`，键是值的种类）。各自给画法什么、通用的是什么，写在宿主所在包组的规格里。
 
 #### 部位
 

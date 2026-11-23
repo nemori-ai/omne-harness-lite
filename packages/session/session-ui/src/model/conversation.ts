@@ -320,3 +320,17 @@ function endCalls(item: Item, ended: ReadonlySet<string>, runActive: boolean): I
   })
   return changed ? { ...item, parts } : item
 }
+
+type ToolCallView = Extract<Part, { kind: 'tool-call' }>
+
+/** Where a call stands: it has a result, its run ended without one, or it is still going. */
+export function toolCallState(part: ToolCallView): 'working' | 'completed' | 'no-result' {
+  if (part.result !== null) return 'completed'
+  return part.ended ? 'no-result' : 'working'
+}
+
+/** The words of the result of a call; null while there is none. */
+export function toolResultText(part: ToolCallView): string | null {
+  if (part.result === null) return null
+  return part.result.parts.flatMap(each => (each.kind === 'text' ? [each.text] : [])).join('\n')
+}

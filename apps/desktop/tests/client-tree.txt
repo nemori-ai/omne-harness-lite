@@ -6,6 +6,8 @@ system
           assets-ui#1  [effective]
         assets.category-page
           assets-ui#1  [effective]
+        assets.control
+          assets-ui#1  [effective]
         assets.governance
           assets-ui#1  [effective]
         assets.holding
@@ -18,12 +20,14 @@ system
           human-intervention-ui#1  [effective]
         model.choices
           model-ui#1  [effective]
+        notification.entry
+          notification-ui#1  [effective]
         notification.inbox-sections
           notification-ui#1  [effective]
-        session.block
-          session-ui#1  [effective]
         session.block-reads-source
           session-reads-ui#1  [effective]
+        session.block-render
+          session-ui#1  [effective]
         session.call-detail
           session-ui#1  [effective]
         session.composer-attachments
@@ -35,6 +39,8 @@ system
         session.side
           session-ui#1  [effective]
         session.status
+          session-ui#1  [effective]
+        session.tool-call
           session-ui#1  [effective]
         shell.gate
           DesktopShell#1  [effective]
@@ -65,6 +71,7 @@ system
       assets.governance  [one]
         assets-ui#1  [effective]
       assets.category  [keyed-list]
+      assets.control  [keyed-one]
       assets.holding  [keyed-list]
     connection
       connection.protocols  [keyed-one]
@@ -104,12 +111,18 @@ system
       model.choices  [one]
         model-ui#1  [effective]
     notification
+      notification.entry  [keyed-one]
       notification.inbox-sections  [list]
     session
-      session.block  [list]
-        media  [effective, media-ui#1]
       session.block-reads-source  [one]
         session-reads-ui#1  [effective]
+      session.block-render  [keyed-one]
+        file
+          media-ui#1  [effective]
+        image
+          media-ui#1  [effective]
+        voice
+          media-ui#1  [effective]
       session.call-detail  [list]
         tool-call-output  [effective, tool-ui#1]
       session.composer-attachments  [list]
@@ -123,6 +136,7 @@ system
         usage  [effective, usage-ui#1]
       session.status  [list]
         usage.occupancy  [effective, usage-ui#1]
+      session.tool-call  [keyed-one]
     shell
       shell.gate  [one, build]
         identity-ui#1  [effective]

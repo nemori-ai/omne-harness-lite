@@ -15,7 +15,7 @@ import {
 import { Fragment, type ReactNode } from 'react'
 import { ArchiveStore } from './model/archive.ts'
 import { BlockReads, type BlockReadsSource } from './model/block-reads.ts'
-import type { BlockSource } from './model/conversation.ts'
+import { toolCallState, toolResultText, type BlockSource } from './model/conversation.ts'
 import { EntryFocus } from './model/entry-focus.ts'
 import { SessionFigure } from './model/figure.ts'
 import { HistorySearchStore } from './model/history-search.ts'
@@ -27,12 +27,13 @@ import { SessionWorkStore } from './model/session-work.ts'
 import { SessionWorkspaces } from './model/session-workspaces.ts'
 import { WorkspaceSelectionStore, type WorkspaceChoiceSource } from './model/workspace-selection.ts'
 import {
-  sessionBlock,
+  sessionBlockRender,
   sessionCallDetail,
   sessionComposerAttachments,
   sessionDock,
   sessionSide,
   sessionStatus,
+  sessionToolCall,
 } from './points.ts'
 import { ArchiveAction, ArchivedSessions } from './view/archive.tsx'
 import { BackgroundHint, SideWithBackground } from './view/background-pane.tsx'
@@ -41,6 +42,7 @@ import { FigureReport } from './view/figure-report.tsx'
 import { ReadBlock } from './view/read-block.tsx'
 import { HistorySearch } from './view/history-search.tsx'
 import { ModelAction } from './view/model-selection.tsx'
+import type { ToolCallPart } from './view/block-slot.ts'
 import { PartDrawContext } from './view/part-draw.ts'
 import { EntryFocusContext } from './view/shown-entry.ts'
 import { PermissionModeAction } from './view/permission-mode.tsx'
@@ -72,11 +74,18 @@ const SESSION_POINTS = [
   sessionStatus,
   sessionCallDetail,
   sessionComposerAttachments,
-  sessionBlock,
+  sessionBlockRender,
+  sessionToolCall,
 ]
 
 function blockDrawer(shell: ShellService, reads: BlockReads, scope: string | undefined) {
-  return (session: string, source: BlockSource, fallback: ReactNode, revision: string | null) => (
+  return (
+    session: string,
+    kind: string,
+    source: BlockSource,
+    fallback: ReactNode,
+    revision: string | null,
+  ) => (
     <ReadBlock
       reads={reads}
       tenant={scope}
@@ -85,17 +94,35 @@ function blockDrawer(shell: ShellService, reads: BlockReads, scope: string | und
       message={source.message}
       block={source.block}
       draw={read =>
-        sessionBlock.slot(
+        sessionBlockRender.draw(
           shell,
+          kind,
           { session, ...source, ...(read === undefined ? {} : { read }) },
-          entries =>
-            entries.length === 0
-              ? fallback
-              : entries.map(entry => <Fragment key={entry.id}>{entry.node}</Fragment>),
+          () => fallback,
         )
       }
     />
   )
+}
+
+// A call whose name is not generated yet has no key to draw by: the transcript draws its own line.
+function toolCallDrawer(shell: ShellService) {
+  return (session: string, part: ToolCallPart, generic: () => ReactNode): ReactNode =>
+    part.name === null
+      ? generic()
+      : sessionToolCall.draw(
+          shell,
+          part.name,
+          {
+            session,
+            call: part.callId,
+            name: part.name,
+            arguments: part.arguments,
+            state: toolCallState(part),
+            result: toolResultText(part),
+          },
+          generic,
+        )
 }
 
 const fragments = (entries: readonly Readonly<{ id: string; node: ReactNode }>[]) =>
@@ -231,6 +258,7 @@ const apply: UiModuleDefinition<ReturnType<typeof needsOf>>['apply'] = (
               sessionComposerAttachments.slot(shell, { session, draft }, fragments)
             }
             block={blockDrawer(shell, reads, scope)}
+            toolCall={toolCallDrawer(shell)}
             side={session =>
               sessionSide.slot(shell, { session }, entries =>
                 scope === undefined ? (

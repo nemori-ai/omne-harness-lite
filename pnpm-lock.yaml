@@ -4114,6 +4114,9 @@ importers:
       '@omne-harness/client-assembly':
         specifier: workspace:*
         version: link:../../access/client-assembly
+      '@omne-harness/content-block':
+        specifier: workspace:*
+        version: link:../../common/content-block
       '@omne-harness/media-protocol':
         specifier: workspace:*
         version: link:../media-protocol

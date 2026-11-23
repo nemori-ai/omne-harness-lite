@@ -5,7 +5,13 @@ import { afterEach, beforeAll, expect, it } from 'vitest'
 import { notificationProtocol } from '@omne-harness/notification-protocol'
 import { partsOn } from '@omne-harness/shell-contract'
 import { serveProtocol } from '@omne-harness/shell-contract/testing'
-import { INBOX_SECTIONS, inboxSections, notificationUiModule } from '../src/cordis.ts'
+import {
+  INBOX_SECTIONS,
+  NOTIFICATION_ENTRY,
+  inboxSections,
+  notificationEntry,
+  notificationUiModule,
+} from '../src/cordis.ts'
 import { entry, page } from './fixtures/entries.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
@@ -197,4 +203,64 @@ it('a section put under the anchor with a subject the point does not read is not
   expect(drawn.container.innerHTML).toBe('')
   const right = render(<>{shell.attached(INBOX_SECTIONS, 'person')}</>)
   expect(right.container.textContent).toBe('一栏')
+})
+
+async function inbox(put: (shell: Awaited<ReturnType<typeof loaded>>['shell']) => void) {
+  const { shell, fake } = await loaded()
+  put(shell)
+  shell.tenant = TENANT
+  const [placed] = shell.items('pages')
+  const view = render(<>{placed!.render({ scope: TENANT })}</>)
+  await settle()
+  await act(async () => fake.observations[0]!.frame())
+  ;(await fake.next('list-inbox')).answer(
+    page([entry('a', 1), entry('b', 2, { source: 'calendar.events', title: '明天开会' })]),
+  )
+  await settle()
+  return view
+}
+const rowsOf = (view: Awaited<ReturnType<typeof inbox>>) =>
+  [...view.container.querySelectorAll('li.notification-row')].map(row => row.textContent)
+
+it('the point of a row is notification.entry, one drawing to the name of a source', () => {
+  expect(NOTIFICATION_ENTRY).toBe('notification.entry')
+  expect(notificationEntry.name).toBe(NOTIFICATION_ENTRY)
+  expect(notificationEntry.contract).toMatchObject({
+    arity: 'keyed-one',
+    key: 'the name of the source',
+  })
+})
+
+it('a source that put a drawing draws its own rows, given the notification; the rows of other sources stay as they were', async () => {
+  const seen: unknown[] = []
+  const plain = rowsOf(await inbox(() => {}))
+  cleanup()
+  const view = await inbox(
+    shell =>
+      void notificationEntry.put(shell, 'calendar.events', ({ scope, subject }) => {
+        seen.push([scope, subject.source, subject.event, subject.title])
+        return <p data-testid="meeting">会议：{subject.title}</p>
+      }),
+  )
+  const rows = rowsOf(view)
+  const own = (row: string | null): boolean => row?.includes('明天开会') === true
+  expect(rows.filter(own)).toEqual(['会议：明天开会'])
+  expect(rows.filter(row => !own(row))).toEqual(plain.filter(row => !own(row)))
+  expect(plain.filter(own)).toHaveLength(1)
+  expect(seen.at(-1)).toEqual([TENANT, 'calendar.events', 'b', '明天开会'])
+})
+
+it('a drawing can stand around the row the page draws itself, and one that throws falls back to it', async () => {
+  const plain = rowsOf(await inbox(() => {}))
+  cleanup()
+  const framed = await inbox(shell => {
+    notificationEntry.put(shell, 'calendar.events', ({ generic }) => (
+      <div data-testid="framed">{generic()}</div>
+    ))
+    notificationEntry.put(shell, 'demo.things', () => {
+      throw new Error('this row is broken')
+    })
+  })
+  expect(rowsOf(framed)).toEqual(plain)
+  expect(framed.getByTestId('framed').querySelector('.notification-title')).not.toBeNull()
 })

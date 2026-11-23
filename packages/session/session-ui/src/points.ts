@@ -1,4 +1,10 @@
-import { definePoint, type Point, type PointCodec } from '@omne-harness/shell-contract'
+import {
+  definePoint,
+  defineRenderPoint,
+  type Point,
+  type PointCodec,
+  type RenderPoint,
+} from '@omne-harness/shell-contract'
 
 export type SessionSubject = Readonly<{ session: string }>
 
@@ -80,7 +86,8 @@ export type SessionBlockSubject = Readonly<{
 }>
 
 export const SESSION_COMPOSER_ATTACHMENTS = 'session.composer-attachments'
-export const SESSION_BLOCK = 'session.block'
+export const SESSION_BLOCK_RENDER = 'session.block-render'
+export const SESSION_TOOL_CALL = 'session.tool-call'
 
 export const sessionComposerAttachments: Point<SessionDraftSubject> = definePoint({
   name: SESSION_COMPOSER_ATTACHMENTS,
@@ -88,8 +95,24 @@ export const sessionComposerAttachments: Point<SessionDraftSubject> = definePoin
   subject: jsonSubject(value => texts(value, ['session', 'draft'])),
 })
 
-export const sessionBlock: Point<SessionBlockSubject> = definePoint({
-  name: SESSION_BLOCK,
-  summary: 'How a block of a message that is not text is drawn.',
-  subject: jsonSubject(value => texts(value, ['session', 'message', 'block'])),
+export const sessionBlockRender: RenderPoint<SessionBlockSubject> = defineRenderPoint({
+  name: SESSION_BLOCK_RENDER,
+  key: 'the kind of the block',
+  summary: 'How a block of a message that is not text is drawn, by its kind.',
+})
+
+/** One call of a tool, as the transcript holds it. */
+export type SessionToolCallSubject = Readonly<{
+  session: string
+  call: string | null
+  name: string
+  arguments: unknown
+  state: 'working' | 'completed' | 'no-result'
+  result: string | null
+}>
+
+export const sessionToolCall: RenderPoint<SessionToolCallSubject> = defineRenderPoint({
+  name: SESSION_TOOL_CALL,
+  key: 'the name of the tool',
+  summary: 'How a call of one tool is drawn in the transcript.',
 })

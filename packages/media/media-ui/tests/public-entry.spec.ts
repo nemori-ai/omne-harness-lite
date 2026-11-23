@@ -6,7 +6,7 @@ it('the root entry exports the views and the models, and no Cordis binding', asy
     'AttachmentTray',
     'AttachmentTrayView',
     'IMAGE_TYPES',
-    'MediaBlock',
+    'MEDIA_BLOCKS',
     'readWhole',
     'uploadMedium',
   ])

@@ -89,6 +89,12 @@ describe('the drawing of a part', () => {
     ])
   })
 
+  it('a drawing put on a part is not an item of an attached place', async () => {
+    const w = await world()
+    await place(w.root, 'brand', ctx => void ctx.shell.putRender('notes.message', shout))
+    expect(w.shell.items('attached')).toEqual([])
+  })
+
   it('taken back, or with the module that put it unloaded, the part is drawn as it shipped', async () => {
     const w = await world()
     let take: (() => unknown) | undefined

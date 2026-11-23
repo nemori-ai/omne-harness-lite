@@ -140,18 +140,21 @@ function listView<K extends SlotName>(registry: Registry, slot: K, point: string
   }
 }
 
+const LISTED: readonly string[] = ['list', 'keyed-list']
+
 const byText = (left: string, right: string): number => (left < right ? -1 : left > right ? 1 : 0)
 
 const byOrderThenId = (left: AttachedItem, right: AttachedItem): number =>
   left.order - right.order || byText(left.id, right.id) || byText(left.anchor, right.anchor)
 
-/** A declared point whose items are drawn, and is not one of the three of the shell, is a place something can be attached to. */
+/** A declared point that holds a list of drawn items, and is not one of the three of the shell, is a place something can be attached to. */
 function attachedView(registry: Registry): SlotView<'attached'> {
   const declared = list<Contract>(registry, CATALOG, null, deployment)
   if (declared.kind !== 'read') return NOTHING
   const own: readonly string[] = Object.values(POINT)
   const views = declared.items
     .filter(item => item.entry.item.item.fields['render'] === 'function')
+    .filter(item => LISTED.includes(item.entry.item.arity))
     .map(item => item.entry.key)
     .filter(name => !own.includes(name))
     .map(name => listView(registry, 'attached', name))

@@ -1,12 +1,14 @@
 import { expect, it } from 'vitest'
 
-it('the cordis entry gives the interface module, the page id and order, and the point for sections', async () => {
+it('the cordis entry gives the interface module, the page id and order, the point for sections and the point for rows', async () => {
   const cordis = (await import('@omne-harness/notification-ui/cordis')) as Record<string, unknown>
   expect(Object.keys(cordis).sort()).toEqual([
     'INBOX_SECTIONS',
+    'NOTIFICATION_ENTRY',
     'PAGE_ID',
     'PAGE_ORDER',
     'inboxSections',
+    'notificationEntry',
     'notificationParts',
     'notificationUiModule',
   ])

@@ -81,3 +81,12 @@ export function formOf(schema: JsonValue): DataForm {
   }
   return fields.length === 0 ? JSON_FORM : { kind: 'fields', fields }
 }
+
+/** The kind of a declared value, which its control is chosen by: its format, else `enum`, else its type. */
+export function valueKindOf(schema: JsonValue): string | null {
+  const named = (key: string): string | null => {
+    const value = member(schema, key)
+    return value?.kind === 'string' && value.value !== '' ? value.value : null
+  }
+  return named('format') ?? (member(schema, 'enum') === undefined ? named('type') : 'enum')
+}

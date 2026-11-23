@@ -1,4 +1,10 @@
-import { definePoint, type Point } from '@omne-harness/shell-contract'
+import type { NotificationSummaryBody } from '@omne-harness/notification-protocol'
+import {
+  definePoint,
+  defineRenderPoint,
+  type Point,
+  type RenderPoint,
+} from '@omne-harness/shell-contract'
 
 /** What a section in the panel is about: the inbox of the person the tenant is. */
 export type InboxSubject = Readonly<{ recipient: 'person' }>
@@ -13,4 +19,16 @@ export const inboxSections: Point<InboxSubject> = definePoint({
     encode: subject => subject.recipient,
     decode: text => (text === 'person' ? { recipient: text } : undefined),
   },
+})
+
+/** One notification of the inbox, as the protocol gives it. */
+export type NotificationEntrySubject = NotificationSummaryBody
+
+export const NOTIFICATION_ENTRY = 'notification.entry'
+
+/** Where the domain of a source draws the rows of its own notifications. */
+export const notificationEntry: RenderPoint<NotificationEntrySubject> = defineRenderPoint({
+  name: NOTIFICATION_ENTRY,
+  key: 'the name of the source',
+  summary: 'How a row of the inbox is drawn, by the source of the notification.',
 })

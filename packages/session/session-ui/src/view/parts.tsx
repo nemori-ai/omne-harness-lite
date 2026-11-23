@@ -12,9 +12,9 @@ import {
 } from '@omne-harness/ui-kit'
 import type { PartProps } from '@omne-harness/shell-contract'
 import { memo, useContext, useId, useState, type ReactNode } from 'react'
-import type { Item, Part } from '../model/conversation.ts'
+import { toolCallState, type Item, type Part } from '../model/conversation.ts'
 import { isRecord, type Plain } from '../model/plain.ts'
-import { BlockSlotContext } from './block-slot.ts'
+import { BlockSlotContext, ToolCallSlotContext, type ToolCallPart } from './block-slot.ts'
 import { PartDrawContext } from './part-draw.ts'
 import {
   sessionTranscriptAgentMessage,
@@ -22,8 +22,6 @@ import {
   sessionTranscriptToolCall,
   sessionTranscriptUserMessage,
 } from '../parts.ts'
-
-type ToolCallPart = Extract<Part, { kind: 'tool-call' }>
 
 /** A process line (`TraceRow` family): icon, name, state word, unfolding in place; quiet, the figure speaks. */
 function ProcessLine({
@@ -193,8 +191,10 @@ function Result({ parts }: { readonly parts: readonly Part[] }) {
 
 /** A tool result carries no outcome, so the transcript knows of no failed call. */
 function toolWord(part: ToolCallPart): Readonly<{ word: ReactNode; live: boolean }> {
-  if (part.result !== null) return { word: <StateWord state="completed" />, live: false }
-  if (part.ended) return { word: <span className="omne-process-word">没有结果</span>, live: false }
+  const state = toolCallState(part)
+  if (state === 'completed') return { word: <StateWord state="completed" />, live: false }
+  if (state === 'no-result')
+    return { word: <span className="omne-process-word">没有结果</span>, live: false }
   return { word: <StateWord state="working" />, live: true }
 }
 
@@ -220,6 +220,12 @@ function ToolCall({ part }: { readonly part: ToolCallPart }) {
       {part.result === null ? null : <Result parts={part.result.parts} />}
     </ProcessLine>
   )
+}
+
+function DrawnToolCall({ part }: { readonly part: ToolCallPart }) {
+  const slot = useContext(ToolCallSlotContext)
+  const generic = (): ReactNode => <ToolCall part={part} />
+  return slot === null ? generic() : slot(part, generic)
 }
 
 function Reasoning({ text, live }: { readonly text: string; readonly live: boolean }) {
@@ -248,7 +254,9 @@ function MediaPart({ part }: { readonly part: Extract<Part, { kind: 'media' }> }
       〔{part.media}〕{part.detail}
     </p>
   )
-  return slot === null || part.source === null ? placeholder : slot(part.source, placeholder)
+  return slot === null || part.source === null
+    ? placeholder
+    : slot(part.media, part.source, placeholder)
 }
 
 function BubblePart({ part, live }: { readonly part: Part; readonly live: boolean }) {
@@ -269,7 +277,7 @@ function LinePart({ part, live }: { readonly part: Part; readonly live: boolean 
     case 'thinking':
       return <Reasoning text={part.text} live={live} />
     case 'tool-call':
-      return <ToolCall part={part} />
+      return <DrawnToolCall part={part} />
     case 'tool-result':
       return (
         <ProcessLine
