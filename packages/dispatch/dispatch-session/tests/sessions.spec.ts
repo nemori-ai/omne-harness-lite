@@ -7,6 +7,7 @@ import {
   type InputFate,
   type RunId,
   type SessionFailure,
+  type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import { DISPATCH_SOURCES } from '../src/index.ts'
 import {
@@ -240,6 +241,7 @@ describe('where the starting input of the session is', () => {
   const fateOf = async (
     fate: InputFate | { failure: SessionFailure } | Error,
     pages: unknown[] = [],
+    child: Partial<WorkSnapshot> = {},
   ) => {
     const { sessions, script, made } = world()
     const dispatch = dispatchOf()
@@ -248,6 +250,7 @@ describe('where the starting input of the session is', () => {
       identities.input,
       fate instanceof Error || 'failure' in fate ? (fate as never) : { ok: fate },
     )
+    script.works.set(identities.session, { kind: 'read', value: work(identities.session, child) })
     script.pages.push(...(pages as never[]))
     const session = identities.session as unknown as SessionRef
     const answer = await sessions.startFate(TENANT, { id: dispatch.id, session })
@@ -305,10 +308,10 @@ describe('where the starting input of the session is', () => {
     expect((await fateOf(answer)).answer).toEqual({ kind: 'unavailable' })
   })
 
-  it('answers the end of the run with the text of its last assistant message', async () => {
+  it('answers, once the session is quiet, with the text of the last assistant message of its latest run', async () => {
     const completed: InputFate = { kind: 'answered', run: RUN, terminal: 'completed' }
     const { answer, made } = await fateOf(completed, [
-      page([ended('run_2'), said('a later run'), entry('run.started', {}), ended(RUN)], 'c1'),
+      page([ended('run_2')], 'c1'),
       page([said('first part', 'second part'), said('an earlier step'), entry('run.started', {})]),
     ])
     expect(answer).toEqual({
@@ -319,6 +322,47 @@ describe('where the starting input of the session is', () => {
       { kinds: ['message.assistant', 'run.started', 'run.terminal'], cursor: null },
       { cursor: 'c1' },
     ])
+  })
+
+  it.each([
+    ['a run goes on', { run: { kind: 'active' } }],
+    ['an input waits', { pending: ['input-1'] }],
+    ['a call is in the background', { backgroundPlaceholders: ['consumption-1'] }],
+  ] as const)(
+    'answers that the work goes on while %s after its first run, and reads no history',
+    async (_name, child) => {
+      const completed: InputFate = { kind: 'answered', run: RUN, terminal: 'completed' }
+      const { answer, made } = await fateOf(completed, [], child as Partial<WorkSnapshot>)
+      expect(answer).toEqual({ kind: 'read', value: { kind: 'running' } })
+      expect(made('history')).toEqual([])
+    },
+  )
+
+  it.each([
+    ['failed', { kind: 'failed', detail: 'the run failed' }],
+    ['cancelled', { kind: 'cancelled', detail: 'the run was cancelled' }],
+  ] as const)('answers by the latest run when it %s', async (outcome, expected) => {
+    const completed: InputFate = { kind: 'answered', run: RUN, terminal: 'completed' }
+    const { answer } = await fateOf(completed, [page([ended('run_2', outcome), said('x')])])
+    expect(answer).toEqual({ kind: 'read', value: expected })
+  })
+
+  it('answers that the session is not there, and is unavailable when its work cannot be read', async () => {
+    const completed: InputFate = { kind: 'answered', run: RUN, terminal: 'completed' }
+    const { sessions, script } = world()
+    const dispatch = dispatchOf()
+    const identities = startOf(dispatch.id)
+    script.fates.set(identities.input, { ok: completed })
+    const session = identities.session as unknown as SessionRef
+    script.works.set(identities.session, { kind: 'read', value: null })
+    expect(await sessions.startFate(TENANT, { id: dispatch.id, session })).toEqual({
+      kind: 'read',
+      value: { kind: 'absent' },
+    })
+    script.works.set(identities.session, { kind: 'unavailable' })
+    expect(await sessions.startFate(TENANT, { id: dispatch.id, session })).toEqual({
+      kind: 'unavailable',
+    })
   })
 
   it('answers a run that ended without a word with a text that says so', async () => {

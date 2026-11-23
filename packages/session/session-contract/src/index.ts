@@ -429,7 +429,7 @@ export type {
 } from './background-calls.ts'
 export { compactionContextForView, isAcceptedInputRecord } from './model-view.ts'
 export {
-  forkPointAfterRows,
+  forkPointBefore,
   forkPointText,
   judgeForkPoint,
   ownPositionAfter,

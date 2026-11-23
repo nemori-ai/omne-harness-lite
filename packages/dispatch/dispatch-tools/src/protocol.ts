@@ -111,7 +111,7 @@ export const agentsSummaries: Readonly<Record<AgentsCommandName, string>> = {
   targets:
     'List the agent definitions you can dispatch to now, with the type and a description of each.',
   dispatch:
-    'Hand one piece of work to another agent in a new session. delegate and spawn wait here for its one report; handoff returns when the new session exists.',
+    'Hand one piece of work to another agent in a new session. It runs in the background at once: delegate and spawn report back later as a reminder; handoff ends when the new session exists.',
   show: 'Read one dispatch: its state, its report, where the report went, and how far a stop got.',
   withdraw:
     'Take back a dispatch you made, before its report. Asks its run to stop; it does not archive the session.',

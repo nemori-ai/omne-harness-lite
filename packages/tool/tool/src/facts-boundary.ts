@@ -251,6 +251,7 @@ function askWait(
   const request = judgeEvidenceField(intent.request, 'batch.events.fact.value.request')
   if ('failure' in request) return request
   const schemas = intent.schemas
+  const declared = object(schemas) && Object.hasOwn(schemas, 'background')
   const keys = [
     'contract',
     'request',
@@ -259,9 +260,11 @@ function askWait(
     'responseMaxBytes',
     'expiry',
     'source',
+    ...(declared ? ['background'] : []),
   ]
   if (
     !closed(schemas, keys) ||
+    (declared && schemas.background !== 'waits' && schemas.background !== 'never') ||
     !schemaIdentity(schemas.request) ||
     !schemaIdentity(schemas.response) ||
     !positive(schemas.requestMaxBytes) ||
@@ -299,6 +302,9 @@ function askWait(
         requestMaxBytes: schemas.requestMaxBytes,
         responseMaxBytes: schemas.responseMaxBytes,
         expiry: 'forbidden',
+        ...(schemas.background === 'waits' || schemas.background === 'never'
+          ? { background: schemas.background }
+          : {}),
         source: source.ok,
       },
     },

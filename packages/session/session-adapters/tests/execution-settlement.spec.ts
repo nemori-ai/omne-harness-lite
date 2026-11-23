@@ -60,6 +60,7 @@ import { blobRowDigest } from '../src/cordis/journal-batch.ts'
 import { materialOf as modelMaterialOf } from './fixtures/model-delivery.ts'
 import { toolCall } from './fixtures/tool-call.ts'
 import {
+  materialOf as toolMaterialOf,
   outcomeMaterial,
   placeholderEntry,
   placeholderMaterial,
@@ -1135,5 +1136,109 @@ describe('an Agent event that registers a call and processes its result kept bef
     expect(whole?.sequence).not.toBeNull()
     expect(whole?.consequences.map(item => item.kind)).toEqual(['producer'])
     expect(whole?.operation).not.toBe(bindings[0]!.operation)
+  })
+})
+
+// verification/binding-order: the interpretation and the entries consumption each keep their own
+// order; a processing that waited for a later delivery of its call would wait for ever here.
+describe('an Agent event that processes a delivery', () => {
+  it('waits for the delivery it processes, not for a later one of its call behind an entry of a call the Session has no binding of', async () => {
+    const s = await scene('awaits-processed')
+    const c = await cordisScene(s)
+    disposers.push(() => c.dispose())
+    const coordinator = async () => succeed(s.access.principal)
+    const { authority, load, commit, receive } = await opening(s, c)
+    const tool = toolCall(s.access.tenant, 'background')
+    if (tool.entry.delivery.producer !== 'tool') throw new Error('fixture: a Tool entry')
+    const consumer = { ...tool.entry.consumer, work: s.execution }
+    const account = { ...tool.entry, consumer }
+    const pending = { ...tool.pending, position: consumer }
+    const waits = [{ kind: 'producer' as const, pending }]
+    await commit('wait', {
+      checkpoint: { ...(await load()).checkpoint, calls: [pending] },
+      state: { kind: 'waiting', waits },
+      events: [{ kind: 'waiting', waits }],
+      effects: [{ action: pending.action, pending, authority }],
+    })
+    const placeholder = placeholderEntry(account)
+    await receive('placeholder', placeholder, placeholderMaterial(s.access.tenant, placeholder))
+    // Issued with no event that names it, as the Agent did before it named a call at its association.
+    const other = toolCall(s.access.tenant, 'unnamed')
+    const otherConsumer = { ...other.entry.consumer, work: s.execution }
+    const issued = { ...other.pending, position: otherConsumer }
+    await commit('issue-unnamed', {
+      checkpoint: { ...(await load()).checkpoint, calls: [pending, issued] },
+      effects: [{ action: issued.action, pending: issued, authority }],
+    })
+    const unnamed = { ...other.entry, consumer: otherConsumer }
+    const { material: _material, ...draft } = unnamed
+    await receive('unnamed-account', unnamed, toolMaterialOf(s.access.tenant, draft))
+    await commit('placeholder-processed', {
+      checkpoint: { ...(await load()).checkpoint, calls: [issued] },
+      events: [
+        {
+          kind: 'producer',
+          result: {
+            producer: { kind: 'tool', call: tool.call },
+            version: 'placeholder',
+            delivery: 'tdel_0',
+            source: evidence('placeholder'),
+          },
+          consumption: pending.consumption,
+        },
+      ],
+    })
+    const outcome = resultEntry(account)
+    await receive('outcome', outcome, outcomeMaterial(s.access.tenant, outcome))
+    await c.mount(
+      createSessionToolLogConsumptionPlugin({ toolDeliveries: reader, coordinator }).plugin,
+      {},
+    )
+    const interpretation = createSessionJournalInterpretationPlugin<string>({ coordinator })
+    await c.mount(interpretation.plugin)
+    ok(await interpretation.interpret(targetOf(s)))
+    await vi.waitFor(() => expect(callOrder(s).processed).toBeGreaterThanOrEqual(0), {
+      timeout: 5000,
+    })
+    expect(kindsOf(s)).toContain('call.backgrounded')
+  })
+})
+
+// A late delivery to an execution that ended with a call still out: the reader that consumes it may
+// hold no view of that execution, and finds it from the source of the material.
+describe('a material kept after its execution ended', () => {
+  it('is read by its source from a reader whose book does not hold that execution', async () => {
+    const s = await scene('material-of-ended')
+    const c = await cordisScene(s)
+    disposers.push(() => c.dispose())
+    const { journal, opened, authority, load, commit, receive } = await opening(s, c)
+    const tool = toolCall(s.access.tenant, 'background')
+    if (tool.entry.delivery.producer !== 'tool') throw new Error('fixture: a Tool entry')
+    const consumer = { ...tool.entry.consumer, work: s.execution }
+    const account = { ...tool.entry, consumer }
+    const pending = { ...tool.pending, position: consumer }
+    const waits = [{ kind: 'producer' as const, pending }]
+    await commit('wait', {
+      checkpoint: { ...(await load()).checkpoint, calls: [pending] },
+      state: { kind: 'waiting', waits },
+      events: [{ kind: 'waiting', waits }],
+      effects: [{ action: pending.action, pending, authority }],
+    })
+    const placeholder = placeholderEntry(account)
+    await receive('placeholder', placeholder, placeholderMaterial(s.access.tenant, placeholder))
+    await endOpened(s, journal, opened, refusedByModel())
+    const outcome = resultEntry(account)
+    const material = outcomeMaterial(s.access.tenant, outcome)
+    await receive('outcome', outcome, material)
+    const page = ok(
+      await s.fresh().entries.read({ ...s.access, execution: s.execution, after: null, limit: 10 }),
+    )
+    const kept = page.items.flatMap(({ entry }) =>
+      entry.kind === 'received' && entry.delivery.key.kind === 'result' ? [entry.material] : [],
+    )
+    expect(kept).toHaveLength(1)
+    expect(await s.fresh().materials.read({ ...s.access, source: kept[0]! })).toEqual(
+      succeed(material),
+    )
   })
 })

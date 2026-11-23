@@ -20,14 +20,21 @@ type Metadata = Omit<
   'kind' | 'parameters' | 'returns'
 >
 
-function shell(allowed = true, unless: readonly string[] = ['terminal']): ToolDefinition {
+function shell(
+  allowed = true,
+  unless: readonly string[] = ['terminal'],
+  start?: 'launch',
+): ToolDefinition {
   const base = functionDefinition({ backgroundAllowed: allowed })
   if (base.kind !== 'function') throw new Error('function')
   const { kind: _kind, parameters, returns, ...metadata } = base
   const declared = { kind: 'declared', value: parameters } as const
   return {
     ...(metadata as Metadata),
-    adoption: { ...metadata.adoption, revision: `shell-${String(allowed)}-${unless.join('+')}` },
+    adoption: {
+      ...metadata.adoption,
+      revision: `shell-${String(allowed)}-${unless.join('+')}-${start ?? 'asked'}`,
+    },
     name: 'shell',
     kind: 'commands',
     encoding: 'wrapped',
@@ -37,7 +44,7 @@ function shell(allowed = true, unless: readonly string[] = ['terminal']): ToolDe
         summary: 'Run once or in a terminal.',
         parameters: declared,
         returns,
-        ...(allowed ? { background: { unless } } : {}),
+        ...(allowed ? { background: { unless, ...(start === undefined ? {} : { start }) } } : {}),
       },
       { name: 'info', summary: 'Describe the placement.', parameters: declared, returns },
     ],
@@ -120,5 +127,30 @@ describe('admission asks the same question of a launch in the background', () =>
       relation: 'background',
       foreground: { kind: 'background', source: { kind: 'launched' } },
     })
+  })
+
+  it('accepts a call of a command that starts at launch in the background, though the request asks the foreground', async () => {
+    const assembly = harness()
+    const asked = {
+      ...call(shell(true, [], 'launch'), 'execute', { path: 'a' }),
+      mode: 'foreground' as const,
+    }
+    const admitted = await assembly.admitInternal(asked)
+    if (admitted.kind !== 'accepted') throw new Error(JSON.stringify(admitted))
+    expect(judged(admitted.state)).toMatchObject({
+      relation: 'background',
+      foreground: { kind: 'background', source: { kind: 'launched' } },
+    })
+  })
+
+  it('leaves the other commands of that tool in the foreground', async () => {
+    const assembly = harness()
+    const asked = {
+      ...call(shell(true, [], 'launch'), 'info', { path: 'a' }),
+      mode: 'foreground' as const,
+    }
+    const admitted = await assembly.admitInternal(asked)
+    if (admitted.kind !== 'accepted') throw new Error(JSON.stringify(admitted))
+    expect(judged(admitted.state)).toMatchObject({ relation: 'foreground' })
   })
 })

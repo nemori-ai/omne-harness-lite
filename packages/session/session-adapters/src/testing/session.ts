@@ -744,7 +744,7 @@ export function createSessionTransactions<P>(
     },
     readForkPoint: async input => {
       const store = await storeOf(input, 'history.readModelView')
-      return forkPointRead(store, keyOf(input.tenant, input.session))
+      return forkPointRead(store, keyOf(input.tenant, input.session), input.asking)
     },
     readModelView: async input => {
       const store = await storeOf(input, 'history.readModelView')

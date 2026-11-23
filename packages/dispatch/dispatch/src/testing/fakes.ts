@@ -231,14 +231,14 @@ export function fakeDefinitions(
 type CopyAnswer = ContextMoment | 'unreadable'
 
 export function fakeCopies(): ContextCopies &
-  Readonly<{ answer(next: CopyAnswer): void; asked: readonly (readonly string[])[] }> {
+  Readonly<{ answer(next: CopyAnswer): void; asked: readonly (readonly (string | null)[])[] }> {
   let next: CopyAnswer = { kind: 'moment', moment: 'moment-1' }
-  const asked: string[][] = []
+  const asked: (string | null)[][] = []
   return {
     asked,
     answer: given => void (next = given),
-    moment: async (tenant, dispatcher, call) => {
-      asked.push([tenant, dispatcher, call])
+    moment: async (tenant, dispatcher, asking) => {
+      asked.push([tenant, dispatcher, asking])
       return next === 'unreadable' ? { kind: 'unavailable' } : { kind: 'read', value: next }
     },
   }

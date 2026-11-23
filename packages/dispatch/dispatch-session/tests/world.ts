@@ -34,6 +34,7 @@ export function work(session: string, change: Partial<WorkSnapshot> = {}): WorkS
     definition: { name: 'coding', adopted: MODES.environment },
     creation: { workspace: null, workspaceAttachment: null },
     run: { kind: 'none' },
+    pending: [],
     ...change,
   } as unknown as WorkSnapshot
 }
