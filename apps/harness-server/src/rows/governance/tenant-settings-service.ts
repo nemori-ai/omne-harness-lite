@@ -13,6 +13,7 @@ import {
 import type { SqlStorage } from '@omne-harness/sql-contract'
 import type { PermissionDeclaration } from '../../entry/permission-declarations.ts'
 import type { ToolRelease } from '../../entry/tool-release.ts'
+import type { DeclaredAsset } from '../settings/tenant-secrets.ts'
 import { createSettingsGuard, type CardsReader } from '../authorization/settings-access.ts'
 import type { TenantGovernanceHost } from './tenant-host.ts'
 import { createTenantSettingsPermissions } from './tenant-settings-permissions.ts'
@@ -155,6 +156,7 @@ export function provideTenantSettings(ctx: Context, options: TenantSettingsServi
     ctx,
     createTenantSettingsFace(options, async () => (options.active() ? 'allowed' : 'unavailable')),
     writes,
+    declaredOf(options),
   )
 }
 
@@ -172,6 +174,40 @@ export abstract class TenantAssetSettingsService extends Service {
   ) => Promise<readonly SettingView[] | 'unknown'>
   /** Moves at each write of the tenant's settings through this process. */
   abstract readonly writes: (tenant: TenantId) => number
+  /** The assets the tenant holds, each with the settings definition governance installed for it. */
+  abstract readonly declared: (tenant: TenantId) => Promise<readonly DeclaredAsset[] | 'unknown'>
+}
+
+function declaredOf(options: TenantSettingsServiceOptions): TenantAssetSettingsService['declared'] {
+  const holdingOf = settingsHoldingOf(options.host)
+  return async tenant => {
+    const tenantRef = tenantCodec.encode(tenant)
+    const settings = tenantRef.ok ? await options.host.settings(tenantRef.value) : undefined
+    if (settings === undefined) return 'unknown'
+    try {
+      const basis = await settings.read({
+        deploymentRef: options.scope.deploymentId,
+        mode: 'management',
+        targets: [],
+        selectionRef: null,
+      })
+      if ('kind' in basis || basis.completeness !== 'complete') return 'unknown'
+      const found: DeclaredAsset[] = []
+      for (const view of basis.views) {
+        if (view.target.kind !== 'asset') continue
+        const asset = await holdingOf(tenant, view.target)
+        const { providerId, definitionId } = view.definition
+        if (asset !== undefined)
+          found.push({
+            ref: { asset, holding: { providerId, definitionId } },
+            definition: view.definition,
+          })
+      }
+      return found
+    } catch {
+      return 'unknown'
+    }
+  }
 }
 export const tenantAssetSettingsKey = TenantAssetSettingsService.provide
 
@@ -180,7 +216,13 @@ const ITEMS_PAGE = 100
 class TenantAssetSettingsImpl extends TenantAssetSettingsService {
   readonly items: TenantAssetSettingsService['items']
   readonly writes: TenantAssetSettingsService['writes']
-  constructor(ctx: Context, face: Face, writes: WriteCounts) {
+  readonly declared: TenantAssetSettingsService['declared']
+  constructor(
+    ctx: Context,
+    face: Face,
+    writes: WriteCounts,
+    declared: TenantAssetSettingsService['declared'],
+  ) {
     super(ctx)
     this.items = async ({ tenant, category }) => {
       const found: SettingView[] = []
@@ -200,5 +242,6 @@ class TenantAssetSettingsImpl extends TenantAssetSettingsService {
       return found
     }
     this.writes = tenant => writes.of(tenant)
+    this.declared = declared
   }
 }

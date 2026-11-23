@@ -25,7 +25,7 @@ import {
   pendingCard,
   sendInput,
 } from '../authorization/release-flow-support.ts'
-import { testPeer, type PeerAction, type TestPeer } from './peer.ts'
+import { testPeer, type PeerAction, type PeerOptions, type TestPeer } from './peer.ts'
 
 type Assets = ProtocolClients['assets']
 
@@ -41,21 +41,22 @@ const HANG: PeerAction = { name: 'hang', description: 'Never answers.', answer: 
 
 const ownerOf = (name: string) => ({ kind: 'asset', category: 'mcp', name }) as const
 const text = (value: string): JsonValue => ({ kind: 'string', value })
-const bodyOf = (name: string): JsonValue => ({
+const bodyOf = (name: string, auth: 'none' | 'static'): JsonValue => ({
   kind: 'object',
   entries: [
     { key: 'name', value: text(name) },
     { key: 'transport', value: text('streamable-http') },
-    { key: 'auth', value: text('none') },
+    { key: 'auth', value: text(auth) },
   ],
 })
 
 const peers: TestPeer[] = []
-async function peerWith(...actions: PeerAction[]): Promise<TestPeer> {
-  const peer = await testPeer(actions)
+async function peerOf(actions: PeerAction[], options?: PeerOptions): Promise<TestPeer> {
+  const peer = await testPeer(actions, options)
   peers.push(peer)
   return peer
 }
+const peerWith = (...actions: PeerAction[]) => peerOf(actions)
 afterEach(async () => {
   await Promise.all(peers.splice(0).map(peer => peer.close()))
 })
@@ -122,13 +123,17 @@ async function described({ tree, assets, tenant }: World, name: string, item: st
 }
 
 // Registers an endpoint and returns its holding; its gate is a permission once this returns.
-async function registered(w: World, name: string): Promise<string> {
+async function registered(
+  w: World,
+  name: string,
+  auth: 'none' | 'static' = 'none',
+): Promise<string> {
   const created = await w.assets['create-asset']({
     tenant: w.tenant,
     operation: `create-${name}`,
     category: 'mcp',
     name,
-    body: bodyOf(name) as never,
+    body: bodyOf(name, auth) as never,
   })
   if (created.outcome !== 'succeeded') throw new Error(`create ${name}: ${JSON.stringify(created)}`)
   await settled(
@@ -428,6 +433,97 @@ it(
         expect(peer.calls.map(call => call.text)).toEqual(['warm', 'kept'])
       }).finally(() => {
         for (const hold of holds) hold.go()
+      }),
+    )
+    expect(exit).toBe(0)
+  },
+)
+
+// A value only this test writes; the journey looks for it in every answer and every model request.
+const CREDENTIAL = 'sk-journey-credential-7c1d'
+
+async function keyed(
+  w: World,
+  owner: ReturnType<typeof ownerOf> | Readonly<{ kind: 'asset'; category: string; name: string }>,
+  item: string,
+  secret: string,
+) {
+  const current = await settled(
+    w.tree,
+    `the secret ${item} of ${owner.name} to be read`,
+    () => w.assets['describe-setting']({ tenant: w.tenant, owner, item }),
+    value => value.outcome === 'succeeded',
+  )
+  if (current.outcome !== 'succeeded') throw new Error('unreachable')
+  expect(current.body.item.kind).toBe('secret')
+  return w.assets['set-setting']({
+    tenant: w.tenant,
+    owner,
+    item,
+    operation: `${owner.name}-${item}`,
+    expectedRevision: current.body.item.revision,
+    value: { kind: 'secret', secret },
+  })
+}
+
+it(
+  'a secured endpoint is named with its reason until its credential is set, is then called with it, and the value shows in no answer and no model request',
+  { tags: ['slow'], timeout: 600_000 },
+  async () => {
+    const { bodies, script } = scripted()
+    const peer = await peerOf([ECHO], { bearer: CREDENTIAL })
+    const exit = await onReleaseTree(options(script), tree =>
+      journey(tree, LIMIT_MS, async at => {
+        const w = world(tree)
+        at('register a secured endpoint')
+        const session = await tree.startSession('hello')
+        await endedRuns(tree, session, 1)
+        await registered(w, 'secured', 'static')
+        await configured(w, 'secured', 'target', peer.target, 'secured-target')
+        await configured(w, 'secured', 'invoke', 'auto', 'secured-auto')
+
+        at('no credential: named with its reason, not offered')
+        await sendInput(tree, session, 'start: search')
+        const before = await searched(tree, session, 2)
+        expect(mcpOf(before)).toEqual([])
+        expect(before.withheld).toEqual([
+          { name: 'mcp__secured', reason: expect.stringContaining('credential') },
+        ])
+
+        at('the credential is written as a secret')
+        expect(await keyed(w, ownerOf('secured'), 'credential', CREDENTIAL)).toMatchObject({
+          outcome: 'succeeded',
+        })
+
+        at('offered once the credential is set')
+        await sendInput(tree, session, 'start: search')
+        const after = await searched(tree, session, 3)
+        expect(mcpOf(after).map(entry => entry.name)).toEqual(['mcp__secured'])
+        expect(after.withheld ?? []).toEqual([])
+
+        at('called with the credential')
+        await sendInput(tree, session, 'start: call secured echo keyed')
+        expect(await lastResult(tree, session, 4)).toContain('echo answered keyed')
+        expect(peer.calls).toEqual([{ action: 'echo', text: 'keyed' }])
+
+        at('the value shows in no answer and no model request')
+        const shown = await w.assets['describe-setting']({
+          tenant: w.tenant,
+          owner: ownerOf('secured'),
+          item: 'credential',
+        })
+        expect(shown).toMatchObject({ outcome: 'succeeded', body: { item: { own: 'available' } } })
+        expect(JSON.stringify(shown)).not.toContain(CREDENTIAL)
+        expect(bodies.filter(body => body.includes(CREDENTIAL))).toEqual([])
+
+        at('a secret of the release is written where it was')
+        const web = { kind: 'asset', category: 'tool', name: 'Web' } as const
+        expect(await keyed(w, web, 'exa.apiKey', 'exa-journey-key')).toMatchObject({
+          outcome: 'succeeded',
+        })
+        expect(
+          await w.assets['describe-setting']({ tenant: w.tenant, owner: web, item: 'exa.apiKey' }),
+        ).toMatchObject({ outcome: 'succeeded', body: { item: { own: 'available' } } })
       }),
     )
     expect(exit).toBe(0)

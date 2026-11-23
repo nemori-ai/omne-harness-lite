@@ -4,7 +4,6 @@ import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-id
 import {
   isAdoptionRevision,
   isConnectionTarget,
-  isCredentialBinding,
   isEndpointHolding,
   isEndpointName,
   isMillis,
@@ -23,18 +22,20 @@ import type {
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { canonicalDigest } from '@omne-harness/tool'
 import { classify } from '../authorization/principals.ts'
+import { credentialBinding, CREDENTIAL_ITEM } from './credential.ts'
 
 export const MCP_CATEGORY = mcpEndpointGates.category
 
 type Held = Extract<AssetsHoldingResult, { kind: 'holding' }>
 
-/** One setting of one endpoint as it is in force for the tenant. */
 export type EndpointSettingRead =
   | Readonly<{ kind: 'unset'; revision: string }>
   | Readonly<{ kind: 'set'; value: unknown; revision: string }>
-  | Readonly<{ kind: 'secret'; usable: boolean; revision: string }>
+  | Readonly<{ kind: 'secret'; revision: string }>
 
-/** What the release knows of a tenant's endpoints. Both are facts of the tenant: nobody is asked who reads. */
+export type CredentialPresence = Readonly<{ bound: boolean; revision: string }>
+
+/** What the release knows of a tenant's endpoints. All are facts of the tenant: nobody is asked who reads. */
 export type EndpointFacts = Readonly<{
   /** The assets of the tenant; undefined when they cannot be had. */
   assets(
@@ -45,6 +46,7 @@ export type EndpointFacts = Readonly<{
     tenant: TenantId,
     endpoint: string,
   ): Promise<ReadonlyMap<string, EndpointSettingRead> | 'unknown'>
+  credential(tenant: TenantId, endpoint: string): Promise<Outcome<CredentialPresence, 'unknown'>>
 }>
 
 const UNSET = { kind: 'absent' } as const
@@ -115,21 +117,25 @@ async function settingsOf(
   if (items === 'unknown') return fail('unknown')
   const target = items.get('target')
   const timeout = items.get('connect-timeout')
-  const credential = secured ? items.get('credential') : undefined
+  const credential = secured ? items.get(CREDENTIAL_ITEM) : undefined
   if (target === undefined || target.kind === 'secret') return fail('unknown')
   if (timeout === undefined || timeout.kind === 'secret') return fail('unknown')
   if (secured && credential?.kind !== 'secret') return fail('unknown')
-  const binding = `${holdingRef}/credential`
+  const kept = secured ? await facts.credential(tenant, name) : succeed(undefined)
+  if ('failure' in kept) return kept
+  const binding = kept.ok?.bound === true ? credentialBinding(holdingRef, name) : undefined
   return succeed({
     settings: {
       target: valueOf(target, isConnectionTarget),
       connectTimeout: valueOf(timeout, isMillis),
-      credential:
-        credential?.kind === 'secret' && credential.usable && isCredentialBinding(binding)
-          ? { kind: 'value', value: binding }
-          : UNSET,
+      credential: binding === undefined ? UNSET : { kind: 'value', value: binding },
     },
-    revisions: [target.revision, timeout.revision, credential?.revision ?? ''],
+    revisions: [
+      target.revision,
+      timeout.revision,
+      credential?.revision ?? '',
+      kept.ok?.revision ?? '',
+    ],
   })
 }
 

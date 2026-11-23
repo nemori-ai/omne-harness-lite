@@ -399,6 +399,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'mcpEndpointStatus',
       'mcpAdoptionView',
       'mcpUseEligibility',
+      'mcpCredentialUse',
     ],
     injects: ['tenantAssets', 'assetCategories', 'toolEntrySources'],
   },

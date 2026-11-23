@@ -412,6 +412,13 @@
       ]
     },
     {
+      "row": "mcp",
+      "names": [
+        "settingsSecretCustody",
+        "settingsSecretItems"
+      ]
+    },
+    {
       "row": "agent-adoptions",
       "names": [
         "definitionMappings"

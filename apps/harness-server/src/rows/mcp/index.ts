@@ -2,6 +2,7 @@ import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { assetCategoriesKey, assetChangesKey } from '@omne-harness/assets-cordis-contract'
 import { standingPrincipalRef } from '@omne-harness/identity'
+import type { TenantId } from '@omne-harness/legal-identity'
 import { createMcpEntrySource } from '@omne-harness/mcp-bridge'
 import {
   mcpCategoryDisplay,
@@ -12,9 +13,15 @@ import {
   type ActionInvoker,
   type Millis,
 } from '@omne-harness/mcp-contract'
-import type { AdoptionView, UseEligibility } from '@omne-harness/mcp-contract/provider'
+import type {
+  AdoptionView,
+  CredentialUse,
+  UseEligibility,
+} from '@omne-harness/mcp-contract/provider'
 import {
   AdoptionViewService,
+  CredentialUseService,
+  mcpCredentialUseKey,
   mcpActionDiscoveryKey,
   mcpActionInvokerKey,
   mcpAdoptionViewKey,
@@ -24,9 +31,10 @@ import {
   UseEligibilityService,
 } from '@omne-harness/mcp-cordis-contract/cordis'
 import { createMcpPlugin } from '@omne-harness/mcp-host-local/cordis'
-import { fail } from '@omne-harness/operation-result'
+import { fail, succeed } from '@omne-harness/operation-result'
 import { createToolMessageResultCodec } from '@omne-harness/tool'
 import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
+import { encodeInstant } from '@omne-harness/utc-instant'
 import {
   toolEntrySourcesKey,
   type ToolEntrySourcesService,
@@ -38,7 +46,10 @@ import {
   tenantAssetSettingsKey,
   type TenantAssetSettingsService,
 } from '../governance/tenant-settings-service.ts'
+import { settingsSecretCustodyKey } from '../secret-custody/index.ts'
+import { settingsSecretItemsKey } from '../settings/index.ts'
 import { tenantAssetsKey } from '../tenant-assets/service.ts'
+import { createCredentialUse, credentialKey } from './credential.ts'
 import {
   createEndpointAdoption,
   createEndpointEligibility,
@@ -94,6 +105,7 @@ function factsOf(ctx: Context, stamp: AdoptionStamp): EndpointFacts {
       }
       return byEndpoint
     }, stamp),
+    credential: (tenant, endpoint) => presenceOf(ctx, tenant, endpoint),
   }
 }
 
@@ -112,9 +124,19 @@ function readOf(view: View): readonly (readonly [string, EndpointSettingRead])[]
       ],
     ]
   }
-  if (view.kind !== 'secret') return []
-  const usable = view.own === 'available' || view.official === 'available'
-  return [[view.item, { kind: 'secret', usable, revision }]]
+  return view.kind === 'secret' ? [[view.item, { kind: 'secret', revision }]] : []
+}
+
+async function presenceOf(ctx: Context, tenant: TenantId, endpoint: string) {
+  const custody = ctx.get(settingsSecretCustodyKey, false)
+  if (custody === undefined) return fail('unknown' as const)
+  const presence = custody.describe(credentialKey(tenant, endpoint))
+  if (presence === 'denied' || presence === 'unavailable') return fail('unknown' as const)
+  if (presence.kind === 'unbound') return succeed({ bound: false, revision: 'unbound' })
+  return succeed({
+    bound: presence.life !== 'revoked',
+    revision: `${presence.life}/${presence.configuredAt === null ? '' : encodeInstant(presence.configuredAt)}`,
+  })
 }
 
 // What a tenant adopted may have changed when its assets changed or a setting of it was written.
@@ -137,7 +159,8 @@ function stampOf(ctx: Context): AdoptionStamp {
       })
       ctx.effect(() => stop, 'mcp.adoption-watch')
     }
-    return `${String(changed.get(tenantRef) ?? 0)}/${String(settings.writes(tenant))}`
+    const secrets = ctx.get(settingsSecretItemsKey, false)?.writes(tenant) ?? 0
+    return `${String(changed.get(tenantRef) ?? 0)}/${String(settings.writes(tenant))}/${String(secrets)}`
   }
 }
 
@@ -163,6 +186,14 @@ class Eligibility extends UseEligibilityService<unknown> {
   }
   check(...args: Parameters<UseEligibility<unknown>['check']>) {
     return this.port.check(...args)
+  }
+}
+
+class Credentials extends CredentialUseService<unknown> {
+  readonly acquire: CredentialUse<unknown>['acquire']
+  constructor(ctx: Context, port: CredentialUse<unknown>) {
+    super(ctx)
+    this.acquire = (...args) => port.acquire(...args)
   }
 }
 
@@ -208,6 +239,10 @@ const mcpPlugin: Plugin.Object = {
     const held: HeldRefs = tenant => heldEndpointRefs(facts, tenant)
     new Adoption(ctx, keptAdoption(createEndpointAdoption(facts), held, stamp))
     new Eligibility(ctx, createEndpointEligibility(facts))
+    new Credentials(
+      ctx,
+      createCredentialUse(() => ctx.get(settingsSecretCustodyKey, false)),
+    )
     ctx.plugin(createMcpPlugin({ principalKey, checkOutput: createOutputCheck() }), config.core)
     const sources = ctx.get(toolEntrySourcesKey) as ToolEntrySourcesService<
       unknown,
@@ -241,6 +276,7 @@ export const mcpRow = defineRow({
       mcpEndpointStatusKey,
       mcpAdoptionViewKey,
       mcpUseEligibilityKey,
+      mcpCredentialUseKey,
     ],
     injects: [tenantAssetsKey, assetCategoriesKey, toolEntrySourcesKey],
     sameProviderGroup: null,

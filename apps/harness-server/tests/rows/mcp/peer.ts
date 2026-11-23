@@ -13,6 +13,9 @@ export type PeerAction = Readonly<{
 
 export type PeerCall = Readonly<{ action: string; text: string }>
 
+/** A peer given a bearer answers 401 to every request that does not carry it. */
+export type PeerOptions = Readonly<{ bearer?: string }>
+
 export type TestPeer = Readonly<{
   target: string
   calls: readonly PeerCall[]
@@ -42,7 +45,10 @@ async function listenFree(server: Server): Promise<number> {
 }
 
 /** A real MCP peer on this machine: its actions can be changed, and it counts what it was asked. */
-export async function testPeer(initial: readonly PeerAction[]): Promise<TestPeer> {
+export async function testPeer(
+  initial: readonly PeerAction[],
+  options: PeerOptions = {},
+): Promise<TestPeer> {
   let offered = initial
   const calls: PeerCall[] = []
   const transports = new Map<string, NodeStreamableHTTPServerTransport>()
@@ -71,6 +77,15 @@ export async function testPeer(initial: readonly PeerAction[]): Promise<TestPeer
 
   const server: Server = createServer(async (request, response) => {
     response.setHeader('connection', 'close')
+    if (
+      options.bearer !== undefined &&
+      request.headers.authorization !== `Bearer ${options.bearer}`
+    ) {
+      response
+        .writeHead(401, { 'content-type': 'application/json' })
+        .end('{"error":"unauthorized"}')
+      return
+    }
     const session = request.headers['mcp-session-id']
     const known = typeof session === 'string' ? transports.get(session) : undefined
     if (known !== undefined) {
