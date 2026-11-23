@@ -271,6 +271,14 @@ describe('report-loaded', () => {
     expect(world.reports.reportsOf(ALICE.tenantText)).toEqual([])
   })
 
+  it('a reading of the reports that breaks is basis-unavailable', async () => {
+    const world = serving()
+    world.reports.reportsOf = () => {
+      throw new Error('the reports broke')
+    }
+    expect(await call(world, 'list-reports')).toEqual({ outcome: 'basis-unavailable' })
+  })
+
   it('a record that breaks is unknown', async () => {
     const world = serving()
     world.reports.present(ALICE.tenantText, 'desktop-1')
