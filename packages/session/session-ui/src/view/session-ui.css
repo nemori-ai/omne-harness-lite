@@ -127,7 +127,6 @@
 }
 
 .omne-session-page {
-  position: relative;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   width: 100%;
@@ -137,11 +136,15 @@
   /* conversation.css `.conversation-page`: 0 40 32 at the standard size, drawn at the size step. */
   padding: 0 calc(var(--spacing) * 10) calc(var(--spacing) * 8);
 }
-/* The page's backdrop (`session.backdrop`) exists only when a plugin drew one: it covers the whole page, padding
-   included, under everything on it, and takes no room, no pointer and no reading. The page isolates its stacking only
-   then, so with no backdrop nothing stacks differently. */
-.omne-session-page:has(> .omne-session-backdrop) {
+/* The page's backdrop (`session.backdrop`) counts only when a plugin drew into it: it covers the whole page, padding
+   included, under everything on it, and takes no room, no pointer and no reading. Only then is the page its containing
+   block and its own stacking context, so with nothing drawn the page is as it was. */
+.omne-session-page:has(> .omne-session-backdrop:not(:empty)) {
+  position: relative;
   isolation: isolate;
+}
+.omne-session-backdrop:empty {
+  display: none;
 }
 .omne-session-backdrop {
   position: absolute;
@@ -551,6 +554,7 @@
    6, top 8, bottom 24, floor 160, drawn at the size step). In a short window its floor gives way first, so the
    whole composer keeps its room. */
 .omne-conversation {
+  position: relative;
   display: flex;
   flex-direction: column;
   flex: 1 1 0;
