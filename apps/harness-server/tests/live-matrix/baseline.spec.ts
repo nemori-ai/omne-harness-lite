@@ -268,7 +268,7 @@ describe('reading the turns from the answers', () => {
       { kind: 'message.assistant', payload: { message: { replay: { format: 'f', at: ['b0'] } } } },
       { kind: 'run.terminal', payload: {} },
       { kind: 'message.user', payload: {} },
-      { kind: 'message.assistant', payload: { message: {} } },
+      { kind: 'message.assistant', payload: { message: { replay: { format: 'f', at: [] } } } },
       { kind: 'run.terminal', payload: {} },
       { kind: 'message.user', payload: {} },
     ]

@@ -61,6 +61,11 @@ describe('incremental matrix recording', () => {
       expect(() => recordBaseline(cells, models, empty, cells, invalid, '2026-11-23')).toThrow()
     expect(() => recordBaseline(cells, models, empty, [], [], '2026-11-23')).toThrow()
   })
+  it('rejects a repeated ID that masks an omitted cell even with a complete prior baseline', () => {
+    const previous = recordBaseline(cells, models, empty, cells, rows, '2026-11-22')
+    const duplicate = [rows[0]!, rows[0]!, ...rows.slice(2)]
+    expect(() => recordBaseline(cells, models, previous, cells, duplicate, '2026-11-23')).toThrow()
+  })
   it('does not let --only hide a required cell', () => {
     expect(() =>
       recordBaseline(cells, models, empty, cells.slice(0, 1), rows.slice(0, 1), '2026-11-23'),
@@ -92,6 +97,9 @@ describe('incremental matrix recording', () => {
 })
 
 describe('spend remains an observed fact', () => {
+  it('preserves a known zero charge from the dispatch account', () => {
+    expect(measure([{ ...turns[0]!, dispatchCosts: [0] }]).costUsd).toBe(0)
+  })
   it('keeps unknown costs unknown and refuses further budget', async () => {
     const { fitsBudget, judge } = await import('./measure.ts')
     const unknown = measure([{ ...turns[0]!, attempt: { ...turns[0]!.attempt!, costUsd: null } }])
