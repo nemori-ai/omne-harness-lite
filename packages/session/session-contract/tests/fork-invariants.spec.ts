@@ -15,6 +15,7 @@ import {
   talking,
   view,
   type Scene,
+  latestAsking,
 } from './fork-scene.ts'
 
 async function forked(name = 'child-1') {
@@ -149,7 +150,15 @@ describe('a session forked from a forked session reads no deeper than its layer 
 
   it('names no point in a forked session that has asked nothing itself', async () => {
     const { child } = await forked()
-    expect(succeeded(await child.port.history.readForkPoint(child.access), 'point')).toEqual({
+    expect(
+      succeeded(
+        await child.port.history.readForkPoint({
+          ...child.access,
+          asking: await latestAsking(child),
+        }),
+        'point',
+      ),
+    ).toEqual({
       kind: 'none',
     })
   })

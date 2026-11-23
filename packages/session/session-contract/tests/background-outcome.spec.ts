@@ -44,6 +44,7 @@ import {
   observation,
   outcome,
   producer,
+  acceptedReminder,
   reminder,
   type Scene,
 } from './background-scene.ts'
@@ -208,7 +209,7 @@ describe('a backgrounded call: the outcome becomes one input', () => {
     expect(after.pending).toContain(input)
     expect(after.uncountedInputs).toEqual([input])
     const stored = succeeded(await c.s.port.readInput({ ...c.s.access, input }), 'readInput')
-    expect(stored.message).toEqual(reminder())
+    expect(stored.message).toEqual(acceptedReminder())
   })
 
   it('takes the placeholder and the outcome from one batch', async () => {
@@ -607,7 +608,7 @@ describe('the background outcome: what the accepted input is and what a kept out
     expect(succeeded(await c.s.port.readInput({ ...c.s.access, input }), 'readInput')).toEqual({
       kind: 'ordinary',
       input,
-      message: reminder(),
+      message: acceptedReminder(),
       source: TESTING_SOURCES.outcome,
       origin: {
         owner: 'background-tool-execution',

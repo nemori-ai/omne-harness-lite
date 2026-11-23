@@ -100,16 +100,13 @@ export function decideControl(
   const { intent } = command
   if (intent.kind === 'background')
     return decideBackground(snapshot, call, { ...command, intent }, prepared, mint)
-  if (call.state.phase === 'suspended')
+  const reach = intent.kind === 'withdraw' ? intent.reach : 'stop'
+  if (call.state.phase === 'suspended') {
+    if (reach === 'foreground-and-unadmitted' && call.state.relation === 'background')
+      return outOfReach(call, command, mint)
     return decideSuspendedControl(snapshot, call, command, prepared, mint)
-  return decideEnd(
-    snapshot,
-    call,
-    command,
-    intent.kind === 'withdraw' ? intent.reach : 'stop',
-    prepared,
-    mint,
-  )
+  }
+  return decideEnd(snapshot, call, command, reach, prepared, mint)
 }
 
 type EndReach = 'stop' | Extract<ToolControl, { kind: 'withdraw' }>['reach']
@@ -140,6 +137,21 @@ function interruptedBy(command: ControlCommand) {
   } as const
 }
 
+function outOfReach(
+  call: CallRecord,
+  command: ControlCommand,
+  mint: Mint,
+): SyntheticDecision<ControlReceipt> {
+  const source = controlSource(call, command, mint)
+  return recorded(
+    call,
+    command,
+    { kind: 'rejected', reason: 'out-of-reach', evidence: source },
+    source,
+    mint,
+  )
+}
+
 // The stop and withdraw columns of the control table, for a call that is not suspended.
 function decideEnd(
   snapshot: Snapshot,
@@ -159,13 +171,7 @@ function decideEnd(
       mint,
     )
   if (reach === 'foreground-and-unadmitted' && call.state.relation === 'background')
-    return recorded(
-      call,
-      command,
-      { kind: 'rejected', reason: 'out-of-reach', evidence: source },
-      source,
-      mint,
-    )
+    return outOfReach(call, command, mint)
   if (call.start === null) return decideUnstarted(snapshot, call, command, prepared, mint)
   if (
     reach !== 'stop' &&
@@ -589,14 +595,17 @@ function decideSuspendedControl(
     progress: { kind: 'already-ended', evidence: committed.exclusion },
   }
   const current = commonOf(call.state)
+  const relation =
+    call.state.relation === 'background'
+      ? ({ relation: 'background' } as const)
+      : ({ relation: 'foreground', foreground: { kind: 'final', result: version } } as const)
   const body: StateBody = {
     ...current,
     phase: 'settled',
     wait: { kind: 'none' },
     result: version,
-    relation: 'foreground',
+    ...relation,
     terminal,
-    foreground: { kind: 'final', result: version },
     effect,
     timing: closedTiming(current.timing),
     queue: releasedQueue(current.queue, committed.exclusion),

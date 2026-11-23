@@ -8,7 +8,7 @@ import {
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import { DISPATCH_SOURCES, reportText } from '../src/index.ts'
-import { lastReplyOf } from '../src/reply.ts'
+import { latestEndOf } from '../src/reply.ts'
 import {
   LEGAL_TENANT,
   OTHER_TENANT,
@@ -28,8 +28,8 @@ const obj = (members: Record<string, unknown>) => ({
 })
 const arr = (...items: unknown[]) => ({ kind: 'array', items })
 const entry = (kind: string, payload: unknown) => ({ id: `e-${kind}`, kind, payload })
-const ended = (run: string = RUN) =>
-  entry('run.terminal', obj({ terminal: obj({ run: str(run) }) }))
+const ended = (run: string = RUN, outcome = 'completed') =>
+  entry('run.terminal', obj({ terminal: obj({ run: str(run), outcome: str(outcome) }) }))
 const said = (...blocks: unknown[]) =>
   entry('message.assistant', obj({ message: obj({ blocks: arr(...blocks) }) }))
 const text = (value: string) => obj({ kind: str('text'), text: str(value) })
@@ -45,31 +45,43 @@ function reading(pages: readonly (unknown | Error)[]) {
     if (next instanceof Error) throw next
     return (next ?? 'unknown') as never
   }
-  return { asked, reply: () => lastReplyOf(read, RUN) }
+  return { asked, reply: () => latestEndOf(read) }
 }
 
-describe('the last reply of a run, read back from the end of the history', () => {
+describe('the end of the latest run, read back from the end of the history', () => {
   it('takes the text blocks of the first assistant message after the end of the run, and no other block', async () => {
     const tool = obj({ kind: str('tool_use'), text: str('not said') })
     const { reply } = reading([page([ended(), said(text('one'), tool, text('two'))])])
-    expect(await reply()).toEqual({ kind: 'read', value: 'one\ntwo' })
+    expect(await reply()).toEqual({
+      kind: 'read',
+      value: { outcome: 'completed', reply: 'one\ntwo' },
+    })
   })
 
   it('passes over what is neither a reply nor a start of the run', async () => {
     const note = entry('message.user', obj({}))
     const { reply } = reading([page([ended(), note, ended('run_0'), said(text('mine'))])])
-    expect(await reply()).toEqual({ kind: 'read', value: 'mine' })
+    expect(await reply()).toEqual({ kind: 'read', value: { outcome: 'completed', reply: 'mine' } })
   })
 
-  it('does not take an entry of another kind, or the end of another run, for the end of this run', async () => {
-    const lookalike = entry('message.user', obj({ terminal: obj({ run: str(RUN) }) }))
-    const { reply } = reading([page([lookalike, ended('run_2'), said(text('not mine'))])])
-    expect(await reply()).toEqual({ kind: 'unavailable' })
+  it('takes the first end of a run it meets for the latest, and no entry of another kind that looks like one', async () => {
+    const lookalike = entry(
+      'message.user',
+      obj({ terminal: obj({ run: str(RUN), outcome: str('failed') }) }),
+    )
+    const { reply } = reading([page([lookalike, ended('run_2'), said(text('latest'))])])
+    expect(await reply()).toEqual({
+      kind: 'read',
+      value: { outcome: 'completed', reply: 'latest' },
+    })
   })
 
   it('reads on by the cursor of each page, and stops where the history ends', async () => {
     const found = reading([page([ended()], 'c1'), page([], 'c2'), page([said(text('late'))])])
-    expect(await found.reply()).toEqual({ kind: 'read', value: 'late' })
+    expect(await found.reply()).toEqual({
+      kind: 'read',
+      value: { outcome: 'completed', reply: 'late' },
+    })
     expect(found.asked).toEqual([null, 'c1', 'c2'])
     const short = reading([page([ended()]), page([said(text('never read'))])])
     expect(await short.reply()).toEqual({ kind: 'unavailable' })

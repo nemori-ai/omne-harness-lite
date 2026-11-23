@@ -39,9 +39,9 @@ function author(maximum = 65_536) {
     { asset: { name: 'Agents', adoption: agentsToolModule.executor }, requiredCapabilities: [] },
     created.ok.facts,
   )
-  function decode(command: string, params: unknown) {
+  function decode(command: string, params: unknown, intent?: string) {
     const operation = registration.operations.find(([name]) => name === command)?.[1]
-    const text = JSON.stringify({ command, params })
+    const text = JSON.stringify({ command, ...(intent === undefined ? {} : { intent }), params })
     const cut = commandArguments(definition, command, {
       original: text,
       effective: text,
@@ -65,7 +65,24 @@ describe('the Agents declaration', () => {
     expect(definition.encoding).toBe('wrapped')
     expect(definition.commands.map(item => item.name)).toEqual(['help', ...DOMAIN])
     expect(agentsCommandNames).toEqual(['help', ...DOMAIN])
-    expect(definition.backgroundAllowed).toBe(false)
+    expect(definition.backgroundAllowed).toBe(true)
+    expect(
+      definition.commands.filter(item => item.background !== undefined).map(item => item.name),
+    ).toEqual(['dispatch'])
+    expect(definition.commands.find(item => item.name === 'dispatch')?.background).toEqual({
+      unless: [],
+      start: 'launch',
+    })
+  })
+
+  it('needs an intent on a dispatch, which runs in the background, and on no other command', () => {
+    const { decode } = author()
+    const params = { mode: 'delegate', agent: 'coding', instruction: 'do it' }
+    expect(decode('dispatch', params)).toHaveProperty('failure')
+    expect(decode('dispatch', params, 'look into the flaky test')).toEqual({
+      ok: { command: 'dispatch', params },
+    })
+    expect(decode('show', { dispatch: ID })).toHaveProperty('ok')
   })
 
   it('gives each command one menu line whose signature comes from its parameters', () => {
@@ -155,14 +172,14 @@ describe('the Agents declaration', () => {
 
   it('parses the params of a command and refuses a field the command does not have', () => {
     const { decode } = author()
-    expect(decode('dispatch', { mode: 'delegate', agent: 'coding', instruction: 'do it' })).toEqual(
-      {
-        ok: {
-          command: 'dispatch',
-          params: { mode: 'delegate', agent: 'coding', instruction: 'do it' },
-        },
+    expect(
+      decode('dispatch', { mode: 'delegate', agent: 'coding', instruction: 'do it' }, 'do it'),
+    ).toEqual({
+      ok: {
+        command: 'dispatch',
+        params: { mode: 'delegate', agent: 'coding', instruction: 'do it' },
       },
-    )
+    })
     expect(decode('show', { dispatch: ID })).toEqual({
       ok: { command: 'show', params: { dispatch: ID } },
     })
@@ -176,7 +193,10 @@ describe('the Agents declaration', () => {
       ['list', { limit: 51 }],
       ['list', { relation: 'cousin' }],
     ] as const)
-      expect(decode(command, params), JSON.stringify(params)).toMatchObject({
+      expect(
+        decode(command, params, command === 'dispatch' ? 'the intent' : undefined),
+        JSON.stringify(params),
+      ).toMatchObject({
         failure: { kind: 'invalid' },
       })
   })

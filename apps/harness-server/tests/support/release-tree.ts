@@ -1047,7 +1047,7 @@ export async function pollUntil<T>(
   return value
 }
 
-function textsOf(value: unknown): string[] {
+export function textsOf(value: unknown): string[] {
   if (Array.isArray(value)) return value.flatMap(textsOf)
   if (typeof value !== 'object' || value === null) return []
   const record = value as Record<string, unknown>

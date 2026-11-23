@@ -2,9 +2,10 @@ import { expect, it } from 'vitest'
 import readForkPoint, { FORK_POINT_WINDOW } from '../src/worker/read-fork-point.ts'
 import { migratedPort } from './fixtures/sqlite-storage.ts'
 
-const text = (role: string) =>
+const rowId = (seq: number) => `msg_row_${seq}`
+const text = (role: string, seq: number) =>
   JSON.stringify({
-    id: 'msg_abcdefghijklmnopqrstuv',
+    id: rowId(seq),
     role,
     blocks: [{ kind: 'text', id: 't', text: role, visibility: { toModel: true, toHuman: true } }],
   })
@@ -39,7 +40,7 @@ function scene(roles: readonly string[], epoch = 'epoch:0') {
         String(position),
         1n,
         'd',
-        role === 'compaction' ? 'sha256:summary' : text(role),
+        role === 'compaction' ? 'sha256:summary' : text(role, index + 1),
       ],
     )
   }
@@ -48,20 +49,24 @@ function scene(roles: readonly string[], epoch = 'epoch:0') {
     'INSERT INTO sl_entry (tenant, session, position, revision, kind, entry, bytes) VALUES (?, ?, ?, ?, ?, ?, ?)',
     ['t', 's', BigInt(10 * roles.length + 5), 1n, 'call.bound', new Uint8Array([0]), 1n],
   )
-  const read = () => {
+  const read = (asking: string) => {
     statements.length = 0
-    const out = readForkPoint.read({ tenant: 't', session: 's' }, counted as never)
+    const out = readForkPoint.read({ tenant: 't', session: 's', asking }, counted as never)
     return { out: out.kind === 'read' ? out.output : out, statements: [...statements] }
   }
   return { port, db, read }
 }
 
-it('answers the rows before the latest assistant message and the tail of the log', () => {
+it('answers the rows before the asking message and the tail of the log, whatever the session wrote after it', () => {
   const s = scene(['user', 'assistant', 'tool', 'assistant', 'tool', 'tool'])
   try {
-    expect(s.read().out).toEqual({
+    expect(s.read(rowId(4)).out).toEqual({
       kind: 'point',
       point: { epoch: 'epoch:0', upper: '3', position: '65' },
+    })
+    expect(s.read(rowId(2)).out).toEqual({
+      kind: 'point',
+      point: { epoch: 'epoch:0', upper: '1', position: '65' },
     })
   } finally {
     s.db.close()
@@ -72,7 +77,7 @@ it('reads the same few rows however long the view before them is', () => {
   const few = scene(['user', 'assistant', 'tool'])
   const long = scene([...Array.from({ length: 10_000 }, () => 'user'), 'assistant', 'tool'])
   try {
-    const [a, b] = [few.read(), long.read()]
+    const [a, b] = [few.read(rowId(2)), long.read(rowId(10_001))]
     expect(a.out).toMatchObject({ kind: 'point', point: { upper: '1' } })
     expect(b.out).toMatchObject({ kind: 'point', point: { upper: '10000', position: '100025' } })
     expect(b.statements).toEqual(a.statements)
@@ -91,7 +96,7 @@ it('reads the same few rows however long the view before them is', () => {
   }
 })
 
-it('names no point without an assistant message among the newest rows, and takes a summary for none', () => {
+it('names no point where the asking message is not an assistant message among the newest rows', () => {
   const none = scene(['user'])
   const summary = scene(['compaction', 'user'], 'epoch:5')
   const far = scene([
@@ -100,9 +105,10 @@ it('names no point without an assistant message among the newest rows, and takes
     ...Array.from({ length: FORK_POINT_WINDOW }, () => 'tool'),
   ])
   try {
-    expect(none.read().out).toEqual({ kind: 'none' })
-    expect(summary.read().out).toEqual({ kind: 'none' })
-    expect(far.read().out).toEqual({ kind: 'none' })
+    expect(none.read(rowId(1)).out).toEqual({ kind: 'none' })
+    expect(none.read('msg_never_written').out).toEqual({ kind: 'none' })
+    expect(summary.read(rowId(2)).out).toEqual({ kind: 'none' })
+    expect(far.read(rowId(2)).out).toEqual({ kind: 'none' })
   } finally {
     none.db.close()
     summary.db.close()
@@ -113,7 +119,12 @@ it('names no point without an assistant message among the newest rows, and takes
 it('refuses a request that names no session', () => {
   const s = scene(['user', 'assistant'])
   try {
-    expect(() => readForkPoint.read({ tenant: 't' }, s.port as never)).toThrow('invalid input')
+    expect(() => readForkPoint.read({ tenant: 't', asking: rowId(2) }, s.port as never)).toThrow(
+      'invalid input',
+    )
+    expect(() => readForkPoint.read({ tenant: 't', session: 's' }, s.port as never)).toThrow(
+      'invalid input',
+    )
   } finally {
     s.db.close()
   }
@@ -122,7 +133,10 @@ it('refuses a request that names no session', () => {
 it('answers absent for a session the tenant has none of', () => {
   const s = scene(['user', 'assistant'])
   try {
-    const out = readForkPoint.read({ tenant: 't', session: 'elsewhere' }, s.port as never)
+    const out = readForkPoint.read(
+      { tenant: 't', session: 'elsewhere', asking: rowId(2) },
+      s.port as never,
+    )
     expect(out).toEqual({ kind: 'read', output: { kind: 'absent' } })
   } finally {
     s.db.close()

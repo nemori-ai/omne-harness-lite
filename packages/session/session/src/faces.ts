@@ -163,7 +163,7 @@ function modelViewReads<P>(
   return {
     readForkPoint: value =>
       reads.session(caller, 'history.readModelView', value, view =>
-        view.history.readForkPoint(accessOf(value)),
+        view.history.readForkPoint({ ...accessOf(value), asking: value.asking }),
       ),
     readCompactionContext: value =>
       reads.session(caller, 'history.readCompactionContext', value, view =>
