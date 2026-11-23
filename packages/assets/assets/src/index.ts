@@ -134,8 +134,11 @@ export {
   type AssetVersionSelection,
 } from './holding.ts'
 export {
+  heldEffect,
+  type CategoryEffect,
   type ChangeImpact,
   type ClientLine,
+  type HeldEffectPorts,
   type ImpactLine,
   type PlacedLine,
   type Placement,

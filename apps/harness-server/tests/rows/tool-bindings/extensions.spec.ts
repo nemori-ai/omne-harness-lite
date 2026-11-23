@@ -1,10 +1,15 @@
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { capabilityId, digestBytes, type CapabilityId } from '@omne-harness/assets'
-import { declare, empty, install, type Contract, type Registry } from '@omne-harness/dynamis'
-import { readManifest } from '@omne-harness/plugin-protocol'
-import type { ListedPlugin } from '@omne-harness/plugin-host-local'
+import {
+  capabilityId,
+  createCategoryPoint,
+  digestBytes,
+  type BodyContract,
+  type CategoryEffect,
+  type ManagedAsset,
+} from '@omne-harness/assets'
+import type { ExtensionsFaces } from '@omne-harness/assets-tools'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   createExtensionsSource,
@@ -27,73 +32,15 @@ function workspace(files: Readonly<Record<string, string>>): string {
   return root
 }
 
-const manifestText = (name: string, members: readonly unknown[]): string =>
-  JSON.stringify({ schema: 1, name, summary: `The ${name} plugin.`, client: { members } })
-
-function listed(name: string, members: readonly unknown[], enabled = true): ListedPlugin {
-  const read = readManifest(manifestText(name, members))
-  if (read.kind !== 'read') throw new Error(read.reason)
-  return {
-    name,
-    enabled,
-    manifest: read.manifest,
-    held: { asset: `held/${name}`, version: `sha256:${'a'.repeat(64)}` },
-  }
-}
-
-const SEND = { point: 'shell.part-style', key: 'session.composer.send', data: { base: {} } }
-
-const contract = (name: string, kind: Contract['item']['kind'], binding: Contract['binding']) =>
-  ({
-    name,
-    tree: 'server',
-    arity: 'keyed-one',
-    keyFrom: null,
-    key: 'a name',
-    gives: 'nothing',
-    item: { kind, fields: {} },
-    resolve: 'most-specific',
-    binding,
-    onError: 'nothing',
-    version: 1,
-    revision: 1,
-    keys: 'private',
-    conformance: null,
-    summary: `The ${name} point.`,
-  }) satisfies Contract
-
-function registryWith(contracts: readonly Contract[]): Registry {
-  const made = install(
-    empty,
-    { fiber: 'test', generation: 1 },
-    contracts.map(each => declare(each)),
-  )
-  if (made.kind !== 'installed') throw new Error(JSON.stringify(made))
-  return made.registry
-}
-
-const plugin = (name: string): CapabilityId => {
-  const made = capabilityId('plugin', name)
-  if (!made.ok) throw new Error('capability')
-  return made.id
-}
-
 function world(over: Partial<ExtensionsPorts> = {}) {
-  const asked: string[] = []
   const ports: ExtensionsPorts = {
     faces: () => undefined,
     workingDirectory: async () => 'absent',
-    listed: async tenant => (asked.push(`listed ${tenant}`), { kind: 'read', plugins: [] }),
-    registry: () => registryWith([contract('skill.skills', 'data', 'run')]),
-    reports: tenant => (asked.push(`reports ${tenant}`), []),
-    describe: async () => ({ kind: 'absent' }),
-    pointOf: () => undefined,
     revision: () => 'abcd.3',
-    serverLoads: false,
     ...over,
   }
   const source = createExtensionsSource(ports, { tenant: 'alice', principal: { who: 'alice' } })
-  return { source, asked }
+  return { source }
 }
 
 describe('a directory of the working directory of the call, as a package', () => {
@@ -156,190 +103,101 @@ describe('a directory of the working directory of the call, as a package', () =>
   })
 })
 
-describe('what a change of a plugin would do', () => {
-  const tidy = { 'plugins/tidy/plugin.json': manifestText('tidy', [SEND]) }
-
-  async function contentOf(root: string, source: ReturnType<typeof world>['source']) {
-    const from = await source.directory('plugins/tidy')
-    if (typeof from === 'string') throw new Error(from)
-    void root
-    return { kind: 'directory', from } as const
-  }
-
-  it('reads the manifest of a directory not yet published, and asks as the tenant of the call', async () => {
-    const root = workspace(tidy)
-    const { source, asked } = world({
-      workingDirectory: async () => root,
-      reports: tenant => {
-        asked.push(`reports ${tenant}`)
-        return [
-          {
-            client: 'desktop-1',
-            plugins: [],
-            points: [{ name: 'shell.part-style', summary: 's' }],
-            parts: [],
-          },
-        ]
-      },
-    })
-    const answer = await source.impact.of({
-      tenant: 'alice',
-      capability: plugin('tidy'),
-      change: 'publish',
-      content: await contentOf(root, source),
-    })
-    expect(answer).toEqual({
-      kind: 'changes',
-      lines: [
-        {
-          mark: '+',
-          of: null,
-          point: 'shell.part-style',
-          key: 'session.composer.send',
-          says: '→ in effect',
-        },
-      ],
-      loads: 'loads on: client. Server: nothing to load.',
-      advice: null,
-    })
-    expect(asked).toEqual(['listed alice', 'reports alice'])
-  })
-
-  it('answers for the tenant of the call whatever tenant the question names', async () => {
-    const { source, asked } = world({
-      listed: async tenant => {
-        asked.push(`listed ${tenant}`)
-        return { kind: 'read', plugins: [listed('tidy', [SEND])] }
-      },
-    })
-    await source.impact.of({ tenant: 'bob', capability: plugin('tidy'), change: 'disable' })
-    await source.placement.of({ tenant: 'bob', capability: plugin('tidy') })
-    expect(asked.filter(line => line.includes('bob'))).toEqual([])
-  })
-
-  it('says a client point is not known while no client is connected', async () => {
-    const root = workspace(tidy)
-    const { source } = world({ workingDirectory: async () => root })
-    const answer = await source.impact.of({
-      tenant: 'alice',
-      capability: plugin('tidy'),
-      change: 'publish',
-      content: await contentOf(root, source),
-    })
-    expect(answer.kind === 'changes' && answer.lines[0]?.says).toContain(
-      'no client is connected now',
-    )
-  })
-
-  it('says why when the manifest of the directory cannot be read', async () => {
-    const root = workspace({ 'plugins/tidy/plugin.json': '{"schema":1,"name":"Tidy"}' })
-    const { source } = world({ workingDirectory: async () => root })
-    const answer = await source.impact.of({
-      tenant: 'alice',
-      capability: plugin('tidy'),
-      change: 'publish',
-      content: await contentOf(root, source),
-    })
-    expect(answer).toEqual({
-      kind: 'unavailable',
-      reason: 'plugin.json: the name "Tidy" is not lower-case letters, digits and hyphens',
-    })
-  })
-
-  it('takes the manifest of a held one from what the tenant holds; one it does not hold is said', async () => {
-    const { source } = world({
-      listed: async () => ({ kind: 'read', plugins: [listed('tidy', [SEND])] }),
-    })
-    const held = await source.impact.of({
-      tenant: 'alice',
-      capability: plugin('tidy'),
-      change: 'disable',
-    })
-    expect(held.kind === 'changes' && held.lines.map(line => line.mark)).toEqual(['-'])
-    expect(
-      await source.impact.of({ tenant: 'alice', capability: plugin('none'), change: 'remove' }),
-    ).toEqual({ kind: 'unavailable', reason: 'the tenant holds no plugin named none' })
-  })
-
-  it('is unavailable when what the tenant holds cannot be read', async () => {
-    const { source } = world({ listed: async () => ({ kind: 'unavailable' }) })
-    expect(
-      await source.impact.of({ tenant: 'alice', capability: plugin('tidy'), change: 'disable' }),
-    ).toEqual({ kind: 'unavailable', reason: 'what the tenant holds cannot be read now' })
-  })
+const contract = (category: string): BodyContract => ({
+  category,
+  schema: { kind: 'null' },
+  judge: () => ({ ok: true }),
+  deriveDeclarations: () => ({ entries: [] }),
+  references: () => [],
 })
 
-describe('where a held extension is placed now', () => {
-  it('tells of a plugin from its manifest and what each connected client told of this version', async () => {
-    const report = (version: string, state: 'loaded' | 'failed') => ({
-      client: 'desktop-1',
-      plugins: [
-        { name: 'tidy', version, state, reason: state === 'failed' ? 'card.js threw' : null },
-      ],
-      points: [],
-      parts: [],
+const capability = (category: string, name: string) => {
+  const made = capabilityId(category, name)
+  if (!made.ok) throw new Error('capability')
+  return made.id
+}
+
+/** The faces with two categories: Plugin tells of its own, Skill tells nothing. */
+function faces(described: ManagedAsset = { kind: 'absent' }) {
+  const asked: unknown[] = []
+  const told: CategoryEffect = {
+    impact: {
+      of: async input => (asked.push(input), { kind: 'unavailable', reason: 'told by plugin' }),
+    },
+    placement: {
+      of: async input => (asked.push(input), { kind: 'unavailable', reason: 'told by plugin' }),
+    },
+  }
+  const categories = createCategoryPoint()
+  categories.contribute({
+    contract: contract('plugin'),
+    display: { title: 'Plugin', summary: 'p' },
+    point: 'plugin.plugins',
+    effect: told,
+  })
+  categories.contribute({
+    contract: contract('skill'),
+    display: { title: 'Skill', summary: 's' },
+    point: 'skill.skills',
+  })
+  const management = {
+    describe: async (scope: unknown) => (asked.push(scope), described),
+  } as unknown as ExtensionsFaces['management']
+  const made = { categories, management, publishing: {} } as unknown as ExtensionsFaces
+  return { faces: () => made, asked }
+}
+
+describe('what a change would do and where a held one stands', () => {
+  it('asks the owner of the category, as the tenant of the call whatever tenant the question names', async () => {
+    const { faces: given, asked } = faces()
+    const { source } = world({ faces: given })
+    const tidy = capability('plugin', 'tidy')
+    expect(await source.impact.of({ tenant: 'bob', capability: tidy, change: 'disable' })).toEqual({
+      kind: 'unavailable',
+      reason: 'told by plugin',
     })
-    const holding = {
-      listed: async () => ({ kind: 'read', plugins: [listed('tidy', [SEND])] }) as const,
-    }
-    const loaded = world({ ...holding, reports: () => [report('a'.repeat(64), 'loaded')] })
-    expect(
-      await loaded.source.placement.of({ tenant: 'alice', capability: plugin('tidy') }),
-    ).toEqual({
-      kind: 'placed',
-      places: [
-        {
-          point: 'shell.part-style',
-          key: 'session.composer.send',
-          standing: 'in effect',
-          says: '',
-        },
-      ],
-      clients: [{ label: 'desktop-1, connected', says: 'loaded' }],
-      advice: null,
+    expect(await source.placement.of({ tenant: 'bob', capability: tidy })).toEqual({
+      kind: 'unavailable',
+      reason: 'told by plugin',
     })
-    const older = world({ ...holding, reports: () => [report('b'.repeat(64), 'loaded')] })
-    const stale = await older.source.placement.of({ tenant: 'alice', capability: plugin('tidy') })
-    expect(stale.kind === 'placed' && stale.clients).toEqual([
-      { label: 'desktop-1, connected', says: 'not loaded yet' },
+    expect(asked).toEqual([
+      { tenant: 'alice', capability: tidy, change: 'disable' },
+      { tenant: 'alice', capability: tidy },
     ])
-    const gone = world({ ...holding, reports: () => undefined })
-    const unread = await gone.source.placement.of({ tenant: 'alice', capability: plugin('tidy') })
-    expect(unread.kind === 'placed' && unread.clients).toBeNull()
   })
 
-  it('tells of an extension of another category by how the asset rules stand on it', async () => {
-    const skill = capabilityId('skill', 'review')
-    if (!skill.ok) throw new Error('capability')
-    const { source } = world({
-      pointOf: category => (category === 'skill' ? 'skill.skills' : undefined),
-      describe: async () => ({ kind: 'asset', standing: { kind: 'selected' } }),
-    })
-    expect(await source.placement.of({ tenant: 'alice', capability: skill.id })).toEqual({
+  it('tells from the holding for a category whose owner tells nothing, asking as the principal of the call', async () => {
+    const review = capability('skill', 'review')
+    const { faces: given, asked } = faces({
+      kind: 'asset',
+      standing: { kind: 'filtered', reason: 'disabled' },
+    } as ManagedAsset)
+    const { source } = world({ faces: given })
+    expect(await source.placement.of({ tenant: 'bob', capability: review })).toEqual({
       kind: 'placed',
       places: [
-        {
-          point: 'skill.skills',
-          key: 'review',
-          standing: 'selected',
-          says: 'sessions of this tenant get this one',
-        },
+        { point: 'skill.skills', key: 'review', standing: 'not in effect', says: 'disabled' },
       ],
       clients: null,
       advice: null,
     })
-    const off = world({
-      pointOf: () => 'skill.skills',
-      describe: async () => ({
-        kind: 'asset',
-        standing: { kind: 'filtered', reason: 'disabled' },
-      }),
+    expect(asked).toEqual([{ tenant: 'alice', principal: { who: 'alice' }, capability: review }])
+    const impact = await source.impact.of({ tenant: 'bob', capability: review, change: 'publish' })
+    expect(impact.kind === 'changes' && impact.lines[0]).toMatchObject({
+      mark: '+',
+      point: 'skill.skills',
+      key: 'review',
     })
-    const filtered = await off.source.placement.of({ tenant: 'alice', capability: skill.id })
-    expect(filtered.kind === 'placed' && filtered.places[0]).toMatchObject({
-      standing: 'not in effect',
-      says: 'disabled',
-    })
+  })
+
+  it('says so when the assets cannot be read now', async () => {
+    const { source } = world()
+    const unread = { kind: 'unavailable', reason: 'the assets cannot be read now' }
+    const tidy = capability('plugin', 'tidy')
+    expect(await source.impact.of({ tenant: 'a', capability: tidy, change: 'remove' })).toEqual(
+      unread,
+    )
+    expect(await source.placement.of({ tenant: 'a', capability: tidy })).toEqual(unread)
   })
 
   it('gives the revision of the tree, and the tenant and principal of the call', () => {

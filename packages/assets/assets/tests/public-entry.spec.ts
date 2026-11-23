@@ -19,6 +19,7 @@ it('exports the registry, identity, and pin operations', () => {
     'declarationRejection',
     'digestBytes',
     'evaluate',
+    'heldEffect',
     'heldLayerSource',
     'heldPoint',
     'isReadBody',

@@ -65,6 +65,7 @@ function world(read: RunSourcesPorts['readWork'], adopt?: WorkspaceSources<unkno
     lookup: category => contracts.find(each => each.category === category),
     describe: () => undefined,
     atPoint: () => undefined,
+    effectOf: () => undefined,
   }
   const adopted: unknown[] = []
   const reported: string[] = []

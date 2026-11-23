@@ -26,7 +26,11 @@ export type ExtensionSightPorts = Readonly<{
   process: string
 }>
 
-export type ExtensionSights = Readonly<{ of(tenant: string): ExtensionSight; close(): void }>
+export type ExtensionSights = Readonly<{
+  of(tenant: string): ExtensionSight
+  revision(): string
+  close(): void
+}>
 
 /** The trees as each tenant may see them. The revisions are of the registry of this process, the same for every tenant. */
 export function createExtensionSights(ports: ExtensionSightPorts): ExtensionSights {
@@ -41,6 +45,7 @@ export function createExtensionSights(ports: ExtensionSightPorts): ExtensionSigh
       clients: () => ports.reportsOf(tenant) ?? 'unavailable',
       revisions,
     }),
+    revision: () => revisions.current(),
     close: stop,
   }
 }
@@ -64,8 +69,7 @@ function sightsOf(ctx: Context): ExtensionSights {
   return made
 }
 
-export const extensionRevisionOf = (ctx: Context): string =>
-  sightsOf(ctx).of('').revisions.current()
+export const extensionRevisionOf = (ctx: Context): string => sightsOf(ctx).revision()
 
 /** OmneExtensionPoints sees the trees as the tenant the call acts for; the model gives no tenant. */
 export function bindReleaseExtensionPoints(

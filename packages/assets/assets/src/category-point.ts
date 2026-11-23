@@ -1,3 +1,4 @@
+import type { CategoryEffect } from './effect.ts'
 import type { BodyContract } from './identity.ts'
 import { copyTree } from './read-body.ts'
 
@@ -11,6 +12,8 @@ export type CategoryContribution = Readonly<{
   display: CategoryDisplay
   generalCreation?: 'closed'
   point: string
+  /** What a change of one of this category does, told by its owner; without it the assets tell from the holding. */
+  effect?: CategoryEffect
 }>
 
 export type CategoryListing = Readonly<{
@@ -20,7 +23,6 @@ export type CategoryListing = Readonly<{
   point: string
 }>
 
-/** A category that has contributions and gives no contract now, and why. */
 export type CategoryUnusable = Readonly<{
   category: string
   unusable: 'conflict' | 'unread'
@@ -31,6 +33,7 @@ export type CategoryView = Readonly<{
   lookup(category: string): BodyContract | undefined
   describe(category: string): CategoryListing | CategoryUnusable | undefined
   atPoint(point: string): CategoryListing | CategoryUnusable | undefined
+  effectOf(category: string): CategoryEffect | undefined
   list(): readonly CategoryListing[]
 }>
 
@@ -41,7 +44,11 @@ export type CategoryReading =
   | Readonly<{ kind: 'read'; contributions: readonly CategoryContribution[] }>
   | Readonly<{ kind: 'unavailable'; detail: string }>
 
-type Registered = Readonly<{ contract: BodyContract; listing: CategoryListing }>
+type Registered = Readonly<{
+  contract: BodyContract
+  listing: CategoryListing
+  effect: CategoryEffect | undefined
+}>
 type Standings = ReadonlyMap<string, Registered | CategoryUnusable>
 type Read = Readonly<{ standings: Standings; points: ReadonlyMap<string, string> }>
 
@@ -59,10 +66,10 @@ const listings = new WeakMap<CategoryContribution, Registered>()
 function registered(contribution: CategoryContribution): Registered {
   const known = listings.get(contribution)
   if (known !== undefined) return known
-  const { contract, display, generalCreation, point } = contribution
+  const { contract, display, generalCreation, point, effect } = contribution
   const creation = creationOf(contract, generalCreation)
   const listing = Object.freeze({ category: contract.category, display, creation, point })
-  const made = Object.freeze({ contract, listing })
+  const made = Object.freeze({ contract, listing, effect })
   listings.set(contribution, made)
   return made
 }
@@ -137,6 +144,11 @@ export function categoryViewOf(read: () => CategoryReading): CategoryView {
       const held = now.standings.get(now.points.get(point) ?? '')
       return held === undefined ? undefined : standingOf(held)
     },
+    effectOf(category: string): CategoryEffect | undefined {
+      const now = standings()
+      const held = typeof now === 'string' ? undefined : now.get(category)
+      return held !== undefined && 'contract' in held ? held.effect : undefined
+    },
     list(): readonly CategoryListing[] {
       const now = standings()
       if (typeof now === 'string') return Object.freeze([])
@@ -148,7 +160,7 @@ export function categoryViewOf(read: () => CategoryReading): CategoryView {
 
 /** Checks a contribution and freezes what a reader is given. It throws on a contribution that names nothing. */
 export function admitCategory(contribution: CategoryContribution): CategoryContribution {
-  const { contract, display, generalCreation, point } = contribution
+  const { contract, display, generalCreation, point, effect } = contribution
   if (contract.category === '') throw new TypeError('category name is empty')
   if (point === '') throw new TypeError('category point is empty')
   if (display.title === '' || display.summary === '' || display.creation === '')
@@ -163,6 +175,7 @@ export function admitCategory(contribution: CategoryContribution): CategoryContr
     ),
     ...(generalCreation === undefined ? {} : { generalCreation }),
     point,
+    ...(effect === undefined ? {} : { effect }),
   })
 }
 

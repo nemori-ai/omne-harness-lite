@@ -1,20 +1,21 @@
 import { Context } from '@deepseek-ai/cordis'
+import { capabilityId } from '@omne-harness/assets'
 import { assetCategoriesPlugin } from '@omne-harness/assets-cordis-contract/cordis'
 import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { pluginCategoryDisplay } from '@omne-harness/plugin-host-local'
-import { pluginCategoryPlugin } from '@omne-harness/plugin-host-local/cordis'
+import { pluginCategory } from '@omne-harness/plugin-host-local/cordis'
 import { expect, it } from 'vitest'
 
 it('the cordis entry exports the plugin that registers the category', async () => {
   const cordis = (await import('@omne-harness/plugin-host-local/cordis')) as Record<string, unknown>
-  expect(Object.keys(cordis)).toEqual(['pluginCategoryPlugin'])
+  expect(Object.keys(cordis)).toEqual(['pluginCategory'])
 })
 
 it('contributes the category with its point, and withdraws both on unload', async () => {
   const root = new Context()
   await root.plugin(DynamisService)
   await root.plugin(assetCategoriesPlugin)
-  const fiber = root.plugin(pluginCategoryPlugin)
+  const fiber = root.plugin(pluginCategory())
   await fiber.await()
   const { view } = root.assetCategories
   expect(view.list()).toEqual([
@@ -32,11 +33,40 @@ it('contributes the category with its point, and withdraws both on unload', asyn
   expect(view.atPoint('plugin.plugins')).toBeUndefined()
 })
 
+it('tells of its own only when given the ports: what the tenant holds is asked through them', async () => {
+  const root = new Context()
+  await root.plugin(DynamisService)
+  await root.plugin(assetCategoriesPlugin)
+  const bare = root.plugin(pluginCategory())
+  await bare.await()
+  expect(root.assetCategories.view.effectOf('plugin')).toBeUndefined()
+  await bare.dispose()
+  const asked: string[] = []
+  await root
+    .plugin(
+      pluginCategory(() => ({
+        listed: async tenant => (asked.push(tenant), { kind: 'unavailable' }),
+        serverPoints: () => [],
+        clients: () => [],
+        serverLoads: false,
+      })),
+    )
+    .await()
+  const made = capabilityId('plugin', 'tidy')
+  if (!made.ok) throw new Error('capability')
+  const effect = root.assetCategories.view.effectOf('plugin')
+  expect(await effect?.placement.of({ tenant: 'alice', capability: made.id })).toEqual({
+    kind: 'unavailable',
+    reason: 'what the tenant holds cannot be read now',
+  })
+  expect(asked).toEqual(['alice'])
+})
+
 it('asks the categories as they stand when a package is judged, not as they stood when it registered', async () => {
   const root = new Context()
   await root.plugin(DynamisService)
   await root.plugin(assetCategoriesPlugin)
-  await root.plugin(pluginCategoryPlugin).await()
+  await root.plugin(pluginCategory()).await()
   const text = JSON.stringify({
     schema: 1,
     name: 'late',

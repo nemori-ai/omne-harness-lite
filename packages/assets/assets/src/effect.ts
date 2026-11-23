@@ -1,7 +1,7 @@
 import type { CapabilityId } from './identity.ts'
+import type { AssetStanding } from './management.ts'
 import type { PublishContent } from './publishing.ts'
 
-/** One line of what a change would do to the extension tree. */
 export type ImpactLine = Readonly<{
   /** + would appear; - would go away; ~ would change state; ! would not take effect or conflicts */
   mark: '+' | '-' | '~' | '!'
@@ -9,7 +9,6 @@ export type ImpactLine = Readonly<{
   of: string | null
   point: string
   key: string
-  /** What follows the arrow, for example `→ in effect; shadows built-in`. */
   says: string
 }>
 
@@ -48,3 +47,57 @@ export type Placement = Readonly<{
     | Readonly<{ kind: 'unavailable'; reason: string }>
   >
 }>
+
+/** What the owner of a category tells of a change of one of its own, and of where a held one stands. */
+export type CategoryEffect = Readonly<{ impact: ChangeImpact; placement: Placement }>
+
+export type HeldEffectPorts = Readonly<{
+  point(category: string): string | undefined
+  standing(capability: CapabilityId): Promise<AssetStanding | undefined>
+}>
+
+function stood(standing: AssetStanding): readonly [string, string] {
+  if (standing.kind === 'selected') return ['selected', 'sessions of this tenant get this one']
+  if (standing.kind === 'unavailable')
+    return ['not known', `the ${standing.layer} layer cannot be read now`]
+  const { reason, by } = standing
+  return ['not in effect', by === undefined ? reason : `${reason} by ${by}`]
+}
+
+/** What the assets tell of a category whose owner tells nothing: one line on its point, as the asset rules stand. */
+export function heldEffect(ports: HeldEffectPorts): CategoryEffect {
+  const pointless = (category: string) =>
+    ({ kind: 'unavailable', reason: `category ${category} has no point now` }) as const
+  return {
+    impact: {
+      async of({ capability, change }) {
+        const point = ports.point(capability.category)
+        if (point === undefined) return pointless(capability.category)
+        const going = change === 'disable' || change === 'remove'
+        const says = going
+          ? '→ no longer held'
+          : '→ held; the asset rules pick which one sessions get'
+        const line = {
+          mark: going ? '-' : '+',
+          of: null,
+          point,
+          key: capability.name,
+          says,
+        } as const
+        return { kind: 'changes', lines: [line], loads: null, advice: null }
+      },
+    },
+    placement: {
+      async of({ capability }) {
+        const point = ports.point(capability.category)
+        if (point === undefined) return pointless(capability.category)
+        const standing = await ports.standing(capability)
+        if (standing === undefined)
+          return { kind: 'unavailable', reason: 'how this one stands cannot be read now' }
+        const [word, says] = stood(standing)
+        const places = [{ point, key: capability.name, standing: word, says }]
+        return { kind: 'placed', places, clients: null, advice: null }
+      },
+    },
+  }
+}

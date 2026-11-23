@@ -10,6 +10,7 @@ it('the root entry exports the category, its contract and its point', async () =
     'listedPlugins',
     'pluginBodyContract',
     'pluginCategoryDisplay',
+    'pluginEffect',
     'pluginImpact',
     'pluginPlacement',
     'pluginPluginsPoint',
