@@ -83,6 +83,7 @@ async function world(options: { opens?: (tenant: string) => boolean } = {}) {
       {
         held: root.assetCategories.held,
         current: (ref, capability) => !stale.has(ref) && !waiting.has(capability.category),
+        placed: () => [],
         async listing(ref) {
           if (options.opens?.(ref) === false) return undefined
           return async request => {

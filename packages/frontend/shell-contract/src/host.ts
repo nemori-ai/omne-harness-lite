@@ -1,3 +1,4 @@
+import type { Contract } from '@omne-harness/dynamis'
 export type LoginCredentials = Readonly<{ loginIdentifier: string; credential: string }>
 
 export type LoginResult = 'signed-in' | 'auth-failed' | 'unknown' | 'unavailable'
@@ -27,7 +28,13 @@ export type Fallen = Readonly<{ name: string; why: 'threw' | 'held' }>
 
 /** What the tree of the interface has now, for whoever tells it on: its points and its parts, by name. */
 export type Described = Readonly<{
-  points: readonly Readonly<{ name: string; summary: string }>[]
+  points: readonly Readonly<{
+    name: string
+    summary: string
+    contract: Contract
+    /** The names the data of an item may use where the set is closed, each with its value now. */
+    dataKeys?: readonly Readonly<{ name: string; now: string | null }>[]
+  }>[]
   parts: readonly Readonly<{
     name: string
     label: string

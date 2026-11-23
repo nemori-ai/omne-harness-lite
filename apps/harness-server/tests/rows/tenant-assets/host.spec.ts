@@ -140,4 +140,38 @@ describe('the tenant assets host: one local assets per tenant', () => {
     await closing
     expect(w.made.get('alpha')?.closed()).toBe(1)
   })
+
+  it('答一个租户有没有资产可言：登记过的有，没登记过的没有，目录读不到或抛出时不知道', async () => {
+    const w = setup(['alpha'])
+    expect(await w.host.standing('alpha')).toBe('registered')
+    expect(await w.host.standing('beta')).toBe('unregistered')
+    expect(w.opened).toEqual([])
+    const unread = new TenantAssetsHost({
+      domains: { lookup: async () => ({ kind: 'unavailable', diagnostic: 'down' }) },
+      open: async () => fake('x').assets,
+    })
+    expect(await unread.standing('alpha')).toBe('unknown')
+    const broken = new TenantAssetsHost({
+      domains: {
+        lookup: async () => {
+          throw new Error('the directory broke')
+        },
+      },
+      open: async () => fake('x').assets,
+    })
+    expect(await broken.standing('alpha')).toBe('unknown')
+  })
+
+  it('目录交回别的租户的域时，答不知道', async () => {
+    const other = new TenantAssetsHost({
+      domains: {
+        lookup: async () => ({
+          kind: 'ready',
+          domain: { scope: { kind: 'tenant', tenant: 'beta' }, transactionDomain: 'beta' },
+        }),
+      },
+      open: async () => fake('x').assets,
+    })
+    expect(await other.standing('alpha')).toBe('unknown')
+  })
 })

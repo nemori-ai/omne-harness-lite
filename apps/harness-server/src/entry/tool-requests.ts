@@ -414,7 +414,11 @@ export async function pinnedDirectory(
   }
 }
 
-const CARRIES_DIRECTORY: ReadonlySet<string> = new Set(['Tools', 'SwitchWorkspace'])
+const CARRIES_DIRECTORY: ReadonlySet<string> = new Set([
+  'Tools',
+  'SwitchWorkspace',
+  'OmneExtensions',
+])
 
 async function directoryOf(
   ports: ToolRequestPorts,

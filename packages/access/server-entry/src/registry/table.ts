@@ -11,6 +11,7 @@ import {
   type Instance,
   type Ledger,
   type Registry,
+  type Scope,
 } from '@omne-harness/dynamis'
 import { revisionOf, type ProtocolContract } from '@omne-harness/public-contract'
 import { memberOf, type Entered } from './registry.ts'
@@ -77,6 +78,14 @@ export type Open = Readonly<{
 export const keyOf = (protocol: Readonly<{ name: string; major: number }>): string =>
   `${protocol.name}/v${protocol.major}`
 
+export function protocolItem(contribution: AccessContribution<ProtocolContract>): ProtocolItem {
+  return {
+    contribution,
+    revision: revisionOf(contribution.protocol),
+    controller: new AbortController(),
+  }
+}
+
 /** The digest names the instance: two instances with one protocol are two items, never one. */
 export function entryOf(
   contribution: AccessContribution<ProtocolContract>,
@@ -90,11 +99,7 @@ export function entryOf(
     scope: [],
     rank: 0,
     digest: `${key}@${instance.fiber}#${instance.generation}`,
-    item: {
-      contribution,
-      revision: revisionOf(contribution.protocol),
-      controller: new AbortController(),
-    },
+    item: protocolItem(contribution),
   }
 }
 
@@ -106,8 +111,14 @@ const byFiber = (left: Instance, right: Instance): number =>
       : 1
 
 /** Takes the protocol as it stands now and pins the call to the instance that serves it. */
-export function enter(registry: Registry, calls: Calls, key: string, name: string): Enter {
-  const answer = ask<ProtocolItem>(registry, PROTOCOLS, key, [])
+export function enter(
+  registry: Registry,
+  calls: Calls,
+  key: string,
+  name: string,
+  scope: Scope = [],
+): Enter {
+  const answer = ask<ProtocolItem>(registry, PROTOCOLS, key, scope)
   if (answer.kind === 'conflict')
     return { kind: 'conflict', by: answer.entries.map(entry => entry.instance).sort(byFiber) }
   // The point cannot be read: that is not the same as nothing being on it.

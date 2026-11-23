@@ -10,10 +10,10 @@ describe('the plugin-access row', () => {
       row: 'plugin-access',
       implementation: 'real',
       lifecycle: { kind: 'none' },
-      manifest: { provides: [], injects: ['accessRegistry', 'principalIssuer'] },
+      manifest: { provides: ['pluginReports'], injects: ['accessRegistry', 'principalIssuer'] },
     })
     const stub = rowManifests.get(declared!.row)
-    expect(stub?.provides).toEqual([])
+    expect(stub?.provides).toEqual(['s0.pluginReports'])
     expect(stub?.injects).toEqual(['s0.accessRegistry', 's0.principalIssuer'])
   })
 

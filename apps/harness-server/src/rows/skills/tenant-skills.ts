@@ -1,4 +1,14 @@
-import type { AssetLayerSource, BodyContract, Candidate } from '@omne-harness/assets'
+import { join } from 'node:path'
+import {
+  packageBody,
+  packageDigest,
+  withinDirectory,
+  type AssetLayerSource,
+  type BodyContract,
+  type Candidate,
+  type PackageReader,
+} from '@omne-harness/assets'
+import type { JsonValue } from '@omne-harness/json-text'
 import type { AssetsLocal } from '@omne-harness/assets-local'
 import { tenantCodec, type Access, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -77,17 +87,54 @@ type Layers = Readonly<{
   readerOf: PackageReaderOf
 }>
 
-function tenantLayers(assets: AssetsLocal, sources: readonly AssetLayerSource[]): Layers {
+const SKILL = 'skill'
+
+type Within = Readonly<{ version: string; within: string }>
+type Judged = Readonly<{ body: JsonValue; digest: string }>
+
+async function bodyWithin(contract: BodyContract | undefined, from: PackageReader) {
+  const layout = contract?.layout
+  if (layout === undefined) return undefined
+  const listed = await from.manifest()
+  if (!('ok' in listed)) return undefined
+  const inspected = await layout.inspect(from)
+  if (!('ok' in inspected)) return undefined
+  const body = packageBody(inspected.ok, listed.ok)
+  return 'ok' in body ? { body: body.ok, digest: packageDigest(listed.ok.entries) } : undefined
+}
+
+function tenantLayers(
+  assets: AssetsLocal,
+  sources: readonly AssetLayerSource[],
+  contractOf: (category: string) => BodyContract | undefined,
+): Layers & Readonly<{ withinOf(ref: string, digest: string): Within | undefined }> {
+  const places = new Map<string, Within>()
+  const judged = new Map<string, Judged>()
+  const whole = (assetRef: string, version: string) => assets.packages.reader({ assetRef, version })
   return {
     sources,
     async body(candidate) {
-      const read = await assets.readVersion({
-        assetRef: candidate.asset,
-        version: candidate.version,
-      })
-      return read.kind === 'version' ? read.version.body : undefined
+      const { asset, version, within } = candidate
+      if (within === undefined) {
+        const read = await assets.readVersion({ assetRef: asset, version })
+        return read.kind === 'version' ? read.version.body : undefined
+      }
+      const tag = `${asset}\n${version}\n${within}`
+      const known =
+        judged.get(tag) ??
+        (await bodyWithin(contractOf(SKILL), withinDirectory(whole(asset, version), within)))
+      if (known === undefined) return undefined
+      judged.set(tag, known)
+      places.set(`${asset}\n${known.digest}`, { version, within })
+      return known.body
     },
-    readerOf: ({ ref, digest }) => assets.packages.reader({ assetRef: ref, version: digest }),
+    readerOf({ ref, digest }) {
+      const at = places.get(`${ref}\n${digest}`)
+      return at === undefined
+        ? whole(ref, digest)
+        : withinDirectory(whole(ref, at.version), at.within)
+    },
+    withinOf: (ref, digest) => places.get(`${ref}\n${digest}`),
   }
 }
 
@@ -113,7 +160,7 @@ export function tenantSkills(
   workspace: WorkspaceSkillPorts,
   sources: readonly AssetLayerSource[],
 ): TenantSkills {
-  const tenantLayer = tenantLayers(assets, sources)
+  const tenantLayer = tenantLayers(assets, sources, workspace.contractOf)
   const layers = (access: Access<unknown>, scope: unknown): Layers => {
     const key = keyOf(scope)
     if (key === null) return tenantLayer
@@ -138,8 +185,14 @@ export function tenantSkills(
       readCheck,
       source: createContentStoreSource({
         readerOf,
-        directoryOf: locator =>
-          inWorkspace(locator.ref) ? Promise.resolve(succeed(null)) : directory(locator),
+        async directoryOf(locator) {
+          if (inWorkspace(locator.ref)) return succeed(null)
+          const at = tenantLayer.withinOf(locator.ref, locator.digest)
+          if (at === undefined) return directory(locator)
+          const place = await assets.packages.locate({ assetRef: locator.ref, version: at.version })
+          if (place.kind === 'unavailable') return fail('unavailable')
+          return succeed(place.kind === 'local-directory' ? join(place.path, at.within) : null)
+        },
       }),
     })
   const tenantAccess = accessOver(tenantLayer.readerOf)

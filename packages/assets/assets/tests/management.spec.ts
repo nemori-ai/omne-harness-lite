@@ -10,6 +10,7 @@ import {
   type CapabilityId,
   type HoldingChange,
   type StoreChange,
+  type StoreOperation,
   type TenantActing,
   type TenantLayerStore,
 } from '@omne-harness/assets'
@@ -88,6 +89,7 @@ function setup(
     holding?: Holding | 'absent' | 'unavailable'
     change?: StoreChange | 'throws'
     recall?: StoreChange | { kind: 'not-found' } | 'throws'
+    operation?: StoreOperation | 'throws'
     /** A second contribution of the category: it is a conflict and gives no contract. */
     rival?: true
   } = {},
@@ -116,6 +118,7 @@ function setup(
       content: { kind: 'data', body: { kind: 'null' } },
       settings: false,
     }),
+    files: async () => ({ kind: 'body', version: 'v1', body: { kind: 'null' } }),
     async holding(ref) {
       reads.push(ref)
       const holding = options.holding ?? HELD
@@ -131,6 +134,11 @@ function setup(
       return options.recall ?? { kind: 'not-found' }
     },
     recallPublication: async () => ({ kind: 'not-found' }),
+    async recallById(operationId) {
+      reads.push(`operation ${operationId}`)
+      if (options.operation === 'throws') throw new Error('the receipts cannot be read')
+      return options.operation ?? { kind: 'not-found' }
+    },
     uploads: {
       begin: async () => ({ kind: 'unavailable' }),
       resume: async () => ({ kind: 'absent' }),
@@ -309,6 +317,104 @@ describe('enable, disable and remove: the answers that do not depend on the stat
       kind: 'unknown',
       operationId: 'op-3',
     })
+  })
+})
+
+describe('recall an operation by its id alone', () => {
+  const byId = (operationId = 'op-7', tenant = 'alice') => ({ ...scope, tenant, operationId })
+
+  it('a publication answers its capability, its version and its outcome', async () => {
+    const outcome = {
+      kind: 'published',
+      version: 'v2',
+      holdingRef: 'held-1',
+      changed: true,
+    } as const
+    const s = setup({
+      operation: { kind: 'publish', capability: id('note', 'a'), version: 'v2', outcome },
+    })
+    expect(await s.management.recallById(byId())).toEqual({
+      kind: 'publish',
+      capability: id('note', 'a'),
+      version: 'v2',
+      outcome,
+    })
+    expect(s.reads).toEqual(['operation op-7'])
+    expect(s.changed).toEqual([])
+  })
+
+  it.each([
+    [
+      'a disable that changed it',
+      { kind: 'setEnabled', enabled: false } as const,
+      { kind: 'committed', changed: true } as const,
+      { kind: 'setEnabled', enabled: false, outcome: { kind: 'changed' } },
+    ],
+    [
+      'an enable that found it enabled',
+      { kind: 'setEnabled', enabled: true } as const,
+      { kind: 'committed', changed: false } as const,
+      { kind: 'setEnabled', enabled: true, outcome: { kind: 'no-change' } },
+    ],
+    [
+      'a removal whose commit is not known',
+      { kind: 'remove' } as const,
+      { kind: 'unknown' } as const,
+      { kind: 'remove', outcome: { kind: 'unknown', operationId: 'op-7' } },
+    ],
+    [
+      'a removal that lost the race',
+      { kind: 'remove' } as const,
+      { kind: 'conflict' } as const,
+      { kind: 'remove', outcome: { kind: 'conflict' } },
+    ],
+  ])('%s answers what was asked and the receipt', async (_, change, answer, expected) => {
+    const capability = id('note', 'a')
+    const s = setup({
+      operation: { kind: 'change', holding: 'held-1', capability, change, answer },
+    })
+    expect(await s.management.recallById(byId())).toEqual({
+      holding: 'held-1',
+      capability,
+      ...expected,
+    })
+    expect(s.changed).toEqual([])
+  })
+
+  it('a change whose holding no longer names its capability says so with null', async () => {
+    const s = setup({
+      operation: {
+        kind: 'change',
+        holding: 'held-1',
+        capability: null,
+        change: { kind: 'remove' },
+        answer: { kind: 'committed', changed: true },
+      },
+    })
+    expect(await s.management.recallById(byId())).toEqual({
+      kind: 'remove',
+      holding: 'held-1',
+      capability: null,
+      outcome: { kind: 'changed' },
+    })
+  })
+
+  it('an id under which nothing was done is absent', async () => {
+    expect(await setup().management.recallById(byId())).toEqual({ kind: 'absent' })
+  })
+
+  it('a principal for another tenant is denied, before the store is opened', async () => {
+    const s = setup()
+    expect(await s.management.recallById(byId('op-7', 'bob'))).toEqual({ kind: 'denied' })
+    expect(s.reads).toEqual([])
+  })
+
+  it.each([
+    ['the store answers unavailable', { operation: { kind: 'unavailable' } as const }],
+    ['the store throws', { operation: 'throws' as const }],
+    ['the tenant store is not there', { store: 'missing' as const }],
+  ])('%s: unavailable', async (_, options) => {
+    expect(await setup(options).management.recallById(byId())).toEqual({ kind: 'unavailable' })
   })
 })
 
@@ -551,4 +657,45 @@ describe('describe one asset', () => {
       kind: 'denied',
     })
   })
+})
+
+describe('the files of the held version', () => {
+  const asking = { ...scope, capability: id('note', 'a') }
+
+  it('gives what the store gives for the held version', async () => {
+    expect(await setup().management.files(asking)).toEqual({
+      kind: 'body',
+      version: 'v1',
+      body: { kind: 'null' },
+    })
+  })
+
+  it('a principal for another tenant is denied, before the store is opened', async () => {
+    const s = setup({ store: { files: async () => ({ kind: 'absent' as const }) } })
+    expect(await s.management.files({ ...asking, tenant: 'bob' })).toEqual({ kind: 'denied' })
+    expect(s.asked).toEqual(['alice->bob'])
+  })
+
+  it.each([
+    ['answers absent', { files: async () => ({ kind: 'absent' as const }) }, 'absent'],
+    ['cannot read', { files: async () => ({ kind: 'unavailable' as const }) }, 'unavailable'],
+    [
+      'throws',
+      {
+        files: async (): Promise<{ kind: 'absent' }> => {
+          throw new Error('read failed')
+        },
+      },
+      'unavailable',
+    ],
+  ])('a store that %s answers %s, never none', async (_, store, kind) => {
+    expect(await setup({ store }).management.files(asking)).toEqual({ kind })
+  })
+
+  it.each(['missing', 'throws'] as const)(
+    'a store of the tenant that is %s is unavailable',
+    async store => {
+      expect(await setup({ store }).management.files(asking)).toEqual({ kind: 'unavailable' })
+    },
+  )
 })

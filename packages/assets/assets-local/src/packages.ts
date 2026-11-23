@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path'
 import {
   capabilityId,
   digestBytes,
-  packageBody,
+  judgePackageContent,
   packageDigest,
   pinBody,
   type CapabilityId,
@@ -118,49 +118,6 @@ const rejected = (rejection: PackageRejection): PackagePublishResult => ({
   kind: 'rejected',
   rejection,
 })
-
-function isSafePath(path: string): boolean {
-  if (path === '' || path.includes('\\') || path.includes('\0')) return false
-  return path.split('/').every(segment => segment !== '' && segment !== '.' && segment !== '..')
-}
-
-type Declared = Readonly<{ entries: readonly Readonly<{ path: string; bytes: number }>[] }>
-
-function pathRejection(manifest: Declared): PackageRejection | undefined {
-  const paths = new Set<string>()
-  for (const entry of manifest.entries) {
-    if (!isSafePath(entry.path) || paths.has(entry.path))
-      return { kind: 'invalid-package', reason: 'manifest-path' }
-    paths.add(entry.path)
-  }
-  for (const path of paths) {
-    const segments = path.split('/')
-    for (let depth = 1; depth < segments.length; depth += 1)
-      if (paths.has(segments.slice(0, depth).join('/')))
-        return { kind: 'invalid-package', reason: 'manifest-path' }
-  }
-  return undefined
-}
-
-function limitRejection(
-  manifest: Declared,
-  limits: PackageLayout['limits'],
-): PackageRejection | undefined {
-  if (manifest.entries.length > limits.files) return { kind: 'limit-exceeded', limit: 'files' }
-  if (manifest.entries.some(entry => entry.bytes > limits.fileBytes))
-    return { kind: 'limit-exceeded', limit: 'fileBytes' }
-  const total = manifest.entries.reduce((sum, entry) => sum + entry.bytes, 0)
-  if (total > limits.totalBytes) return { kind: 'limit-exceeded', limit: 'totalBytes' }
-  return undefined
-}
-
-/** The path rules and the category limits a package is held to, judged on its file list alone. */
-export function declarationRejection(
-  declared: Declared,
-  limits: PackageLayout['limits'],
-): PackageRejection | undefined {
-  return pathRejection(declared) ?? limitRejection(declared, limits)
-}
 
 function field(value: JsonValue | undefined, key: string): JsonValue | undefined {
   return value?.kind === 'object'
@@ -301,23 +258,14 @@ function packagePublisher(
     if (contract === undefined) return fail({ kind: 'unknown-category' })
     const layout = contract.layout
     if (layout === undefined) return fail({ kind: 'not-a-directory-category' })
-    const listed = await from.manifest()
-    if (!('ok' in listed)) return fail({ kind: 'source-failed', failure: listed.failure })
-    const manifest = listed.ok
-    const invalid = declarationRejection(manifest, layout.limits)
-    if (invalid !== undefined) return fail(invalid)
-    const inspected = await layout.inspect(from)
-    if (!('ok' in inspected)) return inspected
-    const body = packageBody(inspected.ok, manifest)
-    if (!('ok' in body)) return body
-    const version = packageDigest(manifest.entries)
-    const judged = contract.judge(body.ok, { capabilityName: capability.name, definition: version })
-    if (!judged.ok) return fail({ kind: 'invalid-package', reason: judged.rejected })
+    const judged = await judgePackageContent(contract, from, capability.name)
+    if (!('ok' in judged)) return judged
+    const { manifest, version, body } = judged.ok
     return succeed({
       staging: join(root, STAGING, digest(request.operationId)),
       manifest,
       version,
-      body: body.ok,
+      body,
       final: finalOf(root, layout, capability.name, version),
     })
   }

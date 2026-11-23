@@ -148,11 +148,14 @@ export type RenderPoint<S> = RenderPointSink<S> &
     ) => ReactNode
   }>
 
+/** `subject` is one sentence on what a drawing is given as its subject; `example` is one member to copy, with its file. */
 export type RenderPointDeclaration = Readonly<{
   name: string
   key: string
   summary: string
   keysFrom?: string
+  subject?: string
+  example?: string
 }>
 
 function keysOf(from: string | null, server: PublicKeys | undefined): PointKeys {
@@ -163,13 +166,13 @@ function keysOf(from: string | null, server: PublicKeys | undefined): PointKeys 
 
 /** A point whose host draws by key: what is put on the key, or the host's generic drawing. */
 export function defineRenderPoint<S>(declaration: RenderPointDeclaration): RenderPoint<S> {
-  const { name, key, summary } = declaration
-  const keysFrom = declaration.keysFrom ?? null
+  const { name, keysFrom: from, ...words } = declaration
+  const keysFrom = from ?? null
   return {
     name,
     keysFrom,
     keys: server => keysOf(keysFrom, server),
-    ...declared(drawingContract({ name, key, summary })),
+    ...declared(drawingContract({ name, ...words })),
     put: (shell, key, render, scope) => shell.putDrawing(name, key, render, scope),
     draw: (shell, key, subject, generic, frame) =>
       shell.drawnAt(name, key, subject, generic, frame),

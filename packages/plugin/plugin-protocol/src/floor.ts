@@ -31,13 +31,13 @@ export function heldOf(fibers: readonly string[]): ReadonlyMap<string, string> {
   )
 }
 
-type Standing = Readonly<{
+export type FloorStanding = Readonly<{
   wanted: ReadonlySet<string>
   held: ReadonlySet<string>
   loading: boolean
 }>
 
-export function standingOf(states: ReadonlyMap<string, Kept>): Standing {
+export function standingOf(states: ReadonlyMap<string, Kept>): FloorStanding {
   const wanted = new Set<string>()
   const held = new Set<string>()
   let loading = false

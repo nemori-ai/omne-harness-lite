@@ -1,4 +1,11 @@
-import type { JsonValue, Member, ModuleMember } from '@omne-harness/plugin-protocol'
+import {
+  fiberOf,
+  type JsonValue,
+  type Listed,
+  type Member,
+  type ModuleMember,
+  type Outcome,
+} from '@omne-harness/plugin-protocol'
 import {
   LAYOUT_POINT,
   STYLE_POINT,
@@ -7,8 +14,6 @@ import {
   type PartStyle,
 } from '@omne-harness/shell-contract'
 import type { ShellService } from '@omne-harness/shell-contract/cordis'
-import { fiberOf } from './floor.ts'
-import type { Listed, Outcome } from './loader.ts'
 
 /** How the application loads the code of a plugin, and what it hands that code beside the shell. */
 export type Code = Readonly<{

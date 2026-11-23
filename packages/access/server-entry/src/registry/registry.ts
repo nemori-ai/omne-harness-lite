@@ -4,6 +4,7 @@ import type {
   OperationHandler,
   ProtocolKey,
 } from '@omne-harness/access-cordis-contract'
+import type { Scope } from '@omne-harness/dynamis'
 import type {
   ObservationContract,
   OperationContract,
@@ -67,7 +68,7 @@ export type Refusal = Readonly<{
 }>
 
 export type RegistryForPipeline = {
-  readonly enter: (key: ProtocolKey, name: string) => Entered | Refusal
+  readonly enter: (key: ProtocolKey, name: string, scope?: Scope) => Entered | Refusal
   readonly subscribe: (listener: (change: AvailabilityChange) => void) => AvailabilitySubscription
 }
 

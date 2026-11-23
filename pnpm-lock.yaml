@@ -678,6 +678,9 @@ importers:
       '@omne-harness/assets-local':
         specifier: workspace:*
         version: link:../../packages/assets/assets-local
+      '@omne-harness/assets-tools':
+        specifier: workspace:*
+        version: link:../../packages/assets/assets-tools
       '@omne-harness/authorization':
         specifier: workspace:*
         version: link:../../packages/identity/authorization
@@ -876,9 +879,15 @@ importers:
       '@omne-harness/plugin-access':
         specifier: workspace:*
         version: link:../../packages/plugin/plugin-access
+      '@omne-harness/plugin-host-local':
+        specifier: workspace:*
+        version: link:../../packages/plugin/plugin-host-local
       '@omne-harness/plugin-protocol':
         specifier: workspace:*
         version: link:../../packages/plugin/plugin-protocol
+      '@omne-harness/plugin-tools':
+        specifier: workspace:*
+        version: link:../../packages/plugin/plugin-tools
       '@omne-harness/public-contract':
         specifier: workspace:*
         version: link:../../packages/access/public-contract
@@ -1664,6 +1673,37 @@ importers:
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/assets/assets-tools:
+    dependencies:
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../assets
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/tool-contract':
+        specifier: workspace:*
+        version: link:../../tool/tool-contract
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+    devDependencies:
+      '@omne-harness/tool':
+        specifier: workspace:*
+        version: link:../../tool/tool
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -4953,7 +4993,47 @@ importers:
       '@omne-harness/plugin-protocol':
         specifier: workspace:*
         version: link:../plugin-protocol
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../access/public-contract
     devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/plugin/plugin-host-local:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../../assets/assets
+      '@omne-harness/assets-cordis-contract':
+        specifier: workspace:*
+        version: link:../../assets/assets-cordis-contract
+      '@omne-harness/dynamis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/plugin-protocol':
+        specifier: workspace:*
+        version: link:../plugin-protocol
+    devDependencies:
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -4973,6 +5053,37 @@ importers:
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/plugin/plugin-tools:
+    dependencies:
+      '@omne-harness/dynamis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/tool-contract':
+        specifier: workspace:*
+        version: link:../../tool/tool-contract
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+    devDependencies:
+      '@omne-harness/tool':
+        specifier: workspace:*
+        version: link:../../tool/tool
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

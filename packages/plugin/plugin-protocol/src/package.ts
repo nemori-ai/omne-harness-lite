@@ -1,4 +1,4 @@
-import { insidePackage, type Member, type PluginManifest } from './manifest.ts'
+import { insidePackage, type Member, type PluginManifest, type SideName } from './manifest.ts'
 
 /** The kinds of file a package carries beside the files of its directory members. */
 export const FILE_SUFFIXES = ['.js', '.css', '.json'] as const
@@ -7,12 +7,15 @@ export type PackageFile = Readonly<{ path: string; digest: string }>
 
 export type PackageJudgment = Readonly<{ ok: true }> | Readonly<{ ok: false; reason: string }>
 
-type Placed = Readonly<{ at: string; member: Member }>
+export type PlacedMember = Readonly<{ at: string; side: SideName; member: Member }>
+type Placed = PlacedMember
 
-const membersOf = (manifest: PluginManifest): readonly Placed[] =>
+/** Every member of a manifest with where the manifest writes it. */
+export const membersOf = (manifest: PluginManifest): readonly PlacedMember[] =>
   (['client', 'server'] as const).flatMap(side =>
     (manifest[side]?.members ?? []).map((member, index) => ({
       at: `${side}.members[${index}]`,
+      side,
       member,
     })),
   )

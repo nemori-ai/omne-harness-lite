@@ -29,7 +29,8 @@ export type PluginManifest = Readonly<{
 }>
 
 export type ManifestRead =
-  | Readonly<{ kind: 'read'; manifest: PluginManifest }>
+  /** `unread` names the top-level fields the manifest wrote that a manifest does not have, in order. */
+  | Readonly<{ kind: 'read'; manifest: PluginManifest; unread: readonly string[] }>
   | Readonly<{ kind: 'refused'; reason: string }>
 
 type Fields = Readonly<Record<string, unknown>>
@@ -40,6 +41,7 @@ const isFields = (value: unknown): value is Fields =>
 const NAME = /^[a-z][a-z0-9-]{0,63}$/u
 const SEGMENT = /^[A-Za-z0-9._-]+$/u
 const WAYS = ['data', 'directory', 'module'] as const
+const READ: readonly string[] = ['schema', 'name', 'summary', 'client', 'server']
 
 /** A path that stays inside the package: its segments are plain names, none of them a step up or in place. */
 export function insidePackage(path: string): boolean {
@@ -133,7 +135,9 @@ export function readManifest(text: string): ManifestRead {
     return { kind: 'refused', reason: 'the manifest is not JSON' }
   }
   try {
-    return { kind: 'read', manifest: manifestOf(value) }
+    const manifest = manifestOf(value)
+    const unread = Object.keys(value as Fields).filter(field => !READ.includes(field))
+    return { kind: 'read', manifest, unread: unread.sort() }
   } catch (error) {
     if (error instanceof Refused) return { kind: 'refused', reason: error.message }
     throw error

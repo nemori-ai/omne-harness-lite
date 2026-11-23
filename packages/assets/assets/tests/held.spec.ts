@@ -221,6 +221,30 @@ describe('layerInputsOf: the entries of a point read back as the layers of an ev
     ])
   })
 
+  it('一份带着正文在包的哪个子目录：它与同一版的整个包是两份，`within` 原样交出', () => {
+    const whole: HeldItem = {
+      asset: 'plugin/tidy',
+      version: '1',
+      disabled: false,
+      immutable: true,
+      replaceLocked: false,
+    }
+    const inner: HeldItem = { ...whole, within: 'skills/notes' }
+    const scope = scopeOfLayer('tenant', 'tenant-a')
+    const inputs = layerInputsOf(
+      {
+        kind: 'read',
+        entries: [
+          { scope, item: whole },
+          { scope, item: inner },
+          { scope, item: { ...inner } },
+        ],
+      },
+      'tenant-a',
+    )
+    expect(inputs[1]).toEqual({ layer: 'tenant', state: 'read', candidates: [whole, inner] })
+  })
+
   it('同一层两份不同的原样交出两份；两个持有者放的同一份只算一份', () => {
     const first: HeldItem = {
       asset: 'a',

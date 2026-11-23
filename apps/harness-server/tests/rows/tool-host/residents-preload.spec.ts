@@ -24,6 +24,8 @@ const CODING = [
   'Calendar',
   'Files',
   'Notifications',
+  'OmneExtensionPoints',
+  'OmneExtensions',
   'Schedules',
   'Screen',
   'Sessions',

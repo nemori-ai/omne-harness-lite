@@ -470,7 +470,13 @@ export type LocalOperatorInput = Readonly<{
   distribution: unknown
   locations: Pick<
     ServerLocations,
-    'vaultFile' | 'storageRoot' | 'hostFilesDir' | 'assetsRoot' | 'historyIndexRoot' | 'mediaRoot'
+    | 'vaultFile'
+    | 'storageRoot'
+    | 'hostFilesDir'
+    | 'assetsRoot'
+    | 'historyIndexRoot'
+    | 'mediaRoot'
+    | 'pluginFloorDir'
   >
   settings: ServerSettings
   shutdownDeadlineMs: number
@@ -537,6 +543,8 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
           Sessions: { resultMaxBytes: 131_072 },
           Agents: { resultMaxBytes: 1_048_576 },
           SwitchWorkspace: { resultMaxBytes: 65_536 },
+          OmneExtensions: { resultMaxBytes: 131_072 },
+          OmneExtensionPoints: { resultMaxBytes: 131_072 },
           Screen: { resultMaxBytes: 65_536, ...LOCAL_SCREEN_LIMITS },
         },
       },
@@ -574,6 +582,9 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
     ],
     ...(rows.has('tenant-assets')
       ? ([['tenant-assets', { packageRoot: locations.assetsRoot }]] as const)
+      : []),
+    ...(rows.has('plugin-server')
+      ? ([['plugin-server', { floorDirectory: locations.pluginFloorDir }]] as const)
       : []),
     ...(rows.has('media-storage-local')
       ? ([['media-storage-local', { root: locations.mediaRoot }]] as const)
