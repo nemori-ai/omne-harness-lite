@@ -1,0 +1,11 @@
+[
+  {"name":"deepseek/deepseek-v4.1-flash-1017","revision":"1","digest":"8b30db74fde9b755effccde54b625259c605076cc5fb9ed7ee22042c63055f1f"},
+  {"name":"deepseek/deepseek-v4.1-flash","revision":"1","digest":"48251f538e4649d118ea0f5d4bacad9b25c46e5534bf62108564154d3afa5b9b"},
+  {"name":"deepseek/deepseek-v4-flash-vision-exp","revision":"1","digest":"96fea0b39cc11afa0d4c68ce1edf0bce9253f99a1aa34c3607afd53fe5a83eb1"},
+  {"name":"deepseek/deepseek-v4-pro-0813","revision":"1","digest":"ab75437e891e9a277d7f4d1e017bd3b94c0cf444a15abeee52710e99809e33af"},
+  {"name":"deepseek/deepseek-v4-flash-0731","revision":"1","digest":"bc12849fae3b4db78e78214cb0ff1a1123a0dd871add14aeb0e7dce372c3130e"},
+  {"name":"deepseek/deepseek-v4-pro","revision":"1","digest":"05f6071e10f31d7341cc32ef43c2e1df7edf9f590aaa813980cb101bf0b63787"},
+  {"name":"deepseek/deepseek-v4-flash","revision":"1","digest":"2951d98559e103ef0c92f0578e9189a3d784f8cc4dadf1c1d7a4217a93c27fa6"},
+  {"name":"deepseek/deepseek-v3.2","revision":"1","digest":"1d816ca13ec9d53648ce94b0cd575f3db57f03b2bf1c365a17d0d1e43897efac"},
+  {"name":"deepseek/deepseek-v3.2-exp","revision":"2","digest":"eb777ed2b91a535502c6c892e3cdaf47d5a32d9d46fee0a2c50dd6b88086ce17"}
+]
