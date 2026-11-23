@@ -1347,6 +1347,14 @@
       "source": "packages/plugin/SPEC.md"
     },
     {
+      "id": "packages/plugin/plugin-tools",
+      "paths": ["packages/plugin/plugin-tools/src/**"],
+      "layer": "unknown",
+      "domains": ["plugin"],
+      "status": "candidate",
+      "source": "packages/plugin/SPEC.md"
+    },
+    {
       "id": "packages/plugin/plugin-ui",
       "paths": ["packages/plugin/plugin-ui/src/**"],
       "layer": "unknown",
