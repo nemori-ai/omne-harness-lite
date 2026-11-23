@@ -32,10 +32,36 @@ it('charges the record’s rate per two-dimensional tile and its overhead per im
   })
 })
 
+it('ignores non-image observations when matching dimensions to image occurrences', () => {
+  const file: MediaMeasurementFact = {
+    kind: 'file',
+    mediaType: 'text/plain',
+    bytes: '1',
+    reference: {
+      storage: 'test',
+      key: 'words',
+      mediaType: 'text/plain',
+      bytes: '1',
+      digest: 'words',
+    },
+  }
+  const units = [{ images: 1 }, { images: 0 }, { images: 1 }]
+  expect(imageExtras(rule, units, [dimensions('8', '8'), file, dimensions('9', '9')])).toEqual({
+    ok: [5n, 0n, 14n],
+  })
+  expect(imageExtras(rule, units, [dimensions('8', '8'), file])).toMatchObject({
+    failure: { kind: 'unavailable', diagnostic: 'image-measurement-missing' },
+  })
+})
+
 it('requires one observation per image and strictly positive dimensions; text costs no image tokens', () => {
   expect(imageExtras(undefined, [{ images: 0 }], [])).toEqual({ ok: [0n] })
   expect(imageExtras(rule, [{ images: 1 }], [])).toMatchObject({
-    failure: { diagnostic: 'image-measurement-missing' },
+    failure: {
+      kind: 'unavailable',
+      dependency: '@omne-harness/pi-ai-deepseek',
+      diagnostic: 'image-measurement-missing',
+    },
   })
   expect(imageExtras(rule, [], [dimensions('8', '8')])).toMatchObject({
     failure: { diagnostic: 'image-measurement-missing' },
@@ -52,7 +78,12 @@ it('requires one observation per image and strictly positive dimensions; text co
 })
 
 it('rejects malformed rates before arithmetic', () => {
-  for (const invalid of [{ tilePixels: '0' }, { tokensPerTile: '0' }, { overheadTokens: '-1' }])
+  for (const invalid of [
+    { tilePixels: '0' },
+    { tokensPerTile: '0' },
+    { overheadTokens: '-1' },
+    { overheadTokens: '0x10' },
+  ])
     expect(() =>
       imageExtras({ ...rule, ...invalid }, [{ images: 1 }], [dimensions('8', '8')]),
     ).toThrow(RangeError)
