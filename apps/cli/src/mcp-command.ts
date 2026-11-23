@@ -135,14 +135,17 @@ async function runMcp(
   const readable = result.kind === 'response' && result.outcome === 'succeeded'
   if (invocation.values.has(JSON_SWITCH) || !readable)
     return report(invocation.name, result, echo, output)
+  return printed(invocation, result.body, output)
+}
+
+function printed(invocation: Invocation, body: unknown, output: CliOutput): ExitCode {
   try {
-    output.stdout(RENDER[invocation.action](result.body))
+    output.stdout(RENDER[invocation.action](body))
   } catch {
     output.stderr(`omne ${invocation.name}: cannot write standard output\n`)
     return 1
   }
-  return invocation.action === 'refresh' &&
-    (result.body as { refreshed: string }).refreshed === 'failed'
+  return invocation.action === 'refresh' && (body as { refreshed: string }).refreshed === 'failed'
     ? 3
     : 0
 }

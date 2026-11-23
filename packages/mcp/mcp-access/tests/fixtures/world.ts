@@ -133,6 +133,7 @@ export function createWorld(options: WorldOptions = {}) {
   if ('failure' in system) throw new Error('fixture system principal not issued')
   const byTenant = new Map<string, Map<string, EndpointScript>>()
   const principalAsks: string[] = []
+  const issuedPrincipals: Principal[] = []
   const refusals = new Map<number, 'denied' | 'basis-unavailable' | 'throw'>()
   const seen: {
     op: string
@@ -161,7 +162,9 @@ export function createWorld(options: WorldOptions = {}) {
         work: { owner: 'identity-login', work: caller.loginText },
       })
       if ('failure' in issued) throw new Error('fixture principal not issued')
-      return { ok: issued.ok as unknown as Principal }
+      const principal = issued.ok as unknown as Principal
+      issuedPrincipals.push(principal)
+      return { ok: principal }
     },
   }
 
@@ -251,6 +254,7 @@ export function createWorld(options: WorldOptions = {}) {
     principals,
     faces: () => (present ? faces : undefined),
     principalAsks,
+    issuedPrincipals,
     seen,
     define(login: FixtureLogin, name: string, script: EndpointScript) {
       const key = login.tenantText
