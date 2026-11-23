@@ -62,6 +62,7 @@ export type Changes = Readonly<{
   conflicts: readonly Conflict[]
   renders: ReadonlyMap<string, PartRender>
   layouts: Readonly<Record<string, readonly string[]>>
+  app: Readonly<Record<string, string>>
 }>
 
 export const tokensContract: Contract = {
@@ -410,8 +411,10 @@ export function changesOn(registry: Registry, asker: Scope, known: Known): Chang
   const declared = partsOn(registry)
   const parts = declared.kind === 'read' ? declared.parts : []
   const asked: Asked = { registry, asker, parts, known, found }
-  const css =
-    rulesOf(standingOn(TOKENS, asked), tokensRules) + rulesOf(standingOn(STYLE, asked), styleRules)
+  const tokens = standingOn(TOKENS, asked)
+  const css = rulesOf(tokens, tokensRules) + rulesOf(standingOn(STYLE, asked), styleRules)
+  const tint = Object.entries(tokens.get(APP)?.tokens ?? {})
+  const app = Object.fromEntries(tint.map(([name, value]) => [name, value.trim()]))
   const renders = new Map(
     Array.from(standingOn(RENDER, asked), ([key, item]) => [key, item.render] as const),
   )
@@ -419,7 +422,7 @@ export function changesOn(registry: Registry, asker: Scope, known: Known): Chang
     Array.from(standingOn(LAYOUT, asked), ([key, item]) => [key, item.order] as const),
   )
   found.refused.sort((left, right) => (placeOf(left) < placeOf(right) ? -1 : 1))
-  return { css: `@layer ${LAYER}{${css}}`, ...found, renders, layouts }
+  return { css: `@layer ${LAYER}{${css}}`, ...found, renders, layouts, app }
 }
 
 /** The pages in the order of a layout: the ids it names first, in its order; the rest as they were. */
