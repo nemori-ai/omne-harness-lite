@@ -471,6 +471,11 @@
       "config": {}
     },
     {
+      "id": "mcp-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "calendar-access",
       "plugin": "stubPlugin",
       "config": {}

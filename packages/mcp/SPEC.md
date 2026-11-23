@@ -155,6 +155,18 @@ MCP 不拥有：接入点是否已采用、采用怎样求值（资产与装配�
 - 命令行有三条对应的命令：`omne mcp list` 列出接入点与各自的状态；`omne mcp show` 看一个接入点的状态与动作清单；`omne mcp refresh` 刷新一个接入点。
 - 配地址、配密钥、改权限不在这份协议里，走资产的协议。
 
+### 协议 mcp/v1
+
+- `mcp-protocol` 是纯数据，只依赖公开契约的共同部分。三个操作都要登录身份，正文带目标租户，计一次业务访问，体上限小：`list-endpoints`（读）答接入点列表；`read-endpoint`（读，另带名字）答这个接入点与它的动作清单，清单没取得时为空；`refresh-endpoint`（提交，另带名字）答这次刷新的结局。观察 `observe-endpoints` 本版还没有。
+- 一个接入点的各栏：名字；连接（状态 `none`、`preparing`、`ready`、`degraded`、`lost`，加状态给的原因码或空）；凭据（`present`、`absent`、`invalid`、`not-required`）；能不能用（可用，或被挡下加原因）；清单（已取得加动作数，或未取得加原因或空）。一个动作：名字、摘要、能不能调、不能调时的原因。原因与摘要可能带对端的文字，写成不限非空的文本。
+- 刷新的结局四种：已发布、被后一次取代、已取消、失败，失败带原因。结果不知道时答 `unknown`，客户端用 `read-endpoint` 认回，没有另设 `query-` 操作。没有这个接入点与它对你不可用，答同一个 `not-visible`。
+
+### 接入插件 mcp-access
+
+- `mcp-access` 的处理函数照接入的固定次序：核登录可以为目标租户行事（端口，应用的行用 `createMemberActing` 适配）；取主体；按调用现取 `mcpAdoptionView`、`mcpEndpointStatus`、`mcpActionDiscovery`，取不到答依据不可用，协议不撤下；调领域，映射结果。读领域抛出答依据不可用，刷新自己抛出答 `unknown`。
+- 接入点按名字在采用视图的范围里找，找不到或状态读答「对你不可用」都是 `not-visible`，列表里不出现。状态的连接、凭据与能不能用原样映射；清单读失败时这一栏是未取得，原因写桥接的 `failureText`，与 agent 搜工具时 `withheld` 里写的一字不差；动作的摘要取桥接对这个动作的命令摘要，同一条规则。连接的原因写连接状态给的原因码，不另写一套文字。
+- 刷新带行配置的连接等待上限 `refresh.connectBoundMs`；领域答失败时结局是失败加 `failureText`，「清单不完整」没有桥接的文字，由插件写一句并带缺陷名。刷新答「对你不可用」也是 `not-visible`。
+
 ### 界面模块
 
 - `mcp-ui` 是 MCP 在桌面客户端里的界面模块：资产页栏里「MCP」那一项的窗格。它是资产页这个拓展点的贡献方，不是宿主：它只依赖前端这一组（外壳契约、共用界面件）、React 与本组的 `mcp-protocol`，不导入资产的任何成员，资产的成员也不导入它。界面模块读两处：资产治理口给设置与权限，`mcp/v1` 给状态与清单。协议是可选的需要：没挂着时，状态与清单两块显示读不出，别的照常。
@@ -226,6 +238,8 @@ MCP 不拥有：接入点是否已采用、采用怎样求值（资产与装配�
 | P15   | 就绪连接上不带「不再可用」标记的失败不使连接转丢失                                               | 一次请求失败拆掉整条连接                         | `lost` 用例；探索器                                                                                                          |
 | MC-22 | 发出之后没有应答是效果未知，本组不重发写类请求                                                   | 一次动作产生两次效果                             | 结局的封闭联合类型；传输符合性套件的 C04、O06 行；`TransportSession` 模型 `V5_NoResendForCaller`                             |
 | MC-23 | 结局与「未发出」原因、拒绝、连接失败都是封闭集合；`classifyOutcome` 是全函数，不猜测成功         | 调用方按不存在的分支往下做                       | 封闭联合类型与 `closed-sets.spec-d.ts`；`classifyOutcomeCases` 穷举                                                          |
+| MC-24 | `mcp/v1` 是纯数据：三个操作的身份、读写与结果集，每种体的读写往返，由用例核对；不合规则的体被拒；原因与摘要不限非空 | 协议与接入各写一份规则，或对端的空文字使整份答复写不出 | `mcp-protocol` 的 `operations.spec.ts`、`wire.spec.ts`、契约快照用例 |
+| MC-25 | 接入点状态与刷新的答复里没有秘密值，凭据只说有没有；另一个租户、不存在与对你不可用的接入点答同一个 `not-visible`；原因的字面与桥接的 `failureText` 一致 | 经状态页披露秘密或另一租户的接入点，或同一件事两套说法 | `mcp-access` 的 `operations.spec.ts`、`cordis-entry.spec.ts`；发行应用的 `tests/rows/mcp-access` |
 | T8    | 传输对每个「材料 × 请求类别 × 应答类别」的组合恰好得出一个结论                                   | 同一线上事实在不同传输上结局不同                 | `TRANSPORT_TABLE` 与 `transport-conformance` 用例（输入域每格恰落一行）；`mcpTransportConformance` 在脚本化与真实传输上      |
 | V1    | 传输的每个请求答复恰好兑现一次；结算之后的事件不改变它                                           | 同一请求两个结局                                 | `TransportSession` 模型 `V1_SettleOnce`；`mcp-host-local` 探索器                                                             |
 | V2    | `close()` 之后不再调用凭据句柄；断开之后不再授权、不再交给线路                                   | 关闭后仍使用凭据                                 | `TransportSession` 模型 `V2_*`；`session` 用例                                                                               |

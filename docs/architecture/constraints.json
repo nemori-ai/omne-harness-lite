@@ -1091,6 +1091,22 @@
       "source": "packages/mcp/SPEC.md"
     },
     {
+      "id": "packages/mcp/mcp-protocol",
+      "paths": ["packages/mcp/mcp-protocol/src/**"],
+      "layer": "contract",
+      "domains": ["mcp"],
+      "status": "candidate",
+      "source": "packages/mcp/SPEC.md"
+    },
+    {
+      "id": "packages/mcp/mcp-access",
+      "paths": ["packages/mcp/mcp-access/src/**"],
+      "layer": "unknown",
+      "domains": ["mcp"],
+      "status": "candidate",
+      "source": "packages/mcp/SPEC.md"
+    },
+    {
       "id": "packages/workspace/workspace-contract",
       "paths": ["packages/workspace/workspace-contract/src/**"],
       "layer": "contract",

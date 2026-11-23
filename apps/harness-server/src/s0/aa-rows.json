@@ -95,6 +95,7 @@
     "assets-access",
     "human-intervention-access",
     "session-diagnostics-access",
+    "mcp-access",
     "calendar-access",
     "schedule-access",
     "notification-access",
@@ -517,6 +518,13 @@
     },
     {
       "row": "session-diagnostics-access",
+      "names": [
+        "principalIssuer",
+        "tenantStanding"
+      ]
+    },
+    {
+      "row": "mcp-access",
       "names": [
         "principalIssuer",
         "tenantStanding"

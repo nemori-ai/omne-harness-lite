@@ -15,5 +15,6 @@ it('the public entry gives the conversion, the outcome mapping and the entry sou
     'failureText',
     'mcpActionExecutor',
     'settle',
+    'unavailableText',
   ])
 })

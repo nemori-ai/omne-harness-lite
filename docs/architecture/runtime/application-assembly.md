@@ -117,6 +117,7 @@
 | `assets-access` | `@omne-harness/assets-access` 的 `./cordis` 插件 `createAssetsAccessPlugin`：`assets/v1` 的接入插件。装上这一行，新地址才开放 `assets/v1` | 无。插件把 `assets/v1` 的贡献（设置的 4 个操作与列出类别）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，本行用它与按调用读的 `identityOperations`、`tenantStanding`（受信）构造身份的 `createAccessIdentity` 与 `createMemberActing`，为目标租户换主体只经后者；资格读口缺席时换不出，调用答 `basis-unavailable`） | `settingsSecretItems`（受信，[秘密设置项](#settings-secret-items)）与 `tenantSettings`（[租户层设置读写面](#tenant-settings)），本行并成一个设置端口。需要问到的那一个缺席时调用答 `basis-unavailable`，协议不撤下；`assetCategories`，列出类别时取它的只读面，缺席时答 `basis-unavailable` | 无 |
 | `human-intervention-access` | `@omne-harness/human-intervention-access` 的 `./cordis` 插件 `createHitlAccessPlugin`：`human-intervention/v1` 的接入插件。装上这一行，新地址才开放 `human-intervention/v1` | 无。插件把 `human-intervention/v1` 的贡献（列卡、读卡、提交答复、认回提交 4 个操作与观察 `observe-cards`）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，本行用它与按调用读的 `identityOperations`、`tenantStanding`（受信）构造身份的 `createAccessIdentity` 与 `createMemberActing`，只经后者核对登录可为目标租户行事；资格读口缺席时核不出，调用与建立观察答 `basis-unavailable`；入口主体经 `createHitlEntryPrincipals` 签发） | HITL 入口面与卡有变化的信号（都取自工具人工介入宿主的 `holder`）。取不到时调用与建立观察答 `basis-unavailable`，协议不撤下 | `locationRef`：HITL 位置引用，缺省为 HITL 宿主的位置 |
 | `session-diagnostics-access` | `@omne-harness/session-diagnostics-access` 的 `./cordis` 插件 `createSessionDiagnosticsAccessPlugin`：`session-diagnostics/v1` 的接入插件。装上这一行，新地址才开放 `session-diagnostics/v1` | 无。插件把 `session-diagnostics/v1` 的贡献（读会话诊断页 1 个操作）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，本行用它与按调用读的 `identityOperations`、`tenantStanding`（受信）构造身份的 `createAccessIdentity` 与 `createMemberActing`，把登录换成为目标租户行事的主体只经后者；资格读口缺席时换不出，调用答 `basis-unavailable`） | 会话的读者面（`session`，调用者 `reader`，Run 的收尾也从这里读）；`modelRuntime`、`modelDiagnostics`、`toolRuntime`、`sessionAdoptedRequests` 四个只读来源。取不到时调用答 `basis-unavailable`，协议不撤下 | `maxPageBytes`：一页的字节上限，缺省 1048576；`diagnosticsKinds`、`maxRuns`、`maxCallsPerRun`：投影的范围，三项一起给或都不给 |
+| `mcp-access` | `@omne-harness/mcp-access` 的 `./cordis` 插件 `createMcpAccessPlugin`：`mcp/v1` 的接入插件。装上这一行，新地址才开放 `mcp/v1` | 无。插件把 `mcp/v1` 的贡献（列接入点、读一个接入点、刷新一个接入点的动作清单 3 个操作）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，同 `session-diagnostics-access`：经 `createMemberActing` 把登录换成为目标租户行事的主体） | `mcpAdoptionView`、`mcpEndpointStatus`、`mcpActionDiscovery`，按调用读。取不到时调用答 `basis-unavailable`，协议不撤下 | `refresh.connectBoundMs`：刷新时等连接的毫秒数，发行配置写 10000 |
 | `calendar-access` | `@omne-harness/calendar-access` 的 `./cordis` 插件 `createCalendarAccessPlugin`：`calendar/v1` 的接入插件。装上这一行，新地址才开放 `calendar/v1` | 无。插件把 `calendar/v1` 的贡献（列日历、读生效环境、读供应健康、答日期问题 4 个操作）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，同 `session-diagnostics-access`：经 `createMemberActing` 把登录换成为目标租户行事的主体） | `calendarQuery`、`calendarCalculator`。取不到时调用答 `basis-unavailable`，协议不撤下 | 无 |
 | `schedule-access` | `@omne-harness/schedule-access` 的 `./cordis` 插件 `createScheduleAccessPlugin`：`schedule/v2` 的接入插件。装上这一行，新地址才开放 `schedule/v2` | 无。插件把 `schedule/v2` 的贡献（列、读、修订历史、视图、预览、建与认回、管理与认回 9 个操作）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，同 `calendar-access`） | `scheduleCommands`、`scheduleQueries`。取不到时调用答 `basis-unavailable`，协议不撤下 | 无 |
 | `notification-access` | `@omne-harness/notification-access` 的 `./cordis` 插件 `createNotificationAccessPlugin`：`notification/v2` 的接入插件。装上这一行，新地址才开放 `notification/v2`。登录能为租户行事时，行事者是这个租户的 owner | 无。插件把 `notification/v2` 的贡献（以一个来源发送与查一次发送，收件、订阅与节拍、去处、目录共 16 个操作，一条观察）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，同 `calendar-access`） | 通知的五个服务面与 `notificationChanges`。服务面取不到时调用答 `basis-unavailable`，协议不撤下；变化源取不到时观察以不可用结束 | 无 |
@@ -313,6 +314,9 @@ flowchart LR
   server-entry --> session-diagnostics-access
   identity -.-> session-diagnostics-access
   session-provider -.-> session-diagnostics-access
+  server-entry --> mcp-access
+  identity -.-> mcp-access
+  mcp -.-> mcp-access
   server-entry --> calendar-access
   identity -.-> calendar-access
   calendar -.-> calendar-access
@@ -487,6 +491,7 @@ flowchart LR
 | `assets-access` | `principalIssuer`、`tenantStanding`、`settingsSecretItems` |
 | `human-intervention-access` | `principalIssuer`、`tenantStanding` |
 | `session-diagnostics-access` | `principalIssuer`、`tenantStanding` |
+| `mcp-access` | `principalIssuer`、`tenantStanding` |
 | `calendar-access` | `principalIssuer`、`tenantStanding` |
 | `schedule-access` | `principalIssuer`、`tenantStanding` |
 | `notification-access` | `principalIssuer`、`tenantStanding` |

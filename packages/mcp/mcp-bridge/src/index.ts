@@ -13,5 +13,11 @@ export {
   type UnadmittedAction,
   type UnadmittedReason,
 } from './convert.ts'
-export { failureText, settle, type BridgeResult, type Settlement } from './outcome.ts'
+export {
+  failureText,
+  settle,
+  unavailableText,
+  type BridgeResult,
+  type Settlement,
+} from './outcome.ts'
 export { createMcpEntrySource, type McpBridgeDependencies } from './source.ts'

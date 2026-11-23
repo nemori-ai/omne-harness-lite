@@ -876,6 +876,15 @@
       "config": {}
     },
     {
+      "id": "mcp-access",
+      "plugin": "mcpAccessRow",
+      "config": {
+        "refresh": {
+          "connectBoundMs": 10000
+        }
+      }
+    },
+    {
       "id": "calendar-access",
       "plugin": "calendarAccessRow",
       "config": {}
