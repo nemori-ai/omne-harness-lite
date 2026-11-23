@@ -5,9 +5,34 @@ import type { Revisions } from './revisions.ts'
 export type Depth = 'tokens' | 'style' | 'render'
 
 /** What one connected client reports. The fields follow the report of plugin/v1; this member does not know that protocol. */
+/** The rules of a point as its owner declared them, in the one shape both trees are shown in. */
+export type PointRules = Readonly<{
+  arity: 'one' | 'list' | 'keyed-one' | 'keyed-list'
+  keyFrom: string | null
+  key: string
+  gives: string
+  item: Readonly<{
+    kind: 'data' | 'pure' | 'effect'
+    fields: readonly Readonly<{ name: string; kind: string }>[]
+  }>
+  resolve: 'conflict' | 'most-specific'
+  binding: 'build' | 'run'
+  onError: string
+  version: number
+  revision: number
+  example: string | null
+}>
+
+export type ClientPoint = Readonly<{
+  name: string
+  summary: string
+  contract?: PointRules
+  dataKeys?: readonly Readonly<{ name: string; now: string | null }>[]
+}>
+
 export type ClientTree = Readonly<{
   client: string
-  points: readonly Readonly<{ name: string; summary: string }>[]
+  points: readonly ClientPoint[]
   parts: readonly Readonly<{
     name: string
     label: string

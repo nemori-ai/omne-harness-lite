@@ -1,10 +1,11 @@
 {
   "digests": {
-    "1": "sha256:28f8cf5b53ab1565931b205ac8bd2a69243532cf4038c58413dcd82f4d57f166"
+    "1": "sha256:28f8cf5b53ab1565931b205ac8bd2a69243532cf4038c58413dcd82f4d57f166",
+    "2": "sha256:50827a1b22293c70fe46b64b2cf4768f4ae7effeb5ff40c142c194ba1ba3ab3e"
   },
   "major": 1,
   "name": "plugin",
-  "revision": 1,
+  "revision": 2,
   "rules": {
     "observations": {
       "observe-wanted": {
@@ -178,6 +179,170 @@
                         "rule": {
                           "item": {
                             "fields": {
+                              "contract": {
+                                "optional": true,
+                                "rule": {
+                                  "fields": {
+                                    "arity": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "one",
+                                          "list",
+                                          "keyed-one",
+                                          "keyed-list"
+                                        ]
+                                      }
+                                    },
+                                    "binding": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "build",
+                                          "run"
+                                        ]
+                                      }
+                                    },
+                                    "example": {
+                                      "rule": {
+                                        "kind": "one-of",
+                                        "rules": [
+                                          {
+                                            "kind": "text"
+                                          },
+                                          {
+                                            "kind": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "gives": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    },
+                                    "item": {
+                                      "rule": {
+                                        "fields": {
+                                          "fields": {
+                                            "rule": {
+                                              "item": {
+                                                "fields": {
+                                                  "kind": {
+                                                    "rule": {
+                                                      "kind": "literal",
+                                                      "values": [
+                                                        "string",
+                                                        "number",
+                                                        "boolean",
+                                                        "function",
+                                                        "object",
+                                                        "array"
+                                                      ]
+                                                    }
+                                                  },
+                                                  "name": {
+                                                    "rule": {
+                                                      "kind": "text"
+                                                    }
+                                                  }
+                                                },
+                                                "kind": "object"
+                                              },
+                                              "kind": "array"
+                                            }
+                                          },
+                                          "kind": {
+                                            "rule": {
+                                              "kind": "literal",
+                                              "values": [
+                                                "data",
+                                                "pure",
+                                                "effect"
+                                              ]
+                                            }
+                                          }
+                                        },
+                                        "kind": "object"
+                                      }
+                                    },
+                                    "key": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    },
+                                    "keyFrom": {
+                                      "rule": {
+                                        "kind": "one-of",
+                                        "rules": [
+                                          {
+                                            "kind": "text"
+                                          },
+                                          {
+                                            "kind": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "onError": {
+                                      "rule": {
+                                        "kind": "text"
+                                      }
+                                    },
+                                    "resolve": {
+                                      "rule": {
+                                        "kind": "literal",
+                                        "values": [
+                                          "conflict",
+                                          "most-specific"
+                                        ]
+                                      }
+                                    },
+                                    "revision": {
+                                      "rule": {
+                                        "kind": "count"
+                                      }
+                                    },
+                                    "version": {
+                                      "rule": {
+                                        "kind": "count"
+                                      }
+                                    }
+                                  },
+                                  "kind": "object"
+                                },
+                                "since": 2
+                              },
+                              "dataKeys": {
+                                "optional": true,
+                                "rule": {
+                                  "item": {
+                                    "fields": {
+                                      "name": {
+                                        "rule": {
+                                          "kind": "text"
+                                        }
+                                      },
+                                      "now": {
+                                        "rule": {
+                                          "kind": "one-of",
+                                          "rules": [
+                                            {
+                                              "kind": "text"
+                                            },
+                                            {
+                                              "kind": "null"
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    },
+                                    "kind": "object"
+                                  },
+                                  "kind": "array"
+                                },
+                                "since": 2
+                              },
                               "name": {
                                 "rule": {
                                   "kind": "text"
@@ -488,6 +653,170 @@
               "rule": {
                 "item": {
                   "fields": {
+                    "contract": {
+                      "optional": true,
+                      "rule": {
+                        "fields": {
+                          "arity": {
+                            "rule": {
+                              "kind": "literal",
+                              "values": [
+                                "one",
+                                "list",
+                                "keyed-one",
+                                "keyed-list"
+                              ]
+                            }
+                          },
+                          "binding": {
+                            "rule": {
+                              "kind": "literal",
+                              "values": [
+                                "build",
+                                "run"
+                              ]
+                            }
+                          },
+                          "example": {
+                            "rule": {
+                              "kind": "one-of",
+                              "rules": [
+                                {
+                                  "kind": "text"
+                                },
+                                {
+                                  "kind": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "gives": {
+                            "rule": {
+                              "kind": "text"
+                            }
+                          },
+                          "item": {
+                            "rule": {
+                              "fields": {
+                                "fields": {
+                                  "rule": {
+                                    "item": {
+                                      "fields": {
+                                        "kind": {
+                                          "rule": {
+                                            "kind": "literal",
+                                            "values": [
+                                              "string",
+                                              "number",
+                                              "boolean",
+                                              "function",
+                                              "object",
+                                              "array"
+                                            ]
+                                          }
+                                        },
+                                        "name": {
+                                          "rule": {
+                                            "kind": "text"
+                                          }
+                                        }
+                                      },
+                                      "kind": "object"
+                                    },
+                                    "kind": "array"
+                                  }
+                                },
+                                "kind": {
+                                  "rule": {
+                                    "kind": "literal",
+                                    "values": [
+                                      "data",
+                                      "pure",
+                                      "effect"
+                                    ]
+                                  }
+                                }
+                              },
+                              "kind": "object"
+                            }
+                          },
+                          "key": {
+                            "rule": {
+                              "kind": "text"
+                            }
+                          },
+                          "keyFrom": {
+                            "rule": {
+                              "kind": "one-of",
+                              "rules": [
+                                {
+                                  "kind": "text"
+                                },
+                                {
+                                  "kind": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "onError": {
+                            "rule": {
+                              "kind": "text"
+                            }
+                          },
+                          "resolve": {
+                            "rule": {
+                              "kind": "literal",
+                              "values": [
+                                "conflict",
+                                "most-specific"
+                              ]
+                            }
+                          },
+                          "revision": {
+                            "rule": {
+                              "kind": "count"
+                            }
+                          },
+                          "version": {
+                            "rule": {
+                              "kind": "count"
+                            }
+                          }
+                        },
+                        "kind": "object"
+                      },
+                      "since": 2
+                    },
+                    "dataKeys": {
+                      "optional": true,
+                      "rule": {
+                        "item": {
+                          "fields": {
+                            "name": {
+                              "rule": {
+                                "kind": "text"
+                              }
+                            },
+                            "now": {
+                              "rule": {
+                                "kind": "one-of",
+                                "rules": [
+                                  {
+                                    "kind": "text"
+                                  },
+                                  {
+                                    "kind": "null"
+                                  }
+                                ]
+                              }
+                            }
+                          },
+                          "kind": "object"
+                        },
+                        "kind": "array"
+                      },
+                      "since": 2
+                    },
                     "name": {
                       "rule": {
                         "kind": "text"

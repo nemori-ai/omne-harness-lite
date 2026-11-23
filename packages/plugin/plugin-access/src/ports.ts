@@ -1,5 +1,5 @@
 import type { LoginIdentity, Principal } from '@omne-harness/access-cordis-contract'
-import type { Offered, PackageFile } from '@omne-harness/plugin-protocol'
+import type { Offered, PackageFile, ReportedPoint } from '@omne-harness/plugin-protocol'
 
 /** Whether this login may act for a tenant now. The application answers it from identity. */
 export interface TargetTenantPrincipals {
@@ -51,7 +51,7 @@ export type LoadReport = Readonly<{
 
 export type ClientReport = Readonly<{
   plugins: readonly LoadReport[]
-  points: readonly Readonly<{ name: string; summary: string }>[]
+  points: readonly ReportedPoint[]
   parts: readonly Readonly<{
     name: string
     label: string

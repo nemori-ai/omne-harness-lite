@@ -22,6 +22,8 @@
 - `PlacedMember` · `package.d.ts`
 - `PluginManifest` · `manifest.d.ts`
 - `PluginProtocol` · `plugin-protocol.d.ts`
+- `ReportedPoint` · `plugin-protocol.d.ts`
+- `ReportedPointContract` · `plugin-protocol.d.ts`
 - `Side` · `manifest.d.ts`
 - `SideEffect` · `side-state.d.ts`
 - `SideEvent` · `side-state.d.ts`
@@ -45,7 +47,7 @@
 ```ts
 export { MANIFEST_FILE, MANIFEST_SCHEMA, insidePackage, memberKind, readManifest, type DataMember, type DirectoryMember, type JsonValue, type ManifestRead, type Member, type MemberPlace, type ModuleMember, type PluginManifest, type Side, type SideName, } from './manifest.ts';
 export { FILE_SUFFIXES, judgePackage, memberDigest, membersOf, type PackageFile, type PackageJudgment, type PlacedMember, } from './package.ts';
-export { pluginProtocol, type PluginProtocol } from './plugin-protocol.ts';
+export { pluginProtocol, type PluginProtocol, type ReportedPoint, type ReportedPointContract, } from './plugin-protocol.ts';
 export { UNWANTED, stepSide, type SideEffect, type SideEvent, type SideState, type SideStep, } from './side-state.ts';
 export { wantedOf, type Offered, type Wanted } from './wanted.ts';
 ```
@@ -137,6 +139,186 @@ export declare function memberDigest(member: Member, files: readonly PackageFile
 ## 声明文件 `plugin-protocol.d.ts`
 
 ```ts
+import { type RuleValue } from '@omne-harness/public-contract';
+declare const point: {
+    readonly kind: 'object';
+    readonly fields: {
+        readonly name: {
+            rule: {
+                readonly kind: 'text';
+            };
+        };
+        readonly summary: {
+            rule: {
+                readonly kind: 'text';
+            };
+        };
+        readonly contract: {
+            readonly rule: {
+                readonly kind: 'object';
+                readonly fields: {
+                    readonly arity: {
+                        rule: {
+                            readonly kind: 'literal';
+                            readonly values: readonly [
+                                "one",
+                                "list",
+                                "keyed-one",
+                                "keyed-list"
+                            ];
+                        };
+                    };
+                    readonly keyFrom: {
+                        rule: {
+                            readonly kind: 'one-of';
+                            readonly rules: readonly [
+                                {
+                                    readonly kind: 'text';
+                                },
+                                {
+                                    readonly kind: 'null';
+                                }
+                            ];
+                        };
+                    };
+                    readonly key: {
+                        rule: {
+                            readonly kind: 'text';
+                        };
+                    };
+                    readonly gives: {
+                        rule: {
+                            readonly kind: 'text';
+                        };
+                    };
+                    readonly item: {
+                        rule: {
+                            readonly kind: 'object';
+                            readonly fields: {
+                                readonly kind: {
+                                    rule: {
+                                        readonly kind: 'literal';
+                                        readonly values: readonly [
+                                            "data",
+                                            "pure",
+                                            "effect"
+                                        ];
+                                    };
+                                };
+                                readonly fields: {
+                                    rule: {
+                                        readonly kind: 'array';
+                                        readonly item: {
+                                            readonly kind: 'object';
+                                            readonly fields: {
+                                                readonly name: {
+                                                    rule: {
+                                                        readonly kind: 'text';
+                                                    };
+                                                };
+                                                readonly kind: {
+                                                    rule: {
+                                                        readonly kind: 'literal';
+                                                        readonly values: readonly [
+                                                            "string",
+                                                            "number",
+                                                            "boolean",
+                                                            "function",
+                                                            "object",
+                                                            "array"
+                                                        ];
+                                                    };
+                                                };
+                                            };
+                                        };
+                                    };
+                                };
+                            };
+                        };
+                    };
+                    readonly resolve: {
+                        rule: {
+                            readonly kind: 'literal';
+                            readonly values: readonly [
+                                "conflict",
+                                "most-specific"
+                            ];
+                        };
+                    };
+                    readonly binding: {
+                        rule: {
+                            readonly kind: 'literal';
+                            readonly values: readonly [
+                                "build",
+                                "run"
+                            ];
+                        };
+                    };
+                    readonly onError: {
+                        rule: {
+                            readonly kind: 'text';
+                        };
+                    };
+                    readonly version: {
+                        rule: {
+                            readonly kind: 'count';
+                        };
+                    };
+                    readonly revision: {
+                        rule: {
+                            readonly kind: 'count';
+                        };
+                    };
+                    readonly example: {
+                        rule: {
+                            readonly kind: 'one-of';
+                            readonly rules: readonly [
+                                {
+                                    readonly kind: 'text';
+                                },
+                                {
+                                    readonly kind: 'null';
+                                }
+                            ];
+                        };
+                    };
+                };
+            };
+            readonly optional: true;
+            readonly since: 2;
+        };
+        readonly dataKeys: {
+            readonly rule: {
+                readonly kind: 'array';
+                readonly item: {
+                    readonly kind: 'object';
+                    readonly fields: {
+                        readonly name: {
+                            rule: {
+                                readonly kind: 'text';
+                            };
+                        };
+                        readonly now: {
+                            rule: {
+                                readonly kind: 'one-of';
+                                readonly rules: readonly [
+                                    {
+                                        readonly kind: 'text';
+                                    },
+                                    {
+                                        readonly kind: 'null';
+                                    }
+                                ];
+                            };
+                        };
+                    };
+                };
+            };
+            readonly optional: true;
+            readonly since: 2;
+        };
+    };
+};
 export declare const pluginProtocol: {
     readonly operations: {
         readonly 'list-wanted': {
@@ -222,6 +404,29 @@ export declare const pluginProtocol: {
                     readonly version: string;
                 }[];
                 readonly points: readonly {
+                    readonly contract?: {
+                        readonly arity: "keyed-list" | "keyed-one" | "list" | "one";
+                        readonly binding: "build" | "run";
+                        readonly example: string | null;
+                        readonly gives: string;
+                        readonly item: {
+                            readonly fields: readonly {
+                                readonly kind: "array" | "boolean" | "function" | "number" | "object" | "string";
+                                readonly name: string;
+                            }[];
+                            readonly kind: "data" | "effect" | "pure";
+                        };
+                        readonly key: string;
+                        readonly keyFrom: string | null;
+                        readonly onError: string;
+                        readonly resolve: "conflict" | "most-specific";
+                        readonly revision: number;
+                        readonly version: number;
+                    };
+                    readonly dataKeys?: readonly {
+                        readonly name: string;
+                        readonly now: string | null;
+                    }[];
                     readonly name: string;
                     readonly summary: string;
                 }[];
@@ -247,6 +452,29 @@ export declare const pluginProtocol: {
                             readonly version: string;
                         }[];
                         readonly points: readonly {
+                            readonly contract?: {
+                                readonly arity: "keyed-list" | "keyed-one" | "list" | "one";
+                                readonly binding: "build" | "run";
+                                readonly example: string | null;
+                                readonly gives: string;
+                                readonly item: {
+                                    readonly fields: readonly {
+                                        readonly kind: "array" | "boolean" | "function" | "number" | "object" | "string";
+                                        readonly name: string;
+                                    }[];
+                                    readonly kind: "data" | "effect" | "pure";
+                                };
+                                readonly key: string;
+                                readonly keyFrom: string | null;
+                                readonly onError: string;
+                                readonly resolve: "conflict" | "most-specific";
+                                readonly revision: number;
+                                readonly version: number;
+                            };
+                            readonly dataKeys?: readonly {
+                                readonly name: string;
+                                readonly now: string | null;
+                            }[];
                             readonly name: string;
                             readonly summary: string;
                         }[];
@@ -284,6 +512,9 @@ export declare const pluginProtocol: {
     };
 };
 export type PluginProtocol = typeof pluginProtocol;
+export type ReportedPoint = RuleValue<typeof point>;
+export type ReportedPointContract = NonNullable<ReportedPoint['contract']>;
+export {};
 ```
 
 ## 声明文件 `side-state.d.ts`

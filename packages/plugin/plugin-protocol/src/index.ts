@@ -24,7 +24,12 @@ export {
   type PackageJudgment,
   type PlacedMember,
 } from './package.ts'
-export { pluginProtocol, type PluginProtocol } from './plugin-protocol.ts'
+export {
+  pluginProtocol,
+  type PluginProtocol,
+  type ReportedPoint,
+  type ReportedPointContract,
+} from './plugin-protocol.ts'
 export {
   UNWANTED,
   stepSide,

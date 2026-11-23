@@ -200,7 +200,11 @@ export abstract class ShellService extends Service implements ShellSlots {
     const parts = partsOn(registry)
     return {
       points: declared
-        .map(({ entry }) => ({ name: entry.key, summary: entry.item.summary }))
+        .map(({ entry }) => {
+          const dataKeys = this.dataKeysOf(entry.key)
+          const told = { name: entry.key, summary: entry.item.summary, contract: entry.item }
+          return dataKeys === undefined ? told : { ...told, dataKeys }
+        })
         .sort((left, right) => (left.name < right.name ? -1 : 1)),
       parts: (parts.kind === 'read' ? parts.parts : [])
         .map(({ name, label, summary, depths, within }) => ({
@@ -305,6 +309,12 @@ export abstract class ShellService extends Service implements ShellSlots {
 
   protected knowsToken(_name: string): boolean {
     return false
+  }
+
+  protected dataKeysOf(
+    _point: string,
+  ): readonly Readonly<{ name: string; now: string | null }>[] | undefined {
+    return undefined
   }
 
   items<K extends SlotName>(slot: K): readonly ItemOf<K>[] {

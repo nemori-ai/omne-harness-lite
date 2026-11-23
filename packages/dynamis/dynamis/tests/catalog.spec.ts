@@ -180,6 +180,7 @@ describe('standingOf：一个点的四种状态', () => {
     ['键公不公开不认识', { ...host(), item: { ...good, keys: 'secret' } }],
     ['键公不公开没写', { ...host(), item: { ...good, keys: undefined } }],
     ['符合性用例既不是文字也不是空', { ...host(), item: { ...good, conformance: 3 } }],
+    ['例子不是文字', { ...host(), item: { ...good, example: { point: 'p' } } }],
   ]
   const why: Readonly<Record<string, string>> = {
     名字不等于键: 'the contract names another point',
@@ -213,6 +214,7 @@ describe('standingOf：一个点的四种状态', () => {
     键公不公开不认识: 'whether the keys are public is unknown',
     键公不公开没写: 'whether the keys are public is unknown',
     符合性用例既不是文字也不是空: 'conformance is neither text nor null',
+    例子不是文字: 'example is not text',
   }
   it.each(Object.keys(why))('不合法的声明不算数：%s', name => {
     const found = bad().find(([title]) => title === name)
@@ -226,6 +228,15 @@ describe('standingOf：一个点的四种状态', () => {
     })
     expect(Object.keys(why)).toHaveLength(bad().length)
     expect(report(registry, inst('host'))[0]).toMatchObject({ state: 'breach', detail: why[name] })
+  })
+
+  it('带一个例子：合法，原样留着', () => {
+    const example = '{"point":"host.cards","key":"a","data":{}}'
+    const declaration = declare(contract(POINT, { example }))
+    expect(standingOf(registryOf(['host', [declaration]]), POINT, deployment)).toMatchObject({
+      kind: 'declared',
+      contract: { example },
+    })
   })
 
   it('贡献只在构建时定：合法', () => {

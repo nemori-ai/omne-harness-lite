@@ -1,3 +1,4 @@
+import type { ReportedPoint } from '@omne-harness/plugin-protocol'
 import type { Changes, Described } from '@omne-harness/shell-contract'
 import { fiberOf } from './floor.ts'
 import type { Kept } from './loader.ts'
@@ -9,7 +10,29 @@ export type PluginReport = Readonly<{
   reason: string | null
 }>
 
-export type Reported = Described & Readonly<{ plugins: readonly PluginReport[] }>
+type Tree = Readonly<{ points: readonly ReportedPoint[]; parts: Described['parts'] }>
+export type Reported = Tree & Readonly<{ plugins: readonly PluginReport[] }>
+
+/** The tree as the protocol tells it: the rules of each point as plain data, its fields as a list in the order of their names. */
+export function describedOf({ points, parts }: Described): Tree {
+  return {
+    parts,
+    points: points.map(({ name, summary, contract, dataKeys }): ReportedPoint => {
+      const { arity, keyFrom, key, gives, item, resolve, binding, onError, version, revision } =
+        contract
+      const fields = Object.entries(item.fields)
+        .map(([field, kind]) => ({ name: field, kind }))
+        .sort((left, right) => (left.name < right.name ? -1 : 1))
+      const rules = { arity, keyFrom, key, gives, resolve, binding, onError, version, revision }
+      const told = {
+        ...rules,
+        item: { kind: item.kind, fields },
+        example: contract.example ?? null,
+      }
+      return { name, summary, contract: told, ...(dataKeys === undefined ? {} : { dataKeys }) }
+    }),
+  }
+}
 
 /** How each plugin with an outcome stands, by name. A loaded one that does not count somewhere says where and with whom. */
 export function reportsOf(
