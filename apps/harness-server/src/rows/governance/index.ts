@@ -1,4 +1,9 @@
-import { permissionDeclarationsOf } from '../../entry/permission-declarations.ts'
+import {
+  permissionDeclarationsOf,
+  registerPermissionDeclaration,
+  registeredPermissionDeclarations,
+  type PermissionDeclaration,
+} from '../../entry/permission-declarations.ts'
 import type { Context } from '@deepseek-ai/cordis'
 import { agentDecisionCardsKey } from '@omne-harness/agent-cordis-contract/cordis'
 import { z } from 'zod'
@@ -14,7 +19,11 @@ import {
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { fail } from '@omne-harness/operation-result'
 import { GovernanceIdSchema } from '@omne-harness/governance-contract'
-import { assetCategoriesKey, independentSettingsKey } from '@omne-harness/assets-cordis-contract'
+import {
+  assetCategoriesKey,
+  assetChangesKey,
+  independentSettingsKey,
+} from '@omne-harness/assets-cordis-contract'
 import { IndependentSettingsService } from '@omne-harness/assets-cordis-contract/cordis'
 import { toolCategoryDisplay } from '@omne-harness/tool-contract'
 import { createIndependentSettingsPoint, createSettingsRegistry } from '@omne-harness/settings'
@@ -28,6 +37,7 @@ import { governanceInstallationPrincipalsKey } from '../../entry/governance-inst
 import { governanceDirectoryPrincipalsKey } from '../../entry/governance-directory-principals.ts'
 import { releaseOf } from '../../entry/tool-release.ts'
 import { readSystemInstant, epochMillisOf } from '../../entry/session-clock.ts'
+import { categoryGateTemplatesSchema } from '../../entry/category-gates.ts'
 import { productionStorageCatalog } from '../storage/production-catalog.ts'
 import { LOCAL_GOVERNANCE_OPENING } from '../../local/operator-defaults.ts'
 import {
@@ -62,7 +72,19 @@ const configSchema = z.strictObject({
     .int()
     .min(1)
     .default(LOCAL_GOVERNANCE_OPENING.installationConcurrency),
+  categoryGates: categoryGateTemplatesSchema.default([]),
 })
+
+function governedOf(ctx: Context, tenantRef: string) {
+  return {
+    permissionDeclarations: () => permissionDeclarationsOf(ctx, tenantRef),
+    permissionDeclared: () => registeredPermissionDeclarations(ctx, tenantRef),
+    declarePermission: (declaration: PermissionDeclaration) =>
+      registerPermissionDeclaration(ctx, declaration),
+    assetsChanged: (listener: () => void) =>
+      ctx.assetChanges.subscribe(tenantRef, { changed: listener, closed() {} }),
+  }
+}
 
 class SessionBackend extends SessionPermissionBackendService {
   readonly basis: SessionPermissionBackendService['basis']
@@ -123,6 +145,7 @@ export const governanceRow = defineRow({
       toolContributionAuthorityKey,
       assetCategoriesKey,
       tenantAssetsKey,
+      assetChangesKey,
     ],
     sameProviderGroup: null,
   },
@@ -200,7 +223,8 @@ export const governanceRow = defineRow({
           independentSettings: () => independent.list(),
           warn: message => ctx.logger('governance').warn(message),
           permissionOrigins: () => permissionOriginsOf(ctx),
-          permissionDeclarations: () => permissionDeclarationsOf(ctx),
+          ...governedOf(ctx, tenantRef),
+          categoryGates: config.categoryGates,
           organizationTargets: sources.targets,
           scope,
           domain,
@@ -254,6 +278,7 @@ export const governanceRow = defineRow({
       scope: config,
       storage: ctx.storage,
       release: () => release,
+      declared: tenantRef => registeredPermissionDeclarations(ctx, tenantRef),
       identity: {
         verifier: { verify: input => ctx.principalVerifier.verify(input) },
         standing: { read: input => ctx.tenantStanding.read(input) },

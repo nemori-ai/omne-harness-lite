@@ -1,8 +1,11 @@
 import { GOVERNANCE_PUBLICATIONS } from './current-publications.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
+import { assetsPublicationFact } from '@omne-harness/assets-local'
+import { settingsAssetsProjectionFact } from '@omne-harness/settings-local'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
 import type { ToolRelease } from '../../entry/tool-release.ts'
+import { GOVERNED_PARTICIPANT, governedProtocol } from './governed-capabilities.ts'
 import {
   DECISION_PARTICIPANT,
   PERMISSION_CURRENT,
@@ -48,13 +51,13 @@ export function toolPermissionReleaseParticipant(
   const url = new URL(file)
   url.searchParams.set('release', release.generation)
   return {
-    participant: 'harness.tool-permission-release',
-    protocol: `harness-tool-permission-release/1/${release.generation}`,
+    participant: GOVERNED_PARTICIPANT,
+    protocol: governedProtocol(release.generation),
     moduleUrl: url.href,
     codeDigest: createHash('sha256').update(readFileSync(file)).digest('hex'),
     ownedTables: [],
     readTables: [],
-    requiresFacts: [],
+    requiresFacts: [assetsPublicationFact, settingsAssetsProjectionFact],
     providesFacts: [PERMISSION_RELEASES, GOVERNANCE_PUBLICATIONS],
     allowedFunctions: [],
     grouping: 'groupable',

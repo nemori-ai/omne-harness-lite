@@ -41,7 +41,7 @@ import {
 import { authorizationConfig } from './action-rules.ts'
 import { sessionAuthorizationWriter } from './session-authorization-writer.ts'
 import { createTenantPicks } from './tenant-picks.ts'
-import { permissionDeclarationsOf } from '../../entry/permission-declarations.ts'
+import { tenantPermissionDeclarations } from '../../entry/permission-declarations.ts'
 import { tenantSettingsKey } from '../governance/tenant-settings-service.ts'
 import { currentPermissionOf } from './current-permission.ts'
 import { toolCatalogKey, toolReleaseDetailsKey } from '@omne-harness/tool-cordis-contract/cordis'
@@ -138,7 +138,7 @@ const plugin: Plugin.Object = {
     })
     const authorizations = sessionAuthorizationWriter(ctx)
     const picks = createTenantPicks({
-      declarations: () => permissionDeclarationsOf(ctx),
+      declarations: tenant => tenantPermissionDeclarations(ctx, tenant),
       settings: () => ctx.get(tenantSettingsKey, false),
     })
     const readPermission = () => (active ? permission : undefined)

@@ -10,6 +10,7 @@ import {
   type TenantSettingsAssetRef,
 } from '@omne-harness/settings'
 import type { SqlStorage } from '@omne-harness/sql-contract'
+import type { PermissionDeclaration } from '../../entry/permission-declarations.ts'
 import type { ToolRelease } from '../../entry/tool-release.ts'
 import { createSettingsGuard, type CardsReader } from '../authorization/settings-access.ts'
 import type { TenantGovernanceHost } from './tenant-host.ts'
@@ -55,6 +56,7 @@ export type TenantSettingsServiceOptions = Readonly<{
   scope: Pick<GovernanceScope, 'deploymentId' | 'logicalServiceId'>
   storage: Pick<SqlStorage, 'read'>
   release(): ToolRelease | undefined
+  declared?(tenantRef: string): readonly PermissionDeclaration[]
   identity: Readonly<{ verifier: PrincipalVerifier; standing: TenantStandingSource }>
   active(): boolean
   /** Where a card answer is read back; absent, no session work sets a tenant setting. */
