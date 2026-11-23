@@ -1,84 +1,114 @@
 {
   "cells": {
-    "alternate:anthropic/claude-fable-5.1~moonshotai/kimi-k2.7-code": {
-      "measuredOn": "2026-11-23",
-      "revisions": {
-        "anthropic/claude-fable-5.1": "3",
-        "moonshotai/kimi-k2.7-code": "1"
-      },
-      "hitRate": 0.996,
-      "dropped": 0,
-      "costUsd": 0.382936
-    },
-    "alternate:anthropic/claude-fable-5.2~moonshotai/kimi-k3": {
-      "measuredOn": "2026-11-23",
-      "revisions": {
-        "anthropic/claude-fable-5.2": "1",
-        "moonshotai/kimi-k3": "2"
-      },
-      "hitRate": 0.996,
-      "dropped": 0,
-      "costUsd": 0.334926
-    },
-    "alternate:anthropic/claude-haiku-5.5~moonshotai/kimi-k3.1-pro": {
+    "alternate:anthropic/claude-haiku-5.5~qwen/qwen3.8-omni-flash": {
       "measuredOn": "2026-11-23",
       "revisions": {
         "anthropic/claude-haiku-5.5": "3",
-        "moonshotai/kimi-k3.1-pro": "2"
+        "qwen/qwen3.8-omni-flash": "1"
       },
       "hitRate": 0.996,
       "dropped": 0,
-      "costUsd": 0.029375
+      "costUsd": 0.005881
     },
-    "alternate:anthropic/claude-opus-5.5~openai/gpt-5.6-luna-pro": {
+    "alternate:deepseek/deepseek-v3.2-exp~anthropic/claude-haiku-5.5": {
       "measuredOn": "2026-11-23",
       "revisions": {
-        "anthropic/claude-opus-5.5": "3",
-        "openai/gpt-5.6-luna-pro": "1"
+        "deepseek/deepseek-v3.2-exp": "2",
+        "anthropic/claude-haiku-5.5": "3"
+      },
+      "hitRate": 0.988,
+      "dropped": 0,
+      "costUsd": 0.010931
+    },
+    "alternate:deepseek/deepseek-v3.2~anthropic/claude-haiku-5.5": {
+      "measuredOn": "2026-11-23",
+      "revisions": {
+        "deepseek/deepseek-v3.2": "1",
+        "anthropic/claude-haiku-5.5": "3"
+      },
+      "hitRate": 0.989,
+      "dropped": 0,
+      "costUsd": 0.007234
+    },
+    "alternate:deepseek/deepseek-v4-flash-0731~anthropic/claude-haiku-5.5": {
+      "measuredOn": "2026-11-23",
+      "revisions": {
+        "deepseek/deepseek-v4-flash-0731": "1",
+        "anthropic/claude-haiku-5.5": "3"
+      },
+      "hitRate": 0.978,
+      "dropped": 0,
+      "costUsd": 0.007029
+    },
+    "alternate:deepseek/deepseek-v4-flash-vision-exp~anthropic/claude-haiku-5.5": {
+      "measuredOn": "2026-11-23",
+      "revisions": {
+        "deepseek/deepseek-v4-flash-vision-exp": "1",
+        "anthropic/claude-haiku-5.5": "3"
+      },
+      "hitRate": 0.981,
+      "dropped": 0,
+      "costUsd": 0.006625
+    },
+    "alternate:deepseek/deepseek-v4-flash~anthropic/claude-haiku-5.5": {
+      "measuredOn": "2026-11-23",
+      "revisions": {
+        "deepseek/deepseek-v4-flash": "1",
+        "anthropic/claude-haiku-5.5": "3"
+      },
+      "hitRate": 0.987,
+      "dropped": 0,
+      "costUsd": 0.005105
+    },
+    "alternate:deepseek/deepseek-v4-pro-0813~anthropic/claude-haiku-5.5": {
+      "measuredOn": "2026-11-23",
+      "revisions": {
+        "deepseek/deepseek-v4-pro-0813": "1",
+        "anthropic/claude-haiku-5.5": "3"
+      },
+      "hitRate": 0.988,
+      "dropped": 0,
+      "costUsd": 0.031643
+    },
+    "alternate:deepseek/deepseek-v4-pro~anthropic/claude-haiku-5.5": {
+      "measuredOn": "2026-11-23",
+      "revisions": {
+        "deepseek/deepseek-v4-pro": "1",
+        "anthropic/claude-haiku-5.5": "3"
+      },
+      "hitRate": 0.967,
+      "dropped": 0,
+      "costUsd": 0.03219
+    },
+    "alternate:deepseek/deepseek-v4.1-flash-1017~anthropic/claude-haiku-5.5": {
+      "measuredOn": "2026-11-23",
+      "revisions": {
+        "deepseek/deepseek-v4.1-flash-1017": "1",
+        "anthropic/claude-haiku-5.5": "3"
       },
       "hitRate": 0.996,
       "dropped": 0,
-      "costUsd": 0.153454
+      "costUsd": 0.003834
     },
-    "alternate:anthropic/claude-opus-5~openai/gpt-5.6-luna": {
+    "alternate:deepseek/deepseek-v4.1-flash~anthropic/claude-haiku-5.5": {
       "measuredOn": "2026-11-23",
       "revisions": {
-        "anthropic/claude-opus-5": "3",
-        "openai/gpt-5.6-luna": "4"
+        "deepseek/deepseek-v4.1-flash": "1",
+        "anthropic/claude-haiku-5.5": "3"
       },
-      "hitRate": 0.997,
+      "hitRate": 0.995,
       "dropped": 0,
-      "costUsd": 0.194729
+      "costUsd": 0.00391
     },
-    "alternate:anthropic/claude-sonnet-5.5~openai/gpt-5.6-sol-pro": {
-      "measuredOn": "2026-11-23",
-      "revisions": {
-        "anthropic/claude-sonnet-5.5": "2",
-        "openai/gpt-5.6-sol-pro": "1"
-      },
-      "hitRate": 0.996,
-      "dropped": 0,
-      "costUsd": 0.139554
-    },
-    "alternate:anthropic/claude-sonnet-5~openai/gpt-5.6-sol": {
-      "measuredOn": "2026-11-23",
-      "revisions": {
-        "anthropic/claude-sonnet-5": "3",
-        "openai/gpt-5.6-sol": "1"
-      },
-      "hitRate": 0.996,
-      "dropped": 0,
-      "costUsd": 0.136647
-    },
-    "alternate:moonshotai/kimi-k2.7-code~anthropic/claude-fable-5.1": {
+    "alternate:moonshotai/kimi-k2.7-code~anthropic/claude-haiku-5.5": {
       "measuredOn": "2026-11-23",
       "revisions": {
         "moonshotai/kimi-k2.7-code": "1",
-        "anthropic/claude-fable-5.1": "3"
+        "anthropic/claude-haiku-5.5": "3"
       },
-      "hitRate": 0.984,
+      "hitRate": 0.981,
       "dropped": 0,
-      "costUsd": 0.37134
+      "costUsd": 0.018376
     },
     "alternate:moonshotai/kimi-k3.1-pro~anthropic/claude-haiku-5.5": {
       "measuredOn": "2026-11-23",
@@ -90,185 +120,35 @@
       "dropped": 0,
       "costUsd": 0.012132
     },
-    "alternate:moonshotai/kimi-k3~anthropic/claude-fable-5.2": {
+    "alternate:moonshotai/kimi-k3~anthropic/claude-haiku-5.5": {
       "measuredOn": "2026-11-23",
       "revisions": {
         "moonshotai/kimi-k3": "2",
-        "anthropic/claude-fable-5.2": "1"
-      },
-      "hitRate": 0.981,
-      "dropped": 0,
-      "costUsd": 0.303249
-    },
-    "alternate:openai/gpt-5.6-luna-pro~anthropic/claude-fable-5.2": {
-      "measuredOn": "2026-11-23",
-      "revisions": {
-        "openai/gpt-5.6-luna-pro": "1",
-        "anthropic/claude-fable-5.2": "1"
-      },
-      "hitRate": null,
-      "dropped": 0,
-      "costUsd": 0.298389
-    },
-    "alternate:openai/gpt-5.6-luna~anthropic/claude-fable-5.1": {
-      "measuredOn": "2026-11-23",
-      "revisions": {
-        "openai/gpt-5.6-luna": "4",
-        "anthropic/claude-fable-5.1": "3"
-      },
-      "hitRate": 0.994,
-      "dropped": 0,
-      "costUsd": 0.368511
-    },
-    "alternate:openai/gpt-5.6-sol-pro~anthropic/claude-opus-5": {
-      "measuredOn": "2026-11-23",
-      "revisions": {
-        "openai/gpt-5.6-sol-pro": "1",
-        "anthropic/claude-opus-5": "3"
-      },
-      "hitRate": null,
-      "dropped": 0,
-      "costUsd": 0.266624
-    },
-    "alternate:openai/gpt-5.6-sol~anthropic/claude-haiku-5.5": {
-      "measuredOn": "2026-11-23",
-      "revisions": {
-        "openai/gpt-5.6-sol": "1",
         "anthropic/claude-haiku-5.5": "3"
       },
-      "hitRate": 0.994,
+      "hitRate": 0.976,
       "dropped": 0,
-      "costUsd": 0.068137
+      "costUsd": 0.046804
     },
-    "alternate:openai/gpt-5.6-terra-pro~anthropic/claude-sonnet-5": {
-      "measuredOn": "2026-11-23",
-      "revisions": {
-        "openai/gpt-5.6-terra-pro": "1",
-        "anthropic/claude-sonnet-5": "3"
-      },
-      "hitRate": null,
-      "dropped": 0,
-      "costUsd": 0.116292
-    },
-    "alternate:openai/gpt-5.6-terra~anthropic/claude-opus-5.5": {
-      "measuredOn": "2026-11-23",
-      "revisions": {
-        "openai/gpt-5.6-terra": "3",
-        "anthropic/claude-opus-5.5": "3"
-      },
-      "hitRate": 0.994,
-      "dropped": 0,
-      "costUsd": 0.178451
-    },
-    "alternate:openai/gpt-6-astra-pro~moonshotai/kimi-k2.7-code": {
-      "measuredOn": "2026-11-23",
-      "revisions": {
-        "openai/gpt-6-astra-pro": "1",
-        "moonshotai/kimi-k2.7-code": "1"
-      },
-      "hitRate": null,
-      "dropped": 0,
-      "costUsd": 0.216801
-    },
-    "alternate:openai/gpt-6-astra~anthropic/claude-sonnet-5.5": {
-      "measuredOn": "2026-11-23",
-      "revisions": {
-        "openai/gpt-6-astra": "3",
-        "anthropic/claude-sonnet-5.5": "2"
-      },
-      "hitRate": 0.994,
-      "dropped": 0,
-      "costUsd": 0.234302
-    },
-    "alternate:openai/gpt-6-luna-pro~moonshotai/kimi-k3.1-pro": {
-      "measuredOn": "2026-11-23",
-      "revisions": {
-        "openai/gpt-6-luna-pro": "1",
-        "moonshotai/kimi-k3.1-pro": "2"
-      },
-      "hitRate": null,
-      "dropped": 0,
-      "costUsd": 0.00669
-    },
-    "alternate:openai/gpt-6-luna~moonshotai/kimi-k3": {
+    "alternate:openai/gpt-6-luna~anthropic/claude-haiku-5.5": {
       "measuredOn": "2026-11-23",
       "revisions": {
         "openai/gpt-6-luna": "3",
-        "moonshotai/kimi-k3": "2"
-      },
-      "hitRate": 0.994,
-      "dropped": 0,
-      "costUsd": 0.007618
-    },
-    "alternate:openai/gpt-6-sol-pro~anthropic/claude-fable-5.1": {
-      "measuredOn": "2026-11-23",
-      "revisions": {
-        "openai/gpt-6-sol-pro": "1",
-        "anthropic/claude-fable-5.1": "3"
-      },
-      "hitRate": null,
-      "dropped": 0,
-      "costUsd": 0.412077
-    },
-    "alternate:openai/gpt-6-sol~qwen/qwen3.8-omni-flash": {
-      "measuredOn": "2026-11-23",
-      "revisions": {
-        "openai/gpt-6-sol": "3",
-        "qwen/qwen3.8-omni-flash": "1"
-      },
-      "hitRate": 0.994,
-      "dropped": 0,
-      "costUsd": 0.034254
-    },
-    "alternate:openai/gpt-6.1-sol~anthropic/claude-fable-5.2": {
-      "measuredOn": "2026-11-23",
-      "revisions": {
-        "openai/gpt-6.1-sol": "3",
-        "anthropic/claude-fable-5.2": "1"
-      },
-      "hitRate": 0.994,
-      "dropped": 0,
-      "costUsd": 0.323231
-    },
-    "alternate:openai/gpt-6.1-terra~anthropic/claude-haiku-5.5": {
-      "measuredOn": "2026-11-23",
-      "revisions": {
-        "openai/gpt-6.1-terra": "3",
         "anthropic/claude-haiku-5.5": "3"
       },
       "hitRate": 0.994,
       "dropped": 0,
-      "costUsd": 0.019199
+      "costUsd": 0.005298
     },
-    "alternate:openai/gpt-6.2-astra~anthropic/claude-opus-5": {
-      "measuredOn": "2026-11-23",
-      "revisions": {
-        "openai/gpt-6.2-astra": "2",
-        "anthropic/claude-opus-5": "3"
-      },
-      "hitRate": 0.994,
-      "dropped": 0,
-      "costUsd": 0.306756
-    },
-    "alternate:openai/gpt-6.2-sol~anthropic/claude-opus-5.5": {
-      "measuredOn": "2026-11-23",
-      "revisions": {
-        "openai/gpt-6.2-sol": "2",
-        "anthropic/claude-opus-5.5": "3"
-      },
-      "hitRate": 0.994,
-      "dropped": 0,
-      "costUsd": 0.177166
-    },
-    "alternate:qwen/qwen3.8-omni-flash~anthropic/claude-fable-5.1": {
+    "alternate:qwen/qwen3.8-omni-flash~anthropic/claude-haiku-5.5": {
       "measuredOn": "2026-11-23",
       "revisions": {
         "qwen/qwen3.8-omni-flash": "1",
-        "anthropic/claude-fable-5.1": "3"
+        "anthropic/claude-haiku-5.5": "3"
       },
-      "hitRate": 0.944,
+      "hitRate": 0.94,
       "dropped": 0,
-      "costUsd": 0.367793
+      "costUsd": 0.006017
     },
     "single:anthropic/claude-fable-5.1": {
       "measuredOn": "2026-11-23",
@@ -332,6 +212,87 @@
       "hitRate": 0.998,
       "dropped": 0,
       "costUsd": 0.077098
+    },
+    "single:deepseek/deepseek-v3.2": {
+      "measuredOn": "2026-11-23",
+      "revisions": {
+        "deepseek/deepseek-v3.2": "1"
+      },
+      "hitRate": 0.991,
+      "dropped": 0,
+      "costUsd": 0.005294
+    },
+    "single:deepseek/deepseek-v3.2-exp": {
+      "measuredOn": "2026-11-23",
+      "revisions": {
+        "deepseek/deepseek-v3.2-exp": "2"
+      },
+      "hitRate": 0.993,
+      "dropped": 0,
+      "costUsd": 0.010907
+    },
+    "single:deepseek/deepseek-v4-flash": {
+      "measuredOn": "2026-11-23",
+      "revisions": {
+        "deepseek/deepseek-v4-flash": "1"
+      },
+      "hitRate": 0.988,
+      "dropped": 0,
+      "costUsd": 0.001687
+    },
+    "single:deepseek/deepseek-v4-flash-0731": {
+      "measuredOn": "2026-11-23",
+      "revisions": {
+        "deepseek/deepseek-v4-flash-0731": "1"
+      },
+      "hitRate": 0.989,
+      "dropped": 0,
+      "costUsd": 0.003734
+    },
+    "single:deepseek/deepseek-v4-flash-vision-exp": {
+      "measuredOn": "2026-11-23",
+      "revisions": {
+        "deepseek/deepseek-v4-flash-vision-exp": "1"
+      },
+      "hitRate": 0.98,
+      "dropped": 0,
+      "costUsd": 0.003147
+    },
+    "single:deepseek/deepseek-v4-pro": {
+      "measuredOn": "2026-11-23",
+      "revisions": {
+        "deepseek/deepseek-v4-pro": "1"
+      },
+      "hitRate": 0.979,
+      "dropped": 0,
+      "costUsd": 0.030738
+    },
+    "single:deepseek/deepseek-v4-pro-0813": {
+      "measuredOn": "2026-11-23",
+      "revisions": {
+        "deepseek/deepseek-v4-pro-0813": "1"
+      },
+      "hitRate": 0.988,
+      "dropped": 0,
+      "costUsd": 0.030306
+    },
+    "single:deepseek/deepseek-v4.1-flash": {
+      "measuredOn": "2026-11-23",
+      "revisions": {
+        "deepseek/deepseek-v4.1-flash": "1"
+      },
+      "hitRate": 0.992,
+      "dropped": 0,
+      "costUsd": 0.000314
+    },
+    "single:deepseek/deepseek-v4.1-flash-1017": {
+      "measuredOn": "2026-11-23",
+      "revisions": {
+        "deepseek/deepseek-v4.1-flash-1017": "1"
+      },
+      "hitRate": 0.996,
+      "dropped": 0,
+      "costUsd": 0.000208
     },
     "single:moonshotai/kimi-k2.7-code": {
       "measuredOn": "2026-11-23",
