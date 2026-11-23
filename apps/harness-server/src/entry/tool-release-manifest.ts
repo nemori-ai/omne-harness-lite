@@ -34,6 +34,7 @@ export const NOTIFICATION_TOOLS_PACKAGE = '@omne-harness/notification-tools' as 
 export const SESSION_TOOLS_PACKAGE = '@omne-harness/session-tools' as const
 export const DISPATCH_TOOLS_PACKAGE = '@omne-harness/dispatch-tools' as const
 export const WORKSPACE_TOOLS_PACKAGE = '@omne-harness/workspace-tools' as const
+export const PLUGIN_TOOLS_PACKAGE = '@omne-harness/plugin-tools' as const
 /** The packages a release tool may come from; each is checked by the digest of its own artifacts. */
 export const RELEASE_PACKAGES = Object.freeze([
   TOOL_DEFINITIONS_PACKAGE,
@@ -43,6 +44,7 @@ export const RELEASE_PACKAGES = Object.freeze([
   SESSION_TOOLS_PACKAGE,
   DISPATCH_TOOLS_PACKAGE,
   WORKSPACE_TOOLS_PACKAGE,
+  PLUGIN_TOOLS_PACKAGE,
 ] as const)
 export type ReleasePackage = (typeof RELEASE_PACKAGES)[number]
 
@@ -151,6 +153,13 @@ export const RELEASE_TOOLS = Object.freeze([
     package: WORKSPACE_TOOLS_PACKAGE,
     capabilities: Object.freeze(['workspace.switch']),
     export: 'switchWorkspaceToolModule',
+    construction: Object.freeze(['resultMaxBytes']),
+  }),
+  Object.freeze({
+    name: 'OmneExtensionPoints',
+    package: PLUGIN_TOOLS_PACKAGE,
+    capabilities: Object.freeze([] as string[]),
+    export: 'extensionPointsToolModule',
     construction: Object.freeze(['resultMaxBytes']),
   }),
   Object.freeze({

@@ -32,6 +32,7 @@ const CONSTRUCTION: Readonly<Record<string, unknown>> = {
   Sessions: { resultMaxBytes: 4096 },
   Agents: { resultMaxBytes: 4096 },
   SwitchWorkspace: { resultMaxBytes: 4096 },
+  OmneExtensionPoints: { resultMaxBytes: 4096 },
   Screen: {
     resultMaxBytes: 4096,
     captureMaxLongSide: 2048,

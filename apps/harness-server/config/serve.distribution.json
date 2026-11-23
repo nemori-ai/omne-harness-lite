@@ -101,6 +101,11 @@
               "tool": "SwitchWorkspace"
             },
             {
+              "id": "extension-points",
+              "effect": "allow",
+              "tool": "OmneExtensionPoints"
+            },
+            {
               "id": "screen",
               "effect": "allow",
               "tool": "Screen"
@@ -400,7 +405,7 @@
               "owner": "harness-server-release",
               "name": "coding",
               "revision": "1",
-              "digest": "sha256:e68cb0d29e615927e9624c61d872a3308996233100196e532c1da4c682e5bb4e"
+              "digest": "sha256:2d135d6e0275f52b6a40fc82aa5e505df0acc0f7dea0d243f82cf59bd58e7ce2"
             },
             "execution": {
               "owner": "harness-server-release",
@@ -528,6 +533,13 @@
                   "capability": {
                     "category": "Tool",
                     "name": "SwitchWorkspace"
+                  },
+                  "resident": true
+                },
+                {
+                  "capability": {
+                    "category": "Tool",
+                    "name": "OmneExtensionPoints"
                   },
                   "resident": true
                 },

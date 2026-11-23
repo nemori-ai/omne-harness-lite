@@ -352,6 +352,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
       'Calendar',
       'Files',
       'Notifications',
+      'OmneExtensionPoints',
       'Schedules',
       'Screen',
       'Sessions',
@@ -371,6 +372,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
       'Skills',
       'Sessions',
       'Agents',
+      'OmneExtensionPoints',
     ])
       expect(bounds[tool]?.resultMaxBytes, tool).toBeGreaterThan(inline)
     for (const tool of [

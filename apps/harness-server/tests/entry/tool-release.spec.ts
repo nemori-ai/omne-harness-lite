@@ -280,6 +280,7 @@ describe('the startup snapshot', () => {
       '@omne-harness/session-tools',
       '@omne-harness/dispatch-tools',
       '@omne-harness/workspace-tools',
+      '@omne-harness/plugin-tools',
     ])
   })
 
