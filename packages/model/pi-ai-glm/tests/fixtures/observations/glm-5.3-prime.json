@@ -1,0 +1,1201 @@
+{
+  "model": "z-ai/glm-5.3-prime",
+  "pin": "alibaba",
+  "endpointSource": {
+    "url": "https://openrouter.ai/api/v1/models/z-ai/glm-5.3-prime/endpoints",
+    "sha256": "e69ed5dec4c361bf90ad00eb2c856fb2a5cbeb3b8819b0e6da88fd9cdb7bba04",
+    "observedAt": "2026-11-23T18:36:48.127Z"
+  },
+  "endpoint": {
+    "tag": "alibaba",
+    "context_length": 1000000,
+    "max_completion_tokens": 131072,
+    "max_prompt_tokens": null
+  },
+  "samples": {
+    "adjacent-users": {
+      "state": "receipted",
+      "at": "2026-11-23T18:56:58.247Z",
+      "requestSha256": "d6f7ff9108e48e577e54439d1ce2cee66cc2e5ad7b02a1d503be4d5f8f7001da",
+      "responseSha256": "89e51a08e007b821352af5c1aac458cb42e8736362a28e2a489c79a238d1c534",
+      "status": 200,
+      "provider": "Alibaba",
+      "upstreamModel": "z-ai/glm-5.3-prime",
+      "requestId": "gen-1795460218-5dBsdYDIIz3bkp2LkZyP",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 31,
+        "completion_tokens": 21,
+        "cost": "0.00016296",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 19,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ]
+    },
+    "assistant-last": {
+      "state": "receipted",
+      "at": "2026-11-23T18:57:22.690Z",
+      "requestSha256": "cc1fcec31228b601b782b243c089c01c19fdb0f72d2451fd92274bc985a7abe7",
+      "responseSha256": "399aa9d1bc612689c4f1e52d95fc8bc6e0e55c9d37543df2102eebc6447c037b",
+      "status": 200,
+      "provider": "Alibaba",
+      "upstreamModel": "z-ai/glm-5.3-prime",
+      "requestId": "gen-1795460242-dUY3eL8N0zyJmRQmgZUV",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 31,
+        "completion_tokens": 2,
+        "cost": "0.00006264",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": []
+    },
+    "cache-1": {
+      "state": "receipted",
+      "at": "2026-11-23T18:44:25.800Z",
+      "requestSha256": "027b59e37ed0e721c05a41b7c67c211bdaae6d87e8147eff044a21c1ec2ce637",
+      "responseSha256": "02cf1841ae5652051e7b939539cdadda77275bce49c7b54203d7fe7fe73f180f",
+      "status": 200,
+      "provider": "Alibaba",
+      "upstreamModel": "z-ai/glm-5.3-prime",
+      "requestId": "gen-1795459466-radE6lZ392lzNXMJkX1m",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 4034,
+        "completion_tokens": 30,
+        "cost": "0.00693552",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 28,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ],
+      "countedVisibleTokens": 4129
+    },
+    "cache-2": {
+      "state": "receipted",
+      "at": "2026-11-23T18:44:46.189Z",
+      "requestSha256": "a8220228192ba06066bb3cd953e23210cc92d6e41b983ca5c0378180d6137436",
+      "responseSha256": "6d0de58a525c489928f12b439316808113d60b6936b9b2e0ab34f9b3291f3b5f",
+      "status": 200,
+      "provider": "Alibaba",
+      "upstreamModel": "z-ai/glm-5.3-prime",
+      "requestId": "gen-1795459486-vZNBlu1BFrXlOUDY6NLK",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 4053,
+        "completion_tokens": 23,
+        "cost": "0.00176952",
+        "prompt_tokens_details": {
+          "cached_tokens": 3840,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 20,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ],
+      "countedVisibleTokens": 4172
+    },
+    "cache-3": {
+      "state": "receipted",
+      "at": "2026-11-23T18:45:10.801Z",
+      "requestSha256": "c930f088e1f244de58cab351285e34c4b1c2e41dce75bed56e1362978a935728",
+      "responseSha256": "970c701ad5d021ef75a3d0da6debe75634c84c206d57b25c4460da26f387c573",
+      "status": 200,
+      "provider": "Alibaba",
+      "upstreamModel": "z-ai/glm-5.3-prime",
+      "requestId": "gen-1795459511-pX7ugEcJjvWpFZz1H4Ed",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 4072,
+        "completion_tokens": 16,
+        "cost": "0.00176448",
+        "prompt_tokens_details": {
+          "cached_tokens": 3840,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 13,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ],
+      "countedVisibleTokens": 4215
+    },
+    "calib-code": {
+      "state": "receipted",
+      "at": "2026-11-23T18:46:01.804Z",
+      "requestSha256": "19bf234d11ff9bd4085ab295871dda314b339216afbb2862451bbace2b92e779",
+      "responseSha256": "e74cc5e10b183d45f618c271c124db830fd550598a52a535092411a3d6b49844",
+      "status": 200,
+      "provider": "Alibaba",
+      "upstreamModel": "z-ai/glm-5.3-prime",
+      "requestId": "gen-1795459562-qDZZ748zNdjjh7LQDoS8",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 38,
+        "completion_tokens": 150,
+        "cost": "0.00085584",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 97,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ],
+      "countedVisibleTokens": 70
+    },
+    "calib-zh": {
+      "state": "receipted",
+      "at": "2026-11-23T18:45:34.577Z",
+      "requestSha256": "8f5ebd7f7140cd40fc5c5921d694a6ae00f469f2aaf1a9920b432131b17bd480",
+      "responseSha256": "7f28657c1703525d012fa3fcd0130c96f96a725ec24f09359e89e04c9ba6318d",
+      "status": 200,
+      "provider": "Alibaba",
+      "upstreamModel": "z-ai/glm-5.3-prime",
+      "requestId": "gen-1795459534-CpsuQolawUjjJCIe8ooq",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 23,
+        "completion_tokens": 47,
+        "cost": "0.0002868",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 45,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ],
+      "countedVisibleTokens": 58
+    },
+    "changed-prefix": {
+      "state": "receipted",
+      "at": "2026-11-23T18:42:40.470Z",
+      "requestSha256": "586c78a11a9bb5ffa8e15bd02f7fb247b9fd8607dfce11f490129a310155b3b2",
+      "responseSha256": "81bca9b2525de4041b3d5d3ba16e6c50db579f74c149884d8a2badfeff84b815",
+      "status": 200,
+      "provider": "Alibaba",
+      "upstreamModel": "z-ai/glm-5.3-prime",
+      "requestId": "gen-1795459360-kOjQZKl2UZogVTl83Krs",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 249,
+        "completion_tokens": 15,
+        "cost": "0.00049752",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [],
+      "answer": "Ticket A17 reads **SAPPHIRE-614**."
+    },
+    "continuation": {
+      "state": "receipted",
+      "at": "2026-11-23T18:42:15.925Z",
+      "requestSha256": "658d18abb48d77fd6d0204676910e39aa7807b870da12345afee549028024172",
+      "responseSha256": "b1f03c4260980df214529b4cd86e9987f602423dfa9bc2773a6eb48cf5ec71b0",
+      "status": 200,
+      "provider": "Alibaba",
+      "upstreamModel": "z-ai/glm-5.3-prime",
+      "requestId": "gen-1795459336-CCU60QTgoqIT5npbKwrD",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 245,
+        "completion_tokens": 15,
+        "cost": "0.0004908",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [],
+      "answer": "Ticket A17 reads **SAPPHIRE-614**."
+    },
+    "effort-high": {
+      "state": "receipted",
+      "at": "2026-11-23T18:53:55.805Z",
+      "requestSha256": "d5306c973edc3a5b5498d8101c3611cf500f34fffe5d7ebfeb4ec2b2fc52dafa",
+      "responseSha256": "9d29e1374084309b638ebc8c463d18487eb4f534725813e2b7b61cf580b3061b",
+      "status": 200,
+      "provider": "Alibaba",
+      "upstreamModel": "z-ai/glm-5.3-prime",
+      "requestId": "gen-1795460036-Nq7LEWzVw0yamtL4CCj5",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 25,
+        "completion_tokens": 2,
+        "cost": "0.00005256",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": []
+    },
+    "effort-low": {
+      "state": "receipted",
+      "at": "2026-11-23T18:51:17.403Z",
+      "requestSha256": "c8726e0f0b61a794171a4685ce4bac6ec7078ce3060062747124184f237d8f37",
+      "responseSha256": "87238734bc4bb9023dff91d0e2258aecacbcc197978ed7eb03aa37e485522bd5",
+      "status": 200,
+      "provider": "Alibaba",
+      "upstreamModel": "z-ai/glm-5.3-prime",
+      "requestId": "gen-1795459877-DzXMyiYlLE38t5dWzvJK",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 25,
+        "completion_tokens": 3,
+        "cost": "0.00005784",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 1,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ]
+    },
+    "effort-max": {
+      "state": "receipted",
+      "at": "2026-11-23T18:54:15.484Z",
+      "requestSha256": "d8aa56d2d2e91796ccad4b3c9559d8ddfe5ef3b4d8dc710a4b5ab25e480de13b",
+      "responseSha256": "db36ed3c20d5becbc26020ac1e77ae1677555838120da7b9285162588caed1e4",
+      "status": 200,
+      "provider": "Alibaba",
+      "upstreamModel": "z-ai/glm-5.3-prime",
+      "requestId": "gen-1795460055-4rm0JIQzm8rtNiRGvexo",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 25,
+        "completion_tokens": 24,
+        "cost": "0.00016872",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 22,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ]
+    },
+    "effort-medium": {
+      "state": "receipted",
+      "at": "2026-11-23T18:51:35.971Z",
+      "requestSha256": "96bf17860999183e5c405624ea351118e3d5b24ec4a6f4ecaafaba8a145080e4",
+      "responseSha256": "1bef20488e0a9113a64c6ded4ff9fc9ec31bf2a63f0c905c65592c8161518f4f",
+      "status": 200,
+      "provider": "Alibaba",
+      "upstreamModel": "z-ai/glm-5.3-prime",
+      "requestId": "gen-1795459896-sDBd9aE8F2NviWyHhtOf",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 25,
+        "completion_tokens": 2,
+        "cost": "0.00005256",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": []
+    },
+    "effort-minimal": {
+      "state": "receipted",
+      "at": "2026-11-23T18:54:33.852Z",
+      "requestSha256": "3e02e5885cd43d0b5e393b1667c5b52f9756ab1f3a5f2d7a8643eeb73199357a",
+      "responseSha256": "62b932681e060872c84a36c837e644d72c6dbd7576f4eaa3832840572da52819",
+      "status": 200,
+      "provider": "Alibaba",
+      "upstreamModel": "z-ai/glm-5.3-prime",
+      "requestId": "gen-1795460074-ouZT2RdByPJQHpAX4oWb",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 25,
+        "completion_tokens": 2,
+        "cost": "0.00005256",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": []
+    },
+    "effort-none": {
+      "state": "reconciled-rejection",
+      "at": "2026-11-23T18:55:12.455Z",
+      "requestSha256": "9a57e47fad8cfe994eeb4b88251469d392f820725070e27878aa23f6ee01235a",
+      "responseSha256": "6918ec00244329f642fc3ac49a6459464da8edc25230197118a77307879fe882",
+      "reason": "Reasoning is mandatory for this endpoint and cannot be disabled.",
+      "accountedUsd": "0",
+      "status": 400
+    },
+    "effort-xhigh": {
+      "state": "receipted",
+      "at": "2026-11-23T18:54:53.145Z",
+      "requestSha256": "eeedab625e2b022275981bb5a8da40777b20166fd0e9a47dc7431e4950181d67",
+      "responseSha256": "017a0ce4d895e652bf8042a4974aad85e6896a849196ddb27992d77f02ec0170",
+      "status": 200,
+      "provider": "Alibaba",
+      "upstreamModel": "z-ai/glm-5.3-prime",
+      "requestId": "gen-1795460093-FWq722kF4SNNzAiImOWe",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 25,
+        "completion_tokens": 7,
+        "cost": "0.00007896",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 5,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ]
+    },
+    "empty-content": {
+      "state": "receipted",
+      "at": "2026-11-23T18:57:44.050Z",
+      "requestSha256": "80780d0d565f9849d09b8ff3f2776c3aa87928a0d32a27e3d1605da5209fb304",
+      "responseSha256": "272496e7022a65557df8a9f6b7598fde2396e18ad398179dc1f25f4486d4cd18",
+      "status": 200,
+      "provider": "Alibaba",
+      "upstreamModel": "z-ai/glm-5.3-prime",
+      "requestId": "gen-1795460264-xxdCQnTcF5qpx5tHA1GT",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 26,
+        "completion_tokens": 17,
+        "cost": "0.00013344",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 15,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ]
+    },
+    "fixture": {
+      "state": "receipted",
+      "at": "2026-11-23T18:48:54.014Z",
+      "requestSha256": "f28b062e49764c7eaf980d336352dff161a83b022fbe722e9674a35b6a49f91e",
+      "responseSha256": "ddbd69e34a7aff7f2a6d52f0f2038c32b1c2ba0a564b0e44e326c85e505f2498",
+      "status": 200,
+      "provider": "Alibaba",
+      "upstreamModel": "z-ai/glm-5.3-prime",
+      "requestId": "gen-1795459734-JQoTYcJt6UhWRBPJGc4w",
+      "finish": "tool_calls",
+      "usage": {
+        "prompt_tokens": 184,
+        "completion_tokens": 45,
+        "cost": "0.00054672",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 33,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ],
+      "answer": "",
+      "toolCalls": [
+        {
+          "id": "call_67ba14096b084b6886b40cb8",
+          "name": "read_ticket",
+          "arguments": "{\"id\": \"A17\"}"
+        }
+      ],
+      "tool": "read_ticket",
+      "arguments": "{\"id\": \"A17\"}",
+      "countedVisibleTokens": 123
+    },
+    "plain": {
+      "state": "receipted",
+      "at": "2026-11-23T18:41:31.404Z",
+      "requestSha256": "d2329fd3fceb8a931d02fa6be122f4870969904a53cbddacf0991c69f433d3ad",
+      "responseSha256": "5653ce9c05f600f322ee9feb24255632bf2b31276c692b3fced6c36c866ac5bd",
+      "status": 200,
+      "provider": "Alibaba",
+      "upstreamModel": "z-ai/glm-5.3-prime",
+      "requestId": "gen-1795459291-m5JYDVdMQ9c7LTk0QqHl",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 24,
+        "completion_tokens": 8,
+        "cost": "0.00008256",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 6,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ],
+      "answer": "21",
+      "countedVisibleTokens": 57
+    },
+    "reasoning-off": {
+      "state": "reconciled-rejection",
+      "at": "2026-11-23T18:50:59.345Z",
+      "requestSha256": "0d41f3bd4b9411144ed3f73ced665b762826b8377fd665cdd2ab593314cf7a7a",
+      "responseSha256": "6918ec00244329f642fc3ac49a6459464da8edc25230197118a77307879fe882",
+      "reason": "Reasoning is mandatory for this endpoint and cannot be disabled.",
+      "accountedUsd": "0",
+      "status": 400
+    },
+    "release-tools": {
+      "state": "receipted",
+      "at": "2026-11-23T18:48:28.946Z",
+      "requestSha256": "cfbd5fa2ddeb030c65e6778830d0dbfeb507495eca9738065d2d2072eeeb9daf",
+      "responseSha256": "02cab0ed46985e6bb85aa004029c6b61d483f04bbff7f032bfe635272706a922",
+      "status": 200,
+      "provider": "Alibaba",
+      "upstreamModel": "z-ai/glm-5.3-prime",
+      "requestId": "gen-1795459709-bYKbB8DzaF2cWcYBGwoT",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 7729,
+        "completion_tokens": 9,
+        "cost": "0.01303224",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [],
+      "countedVisibleTokens": 7302
+    },
+    "replay-altered": {
+      "state": "receipted",
+      "at": "2026-11-23T18:43:39.471Z",
+      "requestSha256": "51f6d2023644afca8382ba6ab7cb996565085efc12f8721a0bf7bdce806a5f7d",
+      "responseSha256": "a9d3be95955a0da9164f6bb21c352d27701bf655fc690da8cb8aee18a684dcf6",
+      "status": 200,
+      "provider": "Alibaba",
+      "upstreamModel": "z-ai/glm-5.3-prime",
+      "requestId": "gen-1795459419-TGRuvIJgmhAUdv7ikeKb",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 48,
+        "completion_tokens": 18,
+        "cost": "0.00017568",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 16,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ],
+      "answer": "22"
+    },
+    "replay-changed": {
+      "state": "receipted",
+      "at": "2026-11-23T18:43:20.588Z",
+      "requestSha256": "2ecd9e9e3c65c07ff634fc45e23452a0e9edc73fa795729195bfa72979b516bb",
+      "responseSha256": "28ff3220ffa0bbee5e67da8bbe4a34ab2b52ebdba0190bf1823008f02dcbfd6e",
+      "status": 200,
+      "provider": "Alibaba",
+      "upstreamModel": "z-ai/glm-5.3-prime",
+      "requestId": "gen-1795459400-e2O7pvteUO5Pug5a6kcR",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 55,
+        "completion_tokens": 9,
+        "cost": "0.00013992",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 7,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ],
+      "answer": "22"
+    },
+    "replay-omitted": {
+      "state": "receipted",
+      "at": "2026-11-23T18:44:02.512Z",
+      "requestSha256": "08b4ef52135704f720cc15143cb3bc80f5a0a40f714fe93a2acf4224aa2ebbdb",
+      "responseSha256": "73a22f7990aa2468609cc2f5a2653e731028474baaaae7923b7604964ff25548",
+      "status": 200,
+      "provider": "Alibaba",
+      "upstreamModel": "z-ai/glm-5.3-prime",
+      "requestId": "gen-1795459442-fjI2uV9KdOs9aM1o9z3t",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 43,
+        "completion_tokens": 18,
+        "cost": "0.00016728",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 16,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ],
+      "answer": "22"
+    },
+    "replay-retained": {
+      "state": "receipted",
+      "at": "2026-11-23T18:43:01.011Z",
+      "requestSha256": "ef04b21e4c54edce783f9a504c83632b8c7158c400545d2afde3429aa7ad2335",
+      "responseSha256": "6071f507e9e4c85b7223cf4290f456c6da0ac05cc91718ae31f2c8aeb1255c72",
+      "status": 200,
+      "provider": "Alibaba",
+      "upstreamModel": "z-ai/glm-5.3-prime",
+      "requestId": "gen-1795459381-3cBbFJl4G0XDAdDLx0g8",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 49,
+        "completion_tokens": 18,
+        "cost": "0.00017736",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 16,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ],
+      "answer": "22"
+    },
+    "sampling-seed": {
+      "state": "receipted",
+      "at": "2026-11-23T18:55:32.175Z",
+      "requestSha256": "82a7f6060477ff889db58763a227175233686841c94095e22ca778c3f40f7106",
+      "responseSha256": "aa22668cf62984b0f0e377800102d4a58d099b3cfa330f8413e12888522ff88d",
+      "status": 200,
+      "provider": "Alibaba",
+      "upstreamModel": "z-ai/glm-5.3-prime",
+      "requestId": "gen-1795460132-1QLHMzrMYmwHb29KwXDW",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 25,
+        "completion_tokens": 49,
+        "cost": "0.00030072",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 47,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ]
+    },
+    "sampling-temperature": {
+      "state": "receipted",
+      "at": "2026-11-23T18:55:50.572Z",
+      "requestSha256": "85bd4a018bb513584f4c6bc7e792413c9a58e5492418ad4fea734df4ca5a9a9f",
+      "responseSha256": "addb71326034e1d323f22772547b1d135ea2dc9546a1af3cd4f304ab3ab90bce",
+      "status": 200,
+      "provider": "Alibaba",
+      "upstreamModel": "z-ai/glm-5.3-prime",
+      "requestId": "gen-1795460150-ayLYjawUprvIm3bD04b3",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 25,
+        "completion_tokens": 9,
+        "cost": "0.00008952",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 7,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ]
+    },
+    "sampling-top_k": {
+      "state": "receipted",
+      "at": "2026-11-23T18:56:13.840Z",
+      "requestSha256": "a163deda87eeba383c1528c0a8e0185789e441ed243039096fcca6527cd0c901",
+      "responseSha256": "e5dbb69510ea5ad0d0c6046921ea8e423f697db277e36a6de698355f08dd1e15",
+      "status": 200,
+      "provider": "Alibaba",
+      "upstreamModel": "z-ai/glm-5.3-prime",
+      "requestId": "gen-1795460174-avdqLIX76zgPtz0He65G",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 25,
+        "completion_tokens": 45,
+        "cost": "0.0002796",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 43,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ]
+    },
+    "sampling-top_p": {
+      "state": "receipted",
+      "at": "2026-11-23T18:56:35.139Z",
+      "requestSha256": "0ac5ff27ae3d40ff2aea290d01b1ec378233c6891331a74178fb20cb583776bf",
+      "responseSha256": "410658d8b8233db8f985655a702e355b1edaf385c0e8f481bcef4cd476ce53c0",
+      "status": 200,
+      "provider": "Alibaba",
+      "upstreamModel": "z-ai/glm-5.3-prime",
+      "requestId": "gen-1795460195-7RV8XxV90xQeQVa9fTkg",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 25,
+        "completion_tokens": 9,
+        "cost": "0.00008952",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 7,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ]
+    },
+    "short-output": {
+      "state": "receipted",
+      "at": "2026-11-23T18:58:00.390Z",
+      "requestSha256": "f1b9d8bc1ac4f39cd87e666791d82009e74b7cc6c6d56254f869c7fa64573cd8",
+      "responseSha256": "b617c28945d7358afc157294598c6c7aafd4553d8b3bdd4a2d90c74842312ee4",
+      "status": 200,
+      "provider": "Alibaba",
+      "upstreamModel": "z-ai/glm-5.3-prime",
+      "requestId": "gen-1795460280-69MP5Lv6u3biEE8qzlJM",
+      "finish": "length",
+      "usage": {
+        "prompt_tokens": 25,
+        "completion_tokens": 1,
+        "cost": "0.00004728",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 1,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ]
+    },
+    "tool-named": {
+      "state": "reconciled-rejection",
+      "at": "2026-11-23T18:49:49.137Z",
+      "requestSha256": "d5622f1afa09ac3422358a8f998140fc66af0185147150001f696bfe400956ee",
+      "responseSha256": "add186f72e25b5720c233c6721bfbc64ca788059351d675d5c74d3eebabe394a",
+      "reason": "No endpoints found that support the provided 'tool_choice' value. To learn more about provider routing, visit: https://openrouter.ai/docs/guides/routing/provider-selection",
+      "accountedUsd": "0",
+      "status": 404
+    },
+    "tool-none": {
+      "state": "receipted",
+      "at": "2026-11-23T18:50:04.217Z",
+      "requestSha256": "4f395c3d81da91895db7dc1dd3a27d5f0af61ed0c9891acc3b86496298159235",
+      "responseSha256": "00609530ad7ccec427781fe8cb9b955402f13d5cec1b1491568ba8359db9a47d",
+      "status": 200,
+      "provider": "Alibaba",
+      "upstreamModel": "z-ai/glm-5.3-prime",
+      "requestId": "gen-1795459804-8eeFw2IvOPvmlDRtnITt",
+      "finish": "stop",
+      "usage": {
+        "prompt_tokens": 34,
+        "completion_tokens": 215,
+        "cost": "0.00119232",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 117,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ],
+      "answer": "I don't have access to any tools in this conversation—no tool for reading tickets has been supplied to me on my end.\n\nTo help you with ticket A17, you could either:\n1. **Enable/attach the tool** you'd like me to use, or\n2. **Tell me the ticket's value or details directly**, and I'll work with that information\n\nIs there something else I can help you with, or would you like to share the ticket information?"
+    },
+    "tool-required": {
+      "state": "reconciled-rejection",
+      "at": "2026-11-23T18:49:34.118Z",
+      "requestSha256": "ecd7dfcee3581cbc8ea707652049f813be3dfea713fd80c907b1fc7d74ce68ae",
+      "responseSha256": "add186f72e25b5720c233c6721bfbc64ca788059351d675d5c74d3eebabe394a",
+      "reason": "No endpoints found that support the provided 'tool_choice' value. To learn more about provider routing, visit: https://openrouter.ai/docs/guides/routing/provider-selection",
+      "accountedUsd": "0",
+      "status": 404
+    },
+    "tool": {
+      "state": "receipted",
+      "at": "2026-11-23T18:41:34.054Z",
+      "requestSha256": "374c3137c7d8d661160df5c1f13fc7ed51387a718db49783f208856eb5004746",
+      "responseSha256": "a8c8f7e625d54774adbb7a74afbaabc184110f5caa0f7ec6e00fb4822117f57c",
+      "status": 200,
+      "provider": "Alibaba",
+      "upstreamModel": "z-ai/glm-5.3-prime",
+      "requestId": "gen-1795459294-McP0tojauo0khslPLe7K",
+      "finish": "tool_calls",
+      "usage": {
+        "prompt_tokens": 184,
+        "completion_tokens": 45,
+        "cost": "0.00054672",
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 33,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "detailShapes": [
+        {
+          "type": "reasoning.text",
+          "format": "unknown",
+          "fields": [
+            "format",
+            "index",
+            "text",
+            "type"
+          ]
+        }
+      ],
+      "answer": "",
+      "toolCalls": [
+        {
+          "id": "call_2c9ac70664bc45d1a9974624",
+          "name": "read_ticket",
+          "arguments": "{\"id\": \"A17\"}"
+        }
+      ],
+      "tool": "read_ticket",
+      "arguments": "{\"id\": \"A17\"}",
+      "countedVisibleTokens": 123
+    }
+  },
+  "coldCalibration": {
+    "tokenizer": "o200k_base",
+    "samples": [
+      "plain",
+      "tool",
+      "fixture",
+      "calib-zh",
+      "calib-code",
+      "release-tools",
+      "cache-1",
+      "cache-2",
+      "cache-3"
+    ],
+    "maxPositiveResidual": 427,
+    "controllingSamples": [
+      "release-tools"
+    ]
+  }
+}
