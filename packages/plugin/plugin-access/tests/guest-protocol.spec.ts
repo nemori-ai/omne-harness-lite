@@ -170,6 +170,83 @@ describe('a protocol written by the code of a plugin', () => {
     expect(reads).toBe(1)
   })
 
+  it.each(['denied', 'basis-unavailable', 'unknown'] as const)(
+    'passes on %s as the handler answered it',
+    async outcome => {
+      const contribution = guestProtocol(made({ greet: async () => ({ outcome }) }), {
+        key: 'tidy/v1',
+        bind: world().bind,
+      })
+      expect(await contribution.operations['greet']?.(call, { who: 'bob' })).toEqual({ outcome })
+    },
+  )
+
+  it('an outcome other than succeeded carries no body, whatever the handler put beside it', async () => {
+    const contribution = guestProtocol(
+      made({ greet: async () => ({ outcome: 'denied', body: 'secret' }) as never }),
+      { key: 'tidy/v1', bind: world().bind },
+    )
+    expect(await contribution.operations['greet']?.(call, { who: 'bob' })).toEqual({
+      outcome: 'denied',
+    })
+  })
+
+  it('succeeded without a body is not an answer the protocol can give: a commit answers unknown', async () => {
+    const contribution = guestProtocol(
+      made({ greet: async () => ({ outcome: 'succeeded' }) as never }),
+      { key: 'tidy/v1', bind: world().bind },
+    )
+    expect(await contribution.operations['greet']?.(call, { who: 'bob' })).toEqual({
+      outcome: 'unknown',
+    })
+  })
+
+  it('the protocol answers succeeded with the rule the plugin wrote for the result', () => {
+    const contribution = guestProtocol(made({ greet: async () => ({ outcome: 'denied' }) }), {
+      key: 'tidy/v1',
+      bind: world().bind,
+    })
+    const succeeded = contribution.protocol.operations['greet']?.outcomes['succeeded']
+    expect(typeof succeeded === 'object' && succeeded.rule).toEqual(TEXT)
+  })
+
+  it.each([
+    [
+      'a contract that is null',
+      { contract: null, handlers: {} },
+      'a protocol is { contract, handlers }',
+    ],
+    ['no handlers', { contract: made({}).contract }, 'a protocol is { contract, handlers }'],
+    [
+      'a name that is not text',
+      { contract: { ...made({}).contract, name: 7 }, handlers: {} },
+      'a contract is { name, major, operations }',
+    ],
+    [
+      'a major that is not a whole number',
+      { contract: { ...made({}).contract, major: 1.5 }, handlers: {} },
+      'a contract is { name, major, operations }',
+    ],
+    [
+      'operations that are not an object',
+      { contract: { ...made({}).contract, operations: [] }, handlers: {} },
+      'a contract is { name, major, operations }',
+    ],
+  ])('refuses %s', (_name, given, reason) => {
+    expect(() => guestProtocol(given, { key: 'tidy/v1', bind: world().bind })).toThrow(reason)
+  })
+
+  it('names every stray handler', () => {
+    const extra = made({
+      greet: async () => ({ outcome: 'denied' }),
+      one: async () => ({ outcome: 'denied' }),
+      two: async () => ({ outcome: 'denied' }),
+    })
+    expect(() => guestProtocol(extra, { key: 'tidy/v1', bind: world().bind })).toThrow(
+      'a handler for no operation: one, two',
+    )
+  })
+
   it('refuses a rule the access contract refuses, naming the operation', () => {
     const late = { kind: 'object', fields: { who: { rule: TEXT, since: 2 } } } as never
     const bad: GuestProtocolMade = {
