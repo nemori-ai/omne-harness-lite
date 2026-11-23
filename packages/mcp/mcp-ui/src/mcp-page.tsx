@@ -14,6 +14,7 @@ import {
   type NoticeAction,
 } from '@omne-harness/ui-kit'
 import { useEffect, useState, useSyncExternalStore, type JSX } from 'react'
+import { EndpointActions, EndpointStatus, useEndpointState } from './endpoint-state.tsx'
 import { mcpEndpoint, mcpEndpointPermission, mcpPage } from './parts.ts'
 import type {
   McpEndpoint,
@@ -21,6 +22,7 @@ import type {
   McpNotice,
   McpPermission,
   McpRow,
+  McpStatus,
   McpView,
 } from './port.ts'
 
@@ -29,16 +31,22 @@ export const MCP_CATEGORY = 'mcp'
 const NO_ENDPOINT = '接进来的 MCP 接入点会列在这里。'
 const TONE = { refused: 'danger', unavailable: 'caution', unknown: 'caution' } as const
 
-export type McpPageProps = Readonly<{ governance: McpGovernance; tenant: string }>
+export type McpPageProps = Readonly<{
+  governance: McpGovernance
+  tenant: string
+  status: McpStatus | null
+}>
 
-export function McpPage({ governance, tenant }: McpPageProps): JSX.Element | null {
+type Reach = Readonly<{ view: McpView; status: McpStatus | null; tenant: string }>
+
+export function McpPage({ governance, tenant, status }: McpPageProps): JSX.Element | null {
   const [view, setView] = useState<McpView | null>(null)
   useEffect(() => {
     const opened = governance.open(tenant, MCP_CATEGORY)
     setView(opened)
     return opened.close
   }, [governance, tenant])
-  return view === null ? null : <McpBody view={view} />
+  return view === null ? null : <McpBody reach={{ view, status, tenant }} />
 }
 
 function NoticeLine({
@@ -59,7 +67,8 @@ function NoticeLine({
   )
 }
 
-function McpBody({ view }: { readonly view: McpView }): JSX.Element {
+function McpBody({ reach }: { readonly reach: Reach }): JSX.Element {
+  const { view } = reach
   const snapshot = useSyncExternalStore(view.subscribe, view.getSnapshot)
   switch (snapshot.kind) {
     case 'reading':
@@ -80,7 +89,7 @@ function McpBody({ view }: { readonly view: McpView }): JSX.Element {
             <EmptyState title={NO_ENDPOINT} />
           ) : null}
           {snapshot.holdings.map(endpoint => (
-            <Endpoint key={endpoint.name} endpoint={endpoint} view={view} />
+            <Endpoint key={endpoint.name} endpoint={endpoint} reach={reach} />
           ))}
         </div>
       )
@@ -94,15 +103,18 @@ const drawnHere = (row: McpRow): row is DrawnRow =>
 
 function Endpoint({
   endpoint,
-  view,
+  reach,
 }: {
   readonly endpoint: McpEndpoint
-  readonly view: McpView
+  readonly reach: Reach
 }): JSX.Element {
+  const { view } = reach
   const DefaultRow = view.Row
+  const { state, refresh } = useEndpointState(reach.status, reach.tenant, endpoint.name)
   return (
     <section className="mcp-endpoint" aria-label={endpoint.name} {...mcpEndpoint.props}>
       <h3 className="mcp-endpoint-title">{endpoint.name}</h3>
+      <EndpointStatus state={state} />
       {endpoint.rows.filter(drawnHere).map(row => (
         <CallPermission key={row.key} row={row} view={view} />
       ))}
@@ -113,6 +125,7 @@ function Endpoint({
             <DefaultRow key={row.key} rowKey={row.key} />
           ))}
       </ul>
+      <EndpointActions state={state} refresh={refresh} />
     </section>
   )
 }

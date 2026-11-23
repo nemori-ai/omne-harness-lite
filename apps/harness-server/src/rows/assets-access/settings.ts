@@ -53,19 +53,46 @@ function assetOf(owner: ItemInput['owner']): AssetQuery | undefined {
     : { category: owner.category, name: owner.name }
 }
 
+type Row = Listed['items'][number]
+
+function keyOf({ owner, item }: Pick<Row, 'owner' | 'item'>): string {
+  return owner.kind === 'asset' ? JSON.stringify([owner.category, owner.name, item]) : ''
+}
+
 function recognised(answer: Awaited<ReturnType<Port['describe']>>): WriteOutcome {
   if (answer.kind === 'described') return INVALID
   return answer
 }
 
 export function unifySettings(sources: SettingsSources): TenantSettingsPort {
+  // The catalog declares a secret item without its facts: they come from the secret face, once per item.
+  async function withSecretFacts(
+    input: ListInput,
+    rows: readonly Row[],
+    held: ReadonlySet<string>,
+  ): Promise<Row[]> {
+    const face = sources.secrets()
+    const out: Row[] = []
+    for (const row of rows) {
+      const asset = row.kind === 'secret' ? assetOf(row.owner) : undefined
+      if (asset === undefined || face === undefined) out.push(row)
+      else if (!held.has(keyOf(row))) {
+        const { principal, tenant } = input
+        const described = await face.describe({ principal, tenant, asset, item: row.item })
+        out.push(described.kind === 'described' ? described.item : row)
+      }
+    }
+    return out
+  }
+
   async function catalogPage(
     input: ListInput,
     page: readonly SecretView[],
-    secrets: number,
+    held: ReadonlySet<string>,
     after: string | null,
     room: number,
   ): Promise<ListAnswer> {
+    const secrets = held.size
     const catalog = sources.catalog()
     const asset = input.scope.kind === 'asset' ? input.scope.asset : undefined
     const listed =
@@ -81,7 +108,7 @@ export function unifySettings(sources: SettingsSources): TenantSettingsPort {
     if (listed.kind === 'listed')
       return {
         kind: 'listed',
-        items: [...page, ...listed.items],
+        items: [...page, ...(await withSecretFacts(input, listed.items, held))],
         next: listed.next === null ? null : `c:${listed.next}`,
         completeness: listed.completeness,
       }
@@ -106,12 +133,13 @@ export function unifySettings(sources: SettingsSources): TenantSettingsPort {
     if (cursor === undefined) return UNAVAILABLE
     const limit = limitOf(input.limit)
     const count = secrets.items.length
-    if (cursor.segment === 'catalog') return catalogPage(input, [], count, cursor.after, limit)
+    const held = new Set(secrets.items.map(keyOf))
+    if (cursor.segment === 'catalog') return catalogPage(input, [], held, cursor.after, limit)
     const page = secrets.items.slice(cursor.at, cursor.at + limit)
     const end = cursor.at + page.length
     if (end < count) return secretPage(page, `s:${String(end)}`)
     if (page.length === limit) return secretPage(page, 'c:')
-    return catalogPage(input, page, count, null, limit - page.length)
+    return catalogPage(input, page, held, null, limit - page.length)
   }
 
   async function describe(input: ItemInput) {

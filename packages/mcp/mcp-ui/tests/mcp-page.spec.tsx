@@ -34,13 +34,13 @@ async function openMenu(): Promise<HTMLElement> {
 
 function shown(rows = [permissionRow(), otherRow('target', 'ordinary')]) {
   const fake = fakeGovernance(readOf(endpoint('context7', rows)))
-  render(<McpPage governance={fake.governance} tenant={TENANT} />)
+  render(<McpPage governance={fake.governance} tenant={TENANT} status={null} />)
   return fake
 }
 
 it('M1 opens the mcp category of the tenant the shell gives, and closes it when the page goes', () => {
   const fake = fakeGovernance({ kind: 'reading' })
-  const view = render(<McpPage governance={fake.governance} tenant={TENANT} />)
+  const view = render(<McpPage governance={fake.governance} tenant={TENANT} status={null} />)
   expect(fake.opened).toEqual([`mcp ${TENANT}`])
   view.unmount()
   expect(fake.calls).toEqual(['close'])
@@ -49,15 +49,15 @@ it('M1 opens the mcp category of the tenant the shell gives, and closes it when 
 it('M17 another tenant: the old view is closed and the new tenant opened', () => {
   const fake = fakeGovernance({ kind: 'reading' })
   const other = TENANT.replace('acc_00000000000000000000000001', 'acc_00000000000000000000000002')
-  const view = render(<McpPage governance={fake.governance} tenant={TENANT} />)
-  view.rerender(<McpPage governance={fake.governance} tenant={other} />)
+  const view = render(<McpPage governance={fake.governance} tenant={TENANT} status={null} />)
+  view.rerender(<McpPage governance={fake.governance} tenant={other} status={null} />)
   expect(fake.opened).toEqual([`mcp ${TENANT}`, `mcp ${other}`])
   expect(fake.calls).toEqual(['close'])
 })
 
 it('M2 still reading: says so', () => {
   const fake = fakeGovernance({ kind: 'reading' })
-  render(<McpPage governance={fake.governance} tenant={TENANT} />)
+  render(<McpPage governance={fake.governance} tenant={TENANT} status={null} />)
   expect(screen.getByText('正在读取 MCP 的接入点……')).toBeTruthy()
   expect(screen.queryByText(EMPTY)).toBeNull()
 })
@@ -67,7 +67,7 @@ it('M3 the port cannot read: the reason as given, and a retry that reads again',
     kind: 'unreadable',
     notice: { kind: 'unavailable', text: '资产的依据暂时取不到。' },
   })
-  render(<McpPage governance={fake.governance} tenant={TENANT} />)
+  render(<McpPage governance={fake.governance} tenant={TENANT} status={null} />)
   expect(screen.getByRole('alert').textContent).toContain('资产的依据暂时取不到。')
   expect(screen.queryByText(EMPTY)).toBeNull()
   fireEvent.click(screen.getByRole('button', { name: '重试' }))
@@ -76,7 +76,7 @@ it('M3 the port cannot read: the reason as given, and a retry that reads again',
 
 it('M4 read and no endpoint: says where endpoints will be listed', () => {
   const fake = fakeGovernance(readOf())
-  render(<McpPage governance={fake.governance} tenant={TENANT} />)
+  render(<McpPage governance={fake.governance} tenant={TENANT} status={null} />)
   expect(screen.getByText(EMPTY)).toBeTruthy()
 })
 
@@ -94,7 +94,7 @@ it('M5 one block per endpoint: the call permission drawn by MCP, every other ite
       ]),
     ),
   )
-  render(<McpPage governance={fake.governance} tenant={TENANT} />)
+  render(<McpPage governance={fake.governance} tenant={TENANT} status={null} />)
   expect(screen.getAllByRole('heading', { level: 3 }).map(node => node.textContent)).toEqual([
     'context7',
     'docs',
@@ -223,21 +223,21 @@ it('M14 the item is being read again: the control waits; the read failed: the de
 it('M15 the list is partial: says so above the endpoints; with none read, it does not claim there are none', () => {
   const partial = '接入点不全：有的来源暂时读不出，这里没有列全。'
   const fake = fakeGovernance({ ...readOf(endpoint('context7', [permissionRow()])), partial: true })
-  render(<McpPage governance={fake.governance} tenant={TENANT} />)
+  render(<McpPage governance={fake.governance} tenant={TENANT} status={null} />)
   const notice = screen.getByRole('alert')
   expect(notice.textContent).toContain(partial)
   expect(notice.closest<HTMLElement>('[data-inline-notice]')?.dataset['tone']).toBe('caution')
   expect(screen.getByRole('heading', { level: 3, name: 'context7' })).toBeTruthy()
   cleanup()
   const none = fakeGovernance({ ...readOf(), partial: true })
-  render(<McpPage governance={none.governance} tenant={TENANT} />)
+  render(<McpPage governance={none.governance} tenant={TENANT} status={null} />)
   expect(screen.getByText(partial)).toBeTruthy()
   expect(screen.queryByText(EMPTY)).toBeNull()
 })
 
 it('M16 the snapshot changes: the page follows', () => {
   const fake = fakeGovernance({ kind: 'reading' })
-  render(<McpPage governance={fake.governance} tenant={TENANT} />)
+  render(<McpPage governance={fake.governance} tenant={TENANT} status={null} />)
   act(() => fake.show(readOf()))
   expect(screen.getByText(EMPTY)).toBeTruthy()
 })

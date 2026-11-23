@@ -32,6 +32,9 @@
     "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
   "dependencies": {
+    "@omne-harness/mcp-protocol": "workspace:*",
+    "@omne-harness/public-contract": "workspace:*",
+    "@omne-harness/sdk": "workspace:*",
     "@omne-harness/shell-contract": "workspace:*",
     "@omne-harness/ui-kit": "workspace:*",
     "react": "catalog:",

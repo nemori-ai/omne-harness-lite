@@ -45,6 +45,7 @@
     "@omne-harness/identity-ui": "workspace:*",
     "@omne-harness/json-text": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/mcp-protocol": "workspace:*",
     "@omne-harness/mcp-ui": "workspace:*",
     "@omne-harness/media-protocol": "workspace:*",
     "@omne-harness/media-ui": "workspace:*",

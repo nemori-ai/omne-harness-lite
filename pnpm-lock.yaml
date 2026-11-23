@@ -509,6 +509,9 @@ importers:
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../packages/common/legal-identity
+      '@omne-harness/mcp-protocol':
+        specifier: workspace:*
+        version: link:../../packages/mcp/mcp-protocol
       '@omne-harness/mcp-ui':
         specifier: workspace:*
         version: link:../../packages/mcp/mcp-ui
@@ -3913,6 +3916,15 @@ importers:
 
   packages/mcp/mcp-ui:
     dependencies:
+      '@omne-harness/mcp-protocol':
+        specifier: workspace:*
+        version: link:../mcp-protocol
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../access/public-contract
+      '@omne-harness/sdk':
+        specifier: workspace:*
+        version: link:../../access/sdk
       '@omne-harness/shell-contract':
         specifier: workspace:*
         version: link:../../frontend/shell-contract
