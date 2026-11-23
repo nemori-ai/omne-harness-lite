@@ -65,6 +65,15 @@ it('draws a table with its header and body cells', async () => {
   ])
 })
 
+it('a long table is drawn whole: its box sets no height to cut the rows at, so only the transcript scrolls it', async () => {
+  const rows = Array.from({ length: 40 }, (_, index) => `| ${index + 1} | 做 |`).join('\n')
+  const { container } = await renderProse(`| 项目 | 你的决定 |\n| --- | --- |\n${rows}`)
+  const box = container.querySelector('[data-streamdown="table"]')?.parentElement
+  expect(box).not.toBeNull()
+  expect(box?.style.maxHeight).toBe('')
+  expect(container.querySelectorAll('td')).toHaveLength(80)
+})
+
 it('draws a fenced block as a code block carrying its language and its text', async () => {
   const { container } = await renderProse('```ts\nconst x = 1\n```')
   const block = container.querySelector('[data-streamdown="code-block"]')

@@ -60,6 +60,7 @@ export function Prose({
       mermaid={diagrams}
       translations={translations}
       lineNumbers={false}
+      tableMaxHeight={0}
       mode={isAnimating ? 'streaming' : 'static'}
       animated={isAnimating}
       isAnimating={isAnimating}

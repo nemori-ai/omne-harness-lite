@@ -14,6 +14,7 @@ import {
 import {
   Fragment,
   useCallback,
+  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -35,7 +36,8 @@ import { BlockSlotContext, ToolCallSlotContext, type ToolCallPart } from './bloc
 import { ComposerActionSlot } from './composer-action-slot.tsx'
 import { HeadingFoldContext, useHeadingFold, type HeadingFold } from './heading-fold.tsx'
 import { NoticeLine } from './notice.tsx'
-import { ItemView, speakerOf } from './parts.tsx'
+import { PartDrawContext } from './part-draw.ts'
+import { Bubble, ItemView, speakerOf } from './parts.tsx'
 import { useFollowBottom } from './scroll.ts'
 import { AGENT_NAME, FigureControl, SideFrameContext, useSideFrame } from './side-frame.tsx'
 import { TranscriptRow, usePublication } from './transcript-arrivals.tsx'
@@ -43,6 +45,7 @@ import { useSession } from './use-session.ts'
 import { WaitingNotice, waitingAnchor } from './waiting-notice.tsx'
 import { useShownEntry } from './shown-entry.ts'
 import {
+  sessionBackdrop,
   sessionComposer,
   sessionComposerInput,
   sessionHeader,
@@ -166,12 +169,14 @@ function Page({
   if (state.kind === 'none')
     return (
       <div className="omne-session-page" data-empty="" ref={setPage}>
+        <Backdrop empty />
         <Body state={state} driver={driver} {...parts} />
       </div>
     )
   return (
     <SideFrameContext.Provider value={frame}>
       <div className="omne-session-page" ref={setPage}>
+        <Backdrop empty={false} />
         <header className="omne-session-bar" ref={frame.header} {...sessionHeader.props}>
           <h2 className="omne-session-title" ref={fold.title} {...sessionHeaderTitle.props}>
             {title}
@@ -201,6 +206,17 @@ function Page({
         </div>
       </div>
     </SideFrameContext.Provider>
+  )
+}
+
+function Backdrop({ empty }: { readonly empty: boolean }) {
+  const drawer = useContext(PartDrawContext)
+  if (drawer === null) return null
+  const drawn = sessionBackdrop.draw(drawer, () => null, { empty })
+  return drawn === null || drawn === undefined ? null : (
+    <div className="omne-session-backdrop" aria-hidden="true">
+      {drawn}
+    </div>
   )
 }
 
@@ -572,7 +588,9 @@ function PendingInputView({
       {...sessionTranscriptUserMessage.props}
     >
       <span className="omne-message-speaker">你</span>
-      <div className="omne-message-body">{input.text}</div>
+      <Bubble role="user" live={false}>
+        {input.text}
+      </Bubble>
       {input.attachments.length === 0 ? null : (
         <p className="omne-placeholder">附件 {input.attachments.length} 份</p>
       )}
