@@ -1,14 +1,15 @@
 import { judgeContentBlock } from '@omne-harness/content-block'
-import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
-import type {
-  CallOutcome,
-  DeliveredContent,
-  Generation,
-  InvokeResult,
-  NotSentReason,
-  OperationFailure,
-  TaskId,
-  UnavailableReason,
+import { readJsonText, writeJsonText, type JsonValue } from '@omne-harness/json-text'
+import {
+  sameJson,
+  type CallOutcome,
+  type DeliveredContent,
+  type Generation,
+  type InvokeResult,
+  type NotSentReason,
+  type OperationFailure,
+  type TaskId,
+  type UnavailableReason,
 } from '@omne-harness/mcp-contract'
 import type { ToolRenderedResult } from '@omne-harness/tool-contract'
 import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
@@ -134,14 +135,29 @@ function deliveredText(item: DeliveredContent): string {
     : `[resource ${uri}]\n${text}`
 }
 
+const CARRIED_LIMITS = {
+  maxBytes: 4_194_304,
+  maxDepth: 64,
+  maxItems: 262_144,
+  maxMembers: 65_536,
+  maxStringLength: 4_194_304,
+  maxNumberLength: 128,
+} as const
+
+function carries(item: DeliveredContent, structured: JsonValue): boolean {
+  if (item.kind !== 'block' || item.block.kind !== 'text') return false
+  const read = readJsonText(item.block.text, CARRIED_LIMITS)
+  return read.kind === 'ok' && sameJson(read.value, structured)
+}
+
 function answered(
   head: string,
   outcome: Extract<CallOutcome, { kind: 'complete' | 'toolError' }>,
 ): BridgeResult {
   const parts = outcome.content.map(deliveredText)
-  const hasText = outcome.content.some(item => item.kind === 'block' && item.block.kind === 'text')
-  if (outcome.structured !== undefined && !hasText)
-    parts.push(`structured content: ${writeJsonText(outcome.structured)}`)
+  const { structured } = outcome
+  if (structured !== undefined && !outcome.content.some(item => carries(item, structured)))
+    parts.push(`structured content: ${writeJsonText(structured)}`)
   const body =
     parts.length === 0
       ? 'The endpoint returned no content.'

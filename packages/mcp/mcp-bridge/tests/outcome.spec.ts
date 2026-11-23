@@ -86,12 +86,43 @@ describe('what a call came to', () => {
             jsonOf({ type: 'text', text: 'first' }),
             jsonOf({ type: 'text', text: 'second' }),
           ]),
+          output: { kind: 'no-schema' },
+        }),
+      ),
+    )
+    expect(text).toBe(`done mcp__docs search\n${PEER_TEXT_BEGIN}\nfirst\nsecond\n${PEER_TEXT_END}`)
+  })
+
+  it('structured content a text item already carries is not written twice', () => {
+    const text = textOf(
+      came(
+        sent({
+          kind: 'complete',
+          content: toContentBlocks([jsonOf({ type: 'text', text: '{ "b": 1, "answer": 42 }' })]),
+          structured: jsonOf({ answer: 42, b: 1 }),
+          output: { kind: 'conforms' },
+        }),
+      ),
+    )
+    expect(text).toBe(
+      `done mcp__docs search\n${PEER_TEXT_BEGIN}\n{ "b": 1, "answer": 42 }\n${PEER_TEXT_END}`,
+    )
+  })
+
+  it('structured content no text item carries is written after the text, not dropped', () => {
+    const text = textOf(
+      came(
+        sent({
+          kind: 'complete',
+          content: toContentBlocks([jsonOf({ type: 'text', text: 'Found one.' })]),
           structured: jsonOf({ answer: 42 }),
           output: { kind: 'conforms' },
         }),
       ),
     )
-    expect(text).toBe(`done mcp__docs search\n${PEER_TEXT_BEGIN}\nfirst\nsecond\n${PEER_TEXT_END}`)
+    expect(text).toBe(
+      `done mcp__docs search\n${PEER_TEXT_BEGIN}\nFound one.\nstructured content: {"answer":42}\n${PEER_TEXT_END}`,
+    )
   })
 
   it('complete with structured content and no text: the structured content is the text', () => {
