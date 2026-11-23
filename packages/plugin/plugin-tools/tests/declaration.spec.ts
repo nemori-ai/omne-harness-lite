@@ -26,6 +26,7 @@ const MENU = [
 ]
 const GUIDE = [
   'A point is named <host>.<name>. An interface part is named <host>.<area>.<part>. A part opens up to three depths, from shallow to deep: tokens (data), style (data), render (code). Use the shallowest that does the job.',
+  'show gives a member to copy for each place. Copy it and change the values; do not invent field names.',
   'Points come and go while the system runs: an installed extension can declare new ones. Names are not fixed in this text; tree and find read what exists now.',
   'Nothing here changes anything. To add or change something, write the files in the workspace with Files and publish them with OmneExtensions.',
   'You see what the acting tenant may see. A client is listed only while it is connected.',

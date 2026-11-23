@@ -1,16 +1,18 @@
-import { visible, type Registry } from '@omne-harness/dynamis'
+import { visible, type Registry, type Scope } from '@omne-harness/dynamis'
 import {
   NONE_CONNECTED,
   clientCandidates,
   clientNames,
   clientPointLines,
   clientTreeLines,
+  hostOf,
   partLines,
 } from './client.ts'
 import type { ClientTree, ExtensionSight } from './port.ts'
 import type { ArgumentsOf, ExtensionPointsCommandName } from './protocol.ts'
 import { CANNOT_READ, done, invalid, unavailable, type Answer } from './results.ts'
 import type { TreeChange } from './revisions.ts'
+import { pointText, rulesOf } from './rules.ts'
 import { serverPointLines, serverPoints, serverTreeLines } from './server.ts'
 import { columns, nearest, placeOf, scopeText, score, stateText } from './text.ts'
 
@@ -92,6 +94,9 @@ const tree: Handler<'tree'> = (sight, { side, under, depth }) => {
 }
 
 const FIND_LIMIT = 20
+const MORE_HOSTS = 8
+const WALK =
+  'Walk the tree instead: tree with depth 1 lists the hosts; then tree with under set to one of them.'
 
 const find: Handler<'find'> = (sight, { query, side, limit = FIND_LIMIT }) => {
   const read = seen(sight)
@@ -104,7 +109,7 @@ const find: Handler<'find'> = (sight, { query, side, limit = FIND_LIMIT }) => {
       readable += 1
       for (const [name, contract] of serverPoints(read.server, sight.scope))
         rows.set(name, {
-          text: [name, contract.summary].join(' '),
+          text: pointText(name, contract.summary, rulesOf(contract)),
           cells: ['point', contract.summary, '', 'server'],
         })
     }
@@ -122,15 +127,17 @@ const find: Handler<'find'> = (sight, { query, side, limit = FIND_LIMIT }) => {
     .map(([name, row]) => ({ name, row, score: score(query, row.text) }))
     .filter(hit => hit.score > 0)
     .sort((left, right) => right.score - left.score || (left.name < right.name ? -1 : 1))
-  const shown = hits.slice(0, limit)
-  lines.push(...columns(shown.map(hit => [hit.name, ...hit.row.cells])))
-  lines.push(
-    hits.length > limit
-      ? `${hits.length} found; the first ${limit} are shown. Give a larger limit or more words.`
-      : hits.length === 0
-        ? '0 found. tree lists every name.'
-        : `${hits.length} found.`,
-  )
+  if (hits.length === 0) lines.push(`nothing matches "${query}".`, WALK)
+  else {
+    lines.push(...columns(hits.slice(0, limit).map(hit => [hit.name, ...hit.row.cells])))
+    const rest = hits.slice(limit)
+    const hosts = [...new Set(rest.map(hit => hostOf(hit.name)))].sort().slice(0, MORE_HOSTS)
+    lines.push(
+      rest.length === 0
+        ? `${hits.length} found.`
+        : `${rest.length} more match. Narrow the words, or walk the tree under: ${hosts.join(', ')}.`,
+    )
+  }
   return done('find', lines, sight.revisions.current())
 }
 
@@ -159,8 +166,8 @@ const show: Handler<'show'> = (sight, { name }) => {
   return done('show', blocks.flat(), sight.revisions.current())
 }
 
-function changeRow(change: TreeChange): string[] {
-  const by = `${change.by}${scopeText(change.scope) === '' ? '' : ` ${scopeText(change.scope)}`}`
+function changeRow(change: TreeChange, asker: Scope): string[] {
+  const by = `${change.by} ${scopeText(change.scope, asker)}`
   const place = placeOf(change.point, change.key, change.id)
   if (change.kind === 'point')
     return change.sign === '+'
@@ -204,7 +211,7 @@ const changes: Handler<'changes'> = (sight, { since }) => {
       revision,
     )
   const mine = found.filter(change => visible(change.scope, sight.scope))
-  const rows = columns(mine.map(changeRow))
+  const rows = columns(mine.map(change => changeRow(change, sight.scope)))
   return done(
     'changes',
     [`since ${since}:`, ...(rows.length === 0 ? ['  nothing changed'] : rows)],

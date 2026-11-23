@@ -23,18 +23,18 @@ const world = (over: Partial<World> = {}): World => ({
 const SERVER_T1 = [
   'server',
   '  dynamis',
-  '    dynamis.points  [keyed-one]',
+  '    dynamis.points   point   The catalog: one item declares one extension point and carries its contract.   [keyed-one]',
   '      skill.skills',
-  '        skill#1  [effective]',
+  '        skill#1  [effective, deployment]',
   '      tool.tools',
-  '        tool#1  [effective]',
+  '        tool#1  [effective, deployment]',
   '  skill',
-  '    skill.skills  [keyed-one, v1.2]',
+  '    skill.skills     point   The skills each layer holds.                                                   [keyed-one, v1.2]',
   '      pdf-tools',
-  '        pdf#1  [effective, @t1]',
+  '        pdf#1  [effective, this tenant]',
   '  tool',
-  '    tool.tools  [list]',
-  '      Shell  [effective, shell#1]',
+  '    tool.tools       point   The tools an agent can call.                                                   [list]',
+  '      Shell  [effective, shell#1, deployment]',
 ]
 const CLIENT = [
   'client   desktop, connected',
@@ -70,7 +70,7 @@ describe('tree', () => {
         'done OmneExtensionPoints tree',
         'client   desktop, connected',
         '  session',
-        '    session.area        part    对话   tokens',
+        '    session.area        part    对话   tokens   (2 inside)',
         '    session.tool-call   point   How one tool call is drawn in the conversation.',
         '2 more under session; give depth 2 or a narrower under.',
         'tree rev 7c1f.0',
@@ -79,9 +79,9 @@ describe('tree', () => {
     const server = await sighted(world()).text('tree', { side: 'server', under: 'skill.skills' })
     expect(server.split('\n').slice(1, -1)).toEqual([
       'server',
-      '  skill.skills  [keyed-one, v1.2]',
+      '  skill.skills   point   The skills each layer holds.   [keyed-one, v1.2]',
       '    pdf-tools',
-      '      pdf#1  [effective, @t1]',
+      '      pdf#1  [effective, this tenant]',
     ])
   })
 
@@ -160,7 +160,7 @@ describe('find', () => {
     expect(text.split('\n').slice(1, -1)).toEqual([
       'session.area       part   对话 — 对话页。            depths: tokens         client',
       'session.composer   part   输入区 — 对话页底部写消息的区域。   depths: tokens style   client',
-      '4 found; the first 2 are shown. Give a larger limit or more words.',
+      '2 more match. Narrow the words, or walk the tree under: session.',
     ])
   })
 })
@@ -219,12 +219,12 @@ describe('show', () => {
         'the host gives it: the directory of the skill',
         'when it throws: the skill is not offered',
         'now:',
-        '  pdf-tools   pdf#1 @t1   [in effect]',
+        '  pdf-tools   pdf#1 this tenant   [in effect]',
         'tree rev 7c1f.0',
       ].join('\n'),
     )
     const t2 = await sighted(world({ scope: ['t2'] })).text('show', { name: SKILLS })
-    expect(t2).toContain('  meeting-notes   notes#1 @t2   [in effect]')
+    expect(t2).toContain('  meeting-notes   notes#1 this tenant   [in effect]')
     expect(t2).not.toContain('pdf-tools')
   })
 
@@ -234,7 +234,7 @@ describe('show', () => {
     const server = registryOf(...serverParts(), ['bad', [entry(SKILLS, 'broken', { item: {} })]])
     const text = await sighted(world({ server })).text('show', { name: SKILLS })
     expect(text).toContain(
-      '  broken   bad#1   [not in effect: breach (the item lacks label (string))]',
+      '  broken   bad#1 deployment   [not in effect: breach (the item lacks label (string))]',
     )
   })
 
@@ -269,7 +269,7 @@ describe('a point declared while the system runs', () => {
       ['sales', [entry('reports.sections', 'sales', { id: 'q1', item: { render: () => '' } })]],
     )
     expect(await s.text('tree', { side: 'server', under: 'reports' })).toContain(
-      '  reports.sections  [keyed-list, build]',
+      '  reports.sections   point   The sections of a weekly report.   [keyed-list, build]',
     )
     const shown = await s.text('show', { name: 'reports.sections' })
     expect(shown.split('\n').slice(1, 12)).toEqual([
@@ -282,7 +282,7 @@ describe('a point declared while the system runs', () => {
       'the host gives it: nothing',
       'when it throws: the section is left out',
       'now:',
-      '  sales / q1   sales#1   [in effect]',
+      '  sales / q1   sales#1 deployment   [in effect]',
       'tree rev 7c1f.0',
     ])
   })
@@ -320,9 +320,9 @@ describe('changes', () => {
       [
         'done OmneExtensionPoints changes',
         'since 7c1f.1:',
-        '  + point    reports.sections               server         declared by weekly#1   (show reports.sections for its rules)',
-        '  + placed   skill.skills / release-notes   weekly#1 @t1   [in effect]',
-        '  ~ state    skill.skills / pdf-tools       pdf#1 @t1      in effect → not in effect: retiring',
+        '  + point    reports.sections               server                 declared by weekly#1 deployment   (show reports.sections for its rules)',
+        '  + placed   skill.skills / release-notes   weekly#1 this tenant   [in effect]',
+        '  ~ state    skill.skills / pdf-tools       pdf#1 this tenant      in effect → not in effect: retiring',
         'tree rev 7c1f.3',
       ].join('\n'),
     )

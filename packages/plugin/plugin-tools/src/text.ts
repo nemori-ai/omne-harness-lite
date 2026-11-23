@@ -22,22 +22,27 @@ type Branch<T> = Readonly<{ children: readonly T[] }>
 const count = <T extends Branch<T>>(nodes: readonly T[]): number =>
   nodes.reduce((sum, node) => sum + 1 + count(node.children), 0)
 
-/** The node with its children kept down to depth levels, and how many nodes were cut. */
+/** The node with its children kept down to depth levels, and how many nodes were cut. A node cut here is rebuilt with how many it holds. */
 export function cut<T extends Branch<T>>(
   node: T,
   depth: number | undefined,
-  rebuild: (node: T, children: readonly T[]) => T,
+  rebuild: (node: T, children: readonly T[], inside: number) => T,
 ): { node: T; hidden: number } {
   if (depth === undefined) return { node, hidden: 0 }
-  if (depth === 0) return { node: rebuild(node, []), hidden: count(node.children) }
+  if (depth === 0) {
+    const inside = count(node.children)
+    return { node: rebuild(node, [], inside), hidden: inside }
+  }
   let hidden = 0
   const children = node.children.map(child => {
     const kept = cut(child, depth - 1, rebuild)
     hidden += kept.hidden
     return kept.node
   })
-  return { node: rebuild(node, children), hidden }
+  return { node: rebuild(node, children, 0), hidden }
 }
+
+export const insideText = (inside: number): string => (inside === 0 ? '' : `   (${inside} inside)`)
 
 export const moreLine = (hidden: number, under: string, depth: number): string =>
   `${hidden} more under ${under}; give depth ${depth + 1} or a narrower under.`
@@ -66,13 +71,23 @@ export function nearest(asked: string, names: Iterable<string>, few = 3): string
     .map(({ name }) => name)
 }
 
-/** How many of the words of a query a text holds: case does not count, and text without spaces matches as a substring. */
+const HAN = /\p{Script=Han}+/gu
+
+/** The words of a query: a run of Chinese characters gives its adjacent pairs, a lone one itself; other words stay as they are. */
+export function terms(query: string): string[] {
+  const words = new Set<string>()
+  for (const word of query.toLowerCase().split(/\s+/u)) {
+    for (const run of word.match(HAN) ?? [])
+      if (run.length === 1) words.add(run)
+      else for (let at = 0; at + 1 < run.length; at += 1) words.add(run.slice(at, at + 2))
+    for (const rest of word.split(HAN)) if (/[\p{L}\p{N}]/u.test(rest)) words.add(rest)
+  }
+  return [...words]
+}
+
 export function score(query: string, text: string): number {
   const haystack = text.toLowerCase()
-  return query
-    .toLowerCase()
-    .split(/\s+/u)
-    .filter(word => word !== '' && haystack.includes(word)).length
+  return terms(query).filter(word => haystack.includes(word)).length
 }
 
 export const stateText = (state: Change['before'], detail = ''): string =>
@@ -85,5 +100,9 @@ export const stateText = (state: Change['before'], detail = ''): string =>
 export const placeOf = (...parts: readonly string[]): string =>
   parts.filter(part => part !== '').join(' / ')
 
-export const scopeText = (scope: readonly string[]): string =>
-  scope.length === 0 ? '' : `@${scope.join('/')}`
+export const scopeText = (scope: readonly string[], asker: readonly string[]): string =>
+  scope.length === 0
+    ? 'deployment'
+    : scope.length === asker.length && scope.every((part, at) => part === asker[at])
+      ? 'this tenant'
+      : 'another scope'
