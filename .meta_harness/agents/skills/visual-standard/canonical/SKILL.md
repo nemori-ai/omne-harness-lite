@@ -67,6 +67,7 @@ description: 本项目桌面应用与共用界面件的视觉规范：设计语�
 | 让形换座位、走一程；查座位与优先级 | [移动与座位](references/seats-and-journeys.md) |
 | 加或改形上的一个状态；查一件事用哪一笔说；减弱动效下留什么 | [状态](references/states.md) |
 | 做一个从形展开的东西；告知笺的样子 | [墨框与告知笺](references/ink-bubble.md) |
+| 改随身入口默认的样子（墨点）：它是什么、不是什么、状态与数 | [墨点](references/motes.md) |
 | 动手做形或墨框：找参照、写、看、比，文件放哪；交之前过验收问题 | [做法与验收](references/making-and-checks.md) |
 | 验观感：四层、走查、截图矩阵、探针、逐帧量动效、写报告 | [观感验收的方法](references/visual-acceptance.md) |
 | 对照来源的截图与录屏时，哪些是来源自己的毛病 | [不要这样做](references/dont.md) |

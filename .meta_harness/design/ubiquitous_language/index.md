@@ -446,6 +446,8 @@
 | [UL-awaiting-answer-count](terms/interaction-and-dispatch.md#ul-awaiting-answer-count--待答数--awaiting-answer-count) | 待答数 | Awaiting-Answer Count | 决策池里此刻等着人回答的决策卡片的张数；用琥珀写，没了结的通知不算 |
 | [UL-ink-bubble](terms/interaction-and-dispatch.md#ul-ink-bubble--墨框--ink-bubble) | 墨框 | Ink Bubble | Agent 形展开的内容外面的墨边，浓淡两种；**应用自己的菜单与浮层不是墨框** |
 | [UL-told-note](terms/interaction-and-dispatch.md#ul-told-note--告知笺--told-note) | 告知笺 | Told Note | 形在家旁用浓墨框写的一句话，同时只有最新一条；**不按时间消失，写过不等于看到** |
+| [UL-companion-entry](terms/interaction-and-dispatch.md#ul-companion-entry--随身入口--companion-entry) | 随身入口 | Companion Entry | 浮在整个窗口之上、能拖到任何地方的一处，在哪一页都能对 agent 说一句话；**不是形** |
+| [UL-ink-motes](terms/interaction-and-dispatch.md#ul-ink-motes--墨点--ink-motes) | 墨点 | Ink Motes | 随身入口默认的样子：同一支笔点出的几粒墨，落在一个不画出来的圆上；**只会点与干，不算一个形** |
 | [UL-size-tier](terms/interaction-and-dispatch.md#ul-size-tier--字号档--size-tier) | 字号档 | Size Tier | 整个界面一起放大缩小的档位，**恰四档**：小楷、中楷、大楷、老花；不是窗口缩放 |
 | [UL-notification](terms/interaction-and-dispatch.md#ul-notification--通知--notification) | 通知 | Notification | 一个收件人的收件箱里的一条 |
 | [UL-notification-source](terms/interaction-and-dispatch.md#ul-notification-source--通知来源--notification-source) | 通知来源 | Notification Source | 一个会产生通知事件的东西，在通知这里登记过 |

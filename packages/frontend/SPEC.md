@@ -126,6 +126,7 @@
 - 墨框是一个件，有浓、淡两种墨。边按框的大小生成，不拉伸；引线从口出来，绕过圆，不穿过圆；边合上之前内容不可见，收起时内容先走。墨框没有焦点环，墨就是边。Escape 收起墨框，焦点回到展开它的控件。
 - 告知笺用浓墨，在形的右边，最多三行；第四行能写完全文时写第四行。宿主可以给一个更小的行数上限，不少于两行，写不下的用省略号收住；上限由宿主按它不能盖住的字算。<!-- OD-20 -->
 - 待答数用形自己的笔写在口外，用琥珀色。
+- 墨点（`InkMotes`）是同一支笔点出来的几粒墨，落在一个不画出来的圆上，口和形的口开在同一处。它不是形：没有那一笔圆，不坐座位，不写待答数，不走一程，所以不算进「一个页面里至多一个形」。它只有点与干：没事静着、帧循环停着；它代表的事在做时（`doing` 不是 `idle`）最旧的一粒干去、原处新点一粒，间歇长短不一；`listening` 时圆心多一粒；`carried` 时只留第一粒，放下时其余的依次点出来。大小与形相同；颜色只有墨；减弱动效时一次到位、不重点。数在 `src/ink/motes.ts` 的 `MOTES` 里。
 - 笔法、时长与验收问题的全部规则在[视觉规范的技能](../../.meta_harness/agents/skills/visual-standard/canonical/SKILL.md)里；数都在 `src/ink/` 的具名常量里。
 
 ### 技术栈
@@ -148,7 +149,7 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 
 | 入口 | 内容 |
 | --- | --- |
-| `.` | 运行时有二十三样：常量表 `slots`、外壳自己三个位置的规矩 `shellContracts`、错误 `ShellAssemblyError`、声明带类型的拓展点的两个函数 `definePoint` 与 `defineKeyedPoint`、声明按键选画法的点的 `defineRenderPoint`、声明部位的 `definePart` 与它的核法 `partFault`、读现在声明着哪些部位的 `partsOn`、部位的点名 `PARTS_POINT` 与元素上的属性名 `PART_ATTRIBUTE`、令牌、样式、画法与布局的点名 `TOKENS_POINT`、`STYLE_POINT`、`RENDER_POINT`、`LAYOUT_POINT`、算改动的 `changesOn`、值的核法 `valueFault`、租户的作用域 `tenantScope`、造带类型的键的 `serviceKey`、写需要的 `needProtocol` 与 `needPoint`、跟读口的 `attachWhile`、协议的需要指着的点名 `PROTOCOLS_POINT`（另有瞬时提示与形口的两个工厂，见各自一节）。其余是类型：带类型的键 `ServiceKey`，一处冲突 `SlotConflict`，四种位置的一项 `GateItem`、`PageItem`、`SidebarItem`、`AttachedItem`，位置名 `SlotName`，按位置取项的类型 `ItemOf`，渲染函数的属性 `GateProps`、`ScopedProps`、`AttachedProps`，宿主排版时拿到的一项 `AttachedEntry` 与排版函数 `AttachedLayout`，带类型的拓展点的类型（见「带类型的拓展点」），外壳一侧读位置的接口 `ShellSlots`，租户的形状 `ScopeSource`，登录的端口 `ShellLogin`、登录状态 `ShellLoginState`、凭据与结果 `LoginCredentials`、`LoginResult`、`LogoutResult` |
+| `.` | 运行时有二十四样：常量表 `slots`、外壳自己四个位置的规矩 `shellContracts`、浮层的一项标出可以拖的地方用的属性名 `FLOAT_GRIP_ATTRIBUTE`、错误 `ShellAssemblyError`、声明带类型的拓展点的两个函数 `definePoint` 与 `defineKeyedPoint`、声明按键选画法的点的 `defineRenderPoint`、声明部位的 `definePart` 与它的核法 `partFault`、读现在声明着哪些部位的 `partsOn`、部位的点名 `PARTS_POINT` 与元素上的属性名 `PART_ATTRIBUTE`、令牌、样式、画法与布局的点名 `TOKENS_POINT`、`STYLE_POINT`、`RENDER_POINT`、`LAYOUT_POINT`、算改动的 `changesOn`、值的核法 `valueFault`、租户的作用域 `tenantScope`、造带类型的键的 `serviceKey`、写需要的 `needProtocol` 与 `needPoint`、跟读口的 `attachWhile`、协议的需要指着的点名 `PROTOCOLS_POINT`（另有瞬时提示与形口的两个工厂，见各自一节）。其余是类型：带类型的键 `ServiceKey`，一处冲突 `SlotConflict`，五种位置的一项 `GateItem`、`PageItem`、`SidebarItem`、`FloatItem`、`AttachedItem`，位置名 `SlotName`，按位置取项的类型 `ItemOf`，渲染函数的属性 `GateProps`、`ScopedProps`、`FloatProps`（与它里面的 `FloatCorner`）、`AttachedProps`，宿主排版时拿到的一项 `AttachedEntry` 与排版函数 `AttachedLayout`，带类型的拓展点的类型（见「带类型的拓展点」），外壳一侧读位置的接口 `ShellSlots`，租户的形状 `ScopeSource`，登录的端口 `ShellLogin`、登录状态 `ShellLoginState`、凭据与结果 `LoginCredentials`、`LoginResult`、`LogoutResult` |
 | `./cordis` | 服务 `shell` 的抽象类 `ShellService`、它的键 `shellKey`、界面模块的助手 `defineUiModule` 与它的类型 `UiModuleDefinition`、提供服务的函数类型 `Provide`。根入口的源码闭包不含 Cordis 绑定 |
 | `./testing` | 给界面模块的用例用的参考外壳 `ReferenceShell`，与起一棵带登记表和外壳的树的 `startShell`、`startShellOf(外壳的类, 可选的配置)`。它只存不画。另有像连接与别的模块那样往树上放东西的帮手：`serveProtocol(根, 协议, 客户端)`、`servePoint(根, 规矩, 一项)`、`provideOn(根, 键, 值)`，各返回一个 fiber，撤掉它就是收回；它们的插件形是 `protocolsPoint`、`servedProtocol`、`servedPoint`。`providedOn(外壳, 键)` 读一个键下现在提供的值 |
 
@@ -156,18 +157,30 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 
 插入位置写死在常量表 `slots` 里，不在运行期创建。种类是「只放一个」（`one`）或「放一列」（`list`）。
 
-每个位置是登记表上的点。外壳自己的三个位置是 `shell.gate`、`shell.pages`、`shell.sidebar`，规矩在 `shellContracts` 里，写着「构建时就定了」，键不公开（它们在客户端的树上，没有另一棵树要知道）；外壳的服务在构造时把它们声明进目录。附着位置不是一个点：它的名字就是点，或者「点、冒号、键」，点由展示那个对象的界面模块声明（见「带类型的拓展点」）。没有声明的点上放的东西不生效，在客户端的树上列成问题。
+每个位置是登记表上的点。外壳自己的四个位置是 `shell.gate`、`shell.pages`、`shell.sidebar`、`shell.float`，规矩在 `shellContracts` 里，写着「构建时就定了」，键不公开（它们在客户端的树上，没有另一棵树要知道）；外壳的服务在构造时把它们声明进目录。附着位置不是一个点：它的名字就是点，或者「点、冒号、键」，点由展示那个对象的界面模块声明（见「带类型的拓展点」）。没有声明的点上放的东西不生效，在客户端的树上列成问题。
 
 | 位置 | 种类 | 一项 | 谁放 |
 | --- | --- | --- | --- |
 | `gate` 登录门 | 一个 | `id`、`render` | 身份的界面模块。没有登录时外壳只显示它 |
 | `pages` 页面 | 一列 | `id`、`title`、`order`、`icon`（图标名）、可选的 `group`（`primary` 或 `utility`，缺省 `primary`）、可选的 `badge`（显示在导航里标题旁的小标记，返回空值时不显示）、`render` | 会话的对话页、资产的设置页 |
 | `sidebar` 侧栏区 | 一列 | `id`、`order`、可选的 `group`（同上）、可选的 `rail`（侧栏折成窄条时的渲染函数）、`render` | 会话的会话列表、身份的账号块 |
+| `float` 浮层 | 一列 | `id`、`order`、`render` | 要在整个应用之上放一样随身的东西的界面模块：会话的随身入口 |
 | `attached` 附着位置 | 一列 | `id`、`order`、`anchor`（位置的名字）、可选的 `label`（宿主排成页签时用的标签）、`render` | 要把自己的界面附着到别人展示的对象上的界面模块，或应用的装配 |
 
 每个页面项都给 `icon`：侧栏折成窄条时只剩图标。名字不在图标集里时，外壳画「未知」的字形。`group` 只说这一项排在侧栏的哪一段：`primary` 在上，`utility` 在底部；同一段里的次序仍只由 `order` 与 `id` 定。侧栏折成窄条时，外壳画侧栏区各项的 `rail`，没给 `rail` 的项不画。
 
 渲染函数收到的属性由契约定。页面与侧栏区的一项收到 `{ scope }`，侧栏区一项的 `rail` 也收到 `{ scope }`，页面项的 `badge` 也收到 `{ scope }`，`scope` 是当前租户的文本，还没有查到时是 `undefined`。附着位置的一项收到 `{ scope, subject }`，`subject` 是展示它的那个地方给出的对象文本。登录门的一项不收租户，属性是空的。界面模块要的协议客户端不经属性传，它自己从客户端的树上注入。
+
+浮层的一项画在整个应用之上，登录之后才画。它在哪由外壳管，这一项不自己定位。它收到四样：
+
+| 给它的 | 是什么 |
+| --- | --- |
+| `scope` | 当前租户的文本 |
+| `grip` | 一组属性（属性名是常量 `FLOAT_GRIP_ATTRIBUTE`）。这一项把它写在哪个元素上，人就能按住那个元素拖这一项；一处都不写，这一项就拖不动 |
+| `corner` | 这一项现在靠着窗口的哪个角：横向 `start` 或 `end`，纵向同。这一项据此朝窗口里面展开自己的东西 |
+| `dragging` | 是不是正被拖着 |
+
+外壳对浮层的每一项承诺：缺省在右下角；人拖到哪就留在哪，位置记成「靠哪个角、离那两条边多远」，所以窗口变了它跟着那个角；它永远整个在窗口里；拖只从 `grip` 起，没拖动的一下照常是点，拖过的那一下不算点；没按在 `grip` 上的指针照常归这一项。位置怎样记、记多久归外壳的实现（桌面应用见 [`apps/desktop/SPEC.md`](../../apps/desktop/SPEC.md#页面)）。浮层这一层自己不接指针，所以一项画多大就挡多大。一项渲染时抛出，这一项不画，也不写「读不出」：浮层上没有地方放那一句。
 
 附着位置让一个界面模块把东西放进另一个界面模块展示的对象里，而两边互不导入：展示对象的界面模块为这个位置起一个名字（`anchor`），调用服务的 `attached(位置的名字, 对象)` 留出位置；别的界面模块或应用的装配往同名的 `anchor` 里放项。位置的名字由展示那个对象的界面模块定，并写在它自己的规格里；契约不认识名字与对象的含义，它们对契约只是文本。
 
@@ -354,7 +367,7 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 - 协议的那一格是这份协议的客户端，它一直在。每次调用按此刻的登记表找钉住的那一项：有就转过去；没有就当场答不可用，观察以不可用结束，不碰传输。
 - 点的那一格是读口：`get()` 给此刻的那一项，没有时是 `undefined`；`subscribe(监听)` 在登记表变时叫一声。`attachWhile(读口, 接上)` 做三件事：有就接上，换了先摘再接，没了摘掉。它返回收回函数。
 
-**缺着时放什么。** 必需的需要缺着时 `apply` 照跑。它放的页面与登录门照放，由外壳画成一句说明，写出缺的是哪一条与原因（见应用的规格）。它放在侧栏区与附着位置上的不放，`provide` 不生效。所以少一份协议只影响引用它的界面模块，别的页面上不会多出一块读不出的东西。
+**缺着时放什么。** 必需的需要缺着时 `apply` 照跑。它放的页面与登录门照放，由外壳画成一句说明，写出缺的是哪一条与原因（见应用的规格）。它放在侧栏区、浮层与附着位置上的不放，`provide` 不生效。所以少一份协议只影响引用它的界面模块，别的页面上不会多出一块读不出的东西。
 
 **提供。** `apply` 的第三个参数 `provide(键, 值)` 以这个界面模块的名义声明一个单项的点并放上这一项（`shell.offer`）。点的名字就是键，形状是「宿主.名字」。值是一个对象。界面模块的作用域收回时，这个点与这一项一起收回。
 
@@ -419,7 +432,7 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 | FE-I36 | 成员视图与外壳里每个带字的 `Button` 都在登记表 `baselines/worded-buttons.json` 里，每一条写各有几个是哪一种：`commit`（落定）、`choice`（对话里的选项）、`primary`（一页唯一的主动作）、`name`（对象的名字作入口）、`value`（当前值），或交给哪一程收走（如 `R7`）；交给一程的只许去掉，那五种新加时写一条并写明种类，表外多一个就失败 | 面上又长出写字的工具钮，与图标钮的标准两套并存 | `apps/desktop/tests/design-gates/worded-buttons.spec.ts` |
 | FE-I37 | 每个抬起的件连同它的投影与焦点环的余地，都在裁切它的每个祖先的可见范围里；件本身滚出视野的不算 | 钮与字段贴着容器的边被切掉边线与投影，看起来像坏了 | 判法的用例 `apps/desktop/tests/raised-edges.spec.ts`；观感走查 `apps/desktop/demo/visual-walk.mjs` 每张截图核一次 |
 | FE-I38 | 一个模块放的东西整份出现、整份消失：`apply` 里放的各项在它就绪时一起可见，`apply` 抛错的模块放的东西从不出现；一个位置的项没变时读到的是同一个数组，别的位置的变化不通知它的订阅者 | 界面闪出半截的页面；一处变了，全部订阅者重画 | `shell-contract/tests/contribute.spec.ts` 的「shows all a module put at once」「shows nothing of a module whose apply throws」「gives the same array」；`dynamis-cordis/tests/service.spec.ts` |
-| FE-I39 | 应用装配出的客户端树上，外壳的三个位置与每个界面拓展点都由它的宿主声明进了目录，树的问题一栏是空的；往没有声明的点上放东西不生效，并在问题一栏写出这个点 | 一个点没有声明，放在上面的东西不出声地不见了 | `apps/desktop/tests/client-tree.spec.tsx` 与它钉住的树 `apps/desktop/tests/client-tree.txt` |
+| FE-I39 | 应用装配出的客户端树上，外壳的四个位置与每个界面拓展点都由它的宿主声明进了目录，树的问题一栏是空的；往没有声明的点上放东西不生效，并在问题一栏写出这个点 | 一个点没有声明，放在上面的东西不出声地不见了 | `apps/desktop/tests/client-tree.spec.tsx` 与它钉住的树 `apps/desktop/tests/client-tree.txt` |
 | FE-I40 | 共用件、装配进来的每个界面模块与应用页面的每一条样式规则都在层里；层的次序只写在一处，改动的那一层在最后 | 一条规则落在层外，它盖过所有的层，放进改动那一层的东西对它不生效 | `apps/desktop/tests/design-gates/layers.spec.ts` |
 | FE-I41 | 元素上部位的名字只经声明过的部位的 `props` 写；应用装配出的部位里每个名字只有一种声明，写了上一级的，上一级也声明了 | 手写的名字没有声明，指着它的改动没有东西可核；同名两种声明时这个名字不代表任何部位 | `apps/desktop/tests/design-gates/parts.spec.ts`；`apps/desktop/tests/client-tree.spec.tsx` 与它钉住的清单 `apps/desktop/tests/client-parts.txt` |
 | FE-I42 | 同一个键上作用域最深的一项算数；它撤掉之后，下一层的那一项或自带的样子原样回来，别的键不受影响 | 撤掉一份改动之后界面回不到原来的样子 | `shell-contract/tests/tokens.spec.ts`、`part-style.spec.ts`、`part-render.spec.ts`、`layout.spec.ts` 里撤掉与换租户的各条；`apps/desktop/tests/shell-changes.spec.tsx` |
@@ -430,3 +443,5 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 | FE-I47 | 附着位置只收放一列的点上的项；每键一项的点上的条目不在里面 | 画法的条目混进附着位置的清单，放一份画法惊动附着位置的订阅者 | `shell-contract/tests/render-point.spec.ts` 的「what is put on it is not an item of an attached place」；`part-render.spec.ts` 的同名一条 |
 | FE-I48 | 模块在自己下面开的作用域里放的东西记在那个作用域的名字下：撤这个作用域只撤它的，开它的模块走了它也走；里面抛出时什么都不留下 | 替别人放的东西分不清是哪一份的；撤一份带走别的；装到一半的留在界面上 | `shell-contract` 的 `host` 用例 |
 | FE-I49 | `Prose` 里的表格整张画出，盒子不设高度上限；太宽时只横着滚，竖向随转写滚（Streamdown 缺省的表格高度上限关掉，不在框里竖滚，也不裁掉行） | 长表格超出的行被裁掉而看不见，或表格在转写里自己竖着滚、抢走滚轮 | `ui-kit/tests/prose.spec.tsx` 的「a long table is drawn whole」 |
+| FE-I50 | 浮层是外壳的第四个放一列的位置：次序、冲突、卸载、缺需要时不放都和侧栏区相同；一项收到当前租户、可以拖的那组属性、靠着的角与是不是被拖着 | 浮着的东西各自发明定位与拖动；两个模块撞在浮层上静默互相覆盖 | `shell-contract/tests/order.spec.ts`、`contribute.spec.ts`、`needs.spec.ts`、`slots.spec-d.ts` 的浮层用例 |
+| FE-I51 | 墨点只以点与干动：没事时不出帧也没有计时；只在它代表的事在做时重点；被拖着只留一粒；减弱动效时一次到位。它不带形的标记，不算一个形 | 一个常驻的东西一直在动、一直占着帧；屏幕上像是有两个形 | `ui-kit/tests/motes.spec.ts`、`motes-ink.spec.tsx` |

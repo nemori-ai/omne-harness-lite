@@ -13,7 +13,8 @@ import {
   type WorkspaceEffect,
   type WorkspaceEvent,
 } from './workspace.ts'
-import type { CreateChoice } from './session-machine.ts'
+import { BUSY, GONE, NO_WORDS, sayFate, type Said, type SayAnswer, type SayTarget } from './say.ts'
+import { sayBlocked, type CreateChoice, type SayTo } from './session-machine.ts'
 
 export type SessionDriverDeps = Readonly<{
   client: ClientOf<SessionProtocol>
@@ -139,6 +140,7 @@ export class SessionDriver {
   readonly #observations = new Map<number, AbortController>()
   readonly #timers = new Set<() => void>()
   readonly #deps: Required<SessionDriverDeps>
+  readonly #saying = new Set<() => void>()
   #disposed = false
 
   constructor(deps: SessionDriverDeps) {
@@ -188,6 +190,35 @@ export class SessionDriver {
     this.dispatch({ kind: 'send', text, attachments, inputId, acceptId, messageId })
   }
 
+  /** Hands words to a session in one step, and answers once with how they ended. */
+  async say(target: SayTarget, text: string): Promise<SayAnswer> {
+    if (text.trim().length === 0) return { kind: 'failed', reason: NO_WORDS }
+    const inputId = this.#deps.newId()
+    const messageId = await userMessageId(inputId)
+    if (this.#disposed) return { kind: 'failed', reason: GONE }
+    const to: SayTo =
+      target.kind === 'new' ? { kind: 'new', createCallId: this.#deps.newId() } : target
+    if (sayBlocked(this.#state.session, to)) return { kind: 'failed', reason: BUSY }
+    const said: Said = { to, acceptId: this.#deps.newId(), messageId }
+    this.dispatch({ kind: 'say', to, words: { text, acceptId: said.acceptId, inputId, messageId } })
+    return this.#fateOf(said)
+  }
+
+  #fateOf(said: Said): Promise<SayAnswer> {
+    return new Promise(resolve => {
+      const look = (): void => {
+        const fate = this.#disposed
+          ? { kind: 'unknown' as const }
+          : sayFate(this.#state.session, said)
+        if (fate === null) return
+        this.#saying.delete(look)
+        resolve(fate)
+      }
+      this.#saying.add(look)
+      look()
+    })
+  }
+
   confirmSend(acceptId: string): void {
     this.dispatch({ kind: 'send-confirm', acceptId })
   }
@@ -202,6 +233,7 @@ export class SessionDriver {
 
   dispose(): void {
     this.#disposed = true
+    for (const look of Array.from(this.#saying)) look()
     for (const controller of this.#observations.values()) controller.abort()
     this.#observations.clear()
     for (const cancel of this.#timers) cancel()
@@ -215,7 +247,9 @@ export class SessionDriver {
     const changed = next.workspace !== this.#state
     this.#state = next.workspace
     for (const effect of next.effects) this.#run(effect)
-    if (changed) for (const listener of this.#listeners) listener()
+    if (!changed) return
+    for (const listener of this.#listeners) listener()
+    for (const look of Array.from(this.#saying)) look()
   }
 
   #run(effect: WorkspaceEffect): void {

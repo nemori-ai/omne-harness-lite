@@ -113,7 +113,7 @@ export function SidePanel({ entries }: { readonly entries: readonly SideEntry[] 
 }
 
 /** Open while asked for, then kept until its ink has rolled back; a new opening is a new writing. */
-function useUnfold(open: boolean) {
+export function useUnfold(open: boolean) {
   const [state, setState] = useState({ open, kept: open, serial: open ? 1 : 0 })
   let now = state
   if (open !== state.open) {
@@ -130,7 +130,7 @@ function useUnfold(open: boolean) {
 
 type SeatBox = Readonly<{ figure: Box; bounds: Box }>
 
-const boxOf = (rect: DOMRect): Box => ({
+export const boxOf = (rect: DOMRect): Box => ({
   x: rect.left,
   y: rect.top,
   width: rect.width,

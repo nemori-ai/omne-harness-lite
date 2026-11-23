@@ -19,6 +19,7 @@ import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { DesktopShell, shellPlugin } from '../../src/page/shell/service.ts'
 import { Shell } from '../../src/page/shell/shell.tsx'
 import { createShellState } from '../../src/page/shell/state.ts'
+import type { FloatPlaces } from '../../src/page/shell/float-place.ts'
 import { serveProtocol } from '@omne-harness/shell-contract/testing'
 import { fakeGate, fakePage, type Gated } from './fake-modules.tsx'
 
@@ -79,6 +80,8 @@ export async function setup(
     logout?: LogoutResult
     connectivity?: Connectivity
     missingAtForwarding?: readonly string[]
+    /** Where the floating items were left; nothing is kept unless a case says so. */
+    floats?: FloatPlaces
     theme?: ThemeChoice
     /** The connection of the tree, for a case that says where a protocol stands. */
     connection?: object | null
@@ -136,6 +139,7 @@ export async function setup(
       connectivity={connectivity}
       theme={theme}
       size={size}
+      floats={options.floats ?? { read: () => undefined, write: () => undefined }}
       {...(options.missingAtForwarding === undefined
         ? {}
         : { missingAtForwarding: options.missingAtForwarding })}

@@ -1048,6 +1048,42 @@
 
 ---
 
+### UL-companion-entry · 随身入口 · Companion Entry
+
+> **中**：**浮在桌面应用整个窗口之上的一处，人在哪一页都能按它对 agent 说一句话**，说给一个新会话或某个已有的会话。
+> 人可以把它拖到窗口里任何地方，它留在人放下的地方。它说的话和对话页输入框发的是同一件事。
+> 它默认的样子是[墨点](#ul-ink-motes--墨点--ink-motes)，人可以用 plugin 把样子换掉。
+>
+> **EN**: **A place that floats over the whole window of the desktop application, where a person
+> can say a sentence to the agent from any page.** The sentence goes to a new session or to an
+> existing one. The person can drag it anywhere in the window, and it stays where it was dropped.
+> A sentence said through it is the same thing as one sent from the composer of the conversation
+> page. Its default look is the ink motes, and a plugin can replace the look.
+
+- **形态**：视图
+- **出处**：[桌面应用「随身入口」](../../product/desktop-application/design.md#随身入口)（rev 5）
+- **别混**：不是 [Agent 形](#ul-agent-figure--agent-形--agent-figure)：形是 agent 本身，屏幕上只有一个；随身入口是人对 agent 说话的地方，不坐[形座位](#ul-figure-seat--形座位--figure-seat)，不写[待答数](#ul-awaiting-answer-count--待答数--awaiting-answer-count)。
+
+---
+
+### UL-ink-motes · 墨点 · Ink Motes
+
+> **中**：**[随身入口](#ul-companion-entry--随身入口--companion-entry)默认的样子：同一支毛笔点出来的几粒墨，落在一个不画出来的圆上。**
+> 圆的口和 [Agent 形](#ul-agent-figure--agent-形--agent-figure)的口开在同一处，人看得出一个圆，纸上没有圆。
+> 它只会点与干：没事时静着；打开着的会话在做事时一粒粒重点；被拖起来时只留一粒。
+>
+> **EN**: **The default look of the companion entry: a few dabs of ink from one brush, set on a
+> circle that is never drawn.** The gap of that circle is where the gap of the agent figure is, so
+> a person reads a circle though none is on the paper. It only dabs and dries. It is still when
+> nothing happens. While the open session is working, the dabs are written again one after another.
+> While it is dragged, one dab stays.
+
+- **形态**：视图
+- **出处**：[桌面应用「随身入口」](../../product/desktop-application/design.md#随身入口)（rev 5）
+- **别混**：不是 [Agent 形](#ul-agent-figure--agent-形--agent-figure)：没有那一笔圆，不算进「屏幕上只有一个形」。不是活动标记：活动标记说某一处在加载，墨点说这里可以对 agent 说话。
+
+---
+
 ### UL-size-tier · 字号档 · Size Tier
 
 > **中**：**桌面应用里整个界面的字与尺寸一起放大、缩小的档位**，恰有四档：小楷、中楷、大楷、老花，缺省是中楷。

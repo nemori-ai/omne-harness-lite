@@ -3,9 +3,11 @@ import { act, render } from '@testing-library/react'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import { sessionProtocol, type SessionProtocol } from '@omne-harness/session-protocol'
 import {
+  FLOAT_GRIP_ATTRIBUTE,
   type AttachedLayout,
   type FigureBoard,
   type FigureReport,
+  type FloatProps,
   type ItemOf,
   serviceKey,
   type ScopeSource,
@@ -132,17 +134,32 @@ function useSlot<K extends SlotName>(shell: TestShell, slot: K): readonly ItemOf
   return items
 }
 
+/** What the shell tells a floating item besides the tenant; a case changes it to drag the item. */
+export type Floating = Readonly<Pick<FloatProps, 'corner' | 'dragging'>>
+const RESTING: Floating = { corner: { x: 'end', y: 'end' }, dragging: false }
+const GRIP = { [FLOAT_GRIP_ATTRIBUTE]: '' } as const
+
 export function ShellView({
   shell,
   scope,
+  floating = RESTING,
 }: {
   readonly shell: TestShell
   readonly scope: string | undefined
+  readonly floating?: Floating
 }) {
   const sidebar = useSlot(shell, 'sidebar')
   const pages = useSlot(shell, 'pages')
+  const float = useSlot(shell, 'float')
   return (
     <div>
+      <div data-float-layer="">
+        {float.map(item => (
+          <div key={item.id} data-float={item.id}>
+            {item.render({ scope, grip: GRIP, ...floating })}
+          </div>
+        ))}
+      </div>
       <aside>
         {sidebar.map(item => (
           <div key={item.id}>{item.render({ scope })}</div>
@@ -170,14 +187,10 @@ export async function mountModule(
   const served = await serveProtocol(root, sessionProtocol, client)
   await root.plugin(createSessionUiModule(TAKEN))
   shell.tenant = scope
-  const tree = (next: string | undefined) =>
-    options.strict === true ? (
-      <StrictMode>
-        <ShellView shell={shell} scope={next} />
-      </StrictMode>
-    ) : (
-      <ShellView shell={shell} scope={next} />
-    )
+  const tree = (next: string | undefined, floating?: Floating) => {
+    const view = <ShellView shell={shell} scope={next} {...(floating ? { floating } : {})} />
+    return options.strict === true ? <StrictMode>{view}</StrictMode> : view
+  }
   const view = render(tree(scope))
   return {
     root,
@@ -187,9 +200,9 @@ export async function mountModule(
         await served.dispose()
       })
     },
-    rerender: (next: string | undefined) => {
+    rerender: (next: string | undefined, floating?: Floating) => {
       shell.tenant = next
-      view.rerender(tree(next))
+      view.rerender(tree(next, floating))
     },
   }
 }

@@ -24,7 +24,11 @@ function Leave({ figure }: { readonly figure: SessionFigure }) {
   return null
 }
 
-function useInBackground(store: BackgroundCallsStore, tenant: string, session: string | null) {
+export function useInBackground(
+  store: BackgroundCallsStore,
+  tenant: string,
+  session: string | null,
+) {
   const subscribe = useCallback(
     (listener: () => void) =>
       session === null ? () => undefined : store.subscribe(tenant, session, listener),

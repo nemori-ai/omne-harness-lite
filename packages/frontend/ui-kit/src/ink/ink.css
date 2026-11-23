@@ -48,7 +48,8 @@
 }
 
 .omne-figure-carried .omne-figure-ink,
-.omne-figure-journeys .omne-figure-ink {
+.omne-figure-journeys .omne-figure-ink,
+.omne-motes {
   filter: drop-shadow(
       0 0 var(--omne-ink-breath-near) color-mix(in oklab, var(--omne-surface-page) 92%, transparent)
     )

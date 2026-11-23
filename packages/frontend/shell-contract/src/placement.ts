@@ -11,7 +11,12 @@ import {
 } from '@omne-harness/dynamis'
 import type { AttachedItem, GateItem, ItemOf, SlotConflict, SlotName } from './slots.ts'
 
-const POINT = { gate: 'shell.gate', pages: 'shell.pages', sidebar: 'shell.sidebar' } as const
+const POINT = {
+  gate: 'shell.gate',
+  pages: 'shell.pages',
+  sidebar: 'shell.sidebar',
+  float: 'shell.float',
+} as const
 
 const SHARED = {
   tree: 'client',
@@ -25,7 +30,7 @@ const SHARED = {
   conformance: null,
 } as const
 
-/** The three places of the shell itself. What they hold is fixed when the application is built. */
+/** The four places of the shell itself. What they hold is fixed when the application is built. */
 export const shellContracts: readonly Contract[] = [
   {
     ...SHARED,
@@ -53,6 +58,16 @@ export const shellContracts: readonly Contract[] = [
     binding: 'build',
     onError: 'only this section shows that it cannot be read',
     summary: 'The sections of the sidebar, in the order of their order and id.',
+  },
+  {
+    ...SHARED,
+    name: POINT.float,
+    arity: 'list',
+    gives: 'the tenant scope',
+    binding: 'build',
+    onError: 'only this item is not drawn',
+    summary:
+      'What floats over the whole application once somebody is signed in, in the order of their order and id.',
   },
 ]
 
@@ -102,6 +117,7 @@ const SPOT: { readonly [K in SlotName]: (item: ItemOf<K>) => Spot } = {
   gate: () => ({ point: POINT.gate, key: '', id: '', rank: 0 }),
   pages: item => ({ point: POINT.pages, key: '', id: item.id, rank: item.order }),
   sidebar: item => ({ point: POINT.sidebar, key: '', id: item.id, rank: item.order }),
+  float: item => ({ point: POINT.float, key: '', id: item.id, rank: item.order }),
   attached: item => ({ ...anchored(item.anchor), id: item.id, rank: item.order }),
 }
 
@@ -147,7 +163,7 @@ const byText = (left: string, right: string): number => (left < right ? -1 : lef
 const byOrderThenId = (left: AttachedItem, right: AttachedItem): number =>
   left.order - right.order || byText(left.id, right.id) || byText(left.anchor, right.anchor)
 
-/** A declared point that holds a list of drawn items, and is not one of the three of the shell, is a place something can be attached to. */
+/** A declared point that holds a list of drawn items, and is not one of the four of the shell, is a place something can be attached to. */
 function attachedView(registry: Registry): SlotView<'attached'> {
   const declared = list<Contract>(registry, CATALOG, null, deployment)
   if (declared.kind !== 'read') return NOTHING
@@ -168,6 +184,7 @@ const VIEW: { readonly [K in SlotName]: (registry: Registry) => SlotView<K> } = 
   gate: gateView,
   pages: registry => listView(registry, 'pages', POINT.pages),
   sidebar: registry => listView(registry, 'sidebar', POINT.sidebar),
+  float: registry => listView(registry, 'float', POINT.float),
   attached: attachedView,
 }
 
