@@ -291,6 +291,8 @@ system
           session-ui#1  [effective]
         session.archived.item
           session-ui#1  [effective]
+        session.backdrop
+          session-ui#1  [effective]
         session.composer
           session-ui#1  [effective]
         session.composer.input
@@ -328,6 +330,8 @@ system
         session.transcript
           session-ui#1  [effective]
         session.transcript.agent-message
+          session-ui#1  [effective]
+        session.transcript.bubble
           session-ui#1  [effective]
         session.transcript.failure
           session-ui#1  [effective]

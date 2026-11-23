@@ -118,7 +118,7 @@ it('还没有租户：两样都不发调用', async () => {
   expect(fake.calls).toEqual([])
 })
 
-it('M4 declares its 25 parts when the protocol is served', async () => {
+it('M4 declares its 27 parts when the protocol is served', async () => {
   const { root, shell } = await startShell()
   await serveProtocol(root, sessionProtocol, createFakeClient().client)
   await root.plugin(sessionUiModule)
@@ -129,6 +129,7 @@ it('M4 declares its 25 parts when the protocol is served', async () => {
   expect(read.kind === 'read' && read.parts.map(part => [part.name, part.within])).toEqual([
     ['session.archived', 'shell.sidebar'],
     ['session.archived.item', 'session.archived'],
+    ['session.backdrop', null],
     ['session.composer', null],
     ['session.composer.input', 'session.composer'],
     ['session.composer.send', 'session.composer'],
@@ -148,6 +149,7 @@ it('M4 declares its 25 parts when the protocol is served', async () => {
     ['session.side.background-call', 'session.side'],
     ['session.transcript', null],
     ['session.transcript.agent-message', 'session.transcript'],
+    ['session.transcript.bubble', 'session.transcript'],
     ['session.transcript.failure', 'session.transcript'],
     ['session.transcript.reasoning', 'session.transcript'],
     ['session.transcript.tool-call', 'session.transcript'],

@@ -429,3 +429,4 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 | FE-I46 | 按键选画法的点，键取自服务端的事实时只经 `keysFrom` 与 `point.keys` 读，客户端不另抄一份；读不到答读不到，不答空 | 客户端抄的一份键与服务端的对不上；读不到被当成一个都没有 | `shell-contract/tests/render-point.spec.ts` 的「a point whose keys the server tells…」；`apps/harness-server/tests/rows/notification/source-keys-on-the-wire.spec.ts` |
 | FE-I47 | 附着位置只收放一列的点上的项；每键一项的点上的条目不在里面 | 画法的条目混进附着位置的清单，放一份画法惊动附着位置的订阅者 | `shell-contract/tests/render-point.spec.ts` 的「what is put on it is not an item of an attached place」；`part-render.spec.ts` 的同名一条 |
 | FE-I48 | 模块在自己下面开的作用域里放的东西记在那个作用域的名字下：撤这个作用域只撤它的，开它的模块走了它也走；里面抛出时什么都不留下 | 替别人放的东西分不清是哪一份的；撤一份带走别的；装到一半的留在界面上 | `shell-contract` 的 `host` 用例 |
+| FE-I49 | `Prose` 里的表格整张画出，盒子不设高度上限；太宽时只横着滚，竖向随转写滚（Streamdown 缺省的表格高度上限关掉，不在框里竖滚，也不裁掉行） | 长表格超出的行被裁掉而看不见，或表格在转写里自己竖着滚、抢走滚轮 | `ui-kit/tests/prose.spec.tsx` 的「a long table is drawn whole」 |
