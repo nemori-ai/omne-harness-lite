@@ -13,6 +13,7 @@ import {
   releaseToolConsumer,
 } from '../../entry/tool-forward-requests.ts'
 import { releaseOf } from '../../entry/tool-release.ts'
+import { currentHeldTool } from '../tool-host/held-current.ts'
 import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
 
 const positive = z.number().int().positive().max(Number.MAX_SAFE_INTEGER)
@@ -77,6 +78,7 @@ export function createReleaseToolsCapability(ctx: Context, config: ToolsCapabili
       release,
       catalog,
       view: () => releaseCatalogViewOf(ctx),
+      held: (access, name) => currentHeldTool(ctx, access, name),
     }),
     reader: () => reader,
     attemptMs: config.attemptMs,

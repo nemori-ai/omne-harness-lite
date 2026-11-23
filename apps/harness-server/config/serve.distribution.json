@@ -119,6 +119,11 @@
               "id": "skills",
               "effect": "allow",
               "tool": "Skills"
+            },
+            {
+              "id": "held-tools",
+              "effect": "allow",
+              "definitionOwner": "@omne-harness/assets"
             }
           ]
         },

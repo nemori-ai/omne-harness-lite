@@ -19,6 +19,8 @@ import { principalVerifierKey } from '@omne-harness/identity/cordis'
 import { sessionKey, sessionSearchKey } from '@omne-harness/session-cordis-contract/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
+import { heldDefinitionOf } from '../tool-host/held-definitions.ts'
+import { isHeldNow } from '../tool-host/held-current.ts'
 import { canonicalDigest } from '@omne-harness/tool'
 import type { ToolConsumerProfile, ToolDefinition } from '@omne-harness/tool-contract'
 import { commandAddedModalities } from '@omne-harness/tool-contract/provider'
@@ -167,6 +169,17 @@ function inRelease(release: Trusted, definition: ToolDefinition, layer: JudgeInp
   )
 }
 
+/** A definition of the tenant layer is judged only for its own tenant, while it holds that version and it was loaded here as this. */
+function heldBy(ctx: Context, { layer, definition, tenant }: JudgeInput): boolean {
+  const key = { layer, asset: { name: definition.name, adoption: definition.adoption } }
+  const loaded = heldDefinitionOf(ctx, key)
+  return (
+    loaded !== undefined &&
+    canonicalDigest(loaded) === canonicalDigest(definition) &&
+    isHeldNow(ctx, tenant, key)
+  )
+}
+
 function environmentInstalled(ctx: Context): boolean {
   return (
     ctx.get(executionEnvironmentKey) !== undefined && ctx.get(toolEnvironmentsKey) !== undefined
@@ -244,7 +257,7 @@ async function judgeRelease(ctx: Context, reads: ModelReads, input: JudgeInput):
   if (release.kind !== 'trusted') return unavailable('release snapshot unavailable')
   const work = await workSession(ctx, input.principal, input.tenant)
   if ('problem' in work) return unavailable(work.problem)
-  if (!inRelease(release, input.definition, input.layer)) return denied
+  if (!inRelease(release, input.definition, input.layer) && !heldBy(ctx, input)) return denied
   const confirmed = release.manifest.consumer
   if (!confirmedTextConsumer(input.consumer, confirmed))
     return unavailable('consumer material is not a confirmed text consumer')

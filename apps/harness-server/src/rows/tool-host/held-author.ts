@@ -3,12 +3,10 @@ import { assetCategoriesKey } from '@omne-harness/assets-cordis-contract'
 import type { JsonValue } from '@omne-harness/json-text'
 import { tenantCodec, type Access } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
-import { canonicalDigest } from '@omne-harness/tool'
 import type { Reply, ToolDefinition } from '@omne-harness/tool-contract'
 import {
   scriptConstructionOf,
   type ToolAuthority,
-  type ToolBindingKey,
   type ToolLoader,
   type ToolMessageContentBlock,
 } from '@omne-harness/tool-contract/provider'
@@ -21,6 +19,7 @@ import { registrantOf, releaseOf } from '../../entry/tool-release.ts'
 import { sameAdoption } from '../../entry/tool-release-manifest.ts'
 import { tenantLayers } from '../tenant-assets/layers.ts'
 import { tenantAssetsKey } from '../tenant-assets/service.ts'
+import { rememberHeldDefinition } from './held-definitions.ts'
 import { HELD_TOOL_SETTINGS, TOOL_CATEGORY, heldCandidateOf } from './held-tools.ts'
 
 type B = ToolMessageContentBlock
@@ -30,20 +29,6 @@ type Resolved = Awaited<ReturnType<Input['source']['resolve']>>
 const unavailable = (diagnostic: string) =>
   fail({ kind: 'unavailable' as const, dependency: 'tool-host', diagnostic })
 const invalid = (field: string, reason: string) => fail({ kind: 'invalid' as const, field, reason })
-
-const known = new WeakMap<Context, Map<string, ToolDefinition>>()
-const keyTextOf = (key: ToolBindingKey) => canonicalDigest({ layer: key.layer, asset: key.asset })
-
-/** The definition a held tool was loaded with, by its key; undefined before it was loaded here. */
-export function heldDefinitionOf(ctx: Context, key: ToolBindingKey): ToolDefinition | undefined {
-  return known.get(ctx.root)?.get(keyTextOf(key))
-}
-
-function remember(ctx: Context, key: ToolBindingKey, definition: ToolDefinition): void {
-  const entries = known.get(ctx.root) ?? new Map<string, ToolDefinition>()
-  known.set(ctx.root, entries)
-  entries.set(keyTextOf(key), Object.freeze(structuredClone(definition)))
-}
 
 function memberOf(value: JsonValue | undefined, key: string): JsonValue | undefined {
   return value?.kind === 'object'
@@ -149,7 +134,7 @@ export function heldLoaderFor(
         return invalid('executor', 'a held tool is implemented by the script executor')
       const checked = await checkNeed(loaded.definition)
       if ('failure' in checked) return checked
-      remember(ctx, loaded.key, loaded.definition)
+      rememberHeldDefinition(ctx, loaded.key, loaded.definition)
       return checked
     },
   })

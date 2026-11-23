@@ -126,6 +126,7 @@ function world(script: string, tool: Record<string, unknown> = {}) {
     command: realCommands(started),
   } as unknown as ShellAuthorEnvironment
   const place = {
+    program: (name: string) => name,
     directory,
     env: { PATH: process.env['PATH'] ?? '', MARK: 'given' },
     resultMaxBytes: 2000,

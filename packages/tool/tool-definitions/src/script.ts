@@ -211,8 +211,11 @@ async function execute(
   if (environment.directory === undefined)
     return 'rejected reason=unavailable this call has no working directory; zero starts'
   const { run: how, timeoutMs, effect } = construction
+  const executable = place.program(how.program)
+  if (executable === undefined)
+    return `unavailable reason=the program ${how.program} is not found where the scripts of this deployment start; zero starts`
   const started = await environment.command.start({
-    executable: how.program,
+    executable,
     args: [join(place.directory, how.script), ...how.args],
     cwd: environment.directory,
     env: place.env,

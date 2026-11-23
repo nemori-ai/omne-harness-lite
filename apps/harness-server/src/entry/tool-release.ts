@@ -15,7 +15,8 @@ import {
   type VerifiedAuthority,
 } from '@omne-harness/tool-cordis-contract/cordis'
 import { pauseAfterFailures } from '../retry-pause.ts'
-import { heldReadingOf } from '../rows/tool-host/held-current.ts'
+import { heldDefinitionOf } from '../rows/tool-host/held-definitions.ts'
+import { heldKeyNow, heldReadingOf } from '../rows/tool-host/held-current.ts'
 import { heldToolAuthority, heldToolStanding, sameHeld } from '../rows/tool-host/held-tools.ts'
 import { monotonicClock } from '../shutdown.ts'
 import type { EntryEnv, EntryObjectModule } from '../types.ts'
@@ -413,13 +414,19 @@ export function releaseDefinitionOf(ctx: Context, name: string): ToolDefinition 
   return known.entries.get(name)
 }
 
+/** The definition of the tool a tenant holds in force under a name, as it was loaded; null when it holds none or it is not loaded. */
+function heldDefinitionNow(ctx: Context, tenant: TenantId, name: string): ToolDefinition | null {
+  const key = heldKeyNow(ctx, tenant, name)
+  return key === null ? null : (heldDefinitionOf(ctx, key) ?? null)
+}
+
 export function releaseCurrentDefinitions<P>(ctx: Context): LocalCurrentDefinitions<P> {
   return {
-    current: ({ name }) => {
+    current: ({ name, tenant }) => {
       const release = releaseOf(ctx)
       return Promise.resolve(
         release.kind === 'trusted'
-          ? succeed(releaseDefinitionOf(ctx, name) ?? null)
+          ? succeed(releaseDefinitionOf(ctx, name) ?? heldDefinitionNow(ctx, tenant, name))
           : fail({
               kind: 'unavailable',
               dependency: 'tool-release',

@@ -38,6 +38,10 @@ import { bindReleaseAgents } from './agents.ts'
 import { bindReleaseSwitchWorkspace } from './switch-workspace.ts'
 import { bindReleaseExtensionPoints } from './extension-points.ts'
 import { bindReleaseExtensions } from './extensions.ts'
+import type { FixedToolRequest } from '@omne-harness/tool-contract'
+import type { ToolBindingKey } from '@omne-harness/tool-contract/provider'
+import { attachScriptHost } from '@omne-harness/tool-definitions'
+import { heldScriptHost } from '../tool-host/script-host.ts'
 
 export const toolBindingsConfig = z
   .strictObject({ tools: toolsCapabilityConfig.optional(), web: webBindingConfig.optional() })
@@ -60,6 +64,14 @@ type Attachments = Readonly<{
   tools: ReturnType<typeof createReleaseToolsCapability> | null
   web: WebBindingConfig | null
 }>
+
+/** The key of the tool a request calls, when a tenant holds that tool; a tool of the release has none here. */
+function heldKeyOfRequest(request: FixedToolRequest): ToolBindingKey | undefined {
+  const { availability } = request
+  if (availability.kind !== 'available' || availability.layer.kind !== 'tenant') return undefined
+  const { name, adoption } = availability.definition
+  return { layer: availability.layer, asset: { name, adoption } }
+}
 
 export function releaseCapability(
   ctx: Context,
@@ -90,7 +102,11 @@ export function releaseCapability(
         ? bindReleaseWeb(input, withSkills, attachments.web, custody)
         : withSkills
     const domain = DOMAIN_TOOLS.find(([name]) => isReleaseToolRequest(release, input.request, name))
-    return domain === undefined ? withWeb : domain[1](ctx, input, withWeb)
+    if (domain !== undefined) return domain[1](ctx, input, withWeb)
+    const held = heldKeyOfRequest(input.request)
+    return held === undefined
+      ? withWeb
+      : attachScriptHost(withWeb, heldScriptHost(ctx, input.tenant, held))
   }
 }
 

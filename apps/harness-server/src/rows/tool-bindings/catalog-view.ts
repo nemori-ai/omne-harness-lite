@@ -1,8 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
-import type { AgentAdoptions, AgentDefinition } from '@omne-harness/agent-contract'
-import { agentAdoptionsKey } from '@omne-harness/agent-cordis-contract/cordis'
 import type { PrincipalVerifier } from '@omne-harness/identity'
-import { tenantEquals } from '@omne-harness/legal-identity'
+import { tenantEquals, type Access } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   SessionAccess,
@@ -17,7 +15,10 @@ import type {
 } from '@omne-harness/tool-host-local'
 import { sessionWorkReaderOf } from '../../entry/tool-requests.ts'
 import type { ToolDefinition } from '@omne-harness/tool-contract'
+import type { ToolBindingKey } from '@omne-harness/tool-contract/provider'
 import { releaseDefinitionOf, releaseOf, type ToolRelease } from '../../entry/tool-release.ts'
+import { heldDefinitionOf } from '../tool-host/held-definitions.ts'
+import { currentHeldTool, heldToolNames, type CurrentHeldTool } from '../tool-host/held-current.ts'
 import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
 import { verifySessionWork } from '../tool-runtime/session-work.ts'
 
@@ -25,19 +26,20 @@ type CatalogWork = Pick<
   WorkSnapshot,
   'session' | 'tenant' | 'lifecycle' | 'definition' | 'residents' | 'frozen'
 >
-type Resolved = Awaited<ReturnType<AgentAdoptions<unknown>['resolve']>>
-type AdoptionFailure = Extract<Resolved, { failure: unknown }>['failure']
 
 export type ReleaseCatalogViewPorts = Readonly<{
   verifier(): PrincipalVerifier | undefined
   readWork(
     access: SessionAccess<unknown>,
   ): Promise<Outcome<CatalogWork, SessionFailure>> | undefined
-  resolve(
-    input: Parameters<AgentAdoptions<unknown>['resolve']>[0],
-  ): Promise<Outcome<Readonly<{ definition: AgentDefinition }>, AdoptionFailure>> | undefined
   release(): ToolRelease
   knownDefinition?(name: string): ToolDefinition | undefined
+  /** The tools a tenant holds: their names, each one loaded, and the definition it was loaded with. */
+  held?: Readonly<{
+    names(access: Access<unknown>): Promise<readonly string[] | undefined>
+    current(access: Access<unknown>, name: string): Promise<CurrentHeldTool>
+    definition(key: ToolBindingKey): ToolDefinition | undefined
+  }>
 }>
 
 const unavailable = (diagnostic: string) =>
@@ -47,6 +49,35 @@ const unavailable = (diagnostic: string) =>
     diagnostic,
   })
 const denied = () => fail({ kind: 'denied' as const, action: 'catalog-view' })
+
+type Entry = LocalToolCatalogView['entries'][number]
+
+/** The tools the tenant holds in force, each loaded; undefined when what it holds cannot be read. */
+async function heldEntries(
+  held: ReleaseCatalogViewPorts['held'],
+  access: Access<unknown>,
+  official: ReadonlySet<string>,
+  residents: ReadonlySet<string>,
+): Promise<readonly Entry[] | undefined> {
+  if (held === undefined) return []
+  const names = await held.names(access)
+  if (names === undefined) return undefined
+  const entries: Entry[] = []
+  for (const name of names) {
+    if (official.has(name)) continue
+    const current = await held.current(access, name)
+    if (current.kind === 'unavailable') return undefined
+    if (current.kind !== 'held') continue
+    const key = { layer: current.authority.layer, asset: current.authority.asset }
+    const knownDefinition = held.definition(key)
+    entries.push({
+      key,
+      resident: residents.has(name),
+      ...(knownDefinition === undefined ? {} : { knownDefinition }),
+    })
+  }
+  return entries
+}
 
 export function createReleaseCatalogView(
   ports: ReleaseCatalogViewPorts,
@@ -69,36 +100,22 @@ export function createReleaseCatalogView(
           (work.ok.lifecycle !== 'active' && work.ok.lifecycle !== 'dormant')
         )
           return unavailable('Session cannot disclose its current tool view')
-        const resolved = await ports.resolve({ ...access, adoption: work.ok.definition.adopted })
-        if (resolved === undefined || 'failure' in resolved)
-          return unavailable('adopted definition unavailable')
         const release = ports.release()
         if (release.kind !== 'trusted') return unavailable('release unavailable')
-        const entries: LocalToolCatalogView['entries'][number][] = []
         const residents = new Set(work.ok.residents.map(item => item.capability))
-        const references = [
-          ...resolved.ok.definition.references,
-          ...work.ok.residents.map(item => ({
-            capability: { category: 'Tool', name: item.capability },
-          })),
-        ]
-        const seen = new Set<string>()
-        for (const reference of references) {
-          if (reference.capability.category !== 'Tool' || seen.has(reference.capability.name))
-            continue
-          seen.add(reference.capability.name)
-          const entry = release.manifest.entries.find(
-            candidate => candidate.asset.name === reference.capability.name,
-          )
-          if (entry !== undefined) {
-            const knownDefinition = ports.knownDefinition?.(reference.capability.name)
-            entries.push({
-              key: { layer: { kind: 'official' }, asset: entry.asset },
-              resident: residents.has(reference.capability.name),
-              ...(knownDefinition === undefined ? {} : { knownDefinition }),
-            })
+        // Every tool of the release, and every tool this tenant holds in force: what is lawful now, not what the definition names.
+        const entries: Entry[] = release.manifest.entries.map(entry => {
+          const knownDefinition = ports.knownDefinition?.(entry.asset.name)
+          return {
+            key: { layer: { kind: 'official' as const }, asset: entry.asset },
+            resident: residents.has(entry.asset.name),
+            ...(knownDefinition === undefined ? {} : { knownDefinition }),
           }
-        }
+        })
+        const official = new Set(release.manifest.entries.map(entry => entry.asset.name))
+        const held = await heldEntries(ports.held, access, official, residents)
+        if (held === undefined) return unavailable('what the tenant holds cannot be read')
+        entries.push(...held)
         const identity = {
           tenant: access.tenant,
           session,
@@ -134,8 +151,12 @@ export function releaseCatalogViewOf(ctx: Context): LocalToolCatalogViewSource<u
   return createReleaseCatalogView({
     verifier: () => toolRuntimeHolder(ctx).verifier(),
     readWork: sessionWorkReaderOf(ctx),
-    resolve: input => ctx.get(agentAdoptionsKey)?.resolve(input),
     release: () => releaseOf(ctx),
     knownDefinition: name => releaseDefinitionOf(ctx, name),
+    held: {
+      names: access => heldToolNames(ctx, access.tenant),
+      current: (access, name) => currentHeldTool(ctx, access, name),
+      definition: key => heldDefinitionOf(ctx, key),
+    },
   })
 }

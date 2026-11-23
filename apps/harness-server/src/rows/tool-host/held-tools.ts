@@ -6,20 +6,24 @@ import {
   type HeldReading,
 } from '@omne-harness/assets'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
-import type { Adoption } from '@omne-harness/tool-contract'
-import type { ToolAuthority } from '@omne-harness/tool-contract/provider'
+import type { Adoption, SourceLayer } from '@omne-harness/tool-contract'
+import { sameSourceLayer, type ToolAuthority } from '@omne-harness/tool-contract/provider'
 import { candidateOfRevision, revisionOf } from '../tenant-assets/layers.ts'
 
 export const TOOL_CATEGORY = 'tool'
 /** The owner of the asset version, the holding and the publication of a tool that a tenant holds. */
 export const HELD_TOOL_OWNER = '@omne-harness/assets'
-/** A tool made from a directory declares no settings. */
 export const HELD_TOOL_SETTINGS: Adoption = Object.freeze({
   owner: HELD_TOOL_OWNER,
   name: 'no-settings',
   revision: '1',
   digest: 'sha256:none',
 })
+
+/** Whether a layer is the tenant layer of this very tenant; a layer read back from a record compares by its text. */
+export function ownLayer(layer: SourceLayer, tenant: TenantId): boolean {
+  return sameSourceLayer(layer, { kind: 'tenant', tenant })
+}
 
 /** The authority of the tool a tenant holds under a name: its layer, and the exact version it holds. */
 export function heldToolAuthority(tenant: TenantId, name: string, held: Candidate): ToolAuthority {

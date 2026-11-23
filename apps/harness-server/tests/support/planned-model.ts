@@ -48,6 +48,17 @@ const textOf = (message: Message): string =>
 /** A person's words are a user message; the work dispatched to a session reaches its model as a developer message. */
 const PLAN_ROLES = ['user', 'developer']
 
+/** In a planned call, stands for the reference the latest tool result gave: a call that is still running is read by it. */
+export const LAST_REFERENCE = '$reference'
+
+function lastReference(messages: readonly Message[]): string {
+  const found = messages
+    .filter(message => message.role === 'tool')
+    .flatMap(message => [...textOf(message).matchAll(/"reference":("(?:[^"\\]|\\.)*")/gu)])
+    .at(-1)
+  return found?.[1] ?? '""'
+}
+
 /** The model makes the calls of the step it is at: one step for each of its earlier turns with calls. */
 export const plannedModel = toolCallsByRequest(body => {
   const { messages } = JSON.parse(body) as { messages: readonly Message[] }
@@ -62,10 +73,11 @@ export const plannedModel = toolCallsByRequest(body => {
   const done = messages
     .slice(at + 1)
     .filter(message => message.role === 'assistant' && (message.tool_calls?.length ?? 0) > 0).length
+  const reference = lastReference(messages)
   return (steps[done] ?? []).map((call, index) => ({
     id: `call_${String(at)}_${String(done)}_${String(index)}`,
     tool: call.tool,
-    arguments: JSON.stringify(call.arguments),
+    arguments: JSON.stringify(call.arguments).replaceAll(`"${LAST_REFERENCE}"`, reference),
   }))
 })
 

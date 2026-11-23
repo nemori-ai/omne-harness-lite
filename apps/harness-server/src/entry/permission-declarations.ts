@@ -2,12 +2,15 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { SettingsTarget } from '@omne-harness/settings'
 import type { ToolReleaseEntry } from './tool-release-manifest.ts'
 import { releaseOf } from './tool-release.ts'
+import { heldPermissionDeclarations } from '../rows/tool-host/held-definitions.ts'
 
 // One capability's identity, gates and settings target; each category owner registers its own.
 export type PermissionDeclaration = Readonly<{
   asset: ToolReleaseEntry['asset']
   governance: ToolReleaseEntry['governance']
   holdingRef: string
+  /** No storage publishes this declaration: a gate has its declared default and what the session holds. */
+  unpublished?: true
 }>
 
 const registered = new WeakMap<Context, Set<PermissionDeclaration>>()
@@ -38,7 +41,7 @@ export function permissionDeclarationsOf(ctx: Context): readonly PermissionDecla
   const release = releaseOf(ctx)
   const released =
     release.kind === 'trusted' ? release.manifest.entries.map(releasedDeclaration) : []
-  return [...released, ...(registered.get(ctx.root) ?? [])]
+  return [...released, ...(registered.get(ctx.root) ?? []), ...heldPermissionDeclarations(ctx)]
 }
 
 export function declarationTarget(

@@ -87,8 +87,7 @@ describe('Plugin as a category on the release tree', () => {
         expect(closed).toMatchObject({
           outcome: 'invalid',
           body: {
-            reason:
-              'server.members[0] (tool.tools, Web): the category tool takes a directory',
+            reason: 'server.members[0] (tool.tools, Web): the category tool takes a directory',
           },
         })
         const after = await assets['list-assets']({

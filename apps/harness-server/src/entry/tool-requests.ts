@@ -5,7 +5,12 @@ import type { AgentHostLocalPluginInput } from '@omne-harness/agent-host-local/c
 import { executionScopeBindingKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
 import type { PrincipalVerifier } from '@omne-harness/identity'
 import { readJsonText, writeJsonText, type JsonValue } from '@omne-harness/json-text'
-import { tenantEquals, workspaceCodec, type TenantId } from '@omne-harness/legal-identity'
+import {
+  tenantEquals,
+  workspaceCodec,
+  type Access,
+  type TenantId,
+} from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decodeScopeRef,
@@ -47,6 +52,8 @@ import type { FilesScope } from '@omne-harness/execution-environment-contract'
 import type { OutsideFiles } from '@omne-harness/workspace-local'
 import { tenantIndependentSettingsKey } from '../rows/governance/independent-settings-service.ts'
 import { outsideFilesReader } from '../rows/workspace/outside-files.ts'
+import { currentHeldTool, type CurrentHeldTool } from '../rows/tool-host/held-current.ts'
+import { HELD_TOOL_SETTINGS, ownLayer } from '../rows/tool-host/held-tools.ts'
 import { toolRuntimeHolder } from '../rows/tool-runtime/holder.ts'
 import { RELEASE_REQUEST_CONTEXT, runToolScope } from '../rows/tool-runtime/scope.ts'
 import { verifySessionWork } from '../rows/tool-runtime/session-work.ts'
@@ -81,6 +88,7 @@ export type ToolRequestPorts = Readonly<{
     access: SessionAccess<unknown>,
   ): Promise<Outcome<WorkingDirectory | null, string>>
   outsideFiles(tenant: TenantId): Promise<OutsideFiles | null>
+  held?(access: Access<unknown>, name: string): Promise<CurrentHeldTool>
 }>
 
 const unavailable = (diagnostic: string) =>
@@ -195,8 +203,12 @@ async function availabilityOf(
   const catalog = ports.catalog()
   if (catalog === undefined) return unavailable('tool catalog absent')
   const name = input.original.name
-  if (!release.manifest.entries.some(entry => entry.asset.name === name))
-    return unavailable(`${name} is not a release tool`)
+  const access = { principal: input.principal, tenant: input.tenant, session }
+  if (!release.manifest.entries.some(entry => entry.asset.name === name)) {
+    const held = await ports.held?.(access, name)
+    if (held?.kind === 'unavailable') return unavailable(held.diagnostic)
+    if (held?.kind !== 'held') return unavailable(`${name} is not a tool that is lawful now`)
+  }
   let answer: Awaited<ReturnType<ToolCatalog<unknown>['inspect']>>
   try {
     answer = await catalog.inspect({
@@ -219,13 +231,13 @@ async function availabilityOf(
       kind: 'answered',
       text: `${name} is not available now (${availability.reason}). Continue without it.`,
     })
-  if (availability.layer.kind !== 'official') return unavailable(`${name} is not available`)
+  const own = ownLayer(availability.layer, input.tenant)
+  if (availability.layer.kind !== 'official' && !own) return unavailable(`${name} is not available`)
   const selected = callOf(availability.definition, input.effectiveArguments)
   if ('answer' in selected) return succeed({ kind: 'answered', text: selected.answer })
   const asked = { catalog, release, input, definition: availability.definition }
   const closed = await answeredInstead(ports, asked, session, selected.command)
   if ('failure' in closed) return closed
-  const access = { principal: input.principal, tenant: input.tenant, session }
   return closed.ok === null
     ? placedCall(ports, access, { ...availability, ...selected })
     : succeed(closed.ok)
@@ -480,7 +492,8 @@ export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolR
     const entry = release.ok.manifest.entries.find(
       candidate => candidate.asset.name === availability.definition.name,
     )
-    if (entry === undefined) return unavailable('release entry absent')
+    if (entry === undefined && availability.layer.kind !== 'tenant')
+      return unavailable('release entry absent')
     const scope = await currentScope(ports, input.tenant, input.principal, session.ok)
     if ('failure' in scope) return scope
     let original: string
@@ -499,7 +512,7 @@ export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolR
       command,
       arguments: args,
       label,
-      settings: entry.settings,
+      settings: entry?.settings ?? HELD_TOOL_SETTINGS,
       context: RELEASE_REQUEST_CONTEXT,
       workspace: null,
       ...pinned(directory),
@@ -542,5 +555,6 @@ export function releaseToolRequestsOf(ctx: Context): ReleaseToolRequests {
       return readHeldNeed(ports, access, workingDirectoryCallBinding)
     },
     outsideFiles: outsideFilesReader(() => ctx.get(tenantIndependentSettingsKey)),
+    held: (access, name) => currentHeldTool(ctx, access, name),
   })
 }

@@ -66,7 +66,7 @@ export type Ask = (...steps: readonly (readonly PlannedCall[])[]) => Promise<str
 
 /** One coding session in a fresh workspace on the release tree; `ask` sends it one plan and gives the tool results. */
 export async function inWorkspace(
-  body: (ask: Ask, tree: ReleaseTree, project: string) => Promise<void>,
+  body: (ask: Ask, tree: ReleaseTree, project: string, session: string) => Promise<void>,
   options: Partial<ReleaseTreeOptions> = {},
 ): Promise<void> {
   const project = realpathSync(mkdtempSync(join(tmpdir(), 'self-extension-')))
@@ -78,7 +78,7 @@ export async function inWorkspace(
       const created = await cliOk(tree, ['create-session', '--definition', 'coding', ...at])
       const session = String(created.body['session'])
       const send = planner(tree)
-      await body((...steps) => send(session, ...steps), tree, project)
+      await body((...steps) => send(session, ...steps), tree, project, session)
     },
   )
   expect(exitCode).toBe(0)

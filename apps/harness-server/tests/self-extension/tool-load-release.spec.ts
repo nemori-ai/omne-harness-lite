@@ -45,8 +45,9 @@ describe('loading a tool a tenant published, on the release tree', () => {
         const first = heldToolAuthority(tenant, 'wordcount', standing.candidate)
 
         // Loaded for the tenant that holds it: one live binding of the tenant layer.
+        // The catalog of the run may have loaded it already; then it is recognized, not loaded twice.
         expect(await generations.ensureLoaded({ authority: first, access })).toMatchObject({
-          ok: { state: 'loaded' },
+          ok: { state: expect.stringMatching(/^(loaded|recognized)$/u) },
         })
         expect(liveVersions(tree)).toEqual([standing.candidate.version])
 

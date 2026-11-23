@@ -14,6 +14,7 @@ import {
   type ToolPermissionAction,
 } from '../authorization/current-tool-permission.ts'
 import { sessionWorkOf } from '../tool-runtime/session-work.ts'
+import type { DeclaredPermission } from './declared-permission-basis.ts'
 import { organizationSettingsSource } from './organization-settings.ts'
 import {
   mappedDefinition,
@@ -24,6 +25,8 @@ export type PermissionReadMapping = Readonly<{
   permission: PermissionBasisRequest
   target: SessionPermissionMappedSource['target']
   source: SessionPermissionMappedSource['source'] | null
+  /** Set when no storage publishes the declaration: the basis is built from what it declares. */
+  declared: DeclaredPermission | null
 }>
 export type PermissionReadMappingOptions = Readonly<{
   scope: GovernanceScope
@@ -78,6 +81,10 @@ export function createPermissionReadMapping(options: PermissionReadMappingOption
         }),
         target: structuredClone(mapped.target),
         source: structuredClone(mapped.source),
+        declared:
+          released.entry.unpublished === true
+            ? { definition, reference: released.entry.governance.declaration.reference }
+            : null,
       }
     } catch {
       return undefined

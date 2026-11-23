@@ -10,6 +10,8 @@ export type ScriptPlace = Readonly<{
   env: Readonly<Record<string, string>>
   /** The most bytes of output kept in the result. */
   resultMaxBytes: number
+  /** Where a program lies on this machine, as the environment above finds it; undefined when it does not. */
+  program(name: string): string | undefined
 }>
 
 export interface ScriptHost {
