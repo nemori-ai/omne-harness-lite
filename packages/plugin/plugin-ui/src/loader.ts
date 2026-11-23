@@ -142,8 +142,12 @@ export function createLoader(deps: LoaderDeps): Loader {
     idle,
     async stop() {
       stopped = true
-      for (const remove of live.values()) removing(remove)
-      await idle()
+      const leaving = Array.from(live.values(), remove =>
+        Promise.resolve()
+          .then(remove)
+          .catch(() => undefined),
+      )
+      await Promise.all(leaving)
     },
   }
 }

@@ -88,11 +88,11 @@ export function createPluginContribution(
         if ('outcome' in principal) return principal
         const { plugins, points, parts } = body
         try {
-          reports.record(tenant, body.client, { plugins, points, parts })
+          const kept = reports.record(tenant, body.client, { plugins, points, parts })
+          return kept === 'kept' ? { outcome: 'succeeded', body: {} } : UNAVAILABLE
         } catch {
           return UNKNOWN
         }
-        return { outcome: 'succeeded', body: {} }
       },
       async 'list-reports'(call, body): Promise<Answer<'list-reports'>> {
         const tenant = tenantText(body.tenant)

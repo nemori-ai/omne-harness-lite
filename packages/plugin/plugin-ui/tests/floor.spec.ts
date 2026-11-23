@@ -198,6 +198,18 @@ describe('the loader on the floor', () => {
     await t.settled()
   })
 
+  it('tells the floor all is settled when the tenant leaves while a load is in the air: stopping in order is not going down', async () => {
+    const t = await world(UP, { given: {}, load: () => new Promise(() => undefined) })
+    card.declare(t.shell)
+    t.source.set(ALICE, [
+      given('slow', 'v1', { point: 'notes.card', key: 'todo', module: 'a.js', export: 'a' }),
+    ])
+    await vi.waitFor(() => expect(t.calls).toContain('want plugin:slow@v1'))
+    expect(t.calls).not.toContain('settle')
+    t.shell.scope.set(undefined)
+    await t.settled()
+  })
+
   it('loads as before, and names nothing, when the application gives no floor', async () => {
     const started = await startShellOf(Signed)
     started.shell.scope.set(ALICE)

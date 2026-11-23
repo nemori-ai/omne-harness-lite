@@ -299,6 +299,14 @@ describe('the loader as a whole', () => {
     expect(t.removed).toEqual(['p@v1'])
   })
 
+  it('stops without waiting for a load that never ends: what is loaded is taken away at once', async () => {
+    const t = world()
+    t.loader.converge([listed('v1', 'a'), listed('v1', 'hangs')])
+    await t.flights[0]!.land('installed')
+    await t.loader.stop()
+    expect(t.removed).toEqual(['a@v1'])
+  })
+
   it('counts a removal that throws as done', async () => {
     const loader = createLoader({
       install: async () => ({

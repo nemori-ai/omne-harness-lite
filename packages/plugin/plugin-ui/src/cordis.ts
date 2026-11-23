@@ -101,6 +101,7 @@ function loadFor(
       await stopFollowing()
       mark(new Set())
       await loader.stop()
+      floor.settle(text)
     },
   }
 }

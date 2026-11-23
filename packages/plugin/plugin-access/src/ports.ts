@@ -60,9 +60,9 @@ export type ClientReport = Readonly<{
 
 export type ReportedClient = ClientReport & Readonly<{ client: string }>
 
-/** Where clients' reports go. A client reporting again replaces what it reported before. */
 export interface PluginReports {
-  record(tenant: string, client: string, report: ClientReport): void
+  /** Keeps what a client that is there tells; of one that is not there it keeps nothing and says so. */
+  record(tenant: string, client: string, report: ClientReport): 'kept' | 'absent'
   /** The client is there from now until the answer is called; when it is there no more, what it reported is dropped. */
   present(tenant: string, client: string): () => void
   reportsOf(tenant: string): readonly ReportedClient[]
