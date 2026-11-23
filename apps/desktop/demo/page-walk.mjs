@@ -406,6 +406,22 @@ async function walk(browser, origin, proofs, elsewhere) {
     return transcript().slice(-120)`,
   )
   await step(
+    '转写里绝对定位的东西都在转写区里：不撑出外层页的滚动',
+    `
+    const scroller = document.querySelector('section[data-page=conversation] .omne-conversation')
+    const escaped = []
+    for (const element of scroller.querySelectorAll('*')) {
+      if (getComputedStyle(element).position !== 'absolute') continue
+      let block = element.parentElement
+      while (block && getComputedStyle(block).position === 'static') block = block.parentElement
+      if (block === null || !scroller.contains(block)) escaped.push(element.className)
+    }
+    if (escaped.length > 0) throw new Error('positioned inside the transcript but held by a box outside it: ' + JSON.stringify(escaped))
+    const page = scroller.closest('.shell-page')
+    if (page.scrollHeight > page.clientHeight + 1) throw new Error('the page around the conversation scrolls: ' + page.scrollHeight + ' > ' + page.clientHeight)
+    return { contained: true, page: page.scrollHeight + '/' + page.clientHeight }`,
+  )
+  await step(
     '再发一条，回复停在半路时停止这一轮',
     `
     fill(document.querySelector('textarea[aria-label="输入消息"]'), 'hold on')
