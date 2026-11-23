@@ -10,6 +10,10 @@ import {
   type TargetTenantPrincipals,
 } from '@omne-harness/plugin-access'
 import { createPluginAccessPlugin } from '@omne-harness/plugin-access/cordis'
+import { dynamisKey, type DynamisService } from '@omne-harness/dynamis-cordis/cordis'
+import { guestProtocol } from '@omne-harness/plugin-access'
+import { GUEST_FORMS_POINT, type GuestForm } from '@omne-harness/plugin-host-local'
+import { PROTOCOLS, protocolItem } from '@omne-harness/server-entry/cordis'
 import { z } from 'zod'
 import { defineRow } from '../../row.ts'
 import { memberActingOfCall } from '../server-entry/identity.ts'
@@ -25,6 +29,9 @@ export const pluginAccessConfig = z.strictObject({
     .optional(),
   reportsPerTenant: z.number().int().min(1).max(1024).default(32),
 })
+
+/** How a protocol the code of a plugin wrote becomes an item of the point of protocols. */
+const protocolGuestForm: GuestForm = (made, context) => protocolItem(guestProtocol(made, context))
 
 function principals(ctx: Context): TargetTenantPrincipals {
   const actForMember = memberActingOfCall(ctx)
@@ -66,6 +73,18 @@ export const pluginAccessRow = defineRow({
       const source = combineSources([dev, held])
       const reports = createPluginReports({ perTenant: reportsPerTenant })
       providePluginReports(ctx, reports)
+      ctx.inject([dynamisKey], child => {
+        const guestForm = {
+          point: GUEST_FORMS_POINT,
+          key: PROTOCOLS,
+          id: '',
+          scope: [],
+          rank: 0,
+          digest: `${PROTOCOLS}@plugin-access`,
+          item: { form: protocolGuestForm },
+        }
+        ;(child.get(dynamisKey) as DynamisService).put([guestForm])
+      })
       ctx.plugin(
         createPluginAccessPlugin({
           principals,

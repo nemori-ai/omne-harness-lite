@@ -25,12 +25,12 @@ export type Established =
 
 const BEARER = /^bearer (\S+)$/i
 
-function proofOf(req: IncomingMessage): string | undefined {
+export function proofOf(req: IncomingMessage): string | undefined {
   if (countHeader(req, 'authorization') !== 1) return undefined
   return BEARER.exec(req.headers.authorization ?? '')?.[1]
 }
 
-function tenantOf(req: IncomingMessage): string | undefined {
+export function tenantOf(req: IncomingMessage): string | undefined {
   if (countHeader(req, 'omne-acting-tenant') !== 1) return undefined
   const value = req.headers['omne-acting-tenant']
   return typeof value === 'string' && value !== '' ? value : undefined

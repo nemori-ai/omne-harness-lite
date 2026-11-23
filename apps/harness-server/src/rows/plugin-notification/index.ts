@@ -1,12 +1,14 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { notificationSourcesKey } from '@omne-harness/notification-cordis-contract/cordis'
+import { dynamisKey, type DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { runtimeContextTenantBlocksKey } from '@omne-harness/runtime-context-cordis-contract/cordis'
 import { readSystemInstant } from '../../entry/session-clock.ts'
 import { defineRow } from '../../row.ts'
 import { standingItemsBinding } from '../notification/standing.ts'
 import { pluginReportsKey, type PluginReportsService } from '../plugin-access/reports-service.ts'
 import { pluginEffectPorts } from '../plugin-host/effect-ports.ts'
+import { notificationsPortEntry } from './port.ts'
 import { EXTENSIONS_SOURCE, PLUGIN_LOAD_FAILURES_KEY, loadFailuresBlock } from './standing.ts'
 
 function now(): string {
@@ -42,6 +44,10 @@ export const pluginNotificationRow = defineRow({
         needs: [standingItemsBinding(PLUGIN_LOAD_FAILURES_KEY)],
       })
     })
+    ctx.inject(
+      [dynamisKey],
+      child => void (child.get(dynamisKey) as DynamisService).put([notificationsPortEntry(ctx)]),
+    )
     return { stop: async () => ({ kind: 'settled' as const }) }
   },
 })

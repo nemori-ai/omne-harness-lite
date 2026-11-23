@@ -32,6 +32,7 @@ const wanted = (...members: Member[]): Wanted => ({
   needs: [],
   files: FILES,
 })
+const BOUND = { ports: {}, close: () => undefined }
 
 function world(over: Partial<ServerInstallPorts> = {}) {
   const placed: (readonly ServerEntry[])[] = []
@@ -41,6 +42,7 @@ function world(over: Partial<ServerInstallPorts> = {}) {
     scope: SCOPE,
     point: name => POINTS[name],
     guestForm: point => (point === 'notes.greeters' ? made => ({ greet: made }) : undefined),
+    needs: () => ({ kind: 'adopted', bind: () => BOUND }),
     load: async file => {
       loaded.push(`${file.path} ${file.digest}`)
       return { make: () => 'hello' }
@@ -224,9 +226,82 @@ describe('the members a plugin writes for the server, put by the loader', () => 
     )
   })
 
+  it('pins the ports the plugin needs before anything: one that is not there fails the whole, and nothing is loaded or put', async () => {
+    const asked: (readonly string[])[] = []
+    const w = world({
+      needs: names => (asked.push(names), { kind: 'missing', names: ['store'] }),
+    })
+    const outcome = await w.install({
+      ...wanted(LABEL, GREETER),
+      needs: ['notifications', 'store'],
+    })
+    expect(outcome).toEqual({
+      kind: 'failed',
+      reason: 'needs store: there is no port by that name here',
+    })
+    expect(asked).toEqual([['notifications', 'store']])
+    expect(w.loaded).toEqual([])
+    expect(w.placed).toEqual([])
+  })
+
+  it('hands the guest form the key of the member and the binder of the ports it pinned', async () => {
+    const given: unknown[] = []
+    const bind = (principal: unknown) => (given.push(principal), BOUND)
+    const w = world({
+      needs: () => ({ kind: 'adopted', bind }),
+      guestForm: () => (made, context) => {
+        given.push(made, context.key)
+        given.push(context.bind('p-alice'))
+        return 'item'
+      },
+    })
+    expect((await w.install(wanted(GREETER))).kind).toBe('installed')
+    expect(given).toEqual(['hello', 'hello', 'p-alice', BOUND])
+  })
+
   it('a plugin that writes no member for the server is installed and puts nothing', async () => {
     const w = world()
     expect((await w.install(wanted())).kind).toBe('installed')
     expect(w.placed).toEqual([])
+  })
+})
+
+describe('the two points of the server tree that the loading of plugins owns', () => {
+  it('are declarations the registry takes, fixed when the application is built so a plugin can place neither a port nor a guest form; a port is an object that makes one, seen from the scope of a tenant', async () => {
+    const { declare, empty, install } = await import('@omne-harness/dynamis')
+    const { portsContract, guestFormsContract, PORTS_POINT, GUEST_FORMS_POINT } =
+      await import('@omne-harness/plugin-host-local')
+    const made = install(empty, { fiber: 'test', generation: 1 }, [
+      declare(portsContract),
+      declare(guestFormsContract),
+    ])
+    expect(made.kind).toBe('installed')
+    if (made.kind !== 'installed') return
+    const { ask } = await import('@omne-harness/dynamis')
+    const lent = install(made.registry, { fiber: 'notification', generation: 1 }, [
+      {
+        point: PORTS_POINT,
+        key: 'notifications',
+        id: '',
+        scope: [],
+        rank: 0,
+        digest: 'd',
+        item: { make: () => ({}) },
+      },
+      {
+        point: PORTS_POINT,
+        key: 'bare',
+        id: '',
+        scope: [],
+        rank: 0,
+        digest: 'e',
+        item: () => ({}),
+      },
+    ])
+    if (lent.kind !== 'installed') throw new Error(lent.kind)
+    expect(ask(lent.registry, PORTS_POINT, 'notifications', ['tenant', 'alice']).kind).toBe('one')
+    expect(ask(lent.registry, PORTS_POINT, 'bare', ['tenant', 'alice']).kind).toBe('none')
+    expect([portsContract.name, guestFormsContract.name]).toEqual([PORTS_POINT, GUEST_FORMS_POINT])
+    expect([portsContract.binding, guestFormsContract.binding]).toEqual(['build', 'build'])
   })
 })

@@ -14,3 +14,10 @@ export type {
   SourceRead,
   TargetTenantPrincipals,
 } from './ports.ts'
+export {
+  guestProtocol,
+  type GuestAnswer,
+  type GuestHandler,
+  type GuestOperation,
+  type GuestProtocolMade,
+} from './guest-protocol.ts'

@@ -55,3 +55,11 @@ export {
   type Outcome,
 } from './loader.ts'
 export { wantedOf, type Offered, type Wanted } from './wanted.ts'
+export {
+  bindPorts,
+  type Bound,
+  type Port,
+  type PortAnswer,
+  type PortData,
+  type PortFactory,
+} from './ports.ts'

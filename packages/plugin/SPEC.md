@@ -226,8 +226,12 @@ flowchart LR
 服务端照「一份 plugin 在一侧」的两张表、同一个回路与同一个底装，装的是每个租户在持的 plugin 清单里 `server` 一段。与客户端不同的地方：
 
 - 每个租户各有一个回路与一份底的记录（`createServerSide`）：为一个租户装什么、装没装成、停没停，不改别的租户的。读不到一个租户在持什么，它装着的不动。
-- 一份怎样放（`serverInstall`）：数据成员放成一条条目；代码成员只放在给了客人写法的点上（点的拥有者把导出交回的东西做成它收的一项），文件按清单里的摘要取，导出的函数被调时只拿到 `{ ports }`，拿不到上下文、服务或宿主的任何东西。条目的作用域由装载方打上，是持有它的那个租户的范围；清单里写不出作用域。
+- 一份怎样放（`serverInstall`）：先在这份的作用域里用 `adopt` 钉住 `needs` 写的每一个口，有一个不在整份装失败，原因写明缺哪几个；数据成员放成一条条目；代码成员只放在给了客人写法的点上，文件按清单里的摘要取，导出的函数被调时只拿到 `{ ports }`，拿不到上下文、服务或宿主的任何东西。条目的作用域由装载方打上，是持有它的那个租户的范围；清单里写不出作用域。
 - 点此刻不在、写法与点收的不合、点在构建时定死、点归一个类别、包里没有那个文件、导入或调用抛出、点不收交回的东西、同一份两个成员在同一处、登记表不收：各有原因，指到成员。有一个成员不成，这一份什么都不放。
+- 两个点归 plugin，都在构建时定，plugin 自己放不上去：`plugin.ports`，键是口的名字，一项是 `{ make }`，`make(调用者)` 交出一个口，由出借它的领域的适配放上去，里面调的是这个领域已有的入口；`plugin.guest-forms`，键是收 plugin 代码的点的名字，一项是 `{ form }`，`form(交回的东西, { key, bind })` 把它做成那个点原来的一项。没有客人写法的点不收 plugin 的代码。
+- 口（`Port`）的每个方法只收一份数据、只答一份数据（`done`、`refused` 带领域的原因、`unavailable`、`unknown`、`closed`），类型上没有地方放租户、主体或函数；进出都先复制，不是数据的不过去。调用者是 `{ principal, tenant }`：这次调用的主体，与持有这份 plugin 的租户。
+- 一次调用的绑定（`bindPorts`）：一次调用进来时用它的主体打开钉住的那几个口，处理函数返回或抛出时关上；关了之后每个方法答 `closed`，不调领域。钉住的口的出借者走了或换了，那个口答 `unavailable`，绑定不变。plugin 只在被调到的时候行事，没有自己的主体。
+- `access.protocols` 的客人写法：plugin 交 `{ contract: { name, major, operations }, handlers }`，每个操作写 `effect`、`limit` 与 `body`、`result` 两条规则；键要等于 `名字/v主版本`；每个操作的身份都是 `acting-tenant`；不收观察。处理函数拿到输入与这次调用的口，见不到主体；它答的不在结果里时，读答 `basis-unavailable`，写答 `unknown`，抛出也是。
 - 服务端应用把一份放成它自己的一个 fiber，名字是 `plugin:<名字>@<版本>`；卸下就是撤掉这个 fiber，它放的条目一起撤下。
 - 类别答生效情况时读服务端每份的状态：服务端那一侧的成员看服务端，客户端那一侧的成员看客户端；状态是别的版本的不算。这棵树不在服务端装 plugin 时，服务端那一侧的成员写明不装。
 
@@ -293,3 +297,4 @@ flowchart LR
 | PL-I15 | 一个租户从资产得到的要装的，恰好是它持有的 plugin 里求值胜出的那些：被禁用的不在，别的租户持有的不在；读不到时答不可用，不答空 | 禁用了还装着；一个租户装上别的租户的 plugin；一次读不到把装着的都卸了 | `plugin-host-local/tests/held.spec.ts`；`apps/harness-server/tests/rows/plugin-access/held-source.spec.ts`、`held-release.spec.ts` |
 | PL-I16 | 开发目录里的一处变化在一轮之内通知到监听，与平台的文件监视送不送事件无关；没人要的扫描至多占二十分之一的时间 | 监视丢了事件，放进去的 plugin 要等到别人碰巧来读表才装上；或者保底的扫描把一个核占掉 | `apps/harness-server/tests/rows/plugin-access/dev-directory.spec.ts`（不送事件的监视；慢的扫描） |
 | PL-I17 | 服务端放的条目在持有这份 plugin 的那个租户的范围里，作用域由装载方打上；plugin 的代码只拿到口，它的 fiber 所在的上下文里取不到任何受信名；被底停掉的一份在同一版仍被要的时候一直停着 | 一个租户的 plugin 放的东西被别的租户读到；plugin 的代码拿到存储、签发者或秘密；一份让服务起不来的 plugin 每次起来都被装上 | `plugin-host-local/tests/server-install.spec.ts`、`server-side.spec.ts`；服务端应用 `tests/rows/plugin-server/isolation.spec.ts`、`floor-file.spec.ts`、`release.spec.ts` |
+| PL-I18 | plugin 的代码经口做的每件事以这次调用者的名义，由领域照自己的规矩判；口只来往数据；一次调用的口在这次调用返回或抛出之后答 `closed`；没写在 `needs` 里的口拿不到，写了而不在的整份不装；没有客人写法的点不收 plugin 的代码 | plugin 的权限大过调用它的人；把一个调用者的口留到以后用；经口指向别的租户的数据 | `plugin-protocol/tests/ports.spec.ts`；`plugin-host-local/tests/server-install.spec.ts`；`plugin-access/tests/guest-protocol.spec.ts`；服务端应用 `tests/rows/plugin-server/protocol-release.spec.ts` |

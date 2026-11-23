@@ -589,6 +589,8 @@ export type ServerHandle = Readonly<{
   stderr(): string
   stop(): Promise<ServerOutcome>
   kill(): Promise<void>
+  /** Settles with the exit code when the process ends by itself or is stopped. */
+  exited: Promise<number | null>
 }>
 
 export function startServer(options: {
@@ -654,6 +656,7 @@ export function startServer(options: {
       killTree(child)
       await closed
     },
+    exited: closed,
   }
   return new Promise((resolve, reject) => {
     const fail = (why: string) => {

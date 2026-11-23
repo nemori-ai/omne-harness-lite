@@ -4956,6 +4956,9 @@ importers:
       '@omne-harness/plugin-protocol':
         specifier: workspace:*
         version: link:../plugin-protocol
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../access/public-contract
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -4978,6 +4981,9 @@ importers:
       '@omne-harness/assets-cordis-contract':
         specifier: workspace:*
         version: link:../../assets/assets-cordis-contract
+      '@omne-harness/dynamis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text

@@ -30,13 +30,25 @@ export {
   pluginPlacement,
   type ClientTold,
   type PluginPlacement,
+  type ServerTold,
   type PluginPlacementInput,
 } from './placement.ts'
 export {
   serverInstall,
+  type GuestContext,
   type GuestForm,
+  type Needed,
   type ServerEntry,
   type ServerInstallPorts,
   type ServerPoint,
 } from './server-install.ts'
 export { createServerSide, type ServerSide, type ServerSidePorts } from './server-side.ts'
+export {
+  GUEST_FORMS_POINT,
+  PORTS_POINT,
+  guestFormsContract,
+  portsContract,
+  type GuestFormItem,
+  type PortCaller,
+  type PortItem,
+} from './server-points.ts'

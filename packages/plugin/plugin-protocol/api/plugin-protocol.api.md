@@ -6,6 +6,7 @@
 
 ## 入口 `.` · `index.d.ts`
 
+- `Bound` · `ports.d.ts`
 - `DataMember` · `manifest.d.ts`
 - `DirectoryMember` · `manifest.d.ts`
 - `FILE_SUFFIXES` · `package.d.ts`
@@ -30,6 +31,10 @@
 - `PlacedMember` · `package.d.ts`
 - `PluginManifest` · `manifest.d.ts`
 - `PluginProtocol` · `plugin-protocol.d.ts`
+- `Port` · `ports.d.ts`
+- `PortAnswer` · `ports.d.ts`
+- `PortData` · `ports.d.ts`
+- `PortFactory` · `ports.d.ts`
 - `ReportedPoint` · `plugin-protocol.d.ts`
 - `ReportedPointContract` · `plugin-protocol.d.ts`
 - `Side` · `manifest.d.ts`
@@ -40,6 +45,7 @@
 - `SideStep` · `side-state.d.ts`
 - `UNWANTED` · `side-state.d.ts`
 - `Wanted` · `wanted.d.ts`
+- `bindPorts` · `ports.d.ts`
 - `createLoader` · `loader.d.ts`
 - `fiberOf` · `floor.d.ts`
 - `heldOf` · `floor.d.ts`
@@ -88,6 +94,7 @@ export { UNWANTED, stepSide, type SideEffect, type SideEvent, type SideState, ty
 export { NO_FLOOR, fiberOf, heldOf, standingOf, type FloorPort, type FloorStanding, } from './floor.ts';
 export { createLoader, type Kept, type Listed, type Loader, type LoaderDeps, type Outcome, } from './loader.ts';
 export { wantedOf, type Offered, type Wanted } from './wanted.ts';
+export { bindPorts, type Bound, type Port, type PortAnswer, type PortData, type PortFactory, } from './ports.ts';
 ```
 
 ## 声明文件 `loader.d.ts`
@@ -592,6 +599,35 @@ export type PluginProtocol = typeof pluginProtocol;
 export type ReportedPoint = RuleValue<typeof point>;
 export type ReportedPointContract = NonNullable<ReportedPoint['contract']>;
 export {};
+```
+
+## 声明文件 `ports.d.ts`
+
+```ts
+export type PortData = null | boolean | number | string | readonly PortData[] | Readonly<{
+    [key: string]: PortData;
+}>;
+export type PortAnswer = Readonly<{
+    outcome: 'done';
+    value: PortData;
+}> | Readonly<{
+    outcome: 'refused';
+    reason: string;
+}> | Readonly<{
+    outcome: 'unavailable';
+    reason: string;
+}> | Readonly<{
+    outcome: 'unknown';
+}> | Readonly<{
+    outcome: 'closed';
+}>;
+export type Port = Readonly<Record<string, (input: PortData) => Promise<PortAnswer>>>;
+export type PortFactory<Caller> = (caller: Caller) => Port;
+export type Bound = Readonly<{
+    ports: Readonly<Record<string, Port>>;
+    close(): void;
+}>;
+export declare function bindPorts<Caller>(factories: Readonly<Record<string, () => PortFactory<Caller> | undefined>>, caller: Caller): Bound;
 ```
 
 ## 声明文件 `side-state.d.ts`
