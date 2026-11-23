@@ -32,7 +32,7 @@ function devDirectory(): string {
 
 describe('plugin/v1 on the release tree', () => {
   it(
-    'lists the plugin of the dev directory to a login, reads its file back byte for byte, and refuses no login',
+    'lists the plugin of the dev directory to a login, reads its file back byte for byte, keeps what a client told while it observes, and refuses no login',
     { tags: ['slow'], timeout: 300_000 },
     async () => {
       const root = devDirectory()
@@ -92,6 +92,45 @@ describe('plugin/v1 on the release tree', () => {
               limit: 10,
             }),
           ).toEqual({ outcome: 'not-found', body: { reason: 'file' } })
+
+          const report = {
+            plugins: [{ name: 'notes', version: notes!.version, state: 'loaded', reason: null }],
+            points: [{ name: 'notes.card', summary: 'How a note of one kind is drawn.' }],
+            parts: [
+              {
+                name: 'notes.send',
+                label: 'send',
+                summary: 'sends it',
+                depths: ['style'],
+                within: null,
+              },
+            ],
+          } as const
+          const watching = new AbortController()
+          const frames = client.observe['observe-wanted'](
+            { tenant, side: 'client', client: 'desktop-1' },
+            { signal: watching.signal },
+          )
+          expect(await frames.next()).toEqual({ done: false, value: { kind: 'changed' } })
+          expect(await client['report-loaded']({ tenant, client: 'desktop-1', ...report })).toEqual(
+            {
+              outcome: 'succeeded',
+              body: {},
+            },
+          )
+          expect(await client['list-reports']({ tenant })).toEqual({
+            outcome: 'succeeded',
+            body: { clients: [{ client: 'desktop-1', ...report }] },
+          })
+          watching.abort()
+          await frames.return({ kind: 'aborted' })
+          let left: unknown
+          for (let round = 0; round < 40; round += 1) {
+            left = await client['list-reports']({ tenant })
+            if (JSON.stringify(left).includes('"clients":[]')) break
+            await new Promise(resolve => setTimeout(resolve, 100))
+          }
+          expect(left).toEqual({ outcome: 'succeeded', body: { clients: [] } })
 
           const anonymous = await fetch(`${origin}/api/plugin/v1/list-wanted`, {
             method: 'POST',

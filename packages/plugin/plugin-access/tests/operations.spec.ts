@@ -21,8 +21,21 @@ const BODIES = {
     tenant: ALICE.tenant,
     client: 'desktop-1',
     plugins: [{ name: 'notes', version: 'v-notes', state: 'loaded', reason: null }],
+    points: [{ name: 'notes.card', summary: 'How a note of one kind is drawn.' }],
+    parts: [
+      {
+        name: 'notes.send',
+        label: '发送按钮',
+        summary: '把写好的一条发出去',
+        depths: ['tokens', 'style'],
+        within: null,
+      },
+    ],
   },
+  'list-reports': { tenant: ALICE.tenant },
 } as const
+const { plugins: PLUGINS, points: POINTS, parts: PARTS } = BODIES['report-loaded']
+const TREE = { points: POINTS, parts: PARTS }
 type Name = keyof typeof BODIES
 const NAMES = Object.keys(BODIES) as Name[]
 
@@ -208,13 +221,36 @@ describe('report-loaded', () => {
       tenant: ALICE.tenant,
       client: 'web-2',
       plugins: [failed],
+      points: [],
+      parts: [],
     })
     await call(world, 'report-loaded', { ...BODIES['report-loaded'], plugins: [] })
     expect(world.reports.reportsOf(ALICE.tenantText)).toEqual([
-      { client: 'desktop-1', plugins: [] },
-      { client: 'web-2', plugins: [failed] },
+      { client: 'desktop-1', plugins: [], ...TREE },
+      { client: 'web-2', plugins: [failed], points: [], parts: [] },
     ])
     expect(world.reports.reportsOf(fixtureLogin('b').tenantText)).toEqual([])
+  })
+
+  it('is read back by list-reports, for the tenant the login acts for and no other', async () => {
+    const world = serving()
+    expect(await call(world, 'list-reports')).toEqual({
+      outcome: 'succeeded',
+      body: { clients: [] },
+    })
+    await call(world, 'report-loaded')
+    expect(await call(world, 'list-reports')).toEqual({
+      outcome: 'succeeded',
+      body: { clients: [{ client: 'desktop-1', plugins: PLUGINS, ...TREE }] },
+    })
+    const bob = fixtureLogin('b')
+    const asBob = world.contribution.operations['list-reports'] as (
+      call: unknown,
+      body: unknown,
+    ) => Promise<unknown>
+    expect(
+      await asBob({ principal: loginIdentity(bob), messageId: 'm-9' }, { tenant: bob.tenant }),
+    ).toEqual({ outcome: 'succeeded', body: { clients: [] } })
   })
 
   it('a record that breaks is unknown', async () => {
@@ -227,12 +263,13 @@ describe('report-loaded', () => {
 })
 
 describe('observe-wanted', () => {
-  const open = { tenant: ALICE.tenant, side: 'client' }
-  const observe = (world: World, stop = new AbortController()) =>
+  const observe = (world: World, stop = new AbortController(), client = 'desktop-1') =>
     world.contribution.observations['observe-wanted']!(
       { principal: loginIdentity(ALICE), messageId: 'm-2', signal: stop.signal } as never,
-      open as never,
+      { tenant: ALICE.tenant, side: 'client', client } as never,
     )
+  const clients = (world: World): string[] =>
+    world.reports.reportsOf(ALICE.tenantText).map(each => each.client)
 
   it('is denied, or unavailable, before it subscribes', async () => {
     for (const refusal of ['denied', 'basis-unavailable', 'throw'] as const) {
@@ -258,5 +295,84 @@ describe('observe-wanted', () => {
     stop.abort()
     expect(world.listeners.size).toBe(0)
     expect(await opened.frames.next()).toEqual({ done: true, value: 'unavailable' })
+  })
+
+  it('keeps what a client reported for as long as that client observes, and drops it when its last observation ends', async () => {
+    const world = serving()
+    const first = new AbortController()
+    const second = new AbortController()
+    await observe(world, first)
+    await call(world, 'report-loaded')
+    await observe(world, second)
+    first.abort()
+    expect(clients(world)).toEqual(['desktop-1'])
+    second.abort()
+    expect(clients(world)).toEqual([])
+  })
+
+  it('drops only what the client that left reported', async () => {
+    const world = serving()
+    const desktop = new AbortController()
+    await observe(world, desktop)
+    await observe(world, new AbortController(), 'web-2')
+    await call(world, 'report-loaded')
+    await call(world, 'report-loaded', { ...BODIES['report-loaded'], client: 'web-2' })
+    desktop.abort()
+    expect(clients(world)).toEqual(['web-2'])
+  })
+
+  it('does not count a client it refused as there', async () => {
+    const world = serving()
+    world.refuseTargets('denied')
+    const stop = new AbortController()
+    await observe(world, stop)
+    world.refuseTargets(undefined)
+    await call(world, 'report-loaded')
+    stop.abort()
+    expect(clients(world)).toEqual(['desktop-1'])
+  })
+})
+
+describe('the reports kept in the process', () => {
+  it('keeps the reports of so many clients of one tenant and no more: the one that reported longest ago goes first', async () => {
+    const world = createWorld({ perTenant: 2 })
+    const report = { plugins: [], points: [], parts: [] }
+    world.reports.record('t', 'a', report)
+    world.reports.record('t', 'b', report)
+    world.reports.record('t', 'a', report)
+    world.reports.record('t', 'c', report)
+    world.reports.record('u', 'z', report)
+    expect(world.reports.reportsOf('t').map(each => each.client)).toEqual(['a', 'c'])
+    expect(world.reports.reportsOf('u').map(each => each.client)).toEqual(['z'])
+  })
+
+  it('counts each time a client is there: leaving once is counted once, and it can come and leave again', () => {
+    const world = createWorld()
+    const report = { plugins: [], points: [], parts: [] }
+    const first = world.reports.present('t', 'a')
+    const second = world.reports.present('t', 'a')
+    world.reports.record('t', 'a', report)
+    first()
+    first()
+    expect(world.reports.reportsOf('t')).toHaveLength(1)
+    second()
+    expect(world.reports.reportsOf('t')).toEqual([])
+    const again = world.reports.present('t', 'a')
+    world.reports.record('t', 'a', report)
+    again()
+    expect(world.reports.reportsOf('t')).toEqual([])
+  })
+
+  it('lets a client that told nothing leave', () => {
+    const world = createWorld()
+    world.reports.present('t', 'nobody')()
+    expect(world.reports.reportsOf('t')).toEqual([])
+  })
+
+  it('hands out copies: what a caller does to a list it read does not change what is kept', async () => {
+    const world = createWorld()
+    world.reports.record('t', 'a', { plugins: [], points: [], parts: [] })
+    ;(world.reports.reportsOf('t') as unknown[]).length = 0
+    expect(world.reports.reportsOf('t')).toHaveLength(1)
   })
 })

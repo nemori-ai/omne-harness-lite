@@ -101,3 +101,30 @@ describe('whether a point takes a drawing', () => {
     expect(t.shell.takesDrawing('notes.nowhere')).toBe(false)
   })
 })
+
+describe('what the tree of the interface has now', () => {
+  it('is its points and its parts by name, each with what it is; a part that leaves is no longer there', async () => {
+    const t = await world()
+    const card = defineRenderPoint({ name: 'notes.card', key: 'the kind', summary: 'A note.' })
+    card.declare(t.shell)
+    const told = t.shell.described()
+    expect(told.parts).toEqual([
+      {
+        name: 'notes.send',
+        label: '发送按钮',
+        summary: '把写好的一条发出去',
+        depths: ['style'],
+        within: null,
+      },
+    ])
+    const names = told.points.map(point => point.name)
+    expect(names).toEqual([...names].sort())
+    expect(names).toEqual(expect.arrayContaining(['notes.card', 'shell.pages', 'shell.part-style']))
+    expect(told.points.find(point => point.name === 'notes.card')).toEqual({
+      name: 'notes.card',
+      summary: 'A note.',
+    })
+    await t.module.dispose()
+    expect(t.shell.described().parts).toEqual([])
+  })
+})

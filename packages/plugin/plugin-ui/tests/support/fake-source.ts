@@ -25,6 +25,9 @@ export function given(name: string, version: string, ...members: Member[]): Give
 export function fakeSource() {
   const lists = new Map<string, readonly Given[] | 'unavailable'>()
   const asked: string[] = []
+  const opened: Readonly<Record<string, unknown>>[] = []
+  const reports: Readonly<Record<string, unknown>>[] = []
+  let delivering = true
   const pushes = new Set<() => void>()
   const accountOf = (body: unknown): string => {
     try {
@@ -41,8 +44,16 @@ export function fakeSource() {
         ? { outcome: 'unavailable' }
         : { outcome: 'succeeded', body: { plugins } }
     },
+    'report-loaded': async (body: Readonly<Record<string, unknown>>) => {
+      reports.push(body)
+      return delivering ? { outcome: 'succeeded', body: {} } : { outcome: 'unavailable' }
+    },
     observe: {
-      'observe-wanted': async function* (_open: unknown, options: { signal: AbortSignal }) {
+      'observe-wanted': async function* (
+        open: Readonly<Record<string, unknown>>,
+        options: { signal: AbortSignal },
+      ) {
+        opened.push(open)
         let pending = 1
         let wake: (() => void) | undefined
         const push = (): void => {
@@ -67,6 +78,11 @@ export function fakeSource() {
   return {
     client,
     asked,
+    opened,
+    reports,
+    deliver(next: boolean): void {
+      delivering = next
+    },
     set(tenant: string, plugins: readonly Given[] | 'unavailable'): void {
       lists.set(tenant, plugins)
       for (const push of pushes) push()

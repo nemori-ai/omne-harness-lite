@@ -1,7 +1,9 @@
 import { CordisError, Service, type Context, type Plugin } from '@deepseek-ai/cordis'
 import {
+  CATALOG,
   adopt,
   declare,
+  list,
   standingOf,
   type Adoption,
   type Contract,
@@ -29,7 +31,7 @@ import {
   type PartStyle,
 } from './change.ts'
 import type { FigureBoard, FigureReport } from './figure-store.ts'
-import type { Fallen, Hosted, ScopeSource, ShellLogin } from './host.ts'
+import type { Described, Fallen, Hosted, ScopeSource, ShellLogin } from './host.ts'
 import {
   pinnedClient,
   pointReader,
@@ -44,6 +46,7 @@ import {
   partFault,
   partHostOf,
   partsContract,
+  partsOn,
   type PartDeclaration,
   type PartRender,
 } from './part.ts'
@@ -188,6 +191,27 @@ export abstract class ShellService extends Service implements ShellSlots {
     return this.ctx.dynamis.put(instance => [
       renderEntry(point, key, render, scope, `${instance.fiber}#${instance.generation}`),
     ])
+  }
+
+  described(): Described {
+    const registry = this.registry()
+    const catalog = list<Contract>(registry, CATALOG, null, [])
+    const declared = catalog.kind === 'read' ? catalog.items : []
+    const parts = partsOn(registry)
+    return {
+      points: declared
+        .map(({ entry }) => ({ name: entry.key, summary: entry.item.summary }))
+        .sort((left, right) => (left.name < right.name ? -1 : 1)),
+      parts: (parts.kind === 'read' ? parts.parts : [])
+        .map(({ name, label, summary, depths, within }) => ({
+          name,
+          label,
+          summary,
+          depths,
+          within,
+        }))
+        .sort((left, right) => (left.name < right.name ? -1 : 1)),
+    }
   }
 
   takesDrawing(point: string): boolean {

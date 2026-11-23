@@ -14,6 +14,8 @@ export type Sleep = (ms: number, signal: AbortSignal) => Promise<void>
 export type FollowDeps = Readonly<{
   client: ClientOf<PluginProtocol>
   tenant: TenantId
+  /** The name this client goes by: the server keeps what it tells under it for as long as it observes. */
+  id: string
   /** Called with each list that was read. A list that could not be read is not an empty one: nothing is called. */
   onList: (list: readonly Listed[]) => void
   backoff?: Backoff
@@ -78,7 +80,10 @@ export function followWanted(deps: FollowDeps): () => Promise<void> {
   async function round(): Promise<boolean> {
     const open = new AbortController()
     const signal = AbortSignal.any([stopped.signal, open.signal])
-    const frames = client.observe['observe-wanted']({ tenant, side: SIDE }, { signal })
+    const frames = client.observe['observe-wanted'](
+      { tenant, side: SIDE, client: deps.id },
+      { signal },
+    )
     let alive = false
     try {
       for (;;) {

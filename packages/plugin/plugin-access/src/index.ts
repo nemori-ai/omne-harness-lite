@@ -1,10 +1,12 @@
 export { createPluginContribution, type PluginContributionInput } from './contribution.ts'
-export { createPluginReports, type ClientReports, type PluginReportsInMemory } from './reports.ts'
+export { createPluginReports } from './reports.ts'
 export type {
+  ClientReport,
   FileAt,
   LoadReport,
   PluginReports,
   PluginSource,
+  ReportedClient,
   SourceFile,
   SourcePlugin,
   SourceRead,

@@ -8,6 +8,7 @@ import { defineUiModule, type ShellService } from '@omne-harness/shell-contract/
 import { NO_FLOOR, fiberOf, heldOf, standingOf, type FloorPort } from './floor.ts'
 import { followWanted, type Sleep } from './follow.ts'
 import { installOn, type Code } from './install.ts'
+import { createReporter, reportsOf } from './report.ts'
 import { createLoader } from './loader.ts'
 
 export type PluginUiOptions = Readonly<{
@@ -15,6 +16,8 @@ export type PluginUiOptions = Readonly<{
   sleep?: Sleep
   code?: Code
   floor?: FloorPort
+  /** The name this client goes by on the server; one of its own making when none is given. */
+  clientId?: () => string
 }>
 
 type Running = Readonly<{ stop: () => Promise<void> }>
@@ -29,7 +32,8 @@ function loadFor(
   const tenant = readTenantText(text ?? '')
   if (tenant === undefined || text === undefined) return undefined
   const scope = tenantScope(text)
-  const { code, floor = NO_FLOOR, ...pace } = options
+  const { code, floor = NO_FLOOR, clientId = () => crypto.randomUUID(), ...pace } = options
+  const id = clientId()
   const risen = floor.rise(text)
   const known = new Set(risen.want)
   const marked = new Set<string>()
@@ -63,19 +67,37 @@ function loadFor(
     }
     mark(standing.held)
     if (!standing.loading) floor.settle(text)
+    reporter.touch()
   }
+  const reporter = createReporter(
+    () => ({
+      plugins: reportsOf(loader.states(), shell.changes().conflicts),
+      ...shell.described(),
+    }),
+    async reported =>
+      (await client['report-loaded']({ tenant, client: id, ...reported })).outcome === 'succeeded',
+  )
+  let listed = false
+  const told = (): void => {
+    if (listed) reporter.touch()
+  }
+  const unwatch = [shell.watchAdoptions(told), shell.watchChanges(told)]
   loader.watch(settle)
   const stopFollowing = followWanted({
     client,
     tenant,
+    id,
     onList(list) {
       loader.converge(list)
+      listed = true
       settle()
     },
     ...pace,
   })
   return {
     async stop() {
+      reporter.stop()
+      for (const stop of unwatch) stop()
       await stopFollowing()
       mark(new Set())
       await loader.stop()

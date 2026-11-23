@@ -12,25 +12,32 @@ const manifest = JSON.stringify({
 const file = { path: 'client/index.js', digest: 'ab12', bytes: 120 }
 const plugin = { name: 'notes', version: '0123456789abcdef', manifest, files: [file] }
 const read = { tenant, name: 'notes', version: '0123456789abcdef', path: file.path }
+const loaded = { name: 'notes', version: 'v1', state: 'loaded', reason: null }
+const part = {
+  name: 'notes.send',
+  label: '发送按钮',
+  summary: '把写好的一条发出去',
+  depths: ['tokens', 'style'],
+  within: 'notes.composer',
+}
+const reported = {
+  plugins: [
+    loaded,
+    { name: 'board', version: 'v2', state: 'failed', reason: 'module threw' },
+    { name: 'clock', version: 'v3', state: 'held', reason: null },
+  ],
+  points: [{ name: 'notes.card', summary: 'How a note of one kind is drawn.' }],
+  parts: [part, { ...part, name: 'notes.composer', depths: [], within: null }],
+}
 
 describe('the bodies of plugin/v1 go to the wire and back unchanged', () => {
   it.each([
     ['list-wanted', { tenant, side: 'client' }],
     ['list-wanted', { tenant, side: 'server' }],
     ['read-file', { ...read, offset: 0, limit: 65536 }],
-    ['report-loaded', { tenant, client: 'desktop-1', plugins: [] }],
-    [
-      'report-loaded',
-      {
-        tenant,
-        client: 'desktop-1',
-        plugins: [
-          { name: 'notes', version: 'v1', state: 'loaded', reason: null },
-          { name: 'board', version: 'v2', state: 'failed', reason: 'module threw' },
-          { name: 'clock', version: 'v3', state: 'held', reason: null },
-        ],
-      },
-    ],
+    ['report-loaded', { tenant, client: 'desktop-1', plugins: [], points: [], parts: [] }],
+    ['report-loaded', { tenant, client: 'desktop-1', ...reported }],
+    ['list-reports', { tenant }],
   ] as const)('%s %j', (name, body) => {
     expectRoundTrip(operations[name].body, body)
   })
@@ -43,17 +50,32 @@ describe('the bodies of plugin/v1 go to the wire and back unchanged', () => {
     ['read-file', { ...read, limit: 10 }],
     [
       'report-loaded',
-      {
-        tenant,
-        client: 'desktop-1',
-        plugins: [{ name: 'notes', version: 'v1', state: 'loading', reason: null }],
-      },
+      { tenant, client: 'desktop-1', ...reported, plugins: [{ ...loaded, state: 'loading' }] },
     ],
     [
       'report-loaded',
-      { tenant, client: 'desktop-1', plugins: [{ name: 'notes', version: 'v1', state: 'loaded' }] },
+      {
+        tenant,
+        client: 'desktop-1',
+        ...reported,
+        plugins: [{ name: 'notes', version: 'v1', state: 'loaded' }],
+      },
     ],
-    ['report-loaded', { tenant, plugins: [] }],
+    ['report-loaded', { tenant, ...reported }],
+    ['report-loaded', { tenant, client: 'desktop-1', plugins: [] }],
+    [
+      'report-loaded',
+      { tenant, client: 'desktop-1', ...reported, parts: [{ ...part, depths: ['layout'] }] },
+    ],
+    [
+      'report-loaded',
+      { tenant, client: 'desktop-1', ...reported, parts: [{ name: 'notes.send' }] },
+    ],
+    [
+      'report-loaded',
+      { tenant, client: 'desktop-1', ...reported, points: [{ name: 'notes.card' }] },
+    ],
+    ['list-reports', {}],
   ] as const)('%s refuses %j', (name, body) => {
     expect(readSample(operations[name].body, body)).toEqual({ ok: false })
   })
@@ -94,9 +116,17 @@ describe('the outcomes of plugin/v1 go to the wire and back unchanged', () => {
     expect(new TextDecoder().decode(body.part)).toBe('hello')
   })
 
-  it('observe-wanted opens on one side of a tenant and says only that it may have changed', () => {
+  it('list-reports answers what each client of the tenant reported last', () => {
+    const { succeeded } = operations['list-reports'].outcomes
+    expectRoundTrip(succeeded, { clients: [] })
+    expectRoundTrip(succeeded, { clients: [{ client: 'desktop-1', ...reported }] })
+    expect(readSample(succeeded, { clients: [{ ...reported }] })).toEqual({ ok: false })
+  })
+
+  it('observe-wanted opens on one side of a tenant for one client, and says only that it may have changed', () => {
     const observation = pluginProtocol.observations['observe-wanted']
-    expectRoundTrip(observation.open, { tenant, side: 'client' })
+    expectRoundTrip(observation.open, { tenant, side: 'client', client: 'desktop-1' })
+    expect(readSample(observation.open, { tenant, side: 'client' })).toEqual({ ok: false })
     expectRoundTrip(observation.frame, { kind: 'changed' })
     expect(readSample(observation.frame, { kind: 'changed', plugins: [] })).toEqual({ ok: false })
     expect(readSample(observation.open, { tenant })).toEqual({ ok: false })

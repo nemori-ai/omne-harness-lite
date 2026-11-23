@@ -63,7 +63,7 @@ export function offered(
 type Listed = Awaited<ReturnType<PluginSource['list']>>
 
 /** A stand-in source and identity: each answers what the test set, and every call is recorded. */
-export function createWorld() {
+export function createWorld(kept: Readonly<{ perTenant: number }> = { perTenant: 8 }) {
   let refusal: 'denied' | 'basis-unavailable' | 'throw' | undefined
   let listed: Listed | (() => never) = { kind: 'read', offered: [] }
   let reading: SourceRead | (() => never) = { kind: 'unavailable' }
@@ -94,7 +94,7 @@ export function createWorld() {
       return { ok: { account, tenant: target } as unknown as Principal }
     },
   }
-  const reports = createPluginReports()
+  const reports = createPluginReports(kept)
   return {
     refuseTargets(next: typeof refusal): void {
       refusal = next

@@ -11,7 +11,6 @@ export interface TargetTenantPrincipals {
 
 export type SourceFile = PackageFile & Readonly<{ bytes: number }>
 
-/** One plugin as a source gives it, with the text of its manifest and the size of each file. */
 export type SourcePlugin = Omit<Offered, 'files'> &
   Readonly<{ manifestText: string; files: readonly SourceFile[] }>
 
@@ -47,8 +46,24 @@ export type LoadReport = Readonly<{
   reason: string | null
 }>
 
+export type ClientReport = Readonly<{
+  plugins: readonly LoadReport[]
+  points: readonly Readonly<{ name: string; summary: string }>[]
+  parts: readonly Readonly<{
+    name: string
+    label: string
+    summary: string
+    depths: readonly ('tokens' | 'style' | 'render')[]
+    within: string | null
+  }>[]
+}>
+
+export type ReportedClient = ClientReport & Readonly<{ client: string }>
+
 /** Where clients' reports go. A client reporting again replaces what it reported before. */
 export interface PluginReports {
-  record(tenant: string, client: string, reports: readonly LoadReport[]): void
-  forget(tenant: string, client: string): void
+  record(tenant: string, client: string, report: ClientReport): void
+  /** The client is there from now until the answer is called; when it is there no more, what it reported is dropped. */
+  present(tenant: string, client: string): () => void
+  reportsOf(tenant: string): readonly ReportedClient[]
 }

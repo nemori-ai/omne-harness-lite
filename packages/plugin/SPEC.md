@@ -89,17 +89,19 @@ flowchart LR
 
 ### 协议 plugin/v1
 
-四样都要登录，正文都带目标租户。
+五样都要登录，正文都带目标租户。
 
 | 名字 | 种类 | 正文 | 成功时 | 别的答复 |
 | --- | --- | --- | --- | --- |
 | `list-wanted` | 读 | `{ tenant, side }`，`side` 是 `client` 或 `server` | `{ plugins }`：每份 `{ name, version, manifest, files }`。`manifest` 是 `plugin.json` 的原文，客户端用 `readManifest` 读；`files` 每项 `{ path, digest, bytes }` | 共同契约的那一组 |
 | `read-file` | 读 | `{ tenant, name, version, path, offset, limit }` | `{ part, next, bytes }`：`next` 是下一个偏移，读完是空；`bytes` 是整个文件的字节数 | `not-found`：`plugin`（这个名字与版本不在这个租户要装的里）或 `file`（路径不在那一份的文件表里）；`limited`（`limit` 是 0） |
-| `report-loaded` | 提交，重发安全 | `{ tenant, client, plugins }`：`client` 是客户端实例自己起的标识；每份 `{ name, version, state, reason }`，`state` 是 `loaded`、`failed`、`held` | `{}` | 共同契约的那一组，加 `unknown` |
-| `observe-wanted` | 观察 | `{ tenant, side }` | 帧 `{ kind: 'changed' }`：只说要装的可能变了，客户端收到就重读 | 以 `denied` 或 `unavailable` 结束 |
+| `report-loaded` | 提交，重发安全；正文走大的那一档 | `{ tenant, client, plugins, points, parts }`：`client` 是客户端实例自己起的标识；`plugins` 每份 `{ name, version, state, reason }`，`state` 是 `loaded`、`failed`、`held`；`points` 每项 `{ name, summary }`；`parts` 每项 `{ name, label, summary, depths, within }` | `{}` | 共同契约的那一组，加 `unknown` |
+| `list-reports` | 读 | `{ tenant }` | `{ clients }`：这个租户现在连着的每个客户端最后报的那一份，带它的 `client` | 共同契约的那一组 |
+| `observe-wanted` | 观察 | `{ tenant, side, client }`：`client` 与回报里的是同一个标识 | 帧 `{ kind: 'changed' }`：打开时一帧，之后每次要装的可能变了一帧；客户端每收到一帧读一次表 | 以 `denied` 或 `unavailable` 结束 |
 
 - 一次读至多给 256 KiB；`limit` 更大时按这个数读。
-- 同一个客户端再报，覆盖它上一次报的。
+- 同一个客户端再报，覆盖它上一次报的。回报是全量的一份：它说的是这个客户端现在的样子，不是一次变化。
+- 一个客户端「在」的意思是它开着 `observe-wanted`。它的最后一条观察结束，它报的那一份就去掉；`list-reports` 因此只答现在连着的客户端。
 - 页面不直接调 `read-file` 取代码：它从宿主应用同源的一条路取文件，那条路带着登录替它读。路径的写法与那条路的答复归宿主应用的规格（桌面应用见 [`apps/desktop/SPEC.md`](../../apps/desktop/SPEC.md#取-plugin-的文件)）。
 
 ### 接入插件与来源
@@ -107,7 +109,8 @@ flowchart LR
 - 每个处理函数的次序：核这次登录可以为目标租户行事，拒绝答 `denied`，依据取不到答 `basis-unavailable`；取为这个租户行事的主体；再问来源。来源答取不到时答 `basis-unavailable`；来源抛出时读操作答 `basis-unavailable`，提交操作答 `unknown`。
 - 来源是插件声明的端口：`list(主体)` 给一组（每份带清单原文与每个文件的字节数），`read(主体, 位置)` 给一段字节或答哪一样不在，`subscribe(监听)` 在给的一组可能变了时叫监听。给什么可以因主体而不同。
 - `list-wanted` 把来源给的一组经 `wantedOf` 筛成这一侧的。`read-file` 只认同一组里某一侧要装的那几份：名字与版本对不上答 `not-found/plugin`，路径不在那一份的文件表里答 `not-found/file`，两种都不问来源要字节。路径以文件表为准，所以带 `..` 或以 `/` 开头的路径一律是 `not-found/file`。
-- 回报的去处是插件声明的端口：`record(租户, 客户端, 回报)` 与 `forget(租户, 客户端)`。插件带一份进程内的实现，另有 `reportsOf(租户)` 列出每个客户端最后报的；进程重启后为空，客户端下次装载时再报。
+- 回报的去处是插件声明的端口：`record(租户, 客户端, 回报)` 记下，`present(租户, 客户端)` 说这个客户端从现在起在、答复被叫到时不在了，`reportsOf(租户)` 列出每个客户端最后报的。插件带一份进程内的实现：每个租户至多记那么多个客户端的（服务端应用的行配置 `reportsPerTenant`，缺省 32），多了去掉最久没报的；进程重启后为空，客户端下次读到表时再报。读出去的是副本。
+- `list-reports` 与别的操作一样先核登录可为目标租户行事，只答那个租户的。它是给 agent 的工具读客户端那棵树用的。
 - 服务端应用的 `plugin-access` 行给的来源是运维者配置的开发目录（配置项 `devDirectory`，绝对路径；缺省不开，不开时给空表，观察照常开着）：
   - 目录下每个子目录是一份。清单读不懂、清单的 `name` 不等于子目录名、或 `judgePackage` 不合格的那一份不给出，行的日志里写一行警告，写明哪一份与原因；同一个原因只写一次。
   - 名字以点开头的文件与目录不算（系统与工具留下的，例如 `.DS_Store`、`.git`）。配置的目录读不了时，来源答取不到，不答空表：已经装着的不因此被卸下。
@@ -159,6 +162,15 @@ flowchart LR
 - 进程重启之后，客户端记着的只有底记的那几样；别的由重新读到的表带回来。所以重启之后：装上的再装，装失败的再试，被底停掉的同一版仍停着。
 - 协议撤了，这个模块随之卸下，它装的一起撤掉。协议还挂着而来源答取不到时，已经装着的不动。
 
+### 回报
+
+装载器把这个客户端现在的样子报给服务端，agent 才问得到「装上了没有、没装上是为什么、界面上有哪些点与部位可以改」。
+
+- 报什么：每份有了结局的 plugin 的状态与原因（还在装的不报）；这棵树上声明了的点与部位（外壳的 `shell.described()`）。一份装上了、但它放的某一项和别人放的撞在同一个键上，状态仍是 `loaded`，原因写明哪个点哪个键、和谁撞了、两份都不算数。
+- 什么时候报：读到一次表之后；一份 plugin 的状态动了；树上的点或部位变了。要报的和服务端上一次收下的相同就不报。
+- 没送到（服务端没有答收下）不算报过：下一次读表、或下一次有变化时再报全量。同一时刻至多一次回报在途，在途时又有变化，送完再报一次最新的。
+- 客户端的标识是这个页面实例自己起的，观察 `observe-wanted` 与回报用同一个。页面重新加载就是另一个客户端。
+
 ### 底
 
 底回答一个问题：一份 plugin 让应用起不来的时候，应用还打不打得开。答法是应用先起自带的，plugin 是之后补装的；补装连着让应用倒下，就不再补装，并说出停掉了哪几份。底怎样算归 [Dynamis](../dynamis/SPEC.md)（`Floor`），存在哪、怎样认出「倒了一次」归宿主应用，装载器只经一个端口用它：
@@ -199,3 +211,5 @@ flowchart LR
 | PL-I09 | 一份 plugin 在客户端放的恰好是清单里这一侧的成员，记在它自己的名字与版本下，在读表的那个租户的作用域里；有一个成员放不上，这一份什么都不留下，原因记下 | 清单之外的东西上了界面；一份只生效一半；一个租户的改动被别的租户看见 | `plugin-ui/tests/install.spec.ts`、`module.spec.ts` |
 | PL-I10 | 代码成员只放在收画法的点上，放的是它的导出交回的那一个函数；取文件、取导出、调用、交回四步有一步不成，这一份什么都不留下并记原因；交给代码的外壳没有放东西的口 | 一份 plugin 的代码把清单之外的东西放上界面；一个函数落到收数据的点上；装到一半的留在界面上 | `plugin-ui/tests/code.spec.ts` |
 | PL-I11 | 每一次去装之前先告诉底；底拦着的那几份不装，并经外壳列成没起来的；被停掉的一份只在换了一版或不再要它时放开；读到表且每一份都有结局才说这一次起来了 | 一份让应用起不来的 plugin 每次启动都被装上，应用再也打不开；停掉了却没有地方看得出；一时读不到表被当成起来了，连倒的次数被清掉 | `plugin-ui/tests/floor.spec.ts`、`loader.spec.ts` 的「被底停掉」一组 |
+| PL-I12 | 服务端记着的回报只属于现在连着的客户端：客户端的最后一条观察结束，它报的就去掉；一个租户记的客户端数有上限；读回报先核登录可为那个租户行事 | agent 读到早就关掉的客户端的样子并照它行事；回报在进程里只增不减；一个租户读到另一个租户的客户端长什么样 | `plugin-access/tests/operations.spec.ts` 的回报与观察两组；服务端应用 `tests/rows/plugin-access/release.spec.ts` |
+| PL-I13 | 客户端报的是它现在的全量；服务端没有答收下的不算报过，下一次读表或变化时再报；要报的没变就不报 | 服务端记着的和客户端实际的对不上而没有人再报；每读一次表就报一次，白占一次提交 | `plugin-ui/tests/report.spec.ts` |

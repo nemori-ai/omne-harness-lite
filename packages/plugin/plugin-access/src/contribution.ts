@@ -86,14 +86,25 @@ export function createPluginContribution(
         const tenant = tenantText(body.tenant)
         const principal = await actingFor(principals, call.principal, tenant)
         if ('outcome' in principal) return principal
+        const { plugins, points, parts } = body
         try {
-          reports.record(tenant, body.client, body.plugins)
+          reports.record(tenant, body.client, { plugins, points, parts })
         } catch {
           return UNKNOWN
         }
         return { outcome: 'succeeded', body: {} }
       },
+      async 'list-reports'(call, body): Promise<Answer<'list-reports'>> {
+        const tenant = tenantText(body.tenant)
+        const principal = await actingFor(principals, call.principal, tenant)
+        if ('outcome' in principal) return principal
+        try {
+          return { outcome: 'succeeded', body: { clients: [...reports.reportsOf(tenant)] } }
+        } catch {
+          return UNAVAILABLE
+        }
+      },
     },
-    observations: { 'observe-wanted': createWantedObservation({ principals, source }) },
+    observations: { 'observe-wanted': createWantedObservation({ principals, source, reports }) },
   }
 }

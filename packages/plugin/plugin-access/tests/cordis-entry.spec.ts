@@ -38,7 +38,7 @@ async function assemble() {
         read: async () => ({ kind: 'unavailable' }),
         subscribe: () => () => undefined,
       }),
-      reports: () => createPluginReports(),
+      reports: () => createPluginReports({ perTenant: 8 }),
     }),
   )
   const registry = root.get('accessRegistry') as unknown as RecordingRegistry

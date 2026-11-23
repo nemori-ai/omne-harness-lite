@@ -24,3 +24,15 @@ export type Hosted = Readonly<{ by: string; dispose(): Promise<void> }>
 
 /** What did not come up: a module that threw while it started, or what a module holds back and says so. */
 export type Fallen = Readonly<{ name: string; why: 'threw' | 'held' }>
+
+/** What the tree of the interface has now, for whoever tells it on: its points and its parts, by name. */
+export type Described = Readonly<{
+  points: readonly Readonly<{ name: string; summary: string }>[]
+  parts: readonly Readonly<{
+    name: string
+    label: string
+    summary: string
+    depths: readonly ('tokens' | 'style' | 'render')[]
+    within: string | null
+  }>[]
+}>

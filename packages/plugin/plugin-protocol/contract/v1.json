@@ -1,6 +1,6 @@
 {
   "digests": {
-    "1": "sha256:7c224b3996057597c3790e746e4570861bb0e2cb493acbccd21c34a88c51a8c9"
+    "1": "sha256:28f8cf5b53ab1565931b205ac8bd2a69243532cf4038c58413dcd82f4d57f166"
   },
   "major": 1,
   "name": "plugin",
@@ -25,6 +25,11 @@
         "identity": "login",
         "open": {
           "fields": {
+            "client": {
+              "rule": {
+                "kind": "text"
+              }
+            },
             "side": {
               "rule": {
                 "kind": "literal",
@@ -45,6 +50,161 @@
       }
     },
     "operations": {
+      "list-reports": {
+        "body": {
+          "fields": {
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "clients": {
+                "rule": {
+                  "item": {
+                    "fields": {
+                      "client": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "parts": {
+                        "rule": {
+                          "item": {
+                            "fields": {
+                              "depths": {
+                                "rule": {
+                                  "item": {
+                                    "kind": "literal",
+                                    "values": [
+                                      "tokens",
+                                      "style",
+                                      "render"
+                                    ]
+                                  },
+                                  "kind": "array"
+                                }
+                              },
+                              "label": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              },
+                              "name": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              },
+                              "summary": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              },
+                              "within": {
+                                "rule": {
+                                  "kind": "one-of",
+                                  "rules": [
+                                    {
+                                      "kind": "text"
+                                    },
+                                    {
+                                      "kind": "null"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            "kind": "object"
+                          },
+                          "kind": "array"
+                        }
+                      },
+                      "plugins": {
+                        "rule": {
+                          "item": {
+                            "fields": {
+                              "name": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              },
+                              "reason": {
+                                "rule": {
+                                  "kind": "one-of",
+                                  "rules": [
+                                    {
+                                      "kind": "text"
+                                    },
+                                    {
+                                      "kind": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "state": {
+                                "rule": {
+                                  "kind": "literal",
+                                  "values": [
+                                    "loaded",
+                                    "failed",
+                                    "held"
+                                  ]
+                                }
+                              },
+                              "version": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              }
+                            },
+                            "kind": "object"
+                          },
+                          "kind": "array"
+                        }
+                      },
+                      "points": {
+                        "rule": {
+                          "item": {
+                            "fields": {
+                              "name": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              },
+                              "summary": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              }
+                            },
+                            "kind": "object"
+                          },
+                          "kind": "array"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  "kind": "array"
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
       "list-wanted": {
         "body": {
           "fields": {
@@ -230,6 +390,57 @@
                 "kind": "text"
               }
             },
+            "parts": {
+              "rule": {
+                "item": {
+                  "fields": {
+                    "depths": {
+                      "rule": {
+                        "item": {
+                          "kind": "literal",
+                          "values": [
+                            "tokens",
+                            "style",
+                            "render"
+                          ]
+                        },
+                        "kind": "array"
+                      }
+                    },
+                    "label": {
+                      "rule": {
+                        "kind": "text"
+                      }
+                    },
+                    "name": {
+                      "rule": {
+                        "kind": "text"
+                      }
+                    },
+                    "summary": {
+                      "rule": {
+                        "kind": "text"
+                      }
+                    },
+                    "within": {
+                      "rule": {
+                        "kind": "one-of",
+                        "rules": [
+                          {
+                            "kind": "text"
+                          },
+                          {
+                            "kind": "null"
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "kind": "object"
+                },
+                "kind": "array"
+              }
+            },
             "plugins": {
               "rule": {
                 "item": {
@@ -273,6 +484,26 @@
                 "kind": "array"
               }
             },
+            "points": {
+              "rule": {
+                "item": {
+                  "fields": {
+                    "name": {
+                      "rule": {
+                        "kind": "text"
+                      }
+                    },
+                    "summary": {
+                      "rule": {
+                        "kind": "text"
+                      }
+                    }
+                  },
+                  "kind": "object"
+                },
+                "kind": "array"
+              }
+            },
             "tenant": {
               "rule": {
                 "kind": "tenant"
@@ -284,7 +515,7 @@
         "countsAsAccess": true,
         "effect": "commit",
         "identity": "login",
-        "limit": "small",
+        "limit": "input",
         "outcomes": {
           "basis-unavailable": true,
           "denied": true,

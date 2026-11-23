@@ -14,6 +14,7 @@ export const pluginAccessConfig = z.strictObject({
     .string()
     .refine(isAbsolute, 'the plugin dev directory is an absolute path')
     .optional(),
+  reportsPerTenant: z.number().int().min(1).max(1024).default(32),
 })
 
 function principals(ctx: Context): TargetTenantPrincipals {
@@ -41,14 +42,14 @@ export const pluginAccessRow = defineRow({
     inject: [accessRegistryKey, principalIssuerKey],
     Config: pluginAccessConfig,
     apply(ctx: Context, raw: unknown) {
-      const { devDirectory } = pluginAccessConfig.parse(raw)
+      const { devDirectory, reportsPerTenant } = pluginAccessConfig.parse(raw)
       const logger = ctx.logger('plugin-access')
       const source = createDevDirectorySource({
         root: devDirectory,
         warn: line => logger.warn(line),
       })
       ctx.effect(() => () => source.close(), 'plugin-access.dev-directory.close')
-      const reports = createPluginReports()
+      const reports = createPluginReports({ perTenant: reportsPerTenant })
       ctx.plugin(
         createPluginAccessPlugin({
           principals,

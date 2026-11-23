@@ -87,6 +87,7 @@ function world(...answers: Answer[]) {
   const stop = followWanted({
     client,
     tenant,
+    id: 'desktop-1',
     onList: list => lists.push(list),
     sleep: (ms, signal) =>
       new Promise(resolve => {
@@ -174,7 +175,7 @@ describe('following what a tenant is to load', () => {
     const t = world([given('a', 'v1')])
     await tick()
     expect(t.asked).toEqual([{ tenant, side: 'client' }])
-    expect(t.opens).toEqual([{ tenant, side: 'client' }])
+    expect(t.opens).toEqual([{ tenant, side: 'client', client: 'desktop-1' }])
     expect(t.lists.map(list => list.map(each => `${each.name}@${each.version}`))).toEqual([
       ['a@v1'],
     ])
@@ -261,6 +262,7 @@ describe('following what a tenant is to load', () => {
         },
       } as unknown as ClientOf<PluginProtocol>,
       tenant,
+      id: 'desktop-1',
       onList: () => undefined,
       backoff: { delayMs: () => 600_000 },
     })

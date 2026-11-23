@@ -31,10 +31,28 @@ const report = object({
   reason: { rule: oneOf(text, nothing) },
 })
 
+/** What a client says of itself: how each plugin stands, and the points and the parts its tree has now. */
+const reported = {
+  plugins: { rule: array(report) },
+  points: { rule: array(object({ name: { rule: text }, summary: { rule: text } })) },
+  parts: {
+    rule: array(
+      object({
+        name: { rule: text },
+        label: { rule: text },
+        summary: { rule: text },
+        depths: { rule: array(literal('tokens', 'style', 'render')) },
+        within: { rule: oneOf(text, nothing) },
+      }),
+    ),
+  },
+} as const
+const ofClient = { client: { rule: text } } as const
+
 const empty = ruleCodec(object({}))
 const read = { identity: 'login', effect: 'read', limit: 'small', countsAsAccess: true } as const
 
-/** plugin/v1. A client asks what its side is to load, reads the files, and says how each load went. */
+/** plugin/v1. A client asks what its side is to load, reads the files, and says how each load went and what its tree has. */
 export const pluginProtocol = defineProtocol({
   name: 'plugin',
   major: 1,
@@ -72,16 +90,24 @@ export const pluginProtocol = defineProtocol({
     'report-loaded': {
       ...read,
       effect: 'commit',
-      body: ruleCodec(
-        object({ ...ofTenant, client: { rule: text }, plugins: { rule: array(report) } }),
-      ),
+      limit: 'input',
+      body: ruleCodec(object({ ...ofTenant, ...ofClient, ...reported })),
       outcomes: { succeeded: empty },
+    },
+    'list-reports': {
+      ...read,
+      body: ruleCodec(object(ofTenant)),
+      outcomes: {
+        succeeded: ruleCodec(
+          object({ clients: { rule: array(object({ ...ofClient, ...reported })) } }),
+        ),
+      },
     },
   },
   observations: {
     'observe-wanted': {
       identity: 'login',
-      open: ruleCodec(object(ofSide)),
+      open: ruleCodec(object({ ...ofSide, ...ofClient })),
       frame: ruleCodec(object({ kind: { rule: literal('changed') } })),
       ends: [],
     },
