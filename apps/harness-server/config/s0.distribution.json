@@ -321,6 +321,11 @@
       "config": {}
     },
     {
+      "id": "tool-entry-sources",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "tool-bindings",
       "plugin": "stubPlugin",
       "config": {}

@@ -6272,6 +6272,12 @@ importers:
       '@omne-harness/content-block':
         specifier: workspace:*
         version: link:../../common/content-block
+      '@omne-harness/dynamis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity

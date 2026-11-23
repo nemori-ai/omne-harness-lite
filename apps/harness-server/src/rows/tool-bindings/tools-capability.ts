@@ -12,6 +12,7 @@ import {
   isReleaseToolsRequest,
   releaseToolConsumer,
 } from '../../entry/tool-forward-requests.ts'
+import { sourcedEntriesOf } from '../../entry/tool-entry-sources.ts'
 import { releaseOf } from '../../entry/tool-release.ts'
 import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
 
@@ -77,6 +78,7 @@ export function createReleaseToolsCapability(ctx: Context, config: ToolsCapabili
       release,
       catalog,
       view: () => releaseCatalogViewOf(ctx),
+      sourced: () => sourcedEntriesOf(ctx),
     }),
     reader: () => reader,
     attemptMs: config.attemptMs,

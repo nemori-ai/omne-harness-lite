@@ -622,12 +622,7 @@
       "id": "agent-host",
       "plugin": "agentHostRow",
       "config": {
-        "jointCommits": [
-          "message",
-          "context-transition",
-          "custody",
-          "processed"
-        ],
+        "jointCommits": ["message", "context-transition", "custody", "processed"],
         "coordination": "coordinated"
       }
     },
@@ -689,6 +684,11 @@
     {
       "id": "tool-body-sweep",
       "plugin": "toolBodySweepRow",
+      "config": {}
+    },
+    {
+      "id": "tool-entry-sources",
+      "plugin": "toolEntrySourcesRow",
       "config": {}
     },
     {

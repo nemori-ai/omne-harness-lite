@@ -16,6 +16,8 @@ import {
   createLocalToolBindingsPlugin,
   type LocalToolBindingsPluginInput,
 } from '@omne-harness/tool-host-local/cordis'
+import { createToolMessageResultCodec } from '@omne-harness/tool'
+import { DEFAULT_ENTRY_SOURCE_POLICY } from '@omne-harness/tool-host-local'
 import { defineRow } from '../../row.ts'
 import { settingsSecretCustodyKey } from '../secret-custody/index.ts'
 import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
@@ -37,8 +39,13 @@ import { bindReleaseSessions } from './sessions.ts'
 import { bindReleaseAgents } from './agents.ts'
 import { bindReleaseSwitchWorkspace } from './switch-workspace.ts'
 
+const positive = z.number().int().positive().max(2_147_483_647)
 export const toolBindingsConfig = z
-  .strictObject({ tools: toolsCapabilityConfig.optional(), web: webBindingConfig.optional() })
+  .strictObject({
+    tools: toolsCapabilityConfig.optional(),
+    web: webBindingConfig.optional(),
+    sources: z.strictObject({ resultMaxBytes: positive, listTimeoutMs: positive }).optional(),
+  })
   .default({})
 
 type Input = LocalToolBindingsPluginInput<unknown, unknown, ToolMessageContentBlock>
@@ -169,6 +176,17 @@ const bindingsPlugin: Plugin.Object = {
       settle: bundleSettle(ctx),
       capability: releaseCapability(ctx, { tools, web: config.web ?? null }),
       releaseDetails: { attach: input => attachReleaseScheduleReads(ctx, input) },
+      ...(config.sources === undefined
+        ? {}
+        : {
+            entrySources: {
+              codec: createToolMessageResultCodec(config.sources.resultMaxBytes),
+              policy: {
+                ...DEFAULT_ENTRY_SOURCE_POLICY,
+                listTimeoutMs: config.sources.listTimeoutMs,
+              },
+            },
+          }),
     })
     new Bindings(ctx)
   },

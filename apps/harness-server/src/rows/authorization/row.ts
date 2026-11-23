@@ -49,6 +49,7 @@ import {
   createToolActionResolution,
   createToolCallLabeling,
 } from '../../entry/tool-action-resolution.ts'
+import { sourcedEntriesOf } from '../../entry/tool-entry-sources.ts'
 import { releaseOf } from '../../entry/tool-release.ts'
 import { releaseCatalogViewOf } from '../tool-bindings/catalog-view.ts'
 
@@ -130,6 +131,7 @@ const plugin: Plugin.Object = {
       release: () => releaseOf(ctx),
       catalog: () => ctx.get(toolCatalogKey, false),
       view: () => releaseCatalogViewOf(ctx),
+      sourced: () => sourcedEntriesOf(ctx),
     }
     const resolution = createToolActionResolution(forwarding)
     const labeling = createToolCallLabeling({

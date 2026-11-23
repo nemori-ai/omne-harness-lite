@@ -1,0 +1,379 @@
+import type { ContentBlock } from '@omne-harness/content-block'
+import type { JsonValue } from '@omne-harness/json-text'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import { canonicalDigest } from '@omne-harness/tool'
+import type {
+  Access,
+  Adoption,
+  ParameterContract,
+  ToolCallId,
+  ToolCommandDeclaration,
+  ToolDefinition,
+  ToolRenderedResult,
+  ToolReturnDeclaration,
+} from '@omne-harness/tool-contract'
+import {
+  createDefaultParameterCodec,
+  defineCommandTool,
+  defineFunctionTool,
+  defineToolOperation,
+  describedAdoption,
+  judgeToolSourceListing,
+  shapeOf,
+  type OutputCodec,
+  type ToolBindingKey,
+  type ToolEntrySource,
+  type ToolExecutionContext,
+  type ToolLoadedRegistration,
+  type ToolOperation,
+  type ToolSourceEntry,
+  type ToolSourceListing,
+  type ToolSourceWithheld,
+} from '@omne-harness/tool-contract/provider'
+import type { LocalToolBindingRegistry, ToolBindingPin, ToolListing } from './bindings.ts'
+
+export type SourcedCatalogEntries = Readonly<{
+  live: readonly ToolListing[]
+  known: readonly Readonly<{ key: ToolBindingKey; definition: ToolDefinition; reason: string }>[]
+  withheld: readonly ToolSourceWithheld[]
+  unavailable: readonly string[]
+}>
+
+export interface LocalToolSourcedEntries<P> {
+  /** Never fails as a whole: a source that cannot list is named in `unavailable`, by its prefix. */
+  read(access: Access<P>): Promise<SourcedCatalogEntries>
+}
+
+export type LocalEntrySourcePolicy = Readonly<{
+  listTimeoutMs: number
+  arguments: Parameters<typeof createDefaultParameterCodec>[0]
+}>
+
+export const DEFAULT_ENTRY_SOURCE_POLICY: LocalEntrySourcePolicy = Object.freeze({
+  listTimeoutMs: 5000,
+  arguments: Object.freeze({
+    maxBytes: 262144,
+    maxDepth: 64,
+    maxItems: 16384,
+    maxMembers: 4096,
+    maxStringLength: 262144,
+    maxNumberLength: 64,
+  }),
+})
+
+export type LocalEntrySourcesInput<P, B extends ContentBlock> = Readonly<{
+  sources(): readonly ToolEntrySource<P, B>[]
+  /** Marks one call of an entry under this prefix as in flight; the returned function ends the mark. */
+  hold(prefix: string): () => void
+  codec: OutputCodec<ToolRenderedResult<B>>
+  policy?: LocalEntrySourcePolicy
+}>
+
+type CallFacts<P> = Access<P> & Readonly<{ call: ToolCallId }>
+const callFacts = new WeakMap<ToolExecutionContext, CallFacts<unknown>>()
+
+export function noteCallFacts<P>(context: ToolExecutionContext, facts: CallFacts<P>): void {
+  callFacts.set(context, facts)
+}
+
+const SOURCE_ORDINAL = String(Number.MAX_SAFE_INTEGER)
+/** The settings adoption every call of a source entry is fixed with: a source entry has no tool settings. */
+export const SOURCE_ENTRY_SETTINGS = describedAdoption({
+  owner: '@omne-harness/tool-host-local',
+  name: 'source-entry-settings',
+  revision: '1',
+})
+
+const unavailable = (diagnostic: string) => fail({ kind: 'unavailable' as const, diagnostic })
+
+function sourceOf<P, B extends ContentBlock>(
+  sources: readonly ToolEntrySource<P, B>[],
+  name: string,
+): ToolEntrySource<P, B> | undefined {
+  const matching = sources.filter(source => name.startsWith(source.prefix))
+  return matching.length === 1 ? matching[0] : undefined
+}
+
+function keyOf<P>(access: Access<P>, definition: ToolDefinition): ToolBindingKey {
+  return {
+    layer: { kind: 'tenant', tenant: access.tenant },
+    asset: { name: definition.name, adoption: definition.adoption },
+  }
+}
+
+function bounded<T>(work: Promise<T>, timeoutMs: number): Promise<T | 'timeout'> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<'timeout'>(resolve => {
+    timer = setTimeout(() => resolve('timeout'), timeoutMs)
+  })
+  return Promise.race([work, timeout]).finally(() => clearTimeout(timer))
+}
+
+export function createLocalEntrySources<P, E, B extends ContentBlock>(
+  input: LocalEntrySourcesInput<P, B>,
+) {
+  type Loaded = ToolLoadedRegistration<E, B>
+  type Source = ToolEntrySource<P, B>
+  const policy = input.policy ?? DEFAULT_ENTRY_SOURCE_POLICY
+  const codec = createDefaultParameterCodec(policy.arguments)
+  if ('failure' in codec) throw new TypeError('the source argument limits are not lawful')
+  const parameters = codec.ok
+  const loadedByDefinition = new WeakMap<ToolDefinition, Outcome<Loaded, string>>()
+
+  function operationOf(
+    source: Source,
+    name: string,
+    declared: ToolCommandDeclaration | null,
+    contract: ParameterContract,
+    returns: ToolReturnDeclaration,
+  ): Outcome<ToolOperation<E, B>, string> {
+    if (returns.kind !== 'structured') return fail('returns-not-structured')
+    const made = defineToolOperation<
+      JsonValue,
+      ToolRenderedResult<B>,
+      E,
+      B,
+      { kind: 'declared'; value: ParameterContract }
+    >({
+      parameters: { kind: 'declared', value: contract },
+      returns: returns as ToolReturnDeclaration & { kind: 'structured' },
+      author: {
+        kind: 'structured',
+        parameters,
+        waits: [],
+        codec: input.codec,
+        output: {
+          adoption: input.codec.adoption,
+          check: ({ value }) => {
+            const encoded = input.codec.encode(value)
+            return 'failure' in encoded ? encoded : input.codec.decode(encoded.ok)
+          },
+        },
+        program: { kind: 'none' },
+        executor: {
+          execute: (args, _environment, context) => {
+            const facts = callFacts.get(context) as CallFacts<P> | undefined
+            if (facts === undefined) throw new Error('the call of the source entry is not known')
+            return source.execute({
+              principal: facts.principal,
+              tenant: facts.tenant,
+              name,
+              command: declared?.name ?? null,
+              declared,
+              arguments: args,
+              invocation: facts.call,
+              signal: context.signal,
+            })
+          },
+        },
+      },
+    })
+    return 'failure' in made ? fail(`operation ${made.failure.field}`) : succeed(made.ok)
+  }
+
+  function implementationOf(source: Source, definition: ToolDefinition) {
+    const implementation = {
+      description: definition.description,
+      backgroundAllowed: definition.backgroundAllowed,
+      declarations: definition.declarations,
+    }
+    if (definition.kind === 'function') {
+      const operation = operationOf(
+        source,
+        definition.name,
+        null,
+        definition.parameters,
+        definition.returns,
+      )
+      if ('failure' in operation) return operation
+      const made = defineFunctionTool<E, B>({
+        implementation,
+        operation: operation.ok as ToolOperation<
+          E,
+          B,
+          { kind: 'declared'; value: ParameterContract }
+        >,
+        ...(definition.conditions === undefined ? {} : { conditions: definition.conditions }),
+      })
+      return 'failure' in made ? fail(`function ${made.failure.field}`) : succeed(made.ok)
+    }
+    type Commands = Parameters<typeof defineCommandTool<E, B>>[0]['commands']
+    const commands: Record<string, Commands[string]> = {}
+    for (const command of definition.commands) {
+      if (command.parameters.kind !== 'declared') return fail('executor-owned-parameters')
+      const operation = operationOf(
+        source,
+        definition.name,
+        command,
+        command.parameters.value,
+        command.returns,
+      )
+      if ('failure' in operation) return operation
+      const { name: _name, parameters: _parameters, returns: _returns, ...rest } = command
+      commands[command.name] = { ...rest, operation: operation.ok }
+    }
+    const made = defineCommandTool<E, B>({
+      implementation,
+      encoding: definition.encoding,
+      ...(definition.guide === undefined ? {} : { guide: definition.guide }),
+      ...(definition.gates === undefined ? {} : { gates: definition.gates }),
+      commands,
+    })
+    return 'failure' in made ? fail(`commands ${made.failure.field}`) : succeed(made.ok)
+  }
+
+  function loadedOf(
+    access: Access<P>,
+    source: Source,
+    entry: ToolSourceEntry,
+  ): Outcome<Loaded, string> {
+    const known = loadedByDefinition.get(entry.definition)
+    if (known !== undefined) return known
+    const implementation = implementationOf(source, entry.definition)
+    const answer: Outcome<Loaded, string> =
+      'failure' in implementation
+        ? implementation
+        : succeed(
+            Object.freeze({
+              implementation: implementation.ok,
+              key: keyOf(access, entry.definition),
+              definition: entry.definition,
+              shape: shapeOf(entry.definition),
+              executor: entry.executor,
+              settings: SOURCE_ENTRY_SETTINGS,
+            }) as Loaded,
+          )
+    loadedByDefinition.set(entry.definition, answer)
+    return answer
+  }
+
+  function pinOf(prefix: string): ToolBindingPin {
+    let release: (() => void) | null = input.hold(prefix)
+    return Object.freeze({
+      release: () => {
+        release?.()
+        release = null
+      },
+    })
+  }
+
+  function selected(
+    access: Access<P>,
+    name: string,
+    adoption: Adoption,
+    executor: Adoption,
+  ): Outcome<Readonly<{ source: Source; loaded: Loaded }>, string> {
+    const source = sourceOf(input.sources(), name)
+    if (source === undefined) return fail('the entry source is not in service')
+    let entry: ToolSourceEntry | undefined
+    try {
+      entry = source.select(access, name)
+    } catch {
+      return fail('the entry source could not select the entry')
+    }
+    if (entry === undefined || entry.availability.kind !== 'available')
+      return fail('the source entry is not available now')
+    if (
+      canonicalDigest(entry.definition.adoption) !== canonicalDigest(adoption) ||
+      canonicalDigest(entry.executor) !== canonicalDigest(executor)
+    )
+      return fail('the source entry changed since it was fixed')
+    const loaded = loadedOf(access, source, entry)
+    return 'failure' in loaded ? loaded : succeed({ source, loaded: loaded.ok })
+  }
+
+  async function listedBy(
+    source: Source,
+    access: Access<P>,
+  ): Promise<Outcome<ToolSourceListing, string>> {
+    try {
+      const answer = await bounded(source.list(access), policy.listTimeoutMs)
+      if (answer === 'timeout') return fail('timeout')
+      if ('failure' in answer) return fail(answer.failure.kind)
+      const judged = judgeToolSourceListing(source.prefix, answer.ok)
+      return 'failure' in judged ? fail(`breach ${judged.failure.reason}`) : succeed(judged.ok)
+    } catch {
+      return fail('threw')
+    }
+  }
+
+  const entries: LocalToolSourcedEntries<P> = {
+    async read(access) {
+      const live: ToolListing[] = []
+      const known: SourcedCatalogEntries['known'][number][] = []
+      const withheld: ToolSourceWithheld[] = []
+      const failed: string[] = []
+      const sources = input
+        .sources()
+        .toSorted((left, right) => (left.prefix < right.prefix ? -1 : 1))
+      for (const source of sources) {
+        if (sourceOf(sources, source.prefix) !== source) continue
+        const listed = await listedBy(source, access)
+        if ('failure' in listed) {
+          failed.push(source.prefix)
+          withheld.push({
+            name: `${source.prefix}*`,
+            reason: `the source of these entries is unavailable (${listed.failure})`,
+          })
+          continue
+        }
+        for (const entry of listed.ok.entries) {
+          const key = keyOf(access, entry.definition)
+          if (entry.availability.kind === 'available')
+            live.push({
+              entry: {
+                key,
+                ordinal: SOURCE_ORDINAL,
+                digest: entry.executor.digest,
+                shape: shapeOf(entry.definition),
+                state: 'live',
+                fiber: `entry-source:${source.prefix}`,
+              },
+              definition: entry.definition,
+              executor: entry.executor,
+            })
+          else known.push({ key, definition: entry.definition, reason: entry.availability.reason })
+        }
+        withheld.push(...listed.ok.withheld)
+      }
+      return { live, known, withheld, unavailable: failed }
+    },
+  }
+
+  return {
+    entries,
+
+    registry(base: LocalToolBindingRegistry<P, E, B>): LocalToolBindingRegistry<P, E, B> {
+      return Object.freeze({
+        ...base,
+        peek: (access, availability) => {
+          const { name, adoption } = availability.definition
+          if (sourceOf(input.sources(), name) === undefined) return base.peek(access, availability)
+          const found = selected(access, name, adoption, availability.executor)
+          return 'failure' in found ? unavailable(found.failure) : succeed(found.ok.loaded)
+        },
+        selectAndPin: (access, request, call) => {
+          const { availability } = request
+          const { name, adoption } = availability.definition
+          if (sourceOf(input.sources(), name) === undefined)
+            return base.selectAndPin(access, request, call)
+          if (availability.kind !== 'available') return unavailable('the fixed tool is unavailable')
+          const { executor } = availability
+          const found = selected(access, name, adoption, executor)
+          if ('failure' in found) return unavailable(found.failure)
+          const { source, loaded } = found.ok
+          return succeed({
+            loaded,
+            pin: pinOf(source.prefix),
+            repin: again => {
+              const current = selected(again, name, adoption, executor)
+              return 'failure' in current || current.ok.source !== source
+                ? unavailable('original source entry is absent')
+                : succeed(pinOf(source.prefix))
+            },
+          })
+        },
+      } satisfies LocalToolBindingRegistry<P, E, B>)
+    },
+  }
+}

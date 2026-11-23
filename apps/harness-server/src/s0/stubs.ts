@@ -117,6 +117,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'toolContributionAuthority',
       'assetCategories',
       'tenantAssets',
+      'assetChanges',
     ],
     phase: 'composition',
   },
@@ -389,6 +390,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
     ],
     group: 'tool-start',
   },
+  'tool-entry-sources': { provides: ['toolEntrySources'], injects: ['dynamis'] },
   'tool-bindings': {
     provides: ['toolBindings', 'toolCatalog', 'toolReleaseDetails'],
     injects: ['toolContributionAuthority'],

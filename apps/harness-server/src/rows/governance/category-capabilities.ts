@@ -71,6 +71,119 @@ export type RefusedCapability = Readonly<{
 const keyOf = (capability: GovernedCategoryCapability) =>
   canonicalText(capability.declaration.reference)
 
+const whoOf = (options: CategoryCapabilitiesOptions) =>
+  access(options.principal, options.principal.tenant)
+
+// What the tenant holds now, as the storage participant derives it in one projection read.
+async function heldBy(
+  options: CategoryCapabilitiesOptions,
+): Promise<readonly GovernedCategoryCapability[] | undefined> {
+  if (options.read === undefined) return undefined
+  const capture = SettingsProjectionBindingSchema.parse({
+    domain: {
+      scope: { kind: 'tenant', tenant: options.scope.tenantRef },
+      transactionDomain: options.domain.transactionDomain,
+    },
+    principalRef: standingPrincipalRef(options.principal),
+    captureId: randomUUID(),
+    request: {
+      deploymentRef: options.scope.deploymentId,
+      mode: 'management',
+      targets: [],
+      selectionRef: null,
+    },
+  })
+  const read = await readProjection(options.storage, options.domain, options.read, [
+    assetsPublicationCommand(capture, options.capture()),
+    { participant: GOVERNED_PARTICIPANT, facts: {} },
+  ])
+  if (read.kind !== 'completed') return undefined
+  const parsed = governedCategoryCapabilitiesSchema.safeParse(read.response)
+  return parsed.success ? parsed.data : undefined
+}
+
+// The enabled ones whose template is the one the assembly names for the category, in a fixed order.
+function namedBy(
+  templates: ReadonlyMap<string, CategoryGateTemplate>,
+  all: readonly GovernedCategoryCapability[],
+) {
+  return all
+    .filter(capability => {
+      const template = templates.get(capability.template.category)
+      return (
+        capability.enabled &&
+        template !== undefined &&
+        canonicalText(template) === canonicalText(capability.template)
+      )
+    })
+    .toSorted((left, right) =>
+      left.declaration.reference.definitionId.localeCompare(
+        right.declaration.reference.definitionId,
+      ),
+    )
+}
+
+// A registration after a withdrawal is a new operation, so `after` counts the withdrawals so far.
+async function registered(
+  options: CategoryCapabilitiesOptions,
+  { epoch, service }: Opened,
+  capability: GovernedCategoryCapability,
+  after: number,
+): Promise<Leased | undefined> {
+  const [definition] = capability.declaration.settings
+  if (definition === undefined) return undefined
+  const source = await installOrganizationSource({
+    owner: options.organizationTargets,
+    organizationId: options.organizationId,
+    definition,
+    ownerRef: capability.template.ownerId,
+  })
+  if (source.kind !== 'ready') return undefined
+  const command = {
+    scope: options.scope,
+    contributorId: capability.template.ownerId,
+    generation: epoch,
+    declaration: capability.declaration,
+  }
+  const result = await service.contribute(whoOf(options), {
+    ...command,
+    operationId: canonicalDigest({ command, after }),
+  })
+  return result.kind === 'registered' && result.state === 'active'
+    ? { capability, contribution: result.contribution }
+    : undefined
+}
+
+const refusal = (
+  capability: GovernedCategoryCapability,
+  reason: RefusedCapability['reason'],
+): RefusedCapability => ({
+  category: capability.publication.reference.category,
+  name: capability.publication.reference.name,
+  reason,
+})
+
+function definitionsOf(
+  desired: () => readonly GovernedCategoryCapability[],
+): GovernanceDefinitionSource {
+  return {
+    async resolve(identity) {
+      const parsed = GovernanceDefinitionIdentitySchema.safeParse(identity)
+      if (!parsed.success) return { kind: 'unavailable' }
+      const found = desired().find(({ declaration: { reference } }) => {
+        return (
+          reference.ownerId === parsed.data.ownerId &&
+          reference.definitionId === parsed.data.definitionId &&
+          reference.version === parsed.data.version
+        )
+      })
+      return found === undefined
+        ? { kind: 'unavailable' }
+        : { kind: 'definition', declaration: structuredClone(found.declaration) }
+    },
+  }
+}
+
 export function createCategoryCapabilities(options: CategoryCapabilitiesOptions) {
   const templates = new Map(options.templates.map(template => [template.category, template]))
   let desired: readonly GovernedCategoryCapability[] = []
@@ -84,81 +197,12 @@ export function createCategoryCapabilities(options: CategoryCapabilitiesOptions)
   let again = false
   let closed = false
 
-  const who = () => access(options.principal, options.principal.tenant)
-
-  async function held(): Promise<readonly GovernedCategoryCapability[] | undefined> {
-    if (options.read === undefined) return undefined
-    const capture = SettingsProjectionBindingSchema.parse({
-      domain: {
-        scope: { kind: 'tenant', tenant: options.scope.tenantRef },
-        transactionDomain: options.domain.transactionDomain,
-      },
-      principalRef: standingPrincipalRef(options.principal),
-      captureId: randomUUID(),
-      request: {
-        deploymentRef: options.scope.deploymentId,
-        mode: 'management',
-        targets: [],
-        selectionRef: null,
-      },
-    })
-    const read = await readProjection(options.storage, options.domain, options.read, [
-      assetsPublicationCommand(capture, options.capture()),
-      { participant: GOVERNED_PARTICIPANT, facts: {} },
-    ])
-    if (read.kind !== 'completed') return undefined
-    const parsed = governedCategoryCapabilitiesSchema.safeParse(read.response)
-    return parsed.success ? parsed.data : undefined
-  }
-
-  function named(all: readonly GovernedCategoryCapability[]) {
-    return all
-      .filter(capability => {
-        const template = templates.get(capability.template.category)
-        return (
-          capability.enabled &&
-          template !== undefined &&
-          canonicalText(template) === canonicalText(capability.template)
-        )
-      })
-      .toSorted((left, right) =>
-        left.declaration.reference.definitionId.localeCompare(
-          right.declaration.reference.definitionId,
-        ),
-      )
-  }
-
-  async function register(
-    { epoch, service }: Opened,
-    capability: GovernedCategoryCapability,
-  ): Promise<Leased | undefined> {
-    const [definition] = capability.declaration.settings
-    if (definition === undefined) return undefined
-    const source = await installOrganizationSource({
-      owner: options.organizationTargets,
-      organizationId: options.organizationId,
-      definition,
-      ownerRef: capability.template.ownerId,
-    })
-    if (source.kind !== 'ready') return undefined
-    const command = {
-      scope: options.scope,
-      contributorId: capability.template.ownerId,
-      generation: epoch,
-      declaration: capability.declaration,
-    }
-    const result = await service.contribute(who(), {
-      ...command,
-      operationId: canonicalDigest({ command, after: released.get(keyOf(capability)) ?? 0 }),
-    })
-    return result.kind === 'registered' && result.state === 'active'
-      ? { capability, contribution: result.contribution }
-      : undefined
-  }
+  const register = (current: Opened, capability: GovernedCategoryCapability) =>
+    registered(options, current, capability, released.get(keyOf(capability)) ?? 0)
 
   async function release({ service }: Opened, lease: Leased): Promise<boolean> {
     const command = { contribution: lease.contribution }
-    const result = await service.withdraw(who(), {
+    const result = await service.withdraw(whoOf(options), {
       ...command,
       operationId: canonicalDigest({ withdraw: command }),
     })
@@ -191,15 +235,6 @@ export function createCategoryCapabilities(options: CategoryCapabilitiesOptions)
     )
   }
 
-  const refusal = (
-    capability: GovernedCategoryCapability,
-    reason: RefusedCapability['reason'],
-  ): RefusedCapability => ({
-    category: capability.publication.reference.category,
-    name: capability.publication.reference.name,
-    reason,
-  })
-
   function adoptLeased(current: Opened, wanted: ReadonlySet<string>) {
     const members = [...leased].map(
       ([key, { capability, contribution }]): GovernanceCollectionMember => ({
@@ -215,12 +250,12 @@ export function createCategoryCapabilities(options: CategoryCapabilitiesOptions)
   }
 
   async function reconcile(current: Opened): Promise<ToolInstallationResult> {
-    const read = await held()
+    const read = await heldBy(options)
     if (read === undefined) {
       options.warn('the held capabilities of gated categories could not be read')
       return adoptLeased(current, new Set(desired.map(keyOf)))
     }
-    const wanted = named(read)
+    const wanted = namedBy(templates, read)
     const budget = Math.max(0, MAX_SCOPE_LEASES - current.tools.length)
     const within = wanted.slice(0, budget)
     const over = wanted.slice(budget).map(capability => refusal(capability, 'lease-budget'))
@@ -264,25 +299,8 @@ export function createCategoryCapabilities(options: CategoryCapabilitiesOptions)
     })
   }
 
-  const definitions: GovernanceDefinitionSource = {
-    async resolve(identity) {
-      const parsed = GovernanceDefinitionIdentitySchema.safeParse(identity)
-      if (!parsed.success) return { kind: 'unavailable' }
-      const found = desired.find(({ declaration: { reference } }) => {
-        return (
-          reference.ownerId === parsed.data.ownerId &&
-          reference.definitionId === parsed.data.definitionId &&
-          reference.version === parsed.data.version
-        )
-      })
-      return found === undefined
-        ? { kind: 'unavailable' }
-        : { kind: 'definition', declaration: structuredClone(found.declaration) }
-    },
-  }
-
   return {
-    definitions,
+    definitions: definitionsOf(() => desired),
     owners(): ContributeOwners {
       return options.templates.map(template => ({
         ownerId: template.ownerId,

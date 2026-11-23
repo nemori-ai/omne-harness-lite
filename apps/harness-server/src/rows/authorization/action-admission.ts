@@ -90,7 +90,7 @@ async function judgedOf(
   return [
     { ...own, gate: action.carrier.gate, carrier: true },
     {
-      capability: toolCapability(target.definition.name),
+      capability: target.capability ?? toolCapability(target.definition.name),
       definition: target.definition,
       effectiveArguments: target.effectiveArguments,
       gate: target.gate,
@@ -156,7 +156,7 @@ function lastingOf(judging: Judging, gate: Judged, of: ToolGate) {
 // One gate passes its action rule (a carrier with no rule passes it) and then its current permission.
 async function judgeGate(judging: Judging, gate: Judged): Promise<AdmissionDecision> {
   const { rules } = judging
-  const rule = toolActionRule(rules, gate.definition)
+  const rule = toolActionRule(rules, gate.definition, gate.capability)
   const decision = actionDecision(
     judging.identity,
     rule,

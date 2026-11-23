@@ -65,6 +65,7 @@
     "model-records",
     "tool-records",
     "tool-body-sweep",
+    "tool-entry-sources",
     "tool-bindings",
     "skills",
     "tool-runtime",
