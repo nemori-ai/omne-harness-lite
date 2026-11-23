@@ -298,14 +298,61 @@ function count(input: unknown, direction: Direction, limits: JsonLimits): Conver
   return withinCount(input, direction, limits)
 }
 
-const BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/
+const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
 const CHUNK = 0x8000
 
+type FromBase64 = (text: string, options: { lastChunkHandling: 'strict' }) => Uint8Array
+type Platform = Readonly<{ from: FromBase64 | undefined; to: (() => string) | undefined }>
+
+/** The base64 of the platform, where it has one: looked up at each use, a megabyte takes it a millisecond. */
+const platform = (value?: Uint8Array): Platform => ({
+  from: (Uint8Array as unknown as { fromBase64?: FromBase64 }).fromBase64,
+  to: (value as unknown as { toBase64?: () => string } | undefined)?.toBase64,
+})
+
 function base64Of(value: Uint8Array): string {
+  const own = platform(value).to
+  if (own !== undefined) return own.call(value)
   let binary = ''
   for (let start = 0; start < value.length; start += CHUNK)
     binary += String.fromCharCode(...value.subarray(start, start + CHUNK))
   return btoa(binary)
+}
+
+/** How many bytes the one canonical spelling of this length holds; none when no canonical spelling has this length. */
+function sizeOf(text: string): number | undefined {
+  if (text.length % 4 !== 0) return undefined
+  const padding = text.endsWith('==') ? 2 : text.endsWith('=') ? 1 : 0
+  return (text.length / 4) * 3 - padding
+}
+
+/** Whether the bits a padded last group does not use are clear: with them set, the text is a second spelling. */
+function tailClear(text: string): boolean {
+  if (!text.endsWith('=')) return true
+  const two = text.endsWith('==')
+  const last = ALPHABET.indexOf(text.charAt(text.length - (two ? 3 : 2)))
+  return last >= 0 && (last & (two ? 0b1111 : 0b11)) === 0
+}
+
+function decoded(text: string): Uint8Array {
+  const own = platform().from
+  if (own !== undefined) return own.call(Uint8Array, text, { lastChunkHandling: 'strict' })
+  const binary = atob(text)
+  const local = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index += 1) local[index] = binary.charCodeAt(index)
+  return local
+}
+
+/** The bytes of a base64 text, or none when it is not the one canonical spelling of them. A decoder that skips or forgives anything gives another size than the text says. */
+function bytesOf(text: string): Uint8Array | undefined {
+  const size = sizeOf(text)
+  if (size === undefined || !tailClear(text)) return undefined
+  try {
+    const local = decoded(text)
+    return local.byteLength === size ? local : undefined
+  } catch {
+    return undefined
+  }
 }
 
 /** Bytes on the wire are base64 text; only the one canonical spelling of a value is read. */
@@ -315,10 +362,9 @@ function bytes(input: unknown, direction: Direction): Converted | undefined {
       ? { local: input, wire: stringWire(base64Of(input)) }
       : undefined
   const node = nodeOf(input)
-  if (node?.kind !== 'string' || !BASE64.test(node.value)) return undefined
-  const binary = atob(node.value)
-  const local = Uint8Array.from(binary, character => character.charCodeAt(0))
-  return base64Of(local) === node.value ? { local, wire: node } : undefined
+  if (node?.kind !== 'string') return undefined
+  const local = bytesOf(node.value)
+  return local === undefined ? undefined : { local, wire: node }
 }
 
 const leaves: { readonly [K in LeafKind]: Leaf } = {

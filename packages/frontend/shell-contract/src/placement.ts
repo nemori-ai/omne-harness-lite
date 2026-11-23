@@ -13,6 +13,8 @@ import type { AttachedItem, GateItem, ItemOf, SlotConflict, SlotName } from './s
 
 const POINT = { gate: 'shell.gate', pages: 'shell.pages', sidebar: 'shell.sidebar' } as const
 
+const FIXED = 'Fixed when the app is built: a plugin cannot add to it while the app runs.'
+
 const SHARED = {
   tree: 'client',
   keyFrom: null,
@@ -34,7 +36,7 @@ export const shellContracts: readonly Contract[] = [
     gives: 'nothing',
     binding: 'build',
     onError: 'the gate shows that this item cannot be read',
-    summary: 'The login gate: all the shell shows while nobody is signed in.',
+    summary: `The login gate: all the shell shows while nobody is signed in. ${FIXED}`,
   },
   {
     ...SHARED,
@@ -43,7 +45,7 @@ export const shellContracts: readonly Contract[] = [
     gives: 'the tenant scope, and a subject when the page is brought up on one',
     binding: 'build',
     onError: 'only this page shows that it cannot be read',
-    summary: 'The pages of the shell, in the order of their order and id.',
+    summary: `The pages of the shell, in the order of their order and id. ${FIXED}`,
   },
   {
     ...SHARED,
@@ -52,7 +54,7 @@ export const shellContracts: readonly Contract[] = [
     gives: 'the tenant scope',
     binding: 'build',
     onError: 'only this section shows that it cannot be read',
-    summary: 'The sections of the sidebar, in the order of their order and id.',
+    summary: `The sections of the sidebar, in the order of their order and id. ${FIXED}`,
   },
 ]
 
@@ -74,14 +76,23 @@ export function pointContract(
   }
 }
 
-export function drawingContract(
-  words: Readonly<{ name: string; key: string; summary: string }>,
-): Contract {
+export type DrawingWords = Readonly<{
+  name: string
+  key: string
+  summary: string
+  subject?: string
+  example?: string
+}>
+
+export function drawingContract(words: DrawingWords): Contract {
+  const { subject, example, ...said } = words
+  const told = subject === undefined ? 'the subject the host shows' : `the subject (${subject})`
   return {
     ...SHARED,
-    ...words,
+    ...said,
+    ...(example === undefined ? {} : { example }),
     arity: 'keyed-one',
-    gives: 'the tenant scope, the subject the host shows, and the generic drawing of the host',
+    gives: `the scope of the tenant, ${told}, and generic, the drawing the host uses when nothing is put`,
     resolve: 'most-specific',
     binding: 'run',
     onError: 'a drawing that throws falls back to the generic drawing of the host',

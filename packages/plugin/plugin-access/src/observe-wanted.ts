@@ -20,8 +20,9 @@ export function createWantedObservation(
       return acted.outcome === 'denied' ? 'denied' : 'basis-unavailable'
     },
     subscribe(open, listener) {
-      const stop = input.source.subscribe(() => listener.changed())
-      const leave = input.reports.present(tenantText(open.tenant), open.client)
+      const tenant = tenantText(open.tenant)
+      const stop = input.source.subscribe(tenant, () => listener.changed())
+      const leave = input.reports.present(tenant, open.client)
       return () => {
         stop()
         leave()

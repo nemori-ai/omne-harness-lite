@@ -174,7 +174,13 @@ describe('the categories service on a real Cordis root', () => {
 
   it('gives readers a view that cannot contribute', async () => {
     const { service } = await categories()
-    expect(Object.keys(service.view).sort()).toEqual(['describe', 'list', 'lookup'])
+    expect(Object.keys(service.view).sort()).toEqual([
+      'atPoint',
+      'describe',
+      'effectOf',
+      'list',
+      'lookup',
+    ])
     expect(Object.isFrozen(service.view)).toBe(true)
   })
 })

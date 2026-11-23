@@ -132,7 +132,7 @@
 | [UL-skill](terms/capabilities-and-composition.md#ul-skill--技能--skill) | 技能 | Skill | 一段可复用的工作方法 |
 | [UL-meta-skill](terms/capabilities-and-composition.md#ul-meta-skill--元技能--meta-skill) | 元技能 | Meta Skill | 官方层发行、常驻、声明不可替换的那份教 agent 写 Skill 的普通 Skill；**不是 meta 能力** |
 | [UL-tool](terms/capabilities-and-composition.md#ul-tool--工具--tool) | 工具 | Tool | 一个可被调用的动作，**身份是这一类里的那个 name**；资产只带身份、治理声明与实现引用，形状由实现提供 |
-| [UL-mcp](terms/capabilities-and-composition.md#ul-mcp--mcp--mcp) | MCP | MCP | 一个外部工具来源的接入点，只按地址接入；对端每个动作是一个工具条目，按当下事实现算；标了常驻的接入点，动作在采用点成为常驻工具；弃用 ~~端点~~ |
+| [UL-mcp](terms/capabilities-and-composition.md#ul-mcp--mcp--mcp) | MCP | MCP | 一个外部工具来源的接入点，只按地址接入；一个接入点是一个工具条目，对端的动作是它的命令，按当下事实现算；标了常驻的接入点，动作在采用点成为常驻工具；弃用 ~~端点~~ |
 | [UL-connection-target](terms/capabilities-and-composition.md#ul-connection-target--连接目标--connection-target) | 连接目标 | Connection Target | MCP 接入点连到对端哪里，**落点与身份类**，工作区配不了；**不是身份** |
 | [UL-connector](terms/capabilities-and-composition.md#ul-connector--连接件--connector) | 连接件 | Connector | 一个外部消息来源的接入件，**方向相反**；声明事件目录、持有上配事件订阅；两种投递方式（已有会话开口接收 / 事件开新会话，后者必配触发会话的默认运行模式）；带身份鉴权，接哪个账号是持有上的落点与身份类设置 |
 | [UL-connector-event-type](terms/capabilities-and-composition.md#ul-connector-event-type--连接件事件类型--connector-event-type) | 连接件事件类型 | Connector Event Type | 连接件正文里声明的一种会送进来的外部事件：类型名 + 说明 + 消息包形状；每条外部消息恰属一种 |
@@ -331,7 +331,7 @@
 | [UL-protocol-availability](terms/reach-and-availability.md#ul-protocol-availability--协议可用性--protocol-availability) | 协议可用性 | Protocol Availability | 一个部署此刻挂着哪些公开协议，加只增不减的修订号；**和调用者无关、不需要登录**；只说存在，不说允不允许；不是当下可用性 |
 | [UL-mcp-connection](terms/reach-and-availability.md#ul-mcp-connection--mcp-连接--mcp-connection) | MCP 连接 | MCP Connection | 接入点为一个租户、以一个对端账号与对端的接通，是协商得到的一组结果，不带进程；**按租户与账号分开，不是连接件** |
 | [UL-mcp-action-catalog](terms/reach-and-availability.md#ul-mcp-action-catalog--mcp-动作清单--mcp-action-catalog) | MCP 动作清单 | MCP Action Catalog | 按租户、对端账号与接入点持有保存的最近合法动作集合；对端不再提供的动作从中消失；**整份更新，不是动作空间** |
-| [UL-mcp-known-action](terms/reach-and-availability.md#ul-mcp-known-action--mcp-已知动作--mcp-known-action) | MCP 已知动作 | MCP Known Action | 动作清单里由合法发现取得的一个对端动作，在工具入口里是一个工具条目；**不可用在接入点这一级说明**，只有常驻接入点的动作有同形替换件 |
+| [UL-mcp-known-action](terms/reach-and-availability.md#ul-mcp-known-action--mcp-已知动作--mcp-known-action) | MCP 已知动作 | MCP Known Action | 动作清单里由合法发现取得的一个对端动作，在工具入口里是它的接入点那一个工具条目的一个命令；**不可用在接入点这一级说明**，只有常驻接入点的动作有同形替换件 |
 
 ## [执行与收场](terms/execution-and-outcome.md)
 
@@ -437,6 +437,9 @@
 | [UL-app-shell](terms/interaction-and-dispatch.md#ul-app-shell--界面外壳--app-shell) | 界面外壳 | App Shell | 一种应用形态自己的界面代码：窗口、导航与它声明的界面插入位置；**不含任何领域的代码**；不是 Shell 工具 |
 | [UL-ui-module](terms/interaction-and-dispatch.md#ul-ui-module--界面模块--ui-module) | 界面模块 | UI Module | 一个领域在客户端的界面部分，客户端装配树上的插件；**随它依赖的协议在协议可用性里出现与消失而加载与卸载** |
 | [UL-ui-slot](terms/interaction-and-dispatch.md#ul-ui-slot--界面插入位置--ui-slot) | 界面插入位置 | UI Slot | 界面外壳声明的、界面模块可以往里放东西的具名位点；**设计时列出，不在运行期创建**；只放一个或放一列 |
+| [UL-ui-part](terms/interaction-and-dispatch.md#ul-ui-part--界面部位--ui-part) | 界面部位 | UI Part | 界面上一种有名字、可以被指认的东西，由画它的界面模块声明；**同一种可以在屏幕上画好几处** |
+| [UL-ui-developer-mode](terms/interaction-and-dispatch.md#ul-ui-developer-mode--界面开发模式--ui-developer-mode) | 界面开发模式 | UI Developer Mode | 图形交付面上的一个开关；开着时人可以选取界面部位，随消息交给 agent；**关着时与没有它相同** |
+| [UL-ui-selection](terms/interaction-and-dispatch.md#ul-ui-selection--界面选择--ui-selection) | 界面选择 | UI Selection | 一条输入里的一部分：人选中的一组界面部位的各一处，带序号；**受理之后不变，与人写的字分开** |
 | [UL-asset-page](terms/interaction-and-dispatch.md#ul-asset-page--资产页--asset-page) | 资产页 | Asset Page | 桌面应用里人管理本租户各类资产的那一部分；按类别在左边的栏里切换；资产自己的设置在这里改 |
 | [UL-asset-category-page](terms/interaction-and-dispatch.md#ul-asset-category-page--资产类别页面--asset-category-page) | 资产类别页面 | Asset Category Page | 一类资产在资产页里自己的那一页；由这一类的界面模块带来，没带来时用通用的页面；**不存事实** |
 | [UL-asset-governance-port](terms/interaction-and-dispatch.md#ul-asset-governance-port--资产治理口--asset-governance-port) | 资产治理口 | Asset Governance Port | 资产的界面模块交给一类资产的界面模块的口：这一类的资产、设置项与改它们的操作；**规则不由它判** |

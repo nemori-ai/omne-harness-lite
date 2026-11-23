@@ -49,6 +49,8 @@ export type Contract = Readonly<{
   keys: (typeof KEYS)[number]
   conformance: string | null
   summary: string
+  /** One item of this point as its author writes it, to copy. The registry does not read it. */
+  example?: string
 }>
 
 export const catalogContract: Contract = Object.freeze({
@@ -176,6 +178,10 @@ const CONTRACT_RULES: readonly (readonly [
   [
     contract => contract['conformance'] === null || isText(contract['conformance']),
     'conformance is neither text nor null',
+  ],
+  [
+    contract => contract['example'] === undefined || isText(contract['example']),
+    'example is not text',
   ],
 ]
 

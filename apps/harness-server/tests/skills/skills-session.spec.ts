@@ -151,6 +151,8 @@ describe('Skills in a real coding session', () => {
         'Calendar',
         'Files',
         'Notifications',
+        'OmneExtensionPoints',
+        'OmneExtensions',
         'Schedules',
         'Screen',
         'Sessions',

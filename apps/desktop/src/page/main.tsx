@@ -8,7 +8,7 @@ import { assembly, pageFloor } from './assembly.tsx'
 import { connectPageBridge, httpChannel } from './bridge.ts'
 import { watchConnectivity } from './connectivity.ts'
 import { keepBootTokens } from './shell/boot-tokens.ts'
-import { adoptChanges, tokenOf } from './shell/changes-sheet.ts'
+import { adoptChanges, tokenOf, tokensOf } from './shell/changes-sheet.ts'
 import { shellPlugin } from './shell/service.ts'
 import { Shell } from './shell/shell.tsx'
 import { bindSizeKeys, storedSizePreference } from './shell/size.ts'
@@ -36,6 +36,7 @@ async function main(): Promise<void> {
   const state = createShellState(shellLogin(bridge), {
     notices: show => bridge.onExpired(() => show(LOGIN_EXPIRED_TEXT)),
     knowsToken: tokenOf(document),
+    tokens: tokensOf(document),
   })
   const tree = await startClientTree({
     transport: watched.transport,

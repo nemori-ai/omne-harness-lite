@@ -1,4 +1,14 @@
-import type { AssetLayerSource, CapabilityId, HeldHolding, HeldPort } from '@omne-harness/assets'
+import {
+  capabilityId,
+  scopeOfLayer,
+  type AssetEntry,
+  type AssetLayerSource,
+  type CapabilityId,
+  type HeldHolding,
+  type HeldItem,
+  type HeldPort,
+} from '@omne-harness/assets'
+import { list, type Placed, type Registry } from '@omne-harness/dynamis'
 import type { AssetCategoriesService } from '@omne-harness/assets-cordis-contract/cordis'
 import { tenantListing, type AssetsLocal } from '@omne-harness/assets-local'
 import { registrySources } from './registry-sources.ts'
@@ -24,10 +34,34 @@ type Kept = {
   stale: boolean
 }
 
+/** A definition a plugin placed for this tenant, within a directory of the plugin's package, as the ledger would list it. */
+function placedEntry(
+  category: string,
+  tenant: string,
+  entry: Placed<HeldItem>,
+): readonly AssetEntry[] {
+  const { scope, item } = entry
+  const capability = capabilityId(category, entry.key)
+  if (item.within === undefined || scope[0] !== 'tenant' || scope[1] !== tenant || !capability.ok)
+    return []
+  const { asset, version } = item
+  return [
+    {
+      capability: capability.id,
+      layer: 'tenant',
+      asset,
+      version,
+      selection: 'pinned',
+      enabled: !item.disabled,
+    },
+  ]
+}
+
 /** Puts what each tenant holds on the registry and reads it back; what could not be put reads as unavailable. */
 export function heldOnRegistry(
   categories: () => Categories,
   warn: (message: string) => void,
+  registry: () => Registry | undefined = () => undefined,
 ): HeldOnRegistry {
   const kept = new Map<string, Kept>()
   let points = ''
@@ -74,6 +108,14 @@ export function heldOnRegistry(
           async listing(ref) {
             const assets = await open(ref)
             return assets === undefined ? undefined : tenantListing(assets)
+          },
+          placed(category, ref) {
+            const listing = categories().view.describe(category)
+            const now = registry()
+            if (now === undefined || listing === undefined || !('point' in listing)) return []
+            const read = list<HeldItem>(now, listing.point, null, scopeOfLayer('tenant', ref))
+            if (read.kind !== 'read') return []
+            return read.items.flatMap(({ entry }) => placedEntry(category, ref, entry))
           },
         },
         tenantRef,

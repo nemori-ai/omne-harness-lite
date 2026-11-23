@@ -378,7 +378,7 @@ function assistantMessage(
           }),
         )
         pending.set(id, at)
-        blocks.push({ ...block, name })
+        blocks.push({ ...block, callId: id, name })
         continue
       }
       case 'tool_call_incomplete':
@@ -453,7 +453,7 @@ function toolMessage(
   const id = normalizeToolCallId(result.callId)
   if (!pending.delete(id)) return invalid(`${path}/blocks/0`, 'orphan-tool-result')
   const parts: WirePart[] = []
-  const blocks: ProjectedPart[] = [result]
+  const blocks: ProjectedPart[] = [{ ...result, callId: id }]
   const images: WirePart[] = []
   const imageBlocks: ProjectedPart[] = []
   for (const [offset, block] of body.entries()) {
@@ -526,8 +526,12 @@ function toolChoiceOf(
       ? { ok: { json: undefined, choice } }
       : invalid('toolChoice', 'no-tools')
   if (choice === 'auto' || choice === 'none') return { ok: { json: text(choice), choice } }
-  if (input.record.accepts?.forcedToolChoice === false)
-    return unsupported('toolChoice', input.adapter)
+  const accepts = input.record.accepts
+  const supported =
+    choice === 'required'
+      ? accepts?.forcedToolChoice
+      : (accepts?.namedToolChoice ?? accepts?.forcedToolChoice)
+  if (supported === false) return unsupported('toolChoice', input.adapter)
   if (choice === 'required') return { ok: { json: text(choice), choice } }
   if (!tools.some(tool => tool.name === choice.name)) return invalid('toolChoice', 'unknown-tool')
   const name = names.wire(choice.name)

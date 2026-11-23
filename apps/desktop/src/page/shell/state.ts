@@ -12,6 +12,7 @@ import {
   type Toast,
   type ToastBoard,
 } from '@omne-harness/shell-contract'
+import type { TokenNow } from './changes-sheet.ts'
 import type { Lack, LackSlot, PageLacks } from './lacks.ts'
 
 export const LOGIN_EXPIRED_TEXT = '登录已经失效，请重新登录。'
@@ -141,6 +142,7 @@ export type ShellState = {
   readonly fallen: Watched<readonly Fallen[]> & { set(fallen: readonly Fallen[]): void }
   readonly appTokens: Watched<Tokens> & { set(tokens: Tokens): void }
   readonly knowsToken: (name: string) => boolean
+  readonly tokens: () => readonly TokenNow[]
   dispose(): void
 }
 
@@ -249,6 +251,7 @@ export function createShellState(
     /** A line for the login gate from outside the shell, such as "the login expired". */
     notices?: (show: (text: string) => void) => () => void
     knowsToken?: (name: string) => boolean
+    tokens?: () => readonly TokenNow[]
   }> = {},
 ): ShellState {
   const slots = slotRelay()
@@ -277,6 +280,7 @@ export function createShellState(
     fallen: cell<readonly Fallen[]>([]),
     appTokens: cell<Tokens>({}),
     knowsToken: options.knowsToken ?? (() => false),
+    tokens: options.tokens ?? (() => []),
     dispose() {
       stopLogin()
       stopNotices?.()

@@ -9,6 +9,7 @@ export type HeldItem = Readonly<{
   disabled: boolean
   immutable: boolean
   replaceLocked: boolean
+  within?: string
 }>
 
 export type HeldScope = readonly string[]
@@ -28,7 +29,10 @@ export type HeldPoint = Readonly<{
   keyFrom: null
   key: string
   gives: string
-  item: Readonly<{ kind: 'data'; fields: Readonly<Record<keyof HeldItem, 'string' | 'boolean'>> }>
+  item: Readonly<{
+    kind: 'data'
+    fields: Readonly<Record<Exclude<keyof HeldItem, 'within'>, 'string' | 'boolean'>>
+  }>
   resolve: 'most-specific'
   binding: 'run'
   onError: string
@@ -102,7 +106,8 @@ const same = (left: Candidate, right: Candidate): boolean =>
   left.version === right.version &&
   left.disabled === right.disabled &&
   left.immutable === right.immutable &&
-  left.replaceLocked === right.replaceLocked
+  left.replaceLocked === right.replaceLocked &&
+  left.within === right.within
 
 /** The entries one tenant sees on a point, as the layers of an evaluation. Another tenant's entries join no layer. */
 export function layerInputsOf(reading: HeldReading, tenant: string): readonly AssetLayerInput[] {

@@ -118,7 +118,7 @@ describe('list-wanted', () => {
         ],
       },
     })
-    expect(world.lists).toEqual([principal])
+    expect(world.lists).toEqual([{ principal, tenant: ALICE.tenantText }])
     const server = await call(world, 'list-wanted', { tenant: ALICE.tenant, side: 'server' })
     expect(
       (server as { body: { plugins: { name: string }[] } }).body.plugins.map(each => each.name),
@@ -159,7 +159,7 @@ describe('read-file', () => {
     })
     expect(world.reads).toEqual([
       {
-        principal,
+        asker: { principal, tenant: ALICE.tenantText },
         at: { name: 'notes', version: 'v-notes', path: 'main.js', offset: 4, limit: 8 },
       },
     ])
@@ -196,7 +196,7 @@ describe('read-file', () => {
     expect(await read(world, { limit: 0 })).toEqual({ outcome: 'limited', body: {} })
     world.answerRead({ kind: 'read', part: bytes, next: null, bytes: 12 })
     await read(world, { limit: 10_000_000 })
-    expect(world.reads[0]?.at.limit).toBe(262_144)
+    expect(world.reads[0]?.at.limit).toBe(720_000)
   })
 
   it('a source that is unavailable or throws, in listing or in reading, is basis-unavailable', async () => {
@@ -271,6 +271,14 @@ describe('report-loaded', () => {
     expect(world.reports.reportsOf(ALICE.tenantText)).toEqual([])
   })
 
+  it('a reading of the reports that breaks is basis-unavailable', async () => {
+    const world = serving()
+    world.reports.reportsOf = () => {
+      throw new Error('the reports broke')
+    }
+    expect(await call(world, 'list-reports')).toEqual({ outcome: 'basis-unavailable' })
+  })
+
   it('a record that breaks is unknown', async () => {
     const world = serving()
     world.reports.present(ALICE.tenantText, 'desktop-1')
@@ -311,6 +319,7 @@ describe('observe-wanted', () => {
     world.change()
     expect(await next).toEqual({ done: false, value: { kind: 'changed' } })
     expect(world.listeners.size).toBe(1)
+    expect(world.subscribed).toEqual([ALICE.tenantText])
     stop.abort()
     expect(world.listeners.size).toBe(0)
     expect(await opened.frames.next()).toEqual({ done: true, value: 'unavailable' })

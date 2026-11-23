@@ -1,4 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
+import { scopeOfLayer } from '@omne-harness/assets'
 import type { AccessIdentity } from '@omne-harness/access-cordis-contract'
 import { systemScope } from '@omne-harness/legal-identity'
 import type {
@@ -110,6 +111,7 @@ export function entryAccess(
   return {
     registry: new AccessRegistryProvider(ctx, { diagnostics }),
     identity,
+    tenantScope: tenant => scopeOfLayer('tenant', tenant),
     graceMs: GRACE_MS,
     frameQueueBytes: FRAME_QUEUE_BYTES,
     availabilityBacklog: AVAILABILITY_BACKLOG,

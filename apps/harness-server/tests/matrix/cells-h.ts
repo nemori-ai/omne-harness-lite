@@ -116,7 +116,7 @@ export const hCells: readonly Cell[] = [
               entryId: '',
               revision: '',
               kind: '',
-              payload: null,
+              payload: { kind: 'null' },
             },
           ) === 'h4-new-reply',
         same.detail,

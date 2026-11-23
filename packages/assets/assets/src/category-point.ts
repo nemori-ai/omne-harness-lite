@@ -1,7 +1,14 @@
+import type { CategoryEffect } from './effect.ts'
 import type { BodyContract } from './identity.ts'
 import { copyTree } from './read-body.ts'
 
-export type CategoryDisplay = Readonly<{ title: string; summary: string; creation?: string }>
+export type CategoryDisplay = Readonly<{
+  title: string
+  summary: string
+  creation?: string
+  /** For whoever writes one by hand: the layout, whole, with one to copy. Text of several lines. */
+  authoring?: string
+}>
 
 /** How the general entry creates an asset of a category: not at all, from a body, or from a directory. */
 export type CreationMode = 'none' | 'data' | 'directory'
@@ -11,6 +18,8 @@ export type CategoryContribution = Readonly<{
   display: CategoryDisplay
   generalCreation?: 'closed'
   point: string
+  /** What a change of one of this category does, told by its owner; without it the assets tell from the holding. */
+  effect?: CategoryEffect
 }>
 
 export type CategoryListing = Readonly<{
@@ -20,7 +29,6 @@ export type CategoryListing = Readonly<{
   point: string
 }>
 
-/** A category that has contributions and gives no contract now, and why. */
 export type CategoryUnusable = Readonly<{
   category: string
   unusable: 'conflict' | 'unread'
@@ -30,6 +38,8 @@ export type CategoryUnusable = Readonly<{
 export type CategoryView = Readonly<{
   lookup(category: string): BodyContract | undefined
   describe(category: string): CategoryListing | CategoryUnusable | undefined
+  atPoint(point: string): CategoryListing | CategoryUnusable | undefined
+  effectOf(category: string): CategoryEffect | undefined
   list(): readonly CategoryListing[]
 }>
 
@@ -40,8 +50,13 @@ export type CategoryReading =
   | Readonly<{ kind: 'read'; contributions: readonly CategoryContribution[] }>
   | Readonly<{ kind: 'unavailable'; detail: string }>
 
-type Registered = Readonly<{ contract: BodyContract; listing: CategoryListing }>
+type Registered = Readonly<{
+  contract: BodyContract
+  listing: CategoryListing
+  effect: CategoryEffect | undefined
+}>
 type Standings = ReadonlyMap<string, Registered | CategoryUnusable>
+type Read = Readonly<{ standings: Standings; points: ReadonlyMap<string, string> }>
 
 const byCategory = (left: CategoryListing, right: CategoryListing): number =>
   left.category < right.category ? -1 : 1
@@ -53,14 +68,13 @@ function creationOf(contract: BodyContract, general: 'closed' | undefined): Crea
 
 const listings = new WeakMap<CategoryContribution, Registered>()
 
-/** One contribution gives one listing for as long as it is contributed, whoever reads it. */
 function registered(contribution: CategoryContribution): Registered {
   const known = listings.get(contribution)
   if (known !== undefined) return known
-  const { contract, display, generalCreation, point } = contribution
+  const { contract, display, generalCreation, point, effect } = contribution
   const creation = creationOf(contract, generalCreation)
   const listing = Object.freeze({ category: contract.category, display, creation, point })
-  const made = Object.freeze({ contract, listing })
+  const made = Object.freeze({ contract, listing, effect })
   listings.set(contribution, made)
   return made
 }
@@ -83,6 +97,14 @@ function sharedWith(
     : `the point ${mine.point} is also the point of ${samePoint.contract.category}`
 }
 
+const standingOf = (held: Registered | CategoryUnusable): CategoryListing | CategoryUnusable =>
+  'contract' in held ? held.listing : held
+
+function readOf(contributions: readonly CategoryContribution[]): Read {
+  const points = new Map(contributions.map(({ contract, point }) => [point, contract.category]))
+  return { standings: standingsOf(contributions), points }
+}
+
 function standingsOf(contributions: readonly CategoryContribution[]): Standings {
   const counted = new Map<string, number>()
   for (const { contract } of contributions)
@@ -101,9 +123,13 @@ function standingsOf(contributions: readonly CategoryContribution[]): Standings 
 }
 
 export function categoryViewOf(read: () => CategoryReading): CategoryView {
-  const standings = (): Standings | string => {
+  const readNow = (): Read | string => {
     const reading = read()
-    return reading.kind === 'read' ? standingsOf(reading.contributions) : reading.detail
+    return reading.kind === 'read' ? readOf(reading.contributions) : reading.detail
+  }
+  const standings = (): Standings | string => {
+    const now = readNow()
+    return typeof now === 'string' ? now : now.standings
   }
   return Object.freeze({
     lookup(category: string): BodyContract | undefined {
@@ -115,7 +141,18 @@ export function categoryViewOf(read: () => CategoryReading): CategoryView {
       const now = standings()
       if (typeof now === 'string') return { category, unusable: 'unread', detail: now }
       const held = now.get(category)
-      return held !== undefined && 'contract' in held ? held.listing : held
+      return held === undefined ? undefined : standingOf(held)
+    },
+    atPoint(point: string): CategoryListing | CategoryUnusable | undefined {
+      const now = readNow()
+      if (typeof now === 'string') return { category: '', unusable: 'unread', detail: now }
+      const held = now.standings.get(now.points.get(point) ?? '')
+      return held === undefined ? undefined : standingOf(held)
+    },
+    effectOf(category: string): CategoryEffect | undefined {
+      const now = standings()
+      const held = typeof now === 'string' ? undefined : now.get(category)
+      return held !== undefined && 'contract' in held ? held.effect : undefined
     },
     list(): readonly CategoryListing[] {
       const now = standings()
@@ -128,21 +165,25 @@ export function categoryViewOf(read: () => CategoryReading): CategoryView {
 
 /** Checks a contribution and freezes what a reader is given. It throws on a contribution that names nothing. */
 export function admitCategory(contribution: CategoryContribution): CategoryContribution {
-  const { contract, display, generalCreation, point } = contribution
+  const { contract, display, generalCreation, point, effect } = contribution
   if (contract.category === '') throw new TypeError('category name is empty')
   if (point === '') throw new TypeError('category point is empty')
-  if (display.title === '' || display.summary === '' || display.creation === '')
+  if ([display.title, display.summary, display.creation, display.authoring].includes(''))
     throw new TypeError('category display is incomplete')
   const schema = copyTree(contract.schema, false)
   if (schema === undefined) throw new TypeError('schema could not be copied')
-  const { title, summary, creation } = display
+  const { title, summary, creation, authoring } = display
   return Object.freeze({
     contract: Object.freeze({ ...contract, schema }),
-    display: Object.freeze(
-      creation === undefined ? { title, summary } : { title, summary, creation },
-    ),
+    display: Object.freeze({
+      title,
+      summary,
+      ...(creation === undefined ? {} : { creation }),
+      ...(authoring === undefined ? {} : { authoring }),
+    }),
     ...(generalCreation === undefined ? {} : { generalCreation }),
     point,
+    ...(effect === undefined ? {} : { effect }),
   })
 }
 
