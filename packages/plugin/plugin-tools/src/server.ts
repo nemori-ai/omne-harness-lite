@@ -1,7 +1,8 @@
 import {
+  CATALOG,
   candidates,
+  catalogContract,
   find,
-  render,
   report,
   standingOf,
   tree,
@@ -11,7 +12,8 @@ import {
   type Scope,
   type TreeNode,
 } from '@omne-harness/dynamis'
-import { cut, moreLine, placeOf, scopeText, stateText } from './text.ts'
+import { pointHead, rulesLines, rulesOf } from './rules.ts'
+import { columns, cut, insideText, moreLine, placeOf, scopeText, stateText } from './text.ts'
 
 /** The server side of the tree as the asker sees it. */
 export function serverSide(
@@ -43,7 +45,36 @@ export function serverPoints(registry: Registry, scope: Scope): Map<string, Cont
   return points
 }
 
-const rebuild = (node: TreeNode, children: readonly TreeNode[]): TreeNode => ({ ...node, children })
+type Cut = TreeNode & Readonly<{ inside?: number }>
+const rebuild = (node: Cut, children: readonly Cut[], inside: number): Cut => ({
+  ...node,
+  children,
+  inside,
+})
+
+/** An entry's note ends with its scope as the registry wrote it; it is named instead of printed raw. */
+function namedNote(note: string, asker: Scope): string {
+  for (let at = asker.length; at > 0; at -= 1) {
+    const raw = `@${asker.slice(0, at).join('/')}`
+    if (note.endsWith(raw))
+      return `${note.slice(0, -raw.length)}${scopeText(asker.slice(0, at), asker)}`
+  }
+  return `${note}, ${scopeText([], asker)}`
+}
+
+function rowsOf(node: Cut, indent: string, summaries: ReadonlyMap<string, string>, asker: Scope) {
+  const note = node.kind === 'entry' ? namedNote(node.note, asker) : node.note
+  const bracket = note === '' ? '' : `[${note}]`
+  const cells =
+    node.kind === 'point'
+      ? [`${indent}${node.label}`, 'point', summaries.get(node.label) ?? '', bracket]
+      : [`${indent}${node.label}${bracket === '' ? '' : `  ${bracket}`}`]
+  const last = cells.length - 1
+  cells[last] = `${cells[last]}${insideText(node.inside ?? 0)}`
+  const rows: string[][] = [cells]
+  for (const child of node.children) rows.push(...rowsOf(child, `${indent}  `, summaries, asker))
+  return rows
+}
 
 export function serverTreeLines(
   registry: Registry,
@@ -54,27 +85,14 @@ export function serverTreeLines(
   const { side, problems } = serverSide(registry, scope)
   const top = under === undefined ? side : serverNode(side, under)
   if (top === undefined) return undefined
-  const { node, hidden } = cut(top, depth, rebuild)
-  const lines = under === undefined ? render(node).split('\n') : ['server', render(node, '  ')]
+  const summaries = new Map([[CATALOG, catalogContract.summary]])
+  for (const [name, contract] of serverPoints(registry, scope))
+    summaries.set(name, contract.summary)
+  const { node, hidden } = cut<Cut>(top, depth, rebuild)
+  const lines = columns(rowsOf(node, under === undefined ? '' : '  ', summaries, scope))
+  if (under !== undefined) lines.unshift('server')
   if (hidden > 0) lines.push(moreLine(hidden, top.label, depth as number))
   return under === undefined ? [...lines, ...problems.map(line => `  ${line}`)] : lines
-}
-
-const ARITY: Readonly<Record<Contract['arity'], string>> = {
-  one: 'one item',
-  list: 'a list',
-  'keyed-one': 'one per key',
-  'keyed-list': 'a list per key',
-}
-const RESOLVE: Readonly<Record<Contract['resolve'], string>> = {
-  conflict: 'two different items in one place are a conflict and neither is used',
-  'most-specific':
-    'among several, the most specific scope wins; two at the same scope are a conflict',
-}
-const ITEM: Readonly<Record<Contract['item']['kind'], string>> = {
-  data: 'data',
-  pure: 'a pure function',
-  effect: 'a function with effects',
 }
 
 function receiptOf(registry: Registry, entry: Placed): string {
@@ -92,24 +110,17 @@ function placedLines(registry: Registry, name: string, scope: Scope): string[] {
   if (rows.length === 0) return ['  (nothing placed)']
   return rows.map(
     ({ entry, state }) =>
-      `  ${placeOf(entry.key, entry.id) || '(no key)'}   ${entry.instance.fiber}#${entry.instance.generation}${scopeText(entry.scope) === '' ? '' : ` ${scopeText(entry.scope)}`}   [${state}]`,
+      `  ${placeOf(entry.key, entry.id) || '(no key)'}   ${entry.instance.fiber}#${entry.instance.generation} ${scopeText(entry.scope, scope)}   [${state}]`,
   )
 }
 
 /** One server point in full, read from its contract and from what the asker sees placed on it. */
 export function serverPointLines(registry: Registry, contract: Contract, scope: Scope): string[] {
-  const keyed = contract.arity.startsWith('keyed')
-  const fields = Object.entries(contract.item.fields).map(([field, kind]) => `${field} (${kind})`)
+  const rules = rulesOf(contract)
   return [
-    `${contract.name}   point, ${contract.tree}   v${contract.version}.${contract.revision}`,
+    pointHead(contract.name, contract.tree, rules),
     contract.summary,
-    keyed ? `key: ${contract.key}` : `key: none; the point holds ${ARITY[contract.arity]}`,
-    ...(contract.keyFrom === null ? [] : [`keys from: ${contract.keyFrom}`]),
-    `holds: ${ARITY[contract.arity]}; ${RESOLVE[contract.resolve]}`,
-    `may change: ${contract.binding === 'run' ? 'while running' : 'only when the application is built'}`,
-    `a member gives: ${ITEM[contract.item.kind]}${fields.length === 0 ? '' : `. fields: ${fields.join(', ')}`}`,
-    `the host gives it: ${contract.gives}`,
-    `when it throws: ${contract.onError}`,
+    ...rulesLines(rules),
     'now:',
     ...placedLines(registry, contract.name, scope),
   ]

@@ -1,30 +1,40 @@
-import type { ClientTree, Depth } from './port.ts'
-import { columns, cut, moreLine } from './text.ts'
+import type { ClientPoint, ClientTree, Depth } from './port.ts'
+import { dataKeyLines, pointHead, pointText, rulesLines } from './rules.ts'
+import { columns, cut, insideText, moreLine } from './text.ts'
 
 type Part = ClientTree['parts'][number]
-type Row = Readonly<{ name: string; cells: readonly string[]; children: readonly Row[] }>
+type Row = Readonly<{
+  name: string
+  cells: readonly string[]
+  children: readonly Row[]
+  inside?: number
+}>
 
 /** What a member of each depth writes. The three point names and the forms are facts of the client shell: packages/frontend/SPEC.md, 外壳契约. */
 export const SHELL_MEMBERS: Readonly<
-  Record<Depth, Readonly<{ gives: string; member: (part: string) => string }>>
+  Record<Depth, Readonly<{ point: string; gives: string; member: (part: string) => string }>>
 > = {
   tokens: {
+    point: 'shell.tokens',
     gives: 'data',
     member: part => `{"point":"shell.tokens","key":"${part}","data":{<token>:<value>}}`,
   },
   style: {
+    point: 'shell.part-style',
     gives: 'data',
     member: part =>
       `{"point":"shell.part-style","key":"${part}","data":{"base":{<css property>:<value>},"hover":{…},"disabled":{…}}}`,
   },
   render: {
+    point: 'shell.part-render',
     gives: 'code',
     member: part => `{"point":"shell.part-render","key":"${part}","module":<file>,"export":<name>}`,
   },
 }
 const DEPTHS: readonly Depth[] = ['tokens', 'style', 'render']
 
-const hostOf = (name: string): string => name.slice(0, Math.max(0, name.indexOf('.'))) || name
+export const hostOf = (name: string): string =>
+  name.slice(0, Math.max(0, name.indexOf('.'))) || name
 const byName = (left: { name: string }, right: { name: string }): number =>
   left.name < right.name ? -1 : left.name > right.name ? 1 : 0
 
@@ -58,13 +68,19 @@ function hostRows(client: ClientTree): Row[] {
   }))
 }
 
-const flat = (row: Row, indent: string): string[][] => [
-  [`${indent}${row.name}`, ...row.cells],
-  ...row.children.flatMap(child => flat(child, `${indent}  `)),
-]
+function flat(row: Row, indent: string): string[][] {
+  const cells = [`${indent}${row.name}`, ...row.cells]
+  const last = cells.length - 1
+  cells[last] = `${cells[last]}${insideText(row.inside ?? 0)}`
+  return [cells, ...row.children.flatMap(child => flat(child, `${indent}  `))]
+}
 
 const all = (rows: readonly Row[]): Row[] => rows.flatMap(row => [row, ...all(row.children)])
-const rebuild = (row: Row, children: readonly Row[]): Row => ({ ...row, children })
+const rebuild = (row: Row, children: readonly Row[], inside: number): Row => ({
+  ...row,
+  children,
+  inside,
+})
 
 export const NONE_CONNECTED =
   'client   none connected. The client tree exists only while a client is connected; the server tree is under side=server.'
@@ -98,7 +114,6 @@ export function clientTreeLines(
   return [...lines, ...columns(plugins)]
 }
 
-/** The names a client tree holds, parts and points. */
 export const clientNames = (client: ClientTree): string[] => [
   ...client.parts.map(part => part.name),
   ...client.points.map(point => point.name),
@@ -117,29 +132,61 @@ function within(client: ClientTree, part: Part): string[] {
   return labels
 }
 
-/** One part in full: where it sits and, for each depth it opens, the member that changes it. */
+/** The member the point of a depth gives to copy, keyed to this part, and the lines that follow it; none when its example has no key to set. */
+function copied(point: ClientPoint | undefined, part: string): string[] | undefined {
+  const [first, ...rest] = point?.contract?.example?.split('\n') ?? []
+  if (first === undefined) return undefined
+  try {
+    const member: unknown = JSON.parse(first)
+    if (typeof member !== 'object' || member === null || Array.isArray(member)) return undefined
+    if (!('key' in member)) return undefined
+    return [JSON.stringify({ ...member, key: part }), ...rest]
+  } catch {
+    return undefined
+  }
+}
+
 export function partLines(client: ClientTree, part: Part): string[] {
   const path = within(client, part)
-  const open = DEPTHS.filter(depth => part.depths.includes(depth))
+  const open = DEPTHS.filter(depth => part.depths.includes(depth)).map(depth => {
+    const point = client.points.find(one => one.name === SHELL_MEMBERS[depth].point)
+    const [member = SHELL_MEMBERS[depth].member(part.name), ...rest] =
+      copied(point, part.name) ?? []
+    const keys = depth === 'tokens' ? point?.dataKeys : undefined
+    const names =
+      keys === undefined
+        ? []
+        : [
+            `    names: OmneExtensionPoints show ${SHELL_MEMBERS[depth].point} lists the ${keys.length} token names and their values now.`,
+          ]
+    return { depth, member, after: [...rest.map(line => `    ${line}`), ...names] }
+  })
+  const rows = columns(
+    open.map(({ depth, member }) => [
+      `  ${depth}`,
+      SHELL_MEMBERS[depth].gives,
+      `member: ${member}`,
+    ]),
+  )
   return [
     `${part.name}   part, client   ${part.label}`,
     part.summary,
     ...(path.length === 0 ? [] : [`in: ${path.join(' › ')}`]),
     'depths, shallow first:',
-    ...columns(
-      open.map(depth => [
-        `  ${depth}`,
-        SHELL_MEMBERS[depth].gives,
-        `member: ${SHELL_MEMBERS[depth].member(part.name)}`,
-      ]),
-    ),
+    ...open.flatMap(({ after }, at) => [rows[at] as string, ...after]),
   ]
 }
 
-export const clientPointLines = (point: ClientTree['points'][number]): string[] => [
-  `${point.name}   point, client`,
-  point.summary,
-]
+/** A client point: its rules in the form a server point has when it reports them; a client does not report what it holds. */
+export function clientPointLines(point: ClientPoint): string[] {
+  if (point.contract === undefined) return [`${point.name}   point, client`, point.summary]
+  return [
+    pointHead(point.name, 'client', point.contract),
+    point.summary,
+    ...rulesLines(point.contract),
+    ...(point.dataKeys === undefined ? [] : dataKeyLines(point.dataKeys)),
+  ]
+}
 
 /** The rows find matches against, from every connected client, the first client naming each. */
 export function clientCandidates(clients: readonly ClientTree[]) {
@@ -159,7 +206,7 @@ export function clientCandidates(clients: readonly ClientTree[]) {
     for (const point of client.points)
       if (!seen.has(point.name))
         seen.set(point.name, {
-          text: [point.name, point.summary].join(' '),
+          text: pointText(point.name, point.summary, point.contract, point.dataKeys),
           cells: ['point', point.summary, '', 'client'],
         })
   }
