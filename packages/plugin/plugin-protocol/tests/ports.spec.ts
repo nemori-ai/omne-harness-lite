@@ -129,6 +129,46 @@ describe('the ports of one call', () => {
     expect(answer).not.toBe(kept)
   })
 
+  it('carries every kind of data: true, a number, null, nested lists, an object with no prototype', async () => {
+    const seen: unknown[] = []
+    const send = bindPorts({ notifications: () => echoes(seen) }, CALLER).ports['notifications']?.[
+      'send'
+    ]
+    const bare = Object.assign(Object.create(null) as Record<string, unknown>, {
+      at: [1, [false, null]],
+    })
+    for (const input of [true, 0, -2.5, null, [1, ['a']], bare]) await send?.(input as never)
+    expect(seen.map(([, input]) => input)).toEqual([
+      true,
+      0,
+      -2.5,
+      null,
+      [1, ['a']],
+      { at: [1, [false, null]] },
+    ])
+    expect(await send?.(Number.POSITIVE_INFINITY)).toEqual({
+      outcome: 'refused',
+      reason: 'the input is not data',
+    })
+  })
+
+  it('what a domain answers reaches the plugin as that answer: unavailable, unknown and closed as they are, done with what is not data as unavailable', async () => {
+    const answering = (answer: PortAnswer) =>
+      bindPorts<Caller>({ said: () => () => ({ go: async () => answer }) }, CALLER).ports['said']?.[
+        'go'
+      ]?.(null)
+    expect(await answering({ outcome: 'unavailable', reason: 'down' })).toEqual({
+      outcome: 'unavailable',
+      reason: 'down',
+    })
+    expect(await answering({ outcome: 'unknown' })).toEqual({ outcome: 'unknown' })
+    expect(await answering({ outcome: 'closed' })).toEqual({ outcome: 'closed' })
+    expect(await answering({ outcome: 'done', value: new Date(0) as never })).toEqual({
+      outcome: 'unavailable',
+      reason: 'said answered what is not data',
+    })
+  })
+
   it('the ports and their methods are frozen; there is no port the call was not bound with', () => {
     const bound = bindPorts({ notifications: () => echoes([]) }, CALLER)
     expect(Object.isFrozen(bound.ports)).toBe(true)
