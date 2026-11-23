@@ -437,6 +437,9 @@
 | [UL-app-shell](terms/interaction-and-dispatch.md#ul-app-shell--界面外壳--app-shell) | 界面外壳 | App Shell | 一种应用形态自己的界面代码：窗口、导航与它声明的界面插入位置；**不含任何领域的代码**；不是 Shell 工具 |
 | [UL-ui-module](terms/interaction-and-dispatch.md#ul-ui-module--界面模块--ui-module) | 界面模块 | UI Module | 一个领域在客户端的界面部分，客户端装配树上的插件；**随它依赖的协议在协议可用性里出现与消失而加载与卸载** |
 | [UL-ui-slot](terms/interaction-and-dispatch.md#ul-ui-slot--界面插入位置--ui-slot) | 界面插入位置 | UI Slot | 界面外壳声明的、界面模块可以往里放东西的具名位点；**设计时列出，不在运行期创建**；只放一个或放一列 |
+| [UL-ui-part](terms/interaction-and-dispatch.md#ul-ui-part--界面部位--ui-part) | 界面部位 | UI Part | 界面上一种有名字、可以被指认的东西，由画它的界面模块声明；**同一种可以在屏幕上画好几处** |
+| [UL-ui-developer-mode](terms/interaction-and-dispatch.md#ul-ui-developer-mode--界面开发模式--ui-developer-mode) | 界面开发模式 | UI Developer Mode | 图形交付面上的一个开关；开着时人可以选取界面部位，随消息交给 agent；**关着时与没有它相同** |
+| [UL-ui-selection](terms/interaction-and-dispatch.md#ul-ui-selection--界面选择--ui-selection) | 界面选择 | UI Selection | 一条输入里的一部分：人选中的一组界面部位的各一处，带序号；**受理之后不变，与人写的字分开** |
 | [UL-asset-page](terms/interaction-and-dispatch.md#ul-asset-page--资产页--asset-page) | 资产页 | Asset Page | 桌面应用里人管理本租户各类资产的那一部分；按类别在左边的栏里切换；资产自己的设置在这里改 |
 | [UL-asset-category-page](terms/interaction-and-dispatch.md#ul-asset-category-page--资产类别页面--asset-category-page) | 资产类别页面 | Asset Category Page | 一类资产在资产页里自己的那一页；由这一类的界面模块带来，没带来时用通用的页面；**不存事实** |
 | [UL-asset-governance-port](terms/interaction-and-dispatch.md#ul-asset-governance-port--资产治理口--asset-governance-port) | 资产治理口 | Asset Governance Port | 资产的界面模块交给一类资产的界面模块的口：这一类的资产、设置项与改它们的操作；**规则不由它判** |
