@@ -101,44 +101,60 @@ export function EndpointActions({
       </p>
     )
   const { endpoint, actions } = state.body
-  if (actions === null) {
-    const { catalog } = endpoint
-    const why = catalog.kind === 'not-acquired' && catalog.reason !== null ? catalog.reason : null
-    return (
-      <div
-        className="mcp-endpoint-actions"
-        aria-busy={state.refreshing}
-        {...mcpEndpointActions.props}
-      >
-        <InlineNotice
-          tone="neutral"
-          role="status"
-          {...(state.refreshing ? {} : { action: { label: '刷新', onClick: refresh } })}
-        >
-          <p>{why === null ? '动作清单还没取得。' : `动作清单还没取得：${why}`}</p>
-        </InlineNotice>
-        {state.refreshing ? <LoadingIndicator size="sm" /> : null}
-      </div>
-    )
-  }
-  return (
+  return actions === null ? (
+    <NotAcquired catalog={endpoint.catalog} refreshing={state.refreshing} refresh={refresh} />
+  ) : (
     <div className="mcp-endpoint-actions" {...mcpEndpointActions.props}>
       {actions.length === 0 ? (
         <p className="mcp-endpoint-status">这个接入点没有动作。</p>
       ) : (
-        <ul className="mcp-action-list" aria-label="这个接入点的动作">
-          {actions.map(action => (
-            <li key={action.name} className="mcp-action">
-              <span className="mcp-action-name">{action.name}</span>
-              <span className="mcp-action-summary">
-                {action.available
-                  ? action.summary
-                  : `${action.summary}（用不了：${action.reason ?? ''}）`}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <ActionList actions={actions} />
       )}
     </div>
+  )
+}
+
+function NotAcquired({
+  catalog,
+  refreshing,
+  refresh,
+}: {
+  readonly catalog: Endpoint['catalog']
+  readonly refreshing: boolean
+  readonly refresh: () => void
+}): JSX.Element {
+  const why = catalog.kind === 'not-acquired' ? catalog.reason : null
+  return (
+    <div className="mcp-endpoint-actions" aria-busy={refreshing} {...mcpEndpointActions.props}>
+      <InlineNotice
+        tone="neutral"
+        role="status"
+        {...(refreshing ? {} : { action: { label: '刷新', onClick: refresh } })}
+      >
+        <p>{why === null ? '动作清单还没取得。' : `动作清单还没取得：${why}`}</p>
+      </InlineNotice>
+      {refreshing ? <LoadingIndicator size="sm" /> : null}
+    </div>
+  )
+}
+
+function ActionList({
+  actions,
+}: {
+  readonly actions: NonNullable<ReadBody['actions']>
+}): JSX.Element {
+  return (
+    <ul className="mcp-action-list" aria-label="这个接入点的动作">
+      {actions.map(action => (
+        <li key={action.name} className="mcp-action">
+          <span className="mcp-action-name">{action.name}</span>
+          <span className="mcp-action-summary">
+            {action.available
+              ? action.summary
+              : `${action.summary}（用不了：${action.reason ?? ''}）`}
+          </span>
+        </li>
+      ))}
+    </ul>
   )
 }

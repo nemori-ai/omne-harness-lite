@@ -39,6 +39,74 @@ it('E1 under the name, one status line: connected or not, with the reason the en
   })
   shownWith(fakeStatus(answered(lost, null)).status)
   expect(await screen.findByText('连不上：the endpoint could not be reached')).toBeTruthy()
+  cleanup()
+  shownWith(
+    fakeStatus(answered(stood({ connection: { state: 'preparing', reason: null } }), null)).status,
+  )
+  expect(await screen.findByText('正在连接')).toBeTruthy()
+  cleanup()
+  const degraded = stood({
+    connection: { state: 'degraded', reason: 'the actions of the endpoint could not be listed' },
+  })
+  shownWith(fakeStatus(answered(degraded, null)).status)
+  expect(
+    await screen.findByText('已连上，动作取不全：the actions of the endpoint could not be listed'),
+  ).toBeTruthy()
+})
+
+it('E8 while the endpoint is read, the status line says so through the loading part', () => {
+  const status: McpStatus = {
+    'read-endpoint': () => new Promise(() => undefined),
+    'refresh-endpoint': () => new Promise(() => undefined),
+  }
+  shownWith(status)
+  expect(screen.getByRole('status', { name: '正在读取状态……' })).toBeTruthy()
+})
+
+it('E9 another tenant: an answer for the one before, coming late, does not take its place', async () => {
+  let late: (value: ReturnType<typeof answered>) => void = () => undefined
+  const reads = [
+    new Promise<ReturnType<typeof answered>>(resolve => (late = resolve)),
+    Promise.resolve(answered(stood(), [])),
+  ]
+  const status: McpStatus = {
+    'read-endpoint': () => reads.shift()!,
+    'refresh-endpoint': () => new Promise(() => undefined),
+  }
+  const fake = fakeGovernance(readOf(endpoint('context7', [permissionRow()])))
+  const other = TENANT.replace('acc_00000000000000000000000001', 'acc_00000000000000000000000002')
+  const view = render(<McpPage governance={fake.governance} tenant={TENANT} status={status} />)
+  view.rerender(<McpPage governance={fake.governance} tenant={other} status={status} />)
+  expect(await screen.findByText('已连上')).toBeTruthy()
+  const gone = stood({ connection: { state: 'lost', reason: 'the endpoint could not be reached' } })
+  await act(async () => late(answered(gone, null)))
+  expect(screen.getByText('已连上')).toBeTruthy()
+  expect(screen.queryByText(/连不上/)).toBeNull()
+})
+
+it('E10 every 刷新 fetches once and reads once more', async () => {
+  const none = answered(stood({ catalog: { kind: 'not-acquired', reason: null } }), null)
+  const fake = fakeStatus(none, none, none)
+  shownWith(fake.status)
+  for (let turn = 0; turn < 2; turn += 1) {
+    fireEvent.click(await screen.findByRole('button', { name: '刷新' }))
+    await act(async () => undefined)
+  }
+  expect(fake.calls).toEqual([
+    'read context7',
+    'refresh context7',
+    'read context7',
+    'refresh context7',
+    'read context7',
+  ])
+})
+
+it('E11 a tenant text the page cannot read: nothing is asked, the status cannot be read', () => {
+  const fake = fakeStatus(answered(stood(), []))
+  const governance = fakeGovernance(readOf(endpoint('context7', [permissionRow()])))
+  render(<McpPage governance={governance.governance} tenant="not a tenant" status={fake.status} />)
+  expect(screen.getByText('状态读不出。')).toBeTruthy()
+  expect(fake.calls).toEqual([])
 })
 
 it('E2 it cannot be used: the status line says why, the credential that is missing too', async () => {
@@ -51,6 +119,9 @@ it('E2 it cannot be used: the status line says why, the credential that is missi
   expect(
     await screen.findByText('还没连过；凭据没配；不能用：the endpoint is disabled'),
   ).toBeTruthy()
+  cleanup()
+  shownWith(fakeStatus(answered(stood({ credential: 'invalid' }), [])).status)
+  expect(await screen.findByText('已连上；凭据的配值不对')).toBeTruthy()
 })
 
 it('E3 after the setting rows, one line per action: its name and summary, and why it cannot be called', async () => {
