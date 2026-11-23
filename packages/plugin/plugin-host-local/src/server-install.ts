@@ -30,7 +30,6 @@ export type ServerInstallPorts = Readonly<{
   scope: readonly string[]
   point(name: string): ServerPoint | undefined
   guestForm(point: string): GuestForm | undefined
-  /** The module of one file of the package, loaded only as the package lists it. */
   load(file: PackageFile): Promise<unknown>
   /** Puts the entries as this plugin; the answer takes them back. It throws when the registry refuses them. */
   put(entries: readonly ServerEntry[]): () => unknown
@@ -45,7 +44,6 @@ const wayOf = (member: Member): keyof typeof WAY =>
 
 type Pending = Readonly<{ member: ModuleMember; file: PackageFile; form: GuestForm }>
 
-/** One member before anything is loaded: its item, the code still to load, or why it cannot be put. */
 function stepOf(
   ports: ServerInstallPorts,
   member: Member,
