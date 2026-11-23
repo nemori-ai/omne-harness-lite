@@ -527,6 +527,12 @@ importers:
       '@omne-harness/notification-ui':
         specifier: workspace:*
         version: link:../../packages/notification/notification-ui
+      '@omne-harness/plugin':
+        specifier: workspace:*
+        version: link:../../packages/plugin/plugin
+      '@omne-harness/plugin-protocol':
+        specifier: workspace:*
+        version: link:../../packages/plugin/plugin-protocol
       '@omne-harness/public-contract':
         specifier: workspace:*
         version: link:../../packages/access/public-contract

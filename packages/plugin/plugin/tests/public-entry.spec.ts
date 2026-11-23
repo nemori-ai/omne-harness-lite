@@ -7,6 +7,7 @@ it('the root entry gives the manifest, the judgment of a package, the wanted lis
     'MANIFEST_FILE',
     'MANIFEST_SCHEMA',
     'UNWANTED',
+    'insidePackage',
     'judgePackage',
     'memberDigest',
     'memberKind',

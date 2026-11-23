@@ -1,6 +1,7 @@
 export {
   MANIFEST_FILE,
   MANIFEST_SCHEMA,
+  insidePackage,
   memberKind,
   readManifest,
   type DataMember,

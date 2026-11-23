@@ -1,5 +1,5 @@
 import { identityProtocol } from '@omne-harness/identity-protocol'
-import type { ProtocolContract } from '@omne-harness/public-contract'
+import { readTenantText, type ProtocolContract } from '@omne-harness/public-contract'
 import {
   ClientRequestError,
   createClient,
@@ -16,6 +16,7 @@ import {
 import type { JsonValue } from '@omne-harness/json-text'
 import type { LoginCredentials, LoginResult, LogoutResult } from '../shared/channel.ts'
 import { tenantText } from '../shared/tenant.ts'
+import { readPluginFile, type PluginFileAnswer, type PluginFileAt } from './plugin-files.ts'
 import type { CookieLogin } from './login-cookie.ts'
 
 export type ServerConnector = (credentials: Credentials) => Transport
@@ -48,6 +49,8 @@ export interface ForwardingRules {
   login(credentials: LoginCredentials): Promise<LoginAnswer>
   logout(login: CookieLogin): Promise<LogoutResult>
   standing(login: CookieLogin): Promise<LoginStanding>
+  /** One file of a plugin, read with the login the request carried. */
+  pluginFile(at: PluginFileAt, login: CookieLogin): Promise<PluginFileAnswer>
 }
 
 const NOT_SENT: CallReport = Object.freeze({ kind: 'not-sent' })
@@ -117,6 +120,13 @@ export function createForwardingRules(options: RulesOptions): ForwardingRules {
     observationCarriesLogin(protocol, observation) {
       const demand = demands.get(targetOf(protocol, observation))
       return demand !== undefined && demand !== 'none' && demand !== 'carries-credential'
+    },
+
+    async pluginFile(at, login) {
+      const tenant = readTenantText(login.tenant)
+      if (tenant === undefined) return { kind: 'unavailable' }
+      const transport = connect(credentialsFor(login, 'login'))
+      return readPluginFile(transport, tenant, at).catch(() => ({ kind: 'unavailable' as const }))
     },
 
     async call(request, login) {
