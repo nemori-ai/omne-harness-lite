@@ -68,8 +68,7 @@ export const shellContracts: readonly Contract[] = [
     gives: 'the tenant scope',
     binding: 'build',
     onError: 'only this item is not drawn',
-    summary:
-      'What floats over the whole application once somebody is signed in, in the order of their order and id.',
+    summary: `What floats over the whole application once somebody is signed in, in the order of their order and id. ${FIXED}`,
   },
 ]
 

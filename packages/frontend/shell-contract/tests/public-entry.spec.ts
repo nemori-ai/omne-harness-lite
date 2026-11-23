@@ -93,7 +93,7 @@ it('declares the four points of the shell itself as fixed when the application i
       gives: 'the tenant scope',
       onError: 'only this item is not drawn',
       summary:
-        'What floats over the whole application once somebody is signed in, in the order of their order and id.',
+        'What floats over the whole application once somebody is signed in, in the order of their order and id. Fixed when the app is built: a plugin cannot add to it while the app runs.',
     },
   ])
 })
