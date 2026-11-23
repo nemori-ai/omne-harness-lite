@@ -29,7 +29,7 @@ import {
   type PartStyle,
 } from './change.ts'
 import type { FigureBoard, FigureReport } from './figure-store.ts'
-import type { ScopeSource, ShellLogin } from './host.ts'
+import type { Hosted, ScopeSource, ShellLogin } from './host.ts'
 import {
   pinnedClient,
   pointReader,
@@ -192,6 +192,25 @@ export abstract class ShellService extends Service implements ShellSlots {
 
   putLayout(key: string, order: readonly string[], scope: Scope = []): () => unknown {
     return this.ctx.dynamis.put([layoutEntry(key, order, scope)])
+  }
+
+  async host(name: string, apply: (shell: ShellService) => void): Promise<Hosted> {
+    let by = name
+    const fiber = this.ctx.plugin({
+      name,
+      inject: [ShellService.provide, 'dynamis'],
+      apply: (ctx: Context) => {
+        ctx.dynamis.put(instance => ((by = instance.fiber), []))
+        apply(ctx.shell)
+      },
+    })
+    try {
+      await fiber
+    } catch (error) {
+      await fiber.dispose()
+      throw error
+    }
+    return { by, dispose: () => fiber.dispose() }
   }
 
   changes(): Changes {

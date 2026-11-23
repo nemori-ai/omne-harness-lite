@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { wantedOf, type Offered, type PluginManifest } from '@omne-harness/plugin'
+import { wantedOf, type Offered, type PluginManifest } from '@omne-harness/plugin-protocol'
 
 const manifest = (name: string, sides: Partial<PluginManifest> = {}): PluginManifest => ({
   schema: 1,

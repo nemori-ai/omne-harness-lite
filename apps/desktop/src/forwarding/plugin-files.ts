@@ -1,4 +1,4 @@
-import { FILE_SUFFIXES, insidePackage } from '@omne-harness/plugin'
+import { FILE_SUFFIXES, insidePackage } from '@omne-harness/plugin-protocol'
 import { pluginProtocol } from '@omne-harness/plugin-protocol'
 import type { TenantId } from '@omne-harness/public-contract'
 import { createClient, type Transport } from '@omne-harness/sdk/core'

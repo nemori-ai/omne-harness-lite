@@ -4,7 +4,7 @@ import {
   memberDigest,
   type PackageFile,
   type PluginManifest,
-} from '@omne-harness/plugin'
+} from '@omne-harness/plugin-protocol'
 
 const file = (path: string, digest = `d:${path}`): PackageFile => ({ path, digest })
 

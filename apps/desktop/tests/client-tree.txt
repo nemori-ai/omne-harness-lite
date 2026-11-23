@@ -89,6 +89,8 @@ system
           served:model/v1#1  [effective]
         notification/v2
           served:notification/v2#1  [effective]
+        plugin/v1
+          served:plugin/v1#1  [effective]
         schedule/v2
           served:schedule/v2#1  [effective]
         session-diagnostics/v1

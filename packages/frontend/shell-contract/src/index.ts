@@ -101,6 +101,7 @@ export type {
   SlotName,
 } from './slots.ts'
 export type {
+  Hosted,
   LoginCredentials,
   LoginResult,
   LogoutResult,

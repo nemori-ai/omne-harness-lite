@@ -1,5 +1,5 @@
 import type { LoginIdentity, Principal } from '@omne-harness/access-cordis-contract'
-import type { Offered, PackageFile } from '@omne-harness/plugin'
+import type { Offered, PackageFile } from '@omne-harness/plugin-protocol'
 
 /** Whether this login may act for a tenant now. The application answers it from identity. */
 export interface TargetTenantPrincipals {

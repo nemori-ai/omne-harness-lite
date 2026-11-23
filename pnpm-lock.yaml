@@ -527,12 +527,12 @@ importers:
       '@omne-harness/notification-ui':
         specifier: workspace:*
         version: link:../../packages/notification/notification-ui
-      '@omne-harness/plugin':
-        specifier: workspace:*
-        version: link:../../packages/plugin/plugin
       '@omne-harness/plugin-protocol':
         specifier: workspace:*
         version: link:../../packages/plugin/plugin-protocol
+      '@omne-harness/plugin-ui':
+        specifier: workspace:*
+        version: link:../../packages/plugin/plugin-ui
       '@omne-harness/public-contract':
         specifier: workspace:*
         version: link:../../packages/access/public-contract
@@ -870,12 +870,12 @@ importers:
       '@omne-harness/pi-ai-transport':
         specifier: workspace:*
         version: link:../../packages/model/pi-ai-transport
-      '@omne-harness/plugin':
-        specifier: workspace:*
-        version: link:../../packages/plugin/plugin
       '@omne-harness/plugin-access':
         specifier: workspace:*
         version: link:../../packages/plugin/plugin-access
+      '@omne-harness/plugin-protocol':
+        specifier: workspace:*
+        version: link:../../packages/plugin/plugin-protocol
       '@omne-harness/public-contract':
         specifier: workspace:*
         version: link:../../packages/access/public-contract
@@ -1102,9 +1102,6 @@ importers:
       '@omne-harness/media-protocol':
         specifier: workspace:*
         version: link:../../packages/media/media-protocol
-      '@omne-harness/plugin-protocol':
-        specifier: workspace:*
-        version: link:../../packages/plugin/plugin-protocol
       '@omne-harness/sdk':
         specifier: workspace:*
         version: link:../../packages/access/sdk
@@ -4905,18 +4902,6 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
-  packages/plugin/plugin:
-    devDependencies:
-      '@types/node':
-        specifier: 'catalog:'
-        version: 24.13.6
-      typescript:
-        specifier: 'catalog:'
-        version: 7.0.2
-      vitest:
-        specifier: 'catalog:'
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
-
   packages/plugin/plugin-access:
     dependencies:
       '@deepseek-ai/cordis':
@@ -4928,9 +4913,6 @@ importers:
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
-      '@omne-harness/plugin':
-        specifier: workspace:*
-        version: link:../plugin
       '@omne-harness/plugin-protocol':
         specifier: workspace:*
         version: link:../plugin-protocol
@@ -4957,6 +4939,43 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/plugin/plugin-ui:
+    dependencies:
+      '@omne-harness/client-assembly':
+        specifier: workspace:*
+        version: link:../../access/client-assembly
+      '@omne-harness/plugin-protocol':
+        specifier: workspace:*
+        version: link:../plugin-protocol
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../access/public-contract
+      '@omne-harness/sdk':
+        specifier: workspace:*
+        version: link:../../access/sdk
+      '@omne-harness/shell-contract':
+        specifier: workspace:*
+        version: link:../../frontend/shell-contract
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.3.0
+      react:
+        specifier: 'catalog:'
+        version: 19.3.0
       typescript:
         specifier: 'catalog:'
         version: 7.0.2

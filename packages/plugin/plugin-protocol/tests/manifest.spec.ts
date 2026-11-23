@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { MANIFEST_FILE, memberKind, readManifest, type PluginManifest } from '@omne-harness/plugin'
+import {
+  MANIFEST_FILE,
+  memberKind,
+  readManifest,
+  type PluginManifest,
+} from '@omne-harness/plugin-protocol'
 
 const GREEN: PluginManifest = {
   schema: 1,

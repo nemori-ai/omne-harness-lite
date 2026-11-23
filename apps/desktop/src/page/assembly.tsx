@@ -21,6 +21,7 @@ import '@omne-harness/media-ui/media-ui.css'
 import { modelChoicesKey, modelUiModule } from '@omne-harness/model-ui/cordis'
 import { notificationUiModule } from '@omne-harness/notification-ui/cordis'
 import '@omne-harness/notification-ui/notification-ui.css'
+import { createPluginUiModule } from '@omne-harness/plugin-ui/cordis'
 import type { ProtocolContract } from '@omne-harness/public-contract'
 import '@omne-harness/schedule-ui/schedule-ui.css'
 import { createScheduleUiModule } from '@omne-harness/schedule-ui/cordis'
@@ -81,5 +82,6 @@ export const assembly: Assembly = {
       drafts: sessionComposerIntakeKey,
     }),
     sessionReadsUiModule,
+    createPluginUiModule(),
   ],
 }

@@ -1,6 +1,5 @@
 import type { AccessContribution, AnswerOf, Principal } from '@omne-harness/access-cordis-contract'
-import { wantedOf } from '@omne-harness/plugin'
-import { pluginProtocol, type PluginProtocol } from '@omne-harness/plugin-protocol'
+import { pluginProtocol, wantedOf, type PluginProtocol } from '@omne-harness/plugin-protocol'
 import { actingFor, tenantText } from './acting.ts'
 import { createWantedObservation } from './observe-wanted.ts'
 import type { PluginReports, PluginSource, SourcePlugin, TargetTenantPrincipals } from './ports.ts'

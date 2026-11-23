@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { watch, type FSWatcher } from 'node:fs'
 import { readdir, readFile, realpath } from 'node:fs/promises'
 import { join, sep } from 'node:path'
-import { MANIFEST_FILE, judgePackage, readManifest } from '@omne-harness/plugin'
+import { MANIFEST_FILE, judgePackage, readManifest } from '@omne-harness/plugin-protocol'
 import type {
   PluginSource,
   SourceFile,

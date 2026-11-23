@@ -219,6 +219,7 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 - 标识只在同一处不许重复；不同位置里可以同名。附着位置里，两个互不知道的界面模块在两个名字下可以用同一个标识。
 - 放一列的位置按 `order` 升序排，`order` 相同按 `id` 的码元序排，不用区域比较，结果与放进去的先后、加载的次序无关。整个附着位置一起读时，两项的 `order` 与 `id` 都相同就按位置的名字排。
 - 放进去的一项绑在调用者的作用域上：`contribute` 把它登记成调用者作用域上的一个效应，作用域卸载时自动撤掉。界面模块不写撤下的代码。撤掉的只是它自己放的，别人放的不动。
+- 一个模块可以在自己下面开一个作用域：`shell.host(名字, apply)`。`apply` 拿到的外壳属于这个新作用域，经它放的东西记在这个名字下，随它一起出现、一起撤掉；`dispose()` 只撤这一个作用域，开它的模块卸载时它也跟着卸载。答复里的 `by` 是登记表上实际用的名字：同名的另一个作用域还在时，后来的带后缀。`apply` 抛出时这个作用域不留下任何东西，`host` 把原因抛给调用者。用途是替别人放东西的模块（例如按清单装一份 plugin 的装载器）：每一份各占一个作用域，谁放的、要撤哪一份都分得清（FE-I48）。
 - 一项的内容是渲染函数，取不出内容摘要。契约拿「放它的那个实例」当摘要，所以两个模块放的同名项一定算内容不同。
 - 撤掉当前显示的页面时，外壳回到次序最前的一页；一页都没有时主区空着。这一条归外壳的实现。
 
@@ -424,3 +425,4 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 | FE-I45 | 部位的画法与按键的画法只经一处落回：没有算数的画法、同一层有两份、或画法抛出时，画自带的或宿主通用的，别的部位与别的键不受影响 | 一份坏的画法让一块界面空白或整页读不出 | `shell-contract/tests/part-render.spec.ts`、`render-point.spec.ts`；`apps/desktop/tests/shell-changes.spec.tsx`（渲染当中抛出的）；`apps/desktop/tests/release-detail-assembly.spec.tsx` |
 | FE-I46 | 按键选画法的点，键取自服务端的事实时只经 `keysFrom` 与 `point.keys` 读，客户端不另抄一份；读不到答读不到，不答空 | 客户端抄的一份键与服务端的对不上；读不到被当成一个都没有 | `shell-contract/tests/render-point.spec.ts` 的「a point whose keys the server tells…」；`apps/harness-server/tests/rows/notification/source-keys-on-the-wire.spec.ts` |
 | FE-I47 | 附着位置只收放一列的点上的项；每键一项的点上的条目不在里面 | 画法的条目混进附着位置的清单，放一份画法惊动附着位置的订阅者 | `shell-contract/tests/render-point.spec.ts` 的「what is put on it is not an item of an attached place」；`part-render.spec.ts` 的同名一条 |
+| FE-I48 | 模块在自己下面开的作用域里放的东西记在那个作用域的名字下：撤这个作用域只撤它的，开它的模块走了它也走；里面抛出时什么都不留下 | 替别人放的东西分不清是哪一份的；撤一份带走别的；装到一半的留在界面上 | `shell-contract` 的 `host` 用例 |

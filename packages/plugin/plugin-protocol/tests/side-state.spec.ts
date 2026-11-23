@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { stepSide, UNWANTED, type SideEvent, type SideState } from '@omne-harness/plugin'
+import { stepSide, UNWANTED, type SideEvent, type SideState } from '@omne-harness/plugin-protocol'
 
 const loading = (
   version: string,

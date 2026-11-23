@@ -6,7 +6,7 @@ import {
   tenantCodec,
   type TenantId,
 } from '@omne-harness/legal-identity'
-import { readManifest } from '@omne-harness/plugin'
+import { readManifest } from '@omne-harness/plugin-protocol'
 import { createPluginContribution } from '../../src/contribution.ts'
 import { createPluginReports } from '../../src/reports.ts'
 import type {

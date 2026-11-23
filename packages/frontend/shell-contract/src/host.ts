@@ -18,3 +18,6 @@ export interface ScopeSource {
   set(scope: string | undefined): void
   subscribe(listener: (scope: string | undefined) => void): () => void
 }
+
+/** A scope a module opened under itself: `by` is the name its entries carry on the registry. */
+export type Hosted = Readonly<{ by: string; dispose(): Promise<void> }>

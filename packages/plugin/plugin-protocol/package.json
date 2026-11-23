@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Protocol contract plugin/v1: what a side is to load, its files, and what loaded",
+  "description": "The contract of plugin both trees share: the manifest, the judgment of a package, what a side is to load, the states of one side, and the protocol plugin/v1",
   "engines": {
     "node": ">=24"
   },
