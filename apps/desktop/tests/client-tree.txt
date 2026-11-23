@@ -239,7 +239,11 @@ system
           identity-ui#1  [effective]
         mcp.endpoint
           mcp-ui#1  [effective]
+        mcp.endpoint.actions
+          mcp-ui#1  [effective]
         mcp.endpoint.permission
+          mcp-ui#1  [effective]
+        mcp.endpoint.status
           mcp-ui#1  [effective]
         mcp.page
           mcp-ui#1  [effective]

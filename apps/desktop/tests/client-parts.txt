@@ -39,7 +39,9 @@ identity.login | 登录的卡 | 登录门里的那张卡 | shell.gate | tokens s
 identity.login.form | 登录的表单 | 填登录名与密码 | identity.login | tokens style | 没登录时 | identity-ui
 identity.login.submit | 登录按钮 | 提交登录或注册 | identity.login.form | tokens style | 没登录时 | identity-ui
 mcp.endpoint | 接入点 | 一个 MCP 接入点 | mcp.page | tokens style | 有接入点时 | mcp-ui
+mcp.endpoint.actions | 动作清单 | 这个接入点的动作，或清单为什么还没取得 | mcp.endpoint | tokens style | 这个接入点的状态读到时 | mcp-ui
 mcp.endpoint.permission | 调用权限 | 这个接入点的动作要不要先问你 | mcp.endpoint | tokens style | 这个接入点有权限的设置时 | mcp-ui
+mcp.endpoint.status | 状态 | 这个接入点连上没有，不能用时为什么 | mcp.endpoint | tokens style | 有接入点时 | mcp-ui
 mcp.page | MCP 页 | 资产页里 MCP 这一类的页面 | assets.panel | tokens style | 选中 MCP 页签且读到时 | mcp-ui
 media.file | 消息里的文件 | 消息里的语音、PDF 等的一行 | session.transcript | tokens style | 消息里有图以外的附件时 | media-ui
 media.picture | 消息里的图 | 消息里的一张缩略图 | session.transcript | tokens style | 消息里有图时 | media-ui
