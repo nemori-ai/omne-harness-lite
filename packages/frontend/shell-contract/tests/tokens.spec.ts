@@ -532,4 +532,67 @@ describe('tokens put on a part', () => {
       '--omne-accent is not a token of the interface',
     ])
   })
+
+  describe('a refused name, where the shell can list its tokens', () => {
+    const LIST = ' OmneExtensionPoints show shell.tokens lists them all.'
+    const refusedFor = async (name: string, names: readonly string[] = [...KNOWN]) => {
+      const w = await world()
+      await place(
+        w.root,
+        'brand',
+        ctx => void ctx.shell.putTokens('shell.app', { [name]: '#0a7' }, alice),
+      )
+      return changesOn(w.shell.registry(), alice, known, () => names).refused.map(out => out.reason)
+    }
+
+    it.each([
+      ['--accent', '--omne-accent'],
+      ['accent', '--omne-accent'],
+      ['--omne-acent', '--omne-accent'],
+      ['--omne-surfce', '--omne-surface'],
+    ])('names %s and the nearest token, %s', async (name, near) => {
+      expect(await refusedFor(name)).toEqual([
+        `${name} is not a token of the interface. Nearest: ${near}.${LIST}`,
+      ])
+    })
+
+    it('names at most three, the closest first', async () => {
+      const names = ['--omne-ink-1', '--omne-ink-2', '--omne-ink-3', '--omne-ink-4', '--omne-ink']
+      expect(await refusedFor('--omne-ink-9', names)).toEqual([
+        `--omne-ink-9 is not a token of the interface. Nearest: --omne-ink-1, --omne-ink-2, --omne-ink-3.${LIST}`,
+      ])
+    })
+
+    it('names none when no token is near, and still says where they are listed', async () => {
+      expect(await refusedFor('--kami-ink')).toEqual([
+        `--kami-ink is not a token of the interface.${LIST}`,
+      ])
+    })
+
+    it('says only that the name is not a token when the list is empty', async () => {
+      expect(await refusedFor('--accent', [])).toEqual(['--accent is not a token of the interface'])
+    })
+
+    it('the shell lists the names it gives for shell.tokens', async () => {
+      class Listing extends Framed {
+        protected override knowsToken(name: string): boolean {
+          return known(name)
+        }
+
+        protected override dataKeysOf(point: string) {
+          return point === TOKENS_POINT ? [...KNOWN].map(name => ({ name, now: null })) : undefined
+        }
+      }
+      const { root, shell } = await startShellOf(Listing)
+      await place(
+        root,
+        'brand',
+        ctx => void ctx.shell.putTokens('shell.app', { '--accent': '#0a7' }, alice),
+      )
+      shell.tenant = ALICE
+      expect(shell.changes().refused.map(out => out.reason)).toEqual([
+        `--accent is not a token of the interface. Nearest: --omne-accent.${LIST}`,
+      ])
+    })
+  })
 })

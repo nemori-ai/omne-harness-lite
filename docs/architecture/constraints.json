@@ -603,6 +603,14 @@
       "source": "packages/assets/SPEC.md"
     },
     {
+      "id": "packages/assets/assets-tools",
+      "paths": ["packages/assets/assets-tools/src/**"],
+      "layer": "unknown",
+      "domains": ["assets"],
+      "status": "candidate",
+      "source": "packages/assets/SPEC.md"
+    },
+    {
       "id": "packages/frontend/ui-kit",
       "paths": ["packages/frontend/ui-kit/src/**"],
       "layer": "unknown",
@@ -1333,6 +1341,22 @@
     {
       "id": "packages/plugin/plugin-access",
       "paths": ["packages/plugin/plugin-access/src/**"],
+      "layer": "unknown",
+      "domains": ["plugin"],
+      "status": "candidate",
+      "source": "packages/plugin/SPEC.md"
+    },
+    {
+      "id": "packages/plugin/plugin-host-local",
+      "paths": ["packages/plugin/plugin-host-local/src/**"],
+      "layer": "unknown",
+      "domains": ["plugin"],
+      "status": "candidate",
+      "source": "packages/plugin/SPEC.md"
+    },
+    {
+      "id": "packages/plugin/plugin-tools",
+      "paths": ["packages/plugin/plugin-tools/src/**"],
       "layer": "unknown",
       "domains": ["plugin"],
       "status": "candidate",

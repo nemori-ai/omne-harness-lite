@@ -70,17 +70,19 @@ export function createWorld(kept: Readonly<{ perTenant: number }> = { perTenant:
   const listeners = new Set<() => void>()
   const asked: { account: string; tenant: string }[] = []
   const lists: unknown[] = []
-  const reads: { principal: unknown; at: FileAt }[] = []
+  const reads: { asker: unknown; at: FileAt }[] = []
+  const subscribed: string[] = []
   const source: PluginSource = {
-    async list(principal) {
-      lists.push(principal)
+    async list(asker) {
+      lists.push(asker)
       return typeof listed === 'function' ? listed() : listed
     },
-    async read(principal, at) {
-      reads.push({ principal, at })
+    async read(asker, at) {
+      reads.push({ asker, at })
       return typeof reading === 'function' ? reading() : reading
     },
-    subscribe(listener) {
+    subscribe(tenant, listener) {
+      subscribed.push(tenant)
       listeners.add(listener)
       return () => listeners.delete(listener)
     },
@@ -112,6 +114,7 @@ export function createWorld(kept: Readonly<{ perTenant: number }> = { perTenant:
     asked,
     lists,
     reads,
+    subscribed,
     reports,
     contribution: createPluginContribution({ principals, source, reports }),
   }

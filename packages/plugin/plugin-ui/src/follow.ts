@@ -2,12 +2,12 @@ import { defaultBackoff, type Backoff } from '@omne-harness/client-assembly'
 import {
   readManifest,
   wantedOf,
+  type Listed,
   type Offered,
   type PluginProtocol,
 } from '@omne-harness/plugin-protocol'
 import type { TenantId } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
-import type { Listed } from './loader.ts'
 
 export type Sleep = (ms: number, signal: AbortSignal) => Promise<void>
 

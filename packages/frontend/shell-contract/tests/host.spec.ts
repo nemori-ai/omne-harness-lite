@@ -120,10 +120,13 @@ describe('what the tree of the interface has now', () => {
     const names = told.points.map(point => point.name)
     expect(names).toEqual([...names].sort())
     expect(names).toEqual(expect.arrayContaining(['notes.card', 'shell.pages', 'shell.part-style']))
-    expect(told.points.find(point => point.name === 'notes.card')).toEqual({
+    const told_card = told.points.find(point => point.name === 'notes.card')
+    expect(told_card).toMatchObject({
       name: 'notes.card',
       summary: 'A note.',
+      contract: { name: 'notes.card', tree: 'client', key: 'the kind', binding: 'run' },
     })
+    expect(told_card).not.toHaveProperty('dataKeys')
     await t.module.dispose()
     expect(t.shell.described().parts).toEqual([])
   })

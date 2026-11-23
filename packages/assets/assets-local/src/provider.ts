@@ -394,6 +394,20 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
         if (!SettingsIdSchema.safeParse(operationId).success) return fail('invalid_input')
         return recallOperation(options, operationId, syncHeld)
       }),
+    readOperation: operationId =>
+      run(async () => {
+        if (!SettingsIdSchema.safeParse(operationId).success) return fail('invalid_input')
+        let command: Mutation | undefined
+        const result = await recallOperation(options, operationId, syncHeld, recorded => {
+          command = recorded
+          return true
+        })
+        if (result.kind !== 'committed' && (result.kind !== 'rejected' || command === undefined))
+          return result
+        return command === undefined
+          ? { kind: 'unknown' as const, operationId }
+          : { kind: 'recorded' as const, command, result }
+      }),
     recallPublication: operationId =>
       run(async () => {
         if (!SettingsIdSchema.safeParse(operationId).success) return fail('invalid_input')

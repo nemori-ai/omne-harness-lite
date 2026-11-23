@@ -59,7 +59,11 @@ const tenantAssets = (options: Tree) => ({
       else port.sync(options.holds?.[ref] ?? [])
       return store
     }
-    provideTenantAssets(ctx, { open, layerSources: held.sourcesOf(open) })
+    provideTenantAssets(ctx, {
+      open,
+      standing: async () => 'registered',
+      layerSources: held.sourcesOf(open),
+    })
   },
 })
 

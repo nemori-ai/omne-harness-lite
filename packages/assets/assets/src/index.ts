@@ -44,6 +44,12 @@ export {
   type PackageSourceFailure,
 } from './package.ts'
 export { packageBody } from './package-body.ts'
+export {
+  declarationRejection,
+  judgePackageContent,
+  withinDirectory,
+  type JudgedPackage,
+} from './package-content.ts'
 export { isReadBody, readBodyText, readSnapshot } from './read-body.ts'
 export {
   admitCategory,
@@ -101,13 +107,17 @@ export {
   type AssetRow,
   type AssetRowPage,
   type AssetStanding,
+  type HeldFiles,
   type HoldingChange,
   type HoldingOutcome,
   type ManagedAsset,
   type ManagedList,
   type ManagedRequest,
+  type OperationRecall,
+  type RecalledOperation,
   type RecallOutcome,
   type StoreChange,
+  type StoreOperation,
   type StorePublication,
   type StoreUploads,
   type TenantLayerStore,
@@ -124,3 +134,13 @@ export {
   type AssetHoldingDecision,
   type AssetVersionSelection,
 } from './holding.ts'
+export {
+  heldEffect,
+  type CategoryEffect,
+  type ChangeImpact,
+  type ClientLine,
+  type HeldEffectPorts,
+  type ImpactLine,
+  type PlacedLine,
+  type Placement,
+} from './effect.ts'

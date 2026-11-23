@@ -1,8 +1,13 @@
 // @vitest-environment happy-dom
 import { act, cleanup, render } from '@testing-library/react'
-import { definePart, defineRenderPoint, tenantScope } from '@omne-harness/shell-contract'
+import {
+  TOKENS_POINT,
+  definePart,
+  defineRenderPoint,
+  tenantScope,
+} from '@omne-harness/shell-contract'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { adoptChanges, tokenOf } from '../src/page/shell/changes-sheet.ts'
+import { adoptChanges, tokenOf, tokensOf } from '../src/page/shell/changes-sheet.ts'
 import { CHAT, SETTINGS, settle, setup } from './support/shell-setup.tsx'
 
 const ALICE = '{"organization":"org_1","account":"acc_alice"}'
@@ -41,6 +46,65 @@ describe('the sheet of the changes', () => {
     expect(t.service.changes().refused.map(out => out.reason)).toEqual([
       '--omne-brand is not a token of the interface',
     ])
+  })
+
+  it('names the nearest tokens when it refuses a name, from the tokens the page lists', async () => {
+    const tokens = () => [
+      { name: '--omne-accent', now: '#0a7' },
+      { name: '--omne-surface', now: null },
+    ]
+    const t = await setup({ login: 'signed-in', knowsToken: known, tokens })
+    t.state.scope.set(ALICE)
+    const brand = await t.module('brand')
+    brand.shell.putTokens('shell.app', { '--accent': '#0a7' }, tenantScope(ALICE))
+    await settle()
+    expect(t.service.changes().refused.map(out => out.reason)).toEqual([
+      '--accent is not a token of the interface. Nearest: --omne-accent. OmneExtensionPoints show shell.tokens lists them all.',
+    ])
+    const told = t.service.described().points
+    expect(told.find(point => point.name === TOKENS_POINT)?.dataKeys).toEqual(tokens())
+    expect(told.filter(point => point.dataKeys !== undefined).map(point => point.name)).toEqual([
+      TOKENS_POINT,
+    ])
+  })
+
+  it('lists the tokens the sheets of the page set at the root, by name, with their value now', () => {
+    const style = document.createElement('style')
+    style.textContent = [
+      ':root { --omne-ink: #111; --omne-accent: #0a7; --kami-ink: #000; color: red; }',
+      '@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --omne-dark-only: #222; } }',
+      '.elsewhere { --omne-not-root: 1px; }',
+    ].join('\n')
+    document.head.append(style)
+    document.documentElement.style.setProperty('--omne-ink', '#111')
+    document.documentElement.style.setProperty('--omne-accent', '#0a7')
+    try {
+      expect(tokensOf(document)()).toEqual([
+        { name: '--omne-accent', now: '#0a7' },
+        { name: '--omne-dark-only', now: null },
+        { name: '--omne-ink', now: '#111' },
+      ])
+      expect(tokenOf(document)('--omne-dark-only')).toBe(true)
+      expect(tokenOf(document)('--omne-not-root')).toBe(false)
+    } finally {
+      style.remove()
+      document.documentElement.style.removeProperty('--omne-ink')
+      document.documentElement.style.removeProperty('--omne-accent')
+    }
+  })
+
+  it('lists no token, and does not throw, where a sheet cannot be read', () => {
+    const page = {
+      styleSheets: [
+        {
+          get cssRules(): never {
+            throw new DOMException('cross origin', 'SecurityError')
+          },
+        },
+      ],
+      documentElement: document.documentElement,
+    } as unknown as Document
+    expect(tokensOf(page)()).toEqual([])
   })
 
   it('is adopted by the page after its own sheets, rewritten as the text changes, and let go when stopped', () => {

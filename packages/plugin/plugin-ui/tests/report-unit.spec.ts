@@ -1,11 +1,83 @@
 import { describe, expect, it } from 'vitest'
-import { createReporter, reportsOf, type Reported } from '../src/report.ts'
+import { createReporter, describedOf, reportsOf, type Reported } from '../src/report.ts'
 
 const tick = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0))
 const tree = { points: [], parts: [] }
 const of = (...names: string[]): Reported => ({
   ...tree,
   plugins: names.map(name => ({ name, version: 'v1', state: 'loaded', reason: null })),
+})
+
+describe('the tree, as the protocol tells it', () => {
+  const contract = {
+    name: 'shell.tokens',
+    tree: 'client',
+    arity: 'keyed-one',
+    keyFrom: null,
+    key: 'a part',
+    gives: 'nothing',
+    item: { kind: 'data', fields: { tokens: 'object', about: 'string' } },
+    resolve: 'most-specific',
+    binding: 'run',
+    onError: 'the item is refused',
+    version: 1,
+    revision: 3,
+    keys: 'private',
+    conformance: null,
+    summary: 'Tokens.',
+  } as const
+
+  it('gives the rules of each point as plain data, its fields as a list by name, and no example as null', () => {
+    const told = describedOf({
+      parts: [],
+      points: [{ name: 'shell.tokens', summary: 'Tokens.', contract }],
+    })
+    expect(told).toEqual({
+      parts: [],
+      points: [
+        {
+          name: 'shell.tokens',
+          summary: 'Tokens.',
+          contract: {
+            arity: 'keyed-one',
+            keyFrom: null,
+            key: 'a part',
+            gives: 'nothing',
+            item: {
+              kind: 'data',
+              fields: [
+                { name: 'about', kind: 'string' },
+                { name: 'tokens', kind: 'object' },
+              ],
+            },
+            resolve: 'most-specific',
+            binding: 'run',
+            onError: 'the item is refused',
+            version: 1,
+            revision: 3,
+            example: null,
+          },
+        },
+      ],
+    })
+  })
+
+  it('carries the example and the names the data may use when the point has them', () => {
+    const dataKeys = [{ name: '--omne-accent', now: '#1b365d' }]
+    const [point] = describedOf({
+      parts: [],
+      points: [
+        {
+          name: 'shell.tokens',
+          summary: 'Tokens.',
+          contract: { ...contract, example: '{}' },
+          dataKeys,
+        },
+      ],
+    }).points
+    expect(point?.contract?.example).toBe('{}')
+    expect(point?.dataKeys).toEqual(dataKeys)
+  })
 })
 
 describe('how the plugins stand, as it is told', () => {

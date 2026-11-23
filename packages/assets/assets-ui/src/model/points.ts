@@ -82,6 +82,19 @@ export const ASSETS_CONTROL = 'assets.control'
 
 export const assetsControl: RenderPoint<AssetsControlSubject> = defineRenderPoint({
   name: ASSETS_CONTROL,
-  key: 'the kind of the value: its format, else enum, else its type',
-  summary: 'The control a setting is changed with, by the kind of its value.',
+  key: 'the kind of the value: the format of its schema, else enum when it has one, else its type, such as boolean, string or number',
+  summary: 'The control a setting is changed with on the settings page, by the kind of its value.',
+  subject:
+    "one setting: title; schema, the schema of its value; value, the value now, or undefined; disabled; change(value), which takes the value the person chose, and the row writes it when they press its button. schema and value are JSON written with their kind: true is { kind: 'boolean', value: true }, a text is { kind: 'string', value }, a number is { kind: 'number', lexeme }",
+  example: [
+    '{"point":"assets.control","key":"boolean","module":"switch.js","export":"control"}',
+    'switch.js:',
+    'export const control = ({ React }) => ({ subject }) =>',
+    "  React.createElement('input', {",
+    "    type: 'checkbox',",
+    "    checked: subject.value?.kind === 'boolean' && subject.value.value,",
+    '    disabled: subject.disabled,',
+    "    onChange: event => subject.change({ kind: 'boolean', value: event.target.checked }),",
+    '  })',
+  ].join('\n'),
 })
