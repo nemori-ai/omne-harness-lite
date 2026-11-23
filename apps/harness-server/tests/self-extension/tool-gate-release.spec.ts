@@ -10,12 +10,9 @@ import { COUNT_PY, inWorkspace, WORDCOUNT } from './support.ts'
 
 const count = (text: string) =>
   tools('execute', { name: 'wordcount', command: null, arguments: { text } })
-const publish = extensions('publish', {
-  id: 'op-1',
-  category: 'tool',
-  name: 'wordcount',
-  dir: 'work/wordcount',
-})
+const publishAs = (id: string) =>
+  extensions('publish', { id, category: 'tool', name: 'wordcount', dir: 'work/wordcount' })
+const publish = publishAs('op-1')
 
 describe('the gate of a tool a tenant published, where gates ask, on the release tree', () => {
   it(
@@ -54,6 +51,38 @@ describe('the gate of a tool a tenant published, where gates ask, on the release
           await answerCard(tree, third, ['--option', 'deny-once'], 'reply-deny-again')
           await again
           expect(ran()).toHaveLength(1)
+        },
+        { permission: 'auto_permission' },
+      )
+    },
+  )
+
+  it(
+    'keeps a release for the session to the version a person released: a new version of that name asks again',
+    { tags: ['slow'], timeout: 300_000 },
+    async () => {
+      await inWorkspace(
+        async (ask, tree, project, session) => {
+          mkdirSync(join(project, 'work/wordcount'), { recursive: true })
+          writeFileSync(join(project, 'work/wordcount/tool.json'), JSON.stringify(WORDCOUNT))
+          writeFileSync(join(project, 'work/wordcount/count.py'), COUNT_PY)
+          expect(await ask([publish])).toContain('done OmneExtensions publish')
+          const ran = () => toolCalls(tree.storageRoot).filter(row => row.tool === 'wordcount')
+
+          const released = ask([count('one two three')], [follow], [follow])
+          const card = await pendingCard(tree, session, 'the first call')
+          await answerCard(tree, card, ['--option', 'allow-session'], 'reply-session')
+          expect(await released).toMatch(/^3$/mu)
+          expect(await ask([count('one two')], [follow], [follow])).toMatch(/^2$/mu)
+          expect(ran()).toHaveLength(2)
+
+          writeFileSync(join(project, 'work/wordcount/count.py'), 'print("another script")\n')
+          expect(await ask([publishAs('op-2')])).toContain('done OmneExtensions publish')
+          const replaced = ask([count('one')])
+          const asked = await pendingCard(tree, session, 'the call of the new version')
+          await answerCard(tree, asked, ['--option', 'deny-once'], 'reply-deny-new')
+          expect(await replaced).not.toContain('another script')
+          expect(ran()).toHaveLength(2)
         },
         { permission: 'auto_permission' },
       )

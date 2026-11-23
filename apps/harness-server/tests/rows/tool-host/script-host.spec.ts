@@ -1,8 +1,8 @@
 import { chmodSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { delimiter, join } from 'node:path'
+import { basename, delimiter, dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { programIn } from '../../../src/rows/tool-host/script-host.ts'
+import { programIn, workspaceToolsOf } from '../../../src/rows/tool-host/script-host.ts'
 
 /** These cases make runnable files by mode bits; the tiers read cases statically, so a case guards itself. */
 const onPosix = (body: () => void) => () => {
@@ -47,4 +47,17 @@ describe('where a program named in tool.json lies', () => {
   it('is not found when the PATH does not hold it, or holds a file that cannot be run', absent)
   it('never reads the PATH of the server process', ownPath)
   it('takes an absolute path as given and refuses a relative one', paths)
+})
+
+describe('where the copies of the tools of a workspace lie', () => {
+  it('is one place for each tenant, so a script that writes beside itself reaches no other tenant', () => {
+    const env = { TMPDIR: '/var/tmp/x' }
+    const alpha = workspaceToolsOf(env, 'tenant:alpha')
+    const beta = workspaceToolsOf(env, 'tenant:beta')
+    expect(alpha).not.toBe(beta)
+    expect(workspaceToolsOf(env, 'tenant:alpha')).toBe(alpha)
+    expect(alpha.startsWith(join('/var/tmp/x', 'omne-workspace-tools'))).toBe(true)
+    expect(dirname(alpha)).toBe(dirname(beta))
+    expect(basename(alpha)).toMatch(/^[0-9a-f]{64}$/u)
+  })
 })

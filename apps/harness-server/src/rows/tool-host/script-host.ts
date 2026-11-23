@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { accessSync, constants, existsSync } from 'node:fs'
 import { mkdir, rename, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -87,7 +87,12 @@ export async function placedFiles(
   }
 }
 
-/** Where a version a turn adopted from its workspace is run from: the files as that turn read them, not as they are now. */
+export function workspaceToolsOf(env: ScriptSetting['env'], tenant: string): string {
+  const place = createHash('sha256').update(tenant).digest('hex')
+  return join(env['TMPDIR'] ?? tmpdir(), 'omne-workspace-tools', place)
+}
+
+/** Where a version a turn adopted from its workspace is run from: the files as that turn read them, kept apart by tenant. */
 async function workspaceDirectory(
   ctx: Context,
   access: Access<unknown>,
@@ -97,8 +102,9 @@ async function workspaceDirectory(
   const turn = await turnOfAccess(ctx, access)
   if (turn === undefined || turn === null) return undefined
   const layers = await askerLayersOf(ctx, TOOL_CATEGORY)({ tenant: access.tenant, turn })
-  if (layers === undefined) return undefined
-  const base = join(env['TMPDIR'] ?? tmpdir(), 'omne-workspace-tools')
+  const encoded = tenantCodec.encode(access.tenant)
+  if (layers === undefined || !encoded.ok) return undefined
+  const base = workspaceToolsOf(env, encoded.value)
   return placedFiles(layers.readerOf({ ref: held.asset, digest: held.version }), base, held.version)
 }
 
