@@ -110,8 +110,9 @@ export class DesktopShell extends ShellService {
   }
 
   private restyle(): void {
-    const { css, refused, conflicts } = this.changes()
+    const { css, refused, conflicts, app } = this.changes()
     this.state.sheet.set(css)
+    this.state.appTokens.set(app)
     const said = [
       ...refused.map(
         out => `${out.point} ${out.key} put by ${out.by} does not count: ${out.reason}`,

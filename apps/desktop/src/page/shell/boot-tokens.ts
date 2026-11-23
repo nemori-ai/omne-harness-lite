@@ -28,3 +28,41 @@ export function dropBootTokens(root: BootRoot): void {
   for (const name of names.split(' ')) root.style.removeProperty(name)
   delete root.dataset['bootTokens']
 }
+
+type Tokens = Readonly<Record<string, string>>
+
+export type BootTokensDeps = Readonly<{
+  store: () => TokenStore
+  root: BootRoot
+  app: Readonly<{ get(): Tokens; subscribe(listener: (tokens: Tokens) => void): () => void }>
+  login: Readonly<{ state(): string; subscribe(listener: (state: string) => void): () => void }>
+  /** Calls the listener each time everything that is to be loaded has an outcome. */
+  outcomes: (listener: () => void) => () => void
+}>
+
+/** Keeps for the next start what tints the whole application: only once what is loaded could have put it. */
+export function keepBootTokens(deps: BootTokensDeps): () => void {
+  const stored = storedTokens(deps.store)
+  let settled = false
+  const forget = (state: string): void => {
+    if (state !== 'signed-out') return
+    settled = false
+    stored.write({})
+    dropBootTokens(deps.root)
+  }
+  const stops = [
+    deps.outcomes(() => {
+      settled = true
+      dropBootTokens(deps.root)
+      stored.write(deps.app.get())
+    }),
+    deps.app.subscribe(tokens => {
+      if (settled) stored.write(tokens)
+    }),
+    deps.login.subscribe(forget),
+  ]
+  forget(deps.login.state())
+  return () => {
+    for (const stop of stops) stop()
+  }
+}

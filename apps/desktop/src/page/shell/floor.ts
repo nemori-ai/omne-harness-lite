@@ -14,12 +14,19 @@ export type PageFloor = Readonly<{
   want(tenant: string, name: string): void
   unwant(tenant: string, name: string): void
   settle(tenant: string): void
+  /** Calls the listener each time it is told that everything wanted has an outcome. */
+  outcomes(listener: () => void): () => void
 }>
 type Later = (run: () => void) => () => void
 
-const inTime: Later = run => {
-  const timer = setTimeout(run, SETTLE_AFTER_MS)
-  return () => clearTimeout(timer)
+/** Runs after the wait, and only if the page has drawn by then what it shipped with. */
+export function whenDrawn(drawn: () => boolean): Later {
+  return run => {
+    const timer = setTimeout(() => {
+      if (drawn()) run()
+    }, SETTLE_AFTER_MS)
+    return () => clearTimeout(timer)
+  }
 }
 
 const names = (value: unknown): value is string[] =>
@@ -45,8 +52,12 @@ type Risen = {
 }
 
 /** The floor of the page, one for each tenant. It is kept as up from the first load of a run until the run settled. */
-export function storedFloor(store: () => FloorStore, later: Later = inTime): PageFloor {
+export function storedFloor(
+  store: () => FloorStore,
+  later: Later = whenDrawn(() => true),
+): PageFloor {
   const risen = new Map<string, Risen>()
+  const told = new Set<() => void>()
   const keep = (tenant: string, now: Risen): void => {
     try {
       const floor = { ...now.floor, up: now.loading, live: [] }
@@ -85,9 +96,15 @@ export function storedFloor(store: () => FloorStore, later: Later = inTime): Pag
     },
     want: (tenant, fiber) => move(tenant, true, floor => want(floor, fiber).floor),
     unwant: (tenant, fiber) => move(tenant, false, floor => unwant(floor, fiber).floor),
+    outcomes(listener) {
+      told.add(listener)
+      return () => void told.delete(listener)
+    },
     settle(tenant) {
       const now = risen.get(tenant)
-      if (now === undefined || now.settling !== undefined) return
+      if (now === undefined) return
+      for (const listener of told) listener()
+      if (now.settling !== undefined) return
       now.settling = later(() => {
         now.settling = undefined
         now.loading = false

@@ -46,7 +46,7 @@ import { createUsageUiModule } from '@omne-harness/usage-ui/cordis'
 import '@omne-harness/usage-ui/usage-ui.css'
 import { workspaceChoicesKey, workspaceUiModule } from '@omne-harness/workspace-ui/cordis'
 import { pluginFilePath } from '../shared/plugin-path.ts'
-import { storedFloor } from './shell/floor.ts'
+import { storedFloor, whenDrawn } from './shell/floor.ts'
 import { domainProtocols } from '../shared/protocols.ts'
 
 export const USAGE_REFRESH_MS = 60_000
@@ -55,6 +55,15 @@ export type Assembly = Readonly<{
   protocols: readonly ProtocolContract[]
   modules: readonly Plugin.Object[]
 }>
+
+/** Whether the page has put its own interface where the line it boots with stood. */
+function pageDrawn(): boolean {
+  const root = document.getElementById('root')
+  return root !== null && root.childElementCount > 0 && root.querySelector('.booting') === null
+}
+
+/** The floor of this page: the loader asks it, and the page hears from it when everything has an outcome. */
+export const pageFloor = storedFloor(() => window.localStorage, whenDrawn(pageDrawn))
 
 export const assembly: Assembly = {
   protocols: domainProtocols,
@@ -87,7 +96,7 @@ export const assembly: Assembly = {
     }),
     sessionReadsUiModule,
     createPluginUiModule({
-      floor: storedFloor(() => window.localStorage),
+      floor: pageFloor,
       code: {
         given: { React, ui },
         load: (name, version, path) =>

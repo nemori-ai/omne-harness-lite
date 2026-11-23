@@ -167,6 +167,24 @@ describe('the loader on the client tree', () => {
     expect(t.source.asked).not.toContain(BOB)
   })
 
+  it('lets neither of two plugins count where both put on one key; taking one away lets the other count at once', async () => {
+    const t = await world()
+    t.source.set(ALICE, [
+      given('brand', 'v1', colored('red')),
+      given('other', 'v1', colored('blue')),
+    ])
+    await vi.waitFor(() =>
+      expect(t.shell.changes().conflicts).toEqual([
+        { point: STYLE_POINT, key: 'notes.send', by: ['plugin:brand@v1', 'plugin:other@v1'] },
+      ]),
+    )
+    expect(t.styles()).toEqual([])
+    expect(t.css()).not.toContain('color:')
+    t.source.set(ALICE, [given('other', 'v1', colored('blue'))])
+    await vi.waitFor(() => expect(t.styles()).toEqual(['plugin:other@v1']))
+    expect(t.css()).toContain('color:blue')
+  })
+
   it('asks the source nothing for a scope that is not a tenant', async () => {
     const t = await world('somebody')
     await new Promise(resolve => setTimeout(resolve, 20))

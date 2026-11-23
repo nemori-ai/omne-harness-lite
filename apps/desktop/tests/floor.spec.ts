@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { FLOOR_KEY, storedFloor } from '../src/page/shell/floor.ts'
+import { describe, expect, it, vi } from 'vitest'
+import { FLOOR_KEY, SETTLE_AFTER_MS, storedFloor, whenDrawn } from '../src/page/shell/floor.ts'
 
 const ALICE = '{"organization":"org_1","account":"acc_alice"}'
 const BOB = '{"organization":"org_1","account":"acc_bob"}'
@@ -183,6 +183,22 @@ describe('the floor of the page', () => {
     expect(floor.rise(ALICE)).toEqual({ want: [X1], held: false })
   })
 
+  it('tells who listens each time everything wanted has an outcome, at once and not after the wait', () => {
+    const m = machine()
+    const run = m.start()
+    let told = 0
+    const stop = run.floor.outcomes(() => (told += 1))
+    run.floor.rise(ALICE)
+    run.floor.want(ALICE, X1)
+    expect(told).toBe(0)
+    run.floor.settle(ALICE)
+    run.floor.settle(ALICE)
+    expect(told).toBe(2)
+    stop()
+    run.floor.settle(ALICE)
+    expect(told).toBe(2)
+  })
+
   it('ignores what is said for a tenant it did not rise for', () => {
     const m = machine()
     const run = m.start()
@@ -190,5 +206,31 @@ describe('the floor of the page', () => {
     run.floor.settle(ALICE)
     expect(run.waiting.size).toBe(0)
     expect(m.kept.size).toBe(0)
+  })
+})
+
+describe('when a run counts as having come up', () => {
+  it('is after the wait, and only if the page has drawn what it shipped with by then', () => {
+    vi.useFakeTimers()
+    try {
+      let drawn = false
+      let ran = 0
+      const later = whenDrawn(() => drawn)
+      later(() => (ran += 1))
+      vi.advanceTimersByTime(SETTLE_AFTER_MS)
+      expect(ran).toBe(0)
+      drawn = true
+      later(() => (ran += 1))
+      vi.advanceTimersByTime(SETTLE_AFTER_MS - 1)
+      expect(ran).toBe(0)
+      vi.advanceTimersByTime(1)
+      expect(ran).toBe(1)
+      const cancel = later(() => (ran += 1))
+      cancel()
+      vi.advanceTimersByTime(SETTLE_AFTER_MS)
+      expect(ran).toBe(1)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

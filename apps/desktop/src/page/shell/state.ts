@@ -37,6 +37,8 @@ function listeners<T>(): Listeners<T> {
   }
 }
 
+type Tokens = Readonly<Record<string, string>>
+
 export type Watched<T> = {
   get(): T
   subscribe(listener: (value: T) => void): () => void
@@ -137,6 +139,7 @@ export type ShellState = {
   readonly notice: Watched<string | undefined>
   readonly sheet: Watched<string> & { set(css: string): void }
   readonly fallen: Watched<readonly Fallen[]> & { set(fallen: readonly Fallen[]): void }
+  readonly appTokens: Watched<Tokens> & { set(tokens: Tokens): void }
   readonly knowsToken: (name: string) => boolean
   dispose(): void
 }
@@ -272,6 +275,7 @@ export function createShellState(
     notice: { get: notice.get, subscribe: notice.subscribe },
     sheet: cell(''),
     fallen: cell<readonly Fallen[]>([]),
+    appTokens: cell<Tokens>({}),
     knowsToken: options.knowsToken ?? (() => false),
     dispose() {
       stopLogin()
