@@ -5,6 +5,7 @@ import {
   baselineProblems,
   currentModels,
   liveCells,
+  requiredCells,
   type Baseline,
   type LiveModel,
 } from './cells.ts'
@@ -121,6 +122,19 @@ describe('the expectations follow the records', () => {
     expect(baselineProblems(cells, MODELS, stale)).toEqual([
       'single:c/gone: no such cell among the current records',
     ])
+  })
+
+  it('reports the same unusable expectation that the runner schedules for measurement', () => {
+    const id = 'single:a/one'
+    const current = entry(['a/one'])
+    for (const invalid of [
+      { ...current, costUsd: -1 },
+      { ...current, revisions: { ...current.revisions, 'gone/model': '1' } },
+    ]) {
+      const baseline = { cells: { ...complete.cells, [id]: invalid } }
+      expect(requiredCells(cells, MODELS, baseline).map(cell => cell.id)).toEqual([id])
+      expect(baselineProblems(cells, MODELS, baseline)).toEqual([expect.stringContaining(id)])
+    }
   })
 
   it('hold for the checked-in expectations and the current official records', () => {

@@ -88,25 +88,43 @@ export function revisionsOf(
   )
 }
 
-/** What keeps the expectations in step with the records; empty when they agree. */
+function entryProblems(
+  cell: LiveCell,
+  models: readonly LiveModel[],
+  entry: BaselineEntry | undefined,
+): string[] {
+  if (entry === undefined) return [`${cell.id}: no expectation; run the live matrix and record it`]
+  const problems: string[] = []
+  const revisions = revisionsOf(cell, models)
+  for (const [route, revision] of Object.entries(revisions)) {
+    if (revision === '' || entry.revisions[route] !== revision)
+      problems.push(
+        `${cell.id}: measured ${route} at revision ${String(entry.revisions[route])}, the record is at ${revision}`,
+      )
+  }
+  for (const route of Object.keys(entry.revisions)) {
+    if (!Object.hasOwn(revisions, route))
+      problems.push(`${cell.id}: unexpected revision for ${route}`)
+  }
+  if (
+    !Number.isFinite(Date.parse(entry.measuredOn)) ||
+    (entry.hitRate !== null &&
+      (!Number.isFinite(entry.hitRate) || entry.hitRate < 0 || entry.hitRate > 1)) ||
+    entry.dropped !== 0 ||
+    !Number.isFinite(entry.costUsd) ||
+    entry.costUsd < 0
+  )
+    problems.push(`${cell.id}: invalid baseline measurement`)
+  return problems
+}
+
+/** Both the offline check and the incremental run apply the same entry requirements. */
 export function baselineProblems(
   cells: readonly LiveCell[],
   models: readonly LiveModel[],
   baseline: Baseline,
 ): readonly string[] {
-  const problems: string[] = []
-  for (const cell of cells) {
-    const entry = baseline.cells[cell.id]
-    if (entry === undefined) {
-      problems.push(`${cell.id}: no expectation; run the live matrix and record it`)
-      continue
-    }
-    for (const [route, revision] of Object.entries(revisionsOf(cell, models)))
-      if (entry.revisions[route] !== revision)
-        problems.push(
-          `${cell.id}: measured ${route} at revision ${String(entry.revisions[route])}, the record is at ${revision}`,
-        )
-  }
+  const problems = cells.flatMap(cell => entryProblems(cell, models, baseline.cells[cell.id]))
   const ids = new Set(cells.map(cell => cell.id))
   for (const id of Object.keys(baseline.cells))
     if (!ids.has(id)) problems.push(`${id}: no such cell among the current records`)
@@ -118,26 +136,7 @@ export function requiredCells(
   models: readonly LiveModel[],
   baseline: Baseline,
 ): readonly LiveCell[] {
-  return cells.filter(cell => {
-    const entry = baseline.cells[cell.id]
-    return entry === undefined || !validEntry(cell, models, entry)
-  })
-}
-
-function validEntry(cell: LiveCell, models: readonly LiveModel[], entry: BaselineEntry): boolean {
-  const revisions = revisionsOf(cell, models)
-  return (
-    Object.keys(entry.revisions).length === Object.keys(revisions).length &&
-    Object.entries(revisions).every(
-      ([route, revision]) => revision !== '' && entry.revisions[route] === revision,
-    ) &&
-    Number.isFinite(Date.parse(entry.measuredOn)) &&
-    (entry.hitRate === null ||
-      (Number.isFinite(entry.hitRate) && entry.hitRate >= 0 && entry.hitRate <= 1)) &&
-    entry.dropped === 0 &&
-    Number.isFinite(entry.costUsd) &&
-    entry.costUsd >= 0
-  )
+  return cells.filter(cell => entryProblems(cell, models, baseline.cells[cell.id]).length > 0)
 }
 
 export type MatrixRow = Readonly<{
@@ -168,7 +167,8 @@ export function recordBaseline(
   const recorded: Record<string, BaselineEntry> = {}
   for (const cell of cells) {
     const entry = baseline.cells[cell.id]
-    if (entry !== undefined && validEntry(cell, models, entry)) recorded[cell.id] = entry
+    if (entry !== undefined && entryProblems(cell, models, entry).length === 0)
+      recorded[cell.id] = entry
   }
   for (const row of rows) {
     const cell = cells.find(item => item.id === row.cell)
