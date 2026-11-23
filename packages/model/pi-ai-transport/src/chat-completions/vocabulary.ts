@@ -122,7 +122,11 @@ export type ChatCompletionsRecord = PiModelRecordHead &
       formats: Readonly<{ produces: string; accepts: readonly string[] }>
     }>
     /** What the model refuses that the parameter table does not say; absent, it refuses none of it. */
-    accepts?: Readonly<{ forcedToolChoice: boolean }>
+    accepts?: Readonly<{
+      forcedToolChoice: boolean
+      /** Named choice follows forcedToolChoice unless the pinned endpoint treats it separately. */
+      namedToolChoice?: boolean
+    }>
   }>
 
 export type ChatCompletionsLimits = Readonly<{

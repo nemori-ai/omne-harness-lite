@@ -528,6 +528,15 @@ describe('encode: tool calls and results', () => {
     })
   })
 
+  it('requires a tool while rejecting a named choice on the same endpoint', () => {
+    const record = testRecord({ accepts: { forcedToolChoice: true, namedToolChoice: false } })
+    const tools = [tool('lookup')]
+    expect(encode(record, { tools, toolChoice: 'required' })).toHaveProperty('ok')
+    expect(encode(record, { tools, toolChoice: { name: 'lookup' } })).toMatchObject({
+      failure: { kind: 'unsupported', field: 'toolChoice' },
+    })
+  })
+
   it('a record that refuses a forced tool choice answers unsupported for required and for one named tool; auto and none still go', () => {
     const refusing = testRecord({ accepts: { forcedToolChoice: false } })
     const tools = [tool('lookup')]
