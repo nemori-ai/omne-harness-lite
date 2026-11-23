@@ -77,16 +77,41 @@ function Outcome({ said, show }: { readonly said: Said; readonly show: () => voi
   )
 }
 
+type WhomProps = Readonly<{
+  sessions: NonNullable<CompanionPort['sessions']>
+  to: SayTarget
+  onPick: (picked: string) => void
+}>
+
+/** Whom the words go to: a new session, the open one even while the list has not named it, or one of the list. */
+function Whom({ sessions, to, onPick }: WhomProps) {
+  const value = to.kind === 'new' ? NEW : to.session
+  const named = sessions.find(item => item.session === value)?.name
+  const unlisted = to.kind === 'session' && named === undefined
+  return (
+    <Select value={value} onValueChange={onPick}>
+      <SelectTrigger aria-label="说给谁" size="sm">
+        <SelectValue>{to.kind === 'new' ? NEW_NAME : (named ?? OPEN_NAME)}</SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={NEW}>{NEW_NAME}</SelectItem>
+        {unlisted ? <SelectItem value={value}>{OPEN_NAME}</SelectItem> : null}
+        {sessions.map(item => (
+          <SelectItem key={item.session} value={item.session}>
+            {item.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
+
 /** The panel as it ships: one field, whom the words go to, send, and one line for how they ended. */
 function SayForm({ sessions, current, say, show, close }: CompanionPanelDrawing) {
   const [words, setWords] = useState('')
   const [picked, setPicked] = useState(FOLLOW)
   const [said, setSaid] = useState<Said>({ kind: 'idle' })
-  const listed = sessions ?? []
   const to = sayTargetOf(picked, current)
-  const value = to.kind === 'new' ? NEW : to.session
-  const named = listed.find(item => item.session === value)?.name
-  const shown = to.kind === 'new' ? NEW_NAME : (named ?? OPEN_NAME)
   const saying = said.kind === 'saying'
   const submit = (): void => {
     if (saying || words.trim() === '') return
@@ -121,22 +146,7 @@ function SayForm({ sessions, current, say, show, close }: CompanionPanelDrawing)
         onKeyDown={onKeyDown}
       />
       <div className="omne-companion-actions">
-        <Select value={value} onValueChange={setPicked}>
-          <SelectTrigger aria-label="说给谁" size="sm">
-            <SelectValue>{shown}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={NEW}>{NEW_NAME}</SelectItem>
-            {named === undefined && to.kind === 'session' ? (
-              <SelectItem value={value}>{OPEN_NAME}</SelectItem>
-            ) : null}
-            {listed.map(item => (
-              <SelectItem key={item.session} value={item.session}>
-                {item.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Whom sessions={sessions ?? []} to={to} onPick={setPicked} />
         <IconButton
           type="submit"
           label="发送"

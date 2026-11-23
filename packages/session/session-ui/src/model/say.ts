@@ -1,4 +1,10 @@
-import { committedMessages, type Open, type SayTo, type State } from './session-machine.ts'
+import {
+  committedMessages,
+  type InputStatus,
+  type Open,
+  type SayTo,
+  type State,
+} from './session-machine.ts'
 
 /** Whom a caller says words to; the driver gives a new session the id its creation is known by. */
 export type SayTarget = Readonly<{ kind: 'new' }> | Readonly<{ kind: 'session'; session: string }>
@@ -21,32 +27,38 @@ const NOT_SENT = '这句话没有发出。'
 const UNKNOWN: SayAnswer = { kind: 'unknown' }
 const failed = (reason: string): SayAnswer => ({ kind: 'failed', reason })
 
+type Held = Open['inputs'][number]
+
+const SENT_OR_NOT: Readonly<Record<InputStatus, (open: Open, input: Held) => SayAnswer | null>> = {
+  sending: () => null,
+  confirming: () => null,
+  accepted: open => ({ kind: 'sent', session: open.session }),
+  unknown: () => UNKNOWN,
+  refused: (_, input) => failed(input.notice?.text ?? NOT_SENT),
+  'not-committed': (_, input) => failed(input.notice?.text ?? NOT_SENT),
+}
+
 function fateIn(open: Open, said: Said): SayAnswer | null {
   const input = open.inputs.find(held => held.acceptId === said.acceptId)
-  if (input === undefined)
-    return committedMessages(open.content).has(said.messageId)
-      ? { kind: 'sent', session: open.session }
-      : UNKNOWN
-  switch (input.status) {
-    case 'sending':
-    case 'confirming':
-      return null
-    case 'accepted':
-      return { kind: 'sent', session: open.session }
-    case 'unknown':
-      return UNKNOWN
-    case 'refused':
-    case 'not-committed':
-      return failed(input.notice?.text ?? NOT_SENT)
-  }
+  if (input !== undefined) return SENT_OR_NOT[input.status](open, input)
+  return committedMessages(open.content).has(said.messageId)
+    ? { kind: 'sent', session: open.session }
+    : UNKNOWN
+}
+
+function fateWhileCreating(
+  state: Extract<State, { kind: 'creating' }>,
+  to: SayTo,
+): SayAnswer | null {
+  const mine = to.kind === 'new' && to.createCallId === state.createCallId
+  return mine && state.confirm !== 'unknown' ? null : UNKNOWN
 }
 
 /** How the words ended as the workspace stands now, or null while that is still open. */
 export function sayFate(state: State, said: Said): SayAnswer | null {
   switch (state.kind) {
     case 'creating':
-      if (said.to.kind !== 'new' || said.to.createCallId !== state.createCallId) return UNKNOWN
-      return state.confirm === 'unknown' ? UNKNOWN : null
+      return fateWhileCreating(state, said.to)
     case 'none':
       return said.to.kind === 'new' ? failed(state.notice?.text ?? NOT_CREATED) : UNKNOWN
     case 'open':

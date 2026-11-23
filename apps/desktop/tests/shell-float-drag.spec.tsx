@@ -101,7 +101,12 @@ beforeEach(() => {
   clicks = 0
   sized()
 })
-afterEach(() => vi.restoreAllMocks())
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+  WINDOW.width = 1000
+  WINDOW.height = 800
+})
 
 describe('浮层的一项：位置', () => {
   it('没记过时在右下角，告诉这一项它靠着哪个角、没被拖着，交给它可以拖的那组属性', async () => {
@@ -121,6 +126,40 @@ describe('浮层的一项：位置', () => {
   it('记着的距离比窗口还大时，夹到整个在窗口里', async () => {
     await mounted({ x: { from: 'start', gap: 5000 }, y: { from: 'end', gap: 5000 } })
     expect(styled()).toEqual({ left: '900px', bottom: '740px' })
+  })
+
+  it('窗口变小：夹到整个在窗口里，记着的位置不改；大小没变的通知不重画', async () => {
+    const told: Array<() => void> = []
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        public constructor(callback: () => void) {
+          told.push(callback)
+        }
+        public observe(): void {}
+        public disconnect(): void {}
+      },
+    )
+    const { held } = await mounted({
+      x: { from: 'start', gap: 600 },
+      y: { from: 'start', gap: 500 },
+    })
+    expect(styled()).toEqual({ left: '600px', top: '500px' })
+    const drawn = seen.length
+    act(() => told.forEach(tell => tell()))
+    expect(seen.length).toBe(drawn)
+    WINDOW.width = 400
+    WINDOW.height = 300
+    act(() => told.forEach(tell => tell()))
+    expect(styled()).toEqual({ left: '300px', top: '240px' })
+    expect(held.get('pet')).toEqual({
+      x: { from: 'start', gap: 600 },
+      y: { from: 'start', gap: 500 },
+    })
+    WINDOW.width = 1000
+    WINDOW.height = 800
+    act(() => told.forEach(tell => tell()))
+    expect(styled()).toEqual({ left: '600px', top: '500px' })
   })
 })
 
