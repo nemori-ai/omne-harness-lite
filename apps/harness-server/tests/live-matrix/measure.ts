@@ -168,6 +168,30 @@ function replied(entry: EntryView): boolean {
   return positions?.kind === 'array' && positions.items.length > 0
 }
 
+function isVisibleText(block: JsonValue): boolean {
+  const kind = member(block, 'kind')
+  const text = member(block, 'text')
+  const visible = member(member(block, 'visibility'), 'toHuman')
+  return (
+    kind?.kind === 'string' &&
+    kind.value === 'text' &&
+    text?.kind === 'string' &&
+    text.value.trim() !== '' &&
+    visible?.kind === 'boolean' &&
+    visible.value
+  )
+}
+
+function finalAnswer(entries: readonly EntryView[]): EntryView | undefined {
+  const end = entries.at(-1)
+  if (end?.kind !== 'run.terminal') return undefined
+  const outcome = member(member(end.payload, 'terminal'), 'outcome')
+  if (outcome?.kind !== 'string' || outcome.value !== 'completed') return undefined
+  const reply = entries.findLast(entry => entry.kind === 'message.assistant')
+  const blocks = member(member(reply?.payload, 'message'), 'blocks')
+  return blocks?.kind === 'array' && blocks.items.some(isVisibleText) ? reply : undefined
+}
+
 /**
  * Pairs each selected route with the Run that answered it: Runs in the order they started and the
  * last completed attempt of each; the history split at each Run's terminal, and the last reply of
@@ -190,11 +214,11 @@ export function turnsOf(
     const dispatches = (ordered[index]?.modelCalls ?? []).flatMap(call => call.dispatches)
     const completed = dispatches.filter(view => view.outcome.kind === 'completed')
     const last = completed.at(-1)
-    const reply = (parts[index] ?? []).filter(entry => entry.kind === 'message.assistant').at(-1)
+    const reply = finalAnswer(parts[index] ?? [])
     return {
       route,
       dispatchCosts: dispatches.map(view => attemptOf(view).costUsd),
-      attempt: last === undefined ? null : attemptOf(last),
+      attempt: reply === undefined || last === undefined ? null : attemptOf(last),
       replied: reply !== undefined && replied(reply),
     }
   })

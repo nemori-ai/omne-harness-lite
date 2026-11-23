@@ -267,6 +267,42 @@ describe('reading the turns from the answers', () => {
     account: acct,
   })
 
+  const visibleAnswer = { kind: 'text', text: '51', visibility: { toHuman: true } }
+
+  function entry(kind: string, payload: unknown) {
+    const parsed = readJsonText(JSON.stringify(payload), {
+      maxBytes: 1024,
+      maxDepth: 10,
+      maxMembers: 32,
+      maxItems: 16,
+      maxStringLength: 128,
+      maxNumberLength: 8,
+    })
+    if (parsed.kind !== 'ok') throw new Error('invalid test history')
+    return { kind, payload: parsed.value }
+  }
+
+  it.each([
+    ['failed', [visibleAnswer]],
+    ['cancelled', [visibleAnswer]],
+    ['completed', []],
+    ['completed', [{ ...visibleAnswer, text: '   ' }]],
+    ['completed', [{ ...visibleAnswer, visibility: { toHuman: false } }]],
+    ['completed', [{ kind: 'tool_call', name: 'Files' }]],
+  ] as const)('keeps the charge for a %s run with no final user answer', (outcome, blocks) => {
+    const runs = [
+      run('1', [dispatch('a/one', 'completed', 'unknown', account('5', '0', '0', '0.01'))]),
+    ]
+    const history = [
+      entry('message.assistant', { message: { blocks } }),
+      entry('run.terminal', { terminal: { outcome } }),
+    ]
+    const measured = measure(turnsOf(['a/one'], runs, history))
+    expect(measured.unanswered).toBe(1)
+    expect(measured.costUsd).toBe(0.01)
+    expect(judge(measured, undefined)).toContain('1 turn(s) got no completed answer')
+  })
+
   it('pairs the Runs in start order with the selected routes, and each with the last reply before its terminal', () => {
     const runs = [
       run('120', [dispatch('b/one', 'completed', 'not-carried', account('9', '1', '0', '0.002'))]),
@@ -279,25 +315,20 @@ describe('reading the turns from the answers', () => {
       { kind: 'message.user', payload: {} },
       { kind: 'message.assistant', payload: { message: {} } },
       { kind: 'message.tool', payload: {} },
-      { kind: 'message.assistant', payload: { message: { replay: { format: 'f', at: ['b0'] } } } },
-      { kind: 'run.terminal', payload: {} },
+      {
+        kind: 'message.assistant',
+        payload: { message: { blocks: [visibleAnswer], replay: { format: 'f', at: ['b0'] } } },
+      },
+      { kind: 'run.terminal', payload: { terminal: { outcome: 'completed' } } },
       { kind: 'message.user', payload: {} },
-      { kind: 'message.assistant', payload: { message: { replay: { format: 'f', at: [] } } } },
-      { kind: 'run.terminal', payload: {} },
+      {
+        kind: 'message.assistant',
+        payload: { message: { blocks: [visibleAnswer], replay: { format: 'f', at: [] } } },
+      },
+      { kind: 'run.terminal', payload: { terminal: { outcome: 'completed' } } },
       { kind: 'message.user', payload: {} },
     ]
-    const entries = history.map(entry => {
-      const parsed = readJsonText(JSON.stringify(entry.payload), {
-        maxBytes: 1024,
-        maxDepth: 8,
-        maxMembers: 16,
-        maxItems: 16,
-        maxStringLength: 128,
-        maxNumberLength: 8,
-      })
-      if (parsed.kind !== 'ok') throw new Error('invalid test history')
-      return { ...entry, payload: parsed.value }
-    })
+    const entries = history.map(item => entry(item.kind, item.payload))
     expect(turnsOf(['a/one', 'b/one', 'a/one'], runs, entries)).toEqual([
       {
         route: 'a/one',
