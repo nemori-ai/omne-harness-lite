@@ -15,6 +15,7 @@ Model 回答一个问题：一次模型调用怎样被可靠地执行、保管�
 | `pi-ai-openai`          | OpenAI 家族的型号记录、规则、计量与官方档案                                                                                |
 | `pi-ai-anthropic`       | Anthropic 家族的型号记录、规则、计量、词表资源与官方档案                                                                   |
 | `pi-ai-qwen`            | Qwen 家族的型号记录、规则、计量与官方档案；估算用 OpenAI 家族的 o200k 代理词表 |
+| `pi-ai-kimi` | Kimi 家族在 OpenRouter Chat Completions 上的精确型号记录、工具选择、推理回放、图文计量与官方档案 |
 | `tokenizer-tiktoken`    | 固定词表上的文本怎样在有界线程池里计数                                                                                     |
 | `model-protocol` | 客户端能向 Model 问什么：协议 `model/v1` 的操作与形状。纯数据 |
 | `model-access` | `model/v1` 的每个操作怎样核对登录、取主体、调档案面并映射结果 |

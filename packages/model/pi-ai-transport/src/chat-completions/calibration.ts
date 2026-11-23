@@ -17,6 +17,7 @@ export type CalibrationArithmeticInput = Readonly<{
   extra(units: readonly number[]): Outcome<bigint, TransportFailure>
   uncountable: string
   dependency: string
+  coldRequestTokens?: string
   marginPercent: string
 }>
 
@@ -176,7 +177,11 @@ async function fullAmount(
     anchored: false,
   })
   if (!('ok' in estimate)) return estimate
-  const estimated = estimate.ok.text + estimate.ok.outputs + estimate.ok.extra
+  const estimated =
+    estimate.ok.text +
+    estimate.ok.outputs +
+    estimate.ok.extra +
+    BigInt(context.input.coldRequestTokens ?? '0')
   return {
     ok: {
       amount: estimated,
@@ -193,6 +198,8 @@ function contextOf(input: CalibrationArithmeticInput): Outcome<Context, Transpor
   if (entries === null || items === null) return invalid('tokenInput', 'schema')
   if (input.reasoning.length !== items.length)
     throw new TypeError('the reasoning flags must align with the message units')
+  if (!DECIMAL.test(input.coldRequestTokens ?? '0'))
+    throw new RangeError('coldRequestTokens must be a non-negative decimal integer')
   if (!DECIMAL.test(input.marginPercent))
     throw new RangeError('marginPercent must be a non-negative decimal integer')
   if (input.units !== undefined && input.units.length !== items.length)

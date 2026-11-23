@@ -41,7 +41,7 @@ const family = {
   },
   margin: { percent: '10', source: ADOPTION },
 }
-const config = { maxCitedCalls: 8, openai: family, anthropic: family, qwen: family }
+const config = { maxCitedCalls: 8, openai: family, anthropic: family, qwen: family, kimi: family }
 const profilesConfig = {
   retryPolicy: ADOPTION,
   compactionTriggerPercent: '80',
@@ -257,9 +257,9 @@ describe('the model-request-preparation row', () => {
     ])
     expect(value).toEqual({
       failure: {
-        kind: 'unavailable',
-        dependency: 'model-credential',
-        diagnostic: 'credential-unreadable',
+        kind: 'invalid',
+        field: 'credential',
+        reason: 'credential-unreadable',
       },
     })
   })

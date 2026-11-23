@@ -1,3 +1,4 @@
+import type { JsonValue } from '@omne-harness/json-text'
 import type { BaselineEntry } from './cells.ts'
 
 // What a cell measured, read from the product's own session diagnostics and history, and how it is
@@ -20,6 +21,7 @@ export type Turn = Readonly<{
   attempt: TurnAttempt | null
   /** Whether the reply of the turn kept a reasoning state to carry back. */
   replied: boolean
+  dispatchCosts?: readonly (number | null)[]
 }>
 
 export type Measured = Readonly<{
@@ -29,7 +31,7 @@ export type Measured = Readonly<{
   counted: number
   /** Attempts that should have carried a reasoning state back and did not. */
   dropped: number
-  costUsd: number
+  costUsd: number | null
   /** Turns without a completed attempt, and attempts served by another model than selected. */
   unanswered: number
   misrouted: number
@@ -45,17 +47,22 @@ export function measure(turns: readonly Turn[]): Measured {
   let whole = 0
   let counted = 0
   let dropped = 0
-  let costUsd = 0
+  let costUsd: number | null = 0
   let unanswered = 0
   let misrouted = 0
   for (const turn of turns) {
     const attempt = turn.attempt
+    const costs = turn.dispatchCosts ?? [attempt?.costUsd ?? null]
+    for (const cost of costs)
+      costUsd =
+        costUsd === null || cost === null || !Number.isFinite(cost) || cost < 0
+          ? null
+          : costUsd + cost
     if (attempt === null) {
       unanswered += 1
       continue
     }
     if (attempt.route !== turn.route) misrouted += 1
-    costUsd += attempt.costUsd ?? 0
     const { input, cacheRead, cacheWrite } = attempt
     if (warmed.has(turn.route) && input !== null && cacheRead !== null && cacheWrite !== null) {
       read += cacheRead
@@ -77,13 +84,25 @@ export function measure(turns: readonly Turn[]): Measured {
 }
 
 /** A cell starts only while what was spent plus the dearest cell so far stays within the budget. */
-export function fitsBudget(spentUsd: number, dearestUsd: number, budgetUsd: number): boolean {
-  return spentUsd + dearestUsd <= budgetUsd
+export function fitsBudget(
+  spentUsd: number | null,
+  dearestUsd: number,
+  budgetUsd: number,
+): boolean {
+  return (
+    spentUsd !== null &&
+    Number.isFinite(spentUsd) &&
+    Number.isFinite(dearestUsd) &&
+    spentUsd >= 0 &&
+    dearestUsd >= 0 &&
+    spentUsd + dearestUsd <= budgetUsd
+  )
 }
 
 /** Why a cell is red; empty when it is green. */
 export function judge(measured: Measured, expected: BaselineEntry | undefined): readonly string[] {
   const reasons: string[] = []
+  if (measured.costUsd === null) reasons.push('billable cost is unknown')
   if (measured.unanswered > 0)
     reasons.push(`${measured.unanswered} turn(s) got no completed answer`)
   if (measured.misrouted > 0) reasons.push(`${measured.misrouted} attempt(s) ran on another model`)
@@ -115,11 +134,14 @@ export type RunView = Readonly<{
   started: Readonly<{ position: string }>
   modelCalls: readonly Readonly<{ dispatches: readonly AttemptView[] }>[]
 }>
-export type EntryView = Readonly<{ kind: string; payload: unknown }>
+export type EntryView = Readonly<{ kind: string; payload: JsonValue }>
 
 function known(amounts: readonly Amount[] | undefined, pick: (amount: Amount) => boolean) {
   const amount = amounts?.find(pick)
-  return amount?.state === 'known' && amount.lexeme !== null ? Number(amount.lexeme) : null
+  if (amount?.state !== 'known' || amount.lexeme === null || amount.lexeme.trim() === '')
+    return null
+  const value = Number(amount.lexeme)
+  return Number.isFinite(value) && value >= 0 ? value : null
 }
 
 function attemptOf(view: AttemptView): TurnAttempt {
@@ -136,9 +158,38 @@ function attemptOf(view: AttemptView): TurnAttempt {
   }
 }
 
+function member(tree: JsonValue | undefined, key: string): JsonValue | undefined {
+  return tree?.kind === 'object' ? tree.entries.find(entry => entry.key === key)?.value : undefined
+}
+
 function replied(entry: EntryView): boolean {
-  const message = (entry.payload as { message?: { replay?: unknown } } | null)?.message
-  return message?.replay !== undefined
+  const replay = member(member(entry.payload, 'message'), 'replay')
+  const positions = member(replay, 'at')
+  return positions?.kind === 'array' && positions.items.length > 0
+}
+
+function isVisibleText(block: JsonValue): boolean {
+  const kind = member(block, 'kind')
+  const text = member(block, 'text')
+  const visible = member(member(block, 'visibility'), 'toHuman')
+  return (
+    kind?.kind === 'string' &&
+    kind.value === 'text' &&
+    text?.kind === 'string' &&
+    text.value.trim() !== '' &&
+    visible?.kind === 'boolean' &&
+    visible.value
+  )
+}
+
+function finalAnswer(entries: readonly EntryView[]): EntryView | undefined {
+  const end = entries.at(-1)
+  if (end?.kind !== 'run.terminal') return undefined
+  const outcome = member(member(end.payload, 'terminal'), 'outcome')
+  if (outcome?.kind !== 'string' || outcome.value !== 'completed') return undefined
+  const reply = entries.findLast(entry => entry.kind === 'message.assistant')
+  const blocks = member(member(reply?.payload, 'message'), 'blocks')
+  return blocks?.kind === 'array' && blocks.items.some(isVisibleText) ? reply : undefined
 }
 
 /**
@@ -160,14 +211,14 @@ export function turnsOf(
     if (entry.kind === 'run.terminal') parts.push([])
   }
   return routes.map((route, index) => {
-    const completed = (ordered[index]?.modelCalls ?? [])
-      .flatMap(call => call.dispatches)
-      .filter(view => view.outcome.kind === 'completed')
+    const dispatches = (ordered[index]?.modelCalls ?? []).flatMap(call => call.dispatches)
+    const completed = dispatches.filter(view => view.outcome.kind === 'completed')
     const last = completed.at(-1)
-    const reply = (parts[index] ?? []).filter(entry => entry.kind === 'message.assistant').at(-1)
+    const reply = finalAnswer(parts[index] ?? [])
     return {
       route,
-      attempt: last === undefined ? null : attemptOf(last),
+      dispatchCosts: dispatches.map(view => attemptOf(view).costUsd),
+      attempt: reply === undefined || last === undefined ? null : attemptOf(last),
       replied: reply !== undefined && replied(reply),
     }
   })

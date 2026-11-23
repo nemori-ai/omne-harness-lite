@@ -2,6 +2,7 @@
 // of its answer are appended to $LIVE_MATRIX_EXCHANGES as JSON lines. Headers are never written,
 // and a line that still looks like it holds a key is replaced by a note that it was withheld.
 import https from 'node:https'
+import { observeResponseBytes } from './response-bytes.ts'
 import { appendFileSync } from 'node:fs'
 import { syncBuiltinESMExports } from 'node:module'
 
@@ -37,16 +38,22 @@ https.request = function (url, ...rest) {
   }
   request.on('response', response => {
     const chunks = []
-    response.on('data', chunk => chunks.push(Buffer.from(chunk)))
-    response.on('end', () =>
+    observeResponseBytes(response, chunk => chunks.push(chunk))
+    let saved = false
+    const save = complete => {
+      if (saved) return
+      saved = true
       write({
         exchange,
         at: new Date().toISOString(),
         part: 'response',
         status: response.statusCode,
+        complete,
         body: Buffer.concat(chunks).toString('utf8'),
-      }),
-    )
+      })
+    }
+    response.once('end', () => save(true))
+    response.once('close', () => save(response.complete))
   })
   return request
 }

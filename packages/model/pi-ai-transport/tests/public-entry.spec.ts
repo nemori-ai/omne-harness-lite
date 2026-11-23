@@ -15,7 +15,7 @@ it('the root entry exports the family table, the network resources factory, the 
   ])
 })
 
-it('the subpath entry chat-completions exports the binding entry, the shared calibrated arithmetic, the shared meter, the shared measurement rules and the OpenRouter provider body and accounting as its runtime values', async () => {
+it('the chat-completions entry exposes the shared binding, metering, reasoning and OpenRouter accounting APIs', async () => {
   const engine: object = await import('@omne-harness/pi-ai-transport/chat-completions')
   expect(Object.keys(engine).toSorted()).toEqual([
     'ANCHORED_METHOD',
@@ -27,7 +27,9 @@ it('the subpath entry chat-completions exports the binding entry, the shared cal
     'calibratedDigest',
     'calibratedMethod',
     'createCalibratedMeter',
+    'reasoningTextCodec',
     'unitExtras',
+    'usageWithCacheWrites',
   ])
 })
 
