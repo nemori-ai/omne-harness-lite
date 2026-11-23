@@ -6,9 +6,9 @@
         "anthropic/claude-fable-5.1": "3",
         "moonshotai/kimi-k2.7-code": "1"
       },
-      "hitRate": 0.995,
+      "hitRate": 0.996,
       "dropped": 0,
-      "costUsd": 0.327149
+      "costUsd": 0.382936
     },
     "alternate:anthropic/claude-fable-5.2~moonshotai/kimi-k3": {
       "measuredOn": "2026-11-23",
@@ -16,9 +16,9 @@
         "anthropic/claude-fable-5.2": "1",
         "moonshotai/kimi-k3": "2"
       },
-      "hitRate": 0.995,
+      "hitRate": 0.996,
       "dropped": 0,
-      "costUsd": 0.2655
+      "costUsd": 0.334926
     },
     "alternate:anthropic/claude-haiku-5.5~moonshotai/kimi-k3.1-pro": {
       "measuredOn": "2026-11-23",
@@ -26,9 +26,9 @@
         "anthropic/claude-haiku-5.5": "3",
         "moonshotai/kimi-k3.1-pro": "2"
       },
-      "hitRate": 0.995,
+      "hitRate": 0.996,
       "dropped": 0,
-      "costUsd": 0.007605
+      "costUsd": 0.029375
     },
     "alternate:anthropic/claude-opus-5.5~openai/gpt-5.6-luna-pro": {
       "measuredOn": "2026-11-23",
@@ -36,9 +36,9 @@
         "anthropic/claude-opus-5.5": "3",
         "openai/gpt-5.6-luna-pro": "1"
       },
-      "hitRate": 0.995,
+      "hitRate": 0.996,
       "dropped": 0,
-      "costUsd": 0.13418
+      "costUsd": 0.153454
     },
     "alternate:anthropic/claude-opus-5~openai/gpt-5.6-luna": {
       "measuredOn": "2026-11-23",
@@ -46,9 +46,9 @@
         "anthropic/claude-opus-5": "3",
         "openai/gpt-5.6-luna": "4"
       },
-      "hitRate": 0.996,
+      "hitRate": 0.997,
       "dropped": 0,
-      "costUsd": 0.170156
+      "costUsd": 0.194729
     },
     "alternate:anthropic/claude-sonnet-5.5~openai/gpt-5.6-sol-pro": {
       "measuredOn": "2026-11-23",
@@ -56,9 +56,9 @@
         "anthropic/claude-sonnet-5.5": "2",
         "openai/gpt-5.6-sol-pro": "1"
       },
-      "hitRate": 0.995,
+      "hitRate": 0.996,
       "dropped": 0,
-      "costUsd": 0.132629
+      "costUsd": 0.139554
     },
     "alternate:anthropic/claude-sonnet-5~openai/gpt-5.6-sol": {
       "measuredOn": "2026-11-23",
@@ -68,7 +68,7 @@
       },
       "hitRate": 0.996,
       "dropped": 0,
-      "costUsd": 0.118972
+      "costUsd": 0.136647
     },
     "alternate:moonshotai/kimi-k2.7-code~anthropic/claude-fable-5.1": {
       "measuredOn": "2026-11-23",
@@ -76,9 +76,9 @@
         "moonshotai/kimi-k2.7-code": "1",
         "anthropic/claude-fable-5.1": "3"
       },
-      "hitRate": 0.967,
+      "hitRate": 0.984,
       "dropped": 0,
-      "costUsd": 0.324217
+      "costUsd": 0.37134
     },
     "alternate:moonshotai/kimi-k3.1-pro~anthropic/claude-haiku-5.5": {
       "measuredOn": "2026-11-23",
@@ -86,9 +86,9 @@
         "moonshotai/kimi-k3.1-pro": "2",
         "anthropic/claude-haiku-5.5": "3"
       },
-      "hitRate": 0.986,
+      "hitRate": 0.976,
       "dropped": 0,
-      "costUsd": 0.010153
+      "costUsd": 0.012132
     },
     "alternate:moonshotai/kimi-k3~anthropic/claude-fable-5.2": {
       "measuredOn": "2026-11-23",
@@ -96,9 +96,9 @@
         "moonshotai/kimi-k3": "2",
         "anthropic/claude-fable-5.2": "1"
       },
-      "hitRate": 0.914,
+      "hitRate": 0.981,
       "dropped": 0,
-      "costUsd": 0.26766
+      "costUsd": 0.303249
     },
     "alternate:openai/gpt-5.6-luna-pro~anthropic/claude-fable-5.2": {
       "measuredOn": "2026-11-23",
@@ -108,7 +108,7 @@
       },
       "hitRate": null,
       "dropped": 0,
-      "costUsd": 0.259078
+      "costUsd": 0.298389
     },
     "alternate:openai/gpt-5.6-luna~anthropic/claude-fable-5.1": {
       "measuredOn": "2026-11-23",
@@ -116,9 +116,9 @@
         "openai/gpt-5.6-luna": "4",
         "anthropic/claude-fable-5.1": "3"
       },
-      "hitRate": 0.993,
+      "hitRate": 0.994,
       "dropped": 0,
-      "costUsd": 0.321906
+      "costUsd": 0.368511
     },
     "alternate:openai/gpt-5.6-sol-pro~anthropic/claude-opus-5": {
       "measuredOn": "2026-11-23",
@@ -128,7 +128,7 @@
       },
       "hitRate": null,
       "dropped": 0,
-      "costUsd": 0.234212
+      "costUsd": 0.266624
     },
     "alternate:openai/gpt-5.6-sol~anthropic/claude-haiku-5.5": {
       "measuredOn": "2026-11-23",
@@ -136,9 +136,9 @@
         "openai/gpt-5.6-sol": "1",
         "anthropic/claude-haiku-5.5": "3"
       },
-      "hitRate": 0.993,
+      "hitRate": 0.994,
       "dropped": 0,
-      "costUsd": 0.059275
+      "costUsd": 0.068137
     },
     "alternate:openai/gpt-5.6-terra-pro~anthropic/claude-sonnet-5": {
       "measuredOn": "2026-11-23",
@@ -148,7 +148,7 @@
       },
       "hitRate": null,
       "dropped": 0,
-      "costUsd": 0.107555
+      "costUsd": 0.116292
     },
     "alternate:openai/gpt-5.6-terra~anthropic/claude-opus-5.5": {
       "measuredOn": "2026-11-23",
@@ -156,9 +156,9 @@
         "openai/gpt-5.6-terra": "3",
         "anthropic/claude-opus-5.5": "3"
       },
-      "hitRate": 0.993,
+      "hitRate": 0.994,
       "dropped": 0,
-      "costUsd": 0.155599
+      "costUsd": 0.178451
     },
     "alternate:openai/gpt-6-astra-pro~moonshotai/kimi-k2.7-code": {
       "measuredOn": "2026-11-23",
@@ -168,7 +168,7 @@
       },
       "hitRate": null,
       "dropped": 0,
-      "costUsd": 0.191408
+      "costUsd": 0.216801
     },
     "alternate:openai/gpt-6-astra~anthropic/claude-sonnet-5.5": {
       "measuredOn": "2026-11-23",
@@ -176,9 +176,9 @@
         "openai/gpt-6-astra": "3",
         "anthropic/claude-sonnet-5.5": "2"
       },
-      "hitRate": 0.993,
+      "hitRate": 0.994,
       "dropped": 0,
-      "costUsd": 0.204045
+      "costUsd": 0.234302
     },
     "alternate:openai/gpt-6-luna-pro~moonshotai/kimi-k3.1-pro": {
       "measuredOn": "2026-11-23",
@@ -188,7 +188,7 @@
       },
       "hitRate": null,
       "dropped": 0,
-      "costUsd": 0.006199
+      "costUsd": 0.00669
     },
     "alternate:openai/gpt-6-luna~moonshotai/kimi-k3": {
       "measuredOn": "2026-11-23",
@@ -196,9 +196,9 @@
         "openai/gpt-6-luna": "3",
         "moonshotai/kimi-k3": "2"
       },
-      "hitRate": 0.993,
+      "hitRate": 0.994,
       "dropped": 0,
-      "costUsd": 0.007247
+      "costUsd": 0.007618
     },
     "alternate:openai/gpt-6-sol-pro~anthropic/claude-fable-5.1": {
       "measuredOn": "2026-11-23",
@@ -208,7 +208,7 @@
       },
       "hitRate": null,
       "dropped": 0,
-      "costUsd": 0.351517
+      "costUsd": 0.412077
     },
     "alternate:openai/gpt-6-sol~qwen/qwen3.8-omni-flash": {
       "measuredOn": "2026-11-23",
@@ -216,9 +216,9 @@
         "openai/gpt-6-sol": "3",
         "qwen/qwen3.8-omni-flash": "1"
       },
-      "hitRate": 0.993,
+      "hitRate": 0.994,
       "dropped": 0,
-      "costUsd": 0.028354
+      "costUsd": 0.034254
     },
     "alternate:openai/gpt-6.1-sol~anthropic/claude-fable-5.2": {
       "measuredOn": "2026-11-23",
@@ -226,9 +226,9 @@
         "openai/gpt-6.1-sol": "3",
         "anthropic/claude-fable-5.2": "1"
       },
-      "hitRate": 0.993,
+      "hitRate": 0.994,
       "dropped": 0,
-      "costUsd": 0.282063
+      "costUsd": 0.323231
     },
     "alternate:openai/gpt-6.1-terra~anthropic/claude-haiku-5.5": {
       "measuredOn": "2026-11-23",
@@ -236,9 +236,9 @@
         "openai/gpt-6.1-terra": "3",
         "anthropic/claude-haiku-5.5": "3"
       },
-      "hitRate": 0.993,
+      "hitRate": 0.994,
       "dropped": 0,
-      "costUsd": 0.016703
+      "costUsd": 0.019199
     },
     "alternate:openai/gpt-6.2-astra~anthropic/claude-opus-5": {
       "measuredOn": "2026-11-23",
@@ -246,9 +246,9 @@
         "openai/gpt-6.2-astra": "2",
         "anthropic/claude-opus-5": "3"
       },
-      "hitRate": 0.993,
+      "hitRate": 0.994,
       "dropped": 0,
-      "costUsd": 0.267568
+      "costUsd": 0.306756
     },
     "alternate:openai/gpt-6.2-sol~anthropic/claude-opus-5.5": {
       "measuredOn": "2026-11-23",
@@ -256,9 +256,9 @@
         "openai/gpt-6.2-sol": "2",
         "anthropic/claude-opus-5.5": "3"
       },
-      "hitRate": 0.993,
+      "hitRate": 0.994,
       "dropped": 0,
-      "costUsd": 0.154599
+      "costUsd": 0.177166
     },
     "alternate:qwen/qwen3.8-omni-flash~anthropic/claude-fable-5.1": {
       "measuredOn": "2026-11-23",
@@ -266,36 +266,36 @@
         "qwen/qwen3.8-omni-flash": "1",
         "anthropic/claude-fable-5.1": "3"
       },
-      "hitRate": 0.927,
+      "hitRate": 0.944,
       "dropped": 0,
-      "costUsd": 0.319538
+      "costUsd": 0.367793
     },
     "single:anthropic/claude-fable-5.1": {
       "measuredOn": "2026-11-23",
       "revisions": {
         "anthropic/claude-fable-5.1": "3"
       },
-      "hitRate": 0.997,
+      "hitRate": 0.998,
       "dropped": 0,
-      "costUsd": 0.329174
+      "costUsd": 0.376652
     },
     "single:anthropic/claude-fable-5.2": {
       "measuredOn": "2026-11-23",
       "revisions": {
         "anthropic/claude-fable-5.2": "1"
       },
-      "hitRate": 0.997,
+      "hitRate": 0.998,
       "dropped": 0,
-      "costUsd": 0.263028
+      "costUsd": 0.301486
     },
     "single:anthropic/claude-haiku-5.5": {
       "measuredOn": "2026-11-23",
       "revisions": {
         "anthropic/claude-haiku-5.5": "3"
       },
-      "hitRate": 0.997,
+      "hitRate": 0.998,
       "dropped": 0,
-      "costUsd": 0.003531
+      "costUsd": 0.004042
     },
     "single:anthropic/claude-opus-5": {
       "measuredOn": "2026-11-23",
@@ -304,16 +304,16 @@
       },
       "hitRate": 0.998,
       "dropped": 0,
-      "costUsd": 0.175475
+      "costUsd": 0.201016
     },
     "single:anthropic/claude-opus-5.5": {
       "measuredOn": "2026-11-23",
       "revisions": {
         "anthropic/claude-opus-5.5": "3"
       },
-      "hitRate": 0.997,
+      "hitRate": 0.998,
       "dropped": 0,
-      "costUsd": 0.134717
+      "costUsd": 0.154272
     },
     "single:anthropic/claude-sonnet-5": {
       "measuredOn": "2026-11-23",
@@ -322,52 +322,52 @@
       },
       "hitRate": 0.998,
       "dropped": 0,
-      "costUsd": 0.070833
+      "costUsd": 0.081124
     },
     "single:anthropic/claude-sonnet-5.5": {
       "measuredOn": "2026-11-23",
       "revisions": {
         "anthropic/claude-sonnet-5.5": "2"
       },
-      "hitRate": 0.997,
+      "hitRate": 0.998,
       "dropped": 0,
-      "costUsd": 0.06743
+      "costUsd": 0.077098
     },
     "single:moonshotai/kimi-k2.7-code": {
       "measuredOn": "2026-11-23",
       "revisions": {
         "moonshotai/kimi-k2.7-code": "1"
       },
-      "hitRate": 0.98,
+      "hitRate": 0.985,
       "dropped": 0,
-      "costUsd": 0.007572
+      "costUsd": 0.017337
     },
     "single:moonshotai/kimi-k3": {
       "measuredOn": "2026-11-23",
       "revisions": {
         "moonshotai/kimi-k3": "2"
       },
-      "hitRate": 0.951,
+      "hitRate": 0.982,
       "dropped": 0,
-      "costUsd": 0.016773
+      "costUsd": 0.047507
     },
     "single:moonshotai/kimi-k3.1-pro": {
       "measuredOn": "2026-11-23",
       "revisions": {
         "moonshotai/kimi-k3.1-pro": "2"
       },
-      "hitRate": 0.987,
+      "hitRate": 0.981,
       "dropped": 0,
-      "costUsd": 0.010024
+      "costUsd": 0.011106
     },
     "single:openai/gpt-5.6-luna": {
       "measuredOn": "2026-11-23",
       "revisions": {
         "openai/gpt-5.6-luna": "4"
       },
-      "hitRate": 0.996,
+      "hitRate": 0.997,
       "dropped": 0,
-      "costUsd": 0.00303
+      "costUsd": 0.003481
     },
     "single:openai/gpt-5.6-luna-pro": {
       "measuredOn": "2026-11-23",
@@ -376,16 +376,16 @@
       },
       "hitRate": null,
       "dropped": 0,
-      "costUsd": 0.005185
+      "costUsd": 0.005829
     },
     "single:openai/gpt-5.6-sol": {
       "measuredOn": "2026-11-23",
       "revisions": {
         "openai/gpt-5.6-sol": "1"
       },
-      "hitRate": 0.996,
+      "hitRate": 0.997,
       "dropped": 0,
-      "costUsd": 0.060453
+      "costUsd": 0.069524
     },
     "single:openai/gpt-5.6-sol-pro": {
       "measuredOn": "2026-11-23",
@@ -394,16 +394,16 @@
       },
       "hitRate": null,
       "dropped": 0,
-      "costUsd": 0.091714
+      "costUsd": 0.135517
     },
     "single:openai/gpt-5.6-terra": {
       "measuredOn": "2026-11-23",
       "revisions": {
         "openai/gpt-5.6-terra": "3"
       },
-      "hitRate": 0.996,
+      "hitRate": 0.997,
       "dropped": 0,
-      "costUsd": 0.030313
+      "costUsd": 0.034802
     },
     "single:openai/gpt-5.6-terra-pro": {
       "measuredOn": "2026-11-23",
@@ -412,16 +412,16 @@
       },
       "hitRate": null,
       "dropped": 0,
-      "costUsd": 0.052382
+      "costUsd": 0.06891
     },
     "single:openai/gpt-6-astra": {
       "measuredOn": "2026-11-23",
       "revisions": {
         "openai/gpt-6-astra": "3"
       },
-      "hitRate": 0.996,
+      "hitRate": 0.997,
       "dropped": 0,
-      "costUsd": 0.151103
+      "costUsd": 0.173622
     },
     "single:openai/gpt-6-astra-pro": {
       "measuredOn": "2026-11-23",
@@ -430,16 +430,16 @@
       },
       "hitRate": null,
       "dropped": 0,
-      "costUsd": 0.221015
+      "costUsd": 0.299933
     },
     "single:openai/gpt-6-luna": {
       "measuredOn": "2026-11-23",
       "revisions": {
         "openai/gpt-6-luna": "3"
       },
-      "hitRate": 0.996,
+      "hitRate": 0.997,
       "dropped": 0,
-      "costUsd": 0.001512
+      "costUsd": 0.001743
     },
     "single:openai/gpt-6-luna-pro": {
       "measuredOn": "2026-11-23",
@@ -448,16 +448,16 @@
       },
       "hitRate": null,
       "dropped": 0,
-      "costUsd": 0.001983
+      "costUsd": 0.002728
     },
     "single:openai/gpt-6-sol": {
       "measuredOn": "2026-11-23",
       "revisions": {
         "openai/gpt-6-sol": "3"
       },
-      "hitRate": 0.996,
+      "hitRate": 0.997,
       "dropped": 0,
-      "costUsd": 0.030229
+      "costUsd": 0.034779
     },
     "single:openai/gpt-6-sol-pro": {
       "measuredOn": "2026-11-23",
@@ -466,52 +466,52 @@
       },
       "hitRate": null,
       "dropped": 0,
-      "costUsd": 0.039035
+      "costUsd": 0.053668
     },
     "single:openai/gpt-6.1-sol": {
       "measuredOn": "2026-11-23",
       "revisions": {
         "openai/gpt-6.1-sol": "3"
       },
-      "hitRate": 0.996,
+      "hitRate": 0.997,
       "dropped": 0,
-      "costUsd": 0.028193
+      "costUsd": 0.032395
     },
     "single:openai/gpt-6.1-terra": {
       "measuredOn": "2026-11-23",
       "revisions": {
         "openai/gpt-6.1-terra": "3"
       },
-      "hitRate": 0.996,
+      "hitRate": 0.997,
       "dropped": 0,
-      "costUsd": 0.01409
+      "costUsd": 0.016197
     },
     "single:openai/gpt-6.2-astra": {
       "measuredOn": "2026-11-23",
       "revisions": {
         "openai/gpt-6.2-astra": "2"
       },
-      "hitRate": 0.996,
+      "hitRate": 0.997,
       "dropped": 0,
-      "costUsd": 0.112784
+      "costUsd": 0.129654
     },
     "single:openai/gpt-6.2-sol": {
       "measuredOn": "2026-11-23",
       "revisions": {
         "openai/gpt-6.2-sol": "2"
       },
-      "hitRate": 0.996,
+      "hitRate": 0.997,
       "dropped": 0,
-      "costUsd": 0.028188
+      "costUsd": 0.032422
     },
     "single:qwen/qwen3.8-omni-flash": {
       "measuredOn": "2026-11-23",
       "revisions": {
         "qwen/qwen3.8-omni-flash": "1"
       },
-      "hitRate": 0.929,
+      "hitRate": 0.945,
       "dropped": 0,
-      "costUsd": 0.000946
+      "costUsd": 0.00266
     }
   }
 }
