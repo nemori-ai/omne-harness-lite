@@ -68,6 +68,7 @@ async function categoriesAndAssets(assets: Assets, tenant: TenantId) {
     ['converter', 'data'],
     [FIXTURE, 'data'],
     [FIXTURE_BUNDLE, 'directory'],
+    ['mcp', 'data'],
     ['model-provider', 'none'],
     ['skill', 'directory'],
     ['tool', 'none'],

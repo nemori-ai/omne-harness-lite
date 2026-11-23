@@ -172,6 +172,7 @@ describe('assets-access row', () => {
         expect(page.body.items.map(item => [item.category, item.title])).toEqual([
           ['AgentDefinition', '智能体'],
           ['converter', '转换件'],
+          ['mcp', 'MCP'],
           ['model-provider', '模型供应商'],
           ['skill', '技能'],
           ['tool', '工具'],
