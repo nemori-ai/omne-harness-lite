@@ -21,12 +21,14 @@ export {
 } from './held.ts'
 export {
   pluginImpact,
-  pluginPlacement,
-  type ClientTold,
   type KnownPoint,
   type PluginHeld,
   type PluginImpact,
   type PluginImpactInput,
+} from './effect.ts'
+export {
+  pluginPlacement,
+  type ClientTold,
   type PluginPlacement,
   type PluginPlacementInput,
-} from './effect.ts'
+} from './placement.ts'

@@ -92,6 +92,7 @@ export type PluginManifest = Readonly<{
 export type ManifestRead = Readonly<{
     kind: 'read';
     manifest: PluginManifest;
+    unread: readonly string[];
 }> | Readonly<{
     kind: 'refused';
     reason: string;

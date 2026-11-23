@@ -33,16 +33,24 @@ const withMember = (member: unknown): unknown => ({ ...GREEN, client: { members:
 describe('the manifest of a plugin', () => {
   it('is the file plugin.json, read as it is written: its sides, and each member one item on one point', () => {
     expect(MANIFEST_FILE).toBe('plugin.json')
-    expect(readManifest(text(GREEN))).toStrictEqual({ kind: 'read', manifest: GREEN })
+    expect(readManifest(text(GREEN))).toStrictEqual({ kind: 'read', manifest: GREEN, unread: [] })
     expect(GREEN.client?.members.map(memberKind)).toEqual(['data', 'module'])
     expect(GREEN.server?.members.map(memberKind)).toEqual(['directory'])
   })
 
   it('may have one side only, or none; fields it does not know are left out', () => {
     const { server: _server, ...clientOnly } = GREEN
-    expect(readManifest(text(clientOnly))).toEqual({ kind: 'read', manifest: clientOnly })
+    expect(readManifest(text(clientOnly))).toEqual({
+      kind: 'read',
+      manifest: clientOnly,
+      unread: [],
+    })
     const bare = { schema: 1, name: 'bare', summary: 'Nothing yet.' }
-    expect(readManifest(text({ ...bare, later: true }))).toEqual({ kind: 'read', manifest: bare })
+    expect(readManifest(text({ ...bare, version: '1', later: true }))).toEqual({
+      kind: 'read',
+      manifest: bare,
+      unread: ['later', 'version'],
+    })
   })
 
   it.each([

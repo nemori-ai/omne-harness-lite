@@ -339,7 +339,29 @@ describe('contributions the point refuses', () => {
     expect(() =>
       point.contribute({ ...contribution('tool'), display: { title: 't', summary: '' } }),
     ).toThrow(TypeError)
+    expect(() =>
+      point.contribute({
+        ...contribution('tool'),
+        display: { title: 't', summary: 's', authoring: '' },
+      }),
+    ).toThrow(/category display is incomplete/)
     expect(point.list()).toEqual([])
+  })
+
+  it('keeps what the owner says to whoever writes one by hand, and leaves it out when the owner says nothing', () => {
+    const point = createCategoryPoint()
+    const authoring = 'tool.json, whole:\n{}'
+    point.contribute({
+      ...contribution('tool'),
+      display: { title: 't', summary: 's', authoring },
+    })
+    point.contribute(contribution('note'))
+    expect((point.describe('tool') as CategoryListing).display).toEqual({
+      title: 't',
+      summary: 's',
+      authoring,
+    })
+    expect((point.describe('note') as CategoryListing).display).not.toHaveProperty('authoring')
   })
 
   it('copies a deep schema and rejects a cycle', () => {

@@ -1,4 +1,4 @@
-import type { ClientLine, ImpactLine, PlacedLine } from '@omne-harness/assets'
+import type { ImpactLine } from '@omne-harness/assets'
 import {
   membersOf,
   type Member,
@@ -13,6 +13,8 @@ export type KnownPoint = Readonly<{
   side: SideName
   takes: 'data' | 'directory' | 'code' | null
   when: 'running' | 'build' | null
+  /** The names the data of a member may use, where the point lists them; absent when any name may be used. */
+  dataKeys?: readonly string[]
 }>
 
 export type PluginImpactInput = Readonly<{
@@ -40,7 +42,7 @@ const wayOf = (member: Member): 'data' | 'directory' | 'code' =>
 const said = (way: 'data' | 'directory' | 'code'): string =>
   way === 'directory' ? WAYS.directory : way
 
-const placedOf = (manifest: PluginManifest): readonly Placed[] =>
+export const placedOf = (manifest: PluginManifest): readonly Placed[] =>
   membersOf(manifest).map(({ side, member }) => ({ side, member }))
 
 const same = (left: Placed, right: Placed): boolean =>
@@ -48,7 +50,11 @@ const same = (left: Placed, right: Placed): boolean =>
   left.member.point === right.member.point &&
   left.member.key === right.member.key
 
-function rivals(name: string, placed: Placed, held: readonly PluginHeld[]): readonly string[] {
+export function rivals(
+  name: string,
+  placed: Placed,
+  held: readonly PluginHeld[],
+): readonly string[] {
   return held
     .filter(other => other.enabled && other.name !== name)
     .filter(other => placedOf(other.manifest).some(theirs => same(theirs, placed)))
@@ -76,12 +82,28 @@ function distance(left: string, right: string): number {
 /** The names that are there and near enough to be what was meant: a slip of a letter or two, three at the most. */
 function nearest(name: string, known: readonly string[]): readonly string[] {
   const near = Math.max(2, Math.floor(name.length / 4))
+  // A name written without the beginning the listed ones share is the listed one that ends with it.
+  const tail = `-${name.replace(/^[^a-z0-9]+/iu, '')}`
   return known
-    .map(each => ({ each, away: distance(name, each) }))
+    .map(each => ({ each, away: each.endsWith(tail) ? 0 : distance(name, each) }))
     .filter(({ away }) => away <= near)
     .sort((a, b) => a.away - b.away || (a.each < b.each ? -1 : 1))
     .slice(0, 3)
     .map(({ each }) => each)
+}
+
+/** The first name the data of a member uses that its point does not list, said with the nearest it does list. */
+function strayName(member: Member, point: KnownPoint): string | null {
+  const data: unknown = 'data' in member ? member.data : undefined
+  if (point.dataKeys === undefined || typeof data !== 'object' || data === null) return null
+  const listed = point.dataKeys
+  const stray = Array.isArray(data)
+    ? undefined
+    : Object.keys(data).find(key => !listed.includes(key))
+  if (stray === undefined) return null
+  const near = nearest(stray, listed)
+  const hint = near.length === 0 ? '' : ` Nearest: ${near.join(', ')}.`
+  return `→ ${stray} is not a name this point takes.${hint} OmneExtensionPoints show ${point.name} lists them. It would not be in effect.`
 }
 
 const line = (mark: ImpactLine['mark'], placed: Placed, says: string, of: string | null = null) =>
@@ -122,6 +144,8 @@ function arriving(input: PluginImpactInput, placed: Placed): Told {
     )
   if (point.when === 'build')
     return one('!', '→ late: this point is fixed when the app is built. It would not show.')
+  const stray = strayName(member, point)
+  if (stray !== null) return one('!', stray)
   const [rival] = rivals(input.name, placed, input.held)
   if (rival === undefined) return one('+', '→ in effect')
   return {
@@ -178,81 +202,5 @@ export function pluginImpact(input: PluginImpactInput): PluginImpact {
     lines: [...told.flatMap(each => each.lines), ...dropped],
     loads: loadsOf(manifest),
     advice: told.find(each => each.advice !== null)?.advice ?? null,
-  }
-}
-
-/** What one connected client last told of this plugin; `state` is null when it told nothing of it. */
-export type ClientTold = Readonly<{
-  client: string
-  state: 'loaded' | 'failed' | 'held' | null
-  reason: string | null
-}>
-
-export type PluginPlacementInput = Readonly<{
-  name: string
-  manifest: PluginManifest
-  enabled: boolean
-  held: readonly PluginHeld[]
-  /** The connected clients; null when they cannot be read now. */
-  clients: readonly ClientTold[] | null
-}>
-
-export type PluginPlacement = Readonly<{
-  places: readonly PlacedLine[]
-  clients: readonly ClientLine[] | null
-  advice: string | null
-}>
-
-const STOPPED =
-  'stopped: the app did not come up twice in a row with this one wanted. It runs without it. Publish a new version, or disable it.'
-
-function toldBy({ client, state, reason }: ClientTold): ClientLine {
-  const says =
-    state === null
-      ? 'not loaded yet'
-      : state === 'loaded'
-        ? `loaded${reason === null ? '' : `: ${reason}`}`
-        : state === 'held'
-          ? STOPPED
-          : `failed: ${reason ?? 'no reason was told'}`
-  return { label: `${client}, connected`, says }
-}
-
-type Standing = Readonly<{ standing: string; says: string }>
-
-function standingOf(input: PluginPlacementInput): Standing {
-  if (!input.enabled) return { standing: 'not in effect', says: 'it is disabled' }
-  const { clients } = input
-  if (clients === null) return { standing: 'not known', says: 'the clients cannot be read now' }
-  if (clients.length === 0) return { standing: 'not known', says: 'no client is connected to say' }
-  if (clients.some(client => client.state === 'failed'))
-    return { standing: 'not in effect', says: 'the client could not load it' }
-  if (clients.some(client => client.state === 'held'))
-    return { standing: 'not in effect', says: 'the app stopped loading it' }
-  if (clients.some(client => client.state === null))
-    return { standing: 'not known', says: 'a client has not loaded it yet' }
-  return { standing: 'in effect', says: '' }
-}
-
-/** Where a held plugin is placed and whether each place is in effect, from its manifest and what the clients told. */
-export function pluginPlacement(input: PluginPlacementInput): PluginPlacement {
-  const whole = standingOf(input)
-  const places = placedOf(input.manifest).map((placed): PlacedLine => {
-    const { point, key } = placed.member
-    const [rival] = input.enabled ? rivals(input.name, placed, input.held) : []
-    return rival === undefined
-      ? { point, key, ...whole }
-      : {
-          point,
-          key,
-          standing: 'conflict',
-          says: `with plugin ${rival}; neither is in effect, the built-in shows`,
-        }
-  })
-  const failed = input.clients?.some(client => client.state === 'failed') === true
-  return {
-    places,
-    clients: input.clients === null ? null : input.clients.map(toldBy),
-    advice: failed ? 'Fix the file and publish again, or disable it.' : null,
   }
 }

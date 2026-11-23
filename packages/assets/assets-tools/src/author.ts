@@ -131,9 +131,10 @@ function help(
   const listing = faces.categories.describe(category)
   if (listing === undefined) return invalid(noCategory(faces.categories, category))
   if ('unusable' in listing) return unavailable('help', `category ${category} cannot be used now`)
-  const how = listing.display.creation
+  const { creation: how, authoring } = listing.display
   const line = `category ${category}: ${HOW[listing.creation]}.${how === undefined ? '' : ` ${how}`}`
-  return done(head, [commandGuide(menu, name), line], revision)
+  const written = authoring === undefined ? [] : authoring.split('\n')
+  return done(head, [commandGuide(menu, name), line, ...written], revision)
 }
 
 /** One call is one read or one write of the assets as they are now. */

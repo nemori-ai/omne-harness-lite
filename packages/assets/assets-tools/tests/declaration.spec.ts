@@ -110,6 +110,8 @@ describe('the OmneExtensions declaration', () => {
         'done OmneExtensions help publish',
         commandGuide(definition, 'publish'),
         'category bundle: from a directory. a directory with bundle.json on top',
+        'bundle.json, whole:',
+        '{"members":[]}',
         'tree rev 7c1f.41',
       ].join('\n'),
     )

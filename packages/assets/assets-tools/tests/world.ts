@@ -95,7 +95,12 @@ export const NOTE: CategoryContribution = {
 }
 export const BUNDLE: CategoryContribution = {
   contract: bundle,
-  display: { title: '包', summary: '一组成员。', creation: 'a directory with bundle.json on top' },
+  display: {
+    title: '包',
+    summary: '一组成员。',
+    creation: 'a directory with bundle.json on top',
+    authoring: 'bundle.json, whole:\n{"members":[]}',
+  },
   point: 'bundles.items',
 }
 export const KIT: CategoryContribution = {

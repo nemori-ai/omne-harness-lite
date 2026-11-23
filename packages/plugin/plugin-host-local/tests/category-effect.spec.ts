@@ -107,6 +107,52 @@ describe('what a change of a plugin would do', () => {
     expect(asked).toEqual(['listed alice'])
   })
 
+  it('takes what a client told of a point: how a member is written, when it may change, and the names its data may use', async () => {
+    const told = {
+      client: 'desktop-1',
+      plugins: [],
+      points: [
+        {
+          name: 'shell.part-style',
+          contract: { item: { kind: 'pure' }, binding: 'run' },
+        },
+        {
+          name: 'shell.tokens',
+          contract: { item: { kind: 'data' }, binding: 'run' },
+          dataKeys: [{ name: '--omne-accent' }],
+        },
+        { name: 'shell.pages', contract: { item: { kind: 'pure' }, binding: 'build' } },
+      ],
+    } as const
+    const { effect } = world({ clients: () => [told] })
+    const of = async (member: unknown) => {
+      const from = directory({ 'plugin.json': manifestText('tidy', [member]) })
+      const answer = await effect.impact.of(publish(from))
+      return answer.kind === 'changes' ? answer.lines[0]?.says : answer.reason
+    }
+    expect(await of(SEND)).toContain('shell.part-style takes code; this member gives data')
+    expect(await of({ point: 'shell.tokens', key: 'shell.app', data: { accent: 'g' } })).toContain(
+      'accent is not a name this point takes. Nearest: --omne-accent.',
+    )
+    expect(
+      await of({ point: 'shell.pages', key: 'reports', module: 'a.js', export: 'a' }),
+    ).toContain('late: this point is fixed when the app is built')
+  })
+
+  it('says which fields of the manifest are not read, and where members go', async () => {
+    const text = JSON.stringify({
+      schema: 1,
+      name: 'tidy',
+      summary: 's',
+      version: '1.0.0',
+      members: [SEND],
+    })
+    const answer = await world().effect.impact.of(publish(directory({ 'plugin.json': text })))
+    expect(answer.kind === 'changes' && answer.advice).toBe(
+      'plugin.json has fields that are not read: members, version. A manifest reads schema, name, summary, client and server; members go under client or server.',
+    )
+  })
+
   it('says a client point is not known while no client is connected', async () => {
     const answer = await world().effect.impact.of(publish(tidy))
     expect(answer.kind === 'changes' && answer.lines[0]?.says).toContain(

@@ -2,6 +2,7 @@ import {
   capabilityId,
   digestBytes,
   type CapabilityId,
+  type CategoryView,
   type HeldFiles,
   type HoldingOutcome,
   type JsonValue,
@@ -145,7 +146,6 @@ const show: Handler<'show'> = async (ready, { category, name }) => {
 
 const BODY_FILE = 'body.json'
 
-/** A body as a package of one file, body.json: its JSON text and one newline, in UTF-8. */
 function bodyPackage(body: JsonValue): PackageReader {
   const bytes = new TextEncoder().encode(`${writeJsonText(body)}\n`)
   const digest = digestBytes(bytes)
@@ -291,8 +291,10 @@ const impact: Handler<'impact'> = async (ready, params) => {
     }),
   )
   if (asked === undefined) return unavailable('impact', 'the impact cannot be read now')
-  if (asked.kind === 'unavailable')
-    return unavailable('impact', `the impact cannot be read now: ${asked.reason}`)
+  if (asked.kind === 'unavailable') {
+    const layout = content === undefined ? '' : layoutPointer(listing, params.category)
+    return unavailable('impact', `the impact cannot be read now: ${asked.reason}${layout}`)
+  }
   const status = asset.kind === 'asset' ? 'published' : 'not published'
   return done(
     'impact',
@@ -320,6 +322,14 @@ async function earlier(
 
 const receipt = (value: Readonly<Record<string, unknown>>) => JSON.stringify(value)
 
+/** Where the layout of a category is said, when its owner says it; said after a problem with what was written. */
+function layoutPointer(listing: ReturnType<CategoryView['describe']>, category: string): string {
+  const said = listing !== undefined && 'display' in listing && listing.display.authoring
+  return said
+    ? `. For how a ${category} is written: help with name publish and category ${category}.`
+    : ''
+}
+
 function refusedPublish(
   faces: ExtensionsFaces,
   params: ArgumentsOf<'publish'>['params'],
@@ -342,12 +352,12 @@ function refusedPublish(
     case 'operation-conflict':
       return conflict(reused(id))
     case 'invalid':
-      return invalid(publishRefusal(category, outcome.reason))
+      return invalid(publishRefusal(faces.categories, category, outcome.reason))
   }
 }
 
 /** The general entry's own refusals say how this category is made; the category's refusals pass as it wrote them. */
-function publishRefusal(category: string, reason: string): string {
+function publishRefusal(categories: CategoryView, category: string, reason: string): string {
   switch (reason) {
     case 'creation-closed':
       return `category ${category} is not made through here; nothing was changed. categories says how each is made.`
@@ -356,7 +366,7 @@ function publishRefusal(category: string, reason: string): string {
     case 'a-directory-category':
       return `category ${category} is made from a directory: write it in the workspace and give dir.`
     default:
-      return reason
+      return `${reason}${layoutPointer(categories.describe(category), category)}`
   }
 }
 

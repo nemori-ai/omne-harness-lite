@@ -172,6 +172,45 @@ describe('what publishing a plugin would change', () => {
   })
 })
 
+describe('a point whose data may use only the names it lists', () => {
+  const TOKENS: KnownPoint = {
+    name: 'shell.tokens',
+    side: 'client',
+    takes: 'data',
+    when: 'running',
+    dataKeys: ['--omne-accent', '--omne-accent-strong', '--omne-surface'],
+  }
+  const impactOf = (data: unknown) =>
+    lines(
+      pluginImpact({
+        name: 'green',
+        change: 'publish',
+        manifest: manifest('green', [{ point: 'shell.tokens', key: 'shell.app', data }]),
+        held: [],
+        points: [TOKENS],
+      }),
+    )
+
+  it('a name it does not list is said before anything is published, with the nearest it does list', () => {
+    expect(impactOf({ '--accent': 'green' })).toEqual([
+      '! shell.tokens / shell.app   → --accent is not a name this point takes. Nearest: --omne-accent. OmneExtensionPoints show shell.tokens lists them. It would not be in effect.',
+    ])
+  })
+
+  it('names it lists are in effect; one wrong name among them is the one said', () => {
+    expect(impactOf({ '--omne-accent': 'green', '--omne-surface': 'white' })).toEqual([
+      '+ shell.tokens / shell.app   → in effect',
+    ])
+    expect(impactOf({ '--omne-accent': 'green', colour: 'x' })[0]).toContain(
+      'colour is not a name this point takes. OmneExtensionPoints show shell.tokens lists them.',
+    )
+  })
+
+  it('data that is not an object is left to the point to judge', () => {
+    expect(impactOf('green')).toEqual(['+ shell.tokens / shell.app   → in effect'])
+  })
+})
+
 describe('what is near a name that is not there', () => {
   const impactOf = (point: string) =>
     lines(

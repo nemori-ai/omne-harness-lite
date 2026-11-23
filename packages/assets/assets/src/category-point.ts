@@ -2,7 +2,13 @@ import type { CategoryEffect } from './effect.ts'
 import type { BodyContract } from './identity.ts'
 import { copyTree } from './read-body.ts'
 
-export type CategoryDisplay = Readonly<{ title: string; summary: string; creation?: string }>
+export type CategoryDisplay = Readonly<{
+  title: string
+  summary: string
+  creation?: string
+  /** For whoever writes one by hand: the layout, whole, with one to copy. Text of several lines. */
+  authoring?: string
+}>
 
 /** How the general entry creates an asset of a category: not at all, from a body, or from a directory. */
 export type CreationMode = 'none' | 'data' | 'directory'
@@ -62,7 +68,6 @@ function creationOf(contract: BodyContract, general: 'closed' | undefined): Crea
 
 const listings = new WeakMap<CategoryContribution, Registered>()
 
-/** One contribution gives one listing for as long as it is contributed, whoever reads it. */
 function registered(contribution: CategoryContribution): Registered {
   const known = listings.get(contribution)
   if (known !== undefined) return known
@@ -163,16 +168,19 @@ export function admitCategory(contribution: CategoryContribution): CategoryContr
   const { contract, display, generalCreation, point, effect } = contribution
   if (contract.category === '') throw new TypeError('category name is empty')
   if (point === '') throw new TypeError('category point is empty')
-  if (display.title === '' || display.summary === '' || display.creation === '')
+  if ([display.title, display.summary, display.creation, display.authoring].includes(''))
     throw new TypeError('category display is incomplete')
   const schema = copyTree(contract.schema, false)
   if (schema === undefined) throw new TypeError('schema could not be copied')
-  const { title, summary, creation } = display
+  const { title, summary, creation, authoring } = display
   return Object.freeze({
     contract: Object.freeze({ ...contract, schema }),
-    display: Object.freeze(
-      creation === undefined ? { title, summary } : { title, summary, creation },
-    ),
+    display: Object.freeze({
+      title,
+      summary,
+      ...(creation === undefined ? {} : { creation }),
+      ...(authoring === undefined ? {} : { authoring }),
+    }),
     ...(generalCreation === undefined ? {} : { generalCreation }),
     point,
     ...(effect === undefined ? {} : { effect }),

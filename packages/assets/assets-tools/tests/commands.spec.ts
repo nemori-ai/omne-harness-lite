@@ -130,7 +130,7 @@ describe('publish', () => {
     [
       'the directory',
       { id: 'b1', category: 'bundle', name: 'broken', dir: 'plugins/broken' },
-      'bundle.json: client.members[0].point "shell.token" is not a point now',
+      'bundle.json: client.members[0].point "shell.token" is not a point now. For how a bundle is written: help with name publish and category bundle.',
     ],
   ])(
     'a refusal of the category over %s is carried as the category wrote it',
@@ -441,8 +441,33 @@ describe('impact', () => {
     ).toEqual({
       kind: 'unavailable',
       operation: 'OmneExtensions.impact',
-      reason: 'the impact cannot be read now: no client is connected',
+      reason:
+        'the impact cannot be read now: no client is connected. For how a bundle is written: help with name publish and category bundle.',
     })
+  })
+
+  it('a publish the category refuses says the reason as the category wrote it, then where its layout is said', async () => {
+    const s = bound(world())
+    const refused = await s.failure('publish', {
+      id: 'b9',
+      category: 'bundle',
+      name: 'broken',
+      dir: 'plugins/broken',
+    })
+    expect(refused.kind).toBe('invalid')
+    expect(refused.reason).toMatch(
+      /\. For how a bundle is written: help with name publish and category bundle\.$/u,
+    )
+  })
+
+  it('does not point to a layout for a held one, nor for a category whose owner gives none', async () => {
+    const w = world({
+      impact: { of: async () => ({ kind: 'unavailable', reason: 'not now' }) },
+    })
+    const s = bound(w)
+    await s.text('publish', { id: 'n1', category: 'note', name: 'a', data: { text: 'x' } })
+    const asked = { category: 'note', name: 'a', change: 'disable' }
+    expect((await s.failure('impact', asked)).reason).toBe('the impact cannot be read now: not now')
   })
 
   it.each([
