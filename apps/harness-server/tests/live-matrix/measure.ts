@@ -1,3 +1,4 @@
+import type { JsonValue } from '@omne-harness/json-text'
 import type { BaselineEntry } from './cells.ts'
 
 // What a cell measured, read from the product's own session diagnostics and history, and how it is
@@ -133,7 +134,7 @@ export type RunView = Readonly<{
   started: Readonly<{ position: string }>
   modelCalls: readonly Readonly<{ dispatches: readonly AttemptView[] }>[]
 }>
-export type EntryView = Readonly<{ kind: string; payload: unknown }>
+export type EntryView = Readonly<{ kind: string; payload: JsonValue }>
 
 function known(amounts: readonly Amount[] | undefined, pick: (amount: Amount) => boolean) {
   const amount = amounts?.find(pick)
@@ -157,9 +158,14 @@ function attemptOf(view: AttemptView): TurnAttempt {
   }
 }
 
+function member(tree: JsonValue | undefined, key: string): JsonValue | undefined {
+  return tree?.kind === 'object' ? tree.entries.find(entry => entry.key === key)?.value : undefined
+}
+
 function replied(entry: EntryView): boolean {
-  const message = (entry.payload as { message?: { replay?: unknown } } | null)?.message
-  return message?.replay !== undefined
+  const replay = member(member(entry.payload, 'message'), 'replay')
+  const positions = member(replay, 'at')
+  return positions?.kind === 'array' && positions.items.length > 0
 }
 
 /**

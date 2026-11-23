@@ -1,3 +1,4 @@
+import { readJsonText } from '@omne-harness/json-text'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
@@ -69,7 +70,7 @@ describe('the cells come from the records', () => {
     ])
   })
 
-  it('reads the current official records of the three families', () => {
+  it('reads the current official records of the installed families', () => {
     const families = new Set(currentModels().map(model => model.family))
     expect(families).toEqual(
       new Set([
@@ -263,14 +264,26 @@ describe('reading the turns from the answers', () => {
       { kind: 'message.user', payload: {} },
       { kind: 'message.assistant', payload: { message: {} } },
       { kind: 'message.tool', payload: {} },
-      { kind: 'message.assistant', payload: { message: { replay: { format: 'f' } } } },
+      { kind: 'message.assistant', payload: { message: { replay: { format: 'f', at: ['b0'] } } } },
       { kind: 'run.terminal', payload: {} },
       { kind: 'message.user', payload: {} },
       { kind: 'message.assistant', payload: { message: {} } },
       { kind: 'run.terminal', payload: {} },
       { kind: 'message.user', payload: {} },
     ]
-    expect(turnsOf(['a/one', 'b/one', 'a/one'], runs, history)).toEqual([
+    const entries = history.map(entry => {
+      const parsed = readJsonText(JSON.stringify(entry.payload), {
+        maxBytes: 1024,
+        maxDepth: 8,
+        maxMembers: 16,
+        maxItems: 16,
+        maxStringLength: 128,
+        maxNumberLength: 8,
+      })
+      if (parsed.kind !== 'ok') throw new Error('invalid test history')
+      return { ...entry, payload: parsed.value }
+    })
+    expect(turnsOf(['a/one', 'b/one', 'a/one'], runs, entries)).toEqual([
       {
         route: 'a/one',
         dispatchCosts: [null, 0.001],

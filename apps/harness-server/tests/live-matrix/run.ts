@@ -203,6 +203,7 @@ async function runCell(
     if (observed.outcome !== 'succeeded')
       throw new Error(`diagnostics answered ${observed.outcome}`)
     const history = await driver.readHistory(session)
+    if (history.outcome !== 'succeeded' || !history.exhausted) throw new Error('incomplete history')
     const soFar = measure(turnsOf(cell.turns.slice(0, index + 1), observed.runs, history.entries))
     if (soFar.costUsd === null || soFar.unanswered > 0) break
   }
@@ -210,6 +211,7 @@ async function runCell(
   if (diagnostics.outcome !== 'succeeded')
     throw new Error(`diagnostics answered ${diagnostics.outcome}`)
   const history = await driver.readHistory(session)
+  if (history.outcome !== 'succeeded' || !history.exhausted) throw new Error('incomplete history')
   const turns = turnsOf(cell.turns, diagnostics.runs, history.entries)
   return { measured: measure(turns), turns }
 }

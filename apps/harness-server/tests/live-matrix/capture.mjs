@@ -38,15 +38,21 @@ https.request = function (url, ...rest) {
   request.on('response', response => {
     const chunks = []
     response.on('data', chunk => chunks.push(Buffer.from(chunk)))
-    response.on('end', () =>
+    let saved = false
+    const save = complete => {
+      if (saved) return
+      saved = true
       write({
         exchange,
         at: new Date().toISOString(),
         part: 'response',
         status: response.statusCode,
+        complete,
         body: Buffer.concat(chunks).toString('utf8'),
-      }),
-    )
+      })
+    }
+    response.once('end', () => save(true))
+    response.once('close', () => save(response.complete))
   })
   return request
 }
