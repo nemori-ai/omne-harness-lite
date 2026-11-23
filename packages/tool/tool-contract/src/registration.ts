@@ -342,7 +342,7 @@ export function defineFunctionTool<E, B extends ContentBlock>(
 const commandEntry = record(
   { summary: commandSummary, operation: operationHandle },
   {
-    background: record({ unless: list(filled) }),
+    background: record({ unless: list(filled) }, { start: literal('launch') }),
     release: commandRelease,
     modalities: commandModalities,
     conditions: callConditions,

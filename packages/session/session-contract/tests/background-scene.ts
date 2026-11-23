@@ -1,3 +1,4 @@
+import { expect } from 'vitest'
 import type { Message } from '@omne-harness/message'
 import type {
   ConsumptionId,
@@ -20,6 +21,22 @@ export const CALL = 'call-bg'
 export const producer = { kind: 'tool', call: CALL } as const
 export const reminder = (text = 'background done'): Message =>
   ({ ...userMessage(text, 'msg_bgreminder0000000000000'), role: 'system_reminder' }) as Message
+/** The reminder as the session accepts it: a first block names the call by its short id and intent. */
+export const acceptedReminder = (text = 'background done'): Message => {
+  const sent = reminder(text)
+  return {
+    ...sent,
+    blocks: [
+      {
+        kind: 'text',
+        id: expect.stringMatching(/^blk_[0-9a-f]{32}$/u),
+        visibility: { toHuman: true, toModel: true },
+        text: 'This is background call b1 (Shell execute: build).',
+      },
+      ...sent.blocks,
+    ],
+  } as Message
+}
 const LABEL = { intent: 'build', tool: 'Shell', command: 'execute', preview: 'pnpm build' } as const
 export const backgroundedOf = (of: ProducerRef): SessionEntriesInterpretation => ({
   kind: 'backgrounded',

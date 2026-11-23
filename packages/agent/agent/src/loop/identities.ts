@@ -60,6 +60,16 @@ export function actionPositionExecution(consumer: ConsumerRef): AgentExecutionId
   return 'ok' in execution ? execution.ok : null
 }
 
+const ACTION_STEP = /^(step-(?:0|[1-9][0-9]*))\/tool\/(?:0|[1-9][0-9]*)$/u
+
+/** The assistant message that made the tool action a consumer names: the reply of its step. Null for any other consumer. */
+export function askingMessageOf(consumer: ConsumerRef): Message['id'] | null {
+  const execution = actionPositionExecution(consumer)
+  const step = ACTION_STEP.exec(consumer.position)?.[1]
+  if (execution === null || step === undefined) return null
+  return replyMessageId(execution, minted(decodeStepId(step), step))
+}
+
 export function stepOf(ordinal: number): StepId {
   const text = `step-${ordinal}`
   return minted(decodeStepId(text), text)

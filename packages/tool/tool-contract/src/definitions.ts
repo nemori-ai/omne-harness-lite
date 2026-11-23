@@ -70,8 +70,8 @@ export type ToolGovernance = Readonly<{
   requiredCapabilities: readonly string[]
   programmable?: boolean
 }>
-/** The command may go to the background unless the call gives one of these parameters. */
-export type ToolCommandBackground = Readonly<{ unless: readonly string[] }>
+/** Background unless the call gives one of `unless`; with `start: 'launch'` every call starts there. */
+export type ToolCommandBackground = Readonly<{ unless: readonly string[]; start?: 'launch' }>
 export type ToolGateDefault = 'deny' | 'ask' | 'auto'
 export type ToolGate = Readonly<{ id: string; title: string; default: ToolGateDefault }>
 /** The kind of a typed release detail, with its major version, and the JSON Schema of its value. */

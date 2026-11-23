@@ -347,7 +347,19 @@ describe('commitEntries accepts the outcome of a backgrounded call as an input',
     const read = ok<{ message: Message }>(
       await a.port.readInput({ ...a.access(TENANT_A), session: base.session, input }),
     )
-    expect(read.message).toEqual(reminder)
+    // The session names the call in a first block, ahead of what the tool sent.
+    expect(read.message).toEqual({
+      ...reminder,
+      blocks: [
+        {
+          kind: 'text',
+          id: expect.stringMatching(/^blk_[0-9a-f]{32}$/u),
+          visibility: { toHuman: true, toModel: true },
+          text: 'This is background call b1 (Shell execute: build).',
+        },
+        ...reminder.blocks,
+      ],
+    })
   })
 
   it('a failed input row leaves every table, and the same outcome then commits once', async () => {

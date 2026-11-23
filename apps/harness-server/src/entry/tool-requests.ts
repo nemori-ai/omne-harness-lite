@@ -136,12 +136,19 @@ export function callOf(
   return { command, label: callLabel(definition, { command, intent, params: EMPTY_PARAMS }) }
 }
 
-// The model asks for the wait mode with run_in_background; admission judges whether this call may.
+// The wait mode: run_in_background, or a command that starts in the background; admission judges.
 function modeOf(
   definition: ToolAvailability['definition'],
   effectiveArguments: string,
 ): ToolInvokeRequest['mode'] {
   if (definition.kind === 'function') return 'foreground'
+  const selected = selectCommandText(
+    definition.commands.map(command => command.name),
+    effectiveArguments,
+  )
+  const declared =
+    'ok' in selected ? definition.commands.find(command => command.name === selected.ok) : undefined
+  if (definition.backgroundAllowed && declared?.background?.start === 'launch') return 'background'
   const call = decodeCommandCallText(definition, effectiveArguments)
   if ('failure' in call) return 'foreground'
   const flag = call.ok.params.entries.find(entry => entry.key === 'run_in_background')?.value

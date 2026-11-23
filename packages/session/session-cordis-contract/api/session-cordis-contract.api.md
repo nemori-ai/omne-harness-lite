@@ -378,7 +378,7 @@
 - `expectedHolds` · 包 `@omne-harness/session-contract`
 - `expectedRevision` · 包 `@omne-harness/session-contract`
 - `foldInputFate` · 包 `@omne-harness/session-contract`
-- `forkPointAfterRows` · 包 `@omne-harness/session-contract`
+- `forkPointBefore` · 包 `@omne-harness/session-contract`
 - `forkPointText` · 包 `@omne-harness/session-contract`
 - `incompleteAuthorization` · 包 `@omne-harness/session-contract`
 - `initializationRegistrationCommit` · 包 `@omne-harness/session-contract`

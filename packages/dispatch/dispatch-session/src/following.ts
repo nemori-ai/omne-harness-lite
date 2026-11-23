@@ -7,9 +7,9 @@ import type {
 } from '@omne-harness/dispatch'
 import type { TenantId } from '@omne-harness/dispatch-contract'
 import type { TenantId as LegalTenant } from '@omne-harness/legal-identity'
-import type { InputFate as SessionInputFate } from '@omne-harness/session-contract'
+import type { InputFate as SessionInputFate, WorkSnapshot } from '@omne-harness/session-contract'
 import type { SessionCalls } from './ports.ts'
-import { REPLY_KINDS, lastReplyOf } from './reply.ts'
+import { REPLY_KINDS, latestEndOf } from './reply.ts'
 import { cancelOperationOf, identitiesOf, legalTenantOf } from './sources.ts'
 import { UNAVAILABLE, called, read, sessionId } from './support.ts'
 
@@ -20,6 +20,12 @@ function ended(fate: Extract<SessionInputFate, { kind: 'answered' }>): InputFate
     ? { kind: 'failed', detail: 'the run failed' }
     : { kind: 'cancelled', detail: 'the run was cancelled' }
 }
+
+/** No run going, no input waiting and no call in the background: nothing will move the session by itself. */
+const quiet = (work: WorkSnapshot): boolean =>
+  work.run.kind !== 'active' &&
+  work.pending.length === 0 &&
+  (work.backgroundPlaceholders ?? []).length === 0
 
 type Start = 'absent' | 'unknown' | Readonly<{ legal: LegalTenant; fate: SessionInputFate }>
 
@@ -61,18 +67,23 @@ export function createFollowing(
         case 'answered': {
           const early = ended(fate)
           if (early !== null) return read(early)
-          const reply = await lastReplyOf(
-            (cursor, pageBytes) =>
-              calls.history({
-                tenant: legal,
-                session: sessionId(dispatch.session),
-                kinds: REPLY_KINDS,
-                cursor,
-                pageBytes,
-              }),
-            fate.run,
+          const session = sessionId(dispatch.session)
+          // The work can go on past its first run: it is over when the session is quiet.
+          const work = await calls.work({ tenant: legal, session }).catch(() => UNAVAILABLE)
+          if (work.kind !== 'read') return UNAVAILABLE
+          if (work.value === null) return read({ kind: 'absent' })
+          if (!quiet(work.value)) return read({ kind: 'running' })
+          const end = await latestEndOf((cursor, pageBytes) =>
+            calls.history({ tenant: legal, session, kinds: REPLY_KINDS, cursor, pageBytes }),
           )
-          return reply.kind === 'read' ? read({ kind: 'ended', reply: reply.value }) : UNAVAILABLE
+          if (end.kind !== 'read') return UNAVAILABLE
+          const { outcome, reply } = end.value
+          if (outcome === 'completed') return read({ kind: 'ended', reply })
+          return read(
+            outcome === 'failed'
+              ? { kind: 'failed', detail: 'the run failed' }
+              : { kind: 'cancelled', detail: 'the run was cancelled' },
+          )
         }
       }
     },

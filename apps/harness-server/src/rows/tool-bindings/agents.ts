@@ -1,4 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
+import { askingMessageOf } from '@omne-harness/agent'
 import { sessionRefSchema, tenantIdSchema } from '@omne-harness/dispatch-contract'
 import { dispatchingKey } from '@omne-harness/dispatch-cordis-contract/cordis'
 import {
@@ -91,6 +92,7 @@ export function bindReleaseAgents(
         tenant: tenantIdSchema.parse(who.tenantId),
         subject: parent.principal,
         session: sessionRefSchema.parse(who.session),
+        asking: askingMessageOf(parent.request.consumer),
       }
     },
     targets: async () => ctx.get(agentDefinitionCatalogKey)?.visibleTo(parent.tenant),

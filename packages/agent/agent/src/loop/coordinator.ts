@@ -120,6 +120,7 @@ import {
   uncheckedCandidate,
   deniedUnchecked,
   deniedSlot,
+  dispatchedSlot,
   preserveAllowedRequest,
   sentToolRequest,
   toolCallOf,
@@ -133,6 +134,7 @@ import {
   toolCallAnswerOf,
   toolResultCandidate,
   openToolCalls,
+  producerWaits,
   slotOf,
   refusedTool,
   toolCall,
@@ -1682,7 +1684,7 @@ function coordinate<P>(
     if (asked.ok === 'unaccepted') return step(node === 'T3' ? 'dispatch' : 'received', null)
     waitingAt = node
     recheckDependency = null
-    waits = open.map(pending => ({ kind: 'producer' as const, pending }))
+    waits = producerWaits(open)
     return step('wait', null)
   }
 
@@ -1806,13 +1808,10 @@ function coordinate<P>(
       association: 'associated',
       ...sent,
     }
-    const next = replaceSlot(replaceAction(batch, { ...action, call: associated }), {
-      kind: 'dispatched',
-      action: action.id,
-      each: null,
-      candidateDigest: null,
-      handoff: null,
-    })
+    const next = replaceSlot(
+      replaceAction(batch, { ...action, call: associated }),
+      dispatchedSlot(action),
+    )
     const saved = await commit('A2', 'A2', {
       checkpoint: {
         batch: next,
@@ -1820,6 +1819,7 @@ function coordinate<P>(
           call.action === action.id ? associated : call,
         ),
       },
+      events: [{ kind: 'waiting', waits: producerWaits(openToolCalls(next)) }],
       recordsFact: true,
     })
     return 'failure' in saved ? saved : succeed({ batch: next, progressed: true })

@@ -136,7 +136,12 @@ describe('a session is forked within its tenant, under the access of each sessio
     const { h } = await sourced()
     const reader = h.faces('reader').history
     const before = h.checks.count()
-    expect(succeeded(await reader.readForkPoint(h.access()), 'point')).toEqual({ kind: 'none' })
+    expect(
+      succeeded(
+        await reader.readForkPoint({ ...h.access(), asking: 'msg_not_written_by_it_000' }),
+        'point',
+      ),
+    ).toEqual({ kind: 'none' })
     expect(
       h.checks
         .asked()
@@ -144,6 +149,9 @@ describe('a session is forked within its tenant, under the access of each sessio
         .map(request => request.operation),
     ).toEqual(['history.readModelView'])
     h.checks.script({ kind: 'denied' })
-    expect(failureOf(await reader.readForkPoint(h.access())).kind).toBe('denied')
+    expect(
+      failureOf(await reader.readForkPoint({ ...h.access(), asking: 'msg_not_written_by_it_000' }))
+        .kind,
+    ).toBe('denied')
   })
 })

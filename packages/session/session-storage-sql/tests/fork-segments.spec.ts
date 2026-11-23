@@ -53,7 +53,9 @@ function scene() {
         String(at),
         1n,
         `d-${session}-${epoch}-${seq}`,
-        role === 'compaction' ? 'sha256:summary' : JSON.stringify(message(role)),
+        role === 'compaction'
+          ? 'sha256:summary'
+          : JSON.stringify(message(role, { id: `msg_${session}_${epoch}_${seq}` })),
       ],
     )
   journal('r', 'epoch:30')
@@ -354,8 +356,21 @@ describe('what a source shows at a point', () => {
 })
 
 describe('the point a forked session can itself be forked at', () => {
+  // The asking message is the newest assistant message the session wrote itself.
+  const asking = (s: ReturnType<typeof scene>, session: string): string => {
+    const found = s.port.execute(
+      `SELECT json_extract(message, '$.id') FROM sl_model_view WHERE tenant = 't' AND session = ?
+        AND json_valid(message) AND json_extract(message, '$.role') = 'assistant'
+        ORDER BY seq DESC LIMIT 1`,
+      [session] as never,
+    ).rows[0]?.[0]
+    return typeof found === 'string' ? found : 'msg_none'
+  }
   const read = (s: ReturnType<typeof scene>, session: string) => {
-    const out = readForkPoint.read({ tenant: 't', session }, s.port as never)
+    const out = readForkPoint.read(
+      { tenant: 't', session, asking: asking(s, session) },
+      s.port as never,
+    )
     return out.kind === 'read' ? out.output : out
   }
 

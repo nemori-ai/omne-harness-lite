@@ -363,7 +363,7 @@
 - `expectedHolds` · `judgments.d.ts`
 - `expectedRevision` · `judgments.d.ts`
 - `foldInputFate` · `input-fate.d.ts`
-- `forkPointAfterRows` · `fork.d.ts`
+- `forkPointBefore` · `fork.d.ts`
 - `forkPointText` · `fork.d.ts`
 - `incompleteAuthorization` · `authorizations.d.ts`
 - `initializationRegistrationCommit` · `initialization-plan.d.ts`
@@ -2235,7 +2235,9 @@ export type ForkPointRead = Readonly<{
     kind: 'none';
 }>;
 export interface SessionHistory<P> {
-    readForkPoint(input: SessionAccess<P>): Reply<ForkPointRead>;
+    readForkPoint(input: SessionAccess<P> & Readonly<{
+        asking: string;
+    }>): Reply<ForkPointRead>;
     readCompactionContext(input: SessionAccess<P> & Readonly<{
         basis: ModelViewBasis;
         coverTo: RecordEntryRef | null;
@@ -2354,10 +2356,10 @@ export type ForkFacts = Readonly<{
 export type ForkPointJudgment = 'boundary' | 'unknown-epoch' | 'out-of-bounds' | 'not-a-boundary';
 export declare function judgeForkPoint(point: ForkPoint, facts: ForkFacts): ForkPointJudgment;
 export declare function ownPositionAfter(last: string | null, point: ForkPoint | null): bigint;
-export declare function forkPointAfterRows(epoch: string, newest: readonly Readonly<{
+export declare function forkPointBefore(epoch: string, asking: Readonly<{
     seq: string;
     role: string;
-}>[], tail: string): ForkPoint | null;
+}> | undefined, tail: string): ForkPoint | null;
 export declare function forkPointText(point: ForkPoint): string;
 export declare function parseForkPoint(text: string): ForkPoint | null;
 ```
@@ -2620,7 +2622,7 @@ export { rebuildSessionPermissions, type SessionPermissionHistory } from './perm
 export { backgroundCallView, shortCallId } from './background-calls.ts';
 export type { BackgroundCallLabel, BackgroundCallResolution, BackgroundCallRecord, BackgroundCallSource, BackgroundCallState, BackgroundCallStatus, BackgroundCallStop, BackgroundCallView, StopInitiator, StopView, } from './background-calls.ts';
 export { compactionContextForView, isAcceptedInputRecord } from './model-view.ts';
-export { forkPointAfterRows, forkPointText, judgeForkPoint, ownPositionAfter, parseForkPoint, type ForkFacts, type ForkPoint, type ForkPointJudgment, type SessionFork, } from './fork.ts';
+export { forkPointBefore, forkPointText, judgeForkPoint, ownPositionAfter, parseForkPoint, type ForkFacts, type ForkPoint, type ForkPointJudgment, type SessionFork, } from './fork.ts';
 export { sourceRequestIdentities, type SourceRequest, type SourceRequestIdentities, } from './source-requests.ts';
 export { INPUT_FATE_KINDS, foldInputFate, type InputFate } from './input-fate.ts';
 export { PENDING_PAGE_LIMIT, PENDING_PREVIEW_CHARS, inputFateOfRows, pendingAcceptances, pendingInputOf, pendingPageOf, previewOf, waitingCalls, type PendingInput, type PendingPage, type WaitingCall, } from './intake-reads.ts';
@@ -4035,8 +4037,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:2309e96eb55fef7e3c24fc5c763d76de44440f24a12dc2ea85a8342afe693da6";
-export declare const SESSION_RELEASE_DIGEST = "sha256:2309e96eb55fef7e3c24fc5c763d76de44440f24a12dc2ea85a8342afe693da6";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:ebca6f5b3f2831d77efc80b3e91bf8f66d01a76297c0d82341441dcb048909db";
+export declare const SESSION_RELEASE_DIGEST = "sha256:ebca6f5b3f2831d77efc80b3e91bf8f66d01a76297c0d82341441dcb048909db";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -4200,6 +4202,7 @@ type Ordinary = Extract<RoutedInput, {
 }>;
 export declare function stoppedText(message: string, stop: BackgroundCallStop): Block;
 export declare function stopInputId(record: BackgroundCallRecord, operation: SessionOperationId): InputId;
+export declare function namedText(message: string, record: BackgroundCallRecord): Block;
 export declare function stopReminderInput(record: BackgroundCallRecord, stop: BackgroundCallStop, source: InputSourceName): Ordinary;
 export {};
 ```
@@ -4382,7 +4385,7 @@ export declare const chained: <S extends Held>(store: S) => S & {
     }>[];
     inherited: number;
 };
-export declare function pointRead(store: Outcome<Held, SessionFailure>, key: Outcome<string, SessionFailure>): Outcome<ForkPointRead, SessionFailure>;
+export declare function pointRead(store: Outcome<Held, SessionFailure>, key: Outcome<string, SessionFailure>, asking: string): Outcome<ForkPointRead, SessionFailure>;
 type HistoryAsk = Readonly<{
     inherited?: true;
     from: unknown;

@@ -1,13 +1,15 @@
-import { forkPointAfterRows } from '@omne-harness/session-contract'
+import { forkPointBefore } from '@omne-harness/session-contract'
 import { forkOf } from './fork.ts'
 import { big, handler, oneRow, rowsOf, scopeOf, text } from './support.ts'
 
-/** The newest rows looked at for the asking message: a step leaves fewer rows behind it. */
+/** The newest rows looked at for the asking message: the call it made reads its point soon after the step. */
 export const FORK_POINT_WINDOW = 64
 
 export default handler('session.fork-point', (raw, port) => {
   const scope = scopeOf(raw)
-  if (scope === null) throw new Error('invalid input')
+  const asking = (raw as Readonly<Record<string, unknown>> | null)?.['asking']
+  if (scope === null || typeof asking !== 'string' || asking === '')
+    throw new Error('invalid input')
   const bind = [scope.tenant, scope.session]
   const journal = oneRow(
     port,
@@ -21,7 +23,8 @@ export default handler('session.fork-point', (raw, port) => {
   const newest = rowsOf(
     port,
     `SELECT seq, CASE WHEN json_valid(message) THEN json_extract(message, '$.role')
-      ELSE 'compaction' END AS role FROM sl_model_view
+      ELSE 'compaction' END AS role, CASE WHEN json_valid(message)
+      THEN json_extract(message, '$.id') ELSE NULL END AS id FROM sl_model_view
       WHERE tenant = ? AND session = ? AND epoch = ? AND CAST(entry AS INTEGER) > ?
       ORDER BY seq DESC LIMIT ?`,
     [...bind, epoch, forked, BigInt(FORK_POINT_WINDOW)],
@@ -31,7 +34,8 @@ export default handler('session.fork-point', (raw, port) => {
     'SELECT COALESCE(MAX(position), ?) AS p FROM sl_entry WHERE tenant = ? AND session = ? LIMIT 1',
     [forked, ...bind],
   )
-  const rows = newest.reverse().map(row => ({ seq: String(row['seq']), role: text(row['role']) }))
-  const point = forkPointAfterRows(epoch, rows, String(big(head?.['p'] ?? forked)))
+  const row = newest.find(each => each['id'] === asking)
+  const found = row === undefined ? undefined : { seq: String(row['seq']), role: text(row['role']) }
+  const point = forkPointBefore(epoch, found, String(big(head?.['p'] ?? forked)))
   return point === null ? { kind: 'none' } : { kind: 'point', point }
 })

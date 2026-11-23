@@ -161,8 +161,14 @@ export const rows = async (s: Scene): Promise<readonly ModelViewRow[]> => (await
 export const entryIds = (s: Scene): string[] =>
   s.port.controls.entriesOf(s.base.tenant, s.base.session).map(entry => entry.id)
 
+/** The id of the newest assistant message in the view: in these scenes, the one that makes the running call. */
+export async function latestAsking(s: Scene): Promise<string> {
+  return (await rows(s)).findLast(row => row.message.role === 'assistant')?.message.id ?? 'msg_none'
+}
+
 export async function pointOf(s: Scene): Promise<ForkPoint> {
-  const read = succeeded(await s.port.history.readForkPoint(s.access), 'fork point')
+  const asking = await latestAsking(s)
+  const read = succeeded(await s.port.history.readForkPoint({ ...s.access, asking }), 'fork point')
   if (read.kind !== 'point') throw new Error('a fork point is expected')
   return read.point
 }
