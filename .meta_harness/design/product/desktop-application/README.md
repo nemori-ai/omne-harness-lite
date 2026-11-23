@@ -2,7 +2,7 @@
 id: PD-desktop-application
 title: 桌面应用
 status: draft
-revision: 5
+revision: 6
 relations:
   supersedes: []
   depends-on: []
