@@ -14,6 +14,7 @@ import type {
   DefinitionAsker,
   DefinitionLookup,
   DefinitionMappingEntry,
+  DefinitionMappings,
   DefinitionReading,
 } from './definition-mappings.ts'
 import { residentToolsOf, type MappingTable } from './table.ts'
@@ -97,6 +98,9 @@ export function createDefinitionReading(input: DefinitionReadingInput): Definiti
   }
 
   return {
+    modesFor: name =>
+      table.mappings.byName(name) ??
+      (custom === undefined ? undefined : { name, modes: custom.modes }),
     async named(asker, name) {
       const official = table.mappings.byName(name)
       if (official !== undefined) return officialOf(table, official)
@@ -130,6 +134,12 @@ export function createDefinitionReading(input: DefinitionReadingInput): Definiti
 /** The reading of a deployment that keeps no assets of tenants: the table alone. */
 export const tableReading = (table: MappingTable): DefinitionReading =>
   createDefinitionReading({ table, custom: undefined, layers: async () => undefined })
+
+/** The table with the reading over it alone: what a deployment without tenant assets gives. */
+export const tableMappings = (table: MappingTable): DefinitionMappings & DefinitionReading => ({
+  ...table.mappings,
+  ...tableReading(table),
+})
 
 function officialOf(table: MappingTable, entry: DefinitionMappingEntry): DefinitionLookup {
   const side = table.agentSide(entry.candidate)

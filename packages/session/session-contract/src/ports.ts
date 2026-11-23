@@ -10,6 +10,7 @@ import type {
   DurableEvidence,
   InputId,
   ResidentKey,
+  RunId,
   SessionAccess,
   SessionId,
   SessionOperationId,
@@ -234,8 +235,14 @@ export type GuardCommand = Readonly<{
 export interface SessionIdentityBridge<P> {
   prepare(input: SessionAccess<P>, command: SessionCommand): Reply<GuardCommand>
 }
+export type RunAdoption = Readonly<{
+  candidate: Adoption
+  residentAdoption?: ResidentAdoption & Readonly<{ verdict?: FreezeVerdict }>
+}>
+export type RunAdoptionInput = Readonly<{ work: WorkSnapshot; run: RunId }>
 export interface SessionEvidenceBridge<P = unknown> {
   prepare(command: SessionCommand, access?: SessionAccess<P>): Reply<readonly GuardCommand[]>
+  runAdoption?(access: SessionAccess<P>, input: RunAdoptionInput): Reply<RunAdoption>
 }
 export interface SessionClock {
   sample(): Reply<ClockSample>
@@ -288,6 +295,7 @@ export interface SessionAdoptionSource<P = unknown> {
     access: SessionAccess<P>,
     input: SessionAdoptionPlanInput,
   ) => Promise<Outcome<SessionAdoptionPlanAnswer, Readonly<{ kind: 'unavailable' }>>>
+  forRun?(access: SessionAccess<P>, input: RunAdoptionInput): Reply<RunAdoption>
 }
 export interface SessionProductionSource {
   prepare(command: ProductionEvidenceCommand): Reply<readonly GuardCommand[]>

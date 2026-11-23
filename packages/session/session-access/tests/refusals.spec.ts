@@ -276,6 +276,29 @@ describe('create-session: the caller and the definition', () => {
     expect(world.session.controls.calls()).toEqual([])
   })
 
+  it('asks for the definition as the tenant that creates sees it, and waits for the answer', async () => {
+    const world = createWorld()
+    const asked: unknown[] = []
+    world.useDefinitions(async (name, tenant) => {
+      asked.push([name, tenant])
+      return resolveDefinition(name)
+    })
+    const made = await ops(world)['create-session'](as(world.issue(ALICE)), body)
+    expect(made.outcome).toBe('succeeded')
+    expect(asked).toEqual([[DEFINITION, ALICE.tenant]])
+  })
+
+  it('answers basis-unavailable, not invalid, while the definitions of the tenant cannot be read', async () => {
+    const world = createWorld()
+    world.useDefinitions(async () => 'unavailable' as const)
+    expect(await ops(world)['create-session'](as(world.issue(ALICE)), body)).toEqual(UNAVAILABLE)
+    world.useDefinitions(async () => undefined)
+    expect((await ops(world)['create-session'](as(world.issue(ALICE)), body)).outcome).toBe(
+      'invalid',
+    )
+    expect(world.session.controls.calls()).toEqual([])
+  })
+
   it('answers basis-unavailable to a principal identity cannot describe, without calling Session', async () => {
     const world = createWorld()
     expect(await ops(world)['create-session'](as({} as Principal), body)).toEqual(UNAVAILABLE)

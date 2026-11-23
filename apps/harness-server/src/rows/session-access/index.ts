@@ -6,10 +6,11 @@ import type { ActingForTenantPrincipal } from '@omne-harness/identity'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
 import {
   definitionMappingsKey,
-  definitionResolverOf,
+  mappedDefinitionFor,
 } from '../agent-adoptions/definition-mappings.ts'
 import {
   openRequestJournal,
+  type DefinitionResolver,
   type ListFilters,
   type PrincipalFacts,
   type SessionListEntry,
@@ -174,9 +175,10 @@ export function sessionListingOf(directory: SessionDirectory<Principal>): Sessio
   }
 }
 
-function definitionsOf(ctx: Context) {
+function definitionsOf(ctx: Context): DefinitionResolver | undefined {
   const mappings = ctx.get(definitionMappingsKey)
-  return mappings === undefined ? undefined : definitionResolverOf(mappings)
+  if (mappings === undefined) return undefined
+  return (name, tenant) => mappedDefinitionFor(mappings, { tenant }, name)
 }
 
 function prepareCreation(input: SessionCreateInput): SessionCreateInput {

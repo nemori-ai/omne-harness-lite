@@ -9,7 +9,6 @@ import type {
   SessionAdoptionPlanInput,
 } from '@omne-harness/session-contract'
 
-/** Who asks for a definition: the tenant, and the turn whose workspace layer is read with it. */
 export type DefinitionAsker = Readonly<{
   tenant: TenantId
   turn?: Readonly<{ access: Access<unknown>; key: string }>
@@ -22,10 +21,9 @@ export type DefinitionLookup =
 
 /** A definition as one tenant sees it: of the deployment, held by the tenant, or carried by the workspace of a turn. */
 export interface DefinitionReading {
-  /** The definition in force under a name for the asker. */
   named(asker: DefinitionAsker, name: string): Promise<DefinitionLookup>
-  /** The definition of one exact candidate, in force or not. */
   adopted(asker: DefinitionAsker, candidate: Adoption): Promise<DefinitionLookup>
+  modesFor(name: string): Pick<DefinitionMappingEntry, 'name' | 'modes'> | undefined
 }
 
 export type AgentSide = Readonly<{
@@ -44,7 +42,6 @@ export type DefinitionMappingEntry = Readonly<{
   residentCapabilities?: SessionAdoptionPlanInput['capabilities']
 }>
 
-/** The definitions the deployment brings: the table built at start. What a tenant holds is read with DefinitionReading. */
 export interface DefinitionMappings {
   readonly identity: string
   entries(): readonly DefinitionMappingEntry[]
@@ -72,6 +69,7 @@ export abstract class DefinitionMappingsService
   abstract byCandidate(candidate: Adoption): DefinitionMappingEntry | undefined
   abstract named(asker: DefinitionAsker, name: string): Promise<DefinitionLookup>
   abstract adopted(asker: DefinitionAsker, candidate: Adoption): Promise<DefinitionLookup>
+  abstract modesFor(name: string): Pick<DefinitionMappingEntry, 'name' | 'modes'> | undefined
 }
 export const definitionMappingsKey = DefinitionMappingsService.provide
 
@@ -100,7 +98,7 @@ export function contentDigest(value: unknown): string {
 
 const OWNER = '@omne-harness/server-entry'
 
-export function modesAdoptionOf(entry: DefinitionMappingEntry): Adoption {
+export function modesAdoptionOf(entry: Pick<DefinitionMappingEntry, 'name' | 'modes'>): Adoption {
   return Object.freeze({
     owner: OWNER,
     name: `${entry.name}/modes`,
@@ -118,21 +116,35 @@ export type MappedDefinition = Readonly<{
   initialModelSelection?: SavedModelSelection
 }>
 
+function mappedOf(entry: DefinitionMappingEntry): MappedDefinition {
+  return {
+    candidate: entry.candidate,
+    execution: entry.execution,
+    entryContract: entry.entryContract,
+    requiredIdentities: entry.requiredIdentities,
+    tenantDefaults: modesAdoptionOf(entry),
+    ...(entry.initialModelSelection === undefined
+      ? {}
+      : { initialModelSelection: entry.initialModelSelection }),
+  }
+}
+
 export function definitionResolverOf(
   mappings: DefinitionMappings,
 ): (name: string) => MappedDefinition | undefined {
   return name => {
     const entry = mappings.byName(name)
-    if (entry === undefined) return undefined
-    return {
-      candidate: entry.candidate,
-      execution: entry.execution,
-      entryContract: entry.entryContract,
-      requiredIdentities: entry.requiredIdentities,
-      tenantDefaults: modesAdoptionOf(entry),
-      ...(entry.initialModelSelection === undefined
-        ? {}
-        : { initialModelSelection: entry.initialModelSelection }),
-    }
+    return entry === undefined ? undefined : mappedOf(entry)
   }
+}
+
+/** A definition by name as one asker sees it; `unavailable` while that cannot be read. */
+export async function mappedDefinitionFor(
+  reading: Pick<DefinitionReading, 'named'>,
+  asker: DefinitionAsker,
+  name: string,
+): Promise<MappedDefinition | undefined | 'unavailable'> {
+  const read = await reading.named(asker, name)
+  if (read.kind === 'unavailable') return 'unavailable'
+  return read.kind === 'found' ? mappedOf(read.entry) : undefined
 }

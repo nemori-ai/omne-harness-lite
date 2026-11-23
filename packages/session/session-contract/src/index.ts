@@ -138,6 +138,8 @@ export type {
   AgentDrivePort,
   CustodyEvidenceCommand,
   ProductionEvidenceCommand,
+  RunAdoption,
+  RunAdoptionInput,
   SessionAdoptionPlanAnswer,
   SessionAdoptionPlanInput,
   SessionAdoptionRecorded,

@@ -5,6 +5,7 @@ import { encodeResidentKey } from '@omne-harness/tool-contract'
 import { toolGenerationsKey, type ToolGenerations } from '@omne-harness/tool-cordis-contract/cordis'
 import { AdoptionSourcesImpl } from '../../../src/rows/adoption-sources/sources.ts'
 import { agentAdoptionsConfig } from '../../../src/rows/agent-adoptions/config.ts'
+import { tableMappings } from '../../../src/rows/agent-adoptions/held-definitions.ts'
 import { buildTable } from '../../../src/rows/agent-adoptions/table.ts'
 import { toolBindingsRow } from '../../../src/rows/tool-bindings/index.ts'
 import { createToolHostPlugin } from '../../../src/rows/tool-host/index.ts'
@@ -76,7 +77,7 @@ async function sourceOn(config: unknown, options: Options = {}) {
   await fixture.root.plugin({
     name: 'adoption-source-probe',
     apply(ctx: Context) {
-      source = new AdoptionSourcesImpl(ctx, table.mappings)
+      source = new AdoptionSourcesImpl(ctx, tableMappings(table))
     },
   })
   return { fixture, source: got(source, 'adoption source'), table }

@@ -18,7 +18,12 @@ import {
   type DefinitionReading,
 } from './definition-mappings.ts'
 import { DEFINITION_CATEGORY, type DefinitionReadingInput } from './held-definitions.ts'
-import { tenantLayers, turnLayers, type WorkspaceLayerPorts } from '../tenant-assets/layers.ts'
+import {
+  tenantLayers,
+  turnLayers,
+  type AssetLayers,
+  type WorkspaceLayerPorts,
+} from '../tenant-assets/layers.ts'
 import type { Adoption } from '@omne-harness/session-contract'
 import { AgentDefinitionCatalogService } from './definition-catalog.ts'
 import { officialAssetRef } from '../../assets/official-holdings.ts'
@@ -26,6 +31,15 @@ import { tenantAssetsKey } from '../tenant-assets/service.ts'
 import type { MappingTable } from './table.ts'
 
 export { DEFINITION_CATEGORY }
+
+/** The layers of a tenant that has no assets yet: it holds nothing, which is read, not unknown. */
+const NOTHING_HELD: AssetLayers = Object.freeze({
+  sources: Object.freeze([]),
+  body: async () => undefined,
+  readerOf: () => {
+    throw new Error('a tenant without assets has no package to read')
+  },
+})
 
 /** The layers a tenant reads a definition from, and with a turn the workspace as that turn adopted it. */
 export function definitionLayersOf(ctx: Context): DefinitionReadingInput['layers'] {
@@ -38,7 +52,8 @@ export function definitionLayersOf(ctx: Context): DefinitionReadingInput['layers
     const service = ctx.get(tenantAssetsKey)
     if (!encoded.ok || service === undefined) return undefined
     const assets = await service.open(encoded.value)
-    if (assets === undefined) return undefined
+    if (assets === undefined)
+      return (await service.standing(encoded.value)) === 'unregistered' ? NOTHING_HELD : undefined
     const held = tenantLayers(assets, service.layerSources(encoded.value), () =>
       workspace.contractOf(DEFINITION_CATEGORY),
     )
@@ -78,12 +93,14 @@ export class DefinitionMappingsImpl extends DefinitionMappingsService {
   readonly table: DefinitionMappings
   readonly named: DefinitionReading['named']
   readonly adopted: DefinitionReading['adopted']
+  readonly modesFor: DefinitionReading['modesFor']
   constructor(ctx: Context, table: DefinitionMappings, reading: DefinitionReading) {
     super(ctx)
     this.table = table
     this.identity = table.identity
     this.named = reading.named
     this.adopted = reading.adopted
+    this.modesFor = reading.modesFor
   }
   entries(): readonly DefinitionMappingEntry[] {
     return this.table.entries()
