@@ -112,8 +112,11 @@ export {
   type ManagedAsset,
   type ManagedList,
   type ManagedRequest,
+  type OperationRecall,
+  type RecalledOperation,
   type RecallOutcome,
   type StoreChange,
+  type StoreOperation,
   type StorePublication,
   type StoreUploads,
   type TenantLayerStore,
@@ -130,3 +133,10 @@ export {
   type AssetHoldingDecision,
   type AssetVersionSelection,
 } from './holding.ts'
+export {
+  type ChangeImpact,
+  type ClientLine,
+  type ImpactLine,
+  type PlacedLine,
+  type Placement,
+} from './effect.ts'

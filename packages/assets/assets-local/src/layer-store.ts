@@ -6,6 +6,7 @@ import {
   type CategoryView,
   type JsonValue,
   type StoreChange,
+  type StoreOperation,
   type StorePublication,
   type TenantLayerStore,
 } from '@omne-harness/assets'
@@ -14,7 +15,13 @@ import { manifestOf } from './packages.ts'
 import type { PublicationRecall } from './results.ts'
 import { publishRejected } from './tenant-publisher.ts'
 import type { Failure } from './schema.ts'
-import type { AssetsListResult, AssetsLocal, AssetsOperationResult } from './types.ts'
+import type { Mutation } from './schema.ts'
+import type {
+  AssetsListResult,
+  AssetsLocal,
+  AssetsOperationRecord,
+  AssetsOperationResult,
+} from './types.ts'
 
 type Listed = Extract<AssetsListResult, { kind: 'page' }>['items'][number]
 
@@ -84,6 +91,53 @@ function changeOf(result: AssetsOperationResult): StoreChange | Readonly<{ kind:
   }
 }
 
+const NOT_FOUND = Object.freeze({ kind: 'not-found' } as const)
+type Recorded = Extract<AssetsOperationRecord, Readonly<{ kind: 'recorded' }>>
+
+/** The capability a holding names now; null when the holding cannot be read. */
+async function capabilityOfHolding(local: AssetsLocal, holdingRef: string, scopeRef: string) {
+  const read = await local.readHolding({ holdingRef, scopeRef })
+  if (read.kind !== 'holding') return null
+  const capability = capabilityId(read.holding.category, read.holding.name)
+  return capability.ok ? capability.id : null
+}
+
+function publishedOf(
+  command: Extract<Mutation, Readonly<{ kind: 'publishAndHold' }>>,
+  result: Recorded['result'],
+): StoreOperation {
+  const capability = capabilityId(command.category, command.name)
+  if (!capability.ok) return UNAVAILABLE
+  const { version } = command
+  const outcome =
+    result.kind === 'committed'
+      ? {
+          kind: 'published' as const,
+          version,
+          holdingRef: command.holding.holdingRef,
+          changed: result.changed,
+        }
+      : publishRejected(result.reason)
+  return { kind: 'publish', capability: capability.id, version, outcome }
+}
+
+/** Only a publication and hold, an enablement or a removal of this tenant's layer is an operation here. */
+async function operationOf(
+  local: AssetsLocal,
+  tenantRef: string,
+  { command, result }: Recorded,
+): Promise<StoreOperation> {
+  if (command.kind === 'publishAndHold')
+    return command.holding.scopeRef === tenantRef ? publishedOf(command, result) : NOT_FOUND
+  if (command.kind !== 'changeHolding' || command.scopeRef !== tenantRef) return NOT_FOUND
+  const { change, holdingRef } = command
+  if (change.kind !== 'remove' && change.kind !== 'setEnabled') return NOT_FOUND
+  const answer = changeOf(result)
+  if (answer.kind === 'not-found') return UNAVAILABLE
+  const capability = await capabilityOfHolding(local, holdingRef, tenantRef)
+  return { kind: 'change', holding: holdingRef, capability, change, answer }
+}
+
 /** The tenant layer of one tenant's local assets, as the management service reads and changes it. */
 export function createTenantLayerStore(
   local: AssetsLocal,
@@ -150,6 +204,11 @@ export function createTenantLayerStore(
     },
     async recallPublication(operationId) {
       return publicationOf(await local.recallPublication(operationId))
+    },
+    async recallById(operationId) {
+      const read = await local.readOperation(operationId)
+      if (read.kind === 'not_found') return NOT_FOUND
+      return read.kind === 'recorded' ? operationOf(local, tenantRef, read) : UNAVAILABLE
     },
     uploads: local.uploads,
     layers,

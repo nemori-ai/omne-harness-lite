@@ -138,6 +138,47 @@ export type StoreChange =
   | Readonly<{ kind: 'conflict' | 'operation-conflict' | 'unavailable' }>
   | Readonly<{ kind: 'unknown' }>
 
+export type StoreOperation =
+  | Readonly<{
+      kind: 'publish'
+      capability: CapabilityId
+      version: string
+      outcome: TenantPublishOutcome
+    }>
+  | Readonly<{
+      kind: 'change'
+      holding: string
+      capability: CapabilityId | null
+      change: HoldingChange
+      answer: StoreChange
+    }>
+  | Readonly<{ kind: 'not-found' | 'unavailable' }>
+
+export type RecalledOperation =
+  | Readonly<{
+      kind: 'publish'
+      capability: CapabilityId
+      version: string
+      outcome: TenantPublishOutcome
+    }>
+  | Readonly<{
+      kind: 'setEnabled'
+      holding: string
+      capability: CapabilityId | null
+      enabled: boolean
+      outcome: HoldingOutcome
+    }>
+  | Readonly<{
+      kind: 'remove'
+      holding: string
+      capability: CapabilityId | null
+      outcome: HoldingOutcome
+    }>
+
+export type OperationRecall =
+  | RecalledOperation
+  | Readonly<{ kind: 'absent' | 'denied' | 'unavailable' }>
+
 export type TenantLayerStore = Readonly<{
   list(
     request: Readonly<{ category: string; after: string | null; limit: number }>,
@@ -178,6 +219,7 @@ export type TenantLayerStore = Readonly<{
     input: Readonly<{ operationId: string; holdingRef: string; change: HoldingChange }>,
   ): Promise<StoreChange | Readonly<{ kind: 'not-found' }>>
   recallPublication(operationId: string): Promise<StorePublication>
+  recallById(operationId: string): Promise<StoreOperation>
   uploads: StoreUploads
   layers: readonly AssetLayerSource[]
 }>
@@ -208,6 +250,8 @@ export type TenantManagement<P> = Readonly<{
   recall(
     input: Scope<P> & Readonly<{ operationId: string; request: ManagedRequest }>,
   ): Promise<RecallOutcome>
+  /** What the operation under this id was and its outcome, with nothing but the id. */
+  recallById(input: Scope<P> & Readonly<{ operationId: string }>): Promise<OperationRecall>
 }>
 
 type Ports<P> = Readonly<{
@@ -492,6 +536,37 @@ async function recall<P>(
   }
 }
 
+function recalledOf(found: StoreOperation, operationId: string): OperationRecall {
+  switch (found.kind) {
+    case 'not-found':
+      return { kind: 'absent' }
+    case 'unavailable':
+      return UNAVAILABLE
+    case 'publish':
+      return found
+    case 'change': {
+      const { holding, capability, change, answer } = found
+      const outcome = storeOutcome(answer, operationId)
+      return change.kind === 'remove'
+        ? { kind: 'remove', holding, capability, outcome }
+        : { kind: 'setEnabled', holding, capability, enabled: change.enabled, outcome }
+    }
+  }
+}
+
+async function recallById<P>(
+  storeFor: StoreFor<P>,
+  input: Scope<P> & Readonly<{ operationId: string }>,
+): Promise<OperationRecall> {
+  const store = await storeFor(input)
+  if ('kind' in store) return store
+  try {
+    return recalledOf(await store.recallById(input.operationId), input.operationId)
+  } catch {
+    return UNAVAILABLE
+  }
+}
+
 export function createTenantManagement<P>(ports: Ports<P>): TenantManagement<P> {
   const storeFor = storeForOf(ports)
   const publish = publisherOf(ports)
@@ -510,5 +585,6 @@ export function createTenantManagement<P>(ports: Ports<P>): TenantManagement<P> 
     appendUpload: input => appendUpload(storeFor, input),
     createFromUpload: input => createFromUpload(storeFor, publish, input),
     recall: input => recall(storeFor, input),
+    recallById: input => recallById(storeFor, input),
   })
 }
