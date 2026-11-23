@@ -129,6 +129,30 @@ function imageRequest(request: FixedModelRequest, count = 1) {
     ],
   })
 }
+
+it.each(KIMI_RECORDS)('covers the upstream input of the recorded cold request for $name', record =>
+  withBinding(record, async (binding, request) => {
+    const stream = readFileSync(
+      join(root, encodeURIComponent(record.name), record.revision, 'stream.sse'),
+      'utf8',
+    )
+    const frames = stream
+      .split('\n')
+      .filter(line => line.startsWith('data: {'))
+      .map(line => JSON.parse(line.slice(6)) as { usage?: { prompt_tokens?: number } })
+    const upstream = frames.findLast(frame => frame.usage?.prompt_tokens !== undefined)?.usage
+      ?.prompt_tokens
+    if (upstream === undefined) throw Error('recorded response has no prompt token count')
+    const result = await measured(binding, request)
+    if (!('ok' in result)) throw Error(JSON.stringify(result.failure))
+    const input = result.ok.checks.find(check => check.metric === 'input-tokens')
+    if (input?.measurement.kind !== 'estimate') throw Error('no input token estimate')
+    const { amount, margin } = input.measurement
+    // The pinned vocabulary counts 161 tokens for the projection of each weather request.
+    expect(BigInt(amount)).toBe(161n + BigInt(record.meter.coldRequestTokens ?? '0'))
+    expect(BigInt(amount) + BigInt(margin)).toBeGreaterThanOrEqual(BigInt(upstream))
+  }),
+)
 it.each(KIMI_RECORDS)(
   'measures every PNG tile and refuses missing or invalid dimensions for $name',
   record =>
