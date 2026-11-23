@@ -37,6 +37,17 @@ export function askerLayersOf(
     const held = tenantLayers(assets, service.layerSources(encoded.value), () =>
       workspace.contractOf(category),
     )
-    return turn === undefined ? held : turnLayers(held, workspace, turn.access, turn.key)
+    if (turn === undefined || (await relationEnded(ctx, turn))) return held
+    return turnLayers(held, workspace, turn.access, turn.key)
+  }
+}
+
+/** A turn whose tenant is no longer let into the workspace reads nothing from it: that is read, not unknown. */
+async function relationEnded(ctx: Context, turn: Turn): Promise<boolean> {
+  try {
+    const adopted = await ctx.get(workspaceSourcesKey)?.adopted(turn.access, { key: turn.key })
+    return adopted?.kind === 'not-permitted'
+  } catch {
+    return false
   }
 }

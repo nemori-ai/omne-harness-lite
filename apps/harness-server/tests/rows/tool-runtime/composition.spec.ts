@@ -71,7 +71,7 @@ import {
   toolReleaseRegistrant,
 } from '../../../src/entry/tool-release.ts'
 import { releaseOf } from '../../../src/entry/tool-release.ts'
-import { provideTenantAssets, tenantAssetsKey } from '../../../src/rows/tenant-assets/service.ts'
+import { tenantAssetsStandIn } from '../../support/tenant-assets-stand-in.ts'
 import { createReleaseToolRequests } from '../../../src/entry/tool-requests.ts'
 import { toolClock, toolPublicationAuthority } from '../../../src/entry/tool-runtime-objects.ts'
 import { defineRow } from '../../../src/row.ts'
@@ -154,24 +154,6 @@ const residencyStandIn = defineRow({
         readonly referencing = async () => succeed({ items: [], next: null })
       }
       new Residency(ctx)
-    },
-  },
-})
-
-/** The neighbour that holds a tenant's assets, for an assembly of the tool rows alone: no tenant holds any. */
-const tenantAssetsStandIn = defineRow({
-  row: 'tenant-assets',
-  implementation: 'contract-double',
-  manifest: { provides: [tenantAssetsKey], injects: [], sameProviderGroup: null },
-  lifecycle: { kind: 'none' },
-  plugin: {
-    name: 'tenant-assets-stand-in',
-    apply(ctx: Context) {
-      provideTenantAssets(ctx, {
-        open: async () => undefined,
-        standing: async () => 'unregistered',
-        layerSources: () => [],
-      })
     },
   },
 })
