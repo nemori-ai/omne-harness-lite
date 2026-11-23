@@ -201,7 +201,7 @@
 > **中**：**一个外部工具来源的接入点。**接进来之后，它提供的动作可被 agent 使用。
 > **接入点本身是资产，它带来的那些动作不单独成为资产**——随它一起被持有、授权与治理。
 > **对端的可用性与版本不由本系统掌握**：它提供的动作可能今天有明天没有，**而这不是故障**。
-> **对端的每一个动作在工具入口里是一个[工具条目](reach-and-availability.md#ul-tool-entry--工具条目--tool-entry)**，经 MCP 登记的[工具条目来源](reach-and-availability.md#ul-tool-entry-source--工具条目来源--tool-entry-source)交出。
+> **一个接入点在工具入口里是一个[工具条目](reach-and-availability.md#ul-tool-entry--工具条目--tool-entry)：一个多命令工具，对端的每一个动作是它的一个命令**，经 MCP 登记的[工具条目来源](reach-and-availability.md#ul-tool-entry-source--工具条目来源--tool-entry-source)交出。
 > 动作一般不常驻，经取用入口发现；**例外是标了[常驻](reach-and-availability.md#ul-residency--常驻--residency)的接入点，它的动作在采用点成为常驻工具**。
 > 动作集**按当下事实现算，清单变了下一次发现就不同；每一次[执行尝试](agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)开始前同样与可用性一起重算；合法显式刷新可更新后续采用值，已知身份保留、单次调用输入固定**。
 > 对端服务在本系统之外运行，本系统只按地址与它通信。
@@ -211,8 +211,9 @@
 > actions it brings are not assets of their own** — they are held, authorized and
 > governed along with it. **Availability and versioning on the far side lie outside
 > this system's control**, so an action present today may be gone tomorrow — **and
-> that is not a fault**. **Each action on the far side is one tool entry in the tool
-> entry point**, handed over by the tool entry source that MCP registers. Actions are
+> that is not a fault**. **One access point is one tool entry in the tool entry point: a
+> multi-command tool, and each action on the far side is one of its commands.** The tool
+> entry source that MCP registers hands it over. Actions are
 > normally not resident and are found through the discovery entry; **the exception is an
 > access point marked resident, whose actions become resident tools at the adoption point**.
 > The action set is **computed from the facts at the moment, so a changed catalog shows at
@@ -221,7 +222,7 @@
 > The far-side service runs outside this system, which talks to it only by its address.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-001 §4 资产的种类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 26） · [PF-002 §4 MCP](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#mcp)（rev 32） · [PF-006 §6.13](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作)（rev 24） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 4）
+- **出处**：[PF-001 §4 资产的种类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 26） · [PF-002 §4 MCP](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#mcp)（rev 32） · [PF-006 §6.13](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作)（rev 24） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 5）
 - **别混**：Tool 是**一个动作**，MCP 是**一批动作的来源**——**MCP 本身不可被调用**
 - **注意**：它连对端用的是 [MCP 凭据](#ul-mcp-credential--mcp-凭据--mcp-credential)，挂在持有上，不是[模型凭据](#ul-model-credential--模型凭据--model-credential)
 - **注意 ②**：正文里的「接入点」「MCP 接入点」指的就是本条。命令型（stdio）接入不在 `0.0.0 → 0.1.0` 阶段，见出处
