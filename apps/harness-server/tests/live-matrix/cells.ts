@@ -1,3 +1,4 @@
+import { judge, type Measured, type Turn } from './measure.ts'
 import type { Adoption } from '@omne-harness/model-contract'
 import { officialProfileAdoption, officialProfiles } from '@omne-harness/model-host-local'
 
@@ -110,4 +111,94 @@ export function baselineProblems(
   for (const id of Object.keys(baseline.cells))
     if (!ids.has(id)) problems.push(`${id}: no such cell among the current records`)
   return problems
+}
+
+export function requiredCells(
+  cells: readonly LiveCell[],
+  models: readonly LiveModel[],
+  baseline: Baseline,
+): readonly LiveCell[] {
+  return cells.filter(cell => {
+    const entry = baseline.cells[cell.id]
+    return entry === undefined || !validEntry(cell, models, entry)
+  })
+}
+
+function validEntry(cell: LiveCell, models: readonly LiveModel[], entry: BaselineEntry): boolean {
+  const revisions = revisionsOf(cell, models)
+  return (
+    Object.keys(entry.revisions).length === Object.keys(revisions).length &&
+    Object.entries(revisions).every(
+      ([route, revision]) => revision !== '' && entry.revisions[route] === revision,
+    ) &&
+    Number.isFinite(Date.parse(entry.measuredOn)) &&
+    (entry.hitRate === null ||
+      (Number.isFinite(entry.hitRate) && entry.hitRate >= 0 && entry.hitRate <= 1)) &&
+    entry.dropped === 0 &&
+    Number.isFinite(entry.costUsd) &&
+    entry.costUsd >= 0
+  )
+}
+
+export type MatrixRow = Readonly<{
+  cell: string
+  state: 'green' | 'red' | 'error' | 'not-run'
+  reasons: readonly string[]
+  measured: Measured | null
+  turns?: readonly Turn[]
+}>
+
+export function recordBaseline(
+  cells: readonly LiveCell[],
+  models: readonly LiveModel[],
+  baseline: Baseline,
+  required: readonly LiveCell[],
+  rows: readonly MatrixRow[],
+  measuredOn: string,
+): Baseline {
+  const ids = new Set(required.map(cell => cell.id))
+  if (
+    ids.size === 0 ||
+    ids.size !== required.length ||
+    rows.length !== ids.size ||
+    new Set(rows.map(row => row.cell)).size !== ids.size ||
+    rows.some(row => !ids.has(row.cell))
+  )
+    throw new Error('matrix results must match the nonempty required cell set exactly')
+  const recorded: Record<string, BaselineEntry> = {}
+  for (const cell of cells) {
+    const entry = baseline.cells[cell.id]
+    if (entry !== undefined && validEntry(cell, models, entry)) recorded[cell.id] = entry
+  }
+  for (const row of rows) {
+    const cell = cells.find(item => item.id === row.cell)
+    const measured = row.measured
+    if (
+      cell === undefined ||
+      row.state !== 'green' ||
+      row.reasons.length !== 0 ||
+      measured === null ||
+      measured.costUsd === null ||
+      !Number.isFinite(measured.costUsd) ||
+      measured.costUsd < 0 ||
+      measured.unanswered !== 0 ||
+      measured.misrouted !== 0 ||
+      measured.dropped !== 0 ||
+      judge(measured, baseline.cells[row.cell]).length !== 0
+    )
+      throw new Error(`cannot record incomplete or non-green cell ${row.cell}`)
+    recorded[row.cell] = {
+      measuredOn,
+      revisions: revisionsOf(cell, models),
+      hitRate: measured.hitRate === null ? null : Number(measured.hitRate.toFixed(3)),
+      dropped: measured.dropped,
+      costUsd: Number(measured.costUsd.toFixed(6)),
+    }
+  }
+  const next = {
+    cells: Object.fromEntries(Object.entries(recorded).sort(([a], [b]) => (a < b ? -1 : 1))),
+  }
+  if (requiredCells(cells, models, next).length > 0)
+    throw new Error('matrix baseline would be incomplete')
+  return next
 }

@@ -273,6 +273,7 @@ describe('reading the turns from the answers', () => {
     expect(turnsOf(['a/one', 'b/one', 'a/one'], runs, history)).toEqual([
       {
         route: 'a/one',
+        dispatchCosts: [null, 0.001],
         replied: true,
         attempt: {
           route: 'a/one',
@@ -285,6 +286,7 @@ describe('reading the turns from the answers', () => {
       },
       {
         route: 'b/one',
+        dispatchCosts: [0.002],
         replied: false,
         attempt: {
           route: 'b/one',
@@ -295,7 +297,7 @@ describe('reading the turns from the answers', () => {
           costUsd: 0.002,
         },
       },
-      { route: 'a/one', replied: false, attempt: null },
+      { route: 'a/one', dispatchCosts: [], replied: false, attempt: null },
     ])
   })
 })

@@ -11,6 +11,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  renameSync,
   realpathSync,
   writeFileSync,
 } from 'node:fs'
@@ -20,15 +21,16 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createProtocolDriver, type ProtocolDriver } from '../support/matrix/protocol-driver.ts'
 import {
-  baselineProblems,
+  requiredCells,
+  recordBaseline,
   currentModels,
   liveCells,
-  revisionsOf,
   type Baseline,
-  type BaselineEntry,
+  type MatrixRow,
   type LiveCell,
 } from './cells.ts'
-import { fitsBudget, judge, measure, turnsOf, type Measured, type Turn } from './measure.ts'
+import { measure, turnsOf, type Measured, type Turn } from './measure.ts'
+import { executeCells } from './execute.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const member = join(here, '..', '..')
@@ -70,7 +72,8 @@ function optionsOf(args: readonly string[]): Options {
     else if (flag === '--out') out = value()
     else throw new Error(`unknown argument ${String(flag)}`)
   }
-  if (!(budgetUsd > 0)) throw new Error('--budget-usd <dollars> is required and must be positive')
+  if (!Number.isFinite(budgetUsd) || !(budgetUsd > 0))
+    throw new Error('--budget-usd <dollars> is required and must be positive')
   return { budgetUsd, only, changed, record, out }
 }
 
@@ -88,11 +91,7 @@ function chosen(cells: readonly LiveCell[], options: Options, baseline: Baseline
   )
   if (engines.status !== 0) throw new Error(`git diff failed: ${engines.stderr}`)
   if (engines.stdout.trim() !== '') return cells
-  // A record that changed has a new revision, so its expectations no longer match.
-  const stale = new Set(
-    baselineProblems(cells, currentModels(), baseline).map(line => line.split(':')[0]),
-  )
-  return cells.filter(cell => stale.has(cell.id))
+  return requiredCells(cells, currentModels(), baseline)
 }
 
 async function freePort(): Promise<number> {
@@ -200,6 +199,12 @@ async function runCell(
       () => driver.readHistory(session),
       read => read.entries.filter(entry => entry.kind === 'run.terminal').length > index,
     )
+    const observed = await driver.diagnostics(session)
+    if (observed.outcome !== 'succeeded')
+      throw new Error(`diagnostics answered ${observed.outcome}`)
+    const history = await driver.readHistory(session)
+    const soFar = measure(turnsOf(cell.turns.slice(0, index + 1), observed.runs, history.entries))
+    if (soFar.costUsd === null || soFar.unanswered > 0) break
   }
   const diagnostics = await driver.diagnostics(session)
   if (diagnostics.outcome !== 'succeeded')
@@ -209,21 +214,18 @@ async function runCell(
   return { measured: measure(turns), turns }
 }
 
-type Row = Readonly<{
-  cell: string
-  state: 'green' | 'red' | 'error' | 'not-run'
-  reasons: readonly string[]
-  measured: Measured | null
-  turns?: readonly Turn[]
-}>
-
 async function main(): Promise<number> {
   const options = optionsOf(process.argv.slice(2))
   const key = process.env['OPENROUTER_API_KEY'] ?? ''
   if (key === '') throw new Error('OPENROUTER_API_KEY is required')
   const baseline = JSON.parse(readFileSync(baselinePath, 'utf8')) as Baseline
   const models = currentModels()
-  const cells = chosen(liveCells(models), options, baseline)
+  const allCells = liveCells(models)
+  const required = chosen(allCells, { ...options, only: [] }, baseline)
+  const cells = chosen(allCells, options, baseline)
+  if (cells.length === 0) throw new Error('no cells selected; no execution or baseline update')
+  if (options.record && required.some(cell => !cells.some(selected => selected.id === cell.id)))
+    throw new Error('--only omits required cells; cannot record this change')
   mkdirSync(options.out, { recursive: true })
   const spend = join(options.out, 'spend.tsv')
   writeFileSync(spend, 'time\tevent\tkey_usage_usd\n')
@@ -234,7 +236,19 @@ async function main(): Promise<number> {
     `live matrix: ${String(cells.length)} cell(s), budget ${String(options.budgetUsd)} USD, out ${options.out}`,
   )
   const server = await startServer(key, options.out)
-  const rows: Row[] = []
+  let rows: readonly MatrixRow[] = []
+  const saveResults = (current: readonly MatrixRow[] = rows) => {
+    rows = current
+    writeFileSync(join(options.out, 'results.json'), `${JSON.stringify(rows, null, 2)}\n`)
+  }
+  writeFileSync(
+    join(options.out, 'required.json'),
+    `${JSON.stringify(
+      required.map(cell => cell.id),
+      null,
+      2,
+    )}\n`,
+  )
   try {
     const driver = createProtocolDriver(server.origin)
     await until(
@@ -243,36 +257,22 @@ async function main(): Promise<number> {
       outcome => outcome === 'succeeded',
     )
     if ((await driver.login()) !== 'succeeded') throw new Error('login failed')
-    let spent = 0
-    let dearest = 0
-    for (const cell of cells) {
-      if (!fitsBudget(spent, dearest, options.budgetUsd)) {
-        rows.push({ cell: cell.id, state: 'not-run', reasons: ['budget'], measured: null })
-        continue
-      }
-      try {
-        const { measured, turns } = await runCell(driver, cell)
-        spent += measured.costUsd
-        dearest = Math.max(dearest, measured.costUsd)
-        const reasons = judge(measured, baseline.cells[cell.id])
-        rows.push({
-          cell: cell.id,
-          state: reasons.length === 0 ? 'green' : 'red',
-          reasons,
-          measured,
-          turns,
-        })
-      } catch (error) {
-        rows.push({ cell: cell.id, state: 'error', reasons: [String(error)], measured: null })
-      }
-      const row = rows.at(-1)
-      const rate = row?.measured?.hitRate
-      console.log(
-        `${cell.id}: ${String(row?.state)} hit=${rate === null || rate === undefined ? 'n/a' : rate.toFixed(3)} dropped=${String(row?.measured?.dropped ?? 'n/a')} cost=${String(row?.measured?.costUsd.toFixed(6) ?? 'n/a')} ${row?.reasons.join('; ') ?? ''}`,
-      )
-    }
-    console.log(`spent by the diagnostics: ${spent.toFixed(6)} USD`)
+    rows = await executeCells(
+      cells,
+      baseline,
+      options.budgetUsd,
+      cell => runCell(driver, cell),
+      current => {
+        saveResults(current)
+        const row = current.at(-1)
+        const rate = row?.measured?.hitRate
+        console.log(
+          `${String(row?.cell)}: ${String(row?.state)} hit=${rate === null || rate === undefined ? 'n/a' : rate.toFixed(3)} dropped=${String(row?.measured?.dropped ?? 'n/a')} cost=${String(row?.measured?.costUsd?.toFixed(6) ?? 'n/a')} ${row?.reasons.join('; ') ?? ''}`,
+        )
+      },
+    )
   } finally {
+    saveResults()
     await server.stop()
     await usage('after')
   }
@@ -282,22 +282,12 @@ async function main(): Promise<number> {
     if (Date.now() - Date.parse(entry.measuredOn) > STALE_DAYS * 86_400_000)
       console.log(`${id}: measured ${entry.measuredOn}, more than ${String(STALE_DAYS)} days ago`)
   if (options.record) {
-    const recorded: Record<string, BaselineEntry> = { ...baseline.cells }
-    for (const row of rows) {
-      const cell = cells.find(item => item.id === row.cell)
-      if (row.measured === null || cell === undefined || row.state === 'error') continue
-      recorded[row.cell] = {
-        measuredOn: today,
-        revisions: revisionsOf(cell, models),
-        hitRate: row.measured.hitRate === null ? null : Number(row.measured.hitRate.toFixed(3)),
-        dropped: row.measured.dropped,
-        costUsd: Number(row.measured.costUsd.toFixed(6)),
-      }
-    }
-    const sorted = Object.fromEntries(Object.entries(recorded).sort(([a], [b]) => (a < b ? -1 : 1)))
-    writeFileSync(baselinePath, `${JSON.stringify({ cells: sorted }, null, 2)}\n`)
+    const next = recordBaseline(allCells, models, baseline, cells, rows, today)
+    const staged = `${baselinePath}.${String(process.pid)}.tmp`
+    writeFileSync(staged, `${JSON.stringify(next, null, 2)}\n`)
+    renameSync(staged, baselinePath)
   }
-  return rows.some(row => row.state === 'red' || row.state === 'error') ? 1 : 0
+  return rows.length !== cells.length || rows.some(row => row.state !== 'green') ? 1 : 0
 }
 
 main().then(
