@@ -16,11 +16,13 @@ it('exports the registry, identity, and pin operations', () => {
     'createTenantManagement',
     'createTenantPublishing',
     'decideAssetHoldingChange',
+    'declarationRejection',
     'digestBytes',
     'evaluate',
     'heldLayerSource',
     'heldPoint',
     'isReadBody',
+    'judgePackageContent',
     'layerInputsOf',
     'layerOfScope',
     'listAssets',
@@ -34,5 +36,6 @@ it('exports the registry, identity, and pin operations', () => {
     'scopeOfLayer',
     'summarizeVersion',
     'unknownCategory',
+    'withinDirectory',
   ])
 })

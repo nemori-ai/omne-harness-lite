@@ -44,6 +44,12 @@ export {
   type PackageSourceFailure,
 } from './package.ts'
 export { packageBody } from './package-body.ts'
+export {
+  declarationRejection,
+  judgePackageContent,
+  withinDirectory,
+  type JudgedPackage,
+} from './package-content.ts'
 export { isReadBody, readBodyText, readSnapshot } from './read-body.ts'
 export {
   admitCategory,

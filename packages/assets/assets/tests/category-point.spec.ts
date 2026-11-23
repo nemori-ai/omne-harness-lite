@@ -366,3 +366,41 @@ describe('contributions the point refuses', () => {
     expect(point.lookup('cycle')).toBeUndefined()
   })
 })
+
+describe('which category a point is the point of', () => {
+  it('gives the listing of the category that named it', () => {
+    const point = createCategoryPoint()
+    point.contribute(contribution('tool'))
+    point.contribute(contribution('note'))
+    expect(point.atPoint('note.items')).toBe(point.describe('note'))
+  })
+
+  it('answers nothing for a point no category named', () => {
+    const point = createCategoryPoint()
+    point.contribute(contribution('tool'))
+    expect(point.atPoint('shell.tokens')).toBeUndefined()
+  })
+
+  it('says the category is unusable when two categories name the point', () => {
+    const point = createCategoryPoint()
+    point.contribute(contribution('gadget'))
+    point.contribute({ ...contribution('widget'), point: 'gadget.items' })
+    expect(point.atPoint('gadget.items')).toMatchObject({ unusable: 'conflict' })
+  })
+
+  it('says the category is unusable when it is contributed twice', () => {
+    const point = createCategoryPoint()
+    point.contribute(contribution('tool'))
+    point.contribute(contribution('tool'))
+    expect(point.atPoint('tool.items')).toMatchObject({ category: 'tool', unusable: 'conflict' })
+  })
+
+  it('says unread for any point when the contributions cannot be read', () => {
+    const view = categoryViewOf(() => ({ kind: 'unavailable', detail: 'the tree is gone' }))
+    expect(view.atPoint('tool.items')).toEqual({
+      category: '',
+      unusable: 'unread',
+      detail: 'the tree is gone',
+    })
+  })
+})

@@ -879,6 +879,11 @@
       "id": "plugin-access",
       "plugin": "pluginAccessRow",
       "config": {}
+    },
+    {
+      "id": "plugin-host",
+      "plugin": "pluginHostRow",
+      "config": {}
     }
   ]
 }

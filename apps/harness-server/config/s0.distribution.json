@@ -504,6 +504,11 @@
       "id": "plugin-access",
       "plugin": "stubPlugin",
       "config": {}
+    },
+    {
+      "id": "plugin-host",
+      "plugin": "stubPlugin",
+      "config": {}
     }
   ]
 }

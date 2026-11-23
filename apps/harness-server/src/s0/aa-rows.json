@@ -101,7 +101,8 @@
     "tool-access",
     "model-access",
     "usage-access",
-    "plugin-access"
+    "plugin-access",
+    "plugin-host"
   ],
   "trusted": [
     {

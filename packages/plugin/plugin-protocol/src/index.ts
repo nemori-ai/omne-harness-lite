@@ -19,8 +19,10 @@ export {
   FILE_SUFFIXES,
   judgePackage,
   memberDigest,
+  membersOf,
   type PackageFile,
   type PackageJudgment,
+  type PlacedMember,
 } from './package.ts'
 export { pluginProtocol, type PluginProtocol } from './plugin-protocol.ts'
 export {

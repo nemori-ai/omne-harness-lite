@@ -30,6 +30,7 @@ export type CategoryUnusable = Readonly<{
 export type CategoryView = Readonly<{
   lookup(category: string): BodyContract | undefined
   describe(category: string): CategoryListing | CategoryUnusable | undefined
+  atPoint(point: string): CategoryListing | CategoryUnusable | undefined
   list(): readonly CategoryListing[]
 }>
 
@@ -42,6 +43,7 @@ export type CategoryReading =
 
 type Registered = Readonly<{ contract: BodyContract; listing: CategoryListing }>
 type Standings = ReadonlyMap<string, Registered | CategoryUnusable>
+type Read = Readonly<{ standings: Standings; points: ReadonlyMap<string, string> }>
 
 const byCategory = (left: CategoryListing, right: CategoryListing): number =>
   left.category < right.category ? -1 : 1
@@ -83,6 +85,14 @@ function sharedWith(
     : `the point ${mine.point} is also the point of ${samePoint.contract.category}`
 }
 
+const standingOf = (held: Registered | CategoryUnusable): CategoryListing | CategoryUnusable =>
+  'contract' in held ? held.listing : held
+
+function readOf(contributions: readonly CategoryContribution[]): Read {
+  const points = new Map(contributions.map(({ contract, point }) => [point, contract.category]))
+  return { standings: standingsOf(contributions), points }
+}
+
 function standingsOf(contributions: readonly CategoryContribution[]): Standings {
   const counted = new Map<string, number>()
   for (const { contract } of contributions)
@@ -101,9 +111,13 @@ function standingsOf(contributions: readonly CategoryContribution[]): Standings 
 }
 
 export function categoryViewOf(read: () => CategoryReading): CategoryView {
-  const standings = (): Standings | string => {
+  const readNow = (): Read | string => {
     const reading = read()
-    return reading.kind === 'read' ? standingsOf(reading.contributions) : reading.detail
+    return reading.kind === 'read' ? readOf(reading.contributions) : reading.detail
+  }
+  const standings = (): Standings | string => {
+    const now = readNow()
+    return typeof now === 'string' ? now : now.standings
   }
   return Object.freeze({
     lookup(category: string): BodyContract | undefined {
@@ -115,7 +129,13 @@ export function categoryViewOf(read: () => CategoryReading): CategoryView {
       const now = standings()
       if (typeof now === 'string') return { category, unusable: 'unread', detail: now }
       const held = now.get(category)
-      return held !== undefined && 'contract' in held ? held.listing : held
+      return held === undefined ? undefined : standingOf(held)
+    },
+    atPoint(point: string): CategoryListing | CategoryUnusable | undefined {
+      const now = readNow()
+      if (typeof now === 'string') return { category: '', unusable: 'unread', detail: now }
+      const held = now.standings.get(now.points.get(point) ?? '')
+      return held === undefined ? undefined : standingOf(held)
     },
     list(): readonly CategoryListing[] {
       const now = standings()

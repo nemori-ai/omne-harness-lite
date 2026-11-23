@@ -19,6 +19,7 @@
 - `Offered` · `wanted.d.ts`
 - `PackageFile` · `package.d.ts`
 - `PackageJudgment` · `package.d.ts`
+- `PlacedMember` · `package.d.ts`
 - `PluginManifest` · `manifest.d.ts`
 - `PluginProtocol` · `plugin-protocol.d.ts`
 - `Side` · `manifest.d.ts`
@@ -33,6 +34,7 @@
 - `judgePackage` · `package.d.ts`
 - `memberDigest` · `package.d.ts`
 - `memberKind` · `manifest.d.ts`
+- `membersOf` · `package.d.ts`
 - `pluginProtocol` · `plugin-protocol.d.ts`
 - `readManifest` · `manifest.d.ts`
 - `stepSide` · `side-state.d.ts`
@@ -42,7 +44,7 @@
 
 ```ts
 export { MANIFEST_FILE, MANIFEST_SCHEMA, insidePackage, memberKind, readManifest, type DataMember, type DirectoryMember, type JsonValue, type ManifestRead, type Member, type MemberPlace, type ModuleMember, type PluginManifest, type Side, type SideName, } from './manifest.ts';
-export { FILE_SUFFIXES, judgePackage, memberDigest, type PackageFile, type PackageJudgment, } from './package.ts';
+export { FILE_SUFFIXES, judgePackage, memberDigest, membersOf, type PackageFile, type PackageJudgment, type PlacedMember, } from './package.ts';
 export { pluginProtocol, type PluginProtocol } from './plugin-protocol.ts';
 export { UNWANTED, stepSide, type SideEffect, type SideEvent, type SideState, type SideStep, } from './side-state.ts';
 export { wantedOf, type Offered, type Wanted } from './wanted.ts';
@@ -106,7 +108,7 @@ export {};
 ## 声明文件 `package.d.ts`
 
 ```ts
-import { type Member, type PluginManifest } from './manifest.ts';
+import { type Member, type PluginManifest, type SideName } from './manifest.ts';
 export declare const FILE_SUFFIXES: readonly [
     '.js',
     '.css',
@@ -122,6 +124,12 @@ export type PackageJudgment = Readonly<{
     ok: false;
     reason: string;
 }>;
+export type PlacedMember = Readonly<{
+    at: string;
+    side: SideName;
+    member: Member;
+}>;
+export declare const membersOf: (manifest: PluginManifest) => readonly PlacedMember[];
 export declare function judgePackage(manifest: PluginManifest, files: readonly PackageFile[]): PackageJudgment;
 export declare function memberDigest(member: Member, files: readonly PackageFile[]): string;
 ```
