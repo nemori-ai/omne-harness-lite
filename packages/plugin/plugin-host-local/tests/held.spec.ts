@@ -12,6 +12,7 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import {
   createKeptContents,
   heldPlugins,
+  listedPlugins,
   readHeldPart,
   type HeldPluginPorts,
 } from '@omne-harness/plugin-host-local'
@@ -81,14 +82,17 @@ function world(held: readonly Held[], over: Partial<AssetLayerSource> = {}) {
         layer: 'tenant',
         state: 'read',
         page: {
-          items: page.map(name => ({
-            capability: { category, name } as never,
-            layer: 'tenant',
-            asset: `holding/${name}`,
-            version: versionOf('a'),
-            selection: 'latest' as never,
-            enabled: true,
-          })),
+          items: page.map(name => {
+            const one = held.find(each => each.name === name)!.candidate
+            return {
+              capability: { category, name } as never,
+              layer: 'tenant',
+              asset: one.asset,
+              version: one.version,
+              selection: 'latest' as never,
+              enabled: !one.disabled,
+            }
+          }),
           next: last ? null : (page.at(-1) ?? null),
           completeness: 'complete',
         },
@@ -219,6 +223,41 @@ describe('the plugins a tenant holds', () => {
   it('leaves out a version whose name is not a digest: it cannot be written in a path', async () => {
     const odd: Held = { ...tidy, candidate: { ...tidy.candidate, version: 'sha256:../x' } }
     expect(await heldPlugins(world([odd]).ports, 'alice')).toEqual({ kind: 'read', plugins: [] })
+  })
+})
+
+describe('every plugin a tenant holds, enabled or not', () => {
+  it('gives each with its manifest and whether it is enabled', async () => {
+    const off: Held = {
+      name: 'quiet',
+      candidate: candidate('quiet', 'c', true),
+      body: bodyOf(manifestText('quiet')),
+    }
+    const answer = await listedPlugins(world([tidy, off]).ports, 'alice')
+    if (answer.kind !== 'read') throw new Error(answer.kind)
+    expect(answer.plugins.map(each => [each.name, each.enabled, each.manifest.name])).toEqual([
+      ['quiet', false, 'quiet'],
+      ['tidy', true, 'tidy'],
+    ])
+    expect(answer.plugins[1]?.held).toEqual({ asset: 'holding/tidy', version: versionOf('a') })
+  })
+
+  it('is unavailable when the layers, the listing or a body cannot be read', async () => {
+    expect(await listedPlugins(world([tidy]).ports, 'bob')).toEqual({ kind: 'unavailable' })
+    const unread = world([tidy], { list: async () => ({ layer: 'tenant', state: 'unavailable' }) })
+    expect(await listedPlugins(unread.ports, 'alice')).toEqual({ kind: 'unavailable' })
+    const { body: _, ...bodiless } = tidy
+    expect(await listedPlugins(world([bodiless]).ports, 'alice')).toEqual({ kind: 'unavailable' })
+  })
+
+  it('leaves out one whose body is not a manifest', async () => {
+    const odd: Held = {
+      name: 'odd',
+      candidate: candidate('odd'),
+      body: { kind: 'object', entries: [] },
+    }
+    const answer = await listedPlugins(world([odd, tidy]).ports, 'alice')
+    expect(answer.kind === 'read' && answer.plugins.map(each => each.name)).toEqual(['tidy'])
   })
 })
 

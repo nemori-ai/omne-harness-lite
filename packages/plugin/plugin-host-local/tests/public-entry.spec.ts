@@ -7,8 +7,11 @@ it('the root entry exports the category, its contract and its point', async () =
     'PLUGIN_PACKAGE_LIMITS',
     'createKeptContents',
     'heldPlugins',
+    'listedPlugins',
     'pluginBodyContract',
     'pluginCategoryDisplay',
+    'pluginImpact',
+    'pluginPlacement',
     'pluginPluginsPoint',
     'readHeldPart',
   ])

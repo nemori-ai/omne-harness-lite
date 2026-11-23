@@ -603,6 +603,14 @@
       "source": "packages/assets/SPEC.md"
     },
     {
+      "id": "packages/assets/assets-tools",
+      "paths": ["packages/assets/assets-tools/src/**"],
+      "layer": "unknown",
+      "domains": ["assets"],
+      "status": "candidate",
+      "source": "packages/assets/SPEC.md"
+    },
+    {
       "id": "packages/frontend/ui-kit",
       "paths": ["packages/frontend/ui-kit/src/**"],
       "layer": "unknown",

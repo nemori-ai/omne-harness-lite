@@ -64,6 +64,9 @@ function sightsOf(ctx: Context): ExtensionSights {
   return made
 }
 
+export const extensionRevisionOf = (ctx: Context): string =>
+  sightsOf(ctx).of('').revisions.current()
+
 /** OmneExtensionPoints sees the trees as the tenant the call acts for; the model gives no tenant. */
 export function bindReleaseExtensionPoints(
   ctx: Context,

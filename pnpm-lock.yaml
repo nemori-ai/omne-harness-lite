@@ -678,6 +678,9 @@ importers:
       '@omne-harness/assets-local':
         specifier: workspace:*
         version: link:../../packages/assets/assets-local
+      '@omne-harness/assets-tools':
+        specifier: workspace:*
+        version: link:../../packages/assets/assets-tools
       '@omne-harness/authorization':
         specifier: workspace:*
         version: link:../../packages/identity/authorization

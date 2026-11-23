@@ -8,10 +8,24 @@ export {
 export { createKeptContents, type KeptContents } from './contents.ts'
 export {
   heldPlugins,
+  listedPlugins,
   readHeldPart,
   type HeldFile,
   type HeldPart,
   type HeldPlugin,
   type HeldPluginPorts,
   type HeldPlugins,
+  type ListedPlugin,
+  type ListedPlugins,
 } from './held.ts'
+export {
+  pluginImpact,
+  pluginPlacement,
+  type ClientTold,
+  type KnownPoint,
+  type PluginHeld,
+  type PluginImpact,
+  type PluginImpactInput,
+  type PluginPlacement,
+  type PluginPlacementInput,
+} from './effect.ts'

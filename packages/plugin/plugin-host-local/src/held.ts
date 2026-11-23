@@ -4,6 +4,7 @@ import {
   collectCandidates,
   evaluate,
   listAssets,
+  type AssetEntry,
   type AssetLayerSource,
   type Candidate,
   type CapabilityId,
@@ -32,16 +33,14 @@ export type HeldPlugins =
   | Readonly<{ kind: 'unavailable' }>
 
 export type HeldPluginPorts = Readonly<{
-  /** The layers of one tenant, or nothing when they cannot be given now. */
   sources(tenant: string): readonly AssetLayerSource[] | undefined
-  /** The body of one published version, or nothing when it cannot be read now. */
   body(
     tenant: string,
     held: Readonly<{ asset: string; version: string }>,
   ): Promise<JsonValue | undefined>
 }>
 
-const UNAVAILABLE: HeldPlugins = Object.freeze({ kind: 'unavailable' })
+const UNAVAILABLE = Object.freeze({ kind: 'unavailable' as const })
 const DIGEST = /^sha256:([0-9a-f]{64})$/u
 
 const field = (tree: JsonValue, key: string): JsonValue | undefined =>
@@ -71,10 +70,11 @@ function writtenIn(
   return { manifestText, manifest: read.manifest, files: files as readonly HeldFile[] }
 }
 
-async function namesOf(
+/** Every entry the layers list in this category, read page by page; nothing when a page cannot be read whole. */
+async function entriesOf(
   sources: readonly AssetLayerSource[],
-): Promise<readonly CapabilityId[] | undefined> {
-  const named = new Map<string, CapabilityId>()
+): Promise<readonly AssetEntry[] | undefined> {
+  const entries: AssetEntry[] = []
   let after: string | null = null
   do {
     const answer = await listAssets(sources, {
@@ -83,10 +83,18 @@ async function namesOf(
       limit: MAX_ASSET_PAGE,
     })
     if (answer.state !== 'read' || answer.page.completeness === 'partial') return
-    for (const item of answer.page.items) named.set(item.capability.name, item.capability)
+    entries.push(...answer.page.items)
     after = answer.page.next
   } while (after !== null)
-  return [...named.values()]
+  return entries
+}
+
+async function namesOf(
+  sources: readonly AssetLayerSource[],
+): Promise<readonly CapabilityId[] | undefined> {
+  const entries = await entriesOf(sources)
+  if (entries === undefined) return
+  return [...new Map(entries.map(entry => [entry.capability.name, entry.capability])).values()]
 }
 
 type Chosen = Candidate | 'none' | 'unavailable'
@@ -118,6 +126,42 @@ export async function heldPlugins(ports: HeldPluginPorts, tenant: string): Promi
     const version = DIGEST.exec(candidate.version)?.[1]
     if (written === undefined || version === undefined) continue
     plugins.push({ name, version, ...written, held })
+  }
+  return { kind: 'read', plugins: plugins.sort((left, right) => (left.name < right.name ? -1 : 1)) }
+}
+
+export type ListedPlugin = Readonly<{
+  name: string
+  enabled: boolean
+  manifest: PluginManifest
+  held: Readonly<{ asset: string; version: string }>
+}>
+
+export type ListedPlugins =
+  | Readonly<{ kind: 'read'; plugins: readonly ListedPlugin[] }>
+  | Readonly<{ kind: 'unavailable' }>
+
+/** Every plugin a tenant holds, enabled or not, with the manifest of the version it holds. */
+export async function listedPlugins(
+  ports: HeldPluginPorts,
+  tenant: string,
+): Promise<ListedPlugins> {
+  const sources = ports.sources(tenant)
+  if (sources === undefined) return UNAVAILABLE
+  const entries = await entriesOf(sources)
+  if (entries === undefined) return UNAVAILABLE
+  const plugins: ListedPlugin[] = []
+  for (const { capability, asset, version, enabled } of entries) {
+    const body = await ports.body(tenant, { asset, version })
+    if (body === undefined) return UNAVAILABLE
+    const written = writtenIn(body)
+    if (written === undefined) continue
+    plugins.push({
+      name: capability.name,
+      enabled,
+      manifest: written.manifest,
+      held: { asset, version },
+    })
   }
   return { kind: 'read', plugins: plugins.sort((left, right) => (left.name < right.name ? -1 : 1)) }
 }
