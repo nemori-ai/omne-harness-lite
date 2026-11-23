@@ -123,6 +123,7 @@
 | `tool-access` | `@omne-harness/tool-access` 的 `./cordis` 插件 `createToolAccessPlugin`：`tool/v1` 的接入插件。装上这一行，新地址才开放 `tool/v1` | 无。插件把 `tool/v1` 的贡献（按调用引用读一次调用与读结果 2 个操作、观察 `observe-call`）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，本行用它与按调用读的 `identityOperations`、`tenantStanding`（受信）构造身份的 `createMemberActing`，把登录换成为目标租户行事的主体；资格读口缺席时换不出，调用答 `basis-unavailable`） | `toolRuntime` 的查询、实例与观察。取不到时调用答 `basis-unavailable`，协议不撤下 | 无 |
 | `model-access` | `@omne-harness/model-access` 的 `./cordis` 插件 `createModelAccessPlugin`：`model/v1` 的接入插件。装上这一行，新地址才开放 `model/v1` | 无。插件把 `model/v1` 的贡献（列出模型 1 个操作）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，同 `session-diagnostics-access`：经 `createMemberActing` 把登录换成为目标租户行事的主体） | `modelProfiles`。取不到时调用答 `basis-unavailable`，协议不撤下 | 无 |
 | `usage-access` | `@omne-harness/usage-access` 的 `./cordis` 插件 `createUsageAccessPlugin`：`usage/v1` 的接入插件。装上这一行，新地址才开放 `usage/v1` | 无。插件把 `usage/v1` 的贡献（统计、逐笔记录、上下文占比 3 个读操作）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，同 `session-diagnostics-access`：经 `createMemberActing` 把登录换成为目标租户行事的主体） | `usage`。取不到时调用答 `basis-unavailable`，协议不撤下 | 无 |
+| `plugin-access` | `@omne-harness/plugin-access` 的 `./cordis` 插件 `createPluginAccessPlugin`：`plugin/v1` 的接入插件。装上这一行，新地址才开放 `plugin/v1` | 无。插件把 `plugin/v1` 的贡献（列出一侧要装的、分页读一份的文件 2 个读操作，报告装成了没有 1 个提交操作；观察要装的，帧只说可能变了）挂上 `accessRegistry`。要装的来自本行的开发目录这个来源，回报记在本进程里 | `accessRegistry`；`principalIssuer`（受信，同 `calendar-access`） | 无 | `devDirectory`：可选的绝对路径，开发目录，下面每个子目录是一份 plugin，对所有租户给出同一组；缺省时要装的是空表，观察照常开着 |
 
 每行装一个插件（[IC-16](../cordis-integration-conventions.md#ic-16)）；插件自己的子插件随父插件装载。`session-ad*` 各行的 `inject` 以 [session-adapters 的 Cordis 页](../../../packages/session/SPEC.md#领域边界)为准，运维者可以按行 id 单独替换其中一行。
 
@@ -334,6 +335,8 @@ flowchart LR
   server-entry --> usage-access
   identity -.-> usage-access
   usage -.-> usage-access
+  server-entry --> plugin-access
+  identity -.-> plugin-access
   tool-runtime -.-> session-call-control
   session-call-control -.-> session-provider
   authorization --> session-handoff
@@ -482,6 +485,7 @@ flowchart LR
 | `tool-access` | `principalIssuer`、`tenantStanding` |
 | `model-access` | `principalIssuer`、`tenantStanding` |
 | `usage-access` | `principalIssuer`、`tenantStanding` |
+| `plugin-access` | `principalIssuer`、`tenantStanding` |
 
 表中未列的行可见集合为空。受信子树内的行提供的其他服务名不受隔离，根上的行照常 `inject`。
 

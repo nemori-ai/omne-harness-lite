@@ -864,6 +864,12 @@ importers:
       '@omne-harness/pi-ai-transport':
         specifier: workspace:*
         version: link:../../packages/model/pi-ai-transport
+      '@omne-harness/plugin':
+        specifier: workspace:*
+        version: link:../../packages/plugin/plugin
+      '@omne-harness/plugin-access':
+        specifier: workspace:*
+        version: link:../../packages/plugin/plugin-access
       '@omne-harness/public-contract':
         specifier: workspace:*
         version: link:../../packages/access/public-contract
@@ -1090,6 +1096,9 @@ importers:
       '@omne-harness/media-protocol':
         specifier: workspace:*
         version: link:../../packages/media/media-protocol
+      '@omne-harness/plugin-protocol':
+        specifier: workspace:*
+        version: link:../../packages/plugin/plugin-protocol
       '@omne-harness/sdk':
         specifier: workspace:*
         version: link:../../packages/access/sdk
@@ -4892,6 +4901,53 @@ importers:
 
   packages/plugin/plugin:
     devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/plugin/plugin-access:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@omne-harness/access-cordis-contract':
+        specifier: workspace:*
+        version: link:../../access/access-cordis-contract
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/plugin':
+        specifier: workspace:*
+        version: link:../plugin
+      '@omne-harness/plugin-protocol':
+        specifier: workspace:*
+        version: link:../plugin-protocol
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/plugin/plugin-protocol:
+    dependencies:
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../access/public-contract
+    devDependencies:
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

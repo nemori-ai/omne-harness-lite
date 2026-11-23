@@ -306,6 +306,7 @@ describe('the serve process with the release', () => {
         'media/v1',
         'model/v1',
         'notification/v2',
+        'plugin/v1',
         'schedule/v2',
         'session-diagnostics/v1',
         'session/v1',

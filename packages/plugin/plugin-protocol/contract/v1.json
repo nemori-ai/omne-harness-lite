@@ -1,0 +1,301 @@
+{
+  "digests": {
+    "1": "sha256:7c224b3996057597c3790e746e4570861bb0e2cb493acbccd21c34a88c51a8c9"
+  },
+  "major": 1,
+  "name": "plugin",
+  "revision": 1,
+  "rules": {
+    "observations": {
+      "observe-wanted": {
+        "ends": [],
+        "frame": {
+          "fields": {
+            "kind": {
+              "rule": {
+                "kind": "literal",
+                "values": [
+                  "changed"
+                ]
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "identity": "login",
+        "open": {
+          "fields": {
+            "side": {
+              "rule": {
+                "kind": "literal",
+                "values": [
+                  "client",
+                  "server"
+                ]
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        }
+      }
+    },
+    "operations": {
+      "list-wanted": {
+        "body": {
+          "fields": {
+            "side": {
+              "rule": {
+                "kind": "literal",
+                "values": [
+                  "client",
+                  "server"
+                ]
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "plugins": {
+                "rule": {
+                  "item": {
+                    "fields": {
+                      "files": {
+                        "rule": {
+                          "item": {
+                            "fields": {
+                              "bytes": {
+                                "rule": {
+                                  "kind": "count"
+                                }
+                              },
+                              "digest": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              },
+                              "path": {
+                                "rule": {
+                                  "kind": "text"
+                                }
+                              }
+                            },
+                            "kind": "object"
+                          },
+                          "kind": "array"
+                        }
+                      },
+                      "manifest": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "name": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      },
+                      "version": {
+                        "rule": {
+                          "kind": "text"
+                        }
+                      }
+                    },
+                    "kind": "object"
+                  },
+                  "kind": "array"
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "read-file": {
+        "body": {
+          "fields": {
+            "limit": {
+              "rule": {
+                "kind": "count"
+              }
+            },
+            "name": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "offset": {
+              "rule": {
+                "kind": "count"
+              }
+            },
+            "path": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            },
+            "version": {
+              "rule": {
+                "kind": "text"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "read",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "limited": {
+            "fields": {},
+            "kind": "object"
+          },
+          "not-found": {
+            "fields": {
+              "reason": {
+                "rule": {
+                  "kind": "literal",
+                  "values": [
+                    "plugin",
+                    "file"
+                  ]
+                }
+              }
+            },
+            "kind": "object"
+          },
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {
+              "bytes": {
+                "rule": {
+                  "kind": "count"
+                }
+              },
+              "next": {
+                "rule": {
+                  "kind": "one-of",
+                  "rules": [
+                    {
+                      "kind": "count"
+                    },
+                    {
+                      "kind": "null"
+                    }
+                  ]
+                }
+              },
+              "part": {
+                "rule": {
+                  "kind": "bytes"
+                }
+              }
+            },
+            "kind": "object"
+          }
+        }
+      },
+      "report-loaded": {
+        "body": {
+          "fields": {
+            "client": {
+              "rule": {
+                "kind": "text"
+              }
+            },
+            "plugins": {
+              "rule": {
+                "item": {
+                  "fields": {
+                    "name": {
+                      "rule": {
+                        "kind": "text"
+                      }
+                    },
+                    "reason": {
+                      "rule": {
+                        "kind": "one-of",
+                        "rules": [
+                          {
+                            "kind": "text"
+                          },
+                          {
+                            "kind": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "state": {
+                      "rule": {
+                        "kind": "literal",
+                        "values": [
+                          "loaded",
+                          "failed",
+                          "held"
+                        ]
+                      }
+                    },
+                    "version": {
+                      "rule": {
+                        "kind": "text"
+                      }
+                    }
+                  },
+                  "kind": "object"
+                },
+                "kind": "array"
+              }
+            },
+            "tenant": {
+              "rule": {
+                "kind": "tenant"
+              }
+            }
+          },
+          "kind": "object"
+        },
+        "countsAsAccess": true,
+        "effect": "commit",
+        "identity": "login",
+        "limit": "small",
+        "outcomes": {
+          "basis-unavailable": true,
+          "denied": true,
+          "protocol-rejected": true,
+          "succeeded": {
+            "fields": {},
+            "kind": "object"
+          },
+          "unknown": true
+        }
+      }
+    }
+  }
+}

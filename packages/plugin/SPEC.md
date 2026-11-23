@@ -19,6 +19,8 @@ flowchart LR
 | 成员 | 做什么 |
 | --- | --- |
 | `plugin` | 纯契约：清单的读法、包对不对得上清单、成员的摘要、一侧要装的、一份 plugin 在一侧的状态机。不依赖 Cordis、存储与浏览器 |
+| `plugin-protocol` | 协议契约 `plugin/v1`：列出一侧要装的、分页读文件、回报装成了没有、观察要装的变了没有 |
+| `plugin-access` | 接入插件：核登录可为目标租户行事，问来源，把答复映射成 `plugin/v1`；声明来源与回报去处两个端口，带一份进程内的回报去处 |
 
 ## 领域边界
 
@@ -85,6 +87,33 @@ flowchart LR
 - 换代时旧的一代留到新的一代有了结局：一份 plugin 的贡献不出现一段空白。
 - 装失败不算进程倒了。
 
+### 协议 plugin/v1
+
+四样都要登录，正文都带目标租户。
+
+| 名字 | 种类 | 正文 | 成功时 | 别的答复 |
+| --- | --- | --- | --- | --- |
+| `list-wanted` | 读 | `{ tenant, side }`，`side` 是 `client` 或 `server` | `{ plugins }`：每份 `{ name, version, manifest, files }`。`manifest` 是 `plugin.json` 的原文，客户端用 `readManifest` 读；`files` 每项 `{ path, digest, bytes }` | 共同契约的那一组 |
+| `read-file` | 读 | `{ tenant, name, version, path, offset, limit }` | `{ part, next, bytes }`：`next` 是下一个偏移，读完是空；`bytes` 是整个文件的字节数 | `not-found`：`plugin`（这个名字与版本不在这个租户要装的里）或 `file`（路径不在那一份的文件表里）；`limited`（`limit` 是 0） |
+| `report-loaded` | 提交，重发安全 | `{ tenant, client, plugins }`：`client` 是客户端实例自己起的标识；每份 `{ name, version, state, reason }`，`state` 是 `loaded`、`failed`、`held` | `{}` | 共同契约的那一组，加 `unknown` |
+| `observe-wanted` | 观察 | `{ tenant, side }` | 帧 `{ kind: 'changed' }`：只说要装的可能变了，客户端收到就重读 | 以 `denied` 或 `unavailable` 结束 |
+
+- 一次读至多给 256 KiB；`limit` 更大时按这个数读。
+- 同一个客户端再报，覆盖它上一次报的。
+
+### 接入插件与来源
+
+- 每个处理函数的次序：核这次登录可以为目标租户行事，拒绝答 `denied`，依据取不到答 `basis-unavailable`；取为这个租户行事的主体；再问来源。来源答取不到时答 `basis-unavailable`；来源抛出时读操作答 `basis-unavailable`，提交操作答 `unknown`。
+- 来源是插件声明的端口：`list(主体)` 给一组（每份带清单原文与每个文件的字节数），`read(主体, 位置)` 给一段字节或答哪一样不在，`subscribe(监听)` 在给的一组可能变了时叫监听。给什么可以因主体而不同。
+- `list-wanted` 把来源给的一组经 `wantedOf` 筛成这一侧的。`read-file` 只认同一组里某一侧要装的那几份：名字与版本对不上答 `not-found/plugin`，路径不在那一份的文件表里答 `not-found/file`，两种都不问来源要字节。路径以文件表为准，所以带 `..` 或以 `/` 开头的路径一律是 `not-found/file`。
+- 回报的去处是插件声明的端口：`record(租户, 客户端, 回报)` 与 `forget(租户, 客户端)`。插件带一份进程内的实现，另有 `reportsOf(租户)` 列出每个客户端最后报的；进程重启后为空，客户端下次装载时再报。
+- 服务端应用的 `plugin-access` 行给的来源是运维者配置的开发目录（配置项 `devDirectory`，绝对路径；缺省不开，不开时给空表，观察照常开着）：
+  - 目录下每个子目录是一份。清单读不懂、清单的 `name` 不等于子目录名、或 `judgePackage` 不合格的那一份不给出，行的日志里写一行警告，写明哪一份与原因；同一个原因只写一次。
+  - 名字以点开头的文件与目录不算（系统与工具留下的，例如 `.DS_Store`、`.git`）。配置的目录读不了时，来源答取不到，不答空表：已经装着的不因此被卸下。
+  - 文件表是子目录下全部普通文件，路径用 `/` 分段，摘要是内容的 sha256。版本是「按路径排好序的每个文件的路径与摘要」的 sha256 的前 16 位。它对所有租户给同一组。
+  - 目录里增、删、改一个文件之后 2 秒内叫监听；扫出的每份版本都没变时不叫。行卸下时停止看。
+  - 读只认最近一次扫描的文件表里有的路径；解析出的真实路径不在那一份的子目录下面时答 `file` 不在；内容的摘要与文件表对不上时答 `plugin` 不在，因为那个版本已经不在了。
+
 ## 原则与约束
 
 - 纯契约没有任何运行时的依赖：它在服务端与页面里是同一份代码。
@@ -99,3 +128,6 @@ flowchart LR
 | PL-I02 | 包对得上清单才算合格：写到的文件与目录都在，文件的种类在许带的里面 | 装到一半才发现缺文件；包里带进不许带的东西 | `plugin/tests/package.spec.ts` |
 | PL-I03 | 「要装的」只取决于来源给的一组与哪一侧，与先后无关；同名两份都不装 | 同一组东西两次算出不同的结果 | `plugin/tests/wanted.spec.ts` |
 | PL-I04 | 一份 plugin 在一侧的每种状态遇到每件事都有确定的下一步；卸下的总是先前装上过的那一代，不漏不重 | 表变了而装着的没跟上；旧的一代留在点上没人撤 | `plugin/tests/side-state.spec.ts` |
+| PL-I05 | `plugin/v1` 的每个操作与观察先核登录可为目标租户行事，核过才问来源或记回报；来源取不到或抛出不写成成功 | 一个登录读到别的租户要装的东西；来源坏了客户端以为什么都不用装 | `plugin-access/tests/operations.spec.ts` |
+| PL-I06 | `read-file` 只给这个主体要装的那一份文件表里有的路径的字节 | 客户端经协议读到包外或别的 plugin 的文件 | `plugin-access/tests/operations.spec.ts` |
+| PL-I07 | 开发目录给出的一份，版本是它内容的摘要：同一个版本读到的字节永远相同，读不出那一份子目录之外的文件 | 内容变了而版本没变，客户端装上的不是它以为的那一版；经符号链接读到目录外的文件 | `apps/harness-server/tests/rows/plugin-access/dev-directory.spec.ts` |

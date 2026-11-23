@@ -874,6 +874,11 @@
       "id": "usage-access",
       "plugin": "usageAccessRow",
       "config": {}
+    },
+    {
+      "id": "plugin-access",
+      "plugin": "pluginAccessRow",
+      "config": {}
     }
   ]
 }
