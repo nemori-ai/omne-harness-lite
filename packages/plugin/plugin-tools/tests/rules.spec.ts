@@ -166,7 +166,8 @@ describe('show a part: a member to copy for each depth', () => {
     ['not an object', '["shell.tokens"]'],
     ['without a key', '{"point":"shell.tokens","data":{}}'],
   ])('an example whose first line is %s falls back to the fixed form', async (_why, example) => {
-    const point = { ...TOKENS, contract: rules({ example }), dataKeys: undefined }
+    const { dataKeys: _listed, ...named } = TOKENS
+    const point = { ...named, contract: rules({ example }) }
     const text = await sighted(world({ clients: [shell({ points: [point] })] })).text('show', {
       name: 'shell.app',
     })
