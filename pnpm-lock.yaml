@@ -4722,6 +4722,12 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.1.0
+      '@omne-harness/dynamis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
       '@omne-harness/notification-contract':
         specifier: workspace:*
         version: link:../notification-contract
@@ -4741,6 +4747,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.1.0
+      '@omne-harness/dynamis-cordis':
+        specifier: workspace:*
+        version: link:../../dynamis/dynamis-cordis
       '@omne-harness/notification':
         specifier: workspace:*
         version: link:../notification

@@ -29,7 +29,13 @@ describe('the notification row', () => {
           'notificationChanges',
           'notificationStanding',
         ],
-        injects: ['storage', 'tenantDomainLookup', 'tenantDomains', 'tenantDomainScannerPrincipal'],
+        injects: [
+          'storage',
+          'dynamis',
+          'tenantDomainLookup',
+          'tenantDomains',
+          'tenantDomainScannerPrincipal',
+        ],
       },
     })
   })

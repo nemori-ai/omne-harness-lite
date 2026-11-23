@@ -26,9 +26,13 @@ export type NotificationEntrySubject = NotificationSummaryBody
 
 export const NOTIFICATION_ENTRY = 'notification.entry'
 
+/** The point on the server's tree whose keys are the names of the registered sources. */
+export const NOTIFICATION_SOURCES = 'notification.sources'
+
 /** Where the domain of a source draws the rows of its own notifications. */
 export const notificationEntry: RenderPoint<NotificationEntrySubject> = defineRenderPoint({
   name: NOTIFICATION_ENTRY,
-  key: 'the name of the source',
+  key: 'the name of the source, as the server registers it on notification.sources',
   summary: 'How a row of the inbox is drawn, by the source of the notification.',
+  keysFrom: NOTIFICATION_SOURCES,
 })

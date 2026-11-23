@@ -165,6 +165,32 @@ describe('a point that draws by key', () => {
     expect(told).toBe(0)
   })
 
+  it('a point whose keys the server tells reads them from what the connection tells, and says so when it cannot', () => {
+    const rows = defineRenderPoint<Call>({
+      name: 'notes.entry',
+      key: 'the name of the source',
+      summary: 'How a row is drawn, by its source.',
+      keysFrom: 'notification.sources',
+    })
+    const told = (keys: readonly string[] | undefined) => ({
+      keys: (point: string) => (point === 'notification.sources' ? keys : ['another']),
+    })
+    expect(rows.keysFrom).toBe('notification.sources')
+    expect(rows.keys(told(['calendar.events', 'owner.posts']))).toEqual({
+      kind: 'told',
+      keys: ['calendar.events', 'owner.posts'],
+    })
+    expect(rows.keys(told([]))).toEqual({ kind: 'told', keys: [] })
+    expect(rows.keys(told(undefined))).toEqual({ kind: 'unavailable' })
+    expect(rows.keys(undefined)).toEqual({ kind: 'unavailable' })
+  })
+
+  it('a point whose keys no server tells takes any key', () => {
+    expect(calls.keysFrom).toBeNull()
+    expect(calls.keys({ keys: () => ['a'] })).toEqual({ kind: 'any' })
+    expect(calls.keys(undefined)).toEqual({ kind: 'any' })
+  })
+
   it('declares a point of one item to a key, where the most specific stands', () => {
     expect(calls.contract).toMatchObject({
       name: 'notes.tool-call',

@@ -141,7 +141,13 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'notificationChanges',
       'notificationStanding',
     ],
-    injects: ['storage', 'tenantDomainLookup', 'tenantDomains', 'tenantDomainScannerPrincipal'],
+    injects: [
+      'storage',
+      'dynamis',
+      'tenantDomainLookup',
+      'tenantDomains',
+      'tenantDomainScannerPrincipal',
+    ],
     phase: 'composition',
   },
   workspace: {

@@ -54,10 +54,20 @@ const lines = () =>
 it('点的名字是 session.tool-call，每个工具名一项', () => {
   expect(SESSION_TOOL_CALL).toBe('session.tool-call')
   expect(sessionToolCall.name).toBe(SESSION_TOOL_CALL)
-  expect(sessionToolCall.contract).toMatchObject({
-    arity: 'keyed-one',
-    key: 'the name of the tool',
+  expect(sessionToolCall.contract).toMatchObject({ arity: 'keyed-one' })
+})
+
+it('它的键是服务端 tool.tools 上的工具名；读不到时说读不到，不说没有', () => {
+  const server = (keys: readonly string[] | undefined) => ({
+    keys: (point: string) => (point === 'tool.tools' ? keys : []),
   })
+  expect(sessionToolCall.keysFrom).toBe('tool.tools')
+  expect(sessionToolCall.keys(server(['Files', 'Web']))).toEqual({
+    kind: 'told',
+    keys: ['Files', 'Web'],
+  })
+  expect(sessionToolCall.keys(server(undefined))).toEqual({ kind: 'unavailable' })
+  expect(sessionToolCall.keys(undefined)).toEqual({ kind: 'unavailable' })
 })
 
 it('没有画法时每次调用都是转写自己的那一行', async () => {

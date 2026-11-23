@@ -1,6 +1,7 @@
 // @module-tag slow
 // Opens a real SQLite storage with its worker threads.
 import { Context } from '@deepseek-ai/cordis'
+import { DynamisService } from '@omne-harness/dynamis-cordis/cordis'
 import { expect, it } from 'vitest'
 import {
   notificationCatalogKey,
@@ -59,6 +60,7 @@ async function configuration(world: Awaited<ReturnType<typeof openSqlWorld>>) {
 it('starts when the storage is there, binds every face and extension point, and withdraws them with their contributions', async () => {
   const world = await openSqlWorld()
   const ctx = new Context()
+  await ctx.plugin(DynamisService)
   try {
     const local = ctx.plugin(createNotificationLocalPlugin(), await configuration(world))
     for (const key of KEYS) expect(ctx.get(key)).toBeUndefined()
@@ -100,6 +102,7 @@ it('starts when the storage is there, binds every face and extension point, and 
 it('withdraws a contributed channel with its contributor: absent at once, gone when the delivery in flight has its outcome (INV-NO22)', async () => {
   const world = await openSqlWorld()
   const ctx = new Context()
+  await ctx.plugin(DynamisService)
   try {
     await ctx.plugin(FixtureStorage, world.storage).await()
     await ctx.plugin(createNotificationLocalPlugin(), await configuration(world)).await()
@@ -143,6 +146,7 @@ it('withdraws a contributed channel with its contributor: absent at once, gone w
 it('does not start with an invalid policy', async () => {
   const world = await openSqlWorld()
   const ctx = new Context()
+  await ctx.plugin(DynamisService)
   try {
     await ctx.plugin(FixtureStorage, world.storage).await()
     const config = { ...(await configuration(world)), policy: { nothing: true } }

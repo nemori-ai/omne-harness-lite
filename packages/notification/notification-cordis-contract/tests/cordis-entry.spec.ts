@@ -29,5 +29,6 @@ it('gives each face and each extension point one service identity', () => {
     expect(service.prototype).toBeInstanceOf(Service)
   }
   expect(new Set(services.map(([, key]) => key)).size).toBe(services.length)
-  expect(Object.keys(entry)).toHaveLength(services.length * 2)
+  expect(entry.NOTIFICATION_SOURCES_POINT).toBe('notification.sources')
+  expect(Object.keys(entry)).toHaveLength(services.length * 2 + 1)
 })

@@ -89,6 +89,8 @@ export const SESSION_COMPOSER_ATTACHMENTS = 'session.composer-attachments'
 export const SESSION_BLOCK_RENDER = 'session.block-render'
 export const SESSION_TOOL_CALL = 'session.tool-call'
 
+export const TOOL_NAMES = 'tool.tools'
+
 export const sessionComposerAttachments: Point<SessionDraftSubject> = definePoint({
   name: SESSION_COMPOSER_ATTACHMENTS,
   summary: 'What a draft of the composer carries beside its words.',
@@ -113,6 +115,7 @@ export type SessionToolCallSubject = Readonly<{
 
 export const sessionToolCall: RenderPoint<SessionToolCallSubject> = defineRenderPoint({
   name: SESSION_TOOL_CALL,
-  key: 'the name of the tool',
+  key: 'the name of the tool, as the server holds it on tool.tools',
   summary: 'How a call of one tool is drawn in the transcript.',
+  keysFrom: TOOL_NAMES,
 })

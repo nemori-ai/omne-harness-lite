@@ -225,10 +225,21 @@ const rowsOf = (view: Awaited<ReturnType<typeof inbox>>) =>
 it('the point of a row is notification.entry, one drawing to the name of a source', () => {
   expect(NOTIFICATION_ENTRY).toBe('notification.entry')
   expect(notificationEntry.name).toBe(NOTIFICATION_ENTRY)
-  expect(notificationEntry.contract).toMatchObject({
-    arity: 'keyed-one',
-    key: 'the name of the source',
+  expect(notificationEntry.contract).toMatchObject({ arity: 'keyed-one' })
+})
+
+it('the keys of notification.entry are the sources the server registers now: one more source is one more key, and unread is not none', () => {
+  let registered: readonly string[] | undefined = ['owner.posts']
+  const server = { keys: (point: string) => (point === 'notification.sources' ? registered : []) }
+  expect(notificationEntry.keysFrom).toBe('notification.sources')
+  expect(notificationEntry.keys(server)).toEqual({ kind: 'told', keys: ['owner.posts'] })
+  registered = ['calendar.events', 'owner.posts']
+  expect(notificationEntry.keys(server)).toEqual({
+    kind: 'told',
+    keys: ['calendar.events', 'owner.posts'],
   })
+  registered = undefined
+  expect(notificationEntry.keys(server)).toEqual({ kind: 'unavailable' })
 })
 
 it('a source that put a drawing draws its own rows, given the notification; the rows of other sources stay as they were', async () => {
