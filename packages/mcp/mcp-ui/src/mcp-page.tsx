@@ -1,8 +1,16 @@
 import {
-  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   EmptyState,
+  IconButton,
   InlineNotice,
+  LoadingIndicator,
   LoadingState,
+  MoreIcon,
+  Segmented,
+  SettingRow,
   type NoticeAction,
 } from '@omne-harness/ui-kit'
 import { useEffect, useState, useSyncExternalStore, type JSX } from 'react'
@@ -18,7 +26,7 @@ import type {
 
 export const MCP_CATEGORY = 'mcp'
 
-const NOT_CONNECTED = 'MCP 还没有接进这个应用：现在没有接入点，这一页只有机制。'
+const NO_ENDPOINT = '接进来的 MCP 接入点会列在这里。'
 const TONE = { refused: 'danger', unavailable: 'caution', unknown: 'caution' } as const
 
 export type McpPageProps = Readonly<{ governance: McpGovernance; tenant: string }>
@@ -69,7 +77,7 @@ function McpBody({ view }: { readonly view: McpView }): JSX.Element {
               }}
             />
           ) : snapshot.holdings.length === 0 ? (
-            <EmptyState title={NOT_CONNECTED} />
+            <EmptyState title={NO_ENDPOINT} />
           ) : null}
           {snapshot.holdings.map(endpoint => (
             <Endpoint key={endpoint.name} endpoint={endpoint} view={view} />
@@ -109,17 +117,19 @@ function Endpoint({
   )
 }
 
-function applying(setting: McpPermission): string {
-  const effective = setting.effective
+const labelOf = (setting: McpPermission, value: string) =>
+  setting.choices.find(choice => choice.value === value)?.label ?? value
+
+// What stands where the control would be when nothing can be picked here.
+function readOnlyValue(setting: McpPermission): string | null {
+  const { effective } = setting
   switch (effective.kind) {
-    case 'value': {
-      const picked = setting.choices.find(choice => choice.value === effective.value)
-      return `现在：${picked?.label ?? effective.value}`
-    }
     case 'prohibited':
-      return '现在：被禁止'
+      return '被禁止'
     case 'empty-bound':
-      return '现在：没有可选的一档'
+      return '没有可选的一档'
+    case 'value':
+      return setting.editable.kind === 'yes' ? null : labelOf(setting, effective.value)
   }
 }
 
@@ -131,35 +141,64 @@ function CallPermission({
   readonly view: McpView
 }): JSX.Element {
   const setting = row.view
-  const open = setting.editable.kind === 'yes'
+  const [sent, setSent] = useState<string | null>(null)
   const busy =
     row.read.kind !== 'read' || row.write.kind === 'submitting' || row.write.kind === 'unknown'
-  const picked = setting.effective.kind === 'value' ? setting.effective.value : null
+  const fixed = readOnlyValue(setting)
+  const effective = setting.effective.kind === 'value' ? setting.effective.value : ''
+  const shownValue = busy && sent !== null ? sent : effective
+  const clearable = setting.own !== null && setting.editable.kind === 'yes'
   return (
     <div className="mcp-permission" {...mcpEndpointPermission.props}>
-      <h4 className="mcp-permission-title">{setting.declaration.title}</h4>
-      <div role="group" aria-label={setting.declaration.title} className="mcp-permission-choices">
-        {setting.choices.map(choice => (
-          <Button
-            key={choice.value}
-            variant="outline"
-            aria-pressed={choice.value === picked}
-            disabled={busy || !open}
-            onClick={() => view.set(row.key, choice.value)}
-          >
-            {choice.label}
-          </Button>
-        ))}
-      </div>
-      <p className="mcp-permission-now">{applying(setting)}</p>
-      {open ? null : <p className="mcp-permission-closed">这一层不能改这一项。</p>}
-      {open && setting.own !== null ? (
-        <Button variant="ghost" disabled={busy} onClick={() => view.clear(row.key)}>
-          清除这一层的挑选
-        </Button>
-      ) : null}
-      <WriteLine row={row} view={view} />
+      <SettingRow
+        label={setting.declaration.title}
+        hint={setting.own === null ? '这一层没有挑选' : '这一层设的'}
+        notice={<WriteLine row={row} view={view} />}
+      >
+        {fixed === null ? (
+          <div className="mcp-permission-control" aria-busy={busy}>
+            <Segmented
+              label={setting.declaration.title}
+              value={shownValue}
+              options={setting.choices}
+              onValueChange={value => {
+                if (busy) return
+                setSent(value)
+                view.set(row.key, value)
+              }}
+            />
+            {busy ? <LoadingIndicator size="sm" /> : null}
+          </div>
+        ) : (
+          <p className="mcp-permission-value">{fixed}</p>
+        )}
+        {clearable ? <ClearMenu busy={busy} onClear={() => view.clear(row.key)} /> : null}
+      </SettingRow>
+      {setting.editable.kind === 'yes' ? null : (
+        <p className="mcp-permission-closed">这一层不能改这一项。</p>
+      )}
     </div>
+  )
+}
+
+function ClearMenu({
+  busy,
+  onClear,
+}: {
+  readonly busy: boolean
+  readonly onClear: () => void
+}): JSX.Element {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <IconButton label="更多" size="icon-compact" disabled={busy}>
+          <MoreIcon aria-hidden="true" />
+        </IconButton>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onSelect={onClear}>清除这一层的挑选</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
@@ -177,7 +216,9 @@ function WriteLine({
         <NoticeLine
           notice={write.notice}
           action={
-            write.confirming ? undefined : { label: '再确认', onClick: () => view.confirm(row.key) }
+            write.confirming
+              ? undefined
+              : { label: '再确认一次', onClick: () => view.confirm(row.key) }
           }
         />
       )

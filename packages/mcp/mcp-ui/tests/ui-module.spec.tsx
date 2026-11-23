@@ -53,7 +53,7 @@ it('UI2 the page draws from the port the module was given, for the scope the she
   await root.plugin(mcpUiModule)
   render(<>{entries(shell, TENANT)[0]!.node}</>)
   expect(fake.opened).toEqual([`mcp ${TENANT}`])
-  expect(screen.getByText(/MCP 还没有接进这个应用/)).toBeTruthy()
+  expect(screen.getByText('接进来的 MCP 接入点会列在这里。')).toBeTruthy()
 })
 
 it('UI3 no scope yet: nothing is drawn and the port is not opened', async () => {
