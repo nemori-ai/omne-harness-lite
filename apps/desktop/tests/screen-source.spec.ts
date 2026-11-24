@@ -57,6 +57,13 @@ describe('the screenshots of the desktop host', () => {
     expect(sent).toEqual([{ path: '/device/screen', method: 'POST' }])
   })
 
+  it('reads no picture for an answer without content as the person cancelling', async () => {
+    const answer = () => new Response(null, { status: 204 })
+    expect(await hostScreen(fetchOf({ 'POST /device/screen': answer }).fetcher).capture()).toEqual({
+      kind: 'cancelled',
+    })
+  })
+
   it('takes a picture without the time it was taken as a failed capture', async () => {
     const answer = () =>
       new Response(new Uint8Array([1]), { headers: { 'content-type': 'image/png' } })

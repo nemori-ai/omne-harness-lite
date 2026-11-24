@@ -4,6 +4,7 @@ import type { PickedFile } from './attachment-tray.ts'
 export type ScreenAnswer =
   | Readonly<{ kind: 'shot'; png: Uint8Array<ArrayBuffer>; takenAt: number }>
   | Readonly<{ kind: 'not-authorized' }>
+  | Readonly<{ kind: 'cancelled' }>
   | Readonly<{ kind: 'failed'; reason: string }>
 
 /** Where screenshots come from: the host of the page, when it can read the screen of the person's machine. */
@@ -62,6 +63,7 @@ export class Snapper {
         canOpenSettings: this.#deps.source.openSettings !== undefined,
       })
     if (answer.kind === 'failed') return this.#set({ kind: 'failed', reason: answer.reason })
+    if (answer.kind === 'cancelled') return this.#set({ kind: 'idle' })
     const { png, takenAt } = answer
     this.#deps.deliver({
       name: shotName(takenAt),

@@ -15,6 +15,7 @@
     },
     "./styles.css": "./src/styles.css",
     "./layers.css": "./src/styles/layers.css",
+    "./tokens.css": "./src/styles/tokens.css",
     "./fonts/*": "./resources/fonts/*"
   },
   "files": [
