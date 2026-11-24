@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import type { Page } from '@playwright/test'
@@ -45,6 +46,11 @@ test('输入框的截图钮：截一张这台机器的屏幕，作为图片附�
   await button.click()
   await expect(page.getByText(/^屏幕截图 \d\d\.\d\d\.\d\d\.png$/u)).toBeVisible({ timeout: 30_000 })
   await expect(page.getByText('已备好')).toBeVisible({ timeout: 30_000 })
+  // Kept for a look: the picture should show the screen behind omne, not omne itself.
+  const picture = (await page.evaluate(
+    `(() => { const image = document.querySelector('img[alt$="的预览"]'); const canvas = document.createElement('canvas'); canvas.width = image.naturalWidth; canvas.height = image.naturalHeight; canvas.getContext('2d').drawImage(image, 0, 0); return canvas.toDataURL('image/png').split(',')[1] })()`,
+  )) as string
+  writeFileSync(test.info().outputPath('screenshot.png'), Buffer.from(picture, 'base64'))
 })
 
 /** Per stored cookie of the app: whether its value is on disk in plain text, or only encrypted. */

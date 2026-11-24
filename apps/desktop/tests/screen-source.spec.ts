@@ -57,6 +57,15 @@ describe('the screenshots of the desktop host', () => {
     expect(sent).toEqual([{ path: '/device/screen', method: 'POST' }])
   })
 
+  it('takes a picture without the time it was taken as a failed capture', async () => {
+    const answer = () =>
+      new Response(new Uint8Array([1]), { headers: { 'content-type': 'image/png' } })
+    expect(await hostScreen(fetchOf({ 'POST /device/screen': answer }).fetcher).capture()).toEqual({
+      kind: 'failed',
+      reason: '截图没有成功',
+    })
+  })
+
   it('reads a missing permission, a failure with its reason, and anything else as a failure', async () => {
     const capture = (answer: () => Response) =>
       hostScreen(fetchOf({ 'POST /device/screen': answer }).fetcher).capture()

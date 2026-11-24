@@ -42,6 +42,7 @@ describe('Snapper', () => {
     expect([file?.name, file?.type, file?.size]).toEqual(['屏幕截图 13.05.09.png', 'image/png', 7])
     expect(await file?.read()).toEqual(PNG)
     expect(file?.blob?.type).toBe('image/png')
+    expect(new Uint8Array((await file?.blob?.arrayBuffer()) ?? new ArrayBuffer(0))).toEqual(PNG)
   })
 
   it('ignores a press while it captures', async () => {
@@ -90,6 +91,26 @@ describe('Snapper', () => {
     expect(snapper.read()).toEqual({ kind: 'idle' })
     expect(capture).toHaveBeenCalledTimes(3)
     expect(delivered).toHaveLength(1)
+  })
+
+  it('does not tell a listener that unsubscribed', async () => {
+    const { source } = sourceOf([async () => ({ kind: 'failed', reason: '屏幕后端出错' })])
+    const { snapper } = snapperOf(source)
+    const heard = vi.fn()
+    snapper.subscribe(heard)()
+    await snapper.press()
+    expect(heard).not.toHaveBeenCalled()
+  })
+
+  it('hands nothing over when it was disposed while it captured', async () => {
+    let finish: (answer: ScreenAnswer) => void = () => undefined
+    const { source } = sourceOf([() => new Promise(done => (finish = done))])
+    const { snapper, delivered } = snapperOf(source)
+    const pressed = snapper.press()
+    snapper.dispose()
+    finish({ kind: 'shot', png: PNG, takenAt: TAKEN })
+    await pressed
+    expect(delivered).toEqual([])
   })
 
   it('tells its listeners each change, and stops after dispose', async () => {
