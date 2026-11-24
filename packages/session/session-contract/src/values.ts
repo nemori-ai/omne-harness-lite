@@ -477,7 +477,6 @@ export type WorkSnapshot = Readonly<{
   contextScopes?: readonly ContextScopeBinding[]
   contextRecords?: readonly Readonly<{ scope: string; declaration: DeclarationChange }>[]
   workspaceVisit?: WorkspaceDirectoryVisit
-  /** Confirmed background accesses, retained while their outcome input is pending or unanswered. */
   workspaceBackgroundVisits?: readonly Readonly<{
     consumption: ConsumptionId
     visit: WorkspaceDirectoryVisit

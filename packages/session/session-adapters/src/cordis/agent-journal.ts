@@ -136,6 +136,8 @@ import { boundariesOf, captureFresh, projectionOf, type Fault } from './event-pr
 import {
   headsOf,
   JOURNAL_PROVIDER,
+  publicationRetries,
+  type Settled,
   preparePublication,
   unavailable,
   type Prepared,
@@ -249,7 +251,6 @@ type Book<P> = {
 }
 
 const PARTICIPANTS = ['message', 'context-transition', 'custody', 'processed'] as const
-const LOST_RACES = 4
 const OWNER = JOURNAL_PROVIDER
 const BLOBS_WITH_BATCH_BYTES = 256 * 1024
 const unread = <T>(answer: Outcome<T, Failure> | undefined, what: string): Outcome<T, Failure> =>
@@ -431,12 +432,6 @@ function kindsOf(scratch: Scratch): ParticipationKind[] {
     }
   return kinds
 }
-
-type Settled<T> =
-  | Readonly<{ kind: 'step-changed' }>
-  | Readonly<{ kind: 'answer'; value: Outcome<T, Failure> }>
-  | Readonly<{ kind: 'again' }>
-  | Readonly<{ kind: 'fetch'; refs: readonly ItemRef[] }>
 
 type Published<P, T> = Readonly<{
   book: Book<P>
@@ -1443,8 +1438,8 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       const domain = await domainOf(book)
       if ('failure' in domain) return domain
       const target = targetOf(input)
-      let preparationChanges = 0
-      for (let lost = 0; lost < LOST_RACES;) {
+      const retry = publicationRetries()
+      for (;;) {
         let synced = await sync(book, domain.ok)
         if ('failure' in synced) return synced
         if (typeof target === 'string' && !ROUTE_ONLY.has(method)) {
@@ -1487,19 +1482,12 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
           book.scratch = null
         }
         if (settled.kind === 'answer') return settled.value
-        if (settled.kind === 'step-changed') {
-          // The step must rebuild on its prerequisite's revision. This is a separate budget from publication conflicts.
-          if (++preparationChanges >= 16)
-            return fail(unavailable('the model step prerequisites kept changing'))
-          continue
-        }
-        if (settled.kind === 'again') lost += 1
-        else {
-          const unread = await fetchClosed(readerOf(options.storage, domain.ok), book, settled.refs)
-          if (unread !== null) return fail(unavailable(unread))
-        }
+        const diagnostic =
+          settled.kind === 'fetch'
+            ? await fetchClosed(readerOf(options.storage, domain.ok), book, settled.refs)
+            : retry(settled.kind)
+        if (diagnostic !== null) return fail(unavailable(diagnostic))
       }
-      return fail(unavailable('the Agent records of the session kept changing'))
     })
   }
 

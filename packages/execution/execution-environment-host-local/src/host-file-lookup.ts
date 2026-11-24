@@ -1,5 +1,5 @@
 import { isAbsolute } from 'node:path'
-import { lstat, realpath } from 'node:fs/promises'
+import { lstat, realpath, type FileHandle } from 'node:fs/promises'
 import type { ObjectToken } from '@omne-harness/execution-environment-contract'
 import {
   createHostPathsCore,
@@ -34,68 +34,83 @@ function lookupResult(result: {
   })
 }
 
-/** Observe a regular file below the held root. Only a missing final name in an opened parent proves absence. */
-export function createHostFileLookup(root: string, expected?: string): FileLookup {
-  if (process.platform === 'darwin') {
-    const locate = createMacosPaths(createMacosRootIdentity(root, expected))
-    return async path => {
-      const endpoint = await locate(path)
-      if (!endpoint.ok) return endpoint
-      const result = await invoke({
-        ...endpoint.value,
-        operation: 'lookup',
-        rooted: true,
-        named: '',
-        path,
-      })
-      if (typeof result === 'string') return result === 'notFound' ? ok(null) : fail(result)
-      return lookupResult(result)
-    }
+function createMacosFileLookup(root: string, expected?: string): FileLookup {
+  const locate = createMacosPaths(createMacosRootIdentity(root, expected))
+  return async path => {
+    const endpoint = await locate(path)
+    if (!endpoint.ok) return endpoint
+    const result = await invoke({
+      ...endpoint.value,
+      operation: 'lookup',
+      rooted: true,
+      named: '',
+      path,
+    })
+    if (typeof result === 'string') return result === 'notFound' ? ok(null) : fail(result)
+    return lookupResult(result)
   }
-  if (process.platform === 'win32') {
-    const rootIdentity = createWindowsRootIdentity(root, expected)
-    return async path => {
-      const segments = await hostSegmentsBelowRoot(root, path)
-      if (!segments || segments.length === 0) return fail('notAuthorized')
-      const expectedRoot = await rootIdentity()
-      if (!expectedRoot) return fail('unavailable')
-      const result = await getWindowsFilesHelper().request({
-        root,
-        expectedRoot,
-        segments,
-        rooted: true,
-        operation: 'lookup',
-        directory: false,
-        follow: false,
-      })
-      if (typeof result === 'string') return result === 'notFound' ? ok(null) : fail(result)
-      return lookupResult(result)
-    }
+}
+
+function createWindowsFileLookup(root: string, expected?: string): FileLookup {
+  const rootIdentity = createWindowsRootIdentity(root, expected)
+  return async path => {
+    const segments = await hostSegmentsBelowRoot(root, path)
+    if (!segments || segments.length === 0) return fail('notAuthorized')
+    const expectedRoot = await rootIdentity()
+    if (!expectedRoot) return fail('unavailable')
+    const result = await getWindowsFilesHelper().request({
+      root,
+      expectedRoot,
+      segments,
+      rooted: true,
+      operation: 'lookup',
+      directory: false,
+      follow: false,
+    })
+    if (typeof result === 'string') return result === 'notFound' ? ok(null) : fail(result)
+    return lookupResult(result)
   }
+}
+
+/** Only the final name is being tested here; its parent was already opened and fenced. */
+function missingFinal(error: unknown): null {
+  if (errorCode(error) === 'ENOENT') return null
+  throw error
+}
+
+/** Owns the opened parent's lifetime, including all observation and failure paths. */
+async function observeOpenedFile(parent: FileHandle, name: string): ReturnType<FileLookup> {
+  try {
+    const stat = await lstat(fdPath(parent, name), { bigint: true }).catch(missingFinal)
+    if (stat === null) return ok(null)
+    if (!stat.isFile()) return fail('unsupported')
+    if (stat.dev !== (await parent.stat({ bigint: true })).dev) return fail('notAuthorized')
+    return ok({
+      object: tokenOf(stat),
+      size: Number(stat.size),
+      directory: await realpath(fdDir(parent)),
+    })
+  } catch {
+    return fail('unavailable')
+  } finally {
+    await parent.close()
+  }
+}
+
+function createLinuxFileLookup(root: string, expected?: string): FileLookup {
   const paths = createHostPathsCore({ root, expectedRoot: expected }).bind(handle => handle.close())
   return async path => {
     const refusal = await paths.checkPath(path)
     if (refusal) return fail(refusal)
     const located = await paths.locate(path)
     if (!located.ok) return located
-    const { parent, name } = located.value
-    try {
-      const stat = await lstat(fdPath(parent, name), { bigint: true }).catch(error => {
-        if (errorCode(error) === 'ENOENT') return null
-        throw error
-      })
-      if (stat === null) return ok(null)
-      if (!stat.isFile()) return fail('unsupported')
-      if (stat.dev !== (await parent.stat({ bigint: true })).dev) return fail('notAuthorized')
-      return ok({
-        object: tokenOf(stat),
-        size: Number(stat.size),
-        directory: await realpath(fdDir(parent)),
-      })
-    } catch {
-      return fail('unavailable')
-    } finally {
-      await parent.close()
-    }
+    return observeOpenedFile(located.value.parent, located.value.name)
   }
+}
+
+/** Observe a regular file below the held root. Only a missing final name in an opened parent proves absence. */
+export function createHostFileLookup(root: string, expected?: string): FileLookup {
+  if (process.platform === 'darwin') return createMacosFileLookup(root, expected)
+  if (process.platform === 'win32') return createWindowsFileLookup(root, expected)
+  return createLinuxFileLookup(root, expected)
 }
