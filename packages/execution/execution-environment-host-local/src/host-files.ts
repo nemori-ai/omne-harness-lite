@@ -1,3 +1,4 @@
+import { openFileDirectory } from './open-file-directory.ts'
 import { createHostFileFacade } from './host-file-visits.ts'
 import { randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
@@ -515,6 +516,7 @@ export function createHostFilesEngine(
       bindingKind: EnvironmentBinding['kind'],
       bytes: Uint8Array,
       expectedVersion: FileVersion | undefined,
+      observe?: true,
     ): Promise<FacilityResult<FileIdentity>> {
       const opened = await openNamed(
         requestId,
@@ -532,6 +534,7 @@ export function createHostFilesEngine(
         return reject(requestId, 'conflict')
       }
       try {
+        const directory = await openFileDirectory(opened.handle, observe)
         await opened.handle.truncate(0)
         if (!(await writeAll(opened.handle, bytes))) {
           await closeOrTrack(opened.handle)
@@ -540,7 +543,12 @@ export function createHostFilesEngine(
         const version = versionOf(await opened.handle.stat({ bigint: true }))
         const handle = issue(opened.object)
         await closeIssued(opened.handle, handle)
-        return { kind: 'done', requestId, value: { object: opened.object, handle, version } }
+        return {
+          kind: 'done',
+          requestId,
+          ...directory,
+          value: { object: opened.object, handle, version },
+        }
       } catch {
         await closeOrTrack(opened.handle)
         return unknown(requestId)
@@ -552,12 +560,14 @@ export function createHostFilesEngine(
       created: FileHandle,
       bytes: Uint8Array,
       parentStillNamed: () => Promise<boolean>,
+      observe?: true,
     ): Promise<FacilityResult<FileIdentity>> {
       try {
         if (!(await parentStillNamed())) {
           await closeOrTrack(created)
           return unknown(requestId)
         }
+        const directory = await openFileDirectory(created, observe)
         if (!(await writeAll(created, bytes))) {
           await closeOrTrack(created)
           return unknown(requestId)
@@ -566,7 +576,12 @@ export function createHostFilesEngine(
         const object = tokenOf(stat)
         const handle = issue(object)
         await closeIssued(created, handle)
-        return { kind: 'done', requestId, value: { object, handle, version: versionOf(stat) } }
+        return {
+          kind: 'done',
+          requestId,
+          ...directory,
+          value: { object, handle, version: versionOf(stat) },
+        }
       } catch {
         await closeOrTrack(created)
         return unknown(requestId)
@@ -609,6 +624,7 @@ export function createHostFilesEngine(
       namedToken: string,
       bindingKind: EnvironmentBinding['kind'],
       bytes: Uint8Array,
+      observe?: true,
     ): Promise<FacilityResult<FileIdentity>> {
       if (bindingKind !== 'host_machine') return reject(requestId, 'unsupported')
       if (!isHostPath(path)) return reject(requestId, 'invalidInput')
@@ -642,10 +658,16 @@ export function createHostFilesEngine(
         return reason ? reject(requestId, reason) : unknown(requestId)
       }
 
-      return finishCreate(requestId, created, bytes, async () => {
-        const parentAfter = await hostObjectToken(parentPath).catch(() => undefined)
-        return parentAfter?.token === namedToken
-      })
+      return finishCreate(
+        requestId,
+        created,
+        bytes,
+        async () => {
+          const parentAfter = await hostObjectToken(parentPath).catch(() => undefined)
+          return parentAfter?.token === namedToken
+        },
+        observe,
+      )
     }
 
     const operations: FileSystemFacility<unknown> = {
@@ -675,6 +697,10 @@ export function createHostFilesEngine(
             await closeOrTrack(opened.handle)
             return reject(requestId, 'unsupported')
           }
+          const directory = await openFileDirectory(
+            opened.handle,
+            paths('read').rooted ? undefined : request.observeDirectory,
+          )
           const start = offsetBytes ?? 0
           const { bytes, eof } = await readRange(opened.handle, start, limitBytes)
           const handle = issue(opened.object)
@@ -682,6 +708,7 @@ export function createHostFilesEngine(
           return {
             kind: 'done',
             requestId,
+            ...directory,
             value: {
               object: opened.object,
               handle,
@@ -714,11 +741,16 @@ export function createHostFilesEngine(
         )
         if (opened.kind !== 'handle') return opened
 
+        const directory = await openFileDirectory(
+          opened.handle,
+          paths('read').rooted ? undefined : request.observeDirectory,
+        )
         const handle = issue(opened.object)
         await closeIssued(opened.handle, handle)
         return {
           kind: 'done',
           requestId,
+          ...directory,
           value: {
             object: opened.object,
             handle,
@@ -737,13 +769,14 @@ export function createHostFilesEngine(
         const bindingKind = request.binding.kind
         const bytes = Uint8Array.from(request.bytes)
         const mode = request.mode
+        const observe = paths('write').rooted ? undefined : request.observeDirectory
         const expectedVersion = request.expectedVersion
         await drainPendingClose()
         if (mode === 'create') {
           if (expectedVersion !== undefined) return reject(requestId, 'invalidInput')
-          return create(requestId, path, namedToken, bindingKind, bytes)
+          return create(requestId, path, namedToken, bindingKind, bytes, observe)
         }
-        return replace(requestId, path, namedToken, bindingKind, bytes, expectedVersion)
+        return replace(requestId, path, namedToken, bindingKind, bytes, expectedVersion, observe)
       },
 
       async close(request) {

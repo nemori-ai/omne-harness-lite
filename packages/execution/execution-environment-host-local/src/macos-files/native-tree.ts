@@ -52,6 +52,7 @@ static void list_operation(document *d, root r, FILE *out) {
     metadata(out, &entry, entries.values[i]);
   }
   fprintf(out, "],\"next\":%" PRId64, end < entries.count ? (int64_t)end : -1);
+  directory_field(out, "directory", fd);
   result_defaults(out, HAS_ENTRIES | HAS_NEXT); fputc('}', out);
   free_names(entries);
 }
@@ -83,7 +84,7 @@ static void mkdir_operation(document *d, root r, FILE *out) {
     fd = open_directory_at(fd, name, r.dev, 0);
   }
   struct stat s = descriptor_stat(fd);
-  fprintf(out, "{\"info\":"); metadata(out, &s, r.segments->items[r.segments->count - 1]); result_defaults(out, 0); fputc('}', out);
+  fprintf(out, "{\"info\":"); metadata(out, &s, r.segments->items[r.segments->count - 1]); directory_field(out, "directory", fd); result_defaults(out, 0); fputc('}', out);
 }
 
 typedef struct removal { location loc; int directory; struct removal **children; size_t count; } removal;
@@ -122,7 +123,7 @@ static void remove_operation(document *d, root r, FILE *out) {
     if (unlinkat(loc.parent, loc.name, S_ISDIR(s.st_mode) ? AT_REMOVEDIR : 0) != 0) refuse(change_failure(errno));
     changed = 1;
   }
-  fprintf(out, "{\"info\":"); metadata(out, &s, loc.name); result_defaults(out, 0); fputc('}', out);
+  fprintf(out, "{\"info\":"); metadata(out, &s, loc.name); directory_field(out, "directory", loc.parent); result_defaults(out, 0); fputc('}', out);
 }
 
 typedef struct { location from, to; struct stat source, target; int exists; int replace; } endpoints;
@@ -150,7 +151,9 @@ static void endpoint_result(FILE *out, endpoints e) {
   struct stat s = entry_stat(e.to);
   char source[96]; identity(&e.source, source, sizeof source);
   fprintf(out, "{\"info\":"); metadata(out, &s, e.to.name);
-  fprintf(out, ",\"source\":"); quote(out, source); result_defaults(out, 0); fputc('}', out);
+  fprintf(out, ",\"source\":"); quote(out, source);
+  directory_field(out, "directory", e.from.parent); directory_field(out, "targetDirectory", e.to.parent);
+  result_defaults(out, 0); fputc('}', out);
 }
 static void move_operation(document *d, root r, FILE *out) {
   endpoints e = open_endpoints(d, r);

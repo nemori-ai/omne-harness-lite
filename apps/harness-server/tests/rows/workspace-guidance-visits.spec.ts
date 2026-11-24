@@ -4,7 +4,86 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, it, onTestFinished } from 'vitest'
 import { onReleaseTree, toolCallsByRequest } from '../support/release-tree.ts'
-import { run, sessionIn } from '../support/workspace-guidance.ts'
+import { command, run, saveGuidanceEvidence, sessionIn } from '../support/workspace-guidance.ts'
+
+it.each(['read', 'write'] as const)(
+  'C2/C4 granted outside %s operations preserve both tool answers and only add guidance for the visited workspace child',
+  { tags: ['slow'], timeout: 360_000 },
+  async operation => {
+    const base = realpathSync(mkdtempSync(join(tmpdir(), 'guidance-reach-')))
+    onTestFinished(() => rmSync(base, { recursive: true, force: true }))
+    const root = join(base, 'app')
+    const inside = join(root, 'leaf')
+    const outside = join(base, 'other')
+    mkdirSync(inside, { recursive: true })
+    mkdirSync(outside)
+    writeFileSync(join(root, 'AGENTS.md'), 'REACH_ROOT_723')
+    writeFileSync(join(inside, 'AGENTS.md'), 'REACH_INSIDE_723')
+    writeFileSync(join(outside, 'AGENTS.md'), 'REACH_OUTSIDE_723')
+    const files = ['INNER_FILE_842', 'OUTER_FILE_842']
+    if (operation === 'read') {
+      writeFileSync(join(inside, 'note'), files[0]!)
+      writeFileSync(join(outside, 'note'), files[1]!)
+    }
+    const requests: string[] = []
+    const script = toolCallsByRequest(body => {
+      requests.push(body)
+      if (requests.length !== 1) return []
+      return [inside, outside].map((directory, index) => ({
+        id: 'reach_' + operation + '_' + String(index),
+        tool: 'Files',
+        arguments: JSON.stringify({
+          command: operation,
+          intent: operation + ' both files',
+          params: {
+            path: join(directory, 'note'),
+            ...(operation === 'write' ? { mode: 'create', text: files[index] } : {}),
+          },
+        }),
+      }))
+    })
+    await onReleaseTree({ script, permission: 'bypass-permissions' }, async tree => {
+      await command(tree, [
+        'setting',
+        'set',
+        '--independent',
+        'workspace/outside-files',
+        'access',
+        '--value',
+        JSON.stringify(operation === 'read' ? 'read' : 'read-write'),
+      ])
+      await run(tree, await sessionIn(tree, root))
+      expect(requests).toHaveLength(2)
+      expect(requests[0]).toContain('REACH_ROOT_723')
+      expect(requests[0]).not.toContain('REACH_INSIDE_723')
+      const after = requests[1]!
+      saveGuidanceEvidence('outside-' + operation + '-guidance.json', { requests })
+      if (operation === 'read') {
+        for (const text of files) expect(after).toContain(text)
+      } else {
+        expect(readFileSync(join(inside, 'note'), 'utf8')).toBe(files[0])
+        expect(readFileSync(join(outside, 'note'), 'utf8')).toBe(files[1])
+      }
+      const { messages } = JSON.parse(after) as {
+        messages: { role: string; tool_call_id?: string; content: unknown }[]
+      }
+      const replies = messages.filter(message => message.role === 'tool')
+      expect(replies.map(reply => reply.tool_call_id).sort()).toEqual([
+        'reach_' + operation + '_0',
+        'reach_' + operation + '_1',
+      ])
+      const reminder = messages.findIndex(message =>
+        JSON.stringify(message.content).includes('REACH_INSIDE_723'),
+      )
+      for (const reply of replies) {
+        expect(reply.content).toMatch(/^done /u)
+        expect(messages.indexOf(reply)).toBeLessThan(reminder)
+      }
+      expect(after).not.toContain('REACH_OUTSIDE_723')
+      expect(after.split('REACH_INSIDE_723')).toHaveLength(2)
+    })
+  },
+)
 
 it(
   'C2 confirmed Files visits include both copy endpoints and exclude merely listed children and failed opens',

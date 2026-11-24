@@ -6,6 +6,7 @@ import type { ToolCallDirectory, ToolDirectoryVisit } from '@omne-harness/tool-c
 export function directoryObserver(pinned: ToolCallDirectory | undefined) {
   const visited = new Set<string>()
   return {
+    enabled: pinned?.workspace != null,
     observed(path: string) {
       if (pinned?.workspace == null || !isAbsolute(path)) return
       const physical = normalize(path)

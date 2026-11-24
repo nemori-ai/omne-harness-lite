@@ -154,7 +154,7 @@ it
       mode === 'partial' || mode === 'rejected' ? 'original' : 'published',
     )
     const directories =
-      mode === 'committed'
+      mode === 'committed' || mode === 'unrooted'
         ? [join(f.root, 'one'), join(f.root, 'two')]
         : mode === 'partial'
           ? [join(f.root, 'one')]

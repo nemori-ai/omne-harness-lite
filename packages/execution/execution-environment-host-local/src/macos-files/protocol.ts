@@ -21,6 +21,7 @@ export type NativeInput = Endpoint &
       | 'copy'
       | 'observe'
       | 'lookup'
+    observeDirectory?: true
     named: string
     path: string
     rooted: boolean
@@ -62,6 +63,7 @@ export type NativeReply = Readonly<{
   truncated: boolean
   eof: boolean
   directory?: string
+  targetDirectory?: string
   source?: string
 }>
 
@@ -143,6 +145,7 @@ export function parseReply(value: unknown): NativeReply | Failure {
       }),
       truncated: value['truncated'],
       eof: value['eof'],
+      ...('targetDirectory' in value ? { targetDirectory: string(value['targetDirectory']) } : {}),
       ...('directory' in value ? { directory: string(value['directory']) } : {}),
       ...('source' in value ? { source: string(value['source']) } : {}),
     }

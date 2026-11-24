@@ -16,7 +16,12 @@ export const macosFilesSource =
 static char *response;
 static size_t response_size;
 static FILE *output;
-int main(void) {
+int main(int argc, char **argv) {
+  if (argc == 2 && strcmp(argv[1], "--descriptor-path") == 0) {
+    char path[PATH_MAX];
+    if (fcntl(3, F_GETPATH, path) == -1) return 1;
+    return fputs(path, stdout) == EOF || fflush(stdout) == EOF;
+  }
   if (setjmp(failed) == 0) {
     char *input = NULL; size_t capacity = 0;
     ssize_t size = getline(&input, &capacity, stdin);
@@ -24,6 +29,7 @@ int main(void) {
     if (memchr(input, 0, (size_t)size)) refuse("invalidInput");
     document d = parse_document(input);
     rooted = bool_field(&d, "rooted");
+    observe_directory = bool_field(&d, "observeDirectory");
     const char *operation = string_field(&d, "operation", 0);
     if (strcmp(operation, "batch") == 0) {
       batch_operation(&d);

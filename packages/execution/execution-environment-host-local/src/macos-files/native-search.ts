@@ -94,6 +94,7 @@ static void search_operation(document *d, root r, FILE *out) {
   fprintf(out, "{\"info\":"); metadata(out, &s, "."); fprintf(out, ",\"hits\":[");
   search_directory(&walk, fd, path);
   fprintf(out, "],\"next\":%" PRId64 ",\"truncated\":%s", walk.hits > walk.offset + walk.limit ? walk.offset + walk.limit : -1, walk.truncated ? "true" : "false");
+  directory_field(out, "directory", fd);
   result_defaults(out, HAS_HITS | HAS_NEXT | HAS_TRUNCATED); fputc('}', out);
   free(walk.pattern);
 }

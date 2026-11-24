@@ -12,6 +12,7 @@ export function boundFiles<P>(
   input: AuthorEnvironmentInput<P>,
   observer: ReturnType<typeof directoryObserver>,
 ): ToolEnvironmentValue['files'] {
+  const observation = observer.enabled ? { observeDirectory: true as const } : {}
   const name = (
     operation: keyof FileSystemFacility<P>,
     path: string,
@@ -46,7 +47,12 @@ export function boundFiles<P>(
     if ('failure' in named) return namingFailure(common.requestId, named.failure)
     const facility = input.lease.facility('files')
     if (!facility) return absent(common.requestId)
-    const result = await perform(facility, { ...fixed, ...common, named: named.ok })
+    const result = await perform(facility, {
+      ...fixed,
+      ...common,
+      named: named.ok,
+      ...observation,
+    })
     if (result.kind === 'done')
       for (const path of result.verifiedDirectories ?? []) observer.observed(path)
     return result
@@ -80,7 +86,7 @@ export function boundFiles<P>(
       }
       const facility = input.lease.facility('files')
       if (!facility) return absent(common.requestId)
-      const result = await facility.commitBatch({ entries, ...common })
+      const result = await facility.commitBatch({ entries, ...common, ...observation })
       if (result.kind === 'done')
         for (const path of result.verifiedDirectories ?? []) observer.observed(path)
       return result

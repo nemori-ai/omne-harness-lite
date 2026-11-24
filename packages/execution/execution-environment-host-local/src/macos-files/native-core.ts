@@ -1,7 +1,12 @@
 export const nativeCoreSource = String.raw`
 typedef struct { int fd; dev_t dev; field *segments; } root;
 typedef struct { int parent; dev_t dev; const char *name; int is_root; } location;
-static int rooted;
+static int rooted, observe_directory;
+static void directory_field(FILE *out, const char *field, int fd) {
+  char physical[PATH_MAX];
+  if (!observe_directory || fcntl(fd, F_GETPATH, physical) != 0 || !valid_utf8((unsigned char *)physical)) return;
+  fputc(',', out); quote(out, field); fputc(':', out); quote(out, physical);
+}
 static int64_t modified(const struct stat *s) {
   return (int64_t)s->st_mtimespec.tv_sec * 1000 + s->st_mtimespec.tv_nsec / 1000000;
 }

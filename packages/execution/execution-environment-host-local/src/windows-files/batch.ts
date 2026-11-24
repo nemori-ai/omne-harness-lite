@@ -148,6 +148,9 @@ export function createWindowsBatch(options: {
       }
       const staged: Staged[] = []
       const published: string[] = []
+      const directories = new Set<string>()
+      const visits = () =>
+        directories.size ? { verifiedDirectories: [...directories].sort() } : {}
       let retainPrepared = false
       let discarded = false
       const discard = async (items: readonly Staged[]): Promise<boolean> => {
@@ -187,6 +190,7 @@ export function createWindowsBatch(options: {
         return {
           kind: 'done' as const,
           requestId: request.requestId,
+          ...visits(),
           value: { kind: 'unknown' as const, batch, published: [...published], reason },
         }
       }
@@ -243,11 +247,13 @@ export function createWindowsBatch(options: {
             receipts: [...published, entry.path],
           })
           published.push(entry.path)
+          for (const path of moved.verifiedDirectories ?? []) directories.add(path)
         }
         await writeManifest(file, { ...manifest, state: 'committed', receipts: published })
         return {
           kind: 'done',
           requestId: request.requestId,
+          ...visits(),
           value: { kind: 'committed', batch, published },
         }
       } catch {

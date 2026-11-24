@@ -25,6 +25,12 @@ import type { ChangeInput, Final, Metadata, NativeInput, RunInput, Start } from 
 const invoke = (input: NativeInput, boundMs?: number) =>
   getWindowsFilesHelper().request(input, boundMs)
 
+function visitProof(request: FileRequest<unknown>, ...paths: (string | undefined)[]) {
+  if (!request.observeDirectory) return {}
+  const directories = paths.filter(path => path !== undefined)
+  return directories.length ? { verifiedDirectories: [...new Set(directories)].sort() } : {}
+}
+
 function finalOf(path: string): Final {
   const follow = path.split(/[\\/]/u).findLast(part => part !== '') === '.'
   return { directory: follow || /[\\/]$/u.test(path), follow }
@@ -353,6 +359,7 @@ export function createWindowsFiles(
       if (typeof published === 'string') return failed(requestId, published, 'notFound')
       return {
         kind: 'done',
+        ...visitProof(request, staged.directory, published.directory),
         requestId,
         value: {
           source: { token: staged.source.token },
@@ -389,6 +396,7 @@ export function createWindowsFiles(
       if (typeof result === 'string') return failed(request.requestId, result, missing)
       return {
         kind: 'done',
+        ...visitProof(request, result.directory, result.targetDirectory),
         requestId: request.requestId,
         value: {
           ...identity(result.info),
@@ -411,6 +419,7 @@ export function createWindowsFiles(
       const bytes = Uint8Array.from(Buffer.from(result.bytes, 'base64'))
       return {
         kind: 'done',
+        ...visitProof(request, result.directory, result.targetDirectory),
         requestId: request.requestId,
         value: {
           ...identity(result.info),
@@ -424,7 +433,12 @@ export function createWindowsFiles(
       request = snapshot(request)
       const result = await run(request, 'stat', 0, 0)
       if ('kind' in result) return result
-      return { kind: 'done', requestId: request.requestId, value: information(result.info) }
+      return {
+        kind: 'done',
+        ...visitProof(request, result.directory, result.targetDirectory),
+        requestId: request.requestId,
+        value: information(result.info),
+      }
     },
     async list(request) {
       request = snapshot(request)
@@ -443,6 +457,7 @@ export function createWindowsFiles(
         if ('kind' in result) return result
         return {
           kind: 'done',
+          ...visitProof(request, result.directory, result.targetDirectory),
           requestId: request.requestId,
           value: {
             directory: identity(result.info),
@@ -477,6 +492,7 @@ export function createWindowsFiles(
       if ('kind' in result) return result
       return {
         kind: 'done',
+        ...visitProof(request, result.directory, result.targetDirectory),
         requestId: request.requestId,
         value: {
           root: identity(result.info),
@@ -495,7 +511,12 @@ export function createWindowsFiles(
       const result = await change({ ...request, recursive: request.parents }, 'mkdir')
       return 'kind' in result
         ? result
-        : { kind: 'done', requestId: request.requestId, value: identity(result.info) }
+        : {
+            kind: 'done',
+            ...visitProof(request, result.directory, result.targetDirectory),
+            requestId: request.requestId,
+            value: identity(result.info),
+          }
     },
     async remove(request) {
       request = snapshot(request)
@@ -504,6 +525,7 @@ export function createWindowsFiles(
         ? result
         : {
             kind: 'done',
+            ...visitProof(request, result.directory, result.targetDirectory),
             requestId: request.requestId,
             value: { removed: { token: result.info.token } },
           }
@@ -526,6 +548,7 @@ export function createWindowsFiles(
         ? result
         : {
             kind: 'done',
+            ...visitProof(request, result.directory, result.targetDirectory),
             requestId: request.requestId,
             value: { source: { token: result.info.token }, target: identity(result.info) },
           }

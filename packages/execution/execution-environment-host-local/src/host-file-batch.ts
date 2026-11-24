@@ -1,3 +1,4 @@
+import { openDirectories } from './open-file-directory.ts'
 import { createHash, randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
 import { link, lstat, mkdir, open, readFile, rename, unlink } from 'node:fs/promises'
@@ -346,7 +347,12 @@ export function createHostFileBatch(env: FileBatchEnvironment): FileBatch {
       const id = randomUUID()
       const staged = await checkEntries(requestId, entries, id, held)
       if ('kind' in staged) return staged
-      return await recordAndPublish(requestId, staged, id, tenant.value)
+      const result = await recordAndPublish(requestId, staged, id, tenant.value)
+      if (result.kind !== 'done' || !request.observeDirectory || env.paths('write').rooted)
+        return result
+      const published = new Set(result.value.published)
+      const parents = staged.filter(item => published.has(item.entry.path)).map(item => item.parent)
+      return { ...result, ...(await openDirectories(parents, request.observeDirectory)) }
     } finally {
       for (const handle of held) await env.close(handle)
     }

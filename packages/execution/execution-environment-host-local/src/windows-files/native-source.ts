@@ -230,13 +230,16 @@ ${handlePathSource}
       }
       if(operation=="identify") return new { info=Metadata(current,""), bytes="", entries=new object[0], next=-1 };
       if(Token(current)!=named) throw new IOException("conflict");
+      // Final holds the parent used by OpenRelative immediately before the final file handle.
+      IntPtr directoryHandle=(info.attributes&16)!=0 ? current : held[held.Count-2];
+      string visited=rooted?null:PhysicalHandlePath(directoryHandle);
       if(operation=="search") {
         if((info.attributes&16)==0) throw new IOException("unsupported");
         SearchState state=new SearchState { pattern=Convert.FromBase64String(pattern),content=content,recursive=recursive,rooted=rooted,entryBudget=entryBudget,byteBudget=byteBudget,fileBytes=fileBytes,want=offset+limit+1,volume=info.volume };
         Visit(current,requestedPath,state);
         long end=Math.Min(state.hits.Count,offset+limit); List<SearchHit> hits=new List<SearchHit>();
         for(long i=offset;i<end;i++) hits.Add(state.hits[(int)i]);
-        return new { info=Metadata(current,""), bytes="", entries=new object[0], next=state.hits.Count>offset+limit?offset+limit:-1, hits=hits.ToArray(), truncated=state.truncated };
+        return new { info=Metadata(current,""), bytes="", entries=new object[0], next=state.hits.Count>offset+limit?offset+limit:-1, directory=visited, hits=hits.ToArray(), truncated=state.truncated };
       }
       List<object> entries=new List<object>(); string bytes=""; bool eof=false;
       if(operation=="read") {
@@ -255,9 +258,9 @@ ${handlePathSource}
           try { entries.Add(Metadata(child,names[i])); }
           finally { if(!CloseHandle(child)) throw new IOException("unknown"); }
         }
-        return new { info=Metadata(current,""), bytes=bytes, entries=entries.ToArray(), next=end<names.Length?end:-1 };
+        return new { info=Metadata(current,""), bytes=bytes, directory=visited, entries=entries.ToArray(), next=end<names.Length?end:-1 };
       }
-      return new { info=Metadata(current,""), bytes=bytes, entries=entries.ToArray(), next=-1, eof=eof };
+      return new { info=Metadata(current,""), bytes=bytes, directory=visited, entries=entries.ToArray(), next=-1, eof=eof };
     } finally { Release(held); }
   }
 }

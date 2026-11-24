@@ -140,6 +140,7 @@ static const char *publish_item(batch_item *item, int *cleanup_error) {
 }
 static const char *published_event(batch_item *item, size_t index, int cleanup_error) {
   fprintf(stdout, "{\"event\":\"published\",\"index\":%zu", index);
+  directory_field(stdout, "directory", item->target.parent);
   if (cleanup_error) {
     fprintf(stdout, ",\"cleanupError\":{\"temp\":"); quote(stdout, item->temporary);
     fprintf(stdout, ",\"code\":"); quote(stdout, errno_name(cleanup_error)); fputc('}', stdout);

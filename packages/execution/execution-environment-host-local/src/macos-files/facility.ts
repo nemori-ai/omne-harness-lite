@@ -82,6 +82,9 @@ function nativeRunner(at: NativeScope) {
       return reject(request.requestId, 'unavailable')
     const result = await invoke({
       ...source.value,
+      ...(request.observeDirectory && (!at.rooted(effect) || (target && !at.rooted(target.effect)))
+        ? { observeDirectory: true as const }
+        : {}),
       named: request.named?.token ?? '',
       path: request.path,
       rooted: at.rooted(effect),
@@ -97,7 +100,12 @@ function nativeRunner(at: NativeScope) {
           }
         : {}),
     })
-    return typeof result === 'string' ? failed(request.requestId, result, missing) : result
+    if (typeof result === 'string') return failed(request.requestId, result, missing)
+    const directories = [
+      at.rooted(effect) ? undefined : result.directory,
+      target && !at.rooted(target.effect) ? result.targetDirectory : undefined,
+    ].filter(path => path !== undefined)
+    return { ...result, visits: directories.length ? { verifiedDirectories: directories } : {} }
   }
 }
 
@@ -144,6 +152,7 @@ export function createMacosFiles(
     if ('kind' in result) return result
     return {
       kind: 'done' as const,
+      ...result.visits,
       requestId: request.requestId,
       value: {
         source: { token: result.source ?? result.info.token },
@@ -167,6 +176,7 @@ export function createMacosFiles(
       const bytes = Uint8Array.from(Buffer.from(result.bytes, 'base64'))
       return {
         kind: 'done',
+        ...result.visits,
         requestId: request.requestId,
         value: {
           ...identity(result.info),
@@ -181,7 +191,12 @@ export function createMacosFiles(
       const result = await run(request, 'stat')
       return 'kind' in result
         ? result
-        : { kind: 'done', requestId: request.requestId, value: information(result.info) }
+        : {
+            kind: 'done',
+            ...result.visits,
+            requestId: request.requestId,
+            value: information(result.info),
+          }
     },
     async write(original) {
       const request = { ...snapshot(original), bytes: Uint8Array.from(original.bytes) }
@@ -200,6 +215,7 @@ export function createMacosFiles(
         ? result
         : {
             kind: 'done',
+            ...result.visits,
             requestId: request.requestId,
             value: {
               ...identity(result.info),
@@ -218,6 +234,7 @@ export function createMacosFiles(
         ? result
         : {
             kind: 'done',
+            ...result.visits,
             requestId: request.requestId,
             value: {
               directory: identity(result.info),
@@ -246,6 +263,7 @@ export function createMacosFiles(
         ? result
         : {
             kind: 'done',
+            ...result.visits,
             requestId: request.requestId,
             value: {
               root: identity(result.info),
@@ -260,7 +278,12 @@ export function createMacosFiles(
       const result = await run(request, 'mkdir', { recursive: request.parents })
       return 'kind' in result
         ? result
-        : { kind: 'done', requestId: request.requestId, value: identity(result.info) }
+        : {
+            kind: 'done',
+            ...result.visits,
+            requestId: request.requestId,
+            value: identity(result.info),
+          }
     },
     async remove(original) {
       const request = snapshot(original)
@@ -272,6 +295,7 @@ export function createMacosFiles(
         ? result
         : {
             kind: 'done',
+            ...result.visits,
             requestId: request.requestId,
             value: { removed: { token: result.info.token } },
           }

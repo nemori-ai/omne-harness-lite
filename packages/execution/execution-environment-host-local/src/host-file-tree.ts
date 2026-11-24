@@ -1,3 +1,4 @@
+import { openDirectories, openFileDirectory } from './open-file-directory.ts'
 import { randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
 import { link, lstat, mkdir, open, readdir, rename, rmdir, unlink } from 'node:fs/promises'
@@ -149,6 +150,9 @@ function directoryPrefix(path: string): string {
 export function createHostFileTree(env: FileTreeEnvironment): FileTree {
   const { paths, limits } = env
 
+  const unboundedVisit = (effect: FileEffect, request: FileRequest<unknown>) =>
+    paths(effect).rooted ? undefined : request.observeDirectory
+
   const identityOf = (stat: FileStats): FileIdentity => {
     const object = tokenOf(stat)
     return { object, handle: env.issue(object), version: versionOf(stat) }
@@ -228,6 +232,7 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
       return {
         kind: 'done',
         requestId,
+        ...(await openFileDirectory(directory, unboundedVisit('read', request))),
         value: {
           directory: identityOf(stat),
           entries,
@@ -375,6 +380,7 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
       return {
         kind: 'done',
         requestId,
+        ...(await openFileDirectory(start, unboundedVisit('read', request))),
         value: {
           root: identityOf(startStat),
           hits: hits.slice(page.offset, end),
@@ -389,10 +395,7 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     }
   }
 
-  async function newDirectoryIdentity(
-    parent: FileHandle,
-    name: string,
-  ): Promise<FileIdentity | undefined> {
+  async function newDirectoryIdentity(parent: FileHandle, name: string, observe?: true) {
     let made: FileHandle
     try {
       made = await open(fdPath(parent, name), directoryFlags)
@@ -400,7 +403,10 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
       return undefined
     }
     try {
-      return identityOf(await made.stat({ bigint: true }))
+      return {
+        value: identityOf(await made.stat({ bigint: true })),
+        ...(await openFileDirectory(made, observe)),
+      }
     } catch {
       return undefined
     } finally {
@@ -424,8 +430,8 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
       } catch (error) {
         return failed(requestId, changeFailure(error), 'notFound')
       }
-      const made = await newDirectoryIdentity(parent, name)
-      return made === undefined ? unknown(requestId) : { kind: 'done', requestId, value: made }
+      const made = await newDirectoryIdentity(parent, name, unboundedVisit('write', request))
+      return made === undefined ? unknown(requestId) : { kind: 'done', requestId, ...made }
     } catch {
       return unknown(requestId)
     } finally {
@@ -458,7 +464,12 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
         await env.close(current)
         current = next
       }
-      return { kind: 'done', requestId, value: identityOf(await current.stat({ bigint: true })) }
+      return {
+        kind: 'done',
+        requestId,
+        ...(await openFileDirectory(current, unboundedVisit('write', request))),
+        value: identityOf(await current.stat({ bigint: true })),
+      }
     } catch {
       return unknown(requestId)
     } finally {
@@ -607,9 +618,12 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
       if (paths('write').rooted && stat.dev !== (await parent.stat({ bigint: true })).dev)
         return reject(requestId, 'notAuthorized')
       const target = fdPath(parent, name)
-      if (stat.isDirectory() && request.recursive)
-        return await removeSubtree(requestId, target, object, stat.dev)
-      return await removeEntry(requestId, target, object, stat.isDirectory())
+      const visit = await openFileDirectory(parent, unboundedVisit('write', request))
+      const result =
+        stat.isDirectory() && request.recursive
+          ? await removeSubtree(requestId, target, object, stat.dev)
+          : await removeEntry(requestId, target, object, stat.isDirectory())
+      return result.kind === 'done' ? { ...result, ...visit } : result
     } catch {
       return unknown(requestId)
     } finally {
@@ -622,6 +636,7 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     sourceStat: FileStats
     target: Located
     targetStat: FileStats | undefined
+    visits: { verifiedDirectories?: string[] }
     release(): Promise<void>
   }>
   type Opened =
@@ -700,6 +715,13 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
           sourceStat,
           target: target.value,
           targetStat: checked.stat,
+          visits: await openDirectories(
+            [
+              ...(!paths(effects.path).rooted ? [source.value.parent] : []),
+              ...(!paths(effects.target).rooted ? [target.value.parent] : []),
+            ],
+            request.observeDirectory,
+          ),
           release: releaseAll,
         },
       }
@@ -741,7 +763,12 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
       }
       const identity = await identityAt(target.parent, target.name)
       if (identity === undefined) return unknown(requestId)
-      return { kind: 'done', requestId, value: { source: tokenOf(sourceStat), target: identity } }
+      return {
+        kind: 'done',
+        requestId,
+        ...opened.endpoints.visits,
+        value: { source: tokenOf(sourceStat), target: identity },
+      }
     } catch {
       return unknown(requestId)
     } finally {
@@ -776,7 +803,8 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     const opened = await openEndpoints(request, 'copy')
     if (opened.kind === 'refused') return opened.result
     try {
-      return await copyBetween(request, opened.endpoints)
+      const result = await copyBetween(request, opened.endpoints)
+      return result.kind === 'done' ? { ...result, ...opened.endpoints.visits } : result
     } finally {
       await opened.endpoints.release()
     }

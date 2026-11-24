@@ -15,7 +15,12 @@ export function attestFileDirectories(
     scope[effect] === undefined ? [] : [normalize(path)]
   const add = <T>(answer: FacilityResult<T>, paths: readonly string[]): FacilityResult<T> =>
     answer.kind === 'done' && paths.length > 0
-      ? { ...answer, verifiedDirectories: [...new Set(paths)].sort() }
+      ? {
+          ...answer,
+          verifiedDirectories: [
+            ...new Set([...paths, ...(answer.verifiedDirectories ?? [])]),
+          ].sort(),
+        }
       : answer
   const run = async <T>(answer: Promise<FacilityResult<T>>, paths: readonly string[]) =>
     add(await answer, paths)

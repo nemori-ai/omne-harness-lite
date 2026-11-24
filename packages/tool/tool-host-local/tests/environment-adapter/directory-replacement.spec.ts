@@ -76,7 +76,7 @@ function author(root: string, files: FileSystemFacility<unknown>) {
   })
 }
 
-it.each(['read', 'copy', 'copy-read-unrooted', 'copy-write-unrooted'] as const)(
+it.each(['read', 'read-unrooted', 'copy', 'copy-read-unrooted', 'copy-write-unrooted'] as const)(
   'C2/C6 a real host %s cannot attest a sibling substituted after completion',
   async operation => {
     const root = await realpath(await mkdtemp(join(tmpdir(), 'visit-replacement-')))
@@ -88,11 +88,13 @@ it.each(['read', 'copy', 'copy-read-unrooted', 'copy-write-unrooted'] as const)(
       await writeFile(join(source, 'file'), 'actual host bytes')
       await writeFile(join(sibling, 'file'), 'never accessed bytes')
       const host = createHostFiles({
-        ...(operation === 'copy-read-unrooted' ? {} : { read: root }),
+        ...(operation === 'copy-read-unrooted' || operation === 'read-unrooted'
+          ? {}
+          : { read: root }),
         ...(operation === 'copy-write-unrooted' ? {} : { write: root }),
       })
       const replace = async () => {
-        for (const path of operation === 'read' ? [source] : [source, target]) {
+        for (const path of operation.startsWith('read') ? [source] : [source, target]) {
           await rename(path, path + '-moved')
           await symlink(sibling, path)
         }
@@ -111,25 +113,20 @@ it.each(['read', 'copy', 'copy-read-unrooted', 'copy-write-unrooted'] as const)(
         },
       }
       const value = author(root, files)
-      const result =
-        operation === 'read'
-          ? await value.files.read({ path: join(source, 'file') })
-          : await value.files.copy({
-              path: join(source, 'file'),
-              target: { path: join(target, 'copy') },
-              replace: false,
-            })
+      const result = operation.startsWith('read')
+        ? await value.files.read({ path: join(source, 'file') })
+        : await value.files.copy({
+            path: join(source, 'file'),
+            target: { path: join(target, 'copy') },
+            replace: false,
+          })
       expect(result.kind).toBe('done')
-      if (operation === 'read' && result.kind === 'done' && 'bytes' in result.value)
+      if (operation.startsWith('read') && result.kind === 'done' && 'bytes' in result.value)
         expect(new TextDecoder().decode(result.value.bytes)).toBe('actual host bytes')
-      if (operation !== 'read')
+      if (!operation.startsWith('read'))
         expect(await readFile(join(target + '-moved', 'copy'), 'utf8')).toBe('actual host bytes')
       expect(directoryVisitOf(value)?.directories).toEqual(
-        operation === 'read' || operation === 'copy-write-unrooted'
-          ? [source]
-          : operation === 'copy-read-unrooted'
-            ? [target]
-            : [source, target].sort(),
+        operation.startsWith('read') ? [source] : [source, target].sort(),
       )
       expect(directoryVisitOf(value)?.directories).not.toContain(sibling)
     } finally {
@@ -139,20 +136,28 @@ it.each(['read', 'copy', 'copy-read-unrooted', 'copy-write-unrooted'] as const)(
   60000,
 )
 
-it('C6 an unrooted real host read through a symlink has no directory proof to reinterpret', async () => {
-  const root = await realpath(await mkdtemp(join(tmpdir(), 'visit-unrooted-')))
+it('C6 an unrooted read follows the physical directory across either side of the workspace boundary', async () => {
+  const base = await realpath(await mkdtemp(join(tmpdir(), 'visit-unrooted-')))
   try {
-    const actual = join(root, 'actual')
-    const alias = join(root, 'alias')
-    await mkdir(actual)
-    await writeFile(join(actual, 'file'), 'actual bytes')
-    await symlink(actual, alias)
+    const root = join(base, 'workspace')
+    const actual = join(root, 'entered')
+    const outside = join(base, 'workspace-neighbor')
+    await mkdir(actual, { recursive: true })
+    await mkdir(outside)
+    await writeFile(join(actual, 'file'), 'internal bytes')
+    await writeFile(join(outside, 'file'), 'external bytes')
+    const outward = join(root, 'alias-out')
+    const inward = join(outside, 'alias-in')
+    await symlink(outside, outward)
+    await symlink(actual, inward)
     const value = author(root, createHostFiles())
-    const answer = await value.files.read({ path: join(alias, 'file') })
-    expect(answer.kind).toBe('done')
-    expect(answer).not.toHaveProperty('verifiedDirectories')
+    const external = await value.files.read({ path: join(outward, 'file') })
+    expect(external).toMatchObject({ kind: 'done', verifiedDirectories: [outside] })
     expect(directoryVisitOf(value)).toBeUndefined()
+    const internal = await value.files.read({ path: join(inward, 'file') })
+    expect(internal).toMatchObject({ kind: 'done', verifiedDirectories: [actual] })
+    expect(directoryVisitOf(value)?.directories).toEqual([actual])
   } finally {
-    await rm(root, { recursive: true, force: true })
+    await rm(base, { recursive: true, force: true })
   }
 }, 60000)

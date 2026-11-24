@@ -761,6 +761,7 @@ export type HandleGeneration = {
 };
 export type FileVersion = string;
 export type FileRequest<P> = FacilityRequest<P> & {
+    readonly observeDirectory?: true;
     readonly path: string;
     readonly named: ObjectToken | null;
 };
@@ -874,6 +875,7 @@ export interface FileSystemFacility<P> {
         readonly target: FileIdentity;
     }>>;
     commitBatch(request: FacilityRequest<P> & {
+        readonly observeDirectory?: true;
         readonly entries: readonly {
             readonly path: string;
             readonly named: ObjectToken | null;
