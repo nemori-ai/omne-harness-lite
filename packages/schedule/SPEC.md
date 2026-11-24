@@ -8,7 +8,7 @@
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | `schedule-contract`        | 安排定义、规则、工作意图、候选、操作回执、读值与服务端口长什么样；共同编码与指纹算法。纯数据与 schema，不依赖 Cordis 与存储 |
 | `schedule`                 | 规则计算与预测、安排的管理决定、只读查询；时隙的分拣与接受的判定、Job 的推进、调度者这一轮怎样走。不依赖 Cordis，不选存储后端，不认识 Session 与 Agent |
-| `schedule-cordis-contract` | 日程在这套系统里以哪些服务出现：命令、查询等服务的定义与键                                                                  |
+| `schedule-cordis-contract` | 日程在这套系统里以哪些服务出现：命令、查询的服务定义与键；程序、执行方、成果与通知承接者三个登记面 |
 | `schedule-local`           | 本机的 SQL 管理后端与原操作恢复、调度状态与 Job 的存储、历史的读、计算工作线程、本地应用组合、日历环境投影，以及 Cordis 提供者 |
 | `schedule-tools`           | 给 agent 的两个多命令工具：`Schedules` 管安排，`Jobs` 管 Job 与成果上报。参数与结果、关口的声明、放行详情、按调用绑定日程服务并核对租户 |
 | `schedule-protocol`        | 公开协议 `schedule/v2` 的协议契约：日程的列表、详情、修订、日程表、预览、创建与管理及其认回；Job 的列表、详情、取消、直接发起及其认回；一条「可能变了」的观察。纯数据 |
@@ -331,16 +331,16 @@
 | INV-SJ09 | 已接受 Job 的要求与依据固定，之后的变化不回写                                          | 已接受的工作被静默改期或改内容       | 模型 `CalendarScheduleBoundary` 的 `FrozenBasis`；实现只有文字 |
 | INV-SJ10 | 控制与既有工作分责：暂停与结束只管新接受，不自动取消旧 Job；结束不能恢复               | 暂停时误取消；结束的安排被复活       | `management/decision` 用例；模型 `ControlAtAcceptance`；模型 `ScheduleSlotDisposition` 的 `StoppedIsFinal` |
 | INV-SJ11 | 补跑是同一漏过区间的有界选择，同一区间不分页补光，等待中的 Job 不占 N                  | 恢复后无界补跑                       | 模型 `ScheduleSlotDisposition` 的 `CatchUpBounded`、`InOrder`；分拣 `schedule` 的 `dispatch/classify` 用例；`schedule-local` 的 `dispatch/watch` 用例（一个月只补 N 个、再扫一轮不多补、超预算一个都不补） |
-| INV-SJ12 | 重叠作用于实际前序；替换只在真实停止证据之后开始新工作                                 | 偷偷并行；把停止请求当停止           | 模型 `ScheduleJobExecution` 的 `PredecessorEnded`、`StopIsReal`；实现只有文字 |
+| INV-SJ12 | 重叠作用于实际前序；替换只在真实停止证据之后开始新工作                                 | 偷偷并行；把停止请求当停止           | 模型 `ScheduleJobExecution` 的 `PredecessorEnded`、`StopIsReal`；`schedule-local` 的 `dispatch/jobs` 等待与替换用例（替换看停止与开始的次序） |
 | INV-SJ13 | 三种承接路径完整区分；`existing` 失效不退回 `new`；`new` 每 Job 只建一次会话           | 投错会话；重复建会话                 | `schedule-contract` 的工作意图 schema；模型 `ScheduleJobExecution` 的 `StartAtMostOnce`；承接只有文字 |
-| INV-SJ14 | 上报归原 Job；目标达成要独立依据                                                       | Run 结束被当成目标达成               | 模型 `ScheduleJobExecution` 的 `SuccessHasEvidence`；实现只有文字 |
+| INV-SJ14 | 上报归原 Job；目标达成要独立依据                                                       | Run 结束被当成目标达成               | 模型 `ScheduleJobExecution` 的 `SuccessHasEvidence`；`schedule` 的 `dispatch/job` 结局表用例（没有成果记失败） |
 | INV-SJ15 | 机械工作以真实功能成功为完成；不可用的工具调用不当成功                                 | 触发成功被当成完成                   | 只有文字                                                                                                                                          |
 | INV-SJ16 | 通知义务只由本次选中的实际事件产生，每事件一次                                         | 伪造开始或成功通知                   | 只有文字                                                                                                                                          |
 | INV-SJ17 | 整份成功不混淆执行与交付；投递失败不倒写执行结局                                       | 执行失败因通知送达被报成功           | 只有文字                                                                                                                                          |
 | INV-SJ18 | 取消只声明实际效果边界；已发送的不承诺撤回                                             | 把未知改写成取消                     | 模型 `ScheduleJobExecution` 的 `CancelIsReal`、`StopIsReal`；实现只有文字 |
-| INV-SJ19 | 取消、启动与终结确定判序，跨重启可认回；已取消的不复活                                 | 取消后又启动                         | 模型 `ScheduleJobExecution` 的 `CancelIsReal`、`OutcomeFixed`；实现只有文字 |
+| INV-SJ19 | 取消、启动与终结确定判序，跨重启可认回；已取消的不复活                                 | 取消后又启动                         | 模型 `ScheduleJobExecution` 的 `CancelIsReal`、`OutcomeFixed`；`schedule` 的 `dispatch/job`、`schedule-local` 的 `dispatch/jobs` 取消用例 |
 | INV-SJ20 | 取消后的通知义务与迟到事实保留在原 Job                                                 | 迟到结果把已取消的工作改成成功       | 只有文字                                                                                                                                          |
-| INV-SJ21 | 恢复接续原执行与原调用，不变成业务重跑                                                 | 重启后重复建 Job、会话或调用         | `schedule-local` 的 `storage/recovery` 用例（管理命令）；模型 `ScheduleJobExecution` 的 `StartAtMostOnce`、`RunningIsReal`、`FailureIsReal`；Job 侧的实现只有文字 |
+| INV-SJ21 | 恢复接续原执行与原调用，不变成业务重跑                                                 | 重启后重复建 Job、会话或调用         | `schedule-local` 的 `storage/recovery` 用例（管理命令）；模型 `ScheduleJobExecution` 的 `StartAtMostOnce`、`RunningIsReal`、`FailureIsReal`；Job 侧：`schedule` 的 `dispatch/coordinate`（开始意图先提交）、`schedule-local` 的 `dispatch/jobs`（换一代记被中断） |
 | INV-SJ22 | 历史不因结束、归档、失权或换代清除；查询不成为副作用入口                               | 历史丢失；读面触发补跑               | `queries/application`、`queries/limits`、`queries/request-integrity` 用例；`storage/reads` 用例                                                   |
 | INV-SJ23 | 停止先关准入再交接；实例只撤自己的贡献；晚到结果归原身份                               | 无人负责的窗口；删了新实例的资源     | `schedule-local` 的 `assembly/cordis`、`calculation-worker/lifecycle` 用例                                                                        |
 | INV-SJ24 | 配置与集成条件真实：缺依赖或无效配置拒绝或受阻，不静默缺省；监听失败不倒写事实         | 静默选参数或通道                     | `schedule-local` 的 `assembly/application`、`cordis-entry` 用例                                                                                   |

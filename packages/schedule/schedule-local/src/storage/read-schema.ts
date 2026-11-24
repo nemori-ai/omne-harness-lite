@@ -7,7 +7,7 @@ import {
   ScheduleRevisionsRequestSchema,
 } from '@omne-harness/schedule-contract'
 import { readAccessSchema, recoveryScopeSchema, storageScopeSchema } from './schema.ts'
-import { pendingRequestSchema } from './dispatch-schema.ts'
+import { jobRequestSchema, pendingRequestSchema } from './dispatch-schema.ts'
 export const readRequestSchema = z.discriminatedUnion('kind', [
   z.strictObject({
     kind: z.literal('schedule'),
@@ -40,6 +40,7 @@ export const readRequestSchema = z.discriminatedUnion('kind', [
     operationRef: ScheduleOperationRefSchema,
   }),
   pendingRequestSchema,
+  jobRequestSchema,
 ])
 export type RepositoryRequest = z.infer<typeof readRequestSchema>
 export type PageRequest = Extract<RepositoryRequest, { kind: 'list' | 'revisions' }>

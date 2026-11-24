@@ -14,10 +14,14 @@ import {
   ScheduleCommandsService,
   ScheduleQueriesService,
   scheduleCommandsKey,
+  scheduleCarriersKey,
+  scheduleExecutorsKey,
+  scheduleProgramsKey,
   scheduleQueriesKey,
 } from '@omne-harness/schedule-cordis-contract/cordis'
 import {
   createScheduleCalendarEnvironment,
+  createProgramExecutor,
   createScheduleLocalApplication,
   type ScheduleLocalApplication,
 } from '@omne-harness/schedule-local'
@@ -52,6 +56,7 @@ import {
 import { productionStorageCatalog } from '../storage/production-catalog.ts'
 import { monotonicClock } from '../../shutdown.ts'
 import { createScheduleAuthorizers } from './authorizer.ts'
+import { createCarriers, executorOf, missingCarriers, type Carriers } from './carriers.ts'
 import { SCHEDULE_PARTICIPANTS, scheduleDispatchGuards, scheduleGuards } from './guard.ts'
 import { tenantDomainOf } from './tenant-domain.ts'
 import { liveCallOrigin } from '../tool-bindings/live-calls.ts'
@@ -122,6 +127,7 @@ async function registration() {
 async function openTenantApplication(
   ctx: Context,
   config: ScheduleRowConfig,
+  carriers: Carriers,
   tenantRef: string,
   combination: () => Promise<Readonly<{ combinationVersion: string; manifestDigest: string }>>,
 ): Promise<ScheduleLocalApplication | undefined> {
@@ -227,8 +233,8 @@ async function openTenantApplication(
       guards: scheduleDispatchGuards,
       time: runTimeOf(ctx),
       standing: standingOf(ctx, tenantRef),
-      missingCarriers: purpose =>
-        purpose.kind === 'execution' ? [`executor:${purpose.work.kind}`] : ['notification'],
+      missingCarriers: purpose => missingCarriers(carriers, purpose),
+      executor: work => executorOf(carriers, work),
       policy: config.dispatch,
       report: error =>
         ctx.logger('schedule').warn('schedule dispatch round failed: %s', String(error)),
@@ -237,14 +243,14 @@ async function openTenantApplication(
 }
 
 /** One schedule application per tenant, in the tenant's own domain; registered the first time it is asked. */
-function createTenantHost(ctx: Context, config: ScheduleRowConfig): Host {
+function createTenantHost(ctx: Context, config: ScheduleRowConfig, carriers: Carriers): Host {
   const opened = new Map<string, Promise<ScheduleLocalApplication | undefined>>()
   let combination:
     | Promise<Readonly<{ combinationVersion: string; manifestDigest: string }>>
     | undefined
 
   const open = (tenantRef: string) =>
-    openTenantApplication(ctx, config, tenantRef, () => (combination ??= registration()))
+    openTenantApplication(ctx, config, carriers, tenantRef, () => (combination ??= registration()))
 
   function openTenant(tenantRef: string): Promise<ScheduleLocalApplication | undefined> {
     let opening = opened.get(tenantRef)
@@ -352,7 +358,13 @@ export const scheduleRow = defineRow({
   row: 'schedule',
   implementation: 'real',
   manifest: {
-    provides: [scheduleCommandsKey, scheduleQueriesKey],
+    provides: [
+      scheduleCommandsKey,
+      scheduleQueriesKey,
+      scheduleProgramsKey,
+      scheduleExecutorsKey,
+      scheduleCarriersKey,
+    ],
     injects: [
       storageKey,
       tenantDomainLookupKey,
@@ -367,7 +379,12 @@ export const scheduleRow = defineRow({
   lifecycle: { kind: 'body', phase: 'composition' },
   Config: scheduleRowConfig,
   async body(ctx, raw) {
-    const host = createTenantHost(ctx, scheduleRowConfig.parse(raw ?? {}))
+    const carriers = createCarriers(ctx)
+    carriers.executors.register(
+      'program',
+      createProgramExecutor(name => carriers.programs.get(name)),
+    )
+    const host = createTenantHost(ctx, scheduleRowConfig.parse(raw ?? {}), carriers)
     void host.watchAll()
     new Commands(ctx, host)
     new Queries(ctx, host)

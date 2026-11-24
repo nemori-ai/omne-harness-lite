@@ -30,3 +30,8 @@ export function admissionRefs(
     jobId: ScheduleJobIdSchema.parse(uuid([...at, 'job'])),
   }
 }
+
+/** A Job started outside any schedule is named by its owner and the caller's key, so a retry finds it. */
+export function directJobId(owner: ScheduleOwner, key: string) {
+  return ScheduleJobIdSchema.parse(uuid(['omne.schedule.dispatch.direct/1', owner, key]))
+}

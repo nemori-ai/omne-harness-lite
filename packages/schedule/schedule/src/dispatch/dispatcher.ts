@@ -1,6 +1,17 @@
 import type { ScheduleInstant } from '@omne-harness/schedule-contract'
+import { coordinateJob } from './coordinate.ts'
 import { admitCommand, iso, refreshCommand, type DispatcherPorts } from './prepare.ts'
+import type { ScheduleJobId, ScheduleWork } from '@omne-harness/schedule-contract'
+import { advanceJob, type JobFacts } from './job.ts'
+import { directJobId } from './refs.ts'
 import type { DispatchCommand } from './types.ts'
+
+export type CancelAnswer =
+  | Readonly<{ kind: 'changed' | 'unchanged'; facts: JobFacts }>
+  | Readonly<{ kind: 'absent' | 'unknown' }>
+export type DirectAnswer =
+  | Readonly<{ kind: 'started'; jobId: ScheduleJobId; replayed: boolean }>
+  | Readonly<{ kind: 'unknown'; jobId: ScheduleJobId }>
 
 export {
   reminderDeadline,
@@ -42,7 +53,7 @@ export function createDispatcher(ports: DispatcherPorts) {
       const at = iso(time.now())
       const pending = await store.pending(at, policy.roundLimit)
       if (pending.kind === 'unavailable') return { kind: 'unavailable', refreshed, disposed }
-      const { stale, due, watch } = pending.value
+      const { stale, due, watch, jobs } = pending.value
       earliest = pending.value.earliest
       let moved = 0
       for (const item of stale)
@@ -53,6 +64,8 @@ export function createDispatcher(ports: DispatcherPorts) {
         disposed += done
         moved += done
       }
+      const coordination = { owner: ports.owner, executor: ports.executor, commit: committed }
+      for (const job of jobs) moved += await coordinateJob(coordination, job, at)
       if (moved === 0) break
     }
     if (earliest !== null) hint(earliest)
@@ -83,8 +96,49 @@ export function createDispatcher(ports: DispatcherPorts) {
     })
   }
 
+  /** Cancels one Job: before its start it never starts; once started a stop is asked; a concluded Job keeps its outcome. */
+  async function cancel(jobId: ScheduleJobId): Promise<CancelAnswer> {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const read = await store.job(jobId)
+      if (read.kind === 'unavailable') return { kind: 'unknown' }
+      if (read.value === null) return { kind: 'absent' }
+      const job = read.value
+      const step = advanceJob(job.facts, { kind: 'cancel' })
+      if (step.kind !== 'move') return { kind: 'unchanged', facts: job.facts }
+      const result = await store.commit({
+        kind: 'step',
+        owner: ports.owner,
+        jobId,
+        revision: job.revision,
+        event: { kind: 'cancel' },
+        next: step.next,
+        at: iso(time.now()),
+      })
+      if (result.kind === 'committed') return { kind: 'changed', facts: step.next }
+      if (result.kind === 'unknown') return { kind: 'unknown' }
+    }
+    return { kind: 'unknown' }
+  }
+
+  /** Starts a Job outside any schedule: no slot, no count; the same key answers the same Job. */
+  async function startDirect(work: ScheduleWork, key: string): Promise<DirectAnswer> {
+    const jobId = directJobId(ports.owner, key)
+    const result = await store.commit({
+      kind: 'direct',
+      owner: ports.owner,
+      jobId,
+      work,
+      at: iso(time.now()),
+    })
+    return result.kind === 'committed'
+      ? { kind: 'started', jobId, replayed: result.replayed }
+      : { kind: 'unknown', jobId }
+  }
+
   return {
     round,
+    cancel,
+    startDirect,
     start(): void {
       void round()
         .catch(error => ports.report?.(error))

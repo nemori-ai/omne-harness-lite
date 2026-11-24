@@ -6,13 +6,19 @@ import type {
   ScheduleOwner,
   ScheduleReceiptId,
   ScheduleRevisionView,
+  ScheduleWork,
 } from '@omne-harness/schedule-contract'
 import type { ScheduleRecord } from '../management/types.ts'
 import type { Admission, AdmissionFacts } from './admission.ts'
+import type { JobEvent, JobFacts } from './job.ts'
 
 export type WatchCause = 'enabled' | 'resumed' | 'recovered' | 'takeover'
 
-export type DispatchBlock = Readonly<{ kind: 'blocked' | 'terminal'; reasons: readonly string[] }>
+export type DispatchBlock = Readonly<{
+  kind: 'blocked' | 'terminal'
+  reasons: readonly string[]
+  since: ScheduleInstant
+}>
 
 /** The dispatch state of one schedule: how far it is disposed, what is due next, and since when it is watched. */
 export type DispatchState = Readonly<{
@@ -35,12 +41,24 @@ export type DispatchSchedule = Readonly<{
   unfinishedJobs: number
 }>
 
+export type DispatchJob = Readonly<{
+  jobId: ScheduleJobId
+  scheduleId: ScheduleId | null
+  slotAt: ScheduleInstant | null
+  acceptedAt: ScheduleInstant
+  work: ScheduleWork | null
+  facts: JobFacts
+  revision: number
+  quietBefore: boolean
+}>
+
 export type DispatchPending = Readonly<{
   stale: readonly DispatchSchedule[]
   due: readonly DispatchSchedule[]
   active: boolean
   watch: Readonly<{ beatAt: ScheduleInstant; watchFrom: ScheduleInstant }> | null
   earliest: ScheduleInstant | null
+  jobs: readonly DispatchJob[]
 }>
 
 /** What a commit takes from outside the lock: facts no transaction can read, prepared before it. */
@@ -57,6 +75,22 @@ export type DispatchCommand =
       scheduleId: ScheduleId
       revision: number
       state: DispatchState | null
+      at: ScheduleInstant
+    }>
+  | Readonly<{
+      kind: 'direct'
+      owner: ScheduleOwner
+      jobId: ScheduleJobId
+      work: ScheduleWork
+      at: ScheduleInstant
+    }>
+  | Readonly<{
+      kind: 'step'
+      owner: ScheduleOwner
+      jobId: ScheduleJobId
+      revision: number
+      event: JobEvent
+      next: JobFacts
       at: ScheduleInstant
     }>
   | Readonly<{
@@ -104,4 +138,9 @@ export interface DispatchStore {
     limit: number,
   ): Promise<Readonly<{ kind: 'ok'; value: DispatchPending }> | Readonly<{ kind: 'unavailable' }>>
   commit(command: DispatchCommand): Promise<DispatchCommitResult>
+  job(
+    jobId: ScheduleJobId,
+  ): Promise<
+    Readonly<{ kind: 'ok'; value: DispatchJob | null }> | Readonly<{ kind: 'unavailable' }>
+  >
 }

@@ -39,12 +39,13 @@ const pendingSchema = z.strictObject({
     active: z.boolean(),
     watch: z.strictObject({ beatAt: z.string(), watchFrom: z.string() }).nullable(),
     earliest: z.string().nullable(),
+    jobs: z.array(z.unknown()),
   }),
 })
 
 /** An admission is named by its slot and its content, so a retry is recalled; a beat or a refresh keeps no receipt. */
 function identity(options: ScheduleDispatchSqlOptions, command: DispatchCommand) {
-  const admission = command.kind === 'admit'
+  const admission = command.kind === 'admit' || command.kind === 'direct'
   return {
     scope: options.scope,
     transactionDomain: options.transactionDomain,
@@ -80,6 +81,24 @@ export function createScheduleDispatchSqlStore(options: ScheduleDispatchSqlOptio
         const parsed = pendingSchema.safeParse(result.output)
         return parsed.success
           ? { kind: 'ok', value: parsed.data.value as unknown as DispatchPending }
+          : { kind: 'unavailable' }
+      } catch {
+        return { kind: 'unavailable' }
+      }
+    },
+    async job(jobId) {
+      try {
+        const result = await options.storage.read({
+          domain: { scope: options.scope, transactionDomain: options.transactionDomain },
+          handler: HANDLER,
+          protocol: PROTOCOL,
+          requestKey: randomUUID(),
+          input: json({ kind: 'dispatchJob', scope: options.scope, owner: options.owner, jobId }),
+        })
+        if (result.kind !== 'read') return { kind: 'unavailable' }
+        const output = result.output as { kind?: string; value?: unknown }
+        return output.kind === 'ok'
+          ? { kind: 'ok', value: (output.value ?? null) as never }
           : { kind: 'unavailable' }
       } catch {
         return { kind: 'unavailable' }

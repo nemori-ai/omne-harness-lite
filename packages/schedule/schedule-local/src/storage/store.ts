@@ -19,7 +19,7 @@ export async function readRepository<T>(
   try {
     const input = readRequestSchema.parse(request)
     const owner =
-      input.kind === 'schedule' || input.kind === 'dispatchPending'
+      input.kind === 'schedule' || input.kind === 'dispatchPending' || input.kind === 'dispatchJob'
         ? input.owner
         : input.kind === 'operation'
           ? input.recovery.owner

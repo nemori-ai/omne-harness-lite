@@ -1,16 +1,24 @@
 // @module-tag slow
 import { describe, expect, it } from 'vitest'
+import type { ScheduleProgram } from '@omne-harness/schedule-local'
 import { context } from '../storage/data.ts'
 import { dispatchWorld, everyMinute, MINUTE, START } from './world.ts'
 
 const at = (minutes: number) => new Date(START + minutes * MINUTE).toISOString()
+const untilStopped: ScheduleProgram = {
+  name: 'probe',
+  run: (_input, { signal }) =>
+    new Promise((_resolve, reject) =>
+      signal.addEventListener('abort', () => reject(signal.reason)),
+    ),
+}
 
 describe(
   'the dispatcher accepts due slots, one commit each',
   { tags: ['slow'], timeout: 120_000 },
   () => {
     it('a schedule made active is watched from its activation; each due minute becomes one Job, counted once', async () => {
-      const w = await dispatchWorld()
+      const w = await dispatchWorld({ programs: { probe: untilStopped } })
       try {
         const id = await w.create(everyMinute(), 'minute-1')
         const dispatcher = w.dispatcher()
@@ -26,8 +34,8 @@ describe(
           [at(2), 'acceptedExecution', 'accepted'],
         ])
         expect(w.jobs(id).map(job => [job['slot_at'], job['state']])).toEqual([
-          [at(1), 'accepted'],
-          [at(2), 'accepted'],
+          [at(1), 'running'],
+          [at(2), 'running'],
         ])
         expect(w.view(id)).toMatchObject({
           eligibleConsumed: 2,
@@ -183,6 +191,7 @@ describe(
         await dispatcher.round()
         w.time.advance(MINUTE)
         await dispatcher.round()
+        const blockedAt = new Date(w.time.source.now()).toISOString()
         expect(w.receipts(id)).toEqual([])
         const state = JSON.parse(
           String(w.rows(`SELECT state FROM sc_dispatch WHERE schedule_id = '${id}'`)[0]?.['state']),
@@ -190,9 +199,37 @@ describe(
         expect(state.block).toEqual({
           kind: 'blocked',
           reasons: ['carrier-missing:executor:program'],
+          since: blockedAt,
         })
+        const shown = async () => {
+          const got = await w.app.queries.get(context, { scheduleId: id } as never)
+          return got.kind === 'ok' ? got.value.standing : got
+        }
+        const listed = async (standing: 'ready' | 'blocked') => {
+          const page = await w.app.queries.list(context, {
+            agentRef: null,
+            control: null,
+            createdBy: null,
+            targetDeviceRef: null,
+            calendarId: null,
+            purpose: null,
+            cursor: null,
+            limit: 50,
+            standing,
+          } as never)
+          return page.kind === 'ok' ? page.value.items.map(item => item.standing.kind) : page
+        }
+        expect(await shown()).toMatchObject({
+          kind: 'blocked',
+          reasons: ['carrier-missing:executor:program'],
+          since: blockedAt,
+        })
+        expect([await listed('blocked'), await listed('ready')]).toEqual([['blocked'], []])
+        expect(w.view(id)).toMatchObject({ standing: { kind: 'ready' } })
         missing = []
         await dispatcher.round()
+        expect(await shown()).toMatchObject({ kind: 'ready', reasons: [] })
+        expect([await listed('blocked'), await listed('ready')]).toEqual([[], ['ready']])
         expect(w.receipts(id)).toEqual([])
         const [lapse] = w.rows(`SELECT from_at, lapse FROM sc_lapses WHERE schedule_id = '${id}'`)
         expect(lapse?.['from_at']).toBe(at(1))

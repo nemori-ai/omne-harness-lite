@@ -22,7 +22,7 @@ export default {
       [],
     )
     port.execute(
-      'CREATE TABLE sc_jobs (owner TEXT NOT NULL, job_id TEXT NOT NULL, schedule_id TEXT NOT NULL, slot_at TEXT NOT NULL, state TEXT NOT NULL, job TEXT NOT NULL, PRIMARY KEY(owner, job_id))',
+      'CREATE TABLE sc_jobs (owner TEXT NOT NULL, job_id TEXT NOT NULL, schedule_id TEXT, slot_at TEXT NOT NULL, state TEXT NOT NULL, job TEXT NOT NULL, PRIMARY KEY(owner, job_id))',
       [],
     )
     port.execute(

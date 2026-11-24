@@ -4,8 +4,17 @@ import { dirname, join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { simulatedTime } from '@omne-harness/time-source/simulated'
 import { describe, expect, it } from 'vitest'
+import { defineRow } from '../../../src/row.ts'
 import { bodyOf, type CliRun } from '../../r9/support.ts'
-import { onReleaseTreeRuns, pollUntil, toolCallsThenText } from '../../support/release-tree.ts'
+import type { Context } from '@deepseek-ai/cordis'
+import { scheduleProgramsKey } from '@omne-harness/schedule-cordis-contract/cordis'
+import type { ScheduleProgramsService } from '@omne-harness/schedule-cordis-contract/cordis'
+import {
+  onReleaseTreeRuns,
+  pollUntil,
+  toolCallsThenText,
+  type AddedRow,
+} from '../../support/release-tree.ts'
 
 const EVERY_MINUTE = {
   label: '每分钟',
@@ -99,13 +108,91 @@ describe('the schedule row on the release tree', () => {
               },
               block => block !== null,
             )
-            expect(blocked).toEqual({
+            expect(blocked).toMatchObject({
               kind: 'blocked',
-              reasons: ['carrier-missing:executor:program'],
+              reasons: ['carrier-missing:program:probe'],
             })
+            const shown = succeeded(await tree.cli(['schedule', 'show', '--schedule', schedule]))
+            expect(shown).toMatchObject({ schedule, standing: 'blocked' })
             expect(
               dispatchRows(tree.storageRoot, 'SELECT count(*) AS n FROM sc_receipts')[0]?.['n'],
             ).toBe(0)
+          },
+        ],
+      )
+      expect(exitCodes).toEqual([0, 0])
+    },
+  )
+
+  it(
+    'with a probe program registered by a row, a due minute after a restart becomes a Job that runs and succeeds, without any schedule call',
+    { tags: ['slow'], timeout: 300_000 },
+    async () => {
+      const ran: string[] = []
+      const PROBE_PROGRAM: AddedRow = {
+        id: 'probe-program',
+        plugin: 'probeProgram',
+        config: {},
+        definition: defineRow({
+          row: 'probe-program',
+          implementation: 'contract-double',
+          manifest: { provides: [], injects: [scheduleProgramsKey], sameProviderGroup: null },
+          lifecycle: { kind: 'none' },
+          plugin: {
+            inject: [scheduleProgramsKey],
+            apply(ctx: Context) {
+              const programs = ctx.get(scheduleProgramsKey) as ScheduleProgramsService
+              ctx.effect(() =>
+                programs.register({
+                  name: 'probe',
+                  run: async (_input, { jobId }) => {
+                    ran.push(jobId)
+                    return { result: true }
+                  },
+                }),
+              )
+            },
+          },
+        }),
+      }
+      const time = simulatedTime({ wall: Date.parse('2027-03-01T00:00:10.000Z') })
+      time.run({ speed: 60 })
+      let schedule = ''
+      const exitCodes = await onReleaseTreeRuns(
+        {
+          script: toolCallsThenText(() => []),
+          time: { source: time.source, protocol: 'simulated-clock' },
+          addedRows: [PROBE_PROGRAM],
+          rowConfig: { schedule: { dispatch: { intervalMs: 5_000, gapMs: 600_000 } } },
+        },
+        [
+          async tree => {
+            const file = join(dirname(tree.home), 'every-minute.json')
+            writeFileSync(file, JSON.stringify(EVERY_MINUTE))
+            const created = succeeded(
+              await tree.cli([
+                'schedule',
+                'create',
+                '--definition-file',
+                file,
+                '--create-id',
+                'p-1',
+              ]),
+            )
+            schedule = String(created['schedule'])
+          },
+          async tree => {
+            const concluded = await pollUntil(
+              'a Job that ran the probe and concluded',
+              () =>
+                dispatchRows(
+                  tree.storageRoot,
+                  `SELECT job FROM sc_jobs WHERE schedule_id = '${schedule}' AND state = 'concluded'`,
+                ).map(row => JSON.parse(String(row['job'])).summary.body.outcome),
+              outcomes => outcomes.length > 0,
+            )
+            expect(concluded[0]).toBe('succeeded')
+            expect(ran.length).toBeGreaterThan(0)
           },
         ],
       )

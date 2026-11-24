@@ -5,9 +5,11 @@ import {
   type ScheduleId,
 } from '@omne-harness/schedule-contract'
 import {
+  createProgramExecutor,
   createScheduleDispatcher,
   createScheduleLocalApplication,
   type ScheduleDispatchOptions,
+  type ScheduleProgram,
 } from '@omne-harness/schedule-local'
 import { createSchedulePredictionService } from '@omne-harness/schedule'
 import { createScheduleCalculationWorker } from '@omne-harness/schedule-local'
@@ -48,6 +50,7 @@ export type DispatchWorldOptions = Readonly<{
   root?: string
   wall?: number
   gapMs?: number
+  programs?: Readonly<Record<string, ScheduleProgram>>
   standing?: ScheduleDispatchOptions['standing']
   missingCarriers?: ScheduleDispatchOptions['missingCarriers']
 }>
@@ -86,8 +89,10 @@ export async function dispatchWorld(options: DispatchWorldOptions = {}) {
       facts: { dispatch: requirement as never },
     }),
   }
-  const dispatcher = () =>
-    createScheduleDispatcher(sql, prediction, {
+  const dispatcher = (generation?: string) => {
+    const programs = createProgramExecutor(name => options.programs?.[name], generation)
+    return createScheduleDispatcher(sql, prediction, {
+      executor: work => (work.kind === 'program' ? programs : undefined),
       owner: context.owner,
       guards,
       time: time.source,
@@ -100,6 +105,7 @@ export async function dispatchWorld(options: DispatchWorldOptions = {}) {
         classifyPages: 10,
       },
     })
+  }
   const create = async (definition: ScheduleDefinition, key: string): Promise<ScheduleId> => {
     const created = await app.commands.create(context, {
       definition,

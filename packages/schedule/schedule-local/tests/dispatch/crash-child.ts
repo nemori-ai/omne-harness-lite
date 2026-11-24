@@ -56,6 +56,7 @@ const dispatcher = createScheduleDispatcher(
         facts: { dispatch: requirement as never },
       }),
     },
+    executor: () => undefined,
     time: time.source,
     standing: async () => ({ kind: 'eligible' }),
     missingCarriers: () => [],

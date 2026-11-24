@@ -6,27 +6,14 @@ import {
   type DispatchState,
   type ScheduleRecord,
 } from '@omne-harness/schedule'
-import {
-  ScheduleCandidateSchema,
-  ScheduleJobSummarySchema,
-  SchedulePurposeSchema,
-  ScheduleReceiptSummarySchema,
-  type ScheduleOwner,
-} from '@omne-harness/schedule-contract'
+import { ScheduleReceiptSummarySchema, type ScheduleOwner } from '@omne-harness/schedule-contract'
 import type { ParticipantPort, ReadPort } from '@omne-harness/sql-contract/worker'
 import { canonical } from './encoding.ts'
 import { dispatchStateSchema, type DispatchCommandInput } from './dispatch-schema.ts'
 import { readRecord, saveRecord } from './records.ts'
+import { jobRecordSchema, stopPredecessors } from './dispatch-jobs.ts'
 
 type Admit = Extract<DispatchCommandInput, { kind: 'admit' }>
-
-export const jobRecordSchema = z.strictObject({
-  summary: ScheduleJobSummarySchema,
-  scheduleId: z.string().min(1),
-  slot: ScheduleCandidateSchema,
-  purpose: SchedulePurposeSchema,
-  definitionRevision: z.int().positive(),
-})
 
 export function readState(
   port: ReadPort,
@@ -47,6 +34,7 @@ export function saveState(
   state: DispatchState,
 ) {
   const value = dispatchStateSchema.parse(state)
+  const before = readState(port, owner, scheduleId)
   port.execute(
     'INSERT INTO sc_dispatch (owner, schedule_id, revision, next_at, state) VALUES (?, ?, ?, ?, ?) ON CONFLICT(owner, schedule_id) DO UPDATE SET revision=excluded.revision, next_at=excluded.next_at, state=excluded.state',
     [
@@ -56,6 +44,15 @@ export function saveState(
       value.selected[0]?.scheduledAt ?? value.next?.scheduledAt ?? null,
       canonical(value),
     ],
+  )
+  if ((before?.block ?? null)?.since !== value.block?.since) observed(port, owner)
+}
+
+/** Readers' revision of this owner moves: what a list or a get shows has changed. */
+export function observed(port: ParticipantPort, owner: ScheduleOwner) {
+  port.execute(
+    'INSERT INTO sc_observations (owner, revision) VALUES (?, 1) ON CONFLICT(owner) DO UPDATE SET revision=revision+1',
+    [canonical(owner)],
   )
 }
 
@@ -230,26 +227,23 @@ export function writeAdmission(
   const decision = command.decision
   const owner = canonical(command.owner)
   if (decision.kind === 'retreat' || decision.kind === 'recompute') return
-  const observed = () =>
-    port.execute(
-      'INSERT INTO sc_observations (owner, revision) VALUES (?, 1) ON CONFLICT(owner) DO UPDATE SET revision=revision+1',
-      [owner],
-    )
   if (decision.kind === 'exhaust') {
     saveRecord(port, exhausted(record, at))
     saveState(port, command.owner, command.scheduleId, { ...state, next: null })
-    observed()
+    observed(port, command.owner)
     return
   }
   if (decision.kind === 'block' || decision.kind === 'invalidate') {
     const kind = decision.kind === 'block' ? 'blocked' : 'terminal'
     saveState(port, command.owner, command.scheduleId, {
       ...state,
-      block: { kind, reasons: decision.reasons },
+      block: { kind, reasons: decision.reasons, since: at as never },
     })
     return
   }
   const accepted = decision.kind === 'accept'
+  if (accepted && decision.stopPredecessors)
+    stopPredecessors(port, command.owner, command.scheduleId, at)
   const jobId = accepted ? writeJob(port, command, record, at, decision.start === 'waiting') : null
   const refs = admissionRefs(command.owner, command.scheduleId, command.slot.scheduledAt)
   const purpose = record.view.definition.purpose.kind
@@ -302,7 +296,7 @@ export function writeAdmission(
       ? state.selected.filter(slot => slot.scheduledAt !== command.slot.scheduledAt)
       : state.selected,
   })
-  observed()
+  observed(port, command.owner)
 }
 
 type Classify = Extract<DispatchCommandInput, { kind: 'classify' }>
@@ -362,10 +356,7 @@ export function writeClassification(
     selected: command.selected,
     counting: command.more ? { through: command.through, cause: command.cause } : null,
   })
-  port.execute(
-    'INSERT INTO sc_observations (owner, revision) VALUES (?, 1) ON CONFLICT(owner) DO UPDATE SET revision=revision+1',
-    [owner],
-  )
+  observed(port, command.owner)
 }
 
 export { decideAdmission, readRecord }

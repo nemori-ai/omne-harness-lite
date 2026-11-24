@@ -19,6 +19,7 @@ import {
   writeAdmission,
 } from './dispatch-records.ts'
 import { GUARD_FACT, RESULT_FACT } from './schema.ts'
+import { stepJob, writeDirect } from './dispatch-jobs.ts'
 
 const exhausting = (command: DispatchCommandInput) =>
   (command.kind === 'classify' && command.exhausts) ||
@@ -44,7 +45,7 @@ export function scheduleDispatchRequirement(
       command,
     },
     quotaEffect:
-      release === null || command.kind === 'beat' || command.kind === 'refresh'
+      release === null || (command.kind !== 'admit' && command.kind !== 'classify')
         ? { kind: 'none' }
         : {
             kind: 'release',
@@ -94,7 +95,10 @@ export function executeDispatch(requirement: DispatchRequirement, port: Particip
     return { kind: 'conflict', basis: { forbidden: true } } as const
   const at = fact.data.decisionAt
   if (command.kind === 'beat') beat(port, command)
-  else {
+  else if (command.kind === 'direct') writeDirect(port, command)
+  else if (command.kind === 'step') {
+    if (!stepJob(port, command.owner, { ...command, at })) return stale
+  } else {
     const record = readRecord(port, command.owner, command.scheduleId)
     if (record === null || record.view.revision !== command.revision) return stale
     if (command.kind === 'refresh') {

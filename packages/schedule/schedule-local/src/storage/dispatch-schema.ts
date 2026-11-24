@@ -7,6 +7,7 @@ import {
   ScheduleOwnerSchema,
   ScheduleReceiptIdSchema,
   ScheduleRefSchema,
+  ScheduleWorkSchema,
 } from '@omne-harness/schedule-contract'
 import { PARTICIPANT, quotaEffectSchema, quotaHoldingSchema, storageScopeSchema } from './schema.ts'
 
@@ -22,7 +23,11 @@ export const DISPATCH_TABLES = [
 ]
 
 const reasons = z.array(z.string().min(1)).readonly()
-const blockSchema = z.strictObject({ kind: z.enum(['blocked', 'terminal']), reasons })
+const blockSchema = z.strictObject({
+  kind: z.enum(['blocked', 'terminal']),
+  reasons,
+  since: ScheduleInstantSchema,
+})
 export const dispatchStateSchema = z.strictObject({
   revision: z.int().positive(),
   watchedFrom: ScheduleInstantSchema,
@@ -66,6 +71,37 @@ export const preparedSchema = z.strictObject({
   ]),
 })
 const target = { owner: ScheduleOwnerSchema, at: ScheduleInstantSchema }
+const jobFactsSchema = z.strictObject({
+  state: z.enum(['accepted', 'waiting', 'startPending', 'running', 'blocked', 'concluded']),
+  stopState: z.enum(['none', 'requested', 'pending', 'confirmed', 'unknown']),
+  executionRef: z.string().min(1).nullable(),
+  outcome: z.enum(['succeeded', 'failed', 'cancelled']).nullable(),
+  reason: z.string().nullable(),
+})
+const jobEventSchema = z.discriminatedUnion('kind', [
+  z.strictObject({
+    kind: z.enum([
+      'predecessorsQuiet',
+      'startIntent',
+      'cancel',
+      'stopSent',
+      'stopConfirmed',
+      'stopUnknown',
+    ]),
+  }),
+  z.strictObject({
+    kind: z.literal('taken'),
+    executionRef: z.string().min(1),
+    running: z.boolean(),
+  }),
+  z.strictObject({ kind: z.literal('notStarted'), recoverable: z.boolean(), reason: z.string() }),
+  z.strictObject({
+    kind: z.literal('ended'),
+    report: z.enum(['succeeded', 'failed', 'stopped']),
+    result: z.boolean(),
+    reason: z.string(),
+  }),
+])
 export const dispatchCommandSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('beat'), ...target, gapMs: z.int().positive() }),
   z.strictObject({
@@ -74,6 +110,20 @@ export const dispatchCommandSchema = z.discriminatedUnion('kind', [
     scheduleId: ScheduleIdSchema,
     revision: z.int().positive(),
     state: dispatchStateSchema.nullable(),
+  }),
+  z.strictObject({
+    kind: z.literal('direct'),
+    ...target,
+    jobId: ScheduleJobIdSchema,
+    work: ScheduleWorkSchema,
+  }),
+  z.strictObject({
+    kind: z.literal('step'),
+    ...target,
+    jobId: ScheduleJobIdSchema,
+    revision: z.int().positive(),
+    event: jobEventSchema,
+    next: jobFactsSchema,
   }),
   z.strictObject({
     kind: z.literal('classify'),
@@ -118,6 +168,12 @@ export const dispatchRequirementSchema = z.strictObject({
 })
 export const dispatchFactSchema = dispatchRequirementSchema.extend({
   decisionAt: ScheduleInstantSchema,
+})
+export const jobRequestSchema = z.strictObject({
+  kind: z.literal('dispatchJob'),
+  scope: storageScopeSchema,
+  owner: ScheduleOwnerSchema,
+  jobId: ScheduleJobIdSchema,
 })
 export const pendingRequestSchema = z.strictObject({
   kind: z.literal('dispatchPending'),

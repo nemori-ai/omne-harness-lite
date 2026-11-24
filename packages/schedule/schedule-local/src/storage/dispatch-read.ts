@@ -6,6 +6,7 @@ import { canonical } from './encoding.ts'
 import { readState, unfinishedJobs } from './dispatch-records.ts'
 import type { pendingRequestSchema } from './dispatch-schema.ts'
 import { readRecord } from './records.ts'
+import { openJobs } from './dispatch-jobs.ts'
 import { revisionSchema } from './schema.ts'
 
 type Pending = z.infer<typeof pendingRequestSchema>
@@ -73,5 +74,6 @@ export function readPending(port: ReadPort, input: Pending) {
     active: active !== undefined,
     watch: watch === undefined ? null : { beatAt: String(watch[0]), watchFrom: String(watch[1]) },
     earliest: typeof earliest === 'string' ? earliest : null,
+    jobs: openJobs(port, input.owner, input.limit),
   }
 }
