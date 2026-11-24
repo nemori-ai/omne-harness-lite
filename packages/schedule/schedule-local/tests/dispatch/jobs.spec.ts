@@ -113,6 +113,7 @@ describe(
           'skipped',
         ])
         expect(t.states()).toEqual(['running'])
+        expect(t.w.view(t.id)).toMatchObject({ eligibleConsumed: 2, acceptedJobCount: 1 })
         await t.dispatcher.close()
       } finally {
         await t.w.close()

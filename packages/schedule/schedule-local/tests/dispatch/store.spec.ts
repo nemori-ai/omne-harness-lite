@@ -103,5 +103,40 @@ describe(
         await w.close()
       }
     })
+
+    it('a schedule paused after the preparation: the commit decides again, rolls back, and writes nothing', async () => {
+      const { w, id, store, command } = await prepared()
+      try {
+        await w.stamp()
+        const paused = await w.app.commands.execute(context, {
+          action: 'pause',
+          scheduleId: id,
+          reason: null,
+          meta: { operationKey: 'pause-after-prepare', expectedRevision: command.revision },
+        } as never)
+        expect(paused.kind).toBe('committed')
+        expect(await store.commit(command)).toEqual({ kind: 'stale' })
+        expect(w.receipts(id)).toEqual([])
+        expect(w.jobs(id)).toEqual([])
+      } finally {
+        await w.close()
+      }
+    })
+
+    it('a later slot is not disposed while an earlier one is still due', async () => {
+      const { w, id, store, command } = await prepared()
+      try {
+        const later = new Date(Date.parse(command.slot.scheduledAt) + MINUTE).toISOString()
+        const slot = {
+          ...command.slot,
+          scheduledAt: later as never,
+          sourceKeys: command.slot.sourceKeys.map(key => `${key}:later`),
+        }
+        expect(await store.commit({ ...command, slot })).toEqual({ kind: 'stale' })
+        expect(w.receipts(id)).toEqual([])
+      } finally {
+        await w.close()
+      }
+    })
   },
 )

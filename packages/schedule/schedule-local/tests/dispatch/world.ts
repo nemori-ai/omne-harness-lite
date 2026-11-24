@@ -1,4 +1,5 @@
 import { createScheduleJobs } from '../../src/jobs.ts'
+import type { TimeSource } from '@omne-harness/time-source'
 import { simulatedTime } from '@omne-harness/time-source/simulated'
 import {
   ScheduleDefinitionSchema,
@@ -90,13 +91,13 @@ export async function dispatchWorld(options: DispatchWorldOptions = {}) {
       facts: { dispatch: requirement as never },
     }),
   }
-  const dispatcher = (generation?: string) => {
+  const dispatcher = (generation?: string, clock: TimeSource = time.source) => {
     const programs = createProgramExecutor(name => options.programs?.[name], generation)
     return createScheduleDispatcher(sql, prediction, {
       executor: work => (work.kind === 'program' ? programs : undefined),
       owner: context.owner,
       guards,
-      time: time.source,
+      time: clock,
       standing: options.standing ?? (async () => ({ kind: 'eligible' })),
       missingCarriers: options.missingCarriers ?? (() => []),
       policy: {
