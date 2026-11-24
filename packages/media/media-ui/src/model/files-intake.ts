@@ -8,13 +8,11 @@ export type PlacedReference = Readonly<{ kind: string; ref: string }>
 
 export const MEDIA_OBJECT = 'media.object'
 
-/** What the intake says with a reference: the size an image takes when it is put on the sheet. */
 export type Placing = Readonly<{ size: Readonly<{ width: number; height: number }> }>
 
 const IMAGE_WIDTH = 176
 const IMAGE_HEIGHTS = { least: 88, most: 232 } as const
 
-/** An image is put 176 wide and as high as its own proportions say, between 88 and 232; nothing else is sized. */
 export function placingOf(facts: Attachment['facts']): Placing | undefined {
   if (facts?.kind !== 'image' || facts.widthPixels <= 0 || facts.heightPixels <= 0) return undefined
   const high = Math.round((IMAGE_WIDTH * facts.heightPixels) / facts.widthPixels)

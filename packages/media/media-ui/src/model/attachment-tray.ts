@@ -35,7 +35,6 @@ export type Attachment = Readonly<{
   bytes: number
   preview: string | null
   state: AttachmentState
-  /** What the upload's answer said of the medium: an image's width and height. */
   facts?: Committed['facts']
 }>
 

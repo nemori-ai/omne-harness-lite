@@ -12,12 +12,7 @@ import { encodeInstant } from '@omne-harness/utc-instant'
 import { useEffect, useRef, useState, type JSX, type ReactNode } from 'react'
 import { standingOf } from '../model/kinds.ts'
 import type { AwayPage, Reading } from '../model/reading.ts'
-import {
-  CANVAS_PICKER,
-  canvasPicker,
-  type CanvasPickerSubject,
-  type CanvasReference,
-} from '../points.ts'
+import { CANVAS_PICKER, canvasPicker, type CanvasPickerSubject } from '../points.ts'
 import { Element, inConflict, kindName, OneThing, type CanvasHost } from './element.tsx'
 import type { PlaceNear } from './sheet-layers.tsx'
 
