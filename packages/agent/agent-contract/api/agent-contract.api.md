@@ -360,6 +360,8 @@
 - `judgeLoopExtensions` · `judge-extensions.d.ts`
 - `obligationCategoryOf` · `finishing.d.ts`
 - `openItems` · `snapshot.d.ts`
+- `stepOfToolAction` · `identity.d.ts`
+- `toolActionOf` · `identity.d.ts`
 
 ## 入口 `./testing` · `testing.d.ts`
 
@@ -2586,6 +2588,8 @@ export declare const decodeAgentInstanceId: IdentityDecoder<AgentInstanceId, "Ag
 export declare const decodeStepId: IdentityDecoder<StepId, "StepId">;
 export declare const decodeActionId: IdentityDecoder<ActionId, "ActionId">;
 export declare const decodePassageId: IdentityDecoder<PassageId, "PassageId">;
+export declare function toolActionOf(step: StepId, ordinal: number): ReturnType<typeof decodeActionId>;
+export declare function stepOfToolAction(position: string): StepId | null;
 export declare function admissionPassageOf(action: ActionId): ReturnType<typeof decodePassageId>;
 export declare function admissionActionOf(passage: PassageId): ActionId | null;
 export declare const decodeCardRoundId: IdentityDecoder<CardRoundId, "CardRoundId">;
@@ -2621,7 +2625,7 @@ export { judgeHandoffPrepare, judgeInputOrigin } from './judge-handoff.ts';
 export { DECISION_CARD_DRAFT_SCHEMA, POSITION_OUTPUTS, cardDraftOf, cardRequestOf, judgeExtensionOutput, } from './judge-output.ts';
 export type { ExtensionOutputJudgeInput, PositionOutputKey, PositionOutputs, } from './judge-output.ts';
 export type { AgentDefinition, AgentDefinitionListing, AgentType, AssetReference, AttributeDeclaration, AttributeItem, CapabilityRef, InstructionSection, } from './definition.ts';
-export { AGENT_IDENTITY_MAX_LENGTH, admissionActionOf, admissionPassageOf, decodeActionBatchId, decodeActionId, decodeAgentExecutionId, decodeAgentInstanceId, decodeAgentOperationId, decodeAgentRegistrationId, decodeCardRoundId, decodeCompactionOperationId, decodeCompactionTaskId, decodeConsumptionId, decodeExecutionAttachmentId, decodeExecutionRevision, decodeInputBatchId, decodeInputId, decodePassageId, decodeReplyAdmissionPageCursor, decodeReplyAdmissionSequence, decodeStepId, judgeAccess, judgeAdoption, judgeAuthority, judgeEvidence, } from './identity.ts';
+export { AGENT_IDENTITY_MAX_LENGTH, admissionActionOf, stepOfToolAction, toolActionOf, admissionPassageOf, decodeActionBatchId, decodeActionId, decodeAgentExecutionId, decodeAgentInstanceId, decodeAgentOperationId, decodeAgentRegistrationId, decodeCardRoundId, decodeCompactionOperationId, decodeCompactionTaskId, decodeConsumptionId, decodeExecutionAttachmentId, decodeExecutionRevision, decodeInputBatchId, decodeInputId, decodePassageId, decodeReplyAdmissionPageCursor, decodeReplyAdmissionSequence, decodeStepId, judgeAccess, judgeAdoption, judgeAuthority, judgeEvidence, } from './identity.ts';
 export type * from './evaluation.ts';
 export type * from './compaction.ts';
 export { compactionGeneration, compactionRequestText, compactionInputText } from './compaction.ts';

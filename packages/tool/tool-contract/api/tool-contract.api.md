@@ -106,6 +106,7 @@
 - `ToolDeliveryId` · `identity.d.ts`
 - `ToolDeliveryKey` · `result-delivery.d.ts`
 - `ToolDeliveryRejection` · `result-delivery.d.ts`
+- `ToolDirectoryVisit` · `results.d.ts`
 - `ToolEnvironmentDeclaration` · `definitions.d.ts`
 - `ToolExecutionRef` · `execution.d.ts`
 - `ToolFailure` · `results.d.ts`
@@ -1986,6 +1987,7 @@ export type ToolCallDirectory = Readonly<{
         id: WorkspaceId;
         instance: string;
     }> | null;
+    generation?: string;
     files?: FilesScope;
 }>;
 export type ToolCallFields = Readonly<{
@@ -2590,7 +2592,7 @@ export { encodeToolInvocationRef, encodeToolOperationRef, readToolOperationRef, 
 export type { ToolInvocationLocation, ToolInvocationParts, ToolInvocationRef, ToolOperationLocation, ToolOperationParts, ToolOperationRef, ToolReferenceFailure, ToolReferenceRejection, } from './reference.ts';
 export { pinnedFiles } from './call-directory.ts';
 export type { FixedToolRequest, ParameterContract, ResourceScope, SourceLayer, ToolArguments, ToolAvailability, ToolAvailabilityReference, ToolBodyDeclaration, ToolCallFields, ToolCommandBackground, ToolCommandDeclaration, ToolCallConditions, ToolCommandRelease, ToolCommandReleaseDetail, ToolDefinition, ToolCallDirectory, ToolEnvironmentDeclaration, ToolGate, ToolGateDefault, ToolImplementationShape, ToolInvocation, ToolProgramDeclaration, ToolOffloadingDeclaration, ToolPublishedSchema, ToolReturnDeclaration, ToolSchemaIdentity, } from './definitions.ts';
-export type { ActiveRelation, Attachment, DeliveryState, Effect, InterruptionCause, OperationResolution, ReleasedDelivery, Reply, ResultPage, ToolCallContact, ToolFailure, ToolLookup, ToolRelation, ToolResult, ToolRenderedResult, ToolOffloadedBody, ToolBodyRetention, ToolBodyRepresentation, ToolResultData, ToolState, ToolTerminal, WaitState, } from './results.ts';
+export type { ActiveRelation, Attachment, DeliveryState, Effect, InterruptionCause, OperationResolution, ReleasedDelivery, Reply, ResultPage, ToolCallContact, ToolFailure, ToolLookup, ToolRelation, ToolResult, ToolDirectoryVisit, ToolRenderedResult, ToolOffloadedBody, ToolBodyRetention, ToolBodyRepresentation, ToolResultData, ToolState, ToolTerminal, WaitState, } from './results.ts';
 export type { BackgroundSource, ControlReceipt, ForegroundReturn, Handoff, InvocationAccess, ProcessBlock, ToolCommandOutcome, ToolControl, ToolDefiniteFailure, ToolInvocationCommands, ToolInvocationContentReader, ToolInvocationQueries, ToolInvokeOutcome, ToolInvokeRequest, ToolReleaseDeliveryOutcome, ToolRuntime, ToolStreamDelta, ToolStreamEnd, ToolStreamObservation, ToolStreamReferences, ToolStreamSelection, ToolStreamSnapshot, } from './operations.ts';
 export type { ToolDecision, ToolWaitSchemaSnapshot } from './author-context.ts';
 export type { ToolExecutionRef } from './execution.ts';
@@ -4315,8 +4317,15 @@ import type { ForegroundReturn } from './operations.ts';
 import type { ControlRecord, PhysicalExecution, QueuePosition, ToolTiming } from './records.ts';
 export type Attachment = ContentReference;
 export type ToolMessageContentBlock = TextContentBlock | ReferenceContentBlock;
+export type ToolDirectoryVisit = Readonly<{
+    workspace: string;
+    instance: string;
+    generation: string;
+    directories: readonly string[];
+}>;
 export type ToolRenderedResult<B extends ContentBlock> = Readonly<{
     content: readonly B[];
+    directoryVisit?: ToolDirectoryVisit;
     data: ToolResultData;
     original: Readonly<{
         kind: 'none';
