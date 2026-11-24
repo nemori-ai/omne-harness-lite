@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, realpath, rm, symlink, writeFile } from 'node:fs/promises'
+import { lstat, mkdtemp, mkdir, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, it, onTestFinished } from 'vitest'
@@ -41,20 +41,29 @@ it('distinguishes a missing rule in a verified directory from an unverified pare
       },
     },
   }
-  await expect(readWorkspaceGuidance(input, binding)).resolves.toMatchObject({
+  const stat = await lstat(root, { bigint: true })
+  const rootIdentity = `${stat.dev}:${stat.ino}`
+  const foreign = await lstat(peer, { bigint: true })
+  await expect(
+    readWorkspaceGuidance(input, binding, `${foreign.dev}:${foreign.ino}`),
+  ).resolves.toMatchObject({
+    state: 'unavailable',
+    path: 'AGENTS.md',
+  })
+  await expect(readWorkspaceGuidance(input, binding, rootIdentity)).resolves.toMatchObject({
     state: 'attached',
     absent: ['AGENTS.md', 'visited/AGENTS.md'],
     sources: [],
   })
   await rm(child, { recursive: true })
   await symlink(peer, child, 'dir')
-  await expect(readWorkspaceGuidance(input, binding)).resolves.toMatchObject({
+  await expect(readWorkspaceGuidance(input, binding, rootIdentity)).resolves.toMatchObject({
     state: 'unavailable',
     path: 'visited/AGENTS.md',
     reason: 'denied',
   })
   await writeFile(join(peer, 'AGENTS.md'), 'other workspace')
-  await expect(readWorkspaceGuidance(input, binding)).resolves.toMatchObject({
+  await expect(readWorkspaceGuidance(input, binding, rootIdentity)).resolves.toMatchObject({
     state: 'unavailable',
     path: 'visited/AGENTS.md',
     reason: 'denied',

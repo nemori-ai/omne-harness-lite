@@ -20,9 +20,9 @@ type FileLookup = (
 ) => Promise<Outcome<Readonly<{ object: ObjectToken; size: number }> | null>>
 
 /** Observe a regular file below the held root. Only a missing final name in an opened parent proves absence. */
-export function createHostFileLookup(root: string): FileLookup {
+export function createHostFileLookup(root: string, expected?: string): FileLookup {
   if (process.platform === 'darwin') {
-    const locate = createMacosPaths(createMacosRootIdentity(root))
+    const locate = createMacosPaths(createMacosRootIdentity(root, expected))
     return async path => {
       const endpoint = await locate(path)
       if (!endpoint.ok) return endpoint
@@ -41,7 +41,7 @@ export function createHostFileLookup(root: string): FileLookup {
     }
   }
   if (process.platform === 'win32') {
-    const rootIdentity = createWindowsRootIdentity(root)
+    const rootIdentity = createWindowsRootIdentity(root, expected)
     return async path => {
       const segments = await hostSegmentsBelowRoot(root, path)
       if (!segments || segments.length === 0) return fail('notAuthorized')
@@ -61,7 +61,7 @@ export function createHostFileLookup(root: string): FileLookup {
       return ok({ object: { token: result.info.token }, size: result.info.size })
     }
   }
-  const paths = createHostPathsCore({ root }).bind(handle => handle.close())
+  const paths = createHostPathsCore({ root, expectedRoot: expected }).bind(handle => handle.close())
   return async path => {
     const refusal = await paths.checkPath(path)
     if (refusal) return fail(refusal)

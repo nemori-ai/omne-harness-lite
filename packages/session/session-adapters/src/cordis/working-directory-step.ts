@@ -17,7 +17,7 @@ export type WorkingDirectoryTargets<P> = Readonly<{
   check(
     input: Readonly<{ principal: P; tenant: TenantId; workspace: WorkspaceId; instance: string }>,
   ): Promise<
-    | Readonly<{ kind: 'attachable'; directory: string }>
+    | Readonly<{ kind: 'attachable'; directory: string; rootIdentity?: string }>
     | Readonly<{ kind: 'refused'; reason: string }>
     | Readonly<{ kind: 'unavailable' }>
   >
@@ -47,6 +47,7 @@ export type StepDirectoryPorts<P> = Readonly<{
   guidance?(
     input: StepDirectoryInput<P>,
     value: Extract<WorkingDirectory, { state: 'attached' }>,
+    rootIdentity?: string,
   ): Promise<WorkspaceGuidance>
   defaultDirectory: string
   targets(): WorkingDirectoryTargets<P> | undefined
@@ -65,13 +66,22 @@ export async function directoryInForce<P>(
   ports: Pick<StepDirectoryPorts<P>, 'defaultDirectory' | 'targets'>,
   input: Pick<StepDirectoryInput<P>, 'principal' | 'tenant' | 'snapshot'>,
 ): Promise<InForce> {
+  return (await verifiedDirectory(ports, input)).value
+}
+
+async function verifiedDirectory<P>(
+  ports: Pick<StepDirectoryPorts<P>, 'defaultDirectory' | 'targets'>,
+  input: Pick<StepDirectoryInput<P>, 'principal' | 'tenant' | 'snapshot'>,
+): Promise<{ value: InForce; rootIdentity?: string | undefined }> {
   const selection = workspaceSelection(input.snapshot)
-  if (selection === null) return { state: 'default', directory: ports.defaultDirectory }
+  if (selection === null) return { value: { state: 'default', directory: ports.defaultDirectory } }
   const workspace = workspaceCodec.encode(selection.workspace)
-  if (!workspace.ok) return { unavailable: 'the selected workspace is not minted by its codec' }
+  if (!workspace.ok)
+    return { value: { unavailable: 'the selected workspace is not minted by its codec' } }
   const { instance } = selection.attachment
   const targets = ports.targets()
-  if (targets === undefined) return { unavailable: 'the workspace owner is not installed' }
+  if (targets === undefined)
+    return { value: { unavailable: 'the workspace owner is not installed' } }
   const checked = await targets.check({
     principal: input.principal,
     tenant: input.tenant,
@@ -82,17 +92,24 @@ export async function directoryInForce<P>(
     case 'attachable': {
       const generation = workspaceGeneration(input.snapshot)
       return {
-        state: 'attached',
-        workspace: workspace.value,
-        ...(generation === '0' ? {} : { generation }),
-        instance,
-        directory: checked.directory,
+        rootIdentity: checked.rootIdentity,
+        value: {
+          state: 'attached',
+          workspace: workspace.value,
+          ...(generation === '0' ? {} : { generation }),
+          instance,
+          directory: checked.directory,
+        },
       }
     }
     case 'refused':
-      return { state: 'unusable', workspace: workspace.value, instance, reason: checked.reason }
+      return {
+        value: { state: 'unusable', workspace: workspace.value, instance, reason: checked.reason },
+      }
     case 'unavailable':
-      return { unavailable: 'the workspace owner could not verify the selected instance' }
+      return {
+        value: { unavailable: 'the workspace owner could not verify the selected instance' },
+      }
   }
 }
 
@@ -109,7 +126,7 @@ export function createStepDirectory<P>(ports: StepDirectoryPorts<P>): StepDirect
           workingDirectoryDescriptor.key,
         )
         if (held.kind === 'not-held') return REFRESHED
-        const value = await directoryInForce(ports, input)
+        const { value, rootIdentity } = await verifiedDirectory(ports, input)
         if ('unavailable' in value) return down(value.unavailable)
         if (held.committed === null || !isDeepStrictEqual(held.committed.value, value))
           return { kind: 'commit', value }
@@ -121,7 +138,9 @@ export function createStepDirectory<P>(ports: StepDirectoryPorts<P>): StepDirect
         )
         if (guidance.kind === 'not-held') return REFRESHED
         const next: WorkspaceGuidance =
-          value.state === 'attached' ? await ports.guidance(input, value) : { state: 'inactive' }
+          value.state === 'attached'
+            ? await ports.guidance(input, value, rootIdentity)
+            : { state: 'inactive' }
         return isDeepStrictEqual(guidance.committed?.value, next)
           ? REFRESHED
           : { kind: 'guidance', value: next }

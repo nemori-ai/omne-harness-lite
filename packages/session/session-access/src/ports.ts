@@ -202,6 +202,7 @@ export type WorkspaceTargetCheck =
   | Readonly<{
       kind: 'attachable'
       directory: string
+      rootIdentity?: string
       attachment: WorkspaceAttachment
       basis: DurableEvidence
     }>

@@ -189,10 +189,11 @@ export function createInstances<P>(deps: WorkspaceDependencies<P>): WorkspaceIns
       if ('unavailable' in inspection) return unavailable(inspection.unavailable)
       if ('refused' in inspection)
         return { kind: 'instance-unavailable', reason: inspection.refused }
-      const { directory, basis } = inspection.ok
+      const { directory, basis, rootIdentity } = inspection.ok
       return {
         kind: 'attachable',
         directory,
+        ...(rootIdentity === undefined ? {} : { rootIdentity }),
         attachment: { instance, basis },
         evidence: {
           owner: 'workspace',

@@ -1,6 +1,7 @@
 // @module-tag slow
 import { beforeAll, expect, it, vi } from 'vitest'
 import {
+  lstat,
   mkdir,
   mkdtemp,
   readFile,
@@ -14,7 +15,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { originRef, type FacilityResult } from '@omne-harness/execution-environment-contract'
-import { createHostFilesEngine, hostObjectToken } from '../src/host-files.ts'
+import { createHostFileLookup } from '../src/host-file-lookup.ts'
+import { createHostFiles, createHostFilesEngine, hostObjectToken } from '../src/host-files.ts'
 import { prepareNativeHooks, spawnWithNativeHooks } from './macos-files/native-hooks.ts'
 
 const fault = vi.hoisted(() => ({ armed: false }))
@@ -121,6 +123,44 @@ it('C2/C6 a partial real host batch proves only its published directories withou
   } finally {
     fault.armed = false
     await engine.closeOwned('test')
+    await rm(root, { recursive: true, force: true })
+  }
+}, 60000)
+
+it('looks up and reads a named file only under the verified root object', async () => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), 'host-guidance-root-')))
+  try {
+    const file = join(root, 'AGENTS.md')
+    const other = join(root, 'other')
+    await mkdir(other)
+    await writeFile(file, 'one instruction')
+    const rootToken = async (path: string) => {
+      const info = await lstat(path, { bigint: true })
+      return `${info.dev}:${info.ino}`
+    }
+    const identity = await rootToken(root)
+    const wrong = await rootToken(other)
+    const lookup = await createHostFileLookup(root, identity)(file)
+    if (!lookup.ok || lookup.value === null) throw new Error(JSON.stringify(lookup))
+    const request = {
+      requestId: 'read-source',
+      binding: { kind: 'host_machine' as const },
+      origin: originRef('test'),
+      access: { principal: 'test', tenant },
+      named: lookup.value.object,
+      path: file,
+    }
+    const read = await createHostFiles({ read: root }, identity).read(request)
+    expect(new TextDecoder().decode(done(read).bytes)).toBe('one instruction')
+    expect(await createHostFiles({ read: root }, wrong).read(request)).toMatchObject({
+      kind: 'rejected',
+      reason: 'notAuthorized',
+    })
+    expect(await createHostFileLookup(root, wrong)(join(root, 'missing'))).toEqual({
+      ok: false,
+      failure: 'notAuthorized',
+    })
+  } finally {
     await rm(root, { recursive: true, force: true })
   }
 }, 60000)

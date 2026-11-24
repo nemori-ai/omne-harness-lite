@@ -13,6 +13,7 @@ import type { StepDirectoryInput } from '@omne-harness/session-adapters/cordis'
 export async function readWorkspaceGuidance(
   input: StepDirectoryInput<unknown>,
   value: Extract<WorkingDirectory, { state: 'attached' }>,
+  rootIdentity?: string,
 ): Promise<WorkspaceGuidance> {
   const root = value.directory
   const visit = input.snapshot.workspaceVisit
@@ -22,9 +23,17 @@ export async function readWorkspaceGuidance(
     visit.generation === (value.generation ?? '0')
       ? visit.directories
       : []
-  const files = createHostFiles({ read: root, write: root })
-  const lookup = createHostFileLookup(root)
   const basis = { root, workspace: value.workspace, instance: value.instance }
+  if (!rootIdentity || !/^\d+:[1-9]\d*$/u.test(rootIdentity))
+    return {
+      state: 'unavailable',
+      ...basis,
+      path: 'AGENTS.md',
+      reason: 'unknown',
+      diagnostic: 'the workspace did not verify a host root object',
+    }
+  const files = createHostFiles({ read: root }, rootIdentity)
+  const lookup = createHostFileLookup(root, rootIdentity)
   const sources = []
   const absent = []
   const directories = guidanceDirectories(root, active)

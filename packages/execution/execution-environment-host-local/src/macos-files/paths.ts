@@ -23,7 +23,11 @@ async function identify(path: string, root = false): Promise<RootIdentity> {
 }
 
 /** A recorded root never silently rebinds to its replacement. */
-export function createMacosRootIdentity(root: string): () => Promise<RootIdentity | undefined> {
+export function createMacosRootIdentity(
+  root: string,
+  expected?: string,
+): () => Promise<RootIdentity | undefined> {
+  if (expected !== undefined) return async () => ({ path: root, token: expected })
   let pending: Promise<RootIdentity | undefined> | undefined
   return async () => {
     const current = (pending ??= identify(root, true).catch(() => undefined))

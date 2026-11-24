@@ -164,7 +164,11 @@ function snapshot<R extends FileRequest<unknown>>(request: R): R {
   }
 }
 
-export function createWindowsRootIdentity(root: string): () => Promise<string | undefined> {
+export function createWindowsRootIdentity(
+  root: string,
+  expected?: string,
+): () => Promise<string | undefined> {
+  if (expected !== undefined) return async () => 'node-stat:' + expected
   let binding: Promise<string | undefined> | undefined
   return async () => {
     binding ??= windowsObjectInfo(root).then(

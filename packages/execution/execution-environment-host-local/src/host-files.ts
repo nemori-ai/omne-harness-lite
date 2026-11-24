@@ -136,12 +136,18 @@ export type HostFilesEngine = Readonly<{
 
 export type HostFilesEngineOptions = Readonly<{
   scope?: FilesScope
+  expectedReadRoot?: string | undefined
   stateDirectory?: string
   diagnose?: ((diagnostic: HostFileDiagnostic) => void) | undefined
 }>
 
-export function createHostFiles(scope?: FilesScope): FileSystemFacility<unknown> {
-  return createHostFilesEngine(scope === undefined ? {} : { scope }).facilityFor('host-files')
+export function createHostFiles(
+  scope?: FilesScope,
+  expectedReadRoot?: string,
+): FileSystemFacility<unknown> {
+  return createHostFilesEngine(scope === undefined ? {} : { scope, expectedReadRoot }).facilityFor(
+    'host-files',
+  )
 }
 
 function absolutePath(name: string, value: string | undefined): void {
@@ -223,12 +229,18 @@ function scopedRoots(options: HostFilesEngineOptions) {
   absolutePath('scope.read', scope.read)
   absolutePath('scope.write', scope.write)
   absolutePath('stateDirectory', options.stateDirectory)
-  const identities = <T>(make: (root: string) => T) =>
-    perEffect(scope, root => (root === undefined ? undefined : make(root)))
+  const expected = (root: string | undefined) =>
+    root === scope.read ? options.expectedReadRoot : undefined
+  const identities = <T>(make: (root: string, expected?: string) => T) =>
+    perEffect(scope, root => (root === undefined ? undefined : make(root, expected(root))))
   return {
     scope,
     cores: perEffect(scope, root =>
-      createHostPathsCore({ root, probeDirectory: options.stateDirectory }),
+      createHostPathsCore({
+        root,
+        expectedRoot: expected(root),
+        probeDirectory: options.stateDirectory,
+      }),
     ),
     // Lazy: an identity is taken only when the platform's backend first asks for it.
     windowsRootIdentity: identities(createWindowsRootIdentity),

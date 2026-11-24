@@ -85,7 +85,12 @@ public static partial class OmneFiles {
     held.Add(handle); Info info=Information(handle);
     if((info.attributes&16)==0) throw new IOException(rooted?"unavailable":"unsupported");
     if((info.attributes&0x400)!=0) throw new IOException(rooted?"notAuthorized":"unsupported");
-    if(rooted && Token(handle)!=expected) throw new IOException("notAuthorized");
+    if(rooted) {
+      string actual=expected.StartsWith("node-stat:",StringComparison.Ordinal)
+        ? "node-stat:"+info.volume.ToString()+":"+(((ulong)info.indexHigh<<32)|info.indexLow).ToString()
+        : Token(handle);
+      if(actual!=expected) throw new IOException("notAuthorized");
+    }
     return handle;
   }
   // The directory segments[index] below parent. Below a root, a reparse point or another volume is outside
