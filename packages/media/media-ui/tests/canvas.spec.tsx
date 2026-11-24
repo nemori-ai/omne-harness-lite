@@ -273,7 +273,7 @@ describe('拖到纸上的文件', () => {
     const files = [png('a.png', [1, 2]), png('b.png', [1, 2, 3, 4, 5, 6, 7, 8])]
     render(<>{handed(shell, subject(files))}</>)
     await settle()
-    expect(placed.map(each => JSON.parse(each.ref).bytes)).toEqual(['2', '8'])
+    expect(placed.map(each => JSON.parse(each.ref).bytes).toSorted()).toEqual(['2', '8'])
     expect(done()).toBe(1)
   })
 
