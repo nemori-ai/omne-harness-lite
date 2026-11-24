@@ -39,9 +39,16 @@ export type InstalledTenantOptions = Omit<
   categories: Pick<CategoryView, 'list' | 'lookup'>
   tenantAssets(): Promise<AssetsLocal | undefined>
   independentSettings(): readonly SettingDefinitions[]
-  /** The model providers the release brings; each is installed into the tenant after its tools. */
+  /** The model providers the release brings; each is installed into the tenant when it opens. */
   releaseProviders?(): readonly ReleaseProvider[]
   warn(message: string): void
+}
+
+async function installProvidersOf(options: InstalledTenantOptions, assets: AssetsLocal) {
+  const providers = options.releaseProviders?.()
+  if (providers === undefined) return
+  const tenantRef = options.scope.tenantRef
+  await installReleaseProviders({ owner: assets, tenantRef, providers, warn: options.warn })
 }
 
 // A catalog that could not be read names the closed reason the store gave, never its diagnostic.
@@ -129,6 +136,7 @@ export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) 
     try {
       const assets = await options.tenantAssets()
       if (assets === undefined) throw new Error('the local assets of the tenant are unavailable')
+      await installProvidersOf(options, assets)
       const installed = await installToolGovernance({
         principal: options.installationPrincipal,
         scope: options.scope,
@@ -145,13 +153,6 @@ export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) 
       })
       fault =
         installed.kind === 'installed' ? undefined : faultOf(installed.phase, runtime.readRefusal())
-      if (fault === undefined && options.releaseProviders !== undefined)
-        await installReleaseProviders({
-          owner: assets,
-          tenantRef: options.scope.tenantRef,
-          providers: options.releaseProviders(),
-          warn: options.warn,
-        })
     } catch {
       fault = 'tool installation threw'
     } finally {

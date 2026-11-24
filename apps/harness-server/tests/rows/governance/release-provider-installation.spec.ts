@@ -83,7 +83,7 @@ it('a holding that could not be made is made at the next opening, and the failur
   expect(await installReleaseProviders(input)).toEqual([
     { provider: 'openrouter', kind: 'unavailable', phase: 'holding' },
   ])
-  expect(log.said).toHaveLength(1)
+  expect(log.said).toEqual(['the release provider openrouter is not installed yet (holding)'])
   expect(await installReleaseProviders(input)).toMatchObject([
     { provider: 'openrouter', kind: 'ready' },
   ])
