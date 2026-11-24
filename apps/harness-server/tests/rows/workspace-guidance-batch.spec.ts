@@ -12,6 +12,7 @@ import {
   type EnvironmentLease,
   type EnvironmentFacilities,
   type FileSystemFacility,
+  type FilesScope,
 } from '@omne-harness/execution-environment-contract'
 import { createAuthorEnvironment } from '../../../../packages/tool/tool-host-local/src/author-environment.ts'
 import { directoryVisitOf } from '../../../../packages/tool/tool-host-local/src/directory-visits.ts'
@@ -38,7 +39,7 @@ vi.mock(
   }),
 )
 
-async function fixture() {
+async function fixture(rooted: boolean) {
   if (process.platform === 'darwin') await prepareNativeHooks()
   const root = await realpath(await mkdtemp(join(tmpdir(), 'tool-batch-receipt-')))
   onTestFinished(async () => {
@@ -52,7 +53,10 @@ async function fixture() {
     await mkdir(join(path, '..'), { recursive: true })
     await writeFile(path, 'original')
   }
-  const facility = createHostFilesEngine({ stateDirectory: state }).facilityFor('receipt-test')
+  const scope: FilesScope = rooted ? { read: root, write: root } : {}
+  const facility = createHostFilesEngine({ stateDirectory: state, scope }).facilityFor(
+    'receipt-test',
+  )
   const workspace = workspaceCodec.parse('wsp_00000000000000000000000000')
   const call = decodeToolCallId('batch-receipt')
   if (!workspace.ok || 'failure' in call) throw new Error('invalid test identity')
@@ -95,6 +99,7 @@ async function fixture() {
       reportDirectoryVisits: true,
       directory: {
         path: root,
+        files: scope,
         workspace: { id: workspace.value, instance: 'native' },
         generation: '1',
       },
@@ -123,11 +128,11 @@ async function fixture() {
 // Native syscall injection is exercised on the macOS host.
 it
   .skipIf(process.platform !== 'darwin')
-  .each(['committed', 'partial', 'rejected', 'lost-reply'] as const)(
+  .each(['committed', 'partial', 'rejected', 'lost-reply', 'unrooted'] as const)(
   'C2 native batch %s reports only confirmed publications and recovery adds no visit',
   { tags: ['slow'], timeout: 120_000 },
   async mode => {
-    const f = await fixture()
+    const f = await fixture(mode !== 'unrooted')
     const first = f.paths[0]!,
       second = f.paths[1]!
     if (mode === 'partial') fault.path = '/two.txt'
