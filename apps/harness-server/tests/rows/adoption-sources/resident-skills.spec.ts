@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import { capabilityId } from '@omne-harness/assets'
@@ -118,6 +119,11 @@ describe('a definition that keeps Skills resident: what the creation adopts', ()
       ['skill', 'tidy-notes'],
       ['skill', 'off'],
     ])
+    expect(segments[0]!.sources.map(item => item.digest)).toEqual(
+      ['- tidy-notes: Tidies notes.', '- off: Was on once.'].map(
+        line => `sha256:${createHash('sha256').update(line).digest('hex')}`,
+      ),
+    )
     expect(reported).toEqual([])
     expect(asked).toEqual([{ tenant: access.tenant, names: ['tidy-notes', 'off'] }])
 
@@ -150,11 +156,29 @@ describe('a definition that keeps Skills resident: what the creation adopts', ()
 
   it('a catalog that cannot be read now, or that is not there, records nothing and says it cannot be read, not that the Skill is missing', async () => {
     for (const answer of [() => fail('unknown' as const), null]) {
-      const { source, reported } = await sourceWith(withSkills('tidy-notes'), answer)
+      const { source, reported } = await sourceWith(withSkills('tidy-notes', 'more'), answer)
       const { initial } = await initialOf(source)
       expect(initial).not.toHaveProperty('newSegments')
-      expect(reported).toEqual(['resident skills tidy-notes: the Skill catalog cannot be read now'])
+      expect(reported).toEqual([
+        'resident skills tidy-notes, more: the Skill catalog cannot be read now',
+      ])
     }
+  })
+
+  it('without the access of the session the catalog is not asked: nothing is recorded, and it says so', async () => {
+    const { fixture, asked } = await sourceWith(withSkills('a'), () =>
+      succeed([entryOf('a', 'first')]),
+    )
+    const reported: string[] = []
+    const planned = await plannedResidents(
+      fixture.root,
+      [{ category: 'skill', name: 'a' }],
+      undefined,
+      reason => reported.push(reason),
+    )
+    expect(planned).toEqual({ ok: { residents: [], keys: [] } })
+    expect(reported).toEqual(['resident skills a: the Skill catalog cannot be read now'])
+    expect(asked).toEqual([])
   })
 
   it('asks the catalog as the tenant of the session: another tenant’s Skill of the same name is not that tenant’s', async () => {
@@ -187,7 +211,11 @@ describe('a definition that gains a resident Skill: what the next adoption point
       access,
       () => {},
       null,
-      { residents: [], residentKeys: [], segments: [kept] },
+      {
+        residents: [],
+        residentKeys: [],
+        segments: [{ key: 'another', text: 'not of the skills', sources: [] }, kept],
+      },
     )
     if (!('ok' in planned)) throw new Error(JSON.stringify(planned))
     expect(planned.ok.segments).toEqual([

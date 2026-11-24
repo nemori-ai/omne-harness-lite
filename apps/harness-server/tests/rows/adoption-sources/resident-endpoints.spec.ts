@@ -197,6 +197,40 @@ describe('a definition that keeps MCP endpoints resident: what the creation adop
   })
 })
 
+describe('a resident endpoint that cannot be taken as it is', () => {
+  it('without the access of the session the bridge is not asked: nothing is recorded, and it says so', async () => {
+    const { fixture, asked } = await sourceWith(withEndpoints('docs'), () => ({
+      kind: 'entry',
+      entry: DOCS,
+    }))
+    const reported: string[] = []
+    const planned = await plannedResidents(
+      fixture.root,
+      [{ category: 'mcp', name: 'docs' }],
+      undefined,
+      reason => reported.push(reason),
+    )
+    expect(planned).toEqual({ ok: { residents: [], keys: [] } })
+    expect(reported).toEqual(['resident mcp endpoint docs: the MCP endpoints cannot be read now'])
+    expect(asked).toEqual([])
+  })
+
+  it('an entry whose definition makes no resident shape is left out with that reason', async () => {
+    const shapeless = { ...DOCS, definition: { ...DOCS.definition, name: '' } }
+    const { source, reported } = await sourceWith(withEndpoints('docs'), () => ({
+      kind: 'entry',
+      entry: shapeless as never,
+    }))
+    const { initial } = await initialOf(source)
+    expect(initial['newResidents'] ?? []).toEqual([])
+    expect(reported).toEqual([
+      expect.stringMatching(
+        /^resident mcp endpoint docs: its definition makes no resident shape \(.+\)$/u,
+      ),
+    ])
+  })
+})
+
 describe('a definition that gains a resident endpoint: what the next adoption point adds', () => {
   it('adds only the endpoint the session does not keep, and never plans the kept one again', async () => {
     const { fixture, asked } = await sourceWith(withEndpoints('docs'), name => ({
@@ -210,20 +244,29 @@ describe('a definition that gains a resident endpoint: what the next adoption po
       admitted: { owner: 'o', record: 'mcp/docs', revision: '1', digest: 'sha256:old' },
       definition: { kind: 'null' },
     }
+    const keptFiles: ResidentTool = {
+      capability: 'Files',
+      version: '1',
+      shape: { kind: 'null' },
+      admitted: { owner: 'o', record: 'Files', revision: '1', digest: 'sha256:files' },
+    }
+    const filesKey = { capability: 'Files', key: 'files-key' as never }
     const planned = await plannedResidents(
       fixture.root,
       [
+        { category: 'tool', name: 'Files' },
         { category: 'mcp', name: 'docs' },
         { category: 'mcp', name: 'more' },
       ],
       access,
       () => {},
       null,
-      { residents: [kept], residentKeys: [], segments: [] },
+      { residents: [kept, keptFiles], residentKeys: [filesKey] },
     )
     if (!('ok' in planned)) throw new Error(JSON.stringify(planned))
+    // A tool and an endpoint the session keeps are not planned again; the keys it has stay.
     expect(planned.ok.residents.map(item => item.capability)).toEqual(['mcp__more'])
-    expect(planned.ok.keys).toEqual([])
+    expect(planned.ok.keys).toEqual([filesKey])
     expect(asked.map(item => item.name)).toEqual(['mcp__more'])
   })
 })

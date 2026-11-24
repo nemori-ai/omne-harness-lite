@@ -393,6 +393,33 @@ describe('an entry of a source that the session keeps resident', () => {
     }
   })
 
+  it('answers each name with its own: the kept entry, another entry of the source, a tool of the registry', async () => {
+    const other = testingSourceEntry({ name: 'probe__beta', category: 'probe', commands: ['run'] })
+    const listing = { entries: [other], withheld: [{ name: 'probe__alpha', reason: 'disabled' }] }
+    const { catalog } = world([probe(toA(listing))], [keptOf(taken)])
+    expect(await catalog.inspect(inspecting(asA, 'probe__alpha'))).toEqual({
+      ok: { kind: 'known-unavailable', definition: taken.definition, reason: 'disabled' },
+    })
+    expect(await catalog.inspect(inspecting(asA, 'probe__beta'))).toMatchObject({
+      ok: { kind: 'available', definition: other.definition },
+    })
+    expect(await catalog.inspect(inspecting(asA, 'Shell'))).toMatchObject({
+      ok: { kind: 'available', definition: { name: 'Shell' } },
+    })
+  })
+
+  it('takes the reason of its own name, not that of another entry the source knows to be unavailable', async () => {
+    const listing = { entries: [beta], withheld: [{ name: 'probe__gamma', reason: 'disabled' }] }
+    const { catalog } = world([probe(toA(listing))], [keptOf(taken)])
+    expect(await catalog.inspect(inspecting(asA, 'probe__alpha'))).toEqual({
+      ok: {
+        kind: 'known-unavailable',
+        definition: taken.definition,
+        reason: 'the source does not list this entry now',
+      },
+    })
+  })
+
   it('stands in the same way when no source is at the point at all', async () => {
     const { catalog } = world([], [keptOf(taken)])
     expect(await catalog.inspect(inspecting(asA, 'probe__alpha'))).toEqual({
@@ -509,6 +536,21 @@ describe('a call of an entry of a source', () => {
     expect(held).toEqual([])
   })
 
+  it('is not selected when the source lists the name with another executor than the call was fixed with', async () => {
+    const swapped = {
+      ...alpha,
+      executor: { ...alpha.executor, digest: `sha256:${'1'.repeat(64)}` },
+    }
+    const diagnostic = 'the source entry has another executor than the one the call was fixed with'
+    const { registry } = await selecting(probe(toA({ entries: [swapped], withheld: [] })))
+    expect(registry.selectAndPin(asA, fixed(), call)).toEqual(
+      fail({ kind: 'unavailable', diagnostic }),
+    )
+    expect(registry.peek(asA, fixed().availability as never)).toEqual(
+      fail({ kind: 'unavailable', diagnostic }),
+    )
+  })
+
   it('is not selected for another tenant, nor once the source left the point', async () => {
     const source = probe(toA({ entries: [alpha], withheld: [] }))
     const { registry } = await selecting(source)
@@ -531,5 +573,6 @@ describe('a call of an entry of a source', () => {
       call,
     )
     expect(selected).toMatchObject({ ok: { loaded: { definition: { name: 'Shell' } } } })
+    expect(registry.peek(asA, shell.ok)).toMatchObject({ ok: { definition: { name: 'Shell' } } })
   })
 })

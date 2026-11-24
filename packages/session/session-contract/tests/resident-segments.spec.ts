@@ -92,7 +92,11 @@ describe('a resident segment of the system prompt', () => {
     const s = await created()
     expect(
       refused(await startWith(s, 'rewritten', [segment('## kept\n- b: second', 'b')]), 'rewritten'),
-    ).toEqual(expect.objectContaining({ kind: 'invalid', field: 'residentAdoption.segments' }))
+    ).toEqual({
+      kind: 'invalid',
+      field: 'residentAdoption.segments',
+      reason: 'a new revision of a resident segment must begin with the previous text',
+    })
     expect('ok' in (await startWith(s, 'extended', [SECOND]))).toBe(true)
     expect((await s.read()).segments).toEqual([SECOND])
     expect(segmentsOf(s)).toEqual([FIRST, SECOND])
@@ -107,9 +111,31 @@ describe('a resident segment of the system prompt', () => {
   it('refuses an empty or twice-given segment', async () => {
     const s = await created()
     for (const segments of [[segment('', 'a')], [SECOND, SECOND], [{ ...SECOND, key: '' }]])
-      expect(refused(await startWith(s, 'bad', segments), 'bad')).toEqual(
-        expect.objectContaining({ kind: 'invalid', field: 'residentAdoption.segments' }),
-      )
+      expect(refused(await startWith(s, 'bad', segments), 'bad')).toEqual({
+        kind: 'invalid',
+        field: 'residentAdoption.segments',
+        reason: 'empty or duplicate segment',
+      })
+  })
+
+  it('refuses a segment one of whose sources lacks its category, its name or its digest', async () => {
+    const s = await created()
+    const whole = SECOND.sources[1]!
+    for (const lacking of [
+      { ...whole, category: '' },
+      { ...whole, name: '' },
+      { ...whole, digest: '' },
+    ])
+      expect(
+        refused(
+          await startWith(s, 'bad', [{ ...SECOND, sources: [SECOND.sources[0]!, lacking] }]),
+          'bad',
+        ),
+      ).toEqual({
+        kind: 'invalid',
+        field: 'residentAdoption.segments',
+        reason: 'incomplete segment source',
+      })
   })
 
   it('a logged revision that does not begin with the kept text is quarantined', async () => {

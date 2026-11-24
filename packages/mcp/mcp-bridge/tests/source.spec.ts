@@ -404,7 +404,7 @@ describe('one endpoint asked for by the name of its tool', () => {
     const w = world()
     w.adopt(home, 'docs', 'other')
     w.offers('docs', [action('search')])
-    w.offers('other', [action('fetch')])
+    w.reads('other', succeed(notAcquired))
     w.answers(() => done)
     const found = await w.source.named(alice, 'mcp__docs')
     if (found.kind !== 'entry') throw new Error(JSON.stringify(found))
@@ -413,6 +413,47 @@ describe('one endpoint asked for by the name of its tool', () => {
     const declared = commandNamed(w, alice, 'mcp__docs', 'search')
     await w.source.execute(callOf(alice, 'mcp__docs', declared))
     expect(w.invoked).toHaveLength(1)
+  })
+
+  it('keeps what the asker listed before, and adds the one asked for', async () => {
+    const w = world()
+    w.adopt(home, 'docs', 'other')
+    w.offers('docs', [action('search')])
+    w.offers('other', [action('fetch')])
+    await w.source.list(alice)
+    await w.source.named(alice, 'mcp__docs')
+    expect(w.source.select(alice, 'mcp__other')?.definition.name).toBe('mcp__other')
+    expect(w.source.select(alice, 'mcp__docs')?.definition.name).toBe('mcp__docs')
+  })
+
+  it('a call for an endpoint the asker has not listed, beside one it has, lists it first and is sent', async () => {
+    const w = world()
+    w.adopt(home, 'docs', 'other')
+    w.offers('docs', [action('search')])
+    w.offers('other', [action('fetch')])
+    w.answers(() => done)
+    await w.source.list(alice)
+    const declared = commandNamed(w, alice, 'mcp__docs', 'search')
+    await w.source.named(bob, 'mcp__other')
+    await w.source.execute(callOf(bob, 'mcp__docs', declared))
+    expect(w.invoked.map(item => item.asker)).toEqual([bob])
+  })
+
+  it('a call for an endpoint that is withheld by the time of the call does not start, whether or not the asker listed anything before', async () => {
+    for (const listedAnother of [false, true]) {
+      const w = world()
+      w.adopt(home, 'docs', 'other')
+      w.offers('docs', [action('search')])
+      w.offers('other', [action('fetch')])
+      await w.source.list(alice)
+      const declared = commandNamed(w, alice, 'mcp__docs', 'search')
+      if (listedAnother) await w.source.named(bob, 'mcp__other')
+      w.reads('docs', fail({ kind: 'blocked', reason: 'disabled' }))
+      await expect(w.source.execute(callOf(bob, 'mcp__docs', declared))).rejects.toThrow(
+        /did not start/u,
+      )
+      expect(w.invoked).toEqual([])
+    }
   })
 
   it('withheld, with the reason, when the endpoint is disabled', async () => {

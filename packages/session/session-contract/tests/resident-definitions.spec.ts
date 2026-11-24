@@ -54,6 +54,23 @@ describe('a resident tool that carries its whole definition', () => {
     )
   })
 
+  it('a resident of the registry beside it still needs its key', async () => {
+    const s = scene()
+    const answer = await s.commit({
+      kind: 'create',
+      input: {
+        ...s.base,
+        operation: operationId('create'),
+        creation: creation({ residentAdoption: { residents: [keyedTool, keptTool], keys: [] } }),
+      },
+    })
+    expect(refused(answer, 'create')).toEqual({
+      kind: 'invalid',
+      field: 'residentAdoption.keys',
+      reason: 'keys must cover the complete resident capability set',
+    })
+  })
+
   it('is stored once: the creation names the resident entry that holds the definition, and reads back whole', async () => {
     const s = scene()
     await s.create(creation({ residentAdoption: { residents: [keptTool], keys: [] } }))
