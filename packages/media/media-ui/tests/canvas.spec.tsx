@@ -81,7 +81,7 @@ const reads = (media: FakeMedia) =>
   media.calls.filter(call => call.operation === 'read-media-page').map(call => call.body)
 
 describe('纸上的媒体对象', () => {
-  it('图片画成缩略图：读回标识，按租户问它在不在，带显示目标读一份小的；点开读原件', async () => {
+  it('图片画成缩略图：读回标识，按租户问它在不在，带显示目标读一份小的；点开在盖层里读原件', async () => {
     const media = fakeMedia(4)
     stored(media)
     const shell = await mounted(media)
@@ -91,7 +91,9 @@ describe('纸上的媒体对象', () => {
     const image = screen.getByRole('img', { name: '图片 4×3' })
     expect(image.getAttribute('src')).toBe('blob:made-1')
     expect(reads(media).map(body => 'target' in body)).toEqual([true])
-    fireEvent.click(screen.getByRole('button', { name: '看原图' }))
+    const open = screen.getByRole('button', { name: '看原图' })
+    open.focus()
+    fireEvent.click(open)
     await settle()
     expect(
       reads(media)
@@ -102,10 +104,28 @@ describe('纸上的媒体对象', () => {
       [4, false],
       [8, false],
     ])
-    expect(screen.getByRole('img', { name: '图片 4×3' }).getAttribute('src')).toBe('blob:made-2')
+    const over = screen.getByRole('dialog', { name: '图片 4×3' })
     const object = document.querySelector('[data-omne-part="media.object"]')
     expect(object?.getAttribute('data-frame')).toBe('sheet')
-    expect(object?.contains(screen.getByRole('img'))).toBe(true)
+    expect(object?.contains(over)).toBe(false)
+    expect(over.querySelector('img')?.getAttribute('src')).toBe('blob:made-2')
+    expect(object?.querySelector('img')?.getAttribute('src')).toBe('blob:made-1')
+    fireEvent.keyDown(over, { key: 'Escape' })
+    await settle()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: '看原图' }))
+  })
+
+  it('一叠里露出的一页点开也在盖层里看原件', async () => {
+    const media = fakeMedia(4)
+    stored(media)
+    const shell = await mounted(media)
+    render(<>{drawn(shell, objectOf(referenceText(ref)), 'pile')}</>)
+    await settle()
+    const open = screen.getByRole('button', { name: '看原图' })
+    fireEvent.click(open)
+    await settle()
+    expect(screen.getByRole('dialog', { name: '图片 4×3' }).querySelector('img')).not.toBeNull()
   })
 
   it('文件与语音各画一行：种类、媒体类型与大小，和消息里的同一套，不读字节', async () => {
@@ -255,6 +275,52 @@ describe('拖到纸上的文件', () => {
     await settle()
     expect(placed.map(each => JSON.parse(each.ref).bytes)).toEqual(['2', '8'])
     expect(done()).toBe(1)
+  })
+
+  it('图片按上传答复里的宽高带一个大小交给 place：宽 176，高按比例夹在 88 到 232 之间；别的种类不带', async () => {
+    const media = fakeMedia(64)
+    const given: unknown[] = []
+    const subject = (files: readonly File[]): MediaCanvasIntakeSubject => ({
+      files,
+      place: (_reference, placing) => void given.push(placing),
+      done: () => undefined,
+    })
+    const shell = await mounted(media)
+    const answer = (facts: unknown) => (body: { upload: string; digest: string }) => ({
+      outcome: 'succeeded',
+      body: {
+        ref: {
+          storage: 'memory',
+          key: `key-${body.upload}`,
+          mediaType: 'image/png',
+          bytes: '1',
+          digest: body.digest,
+        },
+        facts,
+      },
+    })
+    media.once(
+      'commit-upload',
+      answer({ kind: 'image', widthPixels: 640, heightPixels: 400 }) as never,
+    )
+    render(<>{handed(shell, subject([png('wide.png', [1])]))}</>)
+    await settle()
+    media.once(
+      'commit-upload',
+      answer({ kind: 'image', widthPixels: 40, heightPixels: 300 }) as never,
+    )
+    render(<>{handed(shell, subject([png('tall.png', [1])]))}</>)
+    await settle()
+    media.once('commit-upload', answer({ kind: 'file' }) as never)
+    render(
+      <>{handed(shell, subject([new File(['%PDF'], 'b.pdf', { type: 'application/pdf' })]))}</>,
+    )
+    await settle()
+    expect(given).toEqual([
+      { size: { width: 176, height: 110 } },
+      { size: { width: 176, height: 232 } },
+      undefined,
+    ])
   })
 
   it('上传中看得到传了多少', async () => {

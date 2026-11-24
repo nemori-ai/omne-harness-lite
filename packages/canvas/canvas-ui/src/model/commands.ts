@@ -1,7 +1,7 @@
 import type { CanvasItemBody } from '@omne-harness/canvas-protocol'
 
 export type Spot = Readonly<{ x: number; y: number }>
-type Size = Readonly<{ width: number; height: number }>
+export type Size = Readonly<{ width: number; height: number }>
 
 export type ItemChange = Readonly<{
   item: string
@@ -25,7 +25,7 @@ export type Command =
   | Readonly<{ op: 'lock'; body: Readonly<{ items: readonly string[]; locked: boolean }> }>
   | Readonly<{
       op: 'place'
-      body: Readonly<{ reference: CanvasItemBody['reference']; near: Spot }>
+      body: Readonly<{ reference: CanvasItemBody['reference']; near: Spot; size?: Size }>
     }>
 
 export const itemKey = (item: string): string => `item:${item}`

@@ -15,5 +15,6 @@ export {
   type CanvasFrame,
   type CanvasIntakeSubject,
   type CanvasPickerSubject,
+  type CanvasPlacing,
   type CanvasReference,
 } from './points.ts'

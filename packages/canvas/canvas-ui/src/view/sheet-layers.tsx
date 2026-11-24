@@ -7,9 +7,9 @@ import {
   type PaperView,
 } from '@omne-harness/ui-kit'
 import { useCallback, useEffect, useRef, useState, type JSX, type RefObject } from 'react'
-import type { Placed, Spot } from '../model/commands.ts'
-import { itemBox, pileBox, type Sheet } from '../model/sheet.ts'
-import type { CanvasReference } from '../points.ts'
+import type { Placed, Size, Spot } from '../model/commands.ts'
+import { fitSize, itemBox, pileBox, type Sheet } from '../model/sheet.ts'
+import type { CanvasPlacing, CanvasReference } from '../points.ts'
 import type { Dropped } from './intake.tsx'
 
 /** How long a thing pointed out after `no-change` stays marked. */
@@ -18,7 +18,10 @@ export const FOUND_MS = 1500
 /** Opened from the keyboard, the finder is written this far below the middle of the view, clear of the seat there. */
 export const BELOW_MIDDLE = 64
 
-export type Place = (reference: CanvasReference, near: Spot) => Promise<Placed>
+export type Place = (reference: CanvasReference, near: Spot, size?: Size) => Promise<Placed>
+
+/** Puts one reference near a spot fixed beforehand, with the size its picker or intake gave, when it gave one. */
+export type PlaceNear = (reference: CanvasReference, placing?: CanvasPlacing) => Promise<Placed>
 
 type Looking = Readonly<{ view: PaperView; look: (next: PaperView) => void }>
 
@@ -51,15 +54,18 @@ export function useLayers(
     return () => clearTimeout(timer)
   }, [found])
   const placeNear = useCallback(
-    (near: Spot) => async (reference: CanvasReference) => {
-      const placed = await latest.current.place(reference, near)
-      if (placed.kind !== 'there') return placed
-      const now = latest.current
-      const box = boxOf(now.canvas, now.sheet, placed.item)
-      now.looking.look({ ...middle(box), zoom: now.looking.view.zoom })
-      setFound(box)
-      return placed
-    },
+    (near: Spot): PlaceNear =>
+      async (reference, placing) => {
+        const given = placing?.size
+        const size = given === undefined ? undefined : fitSize(given, latest.current.canvas)
+        const placed = await latest.current.place(reference, near, size)
+        if (placed.kind !== 'there') return placed
+        const now = latest.current
+        const box = boxOf(now.canvas, now.sheet, placed.item)
+        now.looking.look({ ...middle(box), zoom: now.looking.view.zoom })
+        setFound(box)
+        return placed
+      },
     [],
   )
   const centre = (): PaperPoint => ({

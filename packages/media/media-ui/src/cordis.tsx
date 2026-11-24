@@ -11,7 +11,7 @@ import {
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import { useMemo, type ReactNode } from 'react'
 import type { Drafts } from './model/attachment-tray.ts'
-import { MEDIA_OBJECT, type PlacedReference } from './model/files-intake.ts'
+import { MEDIA_OBJECT, type PlacedReference, type Placing } from './model/files-intake.ts'
 import type { Microphone } from './model/recorder.ts'
 import type { ScreenSource } from './model/snapper.ts'
 import type { MediaClient } from './model/upload.ts'
@@ -42,7 +42,7 @@ export type MediaBlockSubject = Readonly<{
 export type MediaCanvasElementSubject = Readonly<{ reference: PlacedReference; frame: CanvasFrame }>
 export type MediaCanvasIntakeSubject = Readonly<{
   files: readonly File[]
-  place: (reference: PlacedReference) => void
+  place: (reference: PlacedReference, placing?: Placing) => void
   done: () => void
 }>
 

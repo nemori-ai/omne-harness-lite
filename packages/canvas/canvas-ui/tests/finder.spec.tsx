@@ -116,6 +116,35 @@ describe('the finder lists what each kind lets a person pick, a group a kind', (
     expect(finder()).toBeNull()
   })
 
+  it('a pick may give a size: it goes with the place, on the grid', async () => {
+    const world = await opened(canvas([]), KINDS)
+    const sized: KeyRender<CanvasPickerSubject> = ({ subject }) => (
+      <button
+        type="button"
+        onClick={() =>
+          subject.pick({ kind: NOTE, ref: 'big' }, { size: { width: 203, height: 99 } })
+        }
+      >
+        big
+      </button>
+    )
+    await put(world.root, 'notes-ui', NOTE, sized)
+    await find(world)
+    fireEvent.click(within(group('便签')!).getByRole('button'))
+    const placed = item('n', { reference: { kind: NOTE, ref: 'big' } })
+    expect(
+      await placing(
+        world,
+        { outcome: 'succeeded', body: { revision: 2, item: placed } },
+        canvas([placed]),
+      ),
+    ).toEqual({
+      reference: { kind: NOTE, ref: 'big' },
+      near: MIDDLE,
+      size: { width: 200, height: 96 },
+    })
+  })
+
   it('a pick lying there already is pointed out: the view goes to it, it is marked, the finder closes', async () => {
     const lying = item('l', { reference: { kind: NOTE, ref: 'note-' }, at: { x: 200, y: 120 } })
     const world = await opened(canvas([lying]), KINDS)

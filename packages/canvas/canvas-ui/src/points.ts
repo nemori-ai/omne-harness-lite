@@ -7,16 +7,19 @@ export type CanvasReference = CanvasItemBody['reference']
 /** The frame a thing is drawn in: on the sheet, as the page a pile shows, or as a row of the search. */
 export type CanvasFrame = 'sheet' | 'pile' | 'search'
 
+/** What a picker or an intake may say with a reference: the size it would take on the sheet, in its units. */
+export type CanvasPlacing = Readonly<{ size?: Readonly<{ width: number; height: number }> }>
+
 export type CanvasElementSubject = Readonly<{ reference: CanvasReference; frame: CanvasFrame }>
 
 export type CanvasPickerSubject = Readonly<{
   query: string
-  pick: (reference: CanvasReference) => void
+  pick: (reference: CanvasReference, placing?: CanvasPlacing) => void
 }>
 
 export type CanvasIntakeSubject = Readonly<{
   files: readonly File[]
-  place: (reference: CanvasReference) => void
+  place: (reference: CanvasReference, placing?: CanvasPlacing) => void
   done: () => void
 }>
 
@@ -54,7 +57,7 @@ export const canvasPicker: RenderPoint<CanvasPickerSubject> = defineRenderPoint(
   summary: 'How a person picks one thing of a kind from the search, to put it on the canvas.',
   keysFrom: CANVAS_KINDS,
   subject:
-    'query, the text of the search; and pick(reference), which puts the thing with that reference on the canvas',
+    'query, the text of the search; and pick(reference, { size }), which puts the thing with that reference on the canvas, size being the width and height it would take, which may be left out',
   example: [
     '{"point":"canvas.picker","key":"notes.note","module":"pick-note.js","export":"pick"}',
     'pick-note.js:',
@@ -68,7 +71,7 @@ export const canvasIntake: RenderPoint<CanvasIntakeSubject> = defineRenderPoint(
   key: 'what is handed onto the canvas: files is the one there is now',
   summary: 'How what is dropped onto the canvas becomes a reference put on it.',
   subject:
-    'files, the files handed in; place(reference), which puts the thing with that reference on the canvas; and done(), which says this handing in is over',
+    'files, the files handed in; place(reference, { size }), which puts the thing with that reference on the canvas, size being the width and height it would take, which may be left out; and done(), which says this handing in is over',
   example: [
     '{"point":"canvas.intake","key":"files","module":"take-files.js","export":"take"}',
     'take-files.js:',

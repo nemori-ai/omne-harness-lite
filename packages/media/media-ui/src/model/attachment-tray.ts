@@ -1,6 +1,6 @@
 import type { TenantId } from '@omne-harness/public-contract'
 import { prepareMedium, type Failed, type Ready } from './prepare.ts'
-import { uploadMedium, type MediaClient, type Reference } from './upload.ts'
+import { uploadMedium, type Committed, type MediaClient, type Reference } from './upload.ts'
 
 export type PickedFile = Readonly<{
   name: string
@@ -35,6 +35,8 @@ export type Attachment = Readonly<{
   bytes: number
   preview: string | null
   state: AttachmentState
+  /** What the upload's answer said of the medium: an image's width and height. */
+  facts?: Committed['facts']
 }>
 
 type DraftOf =
@@ -158,8 +160,16 @@ export class AttachmentTray {
       progress: sent => this.#set(id, { kind: 'uploading', sent }),
       cancelled: () => !this.#held(id),
     })
-    if (outcome.kind === 'committed') await this.#prepare(id, outcome.ref)
+    if (outcome.kind === 'committed') {
+      this.#noted(id, outcome.facts)
+      await this.#prepare(id, outcome.ref)
+    }
     if (outcome.kind === 'failed') this.#set(id, { kind: 'failed', reason: outcome.reason })
+  }
+
+  #noted(id: string, facts: Committed['facts']): void {
+    if (!this.#held(id)) return
+    this.#items = this.#items.map(item => (item.id === id ? { ...item, facts } : item))
   }
 
   async #prepare(id: string, ref: Reference): Promise<void> {

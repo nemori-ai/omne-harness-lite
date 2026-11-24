@@ -59,6 +59,22 @@ export function pileBox(pile: CanvasPileBody, sheet: Sheet): PaperBox {
   )
 }
 
+/** A size a picker or an intake gave, on the grid and inside the least and most size the server gives. */
+export function fitSize(size: Size, canvas: CanvasBody): Size {
+  const { grid, size: limits } = canvas.sheet
+  const fit = (value: number, least: number, most: number): number => {
+    const step = grid > 0 ? grid : 1
+    const low = Math.ceil(least / step) * step
+    const high = Math.floor(most / step) * step
+    const [from, to] = low <= high ? [low, high] : [least, most]
+    return Math.min(Math.max(Math.round(value / step) * step, from), to)
+  }
+  return {
+    width: fit(size.width, limits.min.width, limits.max.width),
+    height: fit(size.height, limits.min.height, limits.max.height),
+  }
+}
+
 export const contentSize = (box: PaperBox): Size => ({
   width: box.width,
   height: box.height - PAPER_NAME_LINE,

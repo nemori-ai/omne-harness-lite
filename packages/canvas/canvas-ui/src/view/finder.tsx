@@ -10,11 +10,18 @@ import {
 } from '@omne-harness/ui-kit'
 import { encodeInstant } from '@omne-harness/utc-instant'
 import { useEffect, useRef, useState, type JSX, type ReactNode } from 'react'
-import type { Placed } from '../model/commands.ts'
 import { standingOf } from '../model/kinds.ts'
 import type { AwayPage, Reading } from '../model/reading.ts'
-import { CANVAS_PICKER, canvasPicker, type CanvasReference } from '../points.ts'
+import {
+  CANVAS_PICKER,
+  canvasPicker,
+  type CanvasPickerSubject,
+  type CanvasReference,
+} from '../points.ts'
 import { Element, inConflict, kindName, OneThing, type CanvasHost } from './element.tsx'
+import type { PlaceNear } from './sheet-layers.tsx'
+
+type PlaceAs = CanvasPickerSubject['pick']
 
 /** How many taken records one read asks for, and how many matching rows are enough before reading on. */
 const AWAY_PAGE = 20
@@ -35,7 +42,7 @@ export type FinderProps = Readonly<{
   round: number
   at: PaperPoint
   /** Puts the reference near where the finder was opened. */
-  place: (reference: CanvasReference) => Promise<Placed>
+  place: PlaceNear
   lookAway: (limit: number, before?: number) => Promise<Reading<AwayPage>>
   /** Closes the finder; the focus goes back where it was opened from unless the person pressed elsewhere. */
   close: (refocus: boolean) => void
@@ -93,7 +100,7 @@ function Group({ label, children }: Readonly<{ label: string; children: ReactNod
 
 function PickerGroup(
   props: Readonly<{ host: CanvasHost; scope: string; kind: string; label: string; query: string }> &
-    Readonly<{ round: number; pick: (reference: CanvasReference) => void }>,
+    Readonly<{ round: number; pick: PlaceAs }>,
 ) {
   const { host, scope, kind, label, query, round, pick } = props
   const fallback = (): ReactNode => {
@@ -191,9 +198,9 @@ export function Finder(props: FinderProps): JSX.Element {
     window.addEventListener('pointerdown', down, true)
     return () => window.removeEventListener('pointerdown', down, true)
   }, [close])
-  const put = (reference: CanvasReference): void => {
+  const put: PlaceAs = (reference, placing) => {
     setWhy(undefined)
-    void place(reference).then(placed => {
+    void place(reference, placing).then(placed => {
       if (placed.kind === 'not') setWhy(placed.why)
       else close(true)
     })

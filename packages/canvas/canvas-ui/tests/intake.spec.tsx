@@ -110,6 +110,32 @@ describe('files dropped on the sheet go to the intake put on files', () => {
     expect(spot()).toBeNull()
   })
 
+  it('a size given with a place goes with it, on the grid and inside the least and most size', async () => {
+    const world = await opened(canvas([]))
+    const intake = taking()
+    await put(world.root, 'media-ui', intake.render)
+    await drop([PNG, PDF])
+    const at = near()
+    const subject = intake.given.at(-1)!
+    act(() => subject.place({ kind: MEDIA, ref: 'one' }, { size: { width: 176, height: 131 } }))
+    expect(await answered(world, placed('one'))).toEqual({
+      reference: { kind: MEDIA, ref: 'one' },
+      near: at,
+      size: { width: 176, height: 128 },
+    })
+    act(() => subject.place({ kind: MEDIA, ref: 'two' }, { size: { width: 900, height: 20 } }))
+    expect(await answered(world, placed('two'))).toEqual({
+      reference: { kind: MEDIA, ref: 'two' },
+      near: at,
+      size: { width: 320, height: 48 },
+    })
+    act(() => subject.place({ kind: MEDIA, ref: 'three' }, {}))
+    expect(await answered(world, placed('three'))).toEqual({
+      reference: { kind: MEDIA, ref: 'three' },
+      near: at,
+    })
+  })
+
   it('one that did not go on the sheet says why and stays until it is closed', async () => {
     const world = await opened(canvas([]))
     const intake = taking()

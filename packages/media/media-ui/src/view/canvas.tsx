@@ -3,7 +3,7 @@ import type { TenantId } from '@omne-harness/public-contract'
 import { InlineNotice, LoadingState, RetryIcon } from '@omne-harness/ui-kit'
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { Attachment } from '../model/attachment-tray.ts'
-import { FilesIntake, type PlacedReference } from '../model/files-intake.ts'
+import { FilesIntake, type PlacedReference, type Placing } from '../model/files-intake.ts'
 import type { MediaClient, Reference } from '../model/upload.ts'
 import { mediaIntake, mediaObject } from '../parts.ts'
 import { pickedOf, statusOf } from './attachment-tray.tsx'
@@ -91,14 +91,14 @@ type DrawnProps = Readonly<{
 function Drawn({ client, tenant, medium, facts, frame }: DrawnProps) {
   const content = useMemo(() => ({ kind: facts.kind, ref: medium, facts }), [facts, medium])
   const Block = MEDIA_BLOCKS[frame === 'search' ? 'file' : facts.kind]
-  return <Block client={client} tenant={tenant} content={content} />
+  return <Block client={client} tenant={tenant} content={content} opens="over" />
 }
 
 export type CanvasFilesProps = Readonly<{
   client: MediaClient
   tenant: TenantId
   files: readonly File[]
-  place: (reference: PlacedReference) => void
+  place: (reference: PlacedReference, placing?: Placing) => void
   done: () => void
 }>
 
@@ -117,7 +117,7 @@ export function CanvasFiles({ client, tenant, files, place, done }: CanvasFilesP
       client,
       tenant,
       newId: () => crypto.randomUUID(),
-      place: reference => ports.current.place(reference),
+      place: (reference, placing) => ports.current.place(reference, placing),
       done: () => ports.current.done(),
     })
     setIntake(made)

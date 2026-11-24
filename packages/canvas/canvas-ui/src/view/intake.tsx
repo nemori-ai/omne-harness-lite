@@ -6,9 +6,9 @@ import {
   type PaperPoint,
 } from '@omne-harness/ui-kit'
 import { useEffect, useMemo, useState, type JSX, type ReactNode } from 'react'
-import type { Placed } from '../model/commands.ts'
-import { CANVAS_INTAKE, canvasIntake, type CanvasReference } from '../points.ts'
+import { CANVAS_INTAKE, canvasIntake, type CanvasPlacing, type CanvasReference } from '../points.ts'
 import { inConflict, OneThing, type CanvasHost } from './element.tsx'
+import type { PlaceNear } from './sheet-layers.tsx'
 
 /** Files dropped on the sheet, and where. */
 export type Dropped = Readonly<{ id: string; at: PaperPoint; files: readonly File[] }>
@@ -26,7 +26,7 @@ export type IntakeProps = Readonly<{
   round: number
   dropped: Dropped
   /** Puts a reference near a spot: here, where the files were dropped. */
-  placeNear: (near: PaperPoint) => (reference: CanvasReference) => Promise<Placed>
+  placeNear: (near: PaperPoint) => PlaceNear
   close: () => void
 }>
 
@@ -37,9 +37,9 @@ export function IntakeSpot(props: IntakeProps): JSX.Element {
   const subject = useMemo(
     () => ({
       files: dropped.files,
-      place(reference: CanvasReference) {
+      place(reference: CanvasReference, placing?: CanvasPlacing) {
         setTally(was => ({ ...was, asked: was.asked + 1 }))
-        void placeNear(dropped.at)(reference).then(placed =>
+        void placeNear(dropped.at)(reference, placing).then(placed =>
           setTally(was => ({
             ...was,
             answered: was.answered + 1,

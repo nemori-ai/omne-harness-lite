@@ -15,6 +15,7 @@ import {
   type Answer,
   type Command,
   type Placed,
+  type Size,
   type Spot,
 } from './commands.ts'
 import {
@@ -121,9 +122,10 @@ export class CanvasDriver {
     this.#set(notice === undefined ? {} : { notice })
   }
 
-  async place(reference: CanvasItemBody['reference'], near: Spot): Promise<Placed> {
+  async place(reference: CanvasItemBody['reference'], near: Spot, size?: Size): Promise<Placed> {
     if (this.#disposed) return placedOf(undefined)
-    return placedOf(await this.#run({ op: 'place', body: { reference, near } }))
+    const body = { reference, near, ...(size === undefined ? {} : { size }) }
+    return placedOf(await this.#run({ op: 'place', body }))
   }
 
   lookAway(limit: number, before?: number): Promise<Reading<AwayPage>> {

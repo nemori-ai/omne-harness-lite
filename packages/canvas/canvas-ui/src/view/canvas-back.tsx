@@ -65,7 +65,10 @@ function Driven({
   home,
 }: Omit<CanvasBackProps, 'client' | 'turn'> & Readonly<{ driver: CanvasDriver }>) {
   const state = useSyncExternalStore(driver.subscribe, driver.getState)
-  const place = useCallback<Place>((reference, near) => driver.place(reference, near), [driver])
+  const place = useCallback<Place>(
+    (reference, near, size) => driver.place(reference, near, size),
+    [driver],
+  )
   const lookAway = useCallback(
     (limit: number, before?: number) => driver.lookAway(limit, before),
     [driver],
