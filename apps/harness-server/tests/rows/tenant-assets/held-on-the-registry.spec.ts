@@ -111,7 +111,7 @@ describe('what the release brings is on the points of the categories', () => {
         expect(official('AgentDefinition').sort()).toEqual(
           named('AgentDefinition', ['assistant', 'coding']),
         )
-        expect(official('skill')).toEqual([])
+        expect(official('skill')).toEqual(named('skill', ['skin-authoring']))
         const tools = official('tool')
         expect(tools).toHaveLength(18)
         expect(tools.map(([name]) => name)).toContain('Skills')

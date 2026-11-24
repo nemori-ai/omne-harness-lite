@@ -1,12 +1,13 @@
 import { readFile } from 'node:fs/promises'
 import { expect, it } from 'vitest'
 
-it('the root entry exports the two sources, the decisions and their asset inputs, and nothing else at run time', async () => {
+it('the root entry exports the two sources, the reader of a package in a directory, the decisions and their asset inputs, and nothing else at run time', async () => {
   const root: Record<string, unknown> = await import('@omne-harness/skill-host-local')
   expect(Object.keys(root).sort()).toEqual([
     'createContentStoreSource',
     'createDirectorySource',
     'createSkillDecisions',
+    'directoryPackageReader',
     'publishedCandidate',
     'skillInputsFromAssets',
   ])
