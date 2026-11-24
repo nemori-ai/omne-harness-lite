@@ -362,6 +362,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
       'Ask',
       'BkgToolCalls',
       'Calendar',
+      'Canvas',
       'Files',
       'Notifications',
       'OmneExtensionPoints',
@@ -395,6 +396,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
       'Calendar',
       'Schedules',
       'Notifications',
+      'Canvas',
       'SwitchWorkspace',
       'Screen',
     ])
