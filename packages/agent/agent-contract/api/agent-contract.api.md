@@ -281,7 +281,9 @@
 - `ReplyAdmissionRead` · `evaluation.d.ts`
 - `ReplyAdmissionSequence` · `identity.d.ts`
 - `RequestPreparation` · `request.d.ts`
-- `ResidentTool` · `effect.d.ts`
+- `ResidentPoints` · `effect.d.ts`
+- `ResidentReference` · `effect.d.ts`
+- `ResidentSegmentText` · `evaluation.d.ts`
 - `ResponsibilityCoverage` · `finishing.d.ts`
 - `ResultResponsibility` · `execution.d.ts`
 - `RuntimeConditions` · `evaluation.d.ts`
@@ -770,23 +772,25 @@ export declare function attributeItem(text: string | undefined): AttributeItem |
 
 ```ts
 import type { AssetStanding, ImpactLine, PlacedLine } from '@omne-harness/assets';
-export type ResidentTool = Readonly<{
+export type ResidentReference = Readonly<{
+    category: string;
     name: string;
     there: boolean | null;
+    why?: string;
 }>;
 export type DefinitionFacts = Readonly<{
     name: string;
     official: boolean;
     refused: string | null;
-    residents: readonly ResidentTool[];
-    inert: readonly string[];
+    residents: readonly ResidentReference[];
 }>;
 export type DefinitionTold<Line> = Readonly<{
     lines: readonly Line[];
     advice: string | null;
 }>;
-export declare function definitionImpact(point: string, toolPoint: string, facts: DefinitionFacts): DefinitionTold<ImpactLine>;
-export declare function definitionPlaces(point: string, toolPoint: string, standing: AssetStanding | undefined, facts: DefinitionFacts): Readonly<{
+export type ResidentPoints = Readonly<Record<string, string>>;
+export declare function definitionImpact(point: string, points: ResidentPoints, facts: DefinitionFacts): DefinitionTold<ImpactLine>;
+export declare function definitionPlaces(point: string, points: ResidentPoints, standing: AssetStanding | undefined, facts: DefinitionFacts): Readonly<{
     places: readonly PlacedLine[];
     advice: string | null;
 }>;
@@ -1142,6 +1146,11 @@ export type RuntimeConditions = Readonly<{
     model: Adoption;
     context: DurableEvidence;
     bindings: readonly Adoption[];
+    segments: readonly ResidentSegmentText[];
+}>;
+export type ResidentSegmentText = Readonly<{
+    key: string;
+    text: string;
 }>;
 export type ProducerDecisionView = Readonly<{
     kind: 'unresolved';
@@ -2637,7 +2646,7 @@ export type * from './receiving.ts';
 export type * from './request.ts';
 export type { BatchJudgment, Judgment, OutputRefusalReason, RefusalReason } from './judgment.ts';
 export type * from './action-qualification.ts';
-export { definitionImpact, definitionPlaces, type DefinitionFacts, type ResidentTool, } from './effect.ts';
+export { definitionImpact, definitionPlaces, type DefinitionFacts, type ResidentPoints, type ResidentReference, } from './effect.ts';
 ```
 
 ## 声明文件 `journal.d.ts`
