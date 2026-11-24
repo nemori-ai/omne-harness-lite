@@ -1,8 +1,9 @@
 import { summarizeModelProvenance, UNKNOWN_MODEL_PROVENANCE } from '../src/model-provenance.ts'
 import { expect, it } from 'vitest'
 import { judgeMessage } from '@omne-harness/message'
-import { evidence, operationId, succeeded } from '@omne-harness/session-contract/testing'
+import { evidence, operationId, refused, succeeded } from '@omne-harness/session-contract/testing'
 import { open } from './scene.ts'
+import { compact, entryIds, remind, view, type Scene } from './fork-scene.ts'
 import { projectModelMessage } from '../src/model-projection.ts'
 
 it('preserves a legal user reference even when its block identity equals a withdrawn reminder block', () => {
@@ -150,4 +151,74 @@ it('mixed summaries retain unique source identities independently of the number 
   expect(summarizeModelProvenance([undefined], ['summary'])).toEqual([
     { owner: UNKNOWN_MODEL_PROVENANCE, key: 'unproven-input', blocks: ['summary'] },
   ])
+})
+
+async function project(
+  s: Scene,
+  name: string,
+  selection: { epoch: string; blocks: readonly string[]; restoreOriginals?: true },
+) {
+  return s.commit({
+    kind: 'commitDerived',
+    input: {
+      ...s.base,
+      expected: (await s.read()).revision,
+      operation: operationId(name),
+      value: { kind: 'model-projection', source: evidence(name), ...selection },
+    },
+  })
+}
+
+it('rejects a withdrawal against a different window or invalid reminder selection', async () => {
+  const s = await open()
+  succeeded(await remind(s, 'private'), 'remind')
+  const before = await view(s)
+  const epoch = before.basis.epoch
+  const cases = [
+    { name: 'stale', selection: { epoch: epoch + '-old', blocks: ['private'] }, kind: 'changed' },
+    { name: 'empty', selection: { epoch, blocks: [] }, field: 'value.blocks' },
+    {
+      name: 'duplicate',
+      selection: { epoch, blocks: ['private', 'private'] },
+      field: 'value.blocks',
+    },
+    { name: 'unknown', selection: { epoch, blocks: ['missing'] }, field: 'value.blocks' },
+    {
+      name: 'no-summary',
+      selection: { epoch, blocks: [], restoreOriginals: true as const },
+      field: 'value.restoreOriginals',
+    },
+  ]
+  for (const c of cases) {
+    const result = refused(await project(s, c.name, c.selection), c.name)
+    expect(result).toMatchObject(c.field ? { kind: 'invalid', field: c.field } : { kind: c.kind })
+  }
+  expect(await view(s)).toEqual(before)
+})
+
+it('restores original reminders after compaction and withdraws only the named original', async () => {
+  const s = await open()
+  succeeded(await remind(s, 'private'), 'private reminder')
+  succeeded(await remind(s, 'retained'), 'retained reminder')
+  const entries = entryIds(s)
+  const first = entries[0],
+    last = entries.at(-1)
+  if (!first || !last) throw new Error('expected original entries')
+  succeeded(await compact(s, 'summary', first, last), 'compact')
+  const before = await view(s)
+  expect(before.rows.some(row => row.message.role === 'compaction')).toBe(true)
+  succeeded(
+    await project(s, 'restore', {
+      epoch: before.basis.epoch,
+      blocks: ['private'],
+      restoreOriginals: true,
+    }),
+    'restore',
+  )
+  const after = await view(s)
+  expect(after.basis.epoch).not.toBe(before.basis.epoch)
+  expect(after.rows.some(row => row.message.role === 'compaction')).toBe(false)
+  const blocks = after.rows.flatMap(row => row.message.blocks.map(block => block.id))
+  expect(blocks).toContain('retained')
+  expect(blocks).not.toContain('private')
 })

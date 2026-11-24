@@ -19,3 +19,17 @@ it('isolates equal batch names at a new binding and keeps repeated receipts idem
     activeWorkspaceVisit(one, { ...pay, generation: '2', directories: ['docs'] }).directories,
   ).toEqual(['docs'])
 })
+
+it('merges unbatched visits in order within the same binding only', () => {
+  const previous = visit('group', 'z')
+  const incoming = { ...binding, directories: ['a'] }
+  expect(activeWorkspaceVisit(previous, incoming)).toEqual({
+    ...incoming,
+    batch: 'group',
+    directories: ['a', 'z'],
+  })
+  for (const change of [{ workspace: 'other' }, { instance: 'other' }]) {
+    const foreign = { ...incoming, ...change }
+    expect(activeWorkspaceVisit(previous, foreign)).toStrictEqual(foreign)
+  }
+})

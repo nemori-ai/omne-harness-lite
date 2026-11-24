@@ -32,6 +32,14 @@ const execution = (call: Call, directoryVisit: Visit): SessionEntry => ({
   delivered: call.id,
   fact: { kind: 'execution', producer: call.producer, source: evidence('visit'), directoryVisit },
 })
+const backgrounded = (call: Call, ordinal: number): SessionEntry => ({
+  kind: 'call.backgrounded',
+  consumption: call.id,
+  producer: call.producer,
+  ordinal,
+  label: { intent: null, tool: 'Shell', command: 'execute', preview: 'background' },
+  source: 'launched',
+})
 const reply = (): SessionEntry => ({
   kind: 'message.assistant',
   message: assistantMessage('reply'),
@@ -41,14 +49,14 @@ const reply = (): SessionEntry => ({
   participation: null,
 })
 
-async function continuationScene() {
+async function continuationScene(
+  initial = creation({
+    workspace: testingWorkspace(A),
+    workspaceAttachment: { instance: 'a', basis: 'verified' },
+  }),
+) {
   const s = scene()
-  await s.create(
-    creation({
-      workspace: testingWorkspace(A),
-      workspaceAttachment: { instance: 'a', basis: 'verified' },
-    }),
-  )
+  await s.create(initial)
   await s.accept('first')
   await s.start()
   const started = await s.active()
@@ -144,14 +152,7 @@ async function continuationScene() {
   function settleBackground() {
     assert.ok(snapshot.run.kind === 'active')
     replay(
-      {
-        kind: 'call.backgrounded',
-        consumption: background.id,
-        producer: background.producer,
-        ordinal: 1,
-        label: { intent: null, tool: 'Shell', command: 'execute', preview: 'background' },
-        source: 'launched',
-      },
+      backgrounded(background, 1),
       execution(background, visit(undefined, '/a/background')),
       {
         kind: 'call.background-settled',
@@ -238,4 +239,45 @@ it('keeps the original A fact but does not adopt a late A visit as a B target', 
     { visit: { workspace: A, generation: '0', directories: ['/a/background'] } },
   ])
   expect(JSON.stringify(s.read().workspaceBackgroundVisits)).not.toContain('/a/late')
+})
+
+it('checks each part of the current binding before adopting a visit', async () => {
+  const s = await continuationScene()
+  const kept = visit('kept', '/a/pay')
+  s.replay(backgrounded(s.background, 1), execution(s.foreground, kept))
+  for (const other of [{ instance: 'b' }, { workspace: B }, { generation: '1' }]) {
+    const foreign = { ...visit('new', '/foreign'), ...other }
+    s.replay(execution(s.foreground, foreign))
+    s.replay(execution(s.background, { ...visit(undefined, '/foreign'), ...other }))
+    expect(s.read().workspaceVisit).toEqual(kept)
+    expect(s.read().workspaceBackgroundVisits ?? []).toEqual([])
+  }
+})
+
+it('retains call evidence without adopting directories when no workspace is selected', async () => {
+  const s = await continuationScene(creation())
+  s.replay(execution(s.foreground, visit('batch', '/outside')))
+  expect(s.read().consumptions.find(call => call.id === s.foreground.id)?.delivered).toEqual(
+    evidence('visit'),
+  )
+  expect(s.read().workspaceVisit).toBeUndefined()
+  expect(s.read().workspaceBackgroundVisits ?? []).toEqual([])
+})
+
+it('updates only the background visit belonging to the returning call', async () => {
+  const s = await continuationScene()
+  const first = visit(undefined, '/a/first')
+  const second = visit(undefined, '/a/second')
+  const revised = visit(undefined, '/a/revised')
+  s.replay(
+    backgrounded(s.foreground, 1),
+    backgrounded(s.background, 2),
+    execution(s.foreground, first),
+    execution(s.background, second),
+  )
+  s.replay(execution(s.foreground, revised))
+  expect(s.read().workspaceBackgroundVisits).toEqual([
+    { consumption: s.foreground.id, visit: revised },
+    { consumption: s.background.id, visit: second },
+  ])
 })
