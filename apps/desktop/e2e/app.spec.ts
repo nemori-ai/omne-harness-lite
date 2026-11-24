@@ -34,7 +34,6 @@ test('注册、发一条消息、看到回复；页面读不到登录 cookie，�
 // The button shows only once the main process has loaded the screen backend: in the packaged app that proves the
 // binary it carries loads. On macOS the packaged test app is a bundle of its own, which the system would ask about
 // on every run, so there the test stops before the capture; the unpackaged app is Electron's bundle, allowed once.
-// Esc is not here: keys from the driver reach the page but never the main process's before-input-event, where Esc is.
 test('输入框的截图钮：每块屏上铺一层遮罩，单击取整块、拖动框一块、右键取消', async ({
   launchApp,
   target,

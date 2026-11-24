@@ -47,12 +47,6 @@ export function screenOverlays(): DeviceScreenDeps['overlays'] {
     window.setBounds(bounds)
     const contents = window.webContents
     harden(contents)
-    // Esc is the main process's, so a page that broke still lets the person out.
-    contents.on('before-input-event', (event, input) => {
-      if (input.type !== 'keyDown' || input.key !== 'Escape') return
-      event.preventDefault()
-      cancel()
-    })
     contents.on('did-fail-load', (_event, code, _description, _url, isMainFrame) => {
       if (isMainFrame && code !== LOAD_ABORTED) cancel()
     })

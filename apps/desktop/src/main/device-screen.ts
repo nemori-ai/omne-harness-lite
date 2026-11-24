@@ -12,7 +12,7 @@ export type DeviceScreenDeps = Readonly<{
     hide(): Promise<void>
     show(): void
   }>
-  /** One overlay on each screen, where the person picks a screen or draws a rectangle; `cancel` on Esc or when one goes away. */
+  /** One overlay on each screen, where the person picks a screen or draws a rectangle; `cancel` when one goes away. */
   overlays: Readonly<{ open(screens: readonly Monitor[], cancel: () => void): void; close(): void }>
   /** Asks the system for the screen recording permission, which lists the app in its settings; null where there is no such thing. */
   requestAccess: (() => Promise<void>) | null
