@@ -208,7 +208,7 @@ export function PaperSurface({
       role="region"
       aria-label={label}
       aria-roledescription={roleDescription}
-      aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight + - 0"
+      aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight = - 0"
       tabIndex={0}
       data-control="paper"
       data-gesture={pan?.moved === true ? 'pan' : undefined}
