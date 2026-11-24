@@ -8,8 +8,8 @@ import {
 import type { ProviderName } from '@omne-harness/model-contract'
 import type { CredentialProviderSource } from '@omne-harness/model-host-local'
 import {
-  isEngineEndpoint,
-  type EngineEndpoint,
+  isProviderEndpoint,
+  type ProviderEndpoint,
   type PiRoute,
   type PiRouteEndpoint,
 } from '@omne-harness/pi-ai-transport'
@@ -96,9 +96,9 @@ export function credentialProviders(): ReadonlyMap<ProviderName, CredentialProvi
 // An operator address replaces the address of every endpoint of the provider.
 function routeOf(provider: ReleaseProvider, url: string | undefined): PiRoute {
   const { body } = provider
-  const endpoints: Partial<Record<EngineEndpoint, PiRouteEndpoint>> = {}
+  const endpoints: Partial<Record<ProviderEndpoint, PiRouteEndpoint>> = {}
   for (const endpoint of body.endpoints) {
-    if (!isEngineEndpoint(endpoint.protocol))
+    if (!isProviderEndpoint(endpoint.protocol))
       throw new Error(
         `the provider ${body.name} speaks ${endpoint.protocol}, which this release cannot send`,
       )
