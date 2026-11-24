@@ -1,0 +1,47 @@
+declare const Shell: {
+  /** Execute a script once or in the exact referenced terminal. */
+  execute(params: { script: string; cwd?: string; env?: Record<string, string>; stdin?: string; run_in_background?: boolean }): Promise<{ exit_code: number | null; signal: string | null; stdout: string; stderr: string; duration_ms: number }>
+}
+
+declare const Files: {
+  /** Read a UTF-8 text page with version and byte offsets. */
+  read(params: { path: string; offset_bytes?: number; limit_bytes?: number }): Promise<{ text: string; offset_bytes: number; next_offset_bytes: number; eof: boolean; version: string }>
+  /** Create or replace complete UTF-8 file bytes. */
+  write(params: { path: string; text: string; mode: "create" | "replace"; parents?: boolean; expected_version?: string }): Promise<{ version: string; effect: string }>
+  /** Replace exactly one original match and return a diff. */
+  edit(params: { path: string; old_text: string; new_text: string }): Promise<{ version: string; effect: string }>
+  /** Preflight all exact edits before one batch submission. */
+  patch(params: { edits: { path: string; old_text: string; new_text: string }[] }): Promise<{ published: string[] }>
+  /** List actual entry names and metadata. */
+  list(params: { path: string; offset?: number; limit?: number }): Promise<{ entries: { name: string; type: "file" | "directory" | "symlink"; size_bytes: number }[]; next_offset: number | null }>
+  /** Find names or file content with facility pagination. */
+  find(params: { path: string; pattern: string; match: "name" | "content"; recursive?: boolean; offset?: number; limit?: number }): Promise<{ hits: { path: string; offset_bytes: number | null }[]; next_offset: number | null; truncated: boolean }>
+  /** Observe metadata and a bounded binary sample. */
+  info(params: { path: string }): Promise<{ type: "file" | "directory" | "symlink"; size_bytes: number; modified_ms: number; version: string }>
+  /** Move a path to an authorized destination. */
+  move(params: { path: string; target: string; replace?: boolean; expected_version?: string }): Promise<{ version: string }>
+  /** Copy a path to an authorized destination. */
+  copy(params: { path: string; target: string; replace?: boolean; expected_version?: string }): Promise<{ version: string }>
+  /** Remove the selected path. */
+  delete(params: { path: string; recursive?: boolean; expected_version?: string }): Promise<{ removed: boolean }>
+  /** Create a directory. */
+  mkdir(params: { path: string; parents?: boolean }): Promise<{ version: string }>
+}
+
+declare const Web: {
+  /** Search the web for one natural-language query. Returns titles, urls and short excerpts, not whole pages. Needs the Web setting exa.apiKey. */
+  search(params: { query: string; limit?: number }): Promise<{ results: { title: string; url: string; published_at: string | null; excerpt: string }[] }>
+  /** Read one http or https page with GET and return it as Markdown. Does not run scripts, send cookies or submit forms. */
+  fetch(params: { url: string }): Promise<{ url: string; media_type: string; markdown: string; truncated: boolean }>
+}
+
+declare const Skills: {
+  /** Find the Skills you may use by keywords, best match first; an empty query lists every Skill. Returns names and descriptions. */
+  search(params: { query?: string; after?: string; limit?: number }): Promise<{ entries: { name: string; description: string | null; disabled: string | null }[]; next: string | null }>
+  /** Read the SKILL.md body of one Skill, with the local directory that holds its files. */
+  read(params: { skill: string; offset?: number }): Promise<{ text: string; start: number; end: number; total: number; directory: string | null }>
+  /** List the files in the directory of one Skill, with their sizes. */
+  list(params: { skill: string }): Promise<{ files: { path: string; size: number; media_type: string | null }[]; directory: string | null }>
+  /** Read one text file of a Skill by its path inside the Skill directory. */
+  read_file(params: { skill: string; path: string; offset?: number }): Promise<{ text: string; start: number; end: number; total: number; directory: string | null }>
+}
