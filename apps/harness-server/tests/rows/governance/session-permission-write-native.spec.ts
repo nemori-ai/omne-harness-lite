@@ -252,7 +252,7 @@ it.each([
       ...options,
       identity: { ...options.identity, verifier: authority.verifier },
       grants: [
-        ...options.grants
+        ...(typeof options.grants === 'function' ? options.grants() : options.grants)
           .filter(grant => grant.action !== 'catalog-management')
           .map(grant => ({ ...grant, principalRef })),
         {

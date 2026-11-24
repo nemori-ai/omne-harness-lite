@@ -16,6 +16,7 @@ type Installation = Readonly<{
   owner: ReturnType<typeof createStandaloneSettingsOwner>
   organizationId: string
   definition: SettingDefinitions
+  ownerRef: string
 }>
 
 type Observed =
@@ -23,11 +24,11 @@ type Observed =
   | Readonly<{ kind: 'absent' }>
   | Readonly<{ kind: 'outdated'; projection: SettingsTargetProjection }>
 
-function sourceLayout(organizationId: string) {
+function sourceLayout({ organizationId, ownerRef }: Installation) {
   return [
     {
       sourceId: 'organization',
-      ownerRef: TOOL_GOVERNANCE_OWNER,
+      ownerRef,
       scope: { kind: 'organization' as const, subjectRef: organizationId },
     },
   ]
@@ -44,7 +45,7 @@ function observe(
   const { projection } = current
   if (
     canonicalDigest(settingsSourceIdentities(projection.sources)) !==
-      canonicalDigest(sourceLayout(input.organizationId)) ||
+      canonicalDigest(sourceLayout(input)) ||
     projection.definition.providerId !== input.definition.providerId ||
     projection.definition.definitionId !== input.definition.definitionId
   )
@@ -54,7 +55,13 @@ function observe(
     : { kind: 'outdated', projection }
 }
 
-export async function installToolOrganizationSource(
+export function installToolOrganizationSource(
+  input: Omit<Installation, 'ownerRef'>,
+): Promise<ToolSourceInstallation> {
+  return installOrganizationSource({ ...input, ownerRef: TOOL_GOVERNANCE_OWNER })
+}
+
+export async function installOrganizationSource(
   input: Installation,
 ): Promise<ToolSourceInstallation> {
   const source = organizationSettingsSource(input)
@@ -64,7 +71,7 @@ export async function installToolOrganizationSource(
     publicationRef: null,
     target: source.target,
     definition: input.definition,
-    sources: sourceLayout(input.organizationId),
+    sources: sourceLayout(input),
     grants:
       observed.kind === 'outdated'
         ? observed.projection.grants
@@ -82,7 +89,7 @@ export async function installToolOrganizationSource(
   }
   const result = await input.owner.mutate({
     ...command,
-    operationId: canonicalDigest({ owner: TOOL_GOVERNANCE_OWNER, command }),
+    operationId: canonicalDigest({ owner: input.ownerRef, command }),
   })
   if (result.kind === 'rejected' && result.reason !== 'revision_conflict')
     return { kind: 'unavailable' }

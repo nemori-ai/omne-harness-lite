@@ -17,7 +17,7 @@ export type SettingOwnerQuery =
   | Readonly<{ kind: 'asset'; category?: string; name: string }>
   | Readonly<{ kind: 'independent'; providerId: string; definitionId: string }>
 export type SettingListScope =
-  | Readonly<{ kind: 'asset'; asset?: TenantSettingsAssetQuery }>
+  | Readonly<{ kind: 'asset'; asset?: TenantSettingsAssetQuery; category?: string }>
   | Readonly<{ kind: 'independent' }>
 export type TenantSettingsAction = 'list' | 'describe' | 'set' | 'clear'
 
@@ -208,6 +208,12 @@ function sameOwner(owner: SettingOwner, query: SettingOwnerQuery): boolean {
         owner.definitionId === query.definitionId
       )
   }
+}
+function inScope(owner: SettingOwner, scope: SettingListScope): boolean {
+  if (scope.kind !== 'asset') return true
+  const { asset, category } = scope
+  if (asset !== undefined && !sameOwner(owner, { kind: 'asset', ...asset })) return false
+  return category === undefined || (owner.kind === 'asset' && owner.category === category)
 }
 function ownerKey(owner: SettingOwner): readonly string[] {
   switch (owner.kind) {
@@ -617,10 +623,7 @@ export function createTenantSettings<P>(ports: TenantSettingsPorts<P>): TenantSe
       const { scope } = input
       const read = await entries(input.tenant, scope.kind)
       if (read === undefined) return { kind: 'unavailable' }
-      const narrowed = scope.kind === 'asset' ? scope.asset : undefined
-      const selected = read.entries.filter(
-        entry => narrowed === undefined || sameOwner(entry.owner, { kind: 'asset', ...narrowed }),
-      )
+      const selected = read.entries.filter(entry => inScope(entry.owner, scope))
       const page = selected.slice(offset, offset + limit)
       const items: SettingView[] = []
       for (const entry of page) {

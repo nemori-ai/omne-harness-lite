@@ -30,8 +30,12 @@ import {
 } from '@omne-harness/settings-local'
 import type { DomainRef, SqlStorage } from '@omne-harness/sql-contract'
 import type { GovernanceScope } from '@omne-harness/governance-contract'
+import {
+  declarationOfTarget,
+  governedDeclarations,
+  type PermissionDeclaration,
+} from '../../entry/permission-declarations.ts'
 import type { ToolRelease } from '../../entry/tool-release.ts'
-import type { ToolReleaseEntry } from '../../entry/tool-release-manifest.ts'
 import { INDEPENDENT_SETTINGS_CONFIGURATION } from './independent-settings.ts'
 import { createIndependentSettingsPreparation } from './independent-settings-write.ts'
 import { HELD_SETTINGS_CONFIGURATION } from './held-settings-current.ts'
@@ -52,7 +56,6 @@ import {
   tenantSettingsCurrentMaterial,
   tenantSettingsCurrentParticipant,
 } from './tenant-settings-current.ts'
-import { toolAssetTarget } from './tool-installation-assets.ts'
 
 type Principal = ActingForTenantPrincipal
 type Backend = SettingsPreparationOptions<Principal>
@@ -70,6 +73,7 @@ export type TenantSettingsWriteOptions = Readonly<{
   }>
   writer: Principal
   release(): ToolRelease | undefined
+  declared?(): readonly PermissionDeclaration[]
   epoch(): Promise<string | undefined>
 }>
 
@@ -128,13 +132,13 @@ type Shared = Readonly<{
   domain: DomainRef
   combinations: ReturnType<typeof governanceStorageCombinations>
   writerRef: string
-  entryOf(target: SettingsTarget): ToolReleaseEntry | undefined
+  entryOf(target: SettingsTarget): PermissionDeclaration | undefined
 }>
 
 function snapshotBinding(
   { scope, domain, writerRef }: Shared,
   epoch: string,
-  entry: ToolReleaseEntry,
+  entry: PermissionDeclaration,
   target: SettingsTarget,
 ) {
   return {
@@ -152,7 +156,7 @@ function snapshotBinding(
 async function snapshotOf(
   shared: Shared,
   epoch: string,
-  entry: ToolReleaseEntry,
+  entry: PermissionDeclaration,
   target: SettingsTarget,
 ): Promise<TargetSnapshot | undefined> {
   const result = await shared.options.storage.commit({
@@ -176,7 +180,7 @@ async function snapshotOf(
 async function observeStored(
   shared: Shared,
   epoch: string,
-  entry: ToolReleaseEntry,
+  entry: PermissionDeclaration,
   target: SettingsTarget,
 ): Promise<ReleaseSettingsObservation> {
   const handler = shared.options.materials.readHandlers.find(
@@ -358,18 +362,17 @@ function createReleaseSettingsPreparation(shared: Shared) {
   }
 }
 
-/** One writer, three kinds of target: release tools, the other held assets, independent targets. */
+/** One writer, three kinds of target: governed capabilities, the other held assets, independent targets. */
 export function createTenantSettingsWrite(options: TenantSettingsWriteOptions) {
   const scope = structuredClone(options.scope)
   const domain = structuredClone(options.domain)
   const combinations = governanceStorageCombinations(options.materials)
-  function entryOf(target: SettingsTarget): ToolReleaseEntry | undefined {
-    const release = options.release()
-    if (release?.kind !== 'trusted') return undefined
-    const matches = release.manifest.entries.filter(
-      entry => canonicalText(toolAssetTarget(entry, scope.tenantRef)) === canonicalText(target),
+  function entryOf(target: SettingsTarget): PermissionDeclaration | undefined {
+    if (target.scopeRef !== scope.tenantRef) return undefined
+    return declarationOfTarget(
+      governedDeclarations(options.release(), options.declared?.() ?? []),
+      target,
     )
-    return matches.length === 1 ? matches[0] : undefined
   }
   const writerRef = standingPrincipalRef(options.writer)
   const shared = { options, scope, domain, combinations, writerRef, entryOf }

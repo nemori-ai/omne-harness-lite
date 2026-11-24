@@ -53,9 +53,17 @@ export function releasedGatesOf(
 
 function gatePolicy(name: string, gate: ReleasedGate) {
   const commands = gate.commands.length === 0 ? '' : `（${gate.commands.join('、')}）`
-  return {
+  return gateRules({
     title: `${name}：${gate.title}`,
     description: `控制 ${name} 工具里归「${gate.title}」的命令${commands}。允许调用不代表执行环境可用或操作一定成功。`,
+    default: gate.default,
+  })
+}
+
+export function gateRules(gate: Pick<ReleasedGate, 'title' | 'default'> & { description: string }) {
+  return {
+    title: gate.title,
+    description: gate.description,
     approvalEffect: '在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。',
     supportedScopes: [
       { kind: 'one-time-call', description: '仅允许原调用及其原参数。' },

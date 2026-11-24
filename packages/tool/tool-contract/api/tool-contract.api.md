@@ -269,6 +269,7 @@
 - `StartProgress` · `records.d.ts`
 - `SuspensionProgress` · `records.d.ts`
 - `SuspensionRecord` · `records.d.ts`
+- `TOOL_ENTRY_SOURCES_POINT` · `entry-source.d.ts`
 - `TOOL_IDENTITY_MAX_LENGTH` · `identity.d.ts`
 - `TOOL_REFERENCE_MAX_LENGTH` · `reference.d.ts`
 - `TaskResolution` · `records.d.ts`
@@ -312,6 +313,7 @@
 - `ToolBodyWriteReply` · `body-writer.d.ts`
 - `ToolBodyWrites` · `body-writer.d.ts`
 - `ToolCanonicalFingerprint` · `materials.d.ts`
+- `ToolCapabilityIdentity` · `entry-source.d.ts`
 - `ToolCheckpointDeclaration` · `checkpointed-author.d.ts`
 - `ToolChildren` · `program.d.ts`
 - `ToolClock` · `ports.d.ts`
@@ -327,6 +329,7 @@
 - `ToolDirectory` · `operations.d.ts`
 - `ToolDriver` · `ports.d.ts`
 - `ToolEmitReceipt` · `author-context.d.ts`
+- `ToolEntrySource` · `entry-source.d.ts`
 - `ToolEnvironment` · `ports.d.ts`
 - `ToolExecutionContext` · `author-context.d.ts`
 - `ToolExecutionFact` · `ports.d.ts`
@@ -385,6 +388,11 @@
 - `ToolSegmentContext` · `checkpointed-author.d.ts`
 - `ToolShape` · `authoring.d.ts`
 - `ToolShapeParameters` · `authoring.d.ts`
+- `ToolSourceBreach` · `entry-source.d.ts`
+- `ToolSourceCall` · `entry-source.d.ts`
+- `ToolSourceEntry` · `entry-source.d.ts`
+- `ToolSourceListing` · `entry-source.d.ts`
+- `ToolSourceWithheld` · `entry-source.d.ts`
 - `ToolStartAcceptance` · `records.d.ts`
 - `ToolStartAuthority` · `records.d.ts`
 - `ToolStartFence` · `records.d.ts`
@@ -439,6 +447,7 @@
 - `fixedRequestReference` · `request-reference.d.ts`
 - `foldResident` · `dynamics.d.ts`
 - `intentFault` · `command-call.d.ts`
+- `isToolSourcePrefix` · `entry-source.d.ts`
 - `judgeCommittedToolResult` · `result-policy.d.ts`
 - `judgeConsumerRef` · `judge-release.d.ts`
 - `judgeFixedToolRequest` · `judge-request.d.ts`
@@ -450,6 +459,7 @@
 - `judgeToolCall` · `judge-request.d.ts`
 - `judgeToolDefinition` · `judge-definition.d.ts`
 - `judgeToolInvokeRequest` · `judge-request.d.ts`
+- `judgeToolSourceListing` · `entry-source.d.ts`
 - `judgeToolState` · `judge-state.d.ts`
 - `manifestOf` · `body-store.d.ts`
 - `namesDefinition` · `request-reference.d.ts`
@@ -487,6 +497,7 @@
 - `MemoryToolBodyStore` · `testing-body-store.d.ts`
 - `MemoryToolClock` · `testing-clock.d.ts`
 - `MemoryToolDecisionBridge` · `testing-decision-bridge.d.ts`
+- `MemoryToolEntrySource` · `testing-entry-source.d.ts`
 - `MemoryToolEnvironment` · `testing-environment.d.ts`
 - `MemoryToolExecutorBinding` · `testing-executor-binding.d.ts`
 - `MemoryToolResourceResponses` · `testing-resource-responses.d.ts`
@@ -499,6 +510,7 @@
 - `ToolCredentialEscapeExit` · `testing-credentials.d.ts`
 - `ToolCredentialsFixture` · `testing-credentials.d.ts`
 - `ToolDecisionBridgeFixture` · `testing-decision-bridge.d.ts`
+- `ToolEntrySourceFixture` · `testing-entry-source.d.ts`
 - `ToolEnvironmentAllocationFixture` · `testing-environment-allocation.d.ts`
 - `ToolEnvironmentFixture` · `testing-environment.d.ts`
 - `ToolExecutorBindingFixture` · `testing-executor-binding.d.ts`
@@ -515,6 +527,7 @@
 - `createMemoryToolBodyStore` · `testing-body-store.d.ts`
 - `createMemoryToolClock` · `testing-clock.d.ts`
 - `createMemoryToolDecisionBridge` · `testing-decision-bridge.d.ts`
+- `createMemoryToolEntrySource` · `testing-entry-source.d.ts`
 - `createMemoryToolEnvironment` · `testing-environment.d.ts`
 - `createMemoryToolExecutorBinding` · `testing-executor-binding.d.ts`
 - `createMemoryToolResourceResponses` · `testing-resource-responses.d.ts`
@@ -544,6 +557,7 @@
 - `startAuthorityAnswers` · `testing-start-authority.d.ts`
 - `structuredReturnFixture` · `testing-returns.d.ts`
 - `testingCallLabel` · `testing-label.d.ts`
+- `testingSourceEntry` · `testing-entry-source.d.ts`
 - `testingTenant` · `testing-values.d.ts`
 - `testingTenantText` · `testing-values.d.ts`
 - `testingWorkspace` · `testing-values.d.ts`
@@ -551,6 +565,7 @@
 - `toolClockConformance` · `testing-clock.d.ts`
 - `toolCredentialsConformance` · `testing-credentials.d.ts`
 - `toolDecisionBridgeConformance` · `testing-decision-bridge.d.ts`
+- `toolEntrySourceConformance` · `testing-entry-source.d.ts`
 - `toolEnvironmentAllocationConformance` · `testing-environment-allocation.d.ts`
 - `toolEnvironmentConformance` · `testing-environment.d.ts`
 - `toolExecutorBindingConformance` · `testing-executor-binding.d.ts`
@@ -753,6 +768,7 @@ import type { SettingItem } from '@omne-harness/settings';
 import type { ToolWaitContract } from './author-context.ts';
 import type { ParameterContract, SourceLayer, ToolArguments, ToolAssetVersion, ToolAvailability, ToolDefinition, ToolEnvironmentDeclaration, ToolGovernance, ToolImplementationFacts, ToolInvocation, ToolReturnDeclaration, ToolValueSchema } from './definitions.ts';
 import type { CheckpointedToolExecutor } from './checkpointed-author.ts';
+import type { ToolSourceWithheld } from './entry-source.ts';
 import type { TextRenderer, ToolExecutor } from './execution.ts';
 import type { Access, Adoption, DurableEvidence, ToolCallId } from './identity.ts';
 import type { ToolReleaseDescriber } from './release-detail.ts';
@@ -829,6 +845,7 @@ export interface ToolCatalog<P> {
         limit: number;
     }>): Reply<Readonly<{
         entries: readonly ToolCatalogSearchEntry[];
+        withheld?: readonly ToolSourceWithheld[];
         next: string | null;
     }>>;
 }
@@ -2089,6 +2106,61 @@ export type ResidentFoldFailure = Readonly<{
 export declare function foldResident(resident: readonly ResidentTool[], admitted: ResidentTool): Outcome<readonly ResidentTool[], ResidentFoldFailure>;
 ```
 
+## 声明文件 `entry-source.d.ts`
+
+```ts
+import type { ContentBlock } from '@omne-harness/content-block';
+import type { JsonValue } from '@omne-harness/json-text';
+import { type Outcome } from '@omne-harness/operation-result';
+import type { ToolCommandDeclaration, ToolDefinition } from './definitions.ts';
+import type { Access, Adoption } from './identity.ts';
+import type { Reply, ToolRenderedResult } from './results.ts';
+export declare const TOOL_ENTRY_SOURCES_POINT = "tool.entry-sources";
+export type ToolCapabilityIdentity = Readonly<{
+    category: string;
+    name: string;
+}>;
+export type ToolSourceEntry = Readonly<{
+    capability: ToolCapabilityIdentity;
+    definition: ToolDefinition;
+    executor: Adoption;
+    availability: Readonly<{
+        kind: 'available';
+    }> | Readonly<{
+        kind: 'known-unavailable';
+        reason: string;
+    }>;
+}>;
+export type ToolSourceWithheld = Readonly<{
+    name: string;
+    reason: string;
+}>;
+export type ToolSourceListing = Readonly<{
+    entries: readonly ToolSourceEntry[];
+    withheld: readonly ToolSourceWithheld[];
+}>;
+export type ToolSourceCall<P> = Access<P> & Readonly<{
+    name: string;
+    command: string | null;
+    declared: ToolCommandDeclaration | null;
+    arguments: JsonValue;
+    invocation: string;
+    signal: AbortSignal;
+}>;
+export type ToolEntrySource<P, B extends ContentBlock> = Readonly<{
+    prefix: string;
+    list(access: Access<P>): Reply<ToolSourceListing>;
+    select(access: Access<P>, name: string): ToolSourceEntry | undefined;
+    execute(call: ToolSourceCall<P>): Promise<ToolRenderedResult<B>>;
+}>;
+export type ToolSourceBreach = Readonly<{
+    name: string;
+    reason: string;
+}>;
+export declare function isToolSourcePrefix(prefix: string): boolean;
+export declare function judgeToolSourceListing(prefix: string, listing: ToolSourceListing): Outcome<ToolSourceListing, ToolSourceBreach>;
+```
+
 ## 声明文件 `execution.d.ts`
 
 ```ts
@@ -2343,6 +2415,7 @@ export interface ToolCommands<P, B extends ContentBlock> {
 ```ts
 import type { JsonValue } from '@omne-harness/json-text';
 import type { FixedToolRequest } from './definitions.ts';
+import type { ToolCapabilityIdentity } from './entry-source.ts';
 import type { ToolActionGate } from './gates.ts';
 import type { Access, Adoption, CallAccess, ToolCallId, ToolOperationId } from './identity.ts';
 import type { InvocationAccess, ToolInvokeRequest, ToolDefiniteFailure, ToolInvokeOutcome } from './operations.ts';
@@ -2361,6 +2434,7 @@ export type ToolForwardIntent = Readonly<{
 }>;
 export type ToolActionTarget = Readonly<{
     name: string;
+    capability?: ToolCapabilityIdentity;
     definition: Adoption;
     command: string | null;
     effectiveArguments: string;
@@ -3350,6 +3424,7 @@ export { PREVIEW_MAX_CHARS, actionPreview, toolCallLabel } from './call-label.ts
 export { attachToolsCapability } from './tools-capability.ts';
 export type { ToolForwardParent, ToolForwardBinding, ToolForwardSourceOutcome, ToolForwardSource, ToolForwardRuntime, } from './forwarding.ts';
 export { returnGuide } from './return-description.ts';
+export { TOOL_ENTRY_SOURCES_POINT, isToolSourcePrefix, judgeToolSourceListing, type ToolCapabilityIdentity, type ToolEntrySource, type ToolSourceBreach, type ToolSourceCall, type ToolSourceEntry, type ToolSourceListing, type ToolSourceWithheld, } from './entry-source.ts';
 export { DEFAULT_RELEASE_DETAIL_POLICY, judgeReleaseDescription } from './release-detail.ts';
 ```
 
@@ -4836,6 +4911,38 @@ export declare function createMemoryToolDecisionBridge<P>(): MemoryToolDecisionB
 export declare function memoryToolDecisionBridgeFixture(): ToolDecisionBridgeFixture<string>;
 ```
 
+## 声明文件 `testing-entry-source.d.ts`
+
+```ts
+import type { ContentBlock } from '@omne-harness/content-block';
+import { type ToolEntrySource, type ToolSourceCall, type ToolSourceEntry, type ToolSourceListing } from './entry-source.ts';
+import type { Access } from './identity.ts';
+import type { ToolRenderedResult } from './results.ts';
+import { type ConformanceCase } from './testing-case.ts';
+export declare function testingSourceEntry(input: Readonly<{
+    name: string;
+    category: string;
+    capability?: string;
+    commands?: readonly string[];
+    revision?: string;
+    unavailable?: string;
+}>): ToolSourceEntry;
+export type MemoryToolEntrySource<P, B extends ContentBlock> = ToolEntrySource<P, B> & Readonly<{
+    calls: readonly ToolSourceCall<P>[];
+}>;
+export declare function createMemoryToolEntrySource<P, B extends ContentBlock>(input: Readonly<{
+    prefix: string;
+    listing(access: Access<P>): ToolSourceListing | Promise<ToolSourceListing>;
+    execute(call: ToolSourceCall<P>): Promise<ToolRenderedResult<B>>;
+}>): MemoryToolEntrySource<P, B>;
+export type ToolEntrySourceFixture<P, B extends ContentBlock> = Readonly<{
+    source: ToolEntrySource<P, B>;
+    owner: Access<P>;
+    stranger: Access<P>;
+}>;
+export declare function toolEntrySourceConformance<P, B extends ContentBlock>(): readonly ConformanceCase<ToolEntrySourceFixture<P, B>>[];
+```
+
 ## 声明文件 `testing-environment-allocation.d.ts`
 
 ```ts
@@ -5398,6 +5505,7 @@ export { createMemoryToolResourceResponses, resourceResponsesAnswers, memoryTool
 export { testingTenant, testingTenantText, testingWorkspace } from './testing-values.ts';
 export { toolEnvironmentAllocationConformance, type ToolEnvironmentAllocationFixture, } from './testing-environment-allocation.ts';
 export { checkReleaseDescription } from './testing-release-detail.ts';
+export { createMemoryToolEntrySource, testingSourceEntry, toolEntrySourceConformance, type MemoryToolEntrySource, type ToolEntrySourceFixture, } from './testing-entry-source.ts';
 ```
 
 ## 声明文件 `tools-capability.d.ts`
@@ -5445,10 +5553,12 @@ export declare function attachToolsCapability(scope: ToolExecutionScope, capabil
 ```ts
 import type { ToolCatalog, ToolCatalogSearchEntry, ToolInspection, ToolUsage } from './authoring.ts';
 import type { ToolAvailability } from './definitions.ts';
+import type { ToolSourceWithheld } from './entry-source.ts';
 import type { ToolInvocationRef } from './reference.ts';
 export type SearchArguments = Pick<Parameters<ToolCatalog<unknown>['search']>[0], 'query' | 'after' | 'limit'>;
 export type SearchPage = Readonly<{
     entries: readonly ToolCatalogSearchEntry[];
+    withheld?: readonly ToolSourceWithheld[];
     next: string | null;
 }>;
 export type InspectArguments = Pick<ToolInspection<unknown>, 'name' | 'command'>;

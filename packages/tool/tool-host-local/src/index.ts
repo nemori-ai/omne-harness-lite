@@ -67,6 +67,15 @@ export {
   type LocalToolCatalogInput,
   type ToolAvailabilityVerdict,
 } from './catalog.ts'
+export {
+  createLocalEntrySources,
+  DEFAULT_ENTRY_SOURCE_POLICY,
+  SOURCE_ENTRY_SETTINGS,
+  type LocalEntrySourcePolicy,
+  type LocalEntrySourcesInput,
+  type LocalToolSourcedEntries,
+  type SourcedCatalogEntries,
+} from './entry-sources.ts'
 export { createAbsentToolPorts, type AbsentToolPorts } from './absent-ports.ts'
 export {
   createLocalToolLedgerGuards,

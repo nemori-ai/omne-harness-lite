@@ -2,6 +2,7 @@ import { assetsProtocol } from '@omne-harness/assets-protocol'
 import { calendarProtocol } from '@omne-harness/calendar-protocol'
 import { humanInterventionProtocol } from '@omne-harness/human-intervention-protocol'
 import { identityProtocol } from '@omne-harness/identity-protocol'
+import { mcpProtocol } from '@omne-harness/mcp-protocol'
 import { mediaProtocol } from '@omne-harness/media-protocol'
 import { modelProtocol } from '@omne-harness/model-protocol'
 import { notificationProtocol } from '@omne-harness/notification-protocol'
@@ -29,4 +30,5 @@ export const domainProtocols: readonly ProtocolContract[] = [
   mediaProtocol,
   workspaceProtocol,
   pluginProtocol,
+  mcpProtocol,
 ]

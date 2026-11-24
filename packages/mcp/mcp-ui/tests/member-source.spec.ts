@@ -23,9 +23,12 @@ it('S3 the member styles are layout only: no custom property of its own', () => 
   for (const { file, text } of styles) expect(text, file).not.toMatch(/^\s*--[\w-]+\s*:/m)
 })
 
-it('S2 the member imports only the frontend group and React: no asset member, no protocol', () => {
+it('S2 the member imports only the frontend group, React, its own protocol and the client core: no asset member', () => {
   const allowed = new Set([
     'react',
+    '@omne-harness/mcp-protocol',
+    '@omne-harness/public-contract',
+    '@omne-harness/sdk/core',
     '@omne-harness/shell-contract',
     '@omne-harness/shell-contract/cordis',
     '@omne-harness/ui-kit',
@@ -41,6 +44,9 @@ it('S2 the member imports only the frontend group and React: no asset member, no
     dependencies: Record<string, string>
   }
   expect(Object.keys(manifest.dependencies).sort()).toEqual([
+    '@omne-harness/mcp-protocol',
+    '@omne-harness/public-contract',
+    '@omne-harness/sdk',
     '@omne-harness/shell-contract',
     '@omne-harness/ui-kit',
     'react',

@@ -446,6 +446,7 @@ export function operatorLayer(options: {
             contentPageBytes: 4096,
           },
           web: tools.web,
+          sources: { resultMaxBytes: 65_536, listTimeoutMs: 5000 },
         },
       },
       { kind: 'replace', id: 'tool-records', config: tools.records },

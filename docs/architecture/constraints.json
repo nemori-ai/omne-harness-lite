@@ -1083,11 +1083,35 @@
       "source": "packages/mcp/SPEC.md"
     },
     {
+      "id": "packages/mcp/mcp-bridge",
+      "paths": ["packages/mcp/mcp-bridge/src/**"],
+      "layer": "unknown",
+      "domains": ["mcp"],
+      "status": "candidate",
+      "source": "packages/mcp/SPEC.md"
+    },
+    {
       "id": "packages/mcp/mcp-host-local",
       "paths": ["packages/mcp/mcp-host-local/src/**"],
       "layer": "assembly",
       "domains": ["mcp"],
       "status": "adopted",
+      "source": "packages/mcp/SPEC.md"
+    },
+    {
+      "id": "packages/mcp/mcp-protocol",
+      "paths": ["packages/mcp/mcp-protocol/src/**"],
+      "layer": "contract",
+      "domains": ["mcp"],
+      "status": "candidate",
+      "source": "packages/mcp/SPEC.md"
+    },
+    {
+      "id": "packages/mcp/mcp-access",
+      "paths": ["packages/mcp/mcp-access/src/**"],
+      "layer": "unknown",
+      "domains": ["mcp"],
+      "status": "candidate",
       "source": "packages/mcp/SPEC.md"
     },
     {
@@ -1865,7 +1889,11 @@
     {
       "id": "DIR-MCP-PURE",
       "from": ["packages/mcp/mcp-contract", "packages/mcp/mcp"],
-      "to": ["packages/mcp/mcp-cordis-contract", "packages/mcp/mcp-host-local"],
+      "to": [
+        "packages/mcp/mcp-cordis-contract",
+        "packages/mcp/mcp-host-local",
+        "packages/mcp/mcp-bridge"
+      ],
       "source": "packages/mcp/SPEC.md"
     },
     {

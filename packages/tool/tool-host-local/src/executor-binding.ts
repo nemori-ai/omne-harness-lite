@@ -32,6 +32,7 @@ import {
 } from '@omne-harness/tool-contract/provider'
 import { readToolRegistration, type ToolOperationSlot } from '@omne-harness/tool-contract/binding'
 import type { LocalToolBindingRegistry, ToolBindingSelection } from './bindings.ts'
+import { noteCallFacts } from './entry-sources.ts'
 import {
   createLiveAuthorExecution,
   localAuthorEvidence,
@@ -151,6 +152,12 @@ function declaredWait(operation: ToolOperationSlot, wait: AuthorWait): boolean {
   )
 }
 
+// The executor of a source entry reads who calls from the context, in the first segment and in each resumed one.
+function noted<P>(scope: ToolExecutionScope, facts: CallAccess<P>): ToolExecutionScope {
+  noteCallFacts(scope.context, facts)
+  return scope
+}
+
 export function createLocalToolBindings<P, E, B extends ContentBlock>(
   dependencies: LocalToolBindingsInput<P, E, B>,
 ): ToolBindings<P, E> {
@@ -241,7 +248,7 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
     fail({ kind: 'unavailable' as const, dependency: 'toolBindings', diagnostic })
 
   const withCapability = (input: StartInput<P, E>, scope: ToolExecutionScope) =>
-    dependencies.capability?.(input, scope) ?? scope
+    noted(dependencies.capability?.(input, scope) ?? scope, input)
 
   const launch = async (
     input: StartInput<P, E>,

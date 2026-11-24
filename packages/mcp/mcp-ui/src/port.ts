@@ -1,4 +1,8 @@
+import type { McpProtocol } from '@omne-harness/mcp-protocol'
+import type { ClientOf } from '@omne-harness/sdk/core'
 import type { ComponentType } from 'react'
+
+export type McpStatus = Pick<ClientOf<McpProtocol>, 'read-endpoint' | 'refresh-endpoint'>
 
 export type McpNotice = Readonly<{ kind: 'refused' | 'unavailable' | 'unknown'; text: string }>
 

@@ -18,8 +18,10 @@ const outcome = participant.execute(
     provideFact(key, value) {
       provided.push({ key, value: JSON.stringify(value) })
     },
-    requireFact() {
-      throw new Error('the release participant requires no fact')
+    requireFact(fact) {
+      if (!workerData.held.some(held => held.key === fact.key))
+        throw new Error(`the release participant requires no fact ${fact.key}`)
+      return workerData.noHeldAssets
     },
     execute() {
       throw new Error('the release participant runs no statement')

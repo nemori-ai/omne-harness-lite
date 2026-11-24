@@ -27,4 +27,28 @@ export const mcpEndpointPermission = definePart({
   when: '这个接入点有权限的设置时',
 })
 
-export const mcpParts = [mcpPage, mcpEndpoint, mcpEndpointPermission] as const
+export const mcpEndpointStatus = definePart({
+  name: 'mcp.endpoint.status',
+  label: '状态',
+  summary: '这个接入点连上没有，不能用时为什么',
+  within: 'mcp.endpoint',
+  depths: ['tokens', 'style'],
+  when: '有接入点时',
+})
+
+export const mcpEndpointActions = definePart({
+  name: 'mcp.endpoint.actions',
+  label: '动作清单',
+  summary: '这个接入点的动作，或清单为什么还没取得',
+  within: 'mcp.endpoint',
+  depths: ['tokens', 'style'],
+  when: '这个接入点的状态读到时',
+})
+
+export const mcpParts = [
+  mcpPage,
+  mcpEndpoint,
+  mcpEndpointPermission,
+  mcpEndpointStatus,
+  mcpEndpointActions,
+] as const

@@ -23,13 +23,16 @@ import {
   type PermissionBasisRequest,
 } from '@omne-harness/permissions'
 import type { Adoption, ToolGate } from '@omne-harness/tool-contract'
-import { toolEnforcementKey } from '../../entry/tool-permission-release.ts'
+import { categoryEnforcementKey } from '../../entry/category-gates.ts'
 import type { SessionInquiryView } from '@omne-harness/session-adapters'
 import type { AuthorizationConsumer, OnceAuthorization } from '@omne-harness/session-contract'
 import type { SessionAuthorizations } from '@omne-harness/session-storage-sql/participants'
 import { onceAuthorizationFor, sessionGrantFor } from './authorization-facts.ts'
 import { capturedInquirySchema } from '../governance/permission-inquiry.ts'
-import type { PermissionDeclaration } from '../../entry/permission-declarations.ts'
+import type {
+  CapabilityIdentity,
+  PermissionDeclaration,
+} from '../../entry/permission-declarations.ts'
 import { interpretPermission } from '../governance/permission-interpreter.ts'
 import { sameAdoption } from '../../entry/tool-release-manifest.ts'
 import {
@@ -42,6 +45,7 @@ export type ToolPermissionAction = Readonly<{
   principal: ActingForTenantPrincipal
   tenant: TenantId
   operation: PermissionBasisRequest['operation']
+  capability: CapabilityIdentity
   definition: Adoption
   effectiveArguments: string
   gate: ToolGate
@@ -97,7 +101,7 @@ export type CurrentPermissionSource = Readonly<{
 export type ToolPermissionContext = ToolPermissionAction &
   Readonly<{ inquiry: SessionInquiryView | null }>
 export type ToolPermissionPorts = Readonly<{
-  declarations(): readonly PermissionDeclaration[]
+  declarations(tenant: TenantId): readonly PermissionDeclaration[]
   source(): CurrentPermissionSource | undefined
   inquiry(input: ToolPermissionAction): Promise<SessionInquiryView | null>
 }>
@@ -108,12 +112,18 @@ const undecidable = (diagnostic: string) => ({ kind: 'undecidable' as const, dia
 // A gate is found by the capability's identity in the declarations its category owners registered.
 export function declaredPermission(
   declarations: readonly PermissionDeclaration[],
-  input: Pick<ToolPermissionAction, 'definition' | 'gate'>,
+  input: Pick<ToolPermissionAction, 'capability' | 'definition' | 'gate'>,
 ) {
-  const entries = declarations.filter(entry => sameAdoption(entry.asset.adoption, input.definition))
+  const { category, name } = input.capability
+  const entries = declarations.filter(
+    entry =>
+      entry.asset.category === category &&
+      entry.asset.name === name &&
+      (entry.definition === null || sameAdoption(entry.definition, input.definition)),
+  )
   if (entries.length !== 1) return undefined
   const entry = entries[0]!
-  const key = toolEnforcementKey(input.gate)
+  const key = categoryEnforcementKey(category, input.gate)
   const bindings = entry.governance.declaration.enforcementBindings.filter(
     binding => binding.action === 'invoke' && binding.enforcementKey === key,
   )
@@ -299,10 +309,11 @@ export function createCurrentToolPermission(ports: ToolPermissionPorts): ToolPer
         const captured = {
           ...input,
           operation: { ...input.operation },
+          capability: { ...input.capability },
           definition: { ...input.definition },
           origin: structuredClone(input.origin),
         }
-        const released = declaredPermission(ports.declarations(), captured)
+        const released = declaredPermission(ports.declarations(captured.tenant), captured)
         if (released === undefined)
           return unavailable('No permission declaration names this capability and gate.')
         const { interpretation } = released

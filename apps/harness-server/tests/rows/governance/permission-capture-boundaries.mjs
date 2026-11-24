@@ -73,6 +73,7 @@ const action = {
   principal,
   tenant: TOOL_RELEASE_TENANT,
   operation: { owner: 'agent', operationId: 'action-1' },
+  capability: { category: 'tool', name: entry.asset.name },
   definition: entry.asset.adoption,
   effectiveArguments: '{}',
   gate: { id: 'run', title: '执行', default: 'ask' },

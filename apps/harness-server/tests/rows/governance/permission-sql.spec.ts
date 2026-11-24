@@ -24,11 +24,26 @@ import {
 } from '../../../dist/rows/governance/permission-protocol.js'
 import { providerConfig } from '../storage/fixtures/tree.ts'
 import { permissionFixture } from './permission-fixture.ts'
+import { heldFacts } from './permission-held-fixture.mjs'
 
 async function world(release?: Extract<ToolReleaseSnapshot, { kind: 'trusted' }>) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'permission-interpreter-')))
   const participants = [...permissionSqlParticipants()]
-  if (release !== undefined) participants.push(toolPermissionReleaseParticipant(release))
+  if (release !== undefined) {
+    const held = new URL('./permission-held-fixture.mjs', import.meta.url)
+    participants.push(toolPermissionReleaseParticipant(release), {
+      participant: 'fixture.permission-held',
+      protocol: '1',
+      moduleUrl: held.href,
+      codeDigest: createHash('sha256').update(readFileSync(held)).digest('hex'),
+      ownedTables: [],
+      readTables: [],
+      requiresFacts: [],
+      providesFacts: [...heldFacts],
+      allowedFunctions: [],
+      grouping: 'groupable',
+    })
+  }
   const releaseMember =
     release === undefined ? 'fixture.permission-release' : 'harness.tool-permission-release'
   for (const [name, fact] of [
@@ -88,6 +103,7 @@ async function world(release?: Extract<ToolReleaseSnapshot, { kind: 'trusted' }>
     memberNames,
     async run(input: ReturnType<typeof permissionFixture>, omit?: string) {
       const commands: CommitRequestV2['commands'] = [
+        ...(release === undefined ? [] : [{ participant: 'fixture.permission-held', facts: {} }]),
         {
           participant: releaseMember,
           facts: release === undefined ? { released: [input.released] } : {},

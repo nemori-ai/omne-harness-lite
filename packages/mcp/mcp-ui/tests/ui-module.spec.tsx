@@ -53,7 +53,7 @@ it('UI2 the page draws from the port the module was given, for the scope the she
   await root.plugin(mcpUiModule)
   render(<>{entries(shell, TENANT)[0]!.node}</>)
   expect(fake.opened).toEqual([`mcp ${TENANT}`])
-  expect(screen.getByText(/MCP 还没有接进这个应用/)).toBeTruthy()
+  expect(screen.getByText('接进来的 MCP 接入点会列在这里。')).toBeTruthy()
 })
 
 it('UI3 no scope yet: nothing is drawn and the port is not opened', async () => {
@@ -84,7 +84,7 @@ it('UI4 the port absent: the module is not adopted; it comes: the page is placed
   expect(entries(shell)).toEqual([])
 })
 
-it('M4 declares its three parts', async () => {
+it('M4 declares its five parts', async () => {
   const { root, shell } = await startShell()
   await provideOn(root, governanceKey, fakeGovernance(readOf()).governance)
   await root.plugin(mcpUiModule)
@@ -92,7 +92,9 @@ it('M4 declares its three parts', async () => {
   expect(read.kind === 'read' && read.conflicts).toEqual([])
   expect(read.kind === 'read' && read.parts.map(part => [part.name, part.within])).toEqual([
     ['mcp.endpoint', 'mcp.page'],
+    ['mcp.endpoint.actions', 'mcp.endpoint'],
     ['mcp.endpoint.permission', 'mcp.endpoint'],
+    ['mcp.endpoint.status', 'mcp.endpoint'],
     ['mcp.page', 'assets.panel'],
   ])
 })
