@@ -662,6 +662,8 @@ export type ReleaseTree = Readonly<{
   hitl: ToolHitlHolder
   toolRuntime(): ReleaseToolRuntime
   records: readonly S0Record[]
+  /** The authorization header of each request the model gateway received, in order. */
+  modelAuthorizations(): readonly (string | null)[]
   cli(args: readonly string[], credential?: string): ReturnType<typeof runOmne>
   relogin(): Promise<string>
   startSession(text: string, definition?: string): Promise<string>
@@ -757,7 +759,13 @@ export async function onReleaseTreeRuns(
   const serve = async (run: number, body: (tree: ReleaseTree) => Promise<void>) => {
     await options.beforeRun?.(run, dir.storageRoot)
     for (let attempt = 1; ; attempt += 1) {
-      const state = { dir, port, home, modelRoute: gateway.url }
+      const state = {
+        dir,
+        port,
+        home,
+        modelRoute: gateway.url,
+        modelAuthorizations: () => gateway.authorizations(),
+      }
       const left = rowsLeftOut(options.withoutRows, run)
       const outcome = await serveOnce({ ...options, withoutRows: left }, state, run === 0, body)
       if (outcome !== PORT_TAKEN) return outcome
@@ -801,6 +809,7 @@ type ReleaseState = Readonly<{
   port: number
   home: string
   modelRoute: string
+  modelAuthorizations(): readonly (string | null)[]
 }>
 
 async function serveOnce(
@@ -995,6 +1004,7 @@ async function serveOnce(
       hitl,
       toolRuntime,
       records,
+      modelAuthorizations: state.modelAuthorizations,
       cli,
       relogin,
       startSession,

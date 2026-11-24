@@ -47,6 +47,7 @@ import {
 } from './session-permission-backend-service.ts'
 import { createToolGovernanceDefinitionSource } from './tool-definition-source.ts'
 import { prepareInstalledTenantGovernance } from './tenant-installation.ts'
+import { releaseProviders } from '../../assets/model-providers.ts'
 import { createToolAssetCategory, toolAssetPublication } from './tool-assets.ts'
 import { officialItem } from '../../assets/official-holdings.ts'
 import {
@@ -93,6 +94,7 @@ function governedOf(ctx: Context, tenantRef: string) {
       registerPermissionDeclaration(ctx, declaration),
     assetsChanged: (listener: () => void) =>
       ctx.assetChanges.subscribe(tenantRef, { changed: listener, closed() {} }),
+    releaseProviders,
   }
 }
 

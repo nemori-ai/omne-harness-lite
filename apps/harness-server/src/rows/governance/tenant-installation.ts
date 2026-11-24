@@ -16,6 +16,8 @@ import { independentTargetsOf } from './independent-settings.ts'
 import { governanceStorageCombinations } from './storage-combinations.ts'
 import { GOVERNANCE_PROJECTION_READ } from './storage-materials.ts'
 import { installToolGovernance, toolInstallationGrants } from './tool-installation.ts'
+import { installReleaseProviders } from './release-provider-installation.ts'
+import type { ReleaseProvider } from '../../assets/model-providers.ts'
 import type {
   TenantAssetsAccess,
   TenantGovernanceAssembly,
@@ -37,6 +39,8 @@ export type InstalledTenantOptions = Omit<
   categories: Pick<CategoryView, 'list' | 'lookup'>
   tenantAssets(): Promise<AssetsLocal | undefined>
   independentSettings(): readonly SettingDefinitions[]
+  /** The model providers the release brings; each is installed into the tenant after its tools. */
+  releaseProviders?(): readonly ReleaseProvider[]
   warn(message: string): void
 }
 
@@ -141,6 +145,13 @@ export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) 
       })
       fault =
         installed.kind === 'installed' ? undefined : faultOf(installed.phase, runtime.readRefusal())
+      if (fault === undefined && options.releaseProviders !== undefined)
+        await installReleaseProviders({
+          owner: assets,
+          tenantRef: options.scope.tenantRef,
+          providers: options.releaseProviders(),
+          warn: options.warn,
+        })
     } catch {
       fault = 'tool installation threw'
     } finally {
