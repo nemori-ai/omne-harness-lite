@@ -86,12 +86,21 @@ export async function forwardingFixture(
   const memory = createMemoryToolLedgerStore()
   let nextCommit: 'lost' | 'unwritten' | 'unavailable' | 'rejected' | null = null
   let allowed = true
+  /** The read that fails next: the n-th one of its kind from now, once. */
+  let blind: { kind: 'read' | 'record'; left: number } | null = null
+  const blinded = (kind: 'read' | 'record') => {
+    if (blind === null || blind.kind !== kind) return false
+    if (blind.left-- > 0) return false
+    blind = null
+    return true
+  }
+  const away = async () => ({ kind: 'unavailable', diagnostic: 'offline' }) as never
   const store: ToolLedgerStore = {
     durability: options.durableDeclaration ? 'durable' : 'none',
     scanPending: input => memory.scanPending(input),
     usage: query => memory.usage(query),
-    read: memory.read,
-    readRecord: memory.readRecord,
+    read: input => (blinded('read') ? away() : memory.read(input)),
+    readRecord: (domain, key) => (blinded('record') ? away() : memory.readRecord(domain, key)),
     due: memory.due,
     definition: memory.definition,
     async commit(input) {
@@ -238,6 +247,14 @@ export async function forwardingFixture(
     },
     revoke: () => {
       allowed = false
+    },
+    blind: (kind: 'read' | 'record', nth: number) => {
+      blind = { kind, left: nth }
+    },
+    sighted: () => {
+      const unused = blind !== null
+      blind = null
+      return unused
     },
   }
 }

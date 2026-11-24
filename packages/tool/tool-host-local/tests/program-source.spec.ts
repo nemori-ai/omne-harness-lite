@@ -343,3 +343,58 @@ describe('what is refused before a source is written', () => {
     expect((await w.source.programs.prepare(w.placed(0))).kind).toBe('prepared')
   })
 })
+
+describe('a store that cannot be read once', () => {
+  it.each(['read', 'record'] as const)(
+    'never issues on a failed %s, never throws, and issues the same call afterwards',
+    async kind => {
+      const kinds = new Set<string>()
+      let failed = 0
+      for (let nth = 0; nth < 12; nth++) {
+        const w = await world()
+        const prepared = await w.hand()
+        w.blind(kind, nth)
+        const first = await w.resolve()
+        if (w.sighted()) {
+          expect(first).toMatchObject({ kind: 'bound', call: prepared.child })
+          continue
+        }
+        failed += 1
+        kinds.add(first.kind)
+        if (first.kind === 'bound') expect(first.call).toBe(prepared.child)
+        expect(await w.resolve()).toMatchObject({ kind: 'bound', call: prepared.child })
+      }
+      expect(failed).toBeGreaterThan(0)
+      expect([...kinds].every(one => one !== 'bound')).toBe(true)
+    },
+  )
+
+  it.each(['read', 'record'] as const)(
+    'does not trust a call it cannot verify on a failed %s, and trusts it afterwards',
+    async kind => {
+      let failed = 0
+      for (let nth = 0; nth < 8; nth++) {
+        const w = await world()
+        await w.hand()
+        const bound = await w.resolve()
+        if (bound.kind !== 'bound') throw new Error(JSON.stringify(bound))
+        const verify = () =>
+          w.source.guard.verify({
+            principal: w.parent.principal,
+            tenant: w.parent.tenant,
+            call: bound.call,
+            operation: bound.admission,
+            request: bound.request,
+          })
+        w.blind(kind, nth)
+        const first = await verify()
+        if (!w.sighted()) {
+          failed += 1
+          expect(first).not.toEqual({ kind: 'trusted' })
+        }
+        expect(await verify()).toEqual({ kind: 'trusted' })
+      }
+      expect(failed).toBeGreaterThan(0)
+    },
+  )
+})
