@@ -127,6 +127,35 @@ describe('an Agent definition written as a directory with AGENT.md', () => {
     )
   })
 
+  it('keeps a definition that writes type non-master, as one that leaves type out', async () => {
+    const written = await judge({ 'AGENT.md': fields(NAMED.concat('type: non-master')) })
+    const left = await judge({ 'AGENT.md': fields(NAMED) })
+    expect('ok' in written && 'ok' in left).toBe(true)
+    if (!('ok' in written) || !('ok' in left)) return
+    const { manifest: _written, ...said } = plain(written.ok.body)
+    const { manifest: _left, ...kept } = plain(left.ok.body)
+    expect(said).toEqual(kept)
+    expect(said['type']).toBe('non-master')
+  })
+
+  it('does not read a file the source cannot give, or one whose bytes are not the ones listed', async () => {
+    const whole = packageOf({ 'AGENT.md': fields(NAMED) })
+    const failureOf = async (reader: PackageReader) => {
+      const judged = await judgePackageContent(agentBodyContract(), reader, 'reviewer')
+      return 'ok' in judged ? 'accepted' : JSON.stringify(judged.failure)
+    }
+    expect(
+      await failureOf({ ...whole, manifest: async () => ({ failure: 'unavailable' }) }),
+    ).toContain('unavailable')
+    expect(
+      await failureOf({ ...whole, open: async () => ({ failure: 'entry-not-found' }) }),
+    ).toContain('entry-not-found')
+    const other = utf8.encode(fields(NAMED.concat('type: master')))
+    expect(await failureOf({ ...whole, open: async () => ({ ok: other }) })).toContain(
+      'material-unavailable',
+    )
+  })
+
   it('refuses a name that is not the name it is published under', async () => {
     expect(await refusal(fields(NAMED), 'auditor')).toBe('name-mismatch')
   })
@@ -169,6 +198,31 @@ describe('an Agent definition written as a directory with AGENT.md', () => {
       'a reference with another field',
       fields(NAMED.concat('references: [{ category: tool, name: Files, always: true }]')),
       'AGENT.md: references[0] is not {category, name, resident?} with category and name as text and resident as true or false',
+    ],
+    [
+      'a reference that is a name alone',
+      fields(NAMED.concat('references: [Files]')),
+      'AGENT.md: references[0] is not {category, name, resident?} with category and name as text and resident as true or false',
+    ],
+    [
+      'a reference that is a list',
+      fields(NAMED.concat('references: [[tool, Files]]')),
+      'AGENT.md: references[0] is not {category, name, resident?} with category and name as text and resident as true or false',
+    ],
+    [
+      'a reference whose category is not text',
+      fields(NAMED.concat('references: [{ category: 1, name: Files }]')),
+      'AGENT.md: references[0] is not {category, name, resident?} with category and name as text and resident as true or false',
+    ],
+    [
+      'a reference whose residency is not true or false',
+      fields(NAMED.concat('references: [{ category: tool, name: Files, resident: always }]')),
+      'AGENT.md: references[0] is not {category, name, resident?} with category and name as text and resident as true or false',
+    ],
+    [
+      'a frontmatter that is one line of text',
+      '---\njust text\n---\n',
+      'AGENT.md: the frontmatter is not a mapping of fields',
     ],
     [
       'attributes that are not names',
