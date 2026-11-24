@@ -127,6 +127,50 @@ describe('select-model, row by row of T3', () => {
     ])
   })
 
+  it('saves the requested effort with its route and refuses unsupported changes atomically', async () => {
+    const world = createWorld()
+    const session = await created(world)
+    world.targets.answer({
+      kind: 'selectable',
+      credential: 'available',
+      basis: TARGET_BASIS,
+      reasoningEfforts: ['high'],
+    })
+    const pick = (controlId: string, reasoningEffort: 'high' | 'xhigh') =>
+      ops(world)['select-model'](as(loginIdentity(ALICE)), {
+        tenant: ALICE.tenant,
+        session,
+        controlId,
+        model: MODEL,
+        reasoningEffort,
+      })
+    const read = () =>
+      ops(world)['read-model-selection'](as(loginIdentity(ALICE)), {
+        tenant: ALICE.tenant,
+        session,
+      })
+    expect(await pick('high-1', 'high')).toMatchObject({
+      outcome: 'succeeded',
+      body: { model: MODEL, reasoningEffort: 'high' },
+    })
+    const saved = await read()
+    expect(saved).toMatchObject({
+      outcome: 'succeeded',
+      body: { model: MODEL, reasoningEffort: 'high' },
+    })
+    expect(await pick('xhigh-2', 'xhigh')).toEqual({
+      outcome: 'invalid',
+      body: { reason: 'excluded', detail: 'unsupported-effort' },
+    })
+    expect(await read()).toEqual(saved)
+    expect(changes(world)).toHaveLength(1)
+    expect((await select(world, session, 'profile-default')).outcome).toBe('succeeded')
+    expect(await read()).toEqual({
+      outcome: 'succeeded',
+      body: { model: MODEL, revision: expect.any(String) },
+    })
+  })
+
   it('row 6: selecting the current model commits like any other selection', async () => {
     const world = createWorld()
     const session = await created(world)

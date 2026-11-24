@@ -4,7 +4,7 @@ import type {
   Principal,
 } from '@omne-harness/access-cordis-contract'
 import { tenantCodec } from '@omne-harness/legal-identity'
-import type { ProfileResolution } from '@omne-harness/model-contract'
+import { supportedReasoningEfforts, type ProfileResolution } from '@omne-harness/model-contract'
 import type { ModelProtocol } from '@omne-harness/model-protocol'
 import type { ModelAccessPrincipals, ModelAccessSettings, ModelChoiceReader } from './ports.ts'
 
@@ -51,6 +51,7 @@ function listedOf(resolution: ProfileResolution): readonly Listed[] {
       selectable: resolution.selectable,
       reasons: [...resolution.reasons],
       credential: CREDENTIAL[resolution.credential],
+      reasoningEfforts: supportedReasoningEfforts(definition),
       input: [...definition.input],
       output: [...definition.output],
     },

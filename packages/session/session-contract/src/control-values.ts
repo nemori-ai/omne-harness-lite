@@ -2,7 +2,17 @@ import type { DurableEvidence, RunId, SessionRevision } from './identity.ts'
 import type { ControlProgress, ProducerRef, RunTerminal } from './values.ts'
 import type { SessionOperationId } from './identity.ts'
 
-export type SavedModelSelection = Readonly<{ name: string; basis: DurableEvidence }>
+const EFFORTS = ['low', 'medium', 'high', 'xhigh'] as const
+
+export function validSelectionEffort(effort: unknown): boolean {
+  return effort === undefined || EFFORTS.some(value => value === effort)
+}
+
+export type SavedModelSelection = Readonly<{
+  name: string
+  reasoningEffort?: (typeof EFFORTS)[number]
+  basis: DurableEvidence
+}>
 export type SessionModelSelection = Readonly<{
   selection: SavedModelSelection
   revision: SessionRevision

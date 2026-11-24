@@ -95,7 +95,9 @@ export type FieldsOfValue<V> = GatewayParam extends infer P
   : never
 
 export type ParameterWire<K extends ParameterKind> = K extends 'reasoning-effort'
-  ? Readonly<Record<ParameterValue<'reasoning-effort'>, GatewayParam | 'unsupported'>>
+  ? Readonly<
+      Record<Exclude<ParameterValue<'reasoning-effort'>, 'xhigh'>, GatewayParam | 'unsupported'>
+    >
   : Readonly<{ field: FieldsOfValue<ParameterValue<K>> }>
 
 export type ParameterRule<K extends ParameterKind> =

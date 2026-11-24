@@ -9,6 +9,7 @@ import type { TiktokenExecutor, TiktokenResources } from '@omne-harness/tokenize
 import { createKimiMeter, type MeterMargin } from './meter.ts'
 import { KIMI_OWNER } from './owner.ts'
 import type { KimiRecord } from './record.ts'
+import { effortMapping } from './profiles.ts'
 import { KIMI_RECORDS } from './records.ts'
 import { hooksOf } from './rules.ts'
 
@@ -84,6 +85,7 @@ export function createKimiFamily(config: KimiFamilyConfig): PiFamily {
         return {
           ok: bindChatCompletions({
             record,
+            bindingEfforts: effortMapping(record),
             supplier,
             hooks: hooksOf(record),
             meter: createKimiMeter(record, tokenizer.ok.tokenizer, config.margin),

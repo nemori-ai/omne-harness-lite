@@ -285,6 +285,55 @@ it('头部三栏放不下：右端只用自己那一栏，留出远端让开的�
   }
 })
 
+it('收进「更多」的推理强度沿用型号能力，选择后读回会话档位', async () => {
+  layOut(560)
+  const fake = createFakeClient()
+  const root = await openLong(fake)
+  const model = 'test/reasoner'
+  await act(async () => {
+    providerOf(root, TAKEN.modelChoices).attach({
+      list: async () => ({
+        kind: 'listed',
+        choices: [
+          { route: model, selectable: true, note: null, reasoningEfforts: ['high', 'xhigh'] },
+        ],
+      }),
+    })
+  })
+  ;(await fake.next('read-model-selection')).answer({
+    outcome: 'succeeded',
+    body: { model, revision: '1', reasoningEffort: 'high' },
+  })
+  ;(await fake.next('read-permission-mode')).answer({
+    outcome: 'succeeded',
+    body: { mode: 'auto_permission', revision: '1' },
+  })
+  await settle()
+  const menu = await openMore()
+  fireEvent.keyDown(within(menu).getByRole('menuitem', { name: /^推理强度/ }), {
+    key: 'ArrowRight',
+  })
+  const choices = await screen.findByRole('menu', { name: /^推理强度/ })
+  expect(
+    within(choices)
+      .getByRole('menuitemradio', { name: /low.*此型号未提供/u })
+      .getAttribute('aria-disabled'),
+  ).toBe('true')
+  fireEvent.click(within(choices).getByRole('menuitemradio', { name: 'xhigh' }))
+  const change = await fake.next('select-model')
+  expect(change.body).toMatchObject({ session: LONG, model, reasoningEffort: 'xhigh' })
+  change.answer({ outcome: 'succeeded', body: { controlId: 'c', model, credential: 'available' } })
+  await settle()
+  ;(await fake.next('read-model-selection')).answer({
+    outcome: 'succeeded',
+    body: { model, revision: '2', reasoningEffort: 'xhigh' },
+  })
+  await settle()
+  expect(within(await openMore()).getByRole('menuitem', { name: /^推理强度/ }).textContent).toBe(
+    '推理强度xhigh',
+  )
+})
+
 it('收进「更多」的权限处理照样能改：选一个值就发；改成了页头不写「已改为……」，菜单里写新的值', async () => {
   layOut(560)
   const fake = createFakeClient()

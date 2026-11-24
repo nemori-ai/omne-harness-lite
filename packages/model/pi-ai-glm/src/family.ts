@@ -9,6 +9,7 @@ import type { TiktokenExecutor, TiktokenResources } from '@omne-harness/tokenize
 import { createGlmMeter, type MeterMargin } from './meter.ts'
 import { GLM_OWNER } from './owner.ts'
 import type { GlmRecord } from './record.ts'
+import { effortMapping } from './profiles.ts'
 import { GLM_RECORDS } from './records.ts'
 import { hooksOf, withToolChoiceRule } from './rules.ts'
 
@@ -92,6 +93,7 @@ export function createGlmFamily(config: GlmFamilyConfig): PiFamily {
       try {
         const binding = bindChatCompletions({
           record,
+          bindingEfforts: effortMapping(record),
           supplier,
           hooks: hooksOf(record),
           meter: createGlmMeter(record, tokenizer.ok.tokenizer, config.margin),

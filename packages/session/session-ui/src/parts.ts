@@ -129,7 +129,7 @@ export const sessionHeaderTitle = definePart({
 export const sessionHeaderModel = definePart({
   name: 'session.header.model',
   label: '模型选择',
-  summary: '换这段会话用的模型',
+  summary: '选择会话的模型与推理强度',
   within: 'session.header',
   depths: ['tokens', 'style'],
   when: '对话头够宽且有模型可选时',

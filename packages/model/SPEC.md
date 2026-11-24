@@ -285,14 +285,34 @@ Model 声明、由别人实现的端口：
 - 家族记录是纯数据，采用摘要覆盖整条记录。行为或数据变化时新增修订并冻结旧记录，不原地修改。家族表按采用的全部四项精确查找，不按名字前缀匹配，不取最新修订，不把供应商转给别的家族。
 - 取得一个精确绑定时一次核齐全部采用与资源；任一不匹配整体失败并释放已取得项，不用同名最新件补齐。
 - 本项目的引擎与记录不关闭推理：推理强度 `none` 映射为不支持。
+- 档案的 `reasoningEfforts` 是从用户档位 `low / medium / high / xhigh` 到适配器实际采用值的可选映射，参与档案内容指纹。缺少某项表示该档不能选。统一选择在请求参数中带 `scale: unified`。未标注的原有参数继续按引擎的原生档位解释。发请求前，准备器核对带标记的选择与档案、实际绑定的型号映射，将用户选择记在 `origin.requested`，将换算结果记在 `applied`。编码器使用固定的 `applied`。旧记录里的 `max` 仍有原义。
 - 型号记录里的每条适配事实来自经网关的真实请求：记录写明哪一天测的、证据在哪。文档只提示该测什么，不单独支撑一条事实。专用接口报告上游丢弃了带回的推理状态时，引擎把它写成一条不含载荷的诊断。
 - 流停顿上界是两次收到响应字节的最长间隔，可选。到期在响应头之前以上游不可用失败，之后以流失联失败；到期不撤回已发出的请求。
 - 代理编码与旧词表只给出估算，不声称 tokenizer 身份。
 - 连接容量按个数授予预约，先到先得。预约不过期，到释放为止有效。消费预约的那次交换占着席位，到它物理结束之后才归还，别人不能替它提前归还；预约被消费之后再 `release` 不动槽位。被取消的等待者不占槽。容量已关闭或等待中被中止时，不给预约。
 
+#### 发行型号的可选推理档位
+
+下表各列是界面档位，单元格是实际发出的值。空格标为「禁用」。Chat Completions 与 Responses 写入 `reasoning.effort`，Messages 写入 `output_config.effort`。选择依据是型号说明和固定上游的协议事实。网关接受某个值只证明这份请求送达，不能据此测得上游内部思考量。
+
+| 发行路由 | low | medium | high | xhigh | 依据 |
+| --- | --- | --- | --- | --- | --- |
+| OpenAI 的 Responses 路由，GPT-5.6 Terra、Luna；GPT-6 Astra、Sol、Luna；GPT-6.1 Sol、Terra；GPT-6.2 Astra、Sol | low | medium | high | xhigh | [型号与原生档位](https://developers.openai.com/api/docs/models)、家族记录的 Responses 参数探针 |
+| 早期 OpenAI Chat 路由，GPT-5.6 Sol 及其 Pro、5.6 Terra Pro、5.6 Luna Pro、6 Astra Pro、6 Sol Pro、6 Luna Pro | low | medium | high | 禁用 | 沿用这些网关记录已有的三档，缺少该 Chat 路由独立的 xhigh 探针 |
+| Claude Fable 5.1、5.2，Opus 5、5.5，Sonnet 5、5.5，Haiku 5.5 | low | medium | high | xhigh | [Messages 的分型号档位](https://platform.claude.com/docs/en/build-with-claude/effort)、家族记录的 Messages 参数探针 |
+| Kimi K3、K3.1 Pro | low | high | max | 禁用 | [K3 原生三档](https://huggingface.co/moonshotai/Kimi-K3#6-model-usage)、[K3.1 Pro 原生三档](https://huggingface.co/moonshotai/Kimi-K3.1-Pro#5-model-usage) |
+| DeepSeek V4 Pro、V4 Flash | 禁用 | high | max | 禁用 | [初版 V4 的两个开启思考模式](https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro#instruct-model) |
+| DeepSeek V4 Pro 0813、V4 Flash 0731、V4 Flash Vision Exp、V4.1 Flash 及 1017 | low | high | max | 禁用 | [0813 的新三档](https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro-0813#chat-template)、[0731 的新三档](https://huggingface.co/deepseek-ai/DeepSeek-V4-Flash-0731#chat-template)、[Vision 编码](https://huggingface.co/deepseek-ai/DeepSeek-V4-Flash-Vision-Exp/blob/main/encoding/encoding_dsv4.py)、[V4.1 的字符串到数值映射](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash/blob/main/encoding/README.md) |
+| GLM 5.2 | 禁用 | 禁用 | high | xhigh | [OpenRouter 将 xhigh 对应到原生最高档](https://openrouter.ai/z-ai/glm-5.2) |
+| GLM 5.3、5.3 Prime、5.3 Flash、5.3 FlashX | low | high | max | 禁用 | [5.3 的三档](https://openrouter.ai/z-ai/glm-5.3)、[Prime](https://openrouter.ai/z-ai/glm-5.3-prime)、[Flash 家族](https://huggingface.co/zai-org/GLM-5.3-Flash) |
+| Qwen3.8 Omni Flash | low | medium | 禁用 | xhigh | [Alibaba 对此型号列出的三档](https://www.alibabacloud.com/blog/603580) |
+| Kimi K2.7 Code、DeepSeek V3.2 与 V3.2 Exp、GLM 5.1 与 5.3 FlashX Legal | 禁用 | 禁用 | 禁用 | 禁用 | 现有探针没有给出实际档位，保留型号默认行为 |
+
+Kimi、DeepSeek、GLM 的固定上游请求回执按型号和档位归档在各家族的 `tests/fixtures/observations/`。推理档能力随家族维护；新增档位时须同时给出路由依据和该档的编码、拒绝用例。
+
 ### 对客户端开放
 
-- 协议 `model/v1` 是纯数据，只有一个只读操作 `list-models`：登录的成员为一个租户列出此刻解析得到的模型档案。每一项有路由名、可不可选、不可选的原因（模态、锁定、范围）、凭据的状态（可用、缺、未知）、输入与输出的模态。缺凭据的档案仍然可选，凭据的状态说的是现在调不调得出去。名字解析不到档案的不在表里。
+- 协议 `model/v1` 是纯数据，只有一个只读操作 `list-models`：登录的成员为一个租户列出此刻解析得到的模型档案。每一项有路由名、可不可选、不可选的原因（模态、锁定、范围）、凭据的状态（可用、缺、未知）、输入与输出的模态。修订 2 的列表项可带 `reasoningEfforts`，按统一次序给出已知可选的推理档位。读到旧的列表项时，缺省当作没有已知可选档位。缺凭据的档案仍然可选，凭据的状态说的是现在调不调得出去。名字解析不到档案的不在表里。
 - 接入插件 `model-access` 把协议挂上登记表。处理函数先核这次登录可以为目标租户行事，再取主体，再按调用现取档案面，再调档案的列出；被拒原样作答，档案面取不到、Model 答不可用或抛出时答依据不可用，协议不撤下，不答成空表。判可不可选用的模态要求由应用的装配给出，发行版按文字判。会话选模型用的要求在文字之外，加上这段会话历史的原生要求（见 [Request Context](../context/SPEC.md)）；列模型时没有会话，所以表里的「可不可选」不代表对某个会话可选。
 - 界面模块 `model-ui` 在客户端树上提供一个服务：按租户列出模型，每一项带一句可以给人看的说明。它不放页面，也不往资产页与设置页放项。会话界面声明自己要的口，由应用的装配把两边接上；两个界面模块互不导入。说明的字归本组，画在哪里归会话界面；语气由说明的意思定，规则见[视觉规范的索引](../../.meta_harness/agents/skills/visual-standard/canonical/references/rules-index.md)的 C3、C4：
   - 不能选的一项带原因：「不能选：」加原因（「不支持文字」「被锁定」「不在这个租户能用的范围里」，几个时用顿号连起来），没有原因时「现在不能选」。这是被拒绝的原因，中性。

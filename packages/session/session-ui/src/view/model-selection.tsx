@@ -6,46 +6,41 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@omne-harness/ui-kit'
-import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import { useOffered } from './use-offered.ts'
-import type { ModelChoice, ModelSelectionStore } from '../model/model-selection.ts'
+import type { ModelChoice, ModelSelectionStore, ReasoningEffort } from '../model/model-selection.ts'
 import { FOLD_RANK, FoldedChoice, HeadingChoice, useHeadingPlace } from './heading-fold.tsx'
 import { sessionHeaderModel } from '../parts.ts'
 
-const OPTION = 'omne-session-model-option'
+const EFFORTS = ['low', 'medium', 'high', 'xhigh'] as const satisfies readonly ReasoningEffort[]
+const DEFAULT = 'default'
+const DEFAULT_LABEL = '模型默认'
 
-function ModelSelect({
-  label,
-  value,
-  shown,
-  choices,
-  lead,
-  onValueChange,
-}: {
-  readonly label: string
-  readonly value: string
-  readonly shown: string
-  readonly choices: readonly ModelChoice[]
-  readonly lead?: ReactNode
-  readonly onValueChange: (value: string) => void
-}) {
+type ChoiceProps = Parameters<typeof FoldedChoice>[0]
+
+function InlineChoice({ label, value, shown, options, onPick }: ChoiceProps) {
+  if (options === null)
+    return (
+      <span>
+        {label}：{shown}
+      </span>
+    )
   return (
-    <Select value={value} onValueChange={onValueChange}>
+    <Select value={value} onValueChange={onPick}>
       <SelectTrigger aria-label={label} size="sm">
         <SelectValue>{shown}</SelectValue>
       </SelectTrigger>
       <SelectContent>
-        {lead}
-        {choices.map(choice => (
+        {options.map(option => (
           <SelectItem
-            key={choice.route}
-            className={OPTION}
-            value={choice.route}
-            disabled={!choice.selectable}
+            key={option.value}
+            className="omne-session-model-option"
+            value={option.value}
+            disabled={option.disabled ?? false}
           >
-            {choice.route}
-            {choice.note === null ? null : (
-              <span className="omne-session-model-note">（{choice.note}）</span>
+            {option.label}
+            {option.note == null ? null : (
+              <span className="omne-session-model-note">（{option.note}）</span>
             )}
           </SelectItem>
         ))}
@@ -54,11 +49,15 @@ function ModelSelect({
   )
 }
 
-// The model a session has stays in the list even when nobody offers it any more.
-const withCurrent = (choices: readonly ModelChoice[], model: string): readonly ModelChoice[] =>
-  choices.some(choice => choice.route === model)
-    ? choices
-    : [{ route: model, selectable: false, note: '不在现在的列表里' }, ...choices]
+function routeOption(choice: ModelChoice, previous: ReasoningEffort | undefined) {
+  const effort =
+    previous !== undefined && choice.reasoningEfforts?.includes(previous) ? previous : undefined
+  const usesDefault = choice.selectable && previous !== effort
+  const note = usesDefault
+    ? [choice.note, `未提供 ${previous}，切换并使用模型默认强度`].filter(Boolean).join('；')
+    : choice.note
+  return { value: choice.route, label: choice.route, disabled: !choice.selectable, note, effort }
+}
 
 type Props = Readonly<{ store: ModelSelectionStore; tenant: string; session: string }>
 
@@ -91,45 +90,68 @@ export function ModelAction({ store, tenant, session }: Props) {
       />
     )
   }
-  const choices = listing.kind === 'listed' ? withCurrent(listing.choices, view.model) : null
-  const select = (model: string, tell: (text: string) => void) =>
-    void store.select(tenant, session, model).then(tell)
+  const choices = listing.kind === 'listed' ? listing.choices : null
+  const current = choices?.find(choice => choice.route === view.model)
+  const routes = choices?.map(choice => routeOption(choice, view.reasoningEffort)) ?? null
+  if (routes !== null && current === undefined)
+    routes.unshift({
+      value: view.model,
+      label: view.model,
+      disabled: true,
+      note: '不在现在的列表里',
+      effort: undefined,
+    })
+  const modelChoice = (tell: (text: string) => void): ChoiceProps => ({
+    label: '模型',
+    value: view.model,
+    shown: view.model,
+    options: routes,
+    onPick(model) {
+      const selected = routes?.find(option => option.value === model)
+      if (selected !== undefined && !selected.disabled)
+        void store.select(tenant, session, model, selected.effort).then(tell)
+    },
+  })
+  const effortChoice = (tell: (text: string) => void): ChoiceProps => ({
+    label: '推理强度',
+    value: view.reasoningEffort ?? DEFAULT,
+    shown: view.reasoningEffort ?? DEFAULT_LABEL,
+    options:
+      choices === null
+        ? null
+        : [
+            { value: DEFAULT, label: DEFAULT_LABEL, disabled: !current?.selectable },
+            ...EFFORTS.map(value => {
+              const supported = current?.reasoningEfforts?.includes(value)
+              return {
+                value,
+                label: value,
+                disabled: !current?.selectable || !supported,
+                note: supported ? null : '此型号未提供',
+              }
+            }),
+          ],
+    onPick(picked) {
+      const effort = EFFORTS.find(value => value === picked)
+      if (picked !== DEFAULT && effort === undefined) return
+      void store.select(tenant, session, view.model, effort).then(tell)
+    },
+  })
   return (
     <HeadingChoice
       rank={FOLD_RANK.model}
       bar={
         <span className="omne-session-model" {...sessionHeaderModel.props}>
-          {choices === null ? (
-            <span>模型：{view.model}</span>
-          ) : (
-            <ModelSelect
-              label="模型"
-              value={view.model}
-              shown={view.model}
-              choices={choices}
-              onValueChange={model => select(model, say)}
-            />
-          )}
+          <InlineChoice {...modelChoice(say)} />
+          <InlineChoice {...effortChoice(say)} />
           {said === null ? null : <span role="status">{said}</span>}
         </span>
       }
       menu={tell => (
-        <FoldedChoice
-          label="模型"
-          value={view.model}
-          shown={view.model}
-          options={
-            choices === null
-              ? null
-              : choices.map(choice => ({
-                  value: choice.route,
-                  label: choice.route,
-                  note: choice.note,
-                  disabled: !choice.selectable,
-                }))
-          }
-          onPick={model => select(model, tell)}
-        />
+        <>
+          <FoldedChoice {...modelChoice(tell)} />
+          <FoldedChoice {...effortChoice(tell)} />
+        </>
       )}
     />
   )

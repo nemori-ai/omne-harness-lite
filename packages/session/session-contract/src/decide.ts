@@ -1,3 +1,4 @@
+import { validSelectionEffort } from './control-values.ts'
 import { originalContent } from './before-intake.ts'
 import { decidePermissionAssignment } from './permission-state.ts'
 import { incompleteAuthorization } from './authorizations.ts'
@@ -31,7 +32,7 @@ import type {
   WorkSnapshot,
   WorkspaceAttachment,
 } from './values.ts'
-import type { HistoryEntry, ProducerFact, SessionFailure, StartAdoption } from './faces.ts'
+import type { HistoryEntry, ProducerFact, StartAdoption } from './faces.ts'
 import type { GuardCommand, SessionCommand } from './ports.ts'
 import { encodeEntry } from './entries.ts'
 import {
@@ -59,7 +60,13 @@ import { decideResults } from './decide-results.ts'
 import { decideProducerFact } from './decide-receive.ts'
 import { admitInput, readsWithTerms } from './decide-intake.ts'
 import type { AdmittedSource } from './input-sources.ts'
-import { residentEntries, completeEvidence } from './decision-support.ts'
+import {
+  rejected,
+  invalid,
+  entries,
+  residentEntries,
+  completeEvidence,
+} from './decision-support.ts'
 import { judgeFork, judgeStanding } from './standing.ts'
 import { closingEntries } from './run-closure.ts'
 import { pendingAfterTerminal } from './input-leases.ts'
@@ -78,18 +85,6 @@ export const PATH_MUTATIONS = Object.freeze([
 ] as const satisfies readonly SessionCommand['kind'][])
 
 type Origin = HistoryEntry['origin']
-
-function rejected(failure: SessionFailure): Decision {
-  return { kind: 'rejected', failure }
-}
-
-function invalid(field: string, reason: string): Decision {
-  return rejected({ kind: 'invalid', field, reason })
-}
-
-function entries(list: readonly EncodedEntry[]): Decision {
-  return { kind: 'entries', entries: list }
-}
 
 function emptyAdoption(adoption: Adoption): boolean {
   return [adoption.owner, adoption.name, adoption.revision, adoption.digest].some(
@@ -175,6 +170,8 @@ function decideCreate(
   const initialModel = creation.initialModelSelection
   if (initialModel !== undefined && (!initialModel.name || !completeEvidence(initialModel.basis)))
     return invalid('creation.initialModelSelection', 'empty name or incomplete evidence')
+  if (!validSelectionEffort(initialModel?.reasoningEffort))
+    return invalid('creation.initialModelSelection.reasoningEffort', 'invalid reasoning effort')
   const workspace = judgeWorkspace(creation.workspace, creation.workspaceAttachment, {
     workspace: 'creation.workspace',
     attachment: 'creation.workspaceAttachment',
@@ -595,8 +592,11 @@ function decideChange(
   const moved =
     declaration.kind === 'permission-mode' ? modeRevisionRefusal(snapshot, declaration) : null
   if (moved !== null) return moved
-  if (declaration.kind === 'model' && !declaration.name)
-    return invalid('declaration.name', 'empty model selection')
+  if (declaration.kind === 'model') {
+    if (!declaration.name) return invalid('declaration.name', 'empty model selection')
+    if (!validSelectionEffort(declaration.reasoningEffort))
+      return invalid('declaration.reasoningEffort', 'invalid reasoning effort')
+  }
   if (
     declaration.kind === 'environment-mode' &&
     (emptyAdoption(declaration.value) || !completeEvidence(declaration.setting))

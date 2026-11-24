@@ -9,6 +9,7 @@ import type { TiktokenExecutor, TiktokenResources } from '@omne-harness/tokenize
 import { createQwenMeter, type MeterMargin } from './meter.ts'
 import { QWEN_OWNER } from './owner.ts'
 import type { QwenRecord } from './record.ts'
+import { effortMapping } from './profiles.ts'
 import { QWEN_RECORDS } from './records.ts'
 import { hooksOf } from './rules.ts'
 
@@ -84,6 +85,7 @@ export function createQwenFamily(config: QwenFamilyConfig): PiFamily {
         return {
           ok: bindChatCompletions({
             record,
+            bindingEfforts: effortMapping(record),
             supplier,
             hooks: hooksOf(record),
             meter: createQwenMeter(record, tokenizer.ok.tokenizer, config.margin),

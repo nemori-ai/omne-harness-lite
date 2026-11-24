@@ -20,6 +20,11 @@ const model = object({
   selectable: { rule: boolean },
   reasons: { rule: array(literal('modality', 'locked', 'scope')) },
   credential: { rule: literal('available', 'missing', 'unknown') },
+  reasoningEfforts: {
+    rule: array(literal('low', 'medium', 'high', 'xhigh')),
+    optional: true,
+    since: 2,
+  },
   input: modalities,
   output: modalities,
 })

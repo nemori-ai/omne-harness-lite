@@ -23,7 +23,16 @@ describe('select-model', () => {
 
   it('names the target route under a control identity', () => {
     expectRoundTrip(select.body, { tenant, session, controlId: 'control', model })
+    for (const reasoningEffort of ['low', 'medium', 'high', 'xhigh'])
+      expectRoundTrip(select.body, {
+        tenant,
+        session,
+        controlId: 'control',
+        model,
+        reasoningEffort,
+      })
     for (const sample of [
+      { tenant, session, controlId: 'control', model, reasoningEffort: 'max' },
       { tenant, session, controlId: 'control', model: '' },
       { tenant, session, controlId: '', model },
       { tenant, session, model },
@@ -43,6 +52,7 @@ describe('select-model', () => {
   it('refuses a target it cannot select with one of the six reasons', () => {
     for (const reason of ['unknown-name', 'withdrawn', 'excluded', 'modality', 'locked', 'scope'])
       expectRoundTrip(select.outcomes.invalid, { reason })
+    expectRoundTrip(select.outcomes.invalid, { reason: 'excluded', detail: 'unsupported-effort' })
     expect(readSample(select.outcomes.invalid, { reason: 'other' })).toEqual({ ok: false })
   })
 
@@ -87,6 +97,7 @@ describe('read-model-selection', () => {
     expect(readSample(read.body, { tenant })).toEqual({ ok: false })
     expect(readSample(read.body, { tenant, session, model })).toEqual({ ok: false })
     expectRoundTrip(read.outcomes.succeeded, { model, revision: '7' })
+    expectRoundTrip(read.outcomes.succeeded, { model, reasoningEffort: 'xhigh', revision: '7' })
     for (const sample of [{ model: '', revision: '7' }, { model }, { revision: '7' }])
       expect(readSample(read.outcomes.succeeded, sample)).toEqual({ ok: false })
   })

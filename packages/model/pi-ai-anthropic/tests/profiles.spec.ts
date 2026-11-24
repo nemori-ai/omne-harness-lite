@@ -50,6 +50,7 @@ describe('officialAnthropicProfiles', () => {
           },
         ],
         parameters: [],
+        reasoningEfforts: { low: 'low', medium: 'medium', high: 'high', xhigh: 'xhigh' },
         representation: componentAdoption(record, 'representation'),
         meter: componentAdoption(record, 'meter'),
         retryPolicy: RETRY,

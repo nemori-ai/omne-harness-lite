@@ -14,7 +14,12 @@ import { CallConflict } from './call-state.ts'
 import type { Adoption, DurableEvidence, InputId } from './identity.ts'
 import type { RecoveryTask, RunTerminal, WorkSnapshot } from './values.ts'
 import { pendingAfterTerminal } from './input-leases.ts'
-import { SESSION_INTERPRETER, decodeEntries, type SessionEntry } from './entries.ts'
+import {
+  SESSION_INTERPRETER,
+  readsSessionInterpreter,
+  decodeEntries,
+  type SessionEntry,
+} from './entries.ts'
 import type { CommittedBatch, ReduceResult } from './judgments.ts'
 import { advanceEntriesProgress, applyExtended } from './reduce-extended.ts'
 import { pruneInputLists } from './background-outcome.ts'
@@ -382,12 +387,10 @@ function reduceBatch(
   const firstSchema = batch.entries[0]?.schema
   if (batch.entries.some(row => !sameInitializationValue(row.schema, firstSchema)))
     return quarantined('missing interpretation basis: conflicting batch interpreter adoptions')
-  const unsupported = batch.entries.find(
-    entry => !sameInitializationValue(entry.schema, SESSION_INTERPRETER),
-  )
+  const unsupported = batch.entries.find(entry => !readsSessionInterpreter(entry.schema))
   if (unsupported !== undefined)
     return quarantined(`unsupported interpreter adoption: ${JSON.stringify(unsupported.schema)}`)
-  if (previous !== null && !sameInitializationValue(previous.interpreter, SESSION_INTERPRETER))
+  if (previous !== null && !readsSessionInterpreter(previous.interpreter))
     return quarantined(
       `unsupported snapshot interpreter adoption: ${JSON.stringify(previous.interpreter)}`,
     )
@@ -486,6 +489,7 @@ function reduceBatch(
     }
   const { settled, late } = settlementOf(draft, lent, lookup)
   pruneInputLists(draft)
+  draft.interpreter = SESSION_INTERPRETER
   draft.revision = batch.revision
   draft.source = batchEvidence(batch, draft.session)
   draft.lifecycle = lifecycleOf(draft)

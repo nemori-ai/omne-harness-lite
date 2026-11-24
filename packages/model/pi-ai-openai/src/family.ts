@@ -10,6 +10,7 @@ import type { TiktokenExecutor, TiktokenResources } from '@omne-harness/tokenize
 import { createOpenAiMeter, type MeterMargin } from './meter.ts'
 import { OPENAI_OWNER } from './owner.ts'
 import type { OpenAiRecord } from './record.ts'
+import { effortMapping } from './profiles.ts'
 import { OPENAI_RECORDS } from './records.ts'
 import { hooksOf } from './rules.ts'
 
@@ -84,6 +85,7 @@ export function createOpenAiFamily(config: OpenAiFamilyConfig): PiFamily {
       if (!('ok' in tokenizer)) return unavailable(`tokenizer-${tokenizer.failure.kind}`)
       try {
         const input = {
+          bindingEfforts: effortMapping(record),
           supplier,
           meter: createOpenAiMeter(record, tokenizer.ok.tokenizer, config.margin),
           limits: config.limits,

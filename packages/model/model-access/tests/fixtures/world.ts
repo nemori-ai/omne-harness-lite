@@ -46,10 +46,14 @@ export const REQUIRED: ModalityRequirement = {
 type Resolved = Extract<ProfileResolution, { kind: 'resolved' }>
 
 /** A profile as Model resolves it; only what the list reads is filled in. */
-export function resolved(route: string, over: Partial<Resolved> = {}): ProfileResolution {
+export function resolved(
+  route: string,
+  over: Partial<Resolved> = {},
+  reasoningEfforts?: Resolved['profile']['definition']['reasoningEfforts'],
+): ProfileResolution {
   const profile = {
     identity: { scope: { kind: 'factory' }, route },
-    definition: { input: ['text', 'image'], output: ['text'] },
+    definition: { input: ['text', 'image'], output: ['text'], reasoningEfforts },
   } as unknown as Resolved['profile']
   return {
     kind: 'resolved',

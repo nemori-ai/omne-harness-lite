@@ -10,10 +10,12 @@ import type {
   FixedModelRequest,
   ModelOperationId,
   Parameter,
+  ReasoningEffort,
   Revision,
   Supplier,
   ToolDeclaration,
 } from './root.ts'
+import { REASONING_EFFORTS } from './root.ts'
 import type { DurableEvidence, Reply } from './result.ts'
 import type { CommitQuery, TransportFailure } from './provider-protocol.ts'
 import type { ModelCountingBasis } from './tokenizer.ts'
@@ -58,6 +60,14 @@ export type ReplayDeclaration = Readonly<{
   foreignThinking: ForeignThinking
 }>
 export type ProfileSupplier = Omit<Supplier, 'credential'> & Readonly<{ replay?: ProfileReplay }>
+export type ReasoningEffortMapping = Readonly<
+  Partial<Record<ReasoningEffort, ReasoningEffort | 'max'>>
+>
+export function supportedReasoningEfforts(
+  definition: Pick<ModelProfileDefinition, 'reasoningEfforts'>,
+): readonly ReasoningEffort[] {
+  return REASONING_EFFORTS.filter(level => definition.reasoningEfforts?.[level] !== undefined)
+}
 export type ModelProfileDefinition = Readonly<{
   suppliers: readonly [ProfileSupplier, ...ProfileSupplier[]]
   fallback: boolean
@@ -67,6 +77,7 @@ export type ModelProfileDefinition = Readonly<{
   context: ContextLimits
   limits: readonly ModelLimit[]
   parameters: readonly Parameter[]
+  reasoningEfforts?: ReasoningEffortMapping
   representation: Adoption
   meter: Adoption
   retryPolicy: Adoption

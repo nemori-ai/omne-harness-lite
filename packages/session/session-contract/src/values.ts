@@ -1,3 +1,4 @@
+import type { SavedModelSelection } from './control-values.ts'
 import type { SessionPermissions } from './permission-values.ts'
 import type { AuthorizationContext, AuthorizationExpression } from './authorizations.ts'
 import type { PermissionDefinitionRef, PermissionRule } from '@omne-harness/permissions'
@@ -275,7 +276,7 @@ export type SessionCreation = Readonly<{
     | Readonly<{ kind: 'tenant-default'; source: Adoption }>
   initial: Extract<RoutedInput, { kind: 'ordinary' }> | null
   entryContract: Adoption
-  initialModelSelection?: import('./control-values.ts').SavedModelSelection
+  initialModelSelection?: SavedModelSelection
   residentAdoption?: ResidentAdoption
   initialization?: InitializationSources
   relation?: Relation
@@ -348,7 +349,7 @@ export type DeclarationChange =
       workspaceAttachment: WorkspaceAttachment | null
       basis: DurableEvidence
     }>
-  | Readonly<{ kind: 'model'; name: string; basis: DurableEvidence }>
+  | (Readonly<{ kind: 'model' }> & SavedModelSelection)
   | Readonly<{ kind: 'declaration'; item: string; value: JsonValue | null; basis: DurableEvidence }>
   | Readonly<{
       kind: 'context-registration'
