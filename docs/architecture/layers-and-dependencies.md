@@ -224,6 +224,7 @@ G3 的行事主体有两种来源，按领域在什么时刻核对资格选择�
 | `session/v1` | 会话与工作 | 建会话、发输入、读历史、列出会话、取消一轮、停一次调用；[会话观察](../../.meta_harness/design/ubiquitous_language/terms/record-and-context.md#ul-session-observation--会话观察--session-observation) |
 | `session-diagnostics/v1` | 会话一侧的集成成员。它读会话、Agent、模型、工具四个领域的只读记录，装不装由应用装配定 | 读会话诊断 |
 | `human-intervention/v1` | 人工介入 | 列出卡片、读卡、提交答复、认回一次提交 |
+| `canvas/v1` | 画布 | 读画布、读拿走了的记录、列出可画布渲染的种类、摆上、整理、拿走、叠成一叠、散开、锁上与解开；画布可能变了的观察 |
 
 ### 实时媒体的通道
 
