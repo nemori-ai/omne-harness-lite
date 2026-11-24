@@ -22,7 +22,6 @@ export const kindNameSchema = z
   .brand<'CanvasKindName'>()
 export type KindName = z.infer<typeof kindNameSchema>
 
-/** A UTC instant with millisecond precision. Two instants compare as strings. */
 export const instantSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)
@@ -42,7 +41,7 @@ export type Reference = z.infer<typeof referenceSchema>
 const coordinate = z.number().int().nonnegative()
 const extent = z.number().int().positive()
 
-/** A point on the sheet; the origin is its top left corner. */
+/** The origin of a spot is the top left corner of the sheet. */
 export const spotSchema = z.strictObject({ x: coordinate, y: coordinate }).readonly()
 export type Spot = z.infer<typeof spotSchema>
 
@@ -56,10 +55,7 @@ export const moverSchema = z.discriminatedUnion('kind', [
 ])
 export type Mover = z.infer<typeof moverSchema>
 
-/**
- * One record of the canvas. A taken item (`off`) keeps the spot it had, is in no pile and is not
- * locked. `size` null: the drawing's own size.
- */
+/** A taken item (`off`) keeps its spot, is in no pile and is not locked. `size` null: the drawing's own. */
 export const itemSchema = z
   .strictObject({
     id: itemIdSchema,
@@ -87,13 +83,11 @@ export const pileSchema = z
   .readonly()
 export type Pile = z.infer<typeof pileSchema>
 
-/** The edges of the sheet and the step of its grid, as configured. */
 export const sheetSchema = z
   .strictObject({ width: extent, height: extent, grid: extent })
   .readonly()
 export type Sheet = z.infer<typeof sheetSchema>
 
-/** The canvas as it is read: the sheet, every item on it, every pile, and the revision. */
 export type Canvas = Readonly<{
   sheet: Sheet
   items: readonly Item[]

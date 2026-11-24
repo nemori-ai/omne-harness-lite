@@ -1,6 +1,5 @@
 import type { KindName, TenantId } from './values.ts'
 
-/** What `admit` is given: who acts, the identity of the reference, and the holder the canvas will be. */
 export type AdmitInput = Readonly<{
   tenant: TenantId
   subject: unknown
@@ -16,23 +15,16 @@ export type Admission =
   | Readonly<{ kind: 'basis-unavailable' }>
   | Readonly<{ kind: 'unknown' }>
 
-/**
- * A kind that may be put on the canvas, as its owner declares it on `canvas.kinds`. The item on the
- * registry is this declaration; the canvas keeps no copy.
- */
+/** The one declaration of a kind: the item its owner puts on `canvas.kinds`. The canvas keeps no copy. */
 export type KindDeclaration = Readonly<{
   name: KindName
-  /** What a person calls this kind. */
   label: string
-  /** One sentence: what this kind is. */
   summary: string
-  /** One sentence for an agent: how the identity of one of this kind is written. */
   reference: string
   /** Asked before a reference of this kind is put on; it answers once the owner holds it. */
   admit?: (input: AdmitInput) => Promise<Admission>
 }>
 
-/** One kind as `kinds` lists it. A name declared twice is listed as a conflict with the ones who declared it. */
 export type KindListing =
   | Readonly<{
       kind: 'declared'
@@ -48,7 +40,6 @@ export type KindsRead =
   | Readonly<{ kind: 'read'; kinds: readonly KindListing[] }>
   | Readonly<{ kind: 'unavailable' }>
 
-/** The kinds as the registry has them now. Read at every call: no copy is kept. */
 export interface CanvasKinds {
   read(): KindsRead
 }

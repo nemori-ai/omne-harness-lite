@@ -81,11 +81,8 @@ function entryOf(declaration: KindDeclaration, by: Instance): Entry<KindDeclarat
 
 const NOT_TAKEN: Admission = Object.freeze({ kind: 'basis-unavailable' })
 
-/**
- * Puts the declaration of one kind on `canvas.kinds` as an effect of the caller: it is there while
- * the caller is. A declaration with `admit` is put in a batch that drains: its admits in flight are
- * counted, none is taken once it leaves, and it is taken off when the count is back at zero.
- */
+/** Puts one declaration as an effect of the caller. With `admit` the batch drains: admits in flight
+ * are counted, none is taken once it leaves, and it goes when the count is back at zero. */
 export function putKind(ctx: Context, declaration: KindDeclaration): () => unknown {
   if (!kindNameSchema.safeParse(declaration.name).success)
     throw new TypeError(`${JSON.stringify(declaration.name)} is not the name of a kind`)
@@ -117,7 +114,6 @@ export function putKind(ctx: Context, declaration: KindDeclaration): () => unkno
 const byName = (left: KindListing, right: KindListing) =>
   left.name < right.name ? -1 : left.name > right.name ? 1 : 0
 
-/** The kinds on the registry at the moment of each read. A point that cannot be read is unavailable. */
 export function kindsOn(tree: Pick<DynamisService, 'registry'>): CanvasKinds {
   return {
     read() {

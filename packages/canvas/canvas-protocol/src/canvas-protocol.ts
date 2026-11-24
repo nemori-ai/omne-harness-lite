@@ -19,9 +19,7 @@ const array = <const R extends Rule>(item: R) => ({ kind: 'array', item }) as co
 const oneOf = <const R extends readonly Rule[]>(...rules: R) => ({ kind: 'one-of', rules }) as const
 const kind = <const K extends string>(value: K) => ({ rule: literal(value) })
 
-/** A point on the sheet from its top left corner. */
 const spot = object({ x: { rule: count }, y: { rule: count } })
-/** Who last changed it: the person, or the agent of one session. */
 const mover = oneOf(
   object({ kind: kind('human') }),
   object({ kind: kind('agent'), session: { rule: text } }),
