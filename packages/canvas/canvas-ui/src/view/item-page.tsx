@@ -86,7 +86,7 @@ export function ItemPage(props: ItemPageProps): JSX.Element {
       <PaperPage
         box={box}
         name={name}
-        handleLabel={`挪动${name} ${item.reference.ref}`}
+        handleLabel={`挪动${name} ${item.reference.ref.slice(0, 8)}`}
         aside={
           <>
             {item.locked ? <LockMark onUnlock={() => acts.act(item, 'lock')} /> : null}

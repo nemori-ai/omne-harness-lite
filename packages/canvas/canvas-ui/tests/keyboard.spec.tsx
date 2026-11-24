@@ -7,6 +7,7 @@ import {
   canvas,
   handle,
   item,
+  NOTE,
   opened,
   page,
   pile,
@@ -163,5 +164,14 @@ describe('a pile renamed from its menu with the pointer', () => {
     await new Promise(resolve => setTimeout(resolve, 50))
     const field = screen.getByRole('textbox', { name: '一叠的名字' })
     expect(document.activeElement).toBe(field)
+  })
+})
+
+describe('the accessible name of a handle', () => {
+  it('says the kind and the first eight of the reference, not the whole of a long one', async () => {
+    const long = 'c0ffee12'.repeat(8)
+    await opened(canvas([item('a', { reference: { kind: NOTE, ref: long } })]))
+    const named = within(page('a')).getByRole('button', { name: '挪动便签 c0ffee12' })
+    expect(named.getAttribute('aria-label')).not.toContain(long)
   })
 })
