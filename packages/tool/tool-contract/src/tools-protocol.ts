@@ -1,5 +1,6 @@
 import type { ToolCatalog, ToolCatalogSearchEntry, ToolInspection, ToolUsage } from './authoring.ts'
 import type { ToolAvailability } from './definitions.ts'
+import type { ToolSourceWithheld } from './entry-source.ts'
 import type { ToolInvocationRef } from './reference.ts'
 
 export type SearchArguments = Pick<
@@ -8,6 +9,7 @@ export type SearchArguments = Pick<
 >
 export type SearchPage = Readonly<{
   entries: readonly ToolCatalogSearchEntry[]
+  withheld?: readonly ToolSourceWithheld[]
   next: string | null
 }>
 export type InspectArguments = Pick<ToolInspection<unknown>, 'name' | 'command'>

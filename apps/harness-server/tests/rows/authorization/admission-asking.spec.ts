@@ -170,6 +170,7 @@ describe('an action whose gate asks', () => {
       {
         principal: w.forward.principal,
         tenant: w.forward.tenant,
+        capability: { category: 'tool', name: 'ToyEcho' },
         definition: w.adoption('ToyEcho'),
         gate: { id: 'read', title: '查看', default: 'auto' },
       },

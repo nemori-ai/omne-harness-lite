@@ -433,6 +433,50 @@ describe('the unified settings port: list pages', () => {
   })
 })
 
+describe('the unified settings port: a secret item the catalog declares', () => {
+  const KEYED = { kind: 'asset', category: 'mcp', name: 'keyed' } as const
+  const facts: SecretView = { ...secret('credential'), owner: KEYED, own: 'available' }
+  const declared: SecretView = {
+    ...facts,
+    own: 'unreadable',
+    official: 'unreadable',
+    editable: { kind: 'no', reason: 'not-a-source' },
+  }
+
+  it('a list of the whole category: the row carries what the secret face describes, read once for that item', async () => {
+    const calls: Calls = []
+    const face: SecretSettings = {
+      ...secretFace([facts], calls),
+      list: async () => {
+        calls.push('secret.list')
+        return { kind: 'listed', items: [] }
+      },
+    }
+    const unified = unifySettings({
+      secrets: () => face,
+      catalog: () => catalogFace([declared, ordinary('target', KEYED)], calls),
+    })
+    expect(await unified.list(listOf(null, 10))).toMatchObject({
+      kind: 'listed',
+      items: [facts, ordinary('target', KEYED)],
+    })
+    expect(calls).toEqual(['secret.list', 'catalog.list:null:10', 'secret.describe'])
+  })
+
+  it('a list of one asset: a secret item the secret face already listed is not listed again', async () => {
+    const calls: Calls = []
+    const unified = unifySettings({
+      secrets: () => secretFace([facts], calls),
+      catalog: () => catalogFace([declared, ordinary('target', KEYED)], calls),
+    })
+    expect(await unified.list(listOf(null, 10, { name: 'keyed' }))).toMatchObject({
+      kind: 'listed',
+      items: [facts, ordinary('target', KEYED)],
+    })
+    expect(calls).not.toContain('secret.describe')
+  })
+})
+
 describe('the unified settings port: an independent setting never reaches the secret face', () => {
   const calendar = [ordinary('timezone', CALENDAR)]
 

@@ -62,7 +62,7 @@ describe('command catalog', () => {
     expect(renderHelp(empty)).toBe(expectedEmptyHelp)
   })
 
-  it('registers exactly the commands of the spec, the HITL, governance, calendar, schedule and notification commands, then setting, asset and media, and the usage reads last', () => {
+  it('registers exactly the commands of the spec, the HITL, governance, calendar, schedule and notification commands, then setting, asset, mcp and media, and the usage reads last', () => {
     expect(productionCatalog.commands.map(command => command.name)).toEqual([
       'register',
       'login',
@@ -116,6 +116,7 @@ describe('command catalog', () => {
       'workspace',
       'setting',
       'asset',
+      'mcp',
       'media',
       'query-usage',
       'list-usage-records',

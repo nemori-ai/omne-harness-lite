@@ -164,6 +164,7 @@ it('reads the basis of a real Agent action without a commit, and reads none once
       principal: w.principal,
       tenant: w.principal.tenant,
       operation: agentPermissionOperation(request),
+      capability: { category: 'tool', name: request.definition.name },
       definition: request.definition,
       effectiveArguments,
       gate: RUN,

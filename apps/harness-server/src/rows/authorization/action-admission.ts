@@ -18,6 +18,7 @@ import {
 } from './answer-effects.ts'
 import { answerEffect, askedDecision, type AnswerEffect } from './release-asking.ts'
 import type { TenantPicks } from './tenant-picks.ts'
+import { toolCapability } from '../../entry/permission-declarations.ts'
 import { sessionWorkOf } from '../tool-runtime/session-work.ts'
 import {
   agentPermissionOperation,
@@ -50,6 +51,7 @@ function undecidable(diagnostic: string): AdmissionDecision {
 }
 
 type Judged = Readonly<{
+  capability: ToolPermissionAction['capability']
   definition: ToolPermissionAction['definition']
   effectiveArguments: string
   gate: ToolActionGate
@@ -64,7 +66,11 @@ async function judgedOf(
   principal: ToolPermissionAction['principal'],
   readResolution: ResolutionReader,
 ): Promise<Gates | AdmissionDecision> {
-  const own = { definition: input.definition, effectiveArguments: input.effectiveArguments }
+  const own = {
+    capability: toolCapability(input.definition.name),
+    definition: input.definition,
+    effectiveArguments: input.effectiveArguments,
+  }
   const resolution = readResolution()
   if (resolution === undefined)
     return unavailable('the action resolution dependency is unavailable')
@@ -84,10 +90,11 @@ async function judgedOf(
   return [
     { ...own, gate: action.carrier.gate, carrier: true },
     {
+      capability: target.capability ?? toolCapability(target.definition.name),
       definition: target.definition,
       effectiveArguments: target.effectiveArguments,
       gate: target.gate,
-      carried: own,
+      carried: { definition: own.definition, effectiveArguments: own.effectiveArguments },
     },
   ]
 }
@@ -111,6 +118,7 @@ function permissionAction(judging: Judging, gate: Judged, of: ToolGate): ToolPer
     principal: judging.principal,
     tenant: input.tenant,
     operation: agentPermissionOperation(input),
+    capability: { ...gate.capability },
     definition: { ...gate.definition },
     effectiveArguments: gate.effectiveArguments,
     gate: { ...of },
@@ -139,6 +147,7 @@ function lastingOf(judging: Judging, gate: Judged, of: ToolGate) {
   return judging.picks.writable({
     principal,
     tenant: input.tenant,
+    capability: gate.capability,
     definition: gate.definition,
     gate: of,
   })
@@ -147,7 +156,7 @@ function lastingOf(judging: Judging, gate: Judged, of: ToolGate) {
 // One gate passes its action rule (a carrier with no rule passes it) and then its current permission.
 async function judgeGate(judging: Judging, gate: Judged): Promise<AdmissionDecision> {
   const { rules } = judging
-  const rule = toolActionRule(rules, gate.definition)
+  const rule = toolActionRule(rules, gate.definition, gate.capability)
   const decision = actionDecision(
     judging.identity,
     rule,
@@ -291,6 +300,7 @@ function answered(
     session: judging.session,
     consumer: agentActionConsumer(input),
     gate: {
+      capability: last.capability,
       definition: last.definition,
       effectiveArguments: last.effectiveArguments,
       gate: last.gate.gate,

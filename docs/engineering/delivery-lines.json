@@ -61,6 +61,7 @@
         "packages/assets/assets-protocol",
         "packages/assets/assets-cordis-contract",
         "packages/plugin/plugin-protocol",
+        "packages/mcp/mcp-protocol",
         "packages/human-intervention/human-intervention-protocol",
         "packages/calendar/calendar-protocol",
         "packages/notification/notification-protocol",

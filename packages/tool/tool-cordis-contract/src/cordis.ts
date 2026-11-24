@@ -14,8 +14,14 @@ import {
   type ToolResultReceiver,
   type ToolRuntime,
 } from '@omne-harness/tool-contract'
+import { declare, deployment, list, type Contract } from '@omne-harness/dynamis'
+import { dynamisKey, type DynamisService } from '@omne-harness/dynamis-cordis/cordis'
+import type { Plugin } from '@deepseek-ai/cordis'
 import {
   describedAdoption,
+  isToolSourcePrefix,
+  TOOL_ENTRY_SOURCES_POINT,
+  type ToolEntrySource,
   type ResultPolicy,
   type ToolAccounts,
   type ToolAuthority,
@@ -453,6 +459,115 @@ export abstract class ToolCatalogService<P> extends Service implements ToolCatal
 }
 export const toolCatalogKey = ToolCatalogService.provide
 
+const entrySourcesContract: Contract = Object.freeze({
+  name: TOOL_ENTRY_SOURCES_POINT,
+  tree: 'server',
+  arity: 'keyed-one',
+  keyFrom: null,
+  key: 'the name prefix the source owns, for example mcp__',
+  gives:
+    'the asking principal and tenant; the entry name when one is selected; the command, arguments, fixed command declaration, call id and abort signal when one is executed',
+  item: Object.freeze({
+    kind: 'effect',
+    fields: Object.freeze({
+      prefix: 'string',
+      list: 'function',
+      select: 'function',
+      execute: 'function',
+    }),
+  }),
+  resolve: 'conflict',
+  binding: 'run',
+  onError:
+    'a source whose listing throws, times out or names an entry outside its prefix answers unavailable; the other sources and the registry answer as usual',
+  version: 1,
+  revision: 1,
+  keys: 'public',
+  conformance: null,
+  summary:
+    'The sources of tool entries besides the binding registry: each item lists, selects and executes the entries under one name prefix.',
+})
+
+/** @owner packages/tool/tool-cordis-contract */
+export class ToolEntrySourcesService<P, B extends ContentBlock> extends Service {
+  static readonly provide = 'toolEntrySources'
+  protected readonly tree: DynamisService
+  private readonly inflight = new Map<string, Set<symbol>>()
+  private readonly idle = new Map<string, (() => void)[]>()
+  constructor(ctx: Context) {
+    super(ctx, ToolEntrySourcesService.provide)
+    const tree = ctx.get(dynamisKey) as DynamisService
+    tree.put([declare(entrySourcesContract)])
+    this.tree = tree
+  }
+
+  /** The sources now in service. A prefix with two sources has none; a point that cannot be read gives none. */
+  sources(): readonly ToolEntrySource<P, B>[] {
+    const read = list<ToolEntrySource<P, B>>(
+      this.tree.registry(),
+      TOOL_ENTRY_SOURCES_POINT,
+      null,
+      deployment,
+    )
+    return read.kind === 'read' ? read.items.map(({ entry }) => entry.item) : []
+  }
+
+  /** One call of an entry under this prefix is in flight until the returned function is called. */
+  hold(prefix: string): () => void {
+    const held = this.inflight.get(prefix) ?? new Set<symbol>()
+    this.inflight.set(prefix, held)
+    const mark = Symbol('source-call')
+    held.add(mark)
+    return () => {
+      held.delete(mark)
+      if (held.size > 0) return
+      for (const wake of this.idle.get(prefix) ?? []) wake()
+      this.idle.delete(prefix)
+    }
+  }
+
+  /** A source goes on the point as the one who contributes; it is taken off once its calls in flight have ended. */
+  contribute(source: ToolEntrySource<P, B>): void {
+    if (!isToolSourcePrefix(source.prefix))
+      throw new TypeError(`${JSON.stringify(source.prefix)} is not a tool source prefix`)
+    // Read from `this`, not captured: Cordis gives the caller its own view, so the item is put as the caller.
+    const { tree } = this
+    const drained = (): Promise<void> =>
+      (this.inflight.get(source.prefix)?.size ?? 0) === 0
+        ? Promise.resolve()
+        : new Promise(resolve => {
+            this.idle.set(source.prefix, [...(this.idle.get(source.prefix) ?? []), resolve])
+          })
+    this.ctx.effect(
+      () =>
+        tree.put(
+          by => [
+            {
+              point: TOOL_ENTRY_SOURCES_POINT,
+              key: source.prefix,
+              id: '',
+              scope: deployment,
+              rank: 0,
+              digest: `${source.prefix}@${by.fiber}#${by.generation}`,
+              item: source,
+            },
+          ],
+          { drain: drained },
+        ),
+      'toolEntrySources.contribute',
+    )
+  }
+}
+export const toolEntrySourcesKey = ToolEntrySourcesService.provide
+
+export const toolEntrySourcesPlugin: Plugin.Object = {
+  name: 'tool-entry-sources',
+  inject: [dynamisKey],
+  apply(ctx: Context) {
+    new ToolEntrySourcesService(ctx)
+  },
+}
+
 /** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolReleaseDetailsService<P>
   extends Service
@@ -569,6 +684,7 @@ declare module '@deepseek-ai/cordis' {
     toolResultPolicy: ResultPolicyService<ContentBlock>
     toolReads: ToolReadsService<unknown, ContentBlock>
     toolCatalog: ToolCatalogService<unknown>
+    toolEntrySources: ToolEntrySourcesService<unknown, ContentBlock>
     toolReleaseDetails: ToolReleaseDetailsService<unknown>
     toolStartAuthority: ToolStartAuthorityService<unknown>
     toolStartFence: ToolStartFenceService<unknown>

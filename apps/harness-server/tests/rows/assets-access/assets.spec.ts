@@ -69,6 +69,7 @@ describe('assets/v1 asset operations on the release tree', () => {
         expect(categories.body.items.map(item => [item.category, item.creation])).toEqual([
           ['AgentDefinition', 'none'],
           ['converter', 'data'],
+          ['mcp', 'data'],
           ['model-provider', 'none'],
           ['plugin', 'directory'],
           ['skill', 'directory'],

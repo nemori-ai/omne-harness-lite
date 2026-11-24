@@ -26,11 +26,12 @@ type Admission = Readonly<{
   required: readonly Qualification[]
   request: AdmissionRequest
 }>
+export type AdmissionGrants = readonly AdmissionGrant[] | (() => readonly AdmissionGrant[])
 type AdmissionOptions = Readonly<{
   tenantRef: string
   verifier: PrincipalVerifier
   standing: TenantStandingSource
-  grants: readonly AdmissionGrant[]
+  grants: AdmissionGrants
 }>
 const denied = () => ({ kind: 'denied' as const })
 const unavailable = (owner: string) => ({ kind: 'unavailable' as const, owner })
@@ -94,13 +95,24 @@ export class GovernanceAdmission {
   private readonly tenantRef: string
   private readonly verifier: PrincipalVerifier
   private readonly standing: TenantStandingSource
-  private readonly grants: ReadonlyMap<string, AdmissionGrant>
+  private readonly grants: () => ReadonlyMap<string, AdmissionGrant> | undefined
 
   constructor(options: AdmissionOptions) {
     this.tenantRef = GovernanceTenantRefSchema.parse(options.tenantRef)
     this.verifier = options.verifier
     this.standing = options.standing
-    this.grants = grantsByKey(options.grants, this.tenantRef)
+    const { grants } = options
+    if (typeof grants !== 'function') {
+      const fixed = grantsByKey(grants, this.tenantRef)
+      this.grants = () => fixed
+    } else
+      this.grants = () => {
+        try {
+          return grantsByKey(grants(), this.tenantRef)
+        } catch {
+          return undefined
+        }
+      }
   }
 
   private async verify(principal: unknown, scope: GovernanceScope) {
@@ -143,10 +155,12 @@ export class GovernanceAdmission {
     const tenant = tenantCodec.encode(access.tenant)
     if (!tenant.ok || tenant.value !== this.tenantRef || tenant.value !== request.scope.tenantRef)
       return denied()
+    const grants = this.grants()
+    if (grants === undefined) return unavailable('governance-grants')
     const verified = await this.verify(principal, request.scope)
     if (verified.kind !== 'verified') return verified
     const principalRef = standingPrincipalRef(verified.principal)
-    const grant = this.grants.get(grantKey(principalRef, request))
+    const grant = grants.get(grantKey(principalRef, request))
     if (!grant || !permits(grant, request)) return denied()
     const current = await this.current(verified.principal, grant.required)
     if (current.kind !== 'qualified') return current

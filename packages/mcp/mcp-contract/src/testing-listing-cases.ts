@@ -95,11 +95,6 @@ const lost: CatalogState = {
     })),
   },
 }
-const gone = (action: KnownAction): KnownAction => ({
-  ...action,
-  availability: { kind: 'unavailable', reason: 'no-longer-offered' },
-})
-
 export const mergeListingCases: readonly MergeListingCase[] = [
   {
     name: 'the first listing becomes revision 1 with every action available',
@@ -114,18 +109,16 @@ export const mergeListingCases: readonly MergeListingCase[] = [
     expected: { ok: record(1, emptyFirst, []) },
   },
   {
-    name: 'an action no longer offered stays with its last lawful definition, unavailable',
+    name: 'an action no longer offered leaves the listing',
     current: acquired,
     listing: writeGone,
-    expected: {
-      ok: record(2, writeGone, [offered(writeGone, 0), gone(offered(first, 1))]),
-    },
+    expected: { ok: record(2, writeGone, [offered(writeGone, 0)]) },
   },
   {
-    name: 'an empty listing keeps every known action, unavailable',
+    name: 'an empty listing leaves no action',
     current: acquired,
     listing: empty,
-    expected: { ok: record(2, empty, [gone(offered(first, 0)), gone(offered(first, 1))]) },
+    expected: { ok: record(2, empty, []) },
   },
   {
     name: 'a changed definition replaces the last lawful definition and its digest',

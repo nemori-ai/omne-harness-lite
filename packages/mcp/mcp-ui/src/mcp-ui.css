@@ -31,25 +31,56 @@
 
 .mcp-permission {
   display: grid;
-  justify-items: start;
   gap: var(--omne-space-inline);
 }
 
-.mcp-permission-title {
+.mcp-permission-control {
+  display: flex;
+  align-items: center;
+  gap: var(--omne-space-inline);
+}
+
+.mcp-permission-value {
   margin: 0;
   color: var(--omne-ink-primary);
-  font-weight: 500;
 }
 
-.mcp-permission-choices {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--omne-space-inline);
-}
-
-.mcp-permission-now,
 .mcp-permission-closed {
   margin: 0;
   color: var(--omne-ink-muted);
+}
+
+.mcp-endpoint-status {
+  margin: 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+  overflow-wrap: anywhere;
+}
+
+.mcp-endpoint-actions {
+  display: grid;
+  gap: var(--omne-space-inline);
+}
+
+.mcp-action-list {
+  display: grid;
+  gap: var(--omne-space-inline);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mcp-action {
+  display: grid;
+}
+
+.mcp-action-name {
+  color: var(--omne-ink-primary);
+  font-family: var(--omne-font-mono, monospace);
+}
+
+.mcp-action-summary {
+  color: var(--omne-ink-muted);
+  overflow-wrap: anywhere;
 }
 }

@@ -11,6 +11,7 @@ import {
   manifestDigest,
   type SqlMaterialCatalog,
 } from '@omne-harness/sql-contract'
+import { GOVERNED_PARTICIPANT } from './governed-capabilities.ts'
 import { SUPPORT_PARTICIPANT } from './permission-protocol.ts'
 import { ADOPTION_CURRENT_PARTICIPANT } from './adoption-current.ts'
 import { CATALOG_CURRENT_PARTICIPANT } from './catalog-current.ts'
@@ -25,7 +26,7 @@ const publications = [
   'settings.targets',
   'settings.target-projection',
   ...SETTINGS_RECOVERY_PARTICIPANTS,
-  'harness.tool-permission-release',
+  GOVERNED_PARTICIPANT,
   SUPPORT_PARTICIPANT.participant,
 ]
 const snapshot = [

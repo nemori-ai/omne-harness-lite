@@ -26,6 +26,7 @@ import { toolEnvironmentsKey, toolMediaStoreKey } from '@omne-harness/tool-cordi
 import type { SessionWork } from '@omne-harness/session-contract'
 import { workspaceInstancesKey } from '@omne-harness/workspace-cordis-contract/cordis'
 import type { LocalToolAvailabilitySource } from '@omne-harness/tool-host-local'
+import { sourcedEntriesOf, sourcedEntryFor } from '../../entry/tool-entry-sources.ts'
 import { releaseOf } from '../../entry/tool-release.ts'
 import type { ToolReleaseManifest } from '../../entry/tool-release-manifest.ts'
 import { hostOffers } from '../execution-host/offers.ts'
@@ -167,6 +168,12 @@ function inRelease(release: Trusted, definition: ToolDefinition, layer: JudgeInp
   )
 }
 
+// A source entry belongs to the asking tenant, and is the one its source listed to this asker just now.
+function fromSource(ctx: Context, input: JudgeInput): boolean {
+  const asked = { kind: 'available', definition: input.definition, layer: input.layer } as const
+  return sourcedEntryFor(sourcedEntriesOf(ctx), input, asked) !== undefined
+}
+
 function environmentInstalled(ctx: Context): boolean {
   return (
     ctx.get(executionEnvironmentKey) !== undefined && ctx.get(toolEnvironmentsKey) !== undefined
@@ -244,7 +251,7 @@ async function judgeRelease(ctx: Context, reads: ModelReads, input: JudgeInput):
   if (release.kind !== 'trusted') return unavailable('release snapshot unavailable')
   const work = await workSession(ctx, input.principal, input.tenant)
   if ('problem' in work) return unavailable(work.problem)
-  if (!inRelease(release, input.definition, input.layer)) return denied
+  if (!inRelease(release, input.definition, input.layer) && !fromSource(ctx, input)) return denied
   const confirmed = release.manifest.consumer
   if (!confirmedTextConsumer(input.consumer, confirmed))
     return unavailable('consumer material is not a confirmed text consumer')

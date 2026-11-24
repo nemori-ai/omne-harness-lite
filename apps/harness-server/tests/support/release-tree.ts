@@ -694,6 +694,8 @@ export type ReleaseTreeOptions = Readonly<{
   withoutRows?: readonly string[] | ((run: number) => readonly string[])
   /** Rows a test adds to the release, each with the row plugin that serves it. */
   addedRows?: readonly AddedRow[]
+  /** Configuration a test adds to rows of the release, by row id. */
+  rowConfig?: Readonly<Record<string, Readonly<Record<string, unknown>>>>
   /** The screen backend the host row is given; absent: the one of the machine the test runs on. */
   hostScreen?: NonNullable<Parameters<typeof runServe>[0]['hostScreen']>
   /** The fallback checks of a waiting Agent; absent: every 50 ms, so no test waits on the clock. */
@@ -720,6 +722,17 @@ function withAddedRows(distribution: unknown, added: readonly AddedRow[] = []): 
   return {
     ...(distribution as object),
     rows: [...rows, ...added.map(({ id, plugin, config }) => ({ id, plugin, config }))],
+  }
+}
+
+function withRowConfig(distribution: unknown, added: ReleaseTreeOptions['rowConfig']): unknown {
+  if (added === undefined) return distribution
+  const { rows } = distribution as { rows: readonly { id: string; config: object }[] }
+  return {
+    ...(distribution as object),
+    rows: rows.map(row =>
+      added[row.id] === undefined ? row : { ...row, config: { ...row.config, ...added[row.id] } },
+    ),
   }
 }
 
@@ -827,7 +840,11 @@ async function serveOnce(
   const finished = runServe({
     ...(options.hostScreen === undefined ? {} : { hostScreen: options.hostScreen }),
     distribution: withAddedRows(
-      withoutRows(releaseDistribution(options), 'rows', rowsLeftOut(options.withoutRows, 0)),
+      withoutRows(
+        withRowConfig(releaseDistribution(options), options.rowConfig),
+        'rows',
+        rowsLeftOut(options.withoutRows, 0),
+      ),
       options.addedRows,
     ),
     operator: withoutRows(

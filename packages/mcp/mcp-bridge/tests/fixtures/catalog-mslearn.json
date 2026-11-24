@@ -1,0 +1,1051 @@
+{
+  "name": "mslearn",
+  "actions": [
+    {
+      "name": "microsoft_code_sample_search",
+      "lastLawful": {
+        "name": "microsoft_code_sample_search",
+        "outputSchema": {
+          "kind": "object",
+          "entries": [
+            {
+              "key": "type",
+              "value": {
+                "kind": "string",
+                "value": "object"
+              }
+            },
+            {
+              "key": "properties",
+              "value": {
+                "kind": "object",
+                "entries": [
+                  {
+                    "key": "results",
+                    "value": {
+                      "kind": "object",
+                      "entries": [
+                        {
+                          "key": "type",
+                          "value": {
+                            "kind": "string",
+                            "value": "array"
+                          }
+                        },
+                        {
+                          "key": "items",
+                          "value": {
+                            "kind": "object",
+                            "entries": [
+                              {
+                                "key": "type",
+                                "value": {
+                                  "kind": "string",
+                                  "value": "object"
+                                }
+                              },
+                              {
+                                "key": "properties",
+                                "value": {
+                                  "kind": "object",
+                                  "entries": [
+                                    {
+                                      "key": "description",
+                                      "value": {
+                                        "kind": "object",
+                                        "entries": [
+                                          {
+                                            "key": "type",
+                                            "value": {
+                                              "kind": "string",
+                                              "value": "string"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "key": "codeSnippet",
+                                      "value": {
+                                        "kind": "object",
+                                        "entries": [
+                                          {
+                                            "key": "type",
+                                            "value": {
+                                              "kind": "array",
+                                              "items": [
+                                                {
+                                                  "kind": "string",
+                                                  "value": "string"
+                                                },
+                                                {
+                                                  "kind": "string",
+                                                  "value": "null"
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "key": "link",
+                                      "value": {
+                                        "kind": "object",
+                                        "entries": [
+                                          {
+                                            "key": "type",
+                                            "value": {
+                                              "kind": "string",
+                                              "value": "string"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "key": "language",
+                                      "value": {
+                                        "kind": "object",
+                                        "entries": [
+                                          {
+                                            "key": "type",
+                                            "value": {
+                                              "kind": "string",
+                                              "value": "string"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "key": "content_omitted",
+                                      "value": {
+                                        "kind": "object",
+                                        "entries": [
+                                          {
+                                            "key": "type",
+                                            "value": {
+                                              "kind": "string",
+                                              "value": "boolean"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "definition": {
+          "kind": "object",
+          "entries": [
+            {
+              "key": "name",
+              "value": {
+                "kind": "string",
+                "value": "microsoft_code_sample_search"
+              }
+            },
+            {
+              "key": "title",
+              "value": {
+                "kind": "string",
+                "value": "Microsoft Code Sample Search"
+              }
+            },
+            {
+              "key": "description",
+              "value": {
+                "kind": "string",
+                "value": "Search for code snippets and examples in official Microsoft Learn documentation. This tool retrieves relevant code samples from Microsoft documentation pages providing developers with practical implementation examples and best practices for Microsoft/Azure products and services related coding tasks. This tool will help you use the **LATEST OFFICIAL** code snippets to empower coding capabilities.\n\n## When to Use This Tool\n- When you are going to provide sample Microsoft/Azure related code snippets in your answers.\n- When you are **generating any Microsoft/Azure related code**.\n\n## Usage Pattern\nInput a descriptive query, or SDK/class/method name to retrieve related code samples. The optional parameter `language` can help to filter results.\n\nEligible values for `language` parameter include: csharp javascript typescript python powershell azurecli al sql java kusto cpp go rust ruby php"
+              }
+            },
+            {
+              "key": "inputSchema",
+              "value": {
+                "kind": "object",
+                "entries": [
+                  {
+                    "key": "type",
+                    "value": {
+                      "kind": "string",
+                      "value": "object"
+                    }
+                  },
+                  {
+                    "key": "properties",
+                    "value": {
+                      "kind": "object",
+                      "entries": [
+                        {
+                          "key": "query",
+                          "value": {
+                            "kind": "object",
+                            "entries": [
+                              {
+                                "key": "description",
+                                "value": {
+                                  "kind": "string",
+                                  "value": "a descriptive query, SDK name, method name or code snippet related to Microsoft/Azure products, services, platforms, developer tools, frameworks, APIs or SDKs"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "kind": "string",
+                                  "value": "string"
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "key": "language",
+                          "value": {
+                            "kind": "object",
+                            "entries": [
+                              {
+                                "key": "description",
+                                "value": {
+                                  "kind": "string",
+                                  "value": "Optional parameter specifying the programming language of code snippets to retrieve. Can significantly improve search quality if provided. Eligible values: csharp javascript typescript python powershell azurecli al sql java kusto cpp go rust ruby php"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "kind": "string",
+                                  "value": "string"
+                                }
+                              },
+                              {
+                                "key": "default",
+                                "value": {
+                                  "kind": "null"
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "key": "required",
+                    "value": {
+                      "kind": "array",
+                      "items": [
+                        {
+                          "kind": "string",
+                          "value": "query"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "key": "outputSchema",
+              "value": {
+                "kind": "object",
+                "entries": [
+                  {
+                    "key": "type",
+                    "value": {
+                      "kind": "string",
+                      "value": "object"
+                    }
+                  },
+                  {
+                    "key": "properties",
+                    "value": {
+                      "kind": "object",
+                      "entries": [
+                        {
+                          "key": "results",
+                          "value": {
+                            "kind": "object",
+                            "entries": [
+                              {
+                                "key": "type",
+                                "value": {
+                                  "kind": "string",
+                                  "value": "array"
+                                }
+                              },
+                              {
+                                "key": "items",
+                                "value": {
+                                  "kind": "object",
+                                  "entries": [
+                                    {
+                                      "key": "type",
+                                      "value": {
+                                        "kind": "string",
+                                        "value": "object"
+                                      }
+                                    },
+                                    {
+                                      "key": "properties",
+                                      "value": {
+                                        "kind": "object",
+                                        "entries": [
+                                          {
+                                            "key": "description",
+                                            "value": {
+                                              "kind": "object",
+                                              "entries": [
+                                                {
+                                                  "key": "type",
+                                                  "value": {
+                                                    "kind": "string",
+                                                    "value": "string"
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          {
+                                            "key": "codeSnippet",
+                                            "value": {
+                                              "kind": "object",
+                                              "entries": [
+                                                {
+                                                  "key": "type",
+                                                  "value": {
+                                                    "kind": "array",
+                                                    "items": [
+                                                      {
+                                                        "kind": "string",
+                                                        "value": "string"
+                                                      },
+                                                      {
+                                                        "kind": "string",
+                                                        "value": "null"
+                                                      }
+                                                    ]
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          {
+                                            "key": "link",
+                                            "value": {
+                                              "kind": "object",
+                                              "entries": [
+                                                {
+                                                  "key": "type",
+                                                  "value": {
+                                                    "kind": "string",
+                                                    "value": "string"
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          {
+                                            "key": "language",
+                                            "value": {
+                                              "kind": "object",
+                                              "entries": [
+                                                {
+                                                  "key": "type",
+                                                  "value": {
+                                                    "kind": "string",
+                                                    "value": "string"
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          {
+                                            "key": "content_omitted",
+                                            "value": {
+                                              "kind": "object",
+                                              "entries": [
+                                                {
+                                                  "key": "type",
+                                                  "value": {
+                                                    "kind": "string",
+                                                    "value": "boolean"
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "annotations": {
+          "untrusted": {
+            "kind": "object",
+            "entries": [
+              {
+                "key": "title",
+                "value": {
+                  "kind": "string",
+                  "value": "Microsoft Code Sample Search"
+                }
+              },
+              {
+                "key": "destructiveHint",
+                "value": {
+                  "kind": "boolean",
+                  "value": false
+                }
+              },
+              {
+                "key": "idempotentHint",
+                "value": {
+                  "kind": "boolean",
+                  "value": true
+                }
+              },
+              {
+                "key": "readOnlyHint",
+                "value": {
+                  "kind": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        }
+      },
+      "definitionDigest": "sha256:d4886260c3c25d496ebafbe145d113829dff6fbec40025560b188432238a4880",
+      "availability": {
+        "kind": "available"
+      }
+    },
+    {
+      "name": "microsoft_docs_fetch",
+      "lastLawful": {
+        "name": "microsoft_docs_fetch",
+        "definition": {
+          "kind": "object",
+          "entries": [
+            {
+              "key": "name",
+              "value": {
+                "kind": "string",
+                "value": "microsoft_docs_fetch"
+              }
+            },
+            {
+              "key": "title",
+              "value": {
+                "kind": "string",
+                "value": "Microsoft Docs Fetch"
+              }
+            },
+            {
+              "key": "description",
+              "value": {
+                "kind": "string",
+                "value": "Fetch and convert a Microsoft Learn documentation webpage to markdown format. This tool retrieves the latest complete content of Microsoft documentation webpages including Azure, .NET, Microsoft 365, and other Microsoft technologies.\n\n## When to Use This Tool\n- When search results provide incomplete information or truncated content\n- When you need complete step-by-step procedures or tutorials\n- When you need troubleshooting sections, prerequisites, or detailed explanations\n- When search results reference a specific page that seems highly relevant\n- For comprehensive guides that require full context\n\n## Usage Pattern\nUse this tool AFTER microsoft_docs_search when you identify specific high-value pages that need complete content. The search tool gives you an overview; this tool gives you the complete picture.\n\n## URL Requirements\n- The URL must be a valid HTML documentation webpage from the microsoft.com domain\n- Binary files (PDF, DOCX, images, etc.) are not supported\n\n## Output Format\nmarkdown with headings, code blocks, tables, and links preserved."
+              }
+            },
+            {
+              "key": "inputSchema",
+              "value": {
+                "kind": "object",
+                "entries": [
+                  {
+                    "key": "type",
+                    "value": {
+                      "kind": "string",
+                      "value": "object"
+                    }
+                  },
+                  {
+                    "key": "properties",
+                    "value": {
+                      "kind": "object",
+                      "entries": [
+                        {
+                          "key": "url",
+                          "value": {
+                            "kind": "object",
+                            "entries": [
+                              {
+                                "key": "description",
+                                "value": {
+                                  "kind": "string",
+                                  "value": "URL of the Microsoft documentation page to read"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "kind": "string",
+                                  "value": "string"
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "key": "required",
+                    "value": {
+                      "kind": "array",
+                      "items": [
+                        {
+                          "kind": "string",
+                          "value": "url"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "annotations": {
+          "untrusted": {
+            "kind": "object",
+            "entries": [
+              {
+                "key": "title",
+                "value": {
+                  "kind": "string",
+                  "value": "Microsoft Docs Fetch"
+                }
+              },
+              {
+                "key": "destructiveHint",
+                "value": {
+                  "kind": "boolean",
+                  "value": false
+                }
+              },
+              {
+                "key": "idempotentHint",
+                "value": {
+                  "kind": "boolean",
+                  "value": true
+                }
+              },
+              {
+                "key": "readOnlyHint",
+                "value": {
+                  "kind": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        }
+      },
+      "definitionDigest": "sha256:7b9a414f1d7326040ba98acd713e448e4c6cde57e649585818ab20a4849fa0c6",
+      "availability": {
+        "kind": "available"
+      }
+    },
+    {
+      "name": "microsoft_docs_search",
+      "lastLawful": {
+        "name": "microsoft_docs_search",
+        "outputSchema": {
+          "kind": "object",
+          "entries": [
+            {
+              "key": "type",
+              "value": {
+                "kind": "string",
+                "value": "object"
+              }
+            },
+            {
+              "key": "properties",
+              "value": {
+                "kind": "object",
+                "entries": [
+                  {
+                    "key": "results",
+                    "value": {
+                      "kind": "object",
+                      "entries": [
+                        {
+                          "key": "type",
+                          "value": {
+                            "kind": "string",
+                            "value": "array"
+                          }
+                        },
+                        {
+                          "key": "items",
+                          "value": {
+                            "kind": "object",
+                            "entries": [
+                              {
+                                "key": "type",
+                                "value": {
+                                  "kind": "string",
+                                  "value": "object"
+                                }
+                              },
+                              {
+                                "key": "properties",
+                                "value": {
+                                  "kind": "object",
+                                  "entries": [
+                                    {
+                                      "key": "id",
+                                      "value": {
+                                        "kind": "object",
+                                        "entries": [
+                                          {
+                                            "key": "type",
+                                            "value": {
+                                              "kind": "array",
+                                              "items": [
+                                                {
+                                                  "kind": "string",
+                                                  "value": "string"
+                                                },
+                                                {
+                                                  "kind": "string",
+                                                  "value": "null"
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "key": "title",
+                                      "value": {
+                                        "kind": "object",
+                                        "entries": [
+                                          {
+                                            "key": "type",
+                                            "value": {
+                                              "kind": "string",
+                                              "value": "string"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "key": "content",
+                                      "value": {
+                                        "kind": "object",
+                                        "entries": [
+                                          {
+                                            "key": "type",
+                                            "value": {
+                                              "kind": "array",
+                                              "items": [
+                                                {
+                                                  "kind": "string",
+                                                  "value": "string"
+                                                },
+                                                {
+                                                  "kind": "string",
+                                                  "value": "null"
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "key": "contentUrl",
+                                      "value": {
+                                        "kind": "object",
+                                        "entries": [
+                                          {
+                                            "key": "type",
+                                            "value": {
+                                              "kind": "string",
+                                              "value": "string"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "key": "content_omitted",
+                                      "value": {
+                                        "kind": "object",
+                                        "entries": [
+                                          {
+                                            "key": "type",
+                                            "value": {
+                                              "kind": "string",
+                                              "value": "boolean"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "key": "extensionData",
+                                      "value": {
+                                        "kind": "object",
+                                        "entries": [
+                                          {
+                                            "key": "type",
+                                            "value": {
+                                              "kind": "array",
+                                              "items": [
+                                                {
+                                                  "kind": "string",
+                                                  "value": "object"
+                                                },
+                                                {
+                                                  "kind": "string",
+                                                  "value": "null"
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "definition": {
+          "kind": "object",
+          "entries": [
+            {
+              "key": "name",
+              "value": {
+                "kind": "string",
+                "value": "microsoft_docs_search"
+              }
+            },
+            {
+              "key": "title",
+              "value": {
+                "kind": "string",
+                "value": "Microsoft Docs Search"
+              }
+            },
+            {
+              "key": "description",
+              "value": {
+                "kind": "string",
+                "value": "Search official Microsoft/Azure documentation to find the most relevant and trustworthy content for a user's query. This tool returns up to 10 high-quality content chunks (each max 500 tokens), extracted from Microsoft Learn and other official sources. Each result includes the article title, URL, and a self-contained content excerpt optimized for fast retrieval and reasoning. Always use this tool to quickly ground your answers in accurate, first-party Microsoft/Azure knowledge.\n\n## Follow-up Pattern\nTo ensure completeness, use microsoft_docs_fetch when high-value pages are identified by search. The fetch tool complements search by providing the full detail. This is a required step for comprehensive results."
+              }
+            },
+            {
+              "key": "inputSchema",
+              "value": {
+                "kind": "object",
+                "entries": [
+                  {
+                    "key": "type",
+                    "value": {
+                      "kind": "string",
+                      "value": "object"
+                    }
+                  },
+                  {
+                    "key": "properties",
+                    "value": {
+                      "kind": "object",
+                      "entries": [
+                        {
+                          "key": "query",
+                          "value": {
+                            "kind": "object",
+                            "entries": [
+                              {
+                                "key": "description",
+                                "value": {
+                                  "kind": "string",
+                                  "value": "a query or topic about Microsoft/Azure products, services, platforms, developer tools, frameworks, or APIs"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "kind": "string",
+                                  "value": "string"
+                                }
+                              },
+                              {
+                                "key": "default",
+                                "value": {
+                                  "kind": "null"
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "key": "outputSchema",
+              "value": {
+                "kind": "object",
+                "entries": [
+                  {
+                    "key": "type",
+                    "value": {
+                      "kind": "string",
+                      "value": "object"
+                    }
+                  },
+                  {
+                    "key": "properties",
+                    "value": {
+                      "kind": "object",
+                      "entries": [
+                        {
+                          "key": "results",
+                          "value": {
+                            "kind": "object",
+                            "entries": [
+                              {
+                                "key": "type",
+                                "value": {
+                                  "kind": "string",
+                                  "value": "array"
+                                }
+                              },
+                              {
+                                "key": "items",
+                                "value": {
+                                  "kind": "object",
+                                  "entries": [
+                                    {
+                                      "key": "type",
+                                      "value": {
+                                        "kind": "string",
+                                        "value": "object"
+                                      }
+                                    },
+                                    {
+                                      "key": "properties",
+                                      "value": {
+                                        "kind": "object",
+                                        "entries": [
+                                          {
+                                            "key": "id",
+                                            "value": {
+                                              "kind": "object",
+                                              "entries": [
+                                                {
+                                                  "key": "type",
+                                                  "value": {
+                                                    "kind": "array",
+                                                    "items": [
+                                                      {
+                                                        "kind": "string",
+                                                        "value": "string"
+                                                      },
+                                                      {
+                                                        "kind": "string",
+                                                        "value": "null"
+                                                      }
+                                                    ]
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          {
+                                            "key": "title",
+                                            "value": {
+                                              "kind": "object",
+                                              "entries": [
+                                                {
+                                                  "key": "type",
+                                                  "value": {
+                                                    "kind": "string",
+                                                    "value": "string"
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          {
+                                            "key": "content",
+                                            "value": {
+                                              "kind": "object",
+                                              "entries": [
+                                                {
+                                                  "key": "type",
+                                                  "value": {
+                                                    "kind": "array",
+                                                    "items": [
+                                                      {
+                                                        "kind": "string",
+                                                        "value": "string"
+                                                      },
+                                                      {
+                                                        "kind": "string",
+                                                        "value": "null"
+                                                      }
+                                                    ]
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          {
+                                            "key": "contentUrl",
+                                            "value": {
+                                              "kind": "object",
+                                              "entries": [
+                                                {
+                                                  "key": "type",
+                                                  "value": {
+                                                    "kind": "string",
+                                                    "value": "string"
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          {
+                                            "key": "content_omitted",
+                                            "value": {
+                                              "kind": "object",
+                                              "entries": [
+                                                {
+                                                  "key": "type",
+                                                  "value": {
+                                                    "kind": "string",
+                                                    "value": "boolean"
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          {
+                                            "key": "extensionData",
+                                            "value": {
+                                              "kind": "object",
+                                              "entries": [
+                                                {
+                                                  "key": "type",
+                                                  "value": {
+                                                    "kind": "array",
+                                                    "items": [
+                                                      {
+                                                        "kind": "string",
+                                                        "value": "object"
+                                                      },
+                                                      {
+                                                        "kind": "string",
+                                                        "value": "null"
+                                                      }
+                                                    ]
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "annotations": {
+          "untrusted": {
+            "kind": "object",
+            "entries": [
+              {
+                "key": "title",
+                "value": {
+                  "kind": "string",
+                  "value": "Microsoft Docs Search"
+                }
+              },
+              {
+                "key": "destructiveHint",
+                "value": {
+                  "kind": "boolean",
+                  "value": false
+                }
+              },
+              {
+                "key": "idempotentHint",
+                "value": {
+                  "kind": "boolean",
+                  "value": true
+                }
+              },
+              {
+                "key": "readOnlyHint",
+                "value": {
+                  "kind": "boolean",
+                  "value": true
+                }
+              }
+            ]
+          }
+        }
+      },
+      "definitionDigest": "sha256:c51097b359ca6a9b39062c180113fca83e5ac40f33014b9ddb37f267d59fe172",
+      "availability": {
+        "kind": "available"
+      }
+    }
+  ]
+}
