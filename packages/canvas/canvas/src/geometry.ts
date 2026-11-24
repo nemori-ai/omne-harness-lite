@@ -1,7 +1,7 @@
 import type { Item, Pile, Sheet, Size, Spot } from '@omne-harness/canvas-contract'
 
-/** The line under an item that carries its name. It is counted in the room an item takes. */
-export const NAME_LINE = 24
+/** The line under an item that carries its name, 4 apart and 18 high as the shared sheet draws it. It is counted in the room an item takes. */
+export const NAME_LINE = 22
 
 export type Rect = Readonly<{ x: number; y: number; width: number; height: number }>
 
