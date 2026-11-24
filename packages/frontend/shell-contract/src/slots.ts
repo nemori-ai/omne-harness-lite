@@ -6,6 +6,7 @@ export const slots = {
   sidebar: { kind: 'list' },
   float: { kind: 'list' },
   attached: { kind: 'list' },
+  actions: { kind: 'list' },
 } as const
 
 export type SlotName = keyof typeof slots
@@ -74,6 +75,22 @@ export type AttachedItem = Readonly<{
 
 export type AttachedEntry = Readonly<{ id: string; label: string | undefined; node: ReactNode }>
 
+export type ActionLayer = 'overlay' | 'composer' | 'page' | 'global'
+export type ActionKey = Readonly<{ chord: string; layer: ActionLayer }>
+
+/** One shell action: a key, the palette and a button all name it; the shell knows nothing of what it does. */
+export type ActionItem = Readonly<{
+  id: string
+  title: string
+  group: string
+  kind: 'control' | 'ui'
+  order: number
+  keys?: readonly ActionKey[]
+  repeat?: true
+  available: () => true | string
+  run: () => void | Promise<void>
+}>
+
 export type AttachedLayout = (entries: readonly AttachedEntry[]) => ReactNode
 
 export type SlotItems = {
@@ -82,6 +99,7 @@ export type SlotItems = {
   sidebar: SidebarItem
   float: FloatItem
   attached: AttachedItem
+  actions: ActionItem
 }
 
 export type ItemOf<K extends SlotName> = SlotItems[K]

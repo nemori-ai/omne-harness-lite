@@ -1,7 +1,9 @@
-import type { Reader } from '@omne-harness/shell-contract'
+import type { KeyPress, Reader } from '@omne-harness/shell-contract'
 import { Button, GlideMenu, Textarea } from '@omne-harness/ui-kit'
 import {
+  createContext,
   Fragment,
+  useContext,
   useEffect,
   useId,
   useRef,
@@ -9,6 +11,7 @@ import {
   useSyncExternalStore,
   type KeyboardEvent,
   type ReactNode,
+  type RefObject,
 } from 'react'
 import {
   NO_ASSIST,
@@ -23,7 +26,9 @@ import type { ComposerDraftStore } from '../model/composer-drafts.ts'
 import type { SessionDriver } from '../model/session-driver.ts'
 import type { Open } from '../model/session-machine.ts'
 import { sessionComposer, sessionComposerInput } from '../parts.ts'
+import type { ComposerHandles, SendWay } from '../model/composer-handles.ts'
 import { ComposerActionSlot } from './composer-action-slot.tsx'
+import { SendWays } from './send-ways.tsx'
 import { AGENT_NAME } from './side-frame.tsx'
 
 const KEYS: Readonly<Record<string, AssistKey>> = {
@@ -154,6 +159,45 @@ export type ComposerProps = Readonly<{
   assistant?: Reader<ComposerAssistant>
 }>
 
+/** The module's side of the composer's keys: where it shows itself, and which way a key sends now. */
+export type ComposerKeys = Readonly<{
+  handles: ComposerHandles
+  wayOf: (press: KeyPress) => SendWay | null
+}>
+
+/** Without it plain Enter sends and no action reaches the composer. */
+export const ComposerKeysContext = createContext<ComposerKeys | null>(null)
+
+type Latest = Readonly<{
+  sendAs: (way: SendWay) => true | string
+  write: (next: string, caret: number) => void
+  text: string
+}>
+
+function useComposerHandle(
+  keys: ComposerKeys | null,
+  session: string,
+  field: RefObject<HTMLTextAreaElement | null>,
+  now: Latest,
+): void {
+  const latest = useRef(now)
+  latest.current = now
+  useEffect(
+    () =>
+      keys?.handles.show({
+        session,
+        focus: () => field.current?.focus(),
+        insert: words => {
+          const { text, write } = latest.current
+          const at = field.current?.selectionStart ?? text.length
+          write(text.slice(0, at) + words + text.slice(at), at + words.length)
+        },
+        send: way => latest.current.sendAs(way),
+      }),
+    [keys, session, field],
+  )
+}
+
 export function Composer({
   state,
   driver,
@@ -164,6 +208,7 @@ export function Composer({
   attachments,
   assistant = NOBODY,
 }: ComposerProps) {
+  const keys = useContext(ComposerKeysContext)
   const { session } = state
   const [text, setText] = useState('')
   const field = useRef<HTMLTextAreaElement>(null)
@@ -184,14 +229,19 @@ export function Composer({
     helper?.input(next, caret)
     requestAnimationFrame(() => field.current?.setSelectionRange(caret, caret))
   }
-  const send = (words: string, seen = assist.seen) => {
-    void driver.send(words, drafts.take(session), seen ?? undefined)
+  const send = (words: string, seen = assist.seen, how?: SendWay) => {
+    const way = how === 'send' ? undefined : how
+    void driver.send(words, drafts.take(session), seen ?? undefined, way)
     setText('')
     helper?.input('', 0)
   }
-  const submit = () => {
-    if (canSend) send(text)
+  const sendAs = (way: SendWay): true | string => {
+    if (!canSend) return assist.blocked ?? '没有要发的内容'
+    send(text, assist.seen, way)
+    return true
   }
+  const submit = () => void sendAs('send')
+  useComposerHandle(keys, session, field, { sendAs, write, text })
   const follow = (answer: AssistAnswer) => {
     if (answer.kind === 'edit') write(answer.text, answer.caret)
     if (answer.kind === 'send') submit()
@@ -208,9 +258,10 @@ export function Composer({
         return
       }
     }
-    if (!plainEnter) return
+    const way = keys === null ? (plainEnter ? 'send' : null) : keys.wayOf(event.nativeEvent)
+    if (way === null) return
     event.preventDefault()
-    submit()
+    void sendAs(way)
   }
   const caretOf = () => field.current?.selectionStart ?? text.length
   return (
@@ -272,6 +323,13 @@ export function Composer({
       <div>{attachments(session, draft.draft)}</div>
       <div className="omne-composer-actions">
         <div className="omne-session-status">{status}</div>
+        {state.run.kind === 'idle' ? null : (
+          <SendWays
+            canSend={canSend}
+            onSend={way => void sendAs(way)}
+            onForceStop={() => driver.cancel('force')}
+          />
+        )}
         <ComposerActionSlot
           face={stopFace(state.run)}
           canSend={canSend}

@@ -409,12 +409,24 @@ describe('取消这一轮', () => {
       unknown: false,
     })
     expect(next.effects).toEqual([
-      { kind: 'cancel-run', session: S, run: 'run_1', controlId: 'k1' },
+      { kind: 'cancel-run', session: S, run: 'run_1', controlId: 'k1', urgency: 'graceful' },
     ])
   })
   it('取消中：不发第二次', () => {
     const state = cancelling()
     expect(step(state, { kind: 'cancel', controlId: 'k2' }).effects).toEqual([])
+  })
+  it('插队与等这一轮结束再发：发出去的请求写明是哪一种', () => {
+    for (const how of ['first', 'after'] as const)
+      expect(step(running(), { ...send, how }).effects).toMatchObject([{ kind: 'send-input', how }])
+    expect(step(running(), send).effects[0]).not.toHaveProperty('how')
+  })
+  it('取消中再强制停止：用新的控制编号发强制的那一档', () => {
+    const next = step(cancelling(), { kind: 'cancel', controlId: 'k2', urgency: 'force' })
+    expect(next.effects).toEqual([
+      { kind: 'cancel-run', session: S, run: 'run_1', controlId: 'k2', urgency: 'force' },
+    ])
+    expect(asOpen(next.state).run).toMatchObject({ kind: 'cancelling', controlId: 'k2' })
   })
   it('取消结果未知：再点一次用同一个控制编号', () => {
     const unknown = step(cancelling(), {
@@ -424,7 +436,7 @@ describe('取消这一轮', () => {
       answer: { outcome: 'uncertain' },
     }).state
     expect(step(unknown, { kind: 'cancel', controlId: 'k9' }).effects).toEqual([
-      { kind: 'cancel-run', session: S, run: 'run_1', controlId: 'k1' },
+      { kind: 'cancel-run', session: S, run: 'run_1', controlId: 'k1', urgency: 'graceful' },
     ])
   })
   it('成功：requested 仍在取消中，ended 回到就绪', () => {

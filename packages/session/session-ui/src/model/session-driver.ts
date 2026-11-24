@@ -15,7 +15,13 @@ import {
   type WorkspaceEvent,
 } from './workspace.ts'
 import { BUSY, GONE, NO_WORDS, sayFate, type Said, type SayAnswer, type SayTarget } from './say.ts'
-import { sayBlocked, type CreateChoice, type SayTo } from './session-machine.ts'
+import {
+  sayBlocked,
+  type CreateChoice,
+  type SayTo,
+  type SendHow,
+  type Urgency,
+} from './session-machine.ts'
 
 export type SessionDriverDeps = Readonly<{
   client: ClientOf<SessionProtocol>
@@ -91,17 +97,22 @@ const CALLS: Calls = {
       createCallId,
       answer,
     })),
-  'send-input': ({ session, acceptId, inputId, text, attachments, seen }, { client, tenant }) =>
-    notSent(async () =>
-      client['send-input']({
+  'send-input': (
+    { session, acceptId, inputId, text, attachments, seen, how },
+    { client, tenant },
+  ) =>
+    notSent(async () => {
+      const body = {
         tenant,
         session,
         acceptId,
         inputId,
         message: await userMessage({ inputId, text, attachments }),
         ...(seen === undefined ? {} : { seen }),
-      }),
-    ).then(answer => ({ kind: 'send-answered', session, acceptId, answer })),
+      }
+      if (how === 'first') return client['interrupt-input'](body)
+      return client['send-input'](how === 'after' ? { ...body, afterRun: 'yes' } : body)
+    }).then(answer => ({ kind: 'send-answered', session, acceptId, answer })),
   'query-send-input': ({ session, acceptId }, { client, tenant }) =>
     notSent(() => client['query-send-input']({ tenant, session, acceptId })).then(answer => ({
       kind: 'send-confirmed',
@@ -109,10 +120,10 @@ const CALLS: Calls = {
       acceptId,
       answer,
     })),
-  'cancel-run': ({ session, run, controlId }, { client, tenant }) =>
-    notSent(() =>
-      client['cancel-run']({ tenant, session, run, controlId, urgency: 'graceful' }),
-    ).then(answer => ({ kind: 'cancel-answered', session, controlId, answer })),
+  'cancel-run': ({ session, run, controlId, urgency }, { client, tenant }) =>
+    notSent(() => client['cancel-run']({ tenant, session, run, controlId, urgency })).then(
+      answer => ({ kind: 'cancel-answered', session, controlId, answer }),
+    ),
   'read-history': ({ session, token, request }, { client, tenant }) =>
     notSent(() => client['read-history'](historyBody(tenant, session, request))).then(answer => ({
       kind: 'history-read',
@@ -188,6 +199,7 @@ export class SessionDriver {
     text: string,
     attachments: readonly UserAttachment[] = [],
     seen?: SenderSeen,
+    how?: SendHow,
   ): Promise<void> {
     if (text.trim().length === 0 && attachments.length === 0) return
     const inputId = this.#deps.newId()
@@ -198,6 +210,7 @@ export class SessionDriver {
       text,
       attachments,
       ...(seen === undefined ? {} : { seen }),
+      ...(how === undefined ? {} : { how }),
       inputId,
       acceptId,
       messageId,
@@ -237,8 +250,8 @@ export class SessionDriver {
     this.dispatch({ kind: 'send-confirm', acceptId })
   }
 
-  cancel(): void {
-    this.dispatch({ kind: 'cancel', controlId: this.#deps.newId() })
+  cancel(urgency: Urgency = 'graceful'): void {
+    this.dispatch({ kind: 'cancel', controlId: this.#deps.newId(), urgency })
   }
 
   retry(): void {

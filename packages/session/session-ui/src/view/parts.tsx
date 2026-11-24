@@ -3,8 +3,14 @@ import {
   CommandsIcon,
   Disclosure,
   DisclosureContent,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   FactList,
   FactRow,
+  IconButton,
+  MoreIcon,
   ProcessIcon,
   Prose,
   StateWord,
@@ -15,7 +21,12 @@ import type { PartProps } from '@omne-harness/shell-contract'
 import { memo, useContext, useId, useState, type ReactNode } from 'react'
 import { toolCallState, type Item, type Part } from '../model/conversation.ts'
 import { isRecord, type Plain } from '../model/plain.ts'
-import { BlockSlotContext, ToolCallSlotContext, type ToolCallPart } from './block-slot.ts'
+import {
+  BlockSlotContext,
+  CallControlContext,
+  ToolCallSlotContext,
+  type ToolCallPart,
+} from './block-slot.ts'
 import { PartDrawContext } from './part-draw.ts'
 import {
   sessionTranscriptAgentMessage,
@@ -220,7 +231,26 @@ function ToolCall({ part }: { readonly part: ToolCallPart }) {
         </>
       )}
       {part.result === null ? null : <Result parts={part.result.parts} />}
+      {live && part.callId !== null ? <CallControls call={part.callId} /> : null}
     </ProcessLine>
+  )
+}
+
+function CallControls({ call }: { readonly call: string }) {
+  const controls = useContext(CallControlContext)
+  if (controls === null) return null
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <IconButton label="这个调用" size="icon-compact">
+          <MoreIcon aria-hidden="true" />
+        </IconButton>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        <DropdownMenuItem onSelect={() => controls.background(call)}>转到后台</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => controls.stop(call)}>停掉这个调用</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 

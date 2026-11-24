@@ -53,6 +53,7 @@ import { EntryFocusContext } from './view/shown-entry.ts'
 import { PermissionModeAction } from './view/permission-mode.tsx'
 import { SessionWork } from './view/session-work.tsx'
 import { sessionParts } from './parts.ts'
+import { sessionKeys } from './session-keys.tsx'
 import { SessionListPanel } from './view/session-list-panel.tsx'
 import { SidePanel } from './view/side-panel.tsx'
 import { WorkspaceAction } from './view/workspace-selection.tsx'
@@ -61,6 +62,7 @@ export const CONVERSATION_PAGE = 'conversation'
 export const SESSION_LIST = 'session-list'
 export const ARCHIVED_SESSIONS = 'archived-sessions'
 export const HISTORY_SEARCH_PAGE = 'history-search'
+const PAGES = { conversation: CONVERSATION_PAGE, search: HISTORY_SEARCH_PAGE } as const
 
 /** What other modules provide that the session interface takes when the assembly names it; it works without each. */
 export type SessionUiOptions = Readonly<{
@@ -183,6 +185,32 @@ function companionItem(
   }
 }
 
+function searchPage(
+  shell: ShellService,
+  search: HistorySearchStore,
+  workspaces: SessionWorkspaces,
+  focus: EntryFocus,
+): void {
+  shell.contribute('pages', {
+    id: HISTORY_SEARCH_PAGE,
+    title: '搜索',
+    order: 1,
+    icon: 'search',
+    group: 'utility',
+    render: ({ scope }) => (
+      <HistorySearch
+        store={search}
+        workspaces={workspaces}
+        scope={scope}
+        onShow={(session, entry) => {
+          focus.set({ session, entry })
+          shell.navigate(CONVERSATION_PAGE)
+        }}
+      />
+    ),
+  })
+}
+
 const needsOf = (options: SessionUiOptions) => ({
   session: needProtocol<ClientOf<SessionProtocol>>(sessionProtocol),
   modelChoices: needPoint(options.modelChoices, { optional: true }),
@@ -214,10 +242,10 @@ const apply: UiModuleDefinition<ReturnType<typeof needsOf>>['apply'] = (
   const modes = new PermissionModeStore(client)
   const held = new SessionWorkStore(client)
   const waitingCalls = waitingCallsOf(held)
-  const search = new HistorySearchStore(client)
   const focus = new EntryFocus()
   const figure = new SessionFigure(report => shell.figure(report))
   const conversationShown = shownOn(shell)
+  const keys = sessionKeys(shell, workspaces, client, PAGES)
   sessionDock.contribute(shell, {
     id: 'background-calls',
     order: 10,
@@ -253,90 +281,74 @@ const apply: UiModuleDefinition<ReturnType<typeof needsOf>>['apply'] = (
     title: '对话',
     order: 0,
     icon: 'conversation',
-    render: ({ scope }) => (
-      <EntryFocusContext.Provider value={focus}>
-        <PartDrawContext.Provider value={shell}>
-          <FigureReport
-            workspaces={workspaces}
-            scope={scope}
-            background={background}
-            figure={figure}
-          />
-          <ConversationPage
-            workspaces={workspaces}
-            scope={scope}
-            work={(session, revision) =>
-              scope === undefined ? null : (
-                <SessionWork store={held} tenant={scope} session={session} revision={revision} />
-              )
-            }
-            heading={session =>
-              scope === undefined ? null : (
-                <>
-                  <ModelAction store={models} tenant={scope} session={session} />
-                  <WorkspaceAction store={places} tenant={scope} session={session} />
-                  <PermissionModeAction store={modes} tenant={scope} session={session} />
-                </>
-              )
-            }
-            more={(session, say) =>
-              scope === undefined ? null : (
-                <ArchiveAction
-                  store={archive}
-                  workspaces={workspaces}
-                  tenant={scope}
-                  session={session}
-                  say={say}
-                />
-              )
-            }
-            waitingCalls={waitingCalls}
-            {...placesOf(shell)}
-            drafts={drafts}
-            assistant={assistant}
-            attachments={(session, draft) =>
-              sessionComposerAttachments.slot(shell, { session, draft }, fragments)
-            }
-            block={blockDrawer(shell, reads, scope)}
-            toolCall={toolCallDrawer(shell)}
-            side={session =>
-              sessionSide.slot(shell, { session }, entries =>
-                scope === undefined ? (
-                  <SidePanel entries={entries} />
-                ) : (
-                  <SideWithBackground
-                    entries={entries}
-                    store={background}
+    render: ({ scope }) =>
+      keys.around(
+        <EntryFocusContext.Provider value={focus}>
+          <PartDrawContext.Provider value={shell}>
+            <FigureReport
+              workspaces={workspaces}
+              scope={scope}
+              background={background}
+              figure={figure}
+            />
+            <ConversationPage
+              workspaces={workspaces}
+              scope={scope}
+              work={(session, revision) =>
+                scope === undefined ? null : (
+                  <SessionWork store={held} tenant={scope} session={session} revision={revision} />
+                )
+              }
+              heading={session =>
+                scope === undefined ? null : (
+                  <>
+                    <ModelAction store={models} tenant={scope} session={session} />
+                    <WorkspaceAction store={places} tenant={scope} session={session} />
+                    <PermissionModeAction store={modes} tenant={scope} session={session} />
+                  </>
+                )
+              }
+              more={(session, say) =>
+                scope === undefined ? null : (
+                  <ArchiveAction
+                    store={archive}
+                    workspaces={workspaces}
                     tenant={scope}
                     session={session}
-                    detail={call => sessionCallDetail.slot(shell, { session, call }, fragments)}
+                    say={say}
                   />
-                ),
-              )
-            }
-          />
-        </PartDrawContext.Provider>
-      </EntryFocusContext.Provider>
-    ),
+                )
+              }
+              waitingCalls={waitingCalls}
+              {...placesOf(shell)}
+              drafts={drafts}
+              assistant={assistant}
+              attachments={(session, draft) =>
+                sessionComposerAttachments.slot(shell, { session, draft }, fragments)
+              }
+              block={blockDrawer(shell, reads, scope)}
+              toolCall={toolCallDrawer(shell)}
+              side={session =>
+                sessionSide.slot(shell, { session }, entries =>
+                  scope === undefined ? (
+                    <SidePanel entries={entries} />
+                  ) : (
+                    <SideWithBackground
+                      entries={entries}
+                      store={background}
+                      tenant={scope}
+                      session={session}
+                      detail={call => sessionCallDetail.slot(shell, { session, call }, fragments)}
+                    />
+                  ),
+                )
+              }
+            />
+          </PartDrawContext.Provider>
+        </EntryFocusContext.Provider>,
+      ),
   })
-  shell.contribute('pages', {
-    id: HISTORY_SEARCH_PAGE,
-    title: '搜索',
-    order: 1,
-    icon: 'search',
-    group: 'utility',
-    render: ({ scope }) => (
-      <HistorySearch
-        store={search}
-        workspaces={workspaces}
-        scope={scope}
-        onShow={(session, entry) => {
-          focus.set({ session, entry })
-          shell.navigate(CONVERSATION_PAGE)
-        }}
-      />
-    ),
-  })
+  searchPage(shell, new HistorySearchStore(client), workspaces, focus)
   return () => {
     for (const stop of taken) stop()
   }

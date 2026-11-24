@@ -74,6 +74,16 @@ export const assetsUiModule = defineUiModule({
           </ControlDrawContext.Provider>
         ),
     })
+    shell.contribute('actions', {
+      id: 'assets.settings',
+      title: '打开设置',
+      group: '页面',
+      kind: 'ui',
+      order: 0,
+      keys: [{ chord: 'Mod+,', layer: 'global' }],
+      available: () => true,
+      run: () => shell.navigate('settings'),
+    })
   },
 })
 

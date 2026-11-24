@@ -44,6 +44,8 @@ system
           session-ui#1  [effective]
         session.tool-call
           session-ui#1  [effective]
+        shell.actions
+          DesktopShell#1  [effective]
         shell.float
           DesktopShell#1  [effective]
         shell.gate
@@ -156,6 +158,27 @@ system
         usage.occupancy  [effective, usage-ui#1]
       session.tool-call  [keyed-one]
     shell
+      shell.actions  [list]
+        assets.settings  [effective, assets-ui#1]
+        session.stop  [effective, session-ui#1]
+        human-intervention.waiting  [effective, human-intervention-ui#1]
+        session.force-stop  [effective, session-ui#1]
+        session.background  [effective, session-ui#1]
+        session.stop-call  [effective, session-ui#1]
+        session.retry  [effective, session-ui#1]
+        session.send  [effective, session-ui#1]
+        session.send-first  [effective, session-ui#1]
+        session.send-after  [effective, session-ui#1]
+        session.new  [effective, session-ui#1]
+        session.next  [effective, session-ui#1]
+        session.previous  [effective, session-ui#1]
+        session.search  [effective, session-ui#1]
+        session.focus-composer  [effective, session-ui#1]
+        session.start-command  [effective, session-ui#1]
+        session.details  [effective, session-ui#1]
+        session.pick-model  [effective, session-ui#1]
+        session.pick-permission  [effective, session-ui#1]
+        session.side-panel  [effective, session-ui#1]
       shell.float  [list, build]
         companion  [effective, session-ui#1]
       shell.gate  [one, build]

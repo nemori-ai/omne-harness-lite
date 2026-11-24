@@ -6,12 +6,6 @@ export type SizeStep = 'larger' | 'smaller' | 'standard'
 
 export type SizeKeyPlatform = 'mac' | 'other'
 
-export interface SizeKey {
-  readonly key: string
-  readonly metaKey: boolean
-  readonly ctrlKey: boolean
-}
-
 export interface SizeRoot {
   readonly dataset: { size?: string }
 }
@@ -30,14 +24,6 @@ export interface SizeController {
 
 const STANDARD: SizeTier = 'medium'
 
-const KEY_STEPS: ReadonlyMap<string, SizeStep> = new Map([
-  ['=', 'larger'],
-  ['+', 'larger'],
-  ['-', 'smaller'],
-  ['_', 'smaller'],
-  ['0', 'standard'],
-])
-
 const tierOf = (stored: string | null | undefined): SizeTier =>
   SIZE_TIERS.find(tier => tier === stored) ?? STANDARD
 
@@ -45,12 +31,6 @@ export function stepSize(tier: SizeTier, step: SizeStep): SizeTier {
   if (step === 'standard') return STANDARD
   const at = SIZE_TIERS.indexOf(tier) + (step === 'larger' ? 1 : -1)
   return SIZE_TIERS[Math.min(Math.max(at, 0), SIZE_TIERS.length - 1)] ?? STANDARD
-}
-
-export function sizeStepForKey(event: SizeKey, platform: SizeKeyPlatform): SizeStep | undefined {
-  const held =
-    platform === 'mac' ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey
-  return held ? KEY_STEPS.get(event.key) : undefined
 }
 
 class PageSizeController implements SizeController {

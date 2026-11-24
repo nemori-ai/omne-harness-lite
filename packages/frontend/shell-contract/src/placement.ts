@@ -16,6 +16,7 @@ const POINT = {
   pages: 'shell.pages',
   sidebar: 'shell.sidebar',
   float: 'shell.float',
+  actions: 'shell.actions',
 } as const
 
 const FIXED = 'Fixed when the app is built: a plugin cannot add to it while the app runs.'
@@ -71,6 +72,18 @@ export const shellContracts: readonly Contract[] = [
     summary: `What floats over the whole application once somebody is signed in, in the order of their order and id. ${FIXED}`,
   },
 ]
+
+export const actionsContract: Contract = {
+  ...SHARED,
+  name: POINT.actions,
+  arity: 'list',
+  item: { kind: 'pure', fields: { available: 'function', run: 'function' } },
+  gives: 'nothing: an action asks what it needs when it runs',
+  binding: 'run',
+  onError: 'the action is not run, and the person is told why',
+  summary:
+    'The shell actions by name: what a key, the palette and a button run. A module puts its own; they leave with it.',
+}
 
 /** The contract of a point a view module declares: what is put there can change while running. */
 export function pointContract(
@@ -129,6 +142,7 @@ const SPOT: { readonly [K in SlotName]: (item: ItemOf<K>) => Spot } = {
   sidebar: item => ({ point: POINT.sidebar, key: '', id: item.id, rank: item.order }),
   float: item => ({ point: POINT.float, key: '', id: item.id, rank: item.order }),
   attached: item => ({ ...anchored(item.anchor), id: item.id, rank: item.order }),
+  actions: item => ({ point: POINT.actions, key: '', id: item.id, rank: item.order }),
 }
 
 /** A render function has no digest of its own: the instance that put it stands for its content. */
@@ -196,6 +210,7 @@ const VIEW: { readonly [K in SlotName]: (registry: Registry) => SlotView<K> } = 
   sidebar: registry => listView(registry, 'sidebar', POINT.sidebar),
   float: registry => listView(registry, 'float', POINT.float),
   attached: attachedView,
+  actions: registry => listView(registry, 'actions', POINT.actions),
 }
 
 export function viewOf<K extends SlotName>(registry: Registry, slot: K): SlotView<K> {

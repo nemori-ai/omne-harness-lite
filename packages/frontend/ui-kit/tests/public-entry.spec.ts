@@ -213,7 +213,6 @@ const REST = [
   'objectPart',
   'objectView',
   'resolveTheme',
-  'sizeStepForKey',
   'stepSize',
   'useAgeClock',
   'useArrival',

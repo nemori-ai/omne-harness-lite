@@ -81,7 +81,6 @@
     "packages/frontend/ui-kit/src/index.ts | navigateWithin": 1,
     "packages/frontend/ui-kit/src/index.ts | objectPart": 1,
     "packages/frontend/ui-kit/src/index.ts | objectView": 1,
-    "packages/frontend/ui-kit/src/index.ts | ownsTyping": 1,
     "packages/frontend/ui-kit/src/index.ts | resolveTheme": 1,
     "packages/frontend/ui-kit/src/index.ts | useLoopPause": 1,
     "packages/frontend/ui-kit/src/index.ts | useMotionCue": 1,

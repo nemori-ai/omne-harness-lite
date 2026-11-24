@@ -37,6 +37,9 @@ export type SendAnswer = Answer<'send-input'>
 export type SendQueryAnswer = Answer<'query-send-input'>
 export type HistoryAnswer = Answer<'read-history'>
 export type CancelAnswer = Answer<'cancel-run'>
+/** Besides an ordinary input: one put before the others, or one held until this run ends. */
+export type SendHow = 'first' | 'after'
+export type Urgency = 'graceful' | 'force'
 export type ObservationEnd = ClientObservationEnd<
   SessionProtocol['observations']['observe-session']
 >
@@ -132,6 +135,7 @@ export type Event =
       text: string
       attachments?: readonly UserAttachment[]
       seen?: SenderSeen
+      how?: SendHow
       acceptId: string
       inputId: string
       messageId: string
@@ -140,7 +144,7 @@ export type Event =
   | Readonly<{ kind: 'send-answered'; session: string; acceptId: string; answer: SendAnswer }>
   | Readonly<{ kind: 'send-confirm'; acceptId: string }>
   | Readonly<{ kind: 'send-confirmed'; session: string; acceptId: string; answer: SendQueryAnswer }>
-  | Readonly<{ kind: 'cancel'; controlId: string }>
+  | Readonly<{ kind: 'cancel'; controlId: string; urgency?: Urgency }>
   | Readonly<{ kind: 'cancel-answered'; session: string; controlId: string; answer: CancelAnswer }>
   | Readonly<{ kind: 'frame'; session: string; generation: number; frame: ObserveSessionFrame }>
   | Readonly<{
@@ -169,9 +173,16 @@ export type Effect =
       text: string
       attachments: readonly UserAttachment[]
       seen?: SenderSeen
+      how?: SendHow
     }>
   | Readonly<{ kind: 'query-send-input'; session: string; acceptId: string }>
-  | Readonly<{ kind: 'cancel-run'; session: string; run: string; controlId: string }>
+  | Readonly<{
+      kind: 'cancel-run'
+      session: string
+      run: string
+      controlId: string
+      urgency: Urgency
+    }>
   | Readonly<{ kind: 'observe'; session: string; generation: number }>
   | Readonly<{ kind: 'stop-observing'; generation: number }>
   | Readonly<{ kind: 'reconnect-later'; session: string; generation: number; delayMs: number }>
@@ -195,7 +206,7 @@ function pending(words: Words, attachments: readonly UserAttachment[] = []): Pen
   return { ...words, attachments, status: 'sending', notice: null }
 }
 
-function sending(session: string, input: PendingInput, seen?: SenderSeen): Effect {
+function sending(session: string, input: PendingInput, seen?: SenderSeen, how?: SendHow): Effect {
   const { acceptId, inputId, text, attachments } = input
   return {
     kind: 'send-input',
@@ -205,6 +216,7 @@ function sending(session: string, input: PendingInput, seen?: SenderSeen): Effec
     text,
     attachments,
     ...(seen === undefined ? {} : { seen }),
+    ...(how === undefined ? {} : { how }),
   }
 }
 
@@ -252,7 +264,7 @@ const HANDLERS: Handlers = {
   'send-answered': (state, event) => afterSend(state, onSendAnswered(state, event)),
   'send-confirmed': (state, event) => onSendConfirmed(state, event),
   'send-confirm': (state, event) => onSendConfirm(state, event.acceptId),
-  cancel: (state, event) => onCancel(state, event.controlId),
+  cancel: (state, event) => onCancel(state, event.controlId, event.urgency ?? 'graceful'),
   'cancel-answered': (state, event) => onCancelAnswered(state, event),
   frame: (state, event) => afterFrame(state, event.frame, onFrame(state, event)),
   'observation-ended': (state, event) => onObservationEnded(state, event),
@@ -419,7 +431,7 @@ function onSend(state: State, event: Extract<Event, { kind: 'send' }>): Step {
   const input = pending({ text, acceptId, inputId, messageId }, attachments)
   return {
     state: { ...state, inputs: [...state.inputs, input] },
-    effects: [sending(state.session, input, event.seen)],
+    effects: [sending(state.session, input, event.seen, event.how)],
   }
 }
 
@@ -513,19 +525,22 @@ function onSendConfirm(state: State, acceptId: string): Step {
   return open === null ? same(state) : askSend(open, acceptId)
 }
 
-function onCancel(state: State, controlId: string): Step {
+function onCancel(state: State, controlId: string, urgency: Urgency): Step {
   if (state.kind !== 'open') return same(state)
   const run = state.run
   if (run.kind === 'idle') return same(state)
-  if (run.kind === 'cancelling' && !run.unknown) return same(state)
-  const control = run.kind === 'cancelling' ? run.controlId : controlId
+  const again = run.kind === 'cancelling' && !run.unknown
+  if (again && urgency === 'graceful') return same(state)
+  const control = run.kind === 'cancelling' && !again ? run.controlId : controlId
   return {
     state: {
       ...state,
       run: { kind: 'cancelling', run: run.run, controlId: control, unknown: false },
       notice: null,
     },
-    effects: [{ kind: 'cancel-run', session: state.session, run: run.run, controlId: control }],
+    effects: [
+      { kind: 'cancel-run', session: state.session, run: run.run, controlId: control, urgency },
+    ],
   }
 }
 

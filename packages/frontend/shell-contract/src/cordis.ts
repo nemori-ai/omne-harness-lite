@@ -53,7 +53,14 @@ import {
 } from './part.ts'
 import { drawingOn, type KeyRender } from './point.ts'
 import type { ServiceKey } from './service-key.ts'
-import { entryOf, sameView, shellContracts, viewOf, type SlotView } from './placement.ts'
+import {
+  actionsContract,
+  entryOf,
+  sameView,
+  shellContracts,
+  viewOf,
+  type SlotView,
+} from './placement.ts'
 import {
   ShellAssemblyError,
   slots,
@@ -107,6 +114,7 @@ function adoptOn(registry: Registry, references: Readonly<Record<string, Referen
 
 const CONTRACTS = [
   ...shellContracts,
+  actionsContract,
   partsContract,
   tokensContract,
   styleContract,

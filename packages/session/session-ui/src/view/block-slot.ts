@@ -12,3 +12,11 @@ export type ToolCallPart = Extract<Part, { kind: 'tool-call' }>
 export type ToolCallSlot = (part: ToolCallPart, generic: () => ReactNode) => ReactNode
 
 export const ToolCallSlotContext = createContext<ToolCallSlot | null>(null)
+
+/** What a person can do to a call the run waits on: send it to the background, or stop it. */
+export type CallControlSlot = Readonly<{
+  background: (call: string) => void
+  stop: (call: string) => void
+}>
+
+export const CallControlContext = createContext<CallControlSlot | null>(null)
