@@ -69,6 +69,31 @@ describe('what the canvas refuses is a failed result with its reason and what to
     })
   })
 
+  it('a read without a basis: basis-unavailable for look, away and kinds alike', async () => {
+    const d = domain()
+    d.authority.answer('unavailable')
+    for (const command of ['look', 'away', 'kinds'] as const)
+      expect(await caller(d.canvas).failure(command)).toEqual({
+        kind: 'unavailable',
+        operation: `Canvas.${command}`,
+        reason:
+          'basis-unavailable: the canvas cannot answer now; nothing was changed. Try again later.',
+      })
+  })
+
+  it('a read that does not fit: invalid, where in the params when the canvas names it', async () => {
+    expect(await caller(domain().canvas).failure('away', { limit: 5000 })).toEqual({
+      kind: 'invalid',
+      reason:
+        'invalid request at limit: a value of the command does not fit; help with the name of the command gives its fields',
+    })
+    const notOne = { look: async () => ({ kind: 'invalid', where: 'canvas' }) }
+    expect(await caller(notOne as unknown as CanvasOperations).failure('look')).toEqual({
+      kind: 'invalid',
+      reason: 'invalid canvas: the canvas is not one: this tool works on the canvas of the tenant',
+    })
+  })
+
   it('a kind declared twice: basis-unavailable that names the two who declared it', async () => {
     const d = domain()
     d.kinds.declare(kind('notes.note'), 'notes-row')
