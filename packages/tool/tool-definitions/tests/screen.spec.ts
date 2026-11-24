@@ -207,14 +207,33 @@ describe('Screen capture hands one frame to the store of products', () => {
   it.each([
     ['a negative corner', { x: -1, y: 0, width: 4, height: 4 }],
     ['an empty width', { x: 0, y: 0, width: 0, height: 4 }],
+    ['an empty height', { x: 0, y: 0, width: 4, height: 0 }],
     ['a missing side', { x: 0, y: 0, width: 4 }],
     ['a key of its own', { x: 0, y: 0, width: 4, height: 4, depth: 1 }],
     ['a fraction', { x: 0.5, y: 0, width: 4, height: 4 }],
     ['not an object', '0,0,4,4'],
   ])('a region with %s is refused before the facility is asked', async (_case, region) => {
     const { capture, asked } = world()
-    await expect(capture({ region })).rejects.toThrow()
+    await expect(capture({ region })).rejects.toThrow(/region/u)
     expect(asked).toEqual([])
+  })
+
+  it('the help of capture gives the region as an object of four whole numbers, the corner from 0 and the sides from 1', async () => {
+    const { author } = world()
+    const help = await run(author, 'help', { name: 'capture' }, {} as never)
+    const side = (minimum: number) =>
+      `{"type":"integer","minimum":${String(minimum)},"maximum":${String(Number.MAX_SAFE_INTEGER)}}`
+    expect(help).toContain(
+      `"region":{"type":"object","additionalProperties":false,"required":["x","y","width","height"],"properties":{"x":${side(0)},"y":${side(0)},"width":${side(1)},"height":${side(1)}}}`,
+    )
+  })
+
+  it('a screen it does not know is still not found when a region is given, not a region outside it', async () => {
+    const { capture, script } = world()
+    script.capture = async id => ({ kind: 'rejected', requestId: id, reason: 'notFound' })
+    expect(
+      textOf(await capture({ screen: 'gone', region: { x: 0, y: 0, width: 4, height: 4 } })),
+    ).toMatch(/^rejected reason=notFound screen="gone"/u)
   })
 
   it('a region the screen does not hold: says so and how to find the pixels of a screen', async () => {
