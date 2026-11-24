@@ -1,11 +1,14 @@
+assets.asset | 一份资产的页 | 点进一份之后的整页 | assets.category | tokens style | 点进一份之后 | assets-ui
+assets.asset.actions | 资产的动作 | 禁用、启用、移除 | assets.asset.toolbar | tokens style | 点进一份本租户的资产之后 | assets-ui
+assets.asset.detail | 资产的详情 | 版本、来源、原始定义 | assets.asset | tokens style | 点进一份之后 | assets-ui
+assets.asset.settings | 资产的设置 | 这一份能改的设置 | assets.asset | tokens style | 点进一份之后 | assets-ui
+assets.asset.toolbar | 资产页头 | 回到列表、它在哪一类、它的动作 | assets.asset | tokens style | 点进一份之后 | assets-ui
 assets.category | 类别页 | 一类资产的通用页面 | assets.panel | tokens style | 这一类没有自己的页面时 | assets-ui
 assets.category.create | 新建按钮 | 展开或收起新建的表单 | assets.category.head | tokens style | 这一类可以新建时 | assets-ui
 assets.category.head | 类别页头 | 这一类的名字与新建 | assets.category | tokens style | 这一类没有自己的页面时 | assets-ui
 assets.create | 新建表单 | 填名字与内容，建一份 | assets.category | tokens style | 点开新建之后 | assets-ui
 assets.create.submit | 提交新建 | 把填好的这一份建出来 | assets.create | tokens style | 点开新建之后 | assets-ui
 assets.item | 一份资产 | 列表里的一行 | assets.list | tokens style | 这一类有资产时 | assets-ui
-assets.item.actions | 资产的动作 | 禁用、启用、移除 | assets.item.detail | tokens style | 点开一份之后 | assets-ui
-assets.item.detail | 资产详情 | 点开一份之后的内容 | assets.item | tokens style | 点开一份之后 | assets-ui
 assets.list | 资产列表 | 这一类下的每一份 | assets.category | tokens style | 这一类有资产时 | assets-ui
 assets.page | 资产页 | 看这个租户有哪些能力 | shell.workspace.page | tokens style | 一直在 | assets-ui
 assets.panel | 类别内容 | 选中那一类的内容 | assets.page | tokens style | 有类别时 | assets-ui

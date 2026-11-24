@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { modelChoicesKey, modelUiModule } from '@omne-harness/model-ui/cordis'
+import { createModelUiModule, modelChoicesKey } from '@omne-harness/model-ui/cordis'
 import { modelProtocol } from '@omne-harness/model-protocol'
 import { providedOn, serveProtocol } from '@omne-harness/shell-contract/testing'
 import { startShell } from './fixtures/shell.ts'
@@ -12,14 +12,19 @@ const client = {
 
 it('the cordis entry gives the module and the key of its service', async () => {
   const cordis = (await import('@omne-harness/model-ui/cordis')) as Record<string, unknown>
-  expect(Object.keys(cordis).sort()).toEqual(['modelChoicesKey', 'modelUiModule'])
+  expect(Object.keys(cordis).sort()).toEqual([
+    'CREDENTIAL_REMEDY_ID',
+    'PROVIDER_CATEGORY',
+    'createModelUiModule',
+    'modelChoicesKey',
+  ])
   expect(modelChoicesKey).toBe('model.choices')
 })
 
-it('while model/v1 is on the tree: provides the list of choices, and places nothing in the shell', async () => {
+it('while model/v1 is on the tree: provides the list of choices; without points handed in it places nothing', async () => {
   const { root, shell } = await startShell()
   const served = await serveProtocol(root, modelProtocol, client)
-  await root.plugin(modelUiModule)
+  await root.plugin(createModelUiModule())
   expect(shell.adoption('model-ui')).toMatchObject({
     kind: 'adopted',
     bindings: { model: { key: 'model/v1' } },
@@ -38,6 +43,6 @@ it('while model/v1 is on the tree: provides the list of choices, and places noth
 
 it('without model/v1 it provides nothing', async () => {
   const { root, shell } = await startShell()
-  await root.plugin(modelUiModule)
+  await root.plugin(createModelUiModule())
   expect(providedOn(shell, modelChoicesKey)).toBeUndefined()
 })

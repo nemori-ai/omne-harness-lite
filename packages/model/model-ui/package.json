@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "UI module of Model: gives the client tree the list of models a tenant can choose from",
+  "description": "UI module of Model: gives the client tree the list of models a tenant can choose from, and says how to set a failed model call right",
   "engines": {
     "node": ">=24"
   },
@@ -34,12 +34,20 @@
     "@omne-harness/model-protocol": "workspace:*",
     "@omne-harness/public-contract": "workspace:*",
     "@omne-harness/sdk": "workspace:*",
-    "@omne-harness/shell-contract": "workspace:*"
+    "@omne-harness/shell-contract": "workspace:*",
+    "@omne-harness/ui-kit": "workspace:*",
+    "react": "catalog:",
+    "react-dom": "catalog:"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/model-contract": "workspace:*",
+    "@testing-library/dom": "catalog:",
+    "@testing-library/react": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "happy-dom": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },

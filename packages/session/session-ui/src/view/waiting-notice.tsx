@@ -1,7 +1,8 @@
 import { InlineNotice, RetryIcon } from '@omne-harness/ui-kit'
+import type { ReactNode } from 'react'
 import type { Item } from '../model/conversation.ts'
 import type { SessionDriver } from '../model/session-driver.ts'
-import { causeSentence, type Retry, type Waiting } from '../model/waiting.ts'
+import { causeSentence, type Cause, type Retry, type Waiting } from '../model/waiting.ts'
 import { sessionTranscriptFailure } from '../parts.ts'
 
 export const NOTHING_PENDING = '没有没处理的消息，发一条新消息让它接着做。'
@@ -16,9 +17,12 @@ export function waitingAnchor(items: readonly Item[], waiting: Waiting | null): 
 export function WaitingNotice({
   waiting,
   driver,
+  failure,
 }: {
   readonly waiting: Waiting | null
   readonly driver: SessionDriver
+  /** What the domain that knows this reason puts under it: how to set it right. */
+  readonly failure?: (cause: Cause) => ReactNode
 }) {
   const fact = waiting?.fact
   if (waiting === null || fact?.kind !== 'waiting') return null
@@ -51,6 +55,9 @@ export function WaitingNotice({
           <Left pending={fact.pending} retry={retry} />
         ) : (
           <p className="omne-waiting-body">{NOTHING_PENDING}</p>
+        )}
+        {fact.cause === null || failure === undefined ? null : (
+          <div className="omne-waiting-remedy">{failure(fact.cause)}</div>
         )}
       </InlineNotice>
     </section>

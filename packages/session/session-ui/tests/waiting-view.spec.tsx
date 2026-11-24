@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
 import { createFakeClient, type FakeClient } from './fixtures/fake-client.ts'
 import { listed, listPage, page, plainEntry, userEntry } from './fixtures/frames.ts'
+import { sessionRunFailure } from '../src/cordis.ts'
 import { mountModule } from './fixtures/shell.tsx'
 
 const TENANT =
@@ -200,4 +201,69 @@ it('没有诊断时没有「详情」；重试连不上时写明原因，中性�
   expect(said?.textContent).toBe('连不上服务，重试没有发出去。')
   expect(said?.closest('[data-tone]')?.getAttribute('data-tone')).toBe('danger')
   expect(within(block).getByRole('button', { name: '重试' })).toBeTruthy()
+})
+
+it('失败通知里有 session.run-failure 的位置：放进来的项收到会话、原因与细节，画在通知里；没有原因时不出现', async () => {
+  const fake = createFakeClient()
+  const { shell } = await mountModule(fake.client, TENANT)
+  sessionRunFailure.contribute(shell, {
+    id: 'remedy',
+    order: 0,
+    render: ({ subject }) => <p data-remedy="">{JSON.stringify(subject)}</p>,
+  })
+  ;(await fake.next('list-sessions')).answer(listPage([listed(SESSION, '会话')]))
+  await settle()
+  fireEvent.click(screen.getByRole('button', { name: '会话' }))
+  await settle()
+  ;(await fake.next('read-history')).answer({
+    outcome: 'succeeded',
+    body: page(
+      [
+        userEntry('1', '1', '帮我查一下', 'msg_a'),
+        plainEntry('2', '2', 'run.terminal', { terminal: { run: 'run_1', outcome: 'failed' } }),
+      ],
+      '2',
+    ),
+  })
+  await settle()
+  const detail = 'model-failed/credential/credential-not-provided'
+  ;(await fake.next('read-waiting')).answer(waiting(0, { kind: 'no-reply', detail }))
+  await settle()
+  const block = screen.getByRole('status', { name: '这一轮失败了' })
+  const remedy = block.querySelector('[data-remedy]')
+  expect(JSON.parse(remedy?.textContent ?? 'null')).toEqual({
+    session: SESSION,
+    cause: 'no-reply',
+    detail,
+  })
+})
+
+it('没有原因的失败通知里，session.run-failure 的项不画', async () => {
+  const fake = createFakeClient()
+  const { shell } = await mountModule(fake.client, TENANT)
+  sessionRunFailure.contribute(shell, {
+    id: 'remedy',
+    order: 0,
+    render: () => <p data-remedy="">补救</p>,
+  })
+  ;(await fake.next('list-sessions')).answer(listPage([listed(SESSION, '会话')]))
+  await settle()
+  fireEvent.click(screen.getByRole('button', { name: '会话' }))
+  await settle()
+  ;(await fake.next('read-history')).answer({
+    outcome: 'succeeded',
+    body: page(
+      [
+        userEntry('1', '1', '帮我查一下', 'msg_a'),
+        plainEntry('2', '2', 'run.terminal', { terminal: { run: 'run_1', outcome: 'failed' } }),
+      ],
+      '2',
+    ),
+  })
+  await settle()
+  ;(await fake.next('read-waiting')).answer(waiting(0, null))
+  await settle()
+  expect(
+    screen.getByRole('status', { name: '这一轮失败了' }).querySelector('[data-remedy]'),
+  ).toBeNull()
 })

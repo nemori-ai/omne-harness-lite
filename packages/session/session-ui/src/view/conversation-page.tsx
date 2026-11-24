@@ -31,7 +31,8 @@ import type { SessionDriver } from '../model/session-driver.ts'
 import { sessionName, shownBy, type SessionList } from '../model/session-list.ts'
 import type { Open, PendingInput, State } from '../model/session-machine.ts'
 import type { SessionWorkspaces } from '../model/session-workspaces.ts'
-import type { Waiting } from '../model/waiting.ts'
+import type { Cause, Waiting } from '../model/waiting.ts'
+import type { SessionRunFailureSubject } from '../points.ts'
 import { BlockSlotContext, ToolCallSlotContext, type ToolCallPart } from './block-slot.ts'
 import { ComposerActionSlot } from './composer-action-slot.tsx'
 import { HeadingFoldContext, useHeadingFold, type HeadingFold } from './heading-fold.tsx'
@@ -66,6 +67,8 @@ export type ConversationPageProps = Readonly<{
   dock: (session: string) => ReactNode
   side: (session: string) => ReactNode
   status?: (session: string) => ReactNode
+  /** What the domain that knows how to set a failed run right puts under its reason. */
+  failure?: (subject: SessionRunFailureSubject) => ReactNode
   drafts: ComposerDraftStore
   attachments?: (session: string, draft: string) => ReactNode
   /** What draws a block of a message that is not words, by its kind; `fallback` when nothing does. */
@@ -86,6 +89,7 @@ export function ConversationPage({
   dock,
   side,
   status = () => null,
+  failure = () => null,
   drafts,
   attachments = () => null,
   block = (_session, _kind, _source, fallback) => fallback,
@@ -116,6 +120,7 @@ export function ConversationPage({
           dock={dock}
           side={side}
           status={status}
+          failure={failure}
           drafts={drafts}
           attachments={attachments}
           block={block}
@@ -133,6 +138,7 @@ type Parts = Readonly<{
   scope: string | undefined
   dock: (session: string) => ReactNode
   status: (session: string) => ReactNode
+  failure: (subject: SessionRunFailureSubject) => ReactNode
   drafts: ComposerDraftStore
   attachments: (session: string, draft: string) => ReactNode
   block: (
@@ -394,6 +400,7 @@ function OpenSession({
   scope,
   dock,
   status,
+  failure,
   drafts,
   attachments,
   block,
@@ -426,6 +433,9 @@ function OpenSession({
           waiting={state.waiting}
           driver={driver}
           dock={dock(state.session)}
+          failure={cause =>
+            failure({ session: state.session, cause: cause.kind, detail: cause.detail })
+          }
         />
         {work(state.session, state.revision)}
         <Composer
@@ -486,6 +496,7 @@ function Conversation({
   waiting,
   driver,
   dock,
+  failure,
 }: {
   readonly epoch: string
   readonly content: Open['content']
@@ -494,6 +505,7 @@ function Conversation({
   readonly waiting: Waiting | null
   readonly driver: SessionDriver
   readonly dock?: ReactNode
+  readonly failure?: (cause: Cause) => ReactNode
 }) {
   const weights = useMemo(() => markerWeights(content.entries), [content.entries])
   const committed = useMemo(
@@ -523,7 +535,13 @@ function Conversation({
   const anchor = waitingAnchor(committed, waiting)
   const rows = useMemo(() => committed.map(item => item.key), [committed])
   const found = useShownEntry(epoch, scroller, rows, content.readThrough !== null)
-  const notice = <WaitingNotice waiting={waiting} driver={driver} />
+  const notice = (
+    <WaitingNotice
+      waiting={waiting}
+      driver={driver}
+      {...(failure === undefined ? {} : { failure })}
+    />
+  )
   return (
     <div
       className="omne-conversation"

@@ -24,11 +24,19 @@ export type CreateRequest =
 
 export type Creating =
   | Readonly<{ kind: 'none' }>
-  | Readonly<{ kind: 'sending'; operation: string; request: CreateRequest; received: number }>
+  | Readonly<{
+      kind: 'sending'
+      operation: string
+      request: CreateRequest
+      received: number
+      /** Whether the name was listed when it was sent: the receipt says what the person saw then. */
+      existed: boolean
+    }>
   | Readonly<{
       kind: 'unknown'
       operation: string
       request: CreateRequest
+      existed: boolean
       confirming: boolean
       notice: Notice
     }>
@@ -84,18 +92,17 @@ function invalidText(body: unknown): string {
 
 /** One answer of a creation or of its recall, as the slot records it. */
 function settle(
-  request: CreateRequest,
-  operation: string,
+  sent: Readonly<{ request: CreateRequest; operation: string; existed: boolean }>,
   answer: Settled,
-  listed: boolean,
 ): CreationStep {
+  const { request, operation, existed } = sent
   const { name } = request
   switch (answer.outcome) {
     case 'succeeded': {
       const changed = (answer.body as { changed?: boolean } | undefined)?.changed !== false
       const text = !changed
         ? `${name} 的内容和现在的这一版相同，没有变化。`
-        : listed
+        : existed
           ? `已成为 ${name} 的新版本。`
           : `已新建 ${name}。`
       return { creating: { kind: 'done', text }, effects: [], reread: true }
@@ -104,7 +111,14 @@ function settle(
       return same({ kind: 'refused', notice: { kind: 'refused', text: invalidText(answer.body) } })
     case 'unknown':
     case 'uncertain':
-      return same({ kind: 'unknown', operation, request, confirming: false, notice: UNKNOWN })
+      return same({
+        kind: 'unknown',
+        operation,
+        request,
+        existed,
+        confirming: false,
+        notice: UNKNOWN,
+      })
     case 'conflict':
       return {
         creating: { kind: 'refused', notice: noticeOf('conflict') },
@@ -125,11 +139,11 @@ const NOT_COMMITTED: Notice = { kind: 'unavailable', text: '上一次没有生�
 const RECALL_AGAIN = new Set(['unavailable', 'uncertain', 'basis-unavailable'])
 
 /** The recall answers what happened to the first submission; it says nothing new while it cannot tell. */
-function recalled(creating: Recalling, answer: CreateRecallAnswer, listed: boolean): CreationStep {
+function recalled(creating: Recalling, answer: CreateRecallAnswer): CreationStep {
   if (answer.outcome === 'not-committed') return same({ kind: 'refused', notice: NOT_COMMITTED })
   if (RECALL_AGAIN.has(answer.outcome))
     return same({ ...creating, confirming: false, notice: noticeOf(answer.outcome) })
-  return settle(creating.request, creating.operation, answer, listed)
+  return settle(creating, answer)
 }
 
 /** The creation slot of one category: one creation at a time, an unknown one recalled, not resent. */
@@ -143,7 +157,13 @@ export function stepCreation(
       if (busy(creating)) return same(creating)
       const { operation, request } = event
       return {
-        creating: { kind: 'sending', operation, request, received: 0 },
+        creating: {
+          kind: 'sending',
+          operation,
+          request,
+          received: 0,
+          existed: listed(request.name),
+        },
         effects: [{ kind: 'create', operation, request }],
         reread: false,
       }
@@ -155,12 +175,7 @@ export function stepCreation(
     case 'create-answered':
       if (creating.kind !== 'sending' || creating.operation !== event.operation)
         return same(creating)
-      return settle(
-        creating.request,
-        creating.operation,
-        event.answer,
-        listed(creating.request.name),
-      )
+      return settle(creating, event.answer)
     case 'confirm-create':
       if (creating.kind !== 'unknown' || creating.confirming) return same(creating)
       return {
@@ -173,6 +188,6 @@ export function stepCreation(
     case 'confirm-create-answered':
       if (creating.kind !== 'unknown' || !creating.confirming) return same(creating)
       if (creating.operation !== event.operation) return same(creating)
-      return recalled(creating, event.answer, listed(creating.request.name))
+      return recalled(creating, event.answer)
   }
 }

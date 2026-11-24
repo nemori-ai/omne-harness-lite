@@ -12,6 +12,7 @@ import {
   assetsUiModule,
 } from '../src/cordis.tsx'
 import { assetsOf, serveAssetReads } from './fixtures/asset-reads.ts'
+import { assetPage, backToList, enterAsset } from './fixtures/asset-pages.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
 import { startShell } from './fixtures/reference-shell.ts'
@@ -59,11 +60,8 @@ async function shown(items: readonly SettingView[], contribute: (ctx: Context) =
   return shell
 }
 
-/** Opens the detail of every asset listed in the shown tab: the holding slot is in the detail. */
 async function openListed(): Promise<void> {
   await settle()
-  await settle()
-  for (const button of screen.queryAllByRole('button', { expanded: false })) fireEvent.click(button)
   await settle()
 }
 
@@ -81,7 +79,7 @@ it('两个拓展点的名字：assets.category 与 assets.holding', () => {
   expect(assetsHolding.name).toBe(ASSETS_HOLDING)
 })
 
-it('往一个类别的 assets.holding 下放的项，出现在这一类每一份资产的详情里，收到类别、名字与租户', async () => {
+it('往一个类别的 assets.holding 下放的项，出现在这一类每一份资产自己的页上，收到类别、名字与租户', async () => {
   await shown([permissionView(), ordinaryView(), secretView()], ctx =>
     assetsHolding.contribute(ctx.shell, 'tool', {
       id: 'status',
@@ -92,11 +90,14 @@ it('往一个类别的 assets.holding 下放的项，出现在这一类每一份
     }),
   )
   await showTab('工具')
-  expect(within(block('shell')).getByText(`tool/shell|${TENANT}`)).toBeTruthy()
-  expect(within(block('files')).getByText(`tool/files|${TENANT}`)).toBeTruthy()
-  expect(document.querySelectorAll('[data-holding]')).toHaveLength(2)
+  expect(document.querySelectorAll('[data-holding]')).toHaveLength(0)
+  expect((await enterAsset('shell')).getByText(`tool/shell|${TENANT}`)).toBeTruthy()
+  await backToList()
+  expect((await enterAsset('files')).getByText(`tool/files|${TENANT}`)).toBeTruthy()
+  expect(document.querySelectorAll('[data-holding]')).toHaveLength(1)
   await showTab('模型')
-  expect(block('openai').querySelector('[data-holding]')).toBeNull()
+  await enterAsset('openai')
+  expect(assetPage().querySelector('[data-holding]')).toBeNull()
 })
 
 it('往一个类别的 assets.category 下放的项，只在选中这一类时出现在这一类的上方，收到类别', async () => {
@@ -194,5 +195,6 @@ it('没有贡献时，块里与类别上方没有多出来的元素', async () =
   await shown([permissionView()], () => undefined)
   await showTab('工具')
   expect(document.querySelector('.assets-category-slot')?.childElementCount).toBe(0)
-  expect(block('shell').querySelector('.assets-holding-slot')?.childElementCount).toBe(0)
+  await enterAsset('shell')
+  expect(assetPage().querySelector('.assets-holding-slot')?.childElementCount).toBe(0)
 })

@@ -209,7 +209,7 @@ it('A4 点一个页签：选中它；原来选中的贡献页面藏起来，不�
   await settle()
   await settle()
   expect(selected()).toEqual(['工具'])
-  expect(screen.getByRole('heading', { level: 3, name: 'shell' })).toBeTruthy()
+  expect(screen.getByRole('listitem', { name: 'shell' })).toBeTruthy()
   const mcpPanel = screen.getByText('mcp 自己的页面').closest('[role=tabpanel]')!
   expect(mcpPanel.hasAttribute('hidden')).toBe(true)
   expect(mounted).toEqual(['+mcp'])
@@ -413,6 +413,40 @@ it('K6 点过的类别在一次重读失败时不在栏里，重试读到之后�
       ['tool', '工具'],
     ]),
   )
+  await settle()
+  expect(selected()).toEqual(['工具'])
+})
+
+it('A12 外壳指到一类时选中它（不进任何一份的页）；指到另一类时跟着换；人点过之后不再指时，留在人点的那一类', async () => {
+  const fake = createFakeClient()
+  serveSettings(fake)
+  serveAssetReads(fake, [assetRow('tool', 'shell')])
+  const governance = createGovernance({ client: fake.client })
+  const names = createCategoryNames(fake.client)
+  const element = (pointAt?: string) => (
+    <AssetsPage
+      governance={governance}
+      tenant={TENANT}
+      categoryNames={names}
+      {...(pointAt === undefined ? {} : { pointAt })}
+    />
+  )
+  const view = render(element('tool'))
+  ;(await fake.next('list-categories')).answer({
+    outcome: 'succeeded',
+    body: {
+      items: [categoryItem(['model-provider', '模型供应商']), categoryItem(['tool', '工具'])],
+      next: null,
+    },
+  })
+  await settle()
+  expect(selected()).toEqual(['工具'])
+  expect(document.querySelector('.assets-asset')).toBeNull()
+  view.rerender(element('model-provider'))
+  await settle()
+  expect(selected()).toEqual(['模型供应商'])
+  fireEvent.click(tabs().getByRole('tab', { name: '工具' }))
+  view.rerender(element())
   await settle()
   expect(selected()).toEqual(['工具'])
 })

@@ -141,3 +141,22 @@ export const sessionToolCall: RenderPoint<SessionToolCallSubject> = defineRender
     'one call of the tool: session; call, its reference, or null before it has one; name; arguments; state, which is working, completed or no-result; result, its text, or null',
   example: TOOL_CALL_EXAMPLE,
 })
+
+export type SessionRunFailureSubject = Readonly<{
+  session: string
+  cause: string
+  detail: string | null
+}>
+
+export const SESSION_RUN_FAILURE = 'session.run-failure'
+
+export const sessionRunFailure: Point<SessionRunFailureSubject> = definePoint({
+  name: SESSION_RUN_FAILURE,
+  summary:
+    'What is shown under the reason of a failed run of a session, by the domain that knows how to set it right.',
+  subject: jsonSubject(
+    value =>
+      texts(value, ['session', 'cause']) &&
+      (value['detail'] === null || typeof value['detail'] === 'string'),
+  ),
+})
