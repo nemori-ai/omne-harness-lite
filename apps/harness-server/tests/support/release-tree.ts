@@ -343,6 +343,28 @@ export function unsettledExecutions(storageRoot: string, session?: string): numb
 
 type LedgerRow = Readonly<{ kind: string; name: string; record: Record<string, unknown> }>
 
+/** The heads of the model requests whose calls are still open, in the order of the calls. */
+export function storedModelRequests(
+  storageRoot: string,
+): readonly Readonly<Record<string, unknown>>[] {
+  const requests: Readonly<Record<string, unknown>>[] = []
+  for (const file of sqliteFiles(storageRoot)) {
+    const db = new DatabaseSync(file, { readOnly: true })
+    try {
+      const table = "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'md_call'"
+      if (db.prepare(table).get() === undefined) continue
+      for (const row of db.prepare('SELECT request FROM md_call ORDER BY rowid').all()) {
+        const raw = row['request']
+        if (raw === null) continue
+        requests.push(JSON.parse(typeof raw === 'string' ? raw : unpackText(raw as Uint8Array)))
+      }
+    } finally {
+      db.close()
+    }
+  }
+  return requests
+}
+
 export function executionFailures(storageRoot: string): readonly unknown[] {
   const failures: unknown[] = []
   for (const file of sqliteFiles(storageRoot)) {

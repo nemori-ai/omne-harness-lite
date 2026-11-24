@@ -134,11 +134,18 @@ function stopParameter(item: unknown, at: string): Checked<Parameter> {
 function reasoningParameter(record: Record<string, unknown>, field: string): Checked<Parameter> {
   const item = record.value
   const at = `${field}/value`
+  const preference = Object.hasOwn(record, 'basis')
+  if (preference && (record.basis !== 'preference' || record.scale !== 'unified'))
+    return rejected(`${field}/basis`, 'value')
   if (Object.hasOwn(record, 'scale')) {
     if (record.scale !== 'unified') return rejected(`${field}/scale`, 'value')
-    return isReasoningEffort(item)
-      ? succeed({ kind: 'reasoning-effort', scale: 'unified', value: item })
-      : rejected(at, 'value')
+    if (!isReasoningEffort(item)) return rejected(at, 'value')
+    return succeed({
+      kind: 'reasoning-effort',
+      scale: 'unified',
+      value: item,
+      ...(preference ? { basis: 'preference' as const } : {}),
+    })
   }
   return isReasoningEffort(item) || item === 'none' || item === 'max'
     ? succeed({ kind: 'reasoning-effort', value: item })
@@ -181,7 +188,7 @@ export function parameter(value: unknown, field: string): Checked<Parameter> {
     value,
     value.kind === 'extension' ? ['kind', 'definition', 'value'] : ['kind', 'value'],
     field,
-    value.kind === 'reasoning-effort' ? ['scale'] : [],
+    value.kind === 'reasoning-effort' ? ['scale', 'basis'] : [],
   )
   return 'failure' in record ? record : parameterValue(record.ok, field)
 }

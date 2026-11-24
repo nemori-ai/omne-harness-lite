@@ -19,17 +19,28 @@ type View = Readonly<{
 }>
 
 type Query = Readonly<{ tenant: string; category: string }>
+type Settings = Readonly<{ reads: () => number; write: () => void }>
 
 // The settings answer only the query the adapter must make: this tenant, the provider category.
-function ctxWith(items: (() => Promise<readonly View[] | 'unknown'>) | undefined): Context {
+function ctxWith(
+  items: (() => Promise<readonly View[] | 'unknown'>) | undefined,
+): Context & { settings: Settings } {
+  let reads = 0
+  let writes = 0
   const service =
     items === undefined
       ? undefined
       : {
-          items: async (query: Query) =>
-            query.tenant === 'tenant' && query.category === 'model-provider' ? items() : [],
+          items: async (query: Query) => {
+            reads += 1
+            return query.tenant === 'tenant' && query.category === 'model-provider' ? items() : []
+          },
+          writes: (tenant: string) => (tenant === 'tenant' ? writes : -1),
         }
-  return { get: (key: string) => (key === tenantAssetSettingsKey ? service : undefined) } as never
+  return {
+    get: (key: string) => (key === tenantAssetSettingsKey ? service : undefined),
+    settings: { reads: () => reads, write: () => (writes += 1) },
+  } as never
 }
 
 const view = (item: string, value?: unknown, name = 'openrouter'): View => ({
@@ -74,6 +85,34 @@ describe('the preferences a tenant holds on a release provider (C4, C6)', () => 
     expect(
       await read(ctxWith(async () => [{ ...view('model-switches'), kind: 'secret' }])),
     ).toEqual({ failure: { kind: 'unavailable' } })
+  })
+
+  it('reads the tenant’s settings again only after a write of them', async () => {
+    let switches: Record<string, boolean> = { 'openai/gpt-6.1-sol': false }
+    const ctx = ctxWith(async () => [view('model-switches', switches)])
+    const preferences = createProviderPreferences(ctx)
+    const enabled = async () => {
+      const answer = await preferences.read({ provider: openrouter, access })
+      if (!('ok' in answer)) throw new Error(JSON.stringify(answer))
+      return answer.ok.enabled.has('openai/gpt-6.1-sol')
+    }
+    expect([await enabled(), await enabled(), ctx.settings.reads()]).toEqual([false, false, 1])
+    switches = { 'openai/gpt-6.1-sol': true }
+    expect(await enabled()).toBe(false)
+    ctx.settings.write()
+    expect([await enabled(), ctx.settings.reads()]).toEqual([true, 2])
+  })
+
+  it('does not keep a read that came back unknown', async () => {
+    let answer: 'unknown' | readonly View[] = 'unknown'
+    const ctx = ctxWith(async () => answer)
+    const preferences = createProviderPreferences(ctx)
+    expect(await preferences.read({ provider: openrouter, access })).toEqual({
+      failure: { kind: 'unavailable' },
+    })
+    answer = [view('model-switches')]
+    expect(await preferences.read({ provider: openrouter, access })).toHaveProperty('ok')
+    expect(ctx.settings.reads()).toBe(2)
   })
 
   it('is unavailable for a provider the release does not bring', async () => {

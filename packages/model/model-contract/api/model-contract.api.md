@@ -2979,10 +2979,12 @@ export type Parameter = Readonly<{
     kind: 'reasoning-effort';
     value: ReasoningEffort | 'none' | 'max';
     scale?: never;
+    basis?: never;
 }> | Readonly<{
     kind: 'reasoning-effort';
     value: ReasoningEffort;
     scale: 'unified';
+    basis?: 'preference';
 }> | Readonly<{
     kind: 'seed';
     value: string;

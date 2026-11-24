@@ -2,7 +2,9 @@ import type { Failure, ModelSelection } from '@omne-harness/agent-contract'
 import {
   supportedReasoningEfforts,
   type ModalityRequirement,
+  type Parameter,
   type ProfileResolution,
+  type ReasoningEffort,
 } from '@omne-harness/model-contract'
 import type { ModelProfilesService } from '@omne-harness/model-cordis-contract/cordis'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -69,6 +71,16 @@ function fromProfiles(failure: ProfilesFailure): Failure {
 }
 
 // A model the tenant turned off does not come back on its own: the Run ends rather than waits.
+// The session's choice first, then the tenant's default for the model; with neither the profile's own stays.
+function effortOf(
+  chosen: ReasoningEffort | undefined,
+  preferred: ReasoningEffort | undefined,
+): Parameter | undefined {
+  if (chosen !== undefined) return { kind: 'reasoning-effort', value: chosen, scale: 'unified' }
+  if (preferred === undefined) return undefined
+  return { kind: 'reasoning-effort', value: preferred, scale: 'unified', basis: 'preference' }
+}
+
 function absentFailure(
   route: string,
   reason: Extract<ProfileResolution, { kind: 'absent' }>['reason'],
@@ -131,15 +143,16 @@ export async function selectModel(
   )
     return fail({ kind: 'invalid', field: 'reasoningEffort', reason: 'unsupported-effort' })
 
+  const effort = effortOf(reasoningEffort, resolution.defaultReasoningEffort)
   return succeed({
     recipient: { route, profile: resolution.profile.adoption },
     resolution: { ...resolution, selectable: true },
     parameters:
-      reasoningEffort === undefined
+      effort === undefined
         ? definition.parameters
         : [
             ...definition.parameters.filter(parameter => parameter.kind !== 'reasoning-effort'),
-            { kind: 'reasoning-effort', value: reasoningEffort, scale: 'unified' },
+            effort,
           ],
     tools: input.scope,
     evidence: saved.ok.source,
