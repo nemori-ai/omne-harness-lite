@@ -119,7 +119,7 @@
       },
       "apps/harness-server/src/rows/tool-runtime/environment.ts": {
         "count": 1,
-        "longest": 163
+        "longest": 155
       },
       "apps/harness-server/src/run.ts": {
         "count": 1,

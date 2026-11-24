@@ -17,6 +17,7 @@ import { createLocalToolCatalog, type LocalToolCatalogInput } from './catalog.ts
 import { createLocalToolBindings, type LocalToolBindingsInput } from './executor-binding.ts'
 import { captureToolCaller, checkEmptyToolConfig } from './cordis-host.ts'
 import { createLocalEntrySources, type LocalEntrySourcesInput } from './entry-sources.ts'
+import { createLocalArgumentsCheck, type LocalProgramCallsInput } from './program-calls.ts'
 import { createLocalReleaseDetails, type ReleaseDetailAttach } from './release-details.ts'
 
 const RELEASE_DETAIL_SCHEMA_BUDGET: SchemaBudget = Object.freeze({
@@ -42,8 +43,12 @@ export type LocalToolBindingsPluginInput<P, E, B extends ContentBlock> = Omit<
     }>
   }>
 
+/** The bindings service of this host: it also reads the arguments of a program call before it is placed. */
+export type LocalToolBindingsService<P, E, B extends ContentBlock> = ToolBindingsService<P, B, E> &
+  Readonly<{ programArguments: LocalProgramCallsInput<P>['checkArguments'] }>
+
 export type LocalToolBindingsPlugin<P, E, B extends ContentBlock> = {
-  new (ctx: Context, config?: Readonly<Record<string, never>>): ToolBindingsService<P, B, E>
+  new (ctx: Context, config?: Readonly<Record<string, never>>): LocalToolBindingsService<P, E, B>
   readonly inject: ['toolContributionAuthority']
   readonly provide: 'toolBindings'
 }
@@ -64,6 +69,7 @@ export function createLocalToolBindingsPlugin<P, E, B extends ContentBlock>(
     readonly inspect: ToolBindingsService<P, B, E>['inspect']
     readonly resolve: ToolBindingsService<P, B, E>['resolve']
     readonly recover: ToolBindingsService<P, B, E>['recover']
+    readonly programArguments: LocalProgramCallsInput<P>['checkArguments']
 
     constructor(ctx: Context, config?: Readonly<Record<string, never>>) {
       checkEmptyToolConfig(config)
@@ -100,6 +106,9 @@ export function createLocalToolBindingsPlugin<P, E, B extends ContentBlock>(
       this.close = key => (this.live() ? registry.close(key) : unknownKey())
       this.reopen = key => (this.live() ? registry.reopen(key) : unknownKey())
       this.drain = key => (this.live() ? registry.drain(key) : unknownKey())
+      this.programArguments = createLocalArgumentsCheck<P, E, B>(() =>
+        live() ? registry : undefined,
+      )
       const catalog = createLocalToolCatalog({
         registry,
         availability: input.availability,

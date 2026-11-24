@@ -7,7 +7,11 @@ import {
   type ToolLedgerStore,
 } from '@omne-harness/tool'
 import type { ToolClock } from '@omne-harness/tool-contract/provider'
-import { createLocalToolClock, type LocalToolForwarding } from '@omne-harness/tool-host-local'
+import {
+  createLocalToolClock,
+  type LocalInvocationSource,
+  type LocalToolForwarding,
+} from '@omne-harness/tool-host-local'
 import type { createLocalToolRuntimePlugins } from '@omne-harness/tool-host-local/cordis'
 
 import { randomBytes } from 'node:crypto'
@@ -24,7 +28,11 @@ import type { SchemaProvider } from '@omne-harness/schema-provider'
 import type { LocalToolRuntimeInput } from '@omne-harness/tool-host-local/cordis'
 import { createDueTenants, type DueTenants } from './body-sweep.ts'
 
-export type ToolRuntimeBundle = ReturnType<typeof createLocalToolRuntimePlugins>
+export type ToolRuntimeBundle = ReturnType<typeof createLocalToolRuntimePlugins> &
+  Readonly<{
+    /** Where a program call gets its source and waits for its result; the same object the runtime guards with. */
+    programSources(): LocalInvocationSource<unknown>['programs']
+  }>
 
 export type ToolSqlPorts = Readonly<{
   store: ToolLedgerStore

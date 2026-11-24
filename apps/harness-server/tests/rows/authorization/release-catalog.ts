@@ -42,6 +42,15 @@ const CONSTRUCTION: Readonly<Record<string, unknown>> = {
     imageMaxDecodedBytes: 67_108_864,
     imageConcurrency: 2,
   },
+  Code: {
+    resultMaxBytes: 4096,
+    computeMs: 5000,
+    memoryBytes: 33_554_432,
+    outputBytes: 65_536,
+    calls: 50,
+    callsInFlight: 4,
+    sourceBytes: 16_384,
+  },
 }
 
 function definitionOf(release: Trusted, entry: ToolReleaseManifest['entries'][number]) {

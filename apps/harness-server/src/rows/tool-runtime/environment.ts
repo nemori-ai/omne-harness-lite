@@ -5,6 +5,7 @@ import {
   fileEffects,
   originRef,
   segmentsBelow,
+  type EnvironmentBinding,
   type FacilityGuard,
   type FacilityKey,
   type FileEffect,
@@ -271,6 +272,35 @@ function createFences() {
   }
 }
 
+type Planned = Parameters<EnvironmentInput['plan']['binding']>[0]
+const originOf = (request: Planned) =>
+  originRef(`tool:${request.call}:${request.preparation.operation}`)
+const offered = (layer: string, request: Planned): EnvironmentBinding[] => {
+  if (layer === 'host_machine') return [{ kind: 'host_machine' }]
+  return layer === 'stateless_sandbox'
+    ? [{ kind: layer, scope: request.request.requesterScope, origin: originOf(request) }]
+    : []
+}
+
+const placementFacts: EnvironmentInput['plan']['facts'] = async placement => {
+  const { binding, provider, requirement } = placement
+  if (binding.kind === 'stateless_sandbox')
+    return succeed({
+      system: provider.name,
+      release: provider.version,
+      architecture: 'restricted-js',
+      facilities: requirement.facilities,
+    })
+  if (binding.kind !== 'host_machine')
+    return unavailable('execution-host', 'the placement is not the host machine')
+  return succeed({
+    system: process.platform,
+    release: osRelease(),
+    architecture: process.arch,
+    facilities: requirement.facilities,
+  })
+}
+
 export function createReleaseEnvironment(
   holder: ToolRuntimeHolder,
   identity: ReleaseToolIdentity,
@@ -382,10 +412,11 @@ export function createReleaseEnvironment(
         schema: environmentNeedSchemaRef,
       })
       if ('failure' in need) return need
-      if (need.ok === null || !need.ok.layers.includes('host_machine'))
+      const allowedBindings = (need.ok?.layers ?? []).flatMap(layer => offered(layer, request))
+      if (need.ok === null || allowedBindings.length === 0)
         return fail({ kind: 'denied', action: 'host-machine-placement' })
       return succeed({
-        allowedBindings: [{ kind: 'host_machine' }],
+        allowedBindings,
         facilities: need.ok.facilities as readonly FacilityKey[],
         isolation: need.ok.isolation as readonly IsolationClaim[],
       })
@@ -395,7 +426,7 @@ export function createReleaseEnvironment(
         return fail({ kind: 'denied', action: 'environment-binding' })
       const fence = await fenceOf(options.workspaces, request)
       if ('failure' in fence) return fence
-      const origin = originRef(`tool:${request.call}:${request.preparation.operation}`)
+      const origin = originOf(request)
       fences.admit(origin, callKeyOf(request.tenant, request.call), fence.ok)
       const view = await ledgers(request)
       const scope = request.request.requesterScope
@@ -407,16 +438,7 @@ export function createReleaseEnvironment(
     },
     guard,
     ledger: async request => (await ledgers(request)).regular,
-    async facts(placement) {
-      if (placement.binding.kind !== 'host_machine')
-        return unavailable('execution-host', 'the placement is not the host machine')
-      return succeed({
-        system: process.platform,
-        release: osRelease(),
-        architecture: process.arch,
-        facilities: placement.requirement.facilities,
-      })
-    },
+    facts: placementFacts,
   }
 
   const input: EnvironmentInput = {

@@ -185,6 +185,21 @@ export const RELEASE_TOOLS = Object.freeze([
       'imageConcurrency',
     ]),
   }),
+  Object.freeze({
+    name: 'Code',
+    package: TOOL_DEFINITIONS_PACKAGE,
+    capabilities: Object.freeze(['program.run']),
+    export: 'codeToolModule',
+    construction: Object.freeze([
+      'resultMaxBytes',
+      'computeMs',
+      'memoryBytes',
+      'outputBytes',
+      'calls',
+      'callsInFlight',
+      'sourceBytes',
+    ]),
+  }),
 ] as const)
 
 export type ReleaseToolName = (typeof RELEASE_TOOLS)[number]['name']

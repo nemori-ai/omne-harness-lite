@@ -18,6 +18,7 @@ import { CURSOR_KEY_FILE } from '../../src/entry/cursor-signing.ts'
 import { COMBINATION_VERSION } from '../../src/rows/agent-journal/config.ts'
 import {
   LOCAL_OPEN_LIMITS,
+  LOCAL_PROGRAM_LIMITS,
   LOCAL_SCREEN_LIMITS,
   LOCAL_TOKENIZERS,
   LOCAL_TOOL_RESULT_BYTES,
@@ -304,6 +305,7 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
       OmneExtensionPoints: { resultMaxBytes: 131_072 },
       OmneExtensions: { resultMaxBytes: 131_072 },
       Screen: { resultMaxBytes: 65_536, ...LOCAL_SCREEN_LIMITS },
+      Code: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, ...LOCAL_PROGRAM_LIMITS },
     },
     web: {
       search: {

@@ -224,6 +224,26 @@ function withToolSettings(
   }
 }
 
+/** Gives the programs of Code other limits than the operator defaults, so a test of a limit is short. */
+function withProgramLimits(
+  layer: unknown,
+  limits: Readonly<Record<string, number>> | undefined,
+): unknown {
+  if (limits === undefined) return layer
+  type Construction = Readonly<Record<string, Readonly<Record<string, unknown>>>>
+  const { ops } = layer as {
+    ops: Readonly<{ kind: string; id: string; config?: { construction?: Construction } }>[]
+  }
+  const given = (config: { construction?: Construction } | undefined) => ({
+    ...config,
+    construction: {
+      ...config?.construction,
+      Code: { ...config?.construction?.['Code'], ...limits },
+    },
+  })
+  return { ops: ops.map(op => (op.id === 'tool-host' ? { ...op, config: given(op.config) } : op)) }
+}
+
 function withObservationPolicy(
   layer: unknown,
   policy: Readonly<Record<string, number>> | undefined,
@@ -689,7 +709,8 @@ export type ReleaseTreeOptions = Readonly<{
   beforeRun?: (run: number, storageRoot: string) => Promise<void>
   /** The operator's values for the settings release tools declare, by tool name and item id. */
   toolSettings?: Readonly<Record<string, Readonly<Record<string, unknown>>>>
-  /** Rows left out of the release, together with the operator's values for them. */
+  /** The limits of one program of Code, over the operator defaults. */
+  programLimits?: Readonly<Record<string, number>>
   /** The rows left out of every run, or of each run by its index. */
   withoutRows?: readonly string[] | ((run: number) => readonly string[])
   /** Rows a test adds to the release, each with the row plugin that serves it. */
@@ -848,28 +869,31 @@ async function serveOnce(
       options.addedRows,
     ),
     operator: withoutRows(
-      withToolSettings(
-        withObservationPolicy(
-          withAgentWaitInterval(
-            withQueueCapacity(
-              withHistoryKinds(
-                withCompaction(
-                  operatorLayer({
-                    storageRoot: dir.storageRoot,
-                    port,
-                    modelRoute: state.modelRoute,
-                  }),
-                  options,
+      withProgramLimits(
+        withToolSettings(
+          withObservationPolicy(
+            withAgentWaitInterval(
+              withQueueCapacity(
+                withHistoryKinds(
+                  withCompaction(
+                    operatorLayer({
+                      storageRoot: dir.storageRoot,
+                      port,
+                      modelRoute: state.modelRoute,
+                    }),
+                    options,
+                  ),
+                  options.extraHistoryKinds,
                 ),
-                options.extraHistoryKinds,
+                options.queueCapacity,
               ),
-              options.queueCapacity,
+              options.reconciliationDelaysMs,
             ),
-            options.reconciliationDelaysMs,
+            options.observationPolicy,
           ),
-          options.observationPolicy,
+          options.toolSettings,
         ),
-        options.toolSettings,
+        options.programLimits,
       ),
       'ops',
       rowsLeftOut(options.withoutRows, 0),

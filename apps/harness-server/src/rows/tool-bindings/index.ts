@@ -28,6 +28,7 @@ import { isReleaseToolRequest, isReleaseToolsRequest } from '../../entry/tool-fo
 import { releaseOf } from '../../entry/tool-release.ts'
 import { SEARCH_RANKING } from '../../entry/search-ranking.ts'
 import { createReleaseToolsCapability, toolsCapabilityConfig } from './tools-capability.ts'
+import { createReleaseProgramCalls } from './program-capability.ts'
 import { bindReleaseSkills } from './skills.ts'
 import { bindReleaseTodoItems } from './todo-items.ts'
 import { bindReleaseBackgroundCalls } from './background-calls.ts'
@@ -70,6 +71,7 @@ const DOMAIN_TOOLS = [
 type Attachments = Readonly<{
   tools: ReturnType<typeof createReleaseToolsCapability> | null
   web: WebBindingConfig | null
+  programs?: ReturnType<typeof createReleaseProgramCalls>
 }>
 
 /** The key of the tool a request calls, when a tenant holds that tool; a tool of the release has none here. */
@@ -95,6 +97,13 @@ export function releaseCapability(
       isReleaseToolsRequest(release, input.request)
         ? attachments.tools.bind({ ...input, start }, scope)
         : scope
+    // A program is run by the first segment of a Code call, and only that call gets the calls.
+    if (
+      attachments.programs !== undefined &&
+      start.kind === 'start' &&
+      isReleaseToolRequest(release, input.request, 'Code')
+    )
+      return attachments.programs.bind({ ...input, start }, withTools)
     const withTodos = isReleaseToolRequest(release, input.request, 'TodoItems')
       ? bindReleaseTodoItems(ctx, input, withTools)
       : withTools
@@ -197,7 +206,11 @@ const bindingsPlugin: Plugin.Object = {
       authority: startAuthorityProxy(ctx),
       scope: bundleScope(ctx),
       settle: bundleSettle(ctx),
-      capability: releaseCapability(ctx, { tools, web: config.web ?? null }),
+      capability: releaseCapability(ctx, {
+        tools,
+        web: config.web ?? null,
+        programs: createReleaseProgramCalls(ctx),
+      }),
       releaseDetails: { attach: input => attachReleaseScheduleReads(ctx, input) },
       ...(config.sources === undefined
         ? {}

@@ -439,6 +439,7 @@ const CARRIES_DIRECTORY: ReadonlySet<string> = new Set([
   'Tools',
   'SwitchWorkspace',
   'OmneExtensions',
+  'Code',
 ])
 
 async function directoryOf(
@@ -446,8 +447,9 @@ async function directoryOf(
   access: SessionAccess<unknown>,
   definition: ToolAvailability['definition'],
 ): Promise<Outcome<Placed | ToolCallAnswer, Failure>> {
-  const needed = definition.declarations.environment !== null
-  if (!needed && !CARRIES_DIRECTORY.has(definition.name)) return succeed({ kind: 'pinned' })
+  const carries = CARRIES_DIRECTORY.has(definition.name)
+  const needed = definition.declarations.environment !== null && !carries
+  if (!needed && !carries) return succeed({ kind: 'pinned' })
   const read = await ports.workingDirectory(access)
   const placed: Outcome<Placed | ToolCallAnswer, Failure> =
     'failure' in read

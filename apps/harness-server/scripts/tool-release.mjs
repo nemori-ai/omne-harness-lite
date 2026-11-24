@@ -39,6 +39,15 @@ const PROBES = [
       imageMaxDecodedBytes: 1,
       imageConcurrency: 1,
     },
+    Code: {
+      resultMaxBytes: 1,
+      computeMs: 1,
+      memoryBytes: 1,
+      outputBytes: 1,
+      calls: 1,
+      callsInFlight: 1,
+      sourceBytes: 1,
+    },
   },
   {
     Shell: {
@@ -76,6 +85,15 @@ const PROBES = [
       imageMaxHeight: 4096,
       imageMaxDecodedBytes: 67108864,
       imageConcurrency: 4,
+    },
+    Code: {
+      resultMaxBytes: 65536,
+      computeMs: 30000,
+      memoryBytes: 67108864,
+      outputBytes: 1048576,
+      calls: 200,
+      callsInFlight: 8,
+      sourceBytes: 65536,
     },
   },
 ]

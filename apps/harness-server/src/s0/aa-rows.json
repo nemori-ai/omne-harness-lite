@@ -78,6 +78,7 @@
     "execution-environment",
     "execution-files",
     "execution-command",
+    "execution-program",
     "execution-host",
     "request-context",
     "agent-context",

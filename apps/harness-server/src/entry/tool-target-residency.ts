@@ -8,15 +8,15 @@ export async function targetResidency(
   source: LocalToolCatalogViewSource<unknown> | undefined,
   access: Access<unknown>,
   target: ToolAvailability,
-  required: 'resident' | 'nonresident',
+  required: 'resident' | 'nonresident' | 'listed',
   sourced?: SourcedEntries,
 ): Reply<void> {
   if (target.kind !== 'available') return fail({ kind: 'denied', action: 'target-unavailable' })
   // A source entry is in no Agent definition, so it is never resident.
   if (sourced !== undefined && sourcedEntryFor(sourced, access, target) !== undefined)
-    return required === 'nonresident'
-      ? succeed(undefined)
-      : fail({ kind: 'denied', action: 'nonresident-tools-require-forwarding' })
+    return required === 'resident'
+      ? fail({ kind: 'denied', action: 'nonresident-tools-require-forwarding' })
+      : succeed(undefined)
   if (source === undefined)
     return fail({
       kind: 'unavailable',
@@ -32,7 +32,8 @@ export async function targetResidency(
     }),
   )
   if (entry === undefined) return fail({ kind: 'denied', action: 'target-not-included' })
-  if (entry.resident === (required === 'resident')) return succeed(undefined)
+  if (required === 'listed' || entry.resident === (required === 'resident'))
+    return succeed(undefined)
   return fail({
     kind: 'denied',
     action: entry.resident

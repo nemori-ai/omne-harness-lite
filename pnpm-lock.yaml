@@ -766,6 +766,9 @@ importers:
       '@omne-harness/execution-environment-host-local':
         specifier: workspace:*
         version: link:../../packages/execution/execution-environment-host-local
+      '@omne-harness/execution-environment-program':
+        specifier: workspace:*
+        version: link:../../packages/execution/execution-environment-program
       '@omne-harness/governance-contract':
         specifier: workspace:*
         version: link:../../packages/governance/governance-contract

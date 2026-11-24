@@ -132,6 +132,7 @@ describe('the agent-host row: declaration and configuration', () => {
           'agentExecutionControl',
           'agentNestedActions',
           'agentInstanceProvision',
+          'toolProgramAdmission',
         ],
         injects: [...INJECTS, 'telemetry'],
         phase: 'business',

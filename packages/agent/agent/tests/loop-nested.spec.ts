@@ -8,7 +8,8 @@ import {
   type NestedActionVerdict,
 } from '@omne-harness/agent-contract'
 import { adoption, evidence, execution, ok, operation } from './journal-support.ts'
-import { alice, eventually, invoke } from './loop-support.ts'
+import * as agent from '../src/index.ts'
+import { alice, eventually, gate, invoke } from './loop-support.ts'
 import {
   associatedTools,
   deliverToolSuggestion,
@@ -306,5 +307,81 @@ describe('AG-32 nothing is allowed once the parent is no longer waiting', () => 
     await eventually(async () => assembly.controls.cards.invalidate.calls.length >= 1)
     const late = await asked(assembly, 2)
     expect(late.kind).not.toBe('allowed')
+  })
+})
+
+describe('AG-32 the qualification of a nested action, as the permission check asks for it', () => {
+  /** The admission is held while it is asked about position 1, so the request can be qualified meanwhile. */
+  async function judging(first: 'held' | 'asks' = 'held') {
+    const assembly = await waitingOnTool()
+    const held = gate()
+    assembly.controls.admission.admit.always(async call => {
+      if (call.nested === undefined) return allow
+      if (first === 'asks' && call.decision === null) return ask('Read the file?')
+      await held.opened
+      return allow
+    })
+    const answer = asked(assembly, 1, { name: 'read_file' })
+    await eventually(async () => nestedCalls(assembly).length === 1)
+    const [input] = nestedCalls(assembly)
+    if (input === undefined) throw new Error('the admission was not asked')
+    const qualifier = agent.createAgentActionQualification(assembly.dependencies)
+    return { assembly, held, answer, input, qualifier }
+  }
+
+  it('qualifies the request the program made under a waiting call, and gives the facts of the execution', async () => {
+    const { assembly, held, answer, input, qualifier } = await judging()
+    const current = await snapshot(assembly)
+    expect(ok(await qualifier.qualify(input))).toMatchObject({
+      version: 1,
+      agentDefinition: current.checkpoint.definition,
+      revision: current.revision,
+      request: { action: 'step-1/tool/0/nested/1', passage: input.passage },
+    })
+    const wrong = [
+      { ...input, passage: ok(admissionPassageOf(ok(nestedActionOf(parent, 2)))) },
+      { ...input, action: ok(nestedActionOf(ok(decodeActionId('step-1/tool/9')), 1)) },
+      { ...input, original: { ...input.original, callId: 'another-call' } },
+      { ...input, advance: { ...input.advance, generation: 'another-generation' } },
+      { ...input, definition: adoption('another-tool') },
+    ]
+    for (const request of wrong) expect(await qualifier.qualify(request)).toHaveProperty('failure')
+    held.open()
+    expect(await answer).toEqual({ kind: 'allowed' })
+    // The position has its conclusion now: nothing is left to qualify for it.
+    expect(await qualifier.qualify(input)).toEqual({
+      failure: { kind: 'denied', action: 'qualify-action' },
+    })
+  })
+
+  it('holds a position that waits for a person to the arguments its chain was opened with', async () => {
+    const { assembly, input, qualifier } = await judging('asks')
+    await eventually(async () => (await chainOf(assembly, 1))?.progress.kind === 'asked')
+    expect(await qualifier.qualify(input)).toHaveProperty('ok')
+    expect(
+      await qualifier.qualify({ ...input, effectiveArguments: JSON.stringify({ path: 'b.txt' }) }),
+    ).toEqual({ failure: { kind: 'denied', action: 'qualify-action' } })
+  })
+
+  it('qualifies nothing once the parent call has its result', async () => {
+    const { assembly, held, answer, input, qualifier } = await judging()
+    const action = ok(nestedActionOf(parent, 2))
+    const next = {
+      ...input,
+      action,
+      passage: ok(admissionPassageOf(action)),
+      original: { ...input.original, callId: action },
+    }
+    expect(await qualifier.qualify(next)).toHaveProperty('ok')
+    held.open()
+    await answer
+    const [pending] = await associatedTools(assembly, 1)
+    if (pending === undefined) throw new Error('no pending tool call')
+    ok(await pushToolResult(toolReceiver(assembly), toolDelivery(pending, { name: 'done' })))
+    await eventually(async () => {
+      const batch = (await snapshot(assembly)).checkpoint.batch
+      return batch === null || batch.slots.every(slot => slot.kind !== 'dispatched')
+    })
+    expect(await qualifier.qualify(next)).toHaveProperty('failure')
   })
 })

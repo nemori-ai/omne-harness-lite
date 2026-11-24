@@ -121,6 +121,11 @@
               "tool": "Skills"
             },
             {
+              "id": "code",
+              "effect": "allow",
+              "tool": "Code"
+            },
+            {
               "id": "held-tools",
               "effect": "allow",
               "definitionOwner": "@omne-harness/assets"
@@ -435,7 +440,7 @@
               "owner": "harness-server-release",
               "name": "coding",
               "revision": "1",
-              "digest": "sha256:9874b5e1b31373bf49c18b1779e0d880c98c217a7eac11d7d2e6c9efd04d2b26"
+              "digest": "sha256:74fb325bd0e7216ca1a1e0fbceabe86fdc40dccd9e5b1f86d2221ddc15566cb2"
             },
             "execution": {
               "owner": "harness-server-release",
@@ -591,6 +596,13 @@
                   "capability": {
                     "category": "tool",
                     "name": "Skills"
+                  },
+                  "resident": true
+                },
+                {
+                  "capability": {
+                    "category": "tool",
+                    "name": "Code"
                   },
                   "resident": true
                 }
@@ -853,6 +865,11 @@
     {
       "id": "execution-command",
       "plugin": "executionCommandRow",
+      "config": {}
+    },
+    {
+      "id": "execution-program",
+      "plugin": "executionProgramRow",
       "config": {}
     },
     {

@@ -61,6 +61,7 @@ const EXPECTED: Readonly<
     ['read', 'auto', ['help']],
     ['observe', 'ask', ['screens', 'capture']],
   ],
+  Code: [['run', 'auto', ['execute', 'help']]],
 }
 const sorted = (names: readonly string[]) => [...names].sort()
 

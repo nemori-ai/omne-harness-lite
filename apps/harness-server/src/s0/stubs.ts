@@ -342,6 +342,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'agentExecutionControl',
       'agentNestedActions',
       'agentInstanceProvision',
+      'toolProgramAdmission',
     ],
     injects: [
       'agentJournal',
@@ -464,6 +465,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'execution-environment': { provides: ['executionEnvironment'] },
   'execution-files': { injects: ['executionEnvironment'] },
   'execution-command': { injects: ['executionEnvironment'] },
+  'execution-program': { injects: ['executionEnvironment'] },
   'execution-host': { injects: ['executionEnvironment'] },
   'request-context': {
     provides: ['requestContext'],
