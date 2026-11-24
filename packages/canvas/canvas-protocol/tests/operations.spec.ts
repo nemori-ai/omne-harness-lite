@@ -43,7 +43,13 @@ const item = {
   when: instant,
 }
 const canvas = {
-  sheet: { width: 4800, height: 3200, grid: 8 },
+  sheet: {
+    width: 4800,
+    height: 3200,
+    grid: 8,
+    size: { min: { width: 120, height: 64 }, max: { width: 900, height: 900 } },
+    footprint: { width: 160, height: 80 },
+  },
   items: [
     item,
     {
@@ -127,6 +133,17 @@ describe('look', () => {
       piles: [],
       revision: 0,
     })
+  })
+
+  it('gives with the sheet the least and the most size and the footprint, each a size', () => {
+    const { size, footprint } = canvas.sheet
+    for (const sheet of [
+      { ...canvas.sheet, size: undefined },
+      { ...canvas.sheet, footprint: undefined },
+      { ...canvas.sheet, size: { ...size, min: { width: 0, height: 64 } } },
+      { ...canvas.sheet, footprint: { ...footprint, height: 0 } },
+    ])
+      expect(readSample(operations.look.outcomes.succeeded, { ...canvas, sheet }).ok).toBe(false)
   })
 
   it('carries no spot below zero, no size of zero and no other mover', () => {

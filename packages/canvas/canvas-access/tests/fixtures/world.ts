@@ -30,7 +30,11 @@ const tenantText = (account: string) =>
   JSON.stringify({ organization: 'org_00000000000000000000000000', account })
 export const TENANT = tenantText('acc_00000000000000000000000000')
 export const OTHER = tenantText('acc_00000000000000000000000001')
-export const SHEET = { width: 4800, height: 3200, grid: 8 }
+const EDGES = { width: 4800, height: 3200, grid: 8 }
+const SIZE = { min: { width: 120, height: 64 }, max: { width: 900, height: 900 } }
+const FOOTPRINT = { width: 160, height: 80 }
+/** The sheet as look gives it over the configuration of `world`. */
+export const SHEET = { ...EDGES, size: SIZE, footprint: FOOTPRINT }
 
 export type Operations = CanvasProtocol['operations']
 export type Name = keyof Operations
@@ -120,10 +124,10 @@ export function world() {
   const authority = fakeAuthority()
   const kinds = fakeKinds()
   const config = {
-    sheet: SHEET,
+    sheet: EDGES,
     limits: { placed: 200, away: 500, batch: 50 },
-    size: { min: { width: 120, height: 64 }, max: { width: 900, height: 900 } },
-    footprint: { width: 160, height: 80 },
+    size: SIZE,
+    footprint: FOOTPRINT,
     admitTimeoutMs: 5000,
   }
   const movers = fakeMovers()

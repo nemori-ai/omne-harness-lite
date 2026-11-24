@@ -184,6 +184,16 @@ describe('one input through canvas/v1 and through the tool', () => {
     expect(CASES).toHaveLength(Object.keys(ITEM_ROWS).length * 5 + 4 * 2)
   })
 
+  it('look: the same sheet, items and piles, and who moved each', async () => {
+    const d = domain()
+    const ids = await arrange(d.canvas, TENANT, 'piled')
+    await caller(d.canvas, TENANT).ok('lock', { items: [ids.e] })
+    const byPerson = await protocolOn(d.canvas)('look', { canvas: 'main' })
+    const byAgent = await caller(d.canvas, TENANT).ok('look')
+    expect(byPerson.outcome).toBe('succeeded')
+    expect(byAgent.value).toEqual(byPerson.body)
+  })
+
   it.each(CASES)('$name: the same answer and the same arrangement but for who', async c => {
     const d = domain()
     const person = await arrange(d.canvas, TENANT, c.state)

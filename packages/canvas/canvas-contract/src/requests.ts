@@ -8,13 +8,14 @@ import {
   spotSchema,
   type Sheet,
   type Size,
+  type SizeRange,
   type Spot,
 } from './values.ts'
 
 /** What a request is checked against before anything else: the sheet, the sizes, the length of a batch. */
 export type Bounds = Readonly<{
   sheet: Sheet
-  size: Readonly<{ min: Size; max: Size }>
+  size: SizeRange
   batch: number
 }>
 

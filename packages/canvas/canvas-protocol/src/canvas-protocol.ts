@@ -51,6 +51,8 @@ const sheet = object({
   width: { rule: positive },
   height: { rule: positive },
   grid: { rule: positive },
+  size: { rule: object({ min: { rule: size }, max: { rule: size } }) },
+  footprint: { rule: size },
 })
 const canvas = object({
   sheet: { rule: sheet },

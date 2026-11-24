@@ -7,7 +7,9 @@ import {
   type Item,
   type Reference,
 } from '@omne-harness/canvas-contract'
+import { createCanvas, type CanvasConfig } from '../canvas.ts'
 import type { CanvasStore, Rules, StoreAnswer, StoreRead } from '../store.ts'
+import { fakeAuthority, fakeClock, fakeKinds, fakeMovers } from './fakes.ts'
 
 export type StoreConformanceCase = Readonly<{
   name: string
@@ -58,6 +60,15 @@ async function placed(store: CanvasStore, name: string, x: number): Promise<Item
   )
   if (result.kind !== 'changed') throw new Error(`place ${name}: ${result.kind}`)
   return result.item
+}
+
+/** Numbers apart from those of the deployment, so a look that kept its own would show. */
+const CONFIG: CanvasConfig = {
+  sheet: { width: 2400, height: 1600, grid: 16 },
+  limits: { placed: 3, away: 2, batch: 5 },
+  size: { min: { width: 96, height: 48 }, max: { width: 640, height: 480 } },
+  footprint: { width: 200, height: 120 },
+  admitTimeoutMs: 50,
 }
 
 const lookOf = async (store: CanvasStore, tenant = T1) =>
@@ -258,6 +269,24 @@ export const storeConformanceCases: readonly StoreConformanceCase[] = [
         committed(await store.lock(T1, { ...locking, locked: false }), 'unlock'),
         { kind: 'changed', revision: 3 },
         'unlock',
+      )
+    },
+  },
+  {
+    name: 'look over the store gives the sheet with the sizes and the footprint of the configuration',
+    async run(open) {
+      const store = await open()
+      const a = await placed(store, 'a', 0)
+      const ports = { authority: fakeAuthority(), movers: fakeMovers(), kinds: fakeKinds() }
+      const canvas = createCanvas({ store, ...ports, clock: fakeClock(), config: CONFIG })
+      const { sheet, size, footprint } = CONFIG
+      same(
+        await canvas.look({ tenant: T1, subject: { person: T1 } }, { canvas: MAIN_CANVAS }),
+        {
+          kind: 'done',
+          value: { sheet: { ...sheet, size, footprint }, revision: 1, items: [a], piles: [] },
+        },
+        'look',
       )
     },
   },

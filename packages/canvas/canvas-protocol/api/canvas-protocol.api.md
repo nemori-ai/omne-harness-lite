@@ -267,6 +267,64 @@ declare const canvas: {
                             readonly kind: 'positive-integer';
                         };
                     };
+                    readonly size: {
+                        rule: {
+                            readonly kind: 'object';
+                            readonly fields: {
+                                readonly min: {
+                                    rule: {
+                                        readonly kind: 'object';
+                                        readonly fields: {
+                                            readonly width: {
+                                                rule: {
+                                                    readonly kind: 'positive-integer';
+                                                };
+                                            };
+                                            readonly height: {
+                                                rule: {
+                                                    readonly kind: 'positive-integer';
+                                                };
+                                            };
+                                        };
+                                    };
+                                };
+                                readonly max: {
+                                    rule: {
+                                        readonly kind: 'object';
+                                        readonly fields: {
+                                            readonly width: {
+                                                rule: {
+                                                    readonly kind: 'positive-integer';
+                                                };
+                                            };
+                                            readonly height: {
+                                                rule: {
+                                                    readonly kind: 'positive-integer';
+                                                };
+                                            };
+                                        };
+                                    };
+                                };
+                            };
+                        };
+                    };
+                    readonly footprint: {
+                        rule: {
+                            readonly kind: 'object';
+                            readonly fields: {
+                                readonly width: {
+                                    rule: {
+                                        readonly kind: 'positive-integer';
+                                    };
+                                };
+                                readonly height: {
+                                    rule: {
+                                        readonly kind: 'positive-integer';
+                                    };
+                                };
+                            };
+                        };
+                    };
                 };
             };
         };
@@ -651,8 +709,22 @@ export declare const canvasProtocol: {
                     }[];
                     readonly revision: number;
                     readonly sheet: {
+                        readonly footprint: {
+                            readonly height: number;
+                            readonly width: number;
+                        };
                         readonly grid: number;
                         readonly height: number;
+                        readonly size: {
+                            readonly max: {
+                                readonly height: number;
+                                readonly width: number;
+                            };
+                            readonly min: {
+                                readonly height: number;
+                                readonly width: number;
+                            };
+                        };
                         readonly width: number;
                     };
                 }>;

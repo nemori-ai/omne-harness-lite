@@ -1,6 +1,6 @@
 {
   "digests": {
-    "1": "sha256:6ce0df5ea2ada3c50dc78337456e6df99ad5cffcbc095ff67e5bac5b175c69c2"
+    "1": "sha256:7091ffe433575de48719b412c9f3ca20f49a0c6b5180e5142c89d58deaebecd1"
   },
   "major": 1,
   "name": "canvas",
@@ -866,6 +866,23 @@
               "sheet": {
                 "rule": {
                   "fields": {
+                    "footprint": {
+                      "rule": {
+                        "fields": {
+                          "height": {
+                            "rule": {
+                              "kind": "positive-integer"
+                            }
+                          },
+                          "width": {
+                            "rule": {
+                              "kind": "positive-integer"
+                            }
+                          }
+                        },
+                        "kind": "object"
+                      }
+                    },
                     "grid": {
                       "rule": {
                         "kind": "positive-integer"
@@ -874,6 +891,47 @@
                     "height": {
                       "rule": {
                         "kind": "positive-integer"
+                      }
+                    },
+                    "size": {
+                      "rule": {
+                        "fields": {
+                          "max": {
+                            "rule": {
+                              "fields": {
+                                "height": {
+                                  "rule": {
+                                    "kind": "positive-integer"
+                                  }
+                                },
+                                "width": {
+                                  "rule": {
+                                    "kind": "positive-integer"
+                                  }
+                                }
+                              },
+                              "kind": "object"
+                            }
+                          },
+                          "min": {
+                            "rule": {
+                              "fields": {
+                                "height": {
+                                  "rule": {
+                                    "kind": "positive-integer"
+                                  }
+                                },
+                                "width": {
+                                  "rule": {
+                                    "kind": "positive-integer"
+                                  }
+                                }
+                              },
+                              "kind": "object"
+                            }
+                          }
+                        },
+                        "kind": "object"
                       }
                     },
                     "width": {
