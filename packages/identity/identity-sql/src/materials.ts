@@ -20,6 +20,7 @@ import {
   IDENTITY_PARTICIPANT,
   IDENTITY_TABLES,
   MIGRATION,
+  PREFERENCE_TABLES,
   PROTOCOL,
 } from './worker/schema.ts'
 
@@ -65,10 +66,12 @@ const governanceRef = Object.freeze({
 })
 
 const standingRef = Object.freeze({ owner: 'identity', id: '003-standing' })
+const preferenceRef = Object.freeze({ owner: 'identity', id: '004-preference' })
 const OWNED_TABLES: readonly string[] = Object.freeze([
   ...IDENTITY_TABLES,
   ...GOVERNANCE_TABLES,
   ...STANDING_TABLES,
+  ...PREFERENCE_TABLES,
 ])
 
 type Handler = Readonly<{
@@ -88,7 +91,7 @@ const READ_HANDLERS: readonly Handler[] = [
     handler: 'identity.coordination',
     file: 'read-coordination',
     tables: OWNED_TABLES,
-    migrations: [migrationRef, governanceRef, standingRef],
+    migrations: [migrationRef, governanceRef, standingRef, preferenceRef],
     ...LIST,
   },
   {
@@ -116,7 +119,7 @@ const READ_HANDLERS: readonly Handler[] = [
     handler: HANDLERS.governance,
     file: 'read-governance',
     tables: OWNED_TABLES,
-    migrations: [migrationRef, governanceRef],
+    migrations: [migrationRef, governanceRef, preferenceRef],
     ...LIST,
   },
 ]
@@ -135,6 +138,7 @@ export function identitySqlMaterials(): IdentitySqlMaterials {
   const migration = module('migration')
   const governanceMigration = module('migration-governance')
   const standingMigration = module('migration-standing')
+  const preferenceMigration = module('migration-preference')
   materials = {
     participants: [
       {
@@ -163,6 +167,12 @@ export function identitySqlMaterials(): IdentitySqlMaterials {
         moduleUrl: standingMigration.moduleUrl,
         checksum: standingMigration.digest,
         requires: [governanceRef],
+      },
+      {
+        ...preferenceRef,
+        moduleUrl: preferenceMigration.moduleUrl,
+        checksum: preferenceMigration.digest,
+        requires: [standingRef],
       },
     ],
     readHandlers: READ_HANDLERS.map(item => {

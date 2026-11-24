@@ -117,6 +117,44 @@ function disposition(operation: string, method: Method, state: string): Case {
 
 const CASES: readonly Case[] = [
   {
+    operation: 'read-account-preference',
+    method: 'readAccountPreference',
+    principal: 'login',
+    body: () => ({ name: 'keys.mac' }),
+    input: () => ({ name: 'keys.mac' }),
+    outcomes: () => [
+      [
+        { kind: 'succeeded', value: '{}', revision: '3' },
+        { outcome: 'succeeded', body: { value: '{}', revision: '3' } },
+      ],
+      [
+        { kind: 'succeeded', value: null, revision: '0' },
+        { outcome: 'succeeded', body: { value: null, revision: '0' } },
+      ],
+      denied,
+      unavailable,
+    ],
+  },
+  {
+    operation: 'write-account-preference',
+    method: 'writeAccountPreference',
+    principal: 'login',
+    body: () => ({ name: 'keys.mac', value: '{}', expected: '3' }),
+    input: () => ({ name: 'keys.mac', value: '{}', expected: '3' }),
+    outcomes: () => [
+      [
+        { kind: 'succeeded', revision: '4' },
+        { outcome: 'succeeded', body: { revision: '4' } },
+      ],
+      [
+        { kind: 'conflict', revision: '5' },
+        { outcome: 'conflict', body: { revision: '5' } },
+      ],
+      denied,
+      unavailable,
+    ],
+  },
+  {
     operation: 'query-own-valid-logins',
     method: 'queryOwnValidLogins',
     principal: 'login',
@@ -396,11 +434,11 @@ describe('the operations this deployment does not provide', () => {
     }
   })
 
-  it('cover the contract with the twenty provided ones', () => {
+  it('cover the contract with the twenty-two provided ones', () => {
     const provided = Object.keys(identityProtocol.operations).filter(
       name => !(NOT_PROVIDED as readonly string[]).includes(name),
     )
-    expect(Object.keys(identityProtocol.operations)).toHaveLength(33)
-    expect(provided).toHaveLength(20)
+    expect(Object.keys(identityProtocol.operations)).toHaveLength(35)
+    expect(provided).toHaveLength(22)
   })
 })

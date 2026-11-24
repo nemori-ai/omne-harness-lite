@@ -44,6 +44,8 @@ expectTypeOf<keyof IdentityGovernance>().toEqualTypeOf<
   | 'changeMemberRole'
   | 'switchCurrentTenant'
   | 'queryCurrentTenant'
+  | 'readAccountPreference'
+  | 'writeAccountPreference'
   | 'revokeLogin'
   | 'queryOwnValidLogins'
   | 'reportBusinessAccess'
