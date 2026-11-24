@@ -33,7 +33,7 @@ it('qualifies each historical instance once with the caller tenant, including an
   const check = vi.fn<WorkingDirectoryTargets<string>['check']>(async ({ instance }) =>
     instance === 'wsi_a'
       ? { kind: 'refused', reason: 'not-permitted' }
-      : { kind: 'attachable', directory: '/b' },
+      : { kind: 'attachable', directory: '/b', files: { read: '/b', write: '/b' } },
   )
   expect(await world(check).qualifyHistory?.(access, [other, other, source])).toEqual({
     failure: { kind: 'denied' },
@@ -54,7 +54,7 @@ it('preserves legal history when a physical instance is unavailable, and disting
   const directory = world(check)
   expect(await directory.qualifyHistory?.(access, [source, source])).toEqual({ ok: undefined })
   expect(check).toHaveBeenCalledTimes(1)
-  check.mockResolvedValue({ kind: 'unavailable' })
+  check.mockResolvedValue({ kind: 'unavailable', diagnostic: 'workspace owner unavailable' })
   expect(await directory.qualifyHistory?.(access, [source])).toMatchObject({
     failure: { kind: 'unavailable' },
   })
@@ -134,7 +134,7 @@ it('consumes native summary source identities without reading old log text, and 
   const check = vi.fn<WorkingDirectoryTargets<string>['check']>(async ({ instance }) =>
     instance === source.instance
       ? { kind: 'refused', reason: 'not-permitted' }
-      : { kind: 'attachable', directory: '/b' },
+      : { kind: 'attachable', directory: '/b', files: { read: '/b', write: '/b' } },
   )
   expect(await world(check).inspectHistory(access, answer.ok.summarizedScopes)).toEqual({
     ok: [source],

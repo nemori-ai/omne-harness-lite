@@ -7,7 +7,7 @@ import {
   type SessionId,
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
-import type { WorkingDirectory } from '../working-directory-schema.ts'
+import type { FilesReach, WorkingDirectory } from '../working-directory-schema.ts'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   workspaceGuidanceDescriptor,
@@ -17,14 +17,14 @@ import {
 import { heldBlock } from './context-records.ts'
 import { workingDirectoryDescriptor } from './working-directory-block.ts'
 
-/** Whether the selected instance can be worked in now, asked of the workspace owner. */
+/** Whether the selected instance can be worked in now, and how far file requests reach from it. */
 export type WorkingDirectoryTargets<P> = Readonly<{
   check(
     input: Readonly<{ principal: P; tenant: TenantId; workspace: WorkspaceId; instance: string }>,
   ): Promise<
-    | Readonly<{ kind: 'attachable'; directory: string; rootIdentity?: string }>
+    | Readonly<{ kind: 'attachable'; directory: string; files: FilesReach; rootIdentity?: string }>
     | Readonly<{ kind: 'refused'; reason: string }>
-    | Readonly<{ kind: 'unavailable' }>
+    | Readonly<{ kind: 'unavailable'; diagnostic: string }>
   >
 }>
 
@@ -80,6 +80,8 @@ export type StepDirectoryPorts<P> = Readonly<{
 type InForce = WorkingDirectory | Readonly<{ unavailable: string }>
 
 const REFRESHED = Object.freeze({ kind: 'refreshed' })
+// Without a workspace there is no root to keep file requests inside.
+const UNLIMITED: FilesReach = Object.freeze({})
 const down = (diagnostic: string): StepDirectoryResult => ({ kind: 'unavailable', diagnostic })
 
 /** The directory of the step that begins on this snapshot: the selection, verified now. */
@@ -95,7 +97,8 @@ async function verifiedDirectory<P>(
   input: Pick<StepDirectoryInput<P>, 'principal' | 'tenant' | 'snapshot'>,
 ): Promise<{ value: InForce; rootIdentity?: string | undefined }> {
   const selection = workspaceSelection(input.snapshot)
-  if (selection === null) return { value: { state: 'default', directory: ports.defaultDirectory } }
+  if (selection === null)
+    return { value: { state: 'default', directory: ports.defaultDirectory, files: UNLIMITED } }
   const workspace = workspaceCodec.encode(selection.workspace)
   if (!workspace.ok)
     return { value: { unavailable: 'the selected workspace is not minted by its codec' } }
@@ -120,6 +123,7 @@ async function verifiedDirectory<P>(
           ...(generation === '0' ? {} : { generation }),
           instance,
           directory: checked.directory,
+          files: checked.files,
         },
       }
     }
@@ -128,9 +132,7 @@ async function verifiedDirectory<P>(
         value: { state: 'unusable', workspace: workspace.value, instance, reason: checked.reason },
       }
     case 'unavailable':
-      return {
-        value: { unavailable: 'the workspace owner could not verify the selected instance' },
-      }
+      return { value: { unavailable: checked.diagnostic } }
   }
 }
 

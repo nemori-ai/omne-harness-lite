@@ -10,3 +10,7 @@ bad-refresh-after-read.cfg ToldAtBoundary
 witness-new-directory.cfg NoCallAfterSwitch
 witness-outlives-switch.cfg NoCallOutlivesSwitch
 witness-resume.cfg NoResume
+bad-accept-reads-setting.cfg ToldDirectory
+bad-stale-reach.cfg ToldAtBoundary
+witness-new-reach.cfg NoCallAfterSetting
+witness-outlives-setting.cfg NoCallOutlivesSetting

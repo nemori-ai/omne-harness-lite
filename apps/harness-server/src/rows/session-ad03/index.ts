@@ -22,7 +22,12 @@ import { sessionModesPrincipalsKey } from '../../entry/session-modes-principals.
 import { defaultModesOf } from '../session-conditions/index.ts'
 import { SessionModesInstallation, sessionModesInstallationKey } from './modes.ts'
 import { readWorkspaceGuidance } from './workspace-guidance.ts'
-import { SessionWorkingDirectory, sessionWorkingDirectoryKey } from './working-directory.ts'
+import {
+  reachingTargets,
+  SessionWorkingDirectory,
+  sessionWorkingDirectoryKey,
+} from './working-directory.ts'
+import { workspaceOutsideFilesKey } from '../workspace-outside-files/service.ts'
 import { workspaceTargets } from '../session-access/workspace-targets.ts'
 import { adoptedContextDefinitions } from '../../assembly/context-definitions.ts'
 import { defineRow } from '../../row.ts'
@@ -84,7 +89,8 @@ const plugin: Plugin.Object = {
     new SessionWorkingDirectory(ctx, {
       defaultDirectory: config.defaultDirectory,
       guidance: readWorkspaceGuidance,
-      targets: () => workspaceTargets(ctx),
+      targets: () =>
+        reachingTargets(workspaceTargets(ctx), () => ctx.get(workspaceOutsideFilesKey)),
       recover: input => bundle.recoverSession(input),
     })
     await ctx.plugin(bundle.holder)

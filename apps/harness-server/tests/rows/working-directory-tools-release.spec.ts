@@ -496,8 +496,12 @@ describe('a tenant removed from a workspace', () => {
 })
 
 describe('files outside the workspace of a session', () => {
+  const told = { ...bypass, extraHistoryKinds: ['message.system_reminder'] }
+  // A piece of a value as it stands inside the JSON of a history entry.
+  const inEntry = (text: string) => JSON.stringify(text).slice(1, -1)
+
   it(
-    'a session with a workspace keeps to it by the setting, Shell is stopped before it starts and names the path; a session with none has no boundary',
+    'a session with a workspace keeps to it by the setting, is told how far it reaches and when that changes, Shell is stopped before it starts and names the path; a session with none has no boundary',
     { tags: ['slow'], timeout: 360_000 },
     async () => {
       const base = realpathSync(mkdtempSync(join(tmpdir(), 'outside-files-')))
@@ -511,9 +515,18 @@ describe('files outside the workspace of a session', () => {
         command: 'read',
         params: { path },
       })
-      await onReleaseTree(bypass, async tree => {
+      await onReleaseTree(told, async tree => {
         const inBlog = await sessionIn(tree, await registered(tree, blog))
         const none = await ran(tree, inBlog, 1, plan([shell(`cat ${secret}`), readFile(secret)]))
+        const inside = inEntry(
+          `"files":{"read":${JSON.stringify(blog)},"write":${JSON.stringify(blog)}}`,
+        )
+        const snapshot = (await historyOf(tree, inBlog))
+          .filter(entry => entry.kind === 'message.system_reminder')
+          .map(entry => JSON.stringify(entry.payload))
+          .filter(text => text.includes('session.working-directory'))
+        expect(snapshot).toHaveLength(1)
+        expect(snapshot[0]).toContain(inside)
         expect(none).toContain(
           `rejected reason=outsideScope path=${JSON.stringify(secret)} effect=read`,
         )
@@ -539,6 +552,12 @@ describe('files outside the workspace of a session', () => {
           `rejected reason=outsideScope path=${JSON.stringify(written)} effect=write`,
         )
         expect(existsSync(written)).toBe(false)
+        // The step that used the new reach was told it first, with the reach it replaced.
+        const changed = reminded(await historyOf(tree, inBlog))
+        expect(changed).toHaveLength(1)
+        const [now, before] = changed[0]!.split('<previous>') as [string, string]
+        expect(now).toContain(inEntry(`"files":{"write":${JSON.stringify(blog)}}`))
+        expect(before).toContain(inside)
         // A session with no workspace draws no boundary: the setting, which still forbids writing outside,
         // is not read, and the file tool reads and writes where a command always could.
         const plain = await sessionIn(tree, [])

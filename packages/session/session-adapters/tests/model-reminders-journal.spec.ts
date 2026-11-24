@@ -269,7 +269,7 @@ describe('the journal settles the working directory before a step, then tells th
     try {
       ok(await s.view.journal.open(s.openInput))
       const { reminders, calls } = scripted()
-      const value = { state: 'default', directory: '/srv/default' } as const
+      const value = { state: 'default', directory: '/srv/default', files: {} } as const
       const snapshots: unknown[] = []
       const directory: StepDirectory<string> = {
         refresh: async input => {
@@ -302,7 +302,7 @@ describe('the journal settles the working directory before a step, then tells th
     try {
       ok(await s.view.journal.open(s.openInput))
       const { reminders, calls } = scripted()
-      const value = { state: 'default', directory: '/srv/default' } as const
+      const value = { state: 'default', directory: '/srv/default', files: {} } as const
       const directory: StepDirectory<string> = {
         refresh: async input =>
           (input.snapshot.contextRecords ?? []).some(

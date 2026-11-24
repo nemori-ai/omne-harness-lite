@@ -23,6 +23,7 @@ it('distinguishes a missing rule in a verified directory from an unverified pare
     workspace: 'workspace',
     instance: 'instance',
     directory: root,
+    files: { read: root, write: root },
   }
   const input = {
     tenant: fixtureTenant('a'),
