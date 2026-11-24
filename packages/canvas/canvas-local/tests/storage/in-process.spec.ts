@@ -1,5 +1,5 @@
 import { DatabaseSync } from 'node:sqlite'
-import type { ParticipantModule } from '@omne-harness/sql-contract/worker'
+import type { ParticipantModule, SqlValue } from '@omne-harness/sql-contract/worker'
 import { describe, expect, it } from 'vitest'
 import { storeConformanceCases, tenantOf } from '@omne-harness/canvas/testing'
 import { MAIN_CANVAS, type Item } from '@omne-harness/canvas-contract'
@@ -7,7 +7,7 @@ import migration from '../../src/storage/migration.ts'
 import participant from '../../src/storage/participant.ts'
 import reader from '../../src/storage/read.ts'
 import { sqlFacts } from '../../src/storage/facts.ts'
-import { TABLES } from '../../src/storage/schema.ts'
+import { ROW_LIMIT, TABLES } from '../../src/storage/schema.ts'
 import { createInProcessStore, migrated, portOf } from './in-process.ts'
 
 const AT = '2026-11-24T06:00:00.000Z'
@@ -211,5 +211,78 @@ describe('the read of a canvas', () => {
       kind: 'read',
       value: { items: [{ id: 'i1' }] },
     })
+  })
+})
+
+describe('the rows as they are read', () => {
+  /** A port that answers every statement with the one row given, as a storage that gives such columns would. */
+  const giving = (row: readonly unknown[]) => ({
+    execute: () => ({ columns: [], rows: [row as never], changes: 0n, lastInsertRowid: null }),
+  })
+  const ROW = ['i1', 'media.object', 'o1', 'on', 8, 16, null, null, 1, null, 0, 'human', null, AT]
+
+  it('takes integers given as numbers as well as big integers', () => {
+    const db = migrated()
+    insertItem(db, { width: 160, height: 80 })
+    const numbers = {
+      execute(sql: string, params: readonly SqlValue[]) {
+        const statement = db.prepare(sql)
+        statement.setReturnArrays(true)
+        return {
+          columns: [],
+          rows: statement.all(...(params as never[])) as never[],
+          changes: 0n,
+          lastInsertRowid: null,
+        }
+      },
+    }
+    expect(sqlFacts(numbers, 't1').items(MAIN_CANVAS, 'on')).toMatchObject([
+      { at: { x: 8, y: 16 }, size: { width: 160, height: 80 }, rank: 1, locked: false },
+    ])
+    expect(sqlFacts(giving(ROW), 't1').items(MAIN_CANVAS, 'on')).toMatchObject([
+      { at: { x: 8, y: 16 }, size: null },
+    ])
+  })
+
+  it.each<[string, Readonly<Record<number, unknown>>]>([
+    ['a number written as text', { 4: '8' }],
+    ['a height without a width', { 6: null, 7: 80 }],
+  ])('fails on %s', (_name, changes) => {
+    const row = ROW.map((value, column) => (column in changes ? changes[column] : value))
+    expect(() => sqlFacts(giving(row), 't1').items(MAIN_CANVAS, 'on')).toThrow()
+  })
+
+  it('fails a read that reaches past the row limit, and gives one that reaches it whole', () => {
+    const db = migrated()
+    const fill = (from: number, to: number) =>
+      db
+        .prepare(
+          `WITH RECURSIVE n(i) AS (SELECT ? UNION ALL SELECT i + 1 FROM n WHERE i < ?)
+           INSERT INTO canvas_item (tenant, canvas, id, kind, ref, state, x, y, rank, locked, by_kind, changed_at)
+           SELECT 't1', 'main', 'i' || i, 'media.object', 'o' || i, 'on', 0, 0, i, 0, 'human', ? FROM n`,
+        )
+        .run(from, to, AT)
+    fill(1, ROW_LIMIT)
+    expect(sqlFacts(portOf(db), 't1').items(MAIN_CANVAS, 'on')).toHaveLength(ROW_LIMIT)
+    fill(ROW_LIMIT + 1, ROW_LIMIT + 1)
+    expect(() => sqlFacts(portOf(db), 't1').items(MAIN_CANVAS, 'on')).toThrow(/more rows/u)
+  })
+})
+
+describe('the participant', () => {
+  it('fails a known script for a tenant that is no text', () => {
+    const execute: ParticipantModule['execute'] = participant.execute
+    expect(execute({ script: 'take', tenant: 7, command: null }, portOf(migrated()))).toEqual({
+      kind: 'failed',
+      diagnostic: 'unknown_canvas_script',
+    })
+  })
+})
+
+describe('the migration, through a port that binds what it is given', () => {
+  it('verifies the tables it made', () => {
+    const db = new DatabaseSync(':memory:')
+    migration.up(portOf(db))
+    expect(migration.verify(portOf(db))).toEqual({ kind: 'verified' })
   })
 })
