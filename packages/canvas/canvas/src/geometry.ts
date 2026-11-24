@@ -52,8 +52,9 @@ export function isFree(sheet: Sheet, taken: readonly Rect[], at: Spot, room: Siz
 
 const clamp = (value: number, low: number, high: number) => Math.min(Math.max(value, low), high)
 
-/** The grid spot nearest to `want` where `room` fits on the sheet clear of all taken; else `want` on the grid. */
-export function freeSpot(sheet: Sheet, taken: readonly Rect[], room: Size, want: Spot): Spot {
+type Grid = Readonly<{ grid: number; columns: number; rows: number; blocked: Uint8Array }>
+
+function markedGrid(sheet: Sheet, taken: readonly Rect[], room: Size): Grid {
   const { grid } = sheet
   const columns = room.width > sheet.width ? 0 : Math.floor((sheet.width - room.width) / grid) + 1
   const rows = room.height > sheet.height ? 0 : Math.floor((sheet.height - room.height) / grid) + 1
@@ -66,7 +67,11 @@ export function freeSpot(sheet: Sheet, taken: readonly Rect[], room: Size, want:
     for (let row = top; row <= bottom; row += 1)
       for (let column = left; column <= right; column += 1) blocked[row * columns + column] = 1
   }
+  return { grid, columns, rows, blocked }
+}
 
+/** The unmarked spot nearest to `want`, the upper and then the left first on a tie; null when every spot is marked. */
+function nearestOpen({ grid, columns, rows, blocked }: Grid, want: Spot): Spot | null {
   const home = {
     column: clamp(Math.round(want.x / grid), 0, Math.max(columns - 1, 0)),
     row: clamp(Math.round(want.y / grid), 0, Math.max(rows - 1, 0)),
@@ -99,9 +104,16 @@ export function freeSpot(sheet: Sheet, taken: readonly Rect[], room: Size, want:
       consider(home.column + ring, home.row + step)
     }
   }
-  if (best !== null) return (best as { spot: Spot }).spot
-  return {
-    x: clamp(Math.round(want.x / grid) * grid, 0, Math.floor((sheet.width - 1) / grid) * grid),
-    y: clamp(Math.round(want.y / grid) * grid, 0, Math.floor((sheet.height - 1) / grid) * grid),
-  }
+  return best === null ? null : (best as { spot: Spot }).spot
+}
+
+/** The grid spot nearest to `want` where `room` fits on the sheet clear of all taken; else `want` on the grid. */
+export function freeSpot(sheet: Sheet, taken: readonly Rect[], room: Size, want: Spot): Spot {
+  const { grid } = sheet
+  return (
+    nearestOpen(markedGrid(sheet, taken, room), want) ?? {
+      x: clamp(Math.round(want.x / grid) * grid, 0, Math.floor((sheet.width - 1) / grid) * grid),
+      y: clamp(Math.round(want.y / grid) * grid, 0, Math.floor((sheet.height - 1) / grid) * grid),
+    }
+  )
 }

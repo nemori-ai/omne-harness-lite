@@ -110,8 +110,8 @@ function stepOf(g: Generator, known: readonly string[]): Step {
 
 type Seen = Readonly<{ revision: number; on: readonly Item[]; off: readonly Item[] }>
 
-/** Every property the arrangement keeps after every step; the first that does not hold, in words. */
-function broken(seen: Seen, before: Seen | null): string | null {
+/** What the arrangement keeps at every step; the first that does not hold, in words. */
+function brokenNow(seen: Seen): string | null {
   const { sheet } = PROPERTY_CONFIG
   const all = [...seen.on, ...seen.off]
   const refs = new Set(all.map(item => JSON.stringify(item.reference)))
@@ -124,7 +124,11 @@ function broken(seen: Seen, before: Seen | null): string | null {
   if (seen.on.some(item => item.at.x >= sheet.width || item.at.y >= sheet.height))
     return 'an item is off the sheet'
   if (seen.on.length > PROPERTY_CONFIG.limits.placed) return 'more items are on than the limit'
-  if (before === null) return null
+  return null
+}
+
+/** What a step keeps from the one before: the revision, and every locked item where it was. */
+function brokenSince(seen: Seen, before: Seen): string | null {
   if (seen.revision < before.revision) return 'the revision went back'
   for (const was of before.on.filter(item => item.locked)) {
     const now = seen.on.find(item => item.id === was.id)
@@ -137,6 +141,9 @@ function broken(seen: Seen, before: Seen | null): string | null {
   }
   return null
 }
+
+const broken = (seen: Seen, before: Seen | null): string | null =>
+  brokenNow(seen) ?? (before === null ? null : brokenSince(seen, before))
 
 async function seenOf(canvas: CanvasOperations): Promise<Seen | string> {
   const ctx = context()

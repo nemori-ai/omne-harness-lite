@@ -116,16 +116,17 @@ function spotFor(
     : work.freeNear(existing.at, size)
 }
 
-function arrangeItem(work: Work, change: ItemChange): ChangeResult | null {
-  const entry = { item: change.item }
-  let item = work.item(change.item)
+/** The operations of the table an item change is checked as: where it goes, then whether it is adjusted. */
+function operationsOf(change: ItemChange): ItemOperation[] {
   const operations: ItemOperation[] = []
   if (change.pile === null) operations.push('leave')
   else if (change.pile !== undefined) operations.push('enter')
   else if (change.at !== undefined) operations.push('move')
   if (change.size !== undefined || change.top === true) operations.push('adjust')
-  const stop = stopping(cellsOf(operations, item), entry)
-  if (stop !== null || item === null) return stop
+  return operations
+}
+
+function changeItem(work: Work, item: Item, change: ItemChange): ChangeResult | null {
   if (typeof change.pile === 'string') {
     if (!work.piles.has(change.pile)) return { kind: 'not-found', entry: { pile: change.pile } }
     item = into(work, item, change.pile)
@@ -134,6 +135,13 @@ function arrangeItem(work: Work, change: ItemChange): ChangeResult | null {
   if (change.size !== undefined) item = work.update(item, { size: change.size })
   if (change.top === true) raise(work, item)
   return null
+}
+
+function arrangeItem(work: Work, change: ItemChange): ChangeResult | null {
+  const item = work.item(change.item)
+  const stop = stopping(cellsOf(operationsOf(change), item), { item: change.item })
+  if (stop !== null || item === null) return stop
+  return changeItem(work, item, change)
 }
 
 function arrangePile(work: Work, change: PileChange): ChangeResult | null {
