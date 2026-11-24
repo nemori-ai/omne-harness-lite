@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { decideAdmission, type AdmissionFacts } from '../../src/dispatch/admission.ts'
-import { reminderDeadline } from '../../src/dispatch/dispatcher.ts'
+import { reminderDeadline } from '../../src/dispatch/prepare.ts'
 
 const ready: AdmissionFacts = {
   slot: { disposed: false, earlierPending: false },

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import {
   createDispatcher,
   type DispatcherPorts,
-  type Prediction,
+  type PredictionPage,
   type SchedulePredictionService,
   type ScheduleRecord,
 } from '@omne-harness/schedule'
@@ -15,9 +15,13 @@ export type ScheduleDispatchOptions = Omit<
 > &
   Omit<DispatcherPorts, 'store' | 'predict' | 'owner'>
 
-/** The next slot strictly after an instant, from the same prediction the previews use; incomplete is unavailable. */
+/** Slots strictly after an instant, from the same prediction the previews use, with whether the answer is complete. */
 export function schedulePredictor(prediction: SchedulePredictionService, owner: ScheduleOwner) {
-  return async (record: ScheduleRecord, after: ScheduleInstant): Promise<Prediction> => {
+  return async (
+    record: ScheduleRecord,
+    after: ScheduleInstant,
+    count: number,
+  ): Promise<PredictionPage> => {
     const { view } = record
     const result = await prediction.preview(
       {
@@ -35,13 +39,11 @@ export function schedulePredictor(prediction: SchedulePredictionService, owner: 
         acceptedJobCount: view.acceptedJobCount,
         after,
         activationExclusive: record.activationExclusive,
-        count: 1,
+        count,
       },
     )
     if (result.kind !== 'ok') return { kind: 'unavailable' }
-    const [next] = result.value.candidates
-    if (next !== undefined) return { kind: 'ok', next }
-    return result.value.complete ? { kind: 'ok', next: null } : { kind: 'unavailable' }
+    return { kind: 'ok', candidates: result.value.candidates, complete: result.value.complete }
   }
 }
 

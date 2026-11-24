@@ -330,7 +330,7 @@
 | INV-SJ08 | 同一来源至多一个 Job；碰撞不回填；两种次数独立并如实计量                               | 重复工作；次数多计或漏计             | 模型 `CalendarScheduleBoundary` 的 `AtMostOneJob`；模型 `ScheduleSlotDisposition` 的 `AtMostOneJob`、`DispositionFixed`、`EligibleBound`、`JobBound`；`prediction/prediction` 的次数用例；接受侧 `schedule-local` 的 `dispatch/admission`（两个调度者、次数与耗尽）、`dispatch/store`、`dispatch/crash` 用例 |
 | INV-SJ09 | 已接受 Job 的要求与依据固定，之后的变化不回写                                          | 已接受的工作被静默改期或改内容       | 模型 `CalendarScheduleBoundary` 的 `FrozenBasis`；实现只有文字 |
 | INV-SJ10 | 控制与既有工作分责：暂停与结束只管新接受，不自动取消旧 Job；结束不能恢复               | 暂停时误取消；结束的安排被复活       | `management/decision` 用例；模型 `ControlAtAcceptance`；模型 `ScheduleSlotDisposition` 的 `StoppedIsFinal` |
-| INV-SJ11 | 补跑是同一漏过区间的有界选择，同一区间不分页补光，等待中的 Job 不占 N                  | 恢复后无界补跑                       | 模型 `ScheduleSlotDisposition` 的 `CatchUpBounded`、`InOrder`；实现只有文字 |
+| INV-SJ11 | 补跑是同一漏过区间的有界选择，同一区间不分页补光，等待中的 Job 不占 N                  | 恢复后无界补跑                       | 模型 `ScheduleSlotDisposition` 的 `CatchUpBounded`、`InOrder`；分拣 `schedule` 的 `dispatch/classify` 用例；`schedule-local` 的 `dispatch/watch` 用例（一个月只补 N 个、再扫一轮不多补、超预算一个都不补） |
 | INV-SJ12 | 重叠作用于实际前序；替换只在真实停止证据之后开始新工作                                 | 偷偷并行；把停止请求当停止           | 模型 `ScheduleJobExecution` 的 `PredecessorEnded`、`StopIsReal`；实现只有文字 |
 | INV-SJ13 | 三种承接路径完整区分；`existing` 失效不退回 `new`；`new` 每 Job 只建一次会话           | 投错会话；重复建会话                 | `schedule-contract` 的工作意图 schema；模型 `ScheduleJobExecution` 的 `StartAtMostOnce`；承接只有文字 |
 | INV-SJ14 | 上报归原 Job；目标达成要独立依据                                                       | Run 结束被当成目标达成               | 模型 `ScheduleJobExecution` 的 `SuccessHasEvidence`；实现只有文字 |
@@ -348,5 +348,5 @@
 | SC-2     | 存储的未知不改成失败；只有完整否定证据才答没有提交；同一业务地址只有一次业务操作       | 重复写入或把已提交当失败             | `schedule-local` 的 `storage/persistence`、`recovery`、`corruption`、`crash` 用例；接受的提交另有 `dispatch/store`、`dispatch/crash` 用例；`schedule-contract` 的 `operation` 用例                        |
 | INV-SJ25 | 本组的契约、存储与协议里没有放行、同意依据与授权引用；每条安排有创建者，agent 创建的带会话与工具调用；之后权限设置变了不回头改写已生效的安排 | 许不许有了第二个判断处或第二份记录；查不到一条安排是谁建的 | `schedule-tools` 的关口归属用例；创建者的用例；依赖规则 |
 | SC-3     | 工具结果超限明确失败，不再次执行业务；长结果由 Tool 保管，按当前资格读回                 | 截断冒充完整；无权读到旧缓存         | `schedule-tools` 的 `consent` 用例（超限）；Tool 的结果保管用例                                                                                   |
-| INV-SJ26 | 一个时隙是漏过还是迟到，只看它到期时有没有人连续看着这份安排，与进程重启与否无关；定时器丢了、重复了，结局不变 | 机器睡了三小时，醒来把三小时的时隙当迟到全做一遍；丢一次唤醒就漏做 | 模型 `ScheduleSlotDisposition` 的 `CatchUpBounded`、`AllSettled`；实现只有文字 |
-| INV-SJ27 | 所选的承接者有一项不在，这份工作不被接受，受阻记在安排上；承接者回来之后这一段按漏过分拣 | 放进一份做不完的 Job；承接者一回来把攒下的全做一遍 | 受阻：`schedule` 的 `dispatch/admission`、`schedule-local` 的 `dispatch/admission` 用例；回来之后按漏过分拣：只有文字 |
+| INV-SJ26 | 一个时隙是漏过还是迟到，只看它到期时有没有人连续看着这份安排，与进程重启与否无关；定时器丢了、重复了，结局不变 | 机器睡了三小时，醒来把三小时的时隙当迟到全做一遍；丢一次唤醒就漏做 | 模型 `ScheduleSlotDisposition` 的 `CatchUpBounded`、`AllSettled`；`schedule-local` 的 `dispatch/watch` 用例（停机按心跳断开分拣，暂停与依赖恢复各按自己的成因）；随机丢掉与重复提示的 property 用例：只有文字 |
+| INV-SJ27 | 所选的承接者有一项不在，这份工作不被接受，受阻记在安排上；承接者回来之后这一段按漏过分拣 | 放进一份做不完的 Job；承接者一回来把攒下的全做一遍 | 受阻：`schedule` 的 `dispatch/admission`、`schedule-local` 的 `dispatch/admission` 用例；回来之后按漏过分拣：`schedule-local` 的 `dispatch/admission`「missing carrier」用例 |

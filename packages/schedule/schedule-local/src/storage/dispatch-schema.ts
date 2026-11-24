@@ -18,6 +18,7 @@ export const DISPATCH_TABLES = [
   'sc_sources',
   'sc_jobs',
   'sc_job_events',
+  'sc_lapses',
 ]
 
 const reasons = z.array(z.string().min(1)).readonly()
@@ -29,6 +30,11 @@ export const dispatchStateSchema = z.strictObject({
   disposedThrough: ScheduleInstantSchema.nullable(),
   next: ScheduleCandidateSchema.nullable(),
   block: blockSchema.nullable(),
+  selected: z.array(ScheduleCandidateSchema).readonly().default([]),
+  counting: z
+    .strictObject({ through: ScheduleInstantSchema, cause: z.string().min(1) })
+    .nullable()
+    .default(null),
 })
 const written = { exhausts: z.boolean() }
 export const admissionSchema = z.discriminatedUnion('kind', [
@@ -68,6 +74,22 @@ export const dispatchCommandSchema = z.discriminatedUnion('kind', [
     scheduleId: ScheduleIdSchema,
     revision: z.int().positive(),
     state: dispatchStateSchema.nullable(),
+  }),
+  z.strictObject({
+    kind: z.literal('classify'),
+    ...target,
+    scheduleId: ScheduleIdSchema,
+    revision: z.int().positive(),
+    from: ScheduleInstantSchema.nullable(),
+    through: ScheduleInstantSchema,
+    cause: z.string().min(1),
+    reason: z.string().min(1),
+    counted: z.array(ScheduleCandidateSchema).readonly().nullable(),
+    selected: z.array(ScheduleCandidateSchema).readonly(),
+    more: z.boolean(),
+    next: ScheduleCandidateSchema.nullable(),
+    exhausts: z.boolean(),
+    holding: quotaHoldingSchema,
   }),
   z.strictObject({
     kind: z.literal('admit'),

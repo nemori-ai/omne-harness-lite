@@ -34,6 +34,10 @@ export default {
       'CREATE TABLE sc_job_events (owner TEXT NOT NULL, job_id TEXT NOT NULL, seq INTEGER NOT NULL, event TEXT NOT NULL, PRIMARY KEY(owner, job_id, seq))',
       [],
     )
+    port.execute(
+      'CREATE TABLE sc_lapses (owner TEXT NOT NULL, schedule_id TEXT NOT NULL, from_at TEXT NOT NULL, through_at TEXT NOT NULL, lapse TEXT NOT NULL, PRIMARY KEY(owner, schedule_id, from_at))',
+      [],
+    )
   },
   verify(port) {
     for (const table of DISPATCH_TABLES) port.execute(`SELECT * FROM ${table} LIMIT 0`, [])

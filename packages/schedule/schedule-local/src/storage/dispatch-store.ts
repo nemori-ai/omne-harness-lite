@@ -37,6 +37,7 @@ const pendingSchema = z.strictObject({
     stale: z.array(scheduleSchema),
     due: z.array(scheduleSchema),
     active: z.boolean(),
+    watch: z.strictObject({ beatAt: z.string(), watchFrom: z.string() }).nullable(),
     earliest: z.string().nullable(),
   }),
 })

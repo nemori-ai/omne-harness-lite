@@ -174,7 +174,7 @@ describe(
       }
     })
 
-    it('a missing carrier blocks the schedule and writes no slot; when it is back the slot is accepted', async () => {
+    it('a missing carrier blocks the schedule and writes no slot; when it is back the blocked stretch is classified as missed and the next slot accepted', async () => {
       let missing: readonly string[] = ['executor:program']
       const w = await dispatchWorld({ missingCarriers: () => missing })
       try {
@@ -193,7 +193,19 @@ describe(
         })
         missing = []
         await dispatcher.round()
-        expect(w.receipts(id).map(item => item.disposition)).toEqual(['acceptedExecution'])
+        expect(w.receipts(id)).toEqual([])
+        const [lapse] = w.rows(`SELECT from_at, lapse FROM sc_lapses WHERE schedule_id = '${id}'`)
+        expect(lapse?.['from_at']).toBe(at(1))
+        expect(JSON.parse(String(lapse?.['lapse']))).toMatchObject({
+          cause: 'recovered',
+          reason: 'catch-up-none',
+          count: 1,
+        })
+        w.time.advance(MINUTE)
+        await dispatcher.round()
+        expect(w.receipts(id).map(item => [item.at, item.disposition])).toEqual([
+          [at(2), 'acceptedExecution'],
+        ])
         await dispatcher.close()
       } finally {
         await w.close()

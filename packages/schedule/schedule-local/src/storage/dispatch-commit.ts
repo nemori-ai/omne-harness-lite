@@ -10,6 +10,8 @@ import {
 import {
   decideAdmission,
   lockedFacts,
+  lockedWatchStart,
+  writeClassification,
   readRecord,
   readState,
   releasedHolding,
@@ -19,9 +21,10 @@ import {
 import { GUARD_FACT, RESULT_FACT } from './schema.ts'
 
 const exhausting = (command: DispatchCommandInput) =>
-  command.kind === 'admit' &&
-  (command.decision.kind === 'exhaust' ||
-    ('exhausts' in command.decision && command.decision.exhausts))
+  (command.kind === 'classify' && command.exhausts) ||
+  (command.kind === 'admit' &&
+    (command.decision.kind === 'exhaust' ||
+      ('exhausts' in command.decision && command.decision.exhausts)))
 
 /** The guard requirement of a dispatch commit: the command itself, and the quota it frees when it exhausts. */
 export function scheduleDispatchRequirement(
@@ -29,7 +32,9 @@ export function scheduleDispatchRequirement(
   command: DispatchCommandInput,
 ): DispatchRequirement {
   const release =
-    command.kind === 'admit' && exhausting(command) && command.holding.kind === 'held'
+    (command.kind === 'admit' || command.kind === 'classify') &&
+    exhausting(command) &&
+    command.holding.kind === 'held'
       ? command.holding
       : null
   return dispatchRequirementSchema.parse({
@@ -39,7 +44,7 @@ export function scheduleDispatchRequirement(
       command,
     },
     quotaEffect:
-      release === null || command.kind !== 'admit'
+      release === null || command.kind === 'beat' || command.kind === 'refresh'
         ? { kind: 'none' }
         : {
             kind: 'release',
@@ -54,6 +59,11 @@ const stale = { kind: 'conflict', basis: { stale: true } } as const
 
 function beat(port: ParticipantPort, command: Extract<DispatchCommandInput, { kind: 'beat' }>) {
   const owner = canonical(command.owner)
+  const active = port.execute(
+    "SELECT 1 FROM sc_schedules WHERE owner = ? AND control = 'active' LIMIT 1",
+    [owner],
+  ).rows[0]
+  if (active === undefined) return
   const row = port.execute('SELECT beat_at, watch_from FROM sc_watch WHERE owner = ? LIMIT 1', [
     owner,
   ]).rows[0]
@@ -94,6 +104,18 @@ export function executeDispatch(requirement: DispatchRequirement, port: Particip
         command.scheduleId,
         command.revision,
       ])
+    } else if (command.kind === 'classify') {
+      const state = readState(port, command.owner, command.scheduleId)
+      if (
+        state === null ||
+        state.selected.length > 0 ||
+        !equal(record.quota, command.holding) ||
+        state.disposedThrough !== command.from ||
+        command.through !==
+          (state.counting?.through ?? lockedWatchStart(port, command.owner, state))
+      )
+        return stale
+      writeClassification(port, command, record, state, at)
     } else {
       const state = readState(port, command.owner, command.scheduleId)
       if (state === null || !equal(record.quota, command.holding)) return stale

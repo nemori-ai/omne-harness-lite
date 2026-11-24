@@ -22,22 +22,24 @@ export type DispatchState = Readonly<{
   disposedThrough: ScheduleInstant | null
   next: ScheduleCandidate | null
   block: DispatchBlock | null
+  /** Missed slots a classification chose to accept, earliest first; each is admitted like a due one. */
+  selected: readonly ScheduleCandidate[]
+  /** A missed stretch counted over several rounds: none of it is caught up, and nothing new is accepted until it ends. */
+  counting: Readonly<{ through: ScheduleInstant; cause: string }> | null
 }>
 
 export type DispatchSchedule = Readonly<{
   record: ScheduleRecord
   state: DispatchState | null
-  /** The latest management change of the schedule; null when its revisions are not read. */
   latest: ScheduleRevisionView | null
   unfinishedJobs: number
 }>
 
 export type DispatchPending = Readonly<{
-  /** Active schedules whose state is missing or behind their revision, and schedules with unread management events. */
   stale: readonly DispatchSchedule[]
   due: readonly DispatchSchedule[]
   active: boolean
-  /** The earliest next slot of an active schedule that is not due yet. */
+  watch: Readonly<{ beatAt: ScheduleInstant; watchFrom: ScheduleInstant }> | null
   earliest: ScheduleInstant | null
 }>
 
@@ -58,6 +60,25 @@ export type DispatchCommand =
       at: ScheduleInstant
     }>
   | Readonly<{
+      kind: 'classify'
+      owner: ScheduleOwner
+      scheduleId: ScheduleId
+      revision: number
+      /** The stretch is (from, through): from is how far the schedule was disposed, through is its watch start. */
+      from: ScheduleInstant | null
+      through: ScheduleInstant
+      cause: string
+      reason: string
+      /** The slots of the stretch counted this round (null: not counted one by one), and those chosen to accept. */
+      counted: readonly ScheduleCandidate[] | null
+      selected: readonly ScheduleCandidate[]
+      more: boolean
+      next: ScheduleCandidate | null
+      exhausts: boolean
+      holding: ScheduleRecord['quota']
+      at: ScheduleInstant
+    }>
+  | Readonly<{
       kind: 'admit'
       owner: ScheduleOwner
       scheduleId: ScheduleId
@@ -66,7 +87,6 @@ export type DispatchCommand =
       next: ScheduleCandidate | null
       prepared: AdmissionPrepared
       decision: Admission
-      /** The quota holding the schedule had when prepared; exhaustion releases it in the same commit. */
       holding: ScheduleRecord['quota']
       receiptId: ScheduleReceiptId
       jobId: ScheduleJobId

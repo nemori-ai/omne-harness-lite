@@ -60,6 +60,9 @@ export function readPending(port: ReadPort, input: Pending) {
     "SELECT 1 FROM sc_schedules WHERE owner = ? AND control = 'active' LIMIT 1",
     [owner],
   ).rows[0]
+  const watch = port.execute('SELECT beat_at, watch_from FROM sc_watch WHERE owner = ? LIMIT 1', [
+    owner,
+  ]).rows[0]
   const read = (list: readonly string[]) =>
     list
       .map(id => item(port, input.owner, id))
@@ -68,6 +71,7 @@ export function readPending(port: ReadPort, input: Pending) {
     stale: read(staleIds),
     due: read(due).filter(value => value.state?.revision === value.record.view.revision),
     active: active !== undefined,
+    watch: watch === undefined ? null : { beatAt: String(watch[0]), watchFrom: String(watch[1]) },
     earliest: typeof earliest === 'string' ? earliest : null,
   }
 }

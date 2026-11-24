@@ -68,6 +68,7 @@ export const scheduleRowConfig = z.strictObject({
       intervalMs: positive.default(15_000),
       gapMs: positive.default(120_000),
       roundLimit: positive.max(50).default(20),
+      classifyPages: positive.max(100).default(10),
     })
     .prefault({}),
 })

@@ -47,6 +47,7 @@ export function everyMinute(change: Partial<ScheduleDefinition> = {}): ScheduleD
 export type DispatchWorldOptions = Readonly<{
   root?: string
   wall?: number
+  gapMs?: number
   standing?: ScheduleDispatchOptions['standing']
   missingCarriers?: ScheduleDispatchOptions['missingCarriers']
 }>
@@ -57,7 +58,14 @@ export async function dispatchWorld(options: DispatchWorldOptions = {}) {
     options.root === undefined ? {} : { root: options.root, configure: false },
   )
   const time = simulatedTime({ wall: options.wall ?? START + 10_000 })
-  const app = await createScheduleLocalApplication(localOptions(world))
+  const local = localOptions(world)
+  const app = await createScheduleLocalApplication({
+    ...local,
+    management: {
+      ...local.management,
+      clock: { now: () => new Date(time.source.now()).toISOString() as never },
+    },
+  })
   const worker = createScheduleCalculationWorker({ maxConcurrent: 1, maxQueued: 4 })
   const base = localOptions(world)
   const prediction = createSchedulePredictionService({
@@ -85,7 +93,12 @@ export async function dispatchWorld(options: DispatchWorldOptions = {}) {
       time: time.source,
       standing: options.standing ?? (async () => ({ kind: 'eligible' })),
       missingCarriers: options.missingCarriers ?? (() => []),
-      policy: { intervalMs: MINUTE, gapMs: 5 * MINUTE, roundLimit: 20 },
+      policy: {
+        intervalMs: MINUTE,
+        gapMs: options.gapMs ?? 5 * MINUTE,
+        roundLimit: 20,
+        classifyPages: 10,
+      },
     })
   const create = async (definition: ScheduleDefinition, key: string): Promise<ScheduleId> => {
     const created = await app.commands.create(context, {
@@ -107,13 +120,11 @@ export async function dispatchWorld(options: DispatchWorldOptions = {}) {
     receipts: (id: string) =>
       rows(
         `SELECT slot_at, job_id, receipt FROM sc_receipts WHERE schedule_id = '${id}' ORDER BY slot_at`,
-      ).map(
-        (row): Record<string, unknown> => ({
-          at: row['slot_at'],
-          job: row['job_id'],
-          ...(JSON.parse(String(row['receipt'])) as { receipt: Record<string, unknown> }).receipt,
-        }),
-      ),
+      ).map((row): Record<string, unknown> => ({
+        at: row['slot_at'],
+        job: row['job_id'],
+        ...(JSON.parse(String(row['receipt'])) as { receipt: Record<string, unknown> }).receipt,
+      })),
     jobs: (id: string) =>
       rows(
         `SELECT job_id, slot_at, state FROM sc_jobs WHERE schedule_id = '${id}' ORDER BY slot_at`,
@@ -126,6 +137,8 @@ export async function dispatchWorld(options: DispatchWorldOptions = {}) {
           ),
         ) as { view: Record<string, unknown> }
       ).view,
+    /** The fixture guard stamps management commits with a configured time: make it the simulated now. */
+    stamp: () => world.configure({ decisionAt: new Date(time.source.now()).toISOString() }),
     async close() {
       await app.close()
       await worker.dispose()

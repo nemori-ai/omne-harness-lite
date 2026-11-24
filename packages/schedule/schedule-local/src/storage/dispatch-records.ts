@@ -53,7 +53,7 @@ export function saveState(
       canonical(owner),
       scheduleId,
       value.revision,
-      value.next?.scheduledAt ?? null,
+      value.selected[0]?.scheduledAt ?? value.next?.scheduledAt ?? null,
       canonical(value),
     ],
   )
@@ -68,10 +68,27 @@ export function unfinishedJobs(port: ReadPort, owner: ScheduleOwner, scheduleId:
   return Number(count)
 }
 
+/** The watch start under the lock: the later of the schedule's own start and the scope's unbroken heartbeat. */
+export function lockedWatchStart(
+  port: ReadPort,
+  owner: ScheduleOwner,
+  state: DispatchState,
+): string {
+  const row = port.execute('SELECT watch_from FROM sc_watch WHERE owner = ? LIMIT 1', [
+    canonical(owner),
+  ]).rows[0]
+  const scope = typeof row?.[0] === 'string' ? row[0] : null
+  return scope !== null && scope > state.watchedFrom ? scope : state.watchedFrom
+}
+
+const queued = (state: DispatchState, at: string) =>
+  state.selected.some(slot => slot.scheduledAt === at)
+
 function disposedSlot(port: ReadPort, command: Admit, state: DispatchState): boolean {
   const owner = canonical(command.owner)
   const at = command.slot.scheduledAt
-  if (state.disposedThrough !== null && at <= state.disposedThrough) return true
+  if (!queued(state, at) && state.disposedThrough !== null && at <= state.disposedThrough)
+    return true
   const receipt = port.execute(
     'SELECT 1 FROM sc_receipts WHERE owner = ? AND schedule_id = ? AND slot_at = ? LIMIT 1',
     [owner, command.scheduleId, at],
@@ -98,7 +115,11 @@ export function lockedFacts(
   return {
     slot: {
       disposed: disposedSlot(port, command, state),
-      earlierPending: state.next !== null && state.next.scheduledAt < command.slot.scheduledAt,
+      earlierPending: queued(state, command.slot.scheduledAt)
+        ? state.selected[0]?.scheduledAt !== command.slot.scheduledAt
+        : state.selected.length > 0 ||
+          (state.next !== null && state.next.scheduledAt < command.slot.scheduledAt) ||
+          command.slot.scheduledAt < lockedWatchStart(port, command.owner, state),
     },
     control: view.control,
     basisCurrent: view.revision === command.revision && state.revision === command.revision,
@@ -269,13 +290,82 @@ export function writeAdmission(
     },
   }
   saveRecord(port, decision.exhausts ? exhausted(counted, at) : counted)
+  const fromQueue = queued(state, command.slot.scheduledAt)
+  const through = state.disposedThrough
   saveState(port, command.owner, command.scheduleId, {
     ...state,
-    disposedThrough: command.slot.scheduledAt,
+    disposedThrough:
+      through !== null && through > command.slot.scheduledAt ? through : command.slot.scheduledAt,
     next: decision.exhausts ? null : command.next,
     block: null,
+    selected: fromQueue
+      ? state.selected.filter(slot => slot.scheduledAt !== command.slot.scheduledAt)
+      : state.selected,
   })
   observed()
+}
+
+type Classify = Extract<DispatchCommandInput, { kind: 'classify' }>
+
+/** One missed stretch in one commit: a lapse row, its sources, the eligible count, the queue of slots to accept. */
+export function writeClassification(
+  port: ParticipantPort,
+  command: Classify,
+  record: ScheduleRecord,
+  state: DispatchState,
+  at: string,
+) {
+  const owner = canonical(command.owner)
+  const counted = command.counted
+  const chosen = new Set(command.selected.map(slot => slot.scheduledAt))
+  const missed = counted === null ? [] : counted.filter(slot => !chosen.has(slot.scheduledAt))
+  const first = counted?.[0]?.scheduledAt ?? state.next?.scheduledAt ?? command.through
+  port.execute(
+    'INSERT INTO sc_lapses (owner, schedule_id, from_at, through_at, lapse) VALUES (?, ?, ?, ?, ?)',
+    [
+      owner,
+      command.scheduleId,
+      first,
+      command.through,
+      canonical({
+        from: command.from,
+        cause: command.cause,
+        reason: command.reason,
+        count: counted === null ? null : missed.length,
+        selected: command.selected.length,
+        decidedAt: at,
+        more: command.more,
+      }),
+    ],
+  )
+  for (const slot of missed)
+    for (const key of slot.sourceKeys)
+      port.execute(
+        'INSERT INTO sc_sources (owner, schedule_id, source_key, slot_at) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING',
+        [owner, command.scheduleId, key, slot.scheduledAt],
+      )
+  const view = {
+    ...record.view,
+    eligibleConsumed: record.view.eligibleConsumed + missed.length,
+    nextOccurrence: command.selected[0] ?? command.next,
+  }
+  const next = { ...record, view }
+  saveRecord(port, command.exhausts ? exhausted(next, at) : next)
+  const last = counted?.at(-1)?.scheduledAt
+  saveState(port, command.owner, command.scheduleId, {
+    ...state,
+    disposedThrough:
+      command.more && last !== undefined
+        ? last
+        : (new Date(Date.parse(command.through) - 1).toISOString() as never),
+    next: command.exhausts ? null : command.next,
+    selected: command.selected,
+    counting: command.more ? { through: command.through, cause: command.cause } : null,
+  })
+  port.execute(
+    'INSERT INTO sc_observations (owner, revision) VALUES (?, 1) ON CONFLICT(owner) DO UPDATE SET revision=revision+1',
+    [owner],
+  )
 }
 
 export { decideAdmission, readRecord }

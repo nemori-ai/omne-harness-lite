@@ -59,7 +59,7 @@ const dispatcher = createScheduleDispatcher(
     time: time.source,
     standing: async () => ({ kind: 'eligible' }),
     missingCarriers: () => [],
-    policy: { intervalMs: MINUTE, gapMs: 5 * MINUTE, roundLimit: 20 },
+    policy: { intervalMs: MINUTE, gapMs: 5 * MINUTE, roundLimit: 20, classifyPages: 10 },
   },
 )
 const report = await dispatcher.round()
