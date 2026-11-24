@@ -125,6 +125,70 @@ it('resident known-unavailable declarations retain definition; nonresidents rema
     },
   ])
 })
+
+it('a program executor declares the functions of the resident tools a program can call, and no other tool does', () => {
+  const base = {
+    kind: 'function' as const,
+    description: 'reads one thing',
+    adoption,
+    requiredCapabilities: [] as string[],
+    backgroundAllowed: false,
+    programmable: true,
+    program: { kind: 'open' as const, unless: [] },
+    declarations: {
+      adoption,
+      environment: null,
+      attachments: [],
+      inputModalities: [],
+      outputModalities: [],
+      settings: null,
+    },
+    parameters: {
+      schema: { kind: 'object' as const, entries: [] },
+      vocabulary: adoption,
+      descriptions: [],
+    },
+    returns: ordinaryReturnFixture(adoption),
+  }
+  const adopted = (name: string, more: object = {}, resident = true): ToolAdoption => ({
+    resident,
+    availability: {
+      kind: 'available',
+      definition: { ...base, name, ...more } as never,
+      executor: adoption,
+      layer: { kind: 'official' },
+    },
+    binding: adoption,
+  })
+  const runner = adopted('Runner', {
+    description: 'runs programs',
+    programmable: false,
+    program: undefined,
+    requiredCapabilities: ['program.run'],
+  })
+  const described = (tools: readonly ToolAdoption[], name: string) =>
+    declareTools(tools).direct.find(tool => tool.name === name)?.description ?? ''
+  const all = [
+    runner,
+    adopted('Lookup'),
+    adopted('Away', {}, false),
+    adopted('Plain', { programmable: false }),
+  ]
+  const text = described(all, 'Runner')
+  expect(text.startsWith('runs programs\n\nReturns ')).toBe(true)
+  expect(text).toContain('\n\nFunctions a program can call:\n')
+  expect(text).toContain('declare function Lookup(')
+  // A tool that is not resident, and one a program may not call, are not declared.
+  expect(text).not.toContain('Away')
+  expect(text).not.toContain('Plain')
+  expect(described(all, 'Lookup')).not.toContain('Functions a program can call')
+  // With nothing a program can call the executor declares itself alone.
+  expect(described([runner, adopted('Plain', { programmable: false })], 'Runner')).not.toContain(
+    'Functions a program can call',
+  )
+  // The declaration is fixed with the rest: another resident programmable tool changes the digest.
+  expect(declareTools([...all, adopted('More')]).digest).not.toBe(declareTools(all).digest)
+})
 it('projection preserves reasoning payload, rewrites at indices and removes dangling pairs', () => {
   const stateIdentity = judgeBlockIdentity({
     id: 'state',

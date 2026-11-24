@@ -196,9 +196,11 @@
 - `encodeResidentKey` · `resident-key.d.ts`
 - `encodeToolInvocationRef` · `reference.d.ts`
 - `encodeToolOperationRef` · `reference.d.ts`
+- `isProgramExecutor` · `program-signature.d.ts`
 - `judgeToolDelivery` · `result-delivery.d.ts`
 - `offeredDefinition` · `conditions.d.ts`
 - `pinnedFiles` · `call-directory.d.ts`
+- `programCatalogue` · `program-signature.d.ts`
 - `programToolsOf` · `program.d.ts`
 - `projectResidentReferences` · `resident-key.d.ts`
 - `readToolOperationRef` · `reference.d.ts`
@@ -253,7 +255,9 @@
 - `OUTPUT_BODY_KEY` · `body-reads.d.ts`
 - `OutputCodec` · `authoring.d.ts`
 - `PREVIEW_MAX_CHARS` · `call-label.d.ts`
+- `PROGRAM_CATALOGUE_BYTES` · `program-signature.d.ts`
 - `PROGRAM_FAILURE` · `program-signature.d.ts`
+- `PROGRAM_RUN_CAPABILITY` · `program-signature.d.ts`
 - `ParameterCodec` · `authoring.d.ts`
 - `ParsedToolArguments` · `parameter-codec.d.ts`
 - `PositionExclusion` · `program.d.ts`
@@ -2653,6 +2657,7 @@ export { toolsCapabilityOf } from './tools-capability.ts';
 export { programToolsOf } from './program.ts';
 export type { ProgramCallAnswer, ProgramCallEffect, ProgramCallFailure, ProgramCallFailureKind, ProgramTools, } from './program.ts';
 export type { ProgramFunction } from './program-signature.ts';
+export { isProgramExecutor, programCatalogue } from './program-signature.ts';
 export type { ToolsCapability, ToolsExecuteAnswer } from './tools-capability.ts';
 export type { ToolActionResolution, ToolActionTarget, ToolCallAction, ToolForwardIntent, } from './forwarding.ts';
 export type { SearchArguments, SearchPage, InspectArguments, ToolUsageView, ToolFixedReadArguments, ToolsReadArguments, } from './tools-protocol.ts';
@@ -3334,6 +3339,10 @@ export declare function programFunctions(definition: ToolDefinition): readonly P
 export declare function schemaType(schema: JsonValue): string;
 export declare function programSignature(definition: ToolDefinition): string;
 export declare function functionsSignature(functions: readonly ProgramFunction[]): string;
+export declare const PROGRAM_RUN_CAPABILITY = "program.run";
+export declare const PROGRAM_CATALOGUE_BYTES = 6144;
+export declare function isProgramExecutor(definition: ToolDefinition): boolean;
+export declare function programCatalogue(definitions: readonly ToolDefinition[], maxBytes?: number): string;
 export declare function programCallRefusal(definition: ToolDefinition, command: string | null, given: readonly string[]): string | null;
 ```
 
@@ -3553,7 +3562,7 @@ export { attachToolsCapability } from './tools-capability.ts';
 export { isProgramCall, markProgramCall } from './program-call.ts';
 export type { ToolForwardParent, ToolForwardBinding, ToolForwardSourceOutcome, ToolForwardSource, ToolForwardRuntime, } from './forwarding.ts';
 export { returnGuide } from './return-description.ts';
-export { PROGRAM_FAILURE, functionsSignature, isProgramName, programCallRefusal, programFunctions, programSignature, schemaType, } from './program-signature.ts';
+export { PROGRAM_FAILURE, functionsSignature, isProgramName, programCallRefusal, programFunctions, PROGRAM_CATALOGUE_BYTES, PROGRAM_RUN_CAPABILITY, programSignature, schemaType, } from './program-signature.ts';
 export { TOOL_ENTRY_SOURCES_POINT, isToolSourcePrefix, judgeToolSourceListing, type ToolCapabilityIdentity, type ToolEntrySource, type ToolSourceBreach, type ToolSourceCall, type ToolSourceEntry, type ToolSourceListing, type ToolSourceWithheld, } from './entry-source.ts';
 export { DEFAULT_RELEASE_DETAIL_POLICY, judgeReleaseDescription } from './release-detail.ts';
 export { SCRIPT_EXECUTOR, SCRIPT_MODULE, SCRIPT_TOOL_FILE, checkScriptArguments, readScriptConstruction, scriptConstructionOf, scriptParametersSchema, scriptToolAuthoring, scriptToolLayout, type ScriptConstruction, type ScriptParameters, type ScriptProperty, } from './script-tool.ts';

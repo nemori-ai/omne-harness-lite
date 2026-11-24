@@ -211,6 +211,7 @@ export type {
   ProgramTools,
 } from './program.ts'
 export type { ProgramFunction } from './program-signature.ts'
+export { isProgramExecutor, programCatalogue } from './program-signature.ts'
 export type { ToolsCapability, ToolsExecuteAnswer } from './tools-capability.ts'
 export type {
   ToolActionResolution,

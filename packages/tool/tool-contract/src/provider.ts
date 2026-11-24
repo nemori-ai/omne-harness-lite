@@ -302,6 +302,8 @@ export {
   isProgramName,
   programCallRefusal,
   programFunctions,
+  PROGRAM_CATALOGUE_BYTES,
+  PROGRAM_RUN_CAPABILITY,
   programSignature,
   schemaType,
 } from './program-signature.ts'
