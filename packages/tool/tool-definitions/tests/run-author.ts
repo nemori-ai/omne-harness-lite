@@ -13,8 +13,9 @@ export async function run<E>(
   signal = new AbortController().signal,
 ) {
   const answer = await runRaw(implementation, command, args, environment, signal)
-  if (typeof answer !== 'string') throw new Error('Expected readable text')
-  return answer
+  const text = typeof answer === 'string' ? answer : Reflect.get(Object(answer), 'text')
+  if (typeof text !== 'string') throw new Error('Expected readable text')
+  return text
 }
 
 /** What the author of the command returned, before any rendering. */

@@ -13,6 +13,7 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import {
   deriveDefinition,
   judgeToolDefinition,
+  programFunctions,
   type ToolAuthority,
 } from '@omne-harness/tool-contract/provider'
 import {
@@ -164,6 +165,35 @@ describe('the current definitions Tool reads by name', () => {
     expect(
       await definitions.current({ principal: 'agent', tenant: fixtureTenant('a'), name: 'Shell' }),
     ).toMatchObject({ failure: { kind: 'unavailable' } })
+  })
+})
+
+describe('what a program may call in the release', () => {
+  it('marks Files, Web, Skills and Shell programmable, and no other tool', async () => {
+    const fixture = await releaseFixture()
+    const programmable = fixture.manifest.entries.filter(entry => entry.programmable)
+    expect(programmable.map(entry => entry.asset.name).sort()).toEqual([
+      'Files',
+      'Shell',
+      'Skills',
+      'Web',
+    ])
+    for (const entry of fixture.manifest.entries)
+      expect(governanceOf(entry).programmable).toBe(entry.programmable ? true : undefined)
+  })
+
+  it('opens only the one-shot execute of Shell, closed when the call names a terminal', async () => {
+    const fixture = await releaseFixture()
+    const author = okOf(shellToolModule.createAuthor(tree(TEST_CONSTRUCTION.Shell)), 'author')
+    const definition = okOf(
+      judgeToolDefinition(
+        deriveDefinition(governanceOf(entryOf(fixture.manifest, 'Shell')), author.facts),
+      ),
+      'definition',
+    )
+    expect(programFunctions(definition).map(one => [one.entry, one.unless])).toEqual([
+      ['Shell.execute', ['terminal']],
+    ])
   })
 })
 

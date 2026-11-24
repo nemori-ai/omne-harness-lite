@@ -1,4 +1,18 @@
 import type { Command, Field } from './protocol.ts'
+import type { ProgramSide } from './program-side.ts'
+
+const CLOSED: ProgramSide = { kind: 'closed' }
+const integer = { type: 'integer' }
+const text = { type: 'string' }
+const flag = { type: 'boolean' }
+const fileType = { enum: ['file', 'directory', 'symlink'] }
+type Data = Extract<ProgramSide, { kind: 'data' }>
+const value = (required: readonly string[], properties: object): Data => ({
+  kind: 'data',
+  external: false,
+  schema: { type: 'object', required, properties },
+})
+const WRITTEN = value(['version', 'effect'], { version: text, effect: text })
 
 const path: Field = {
   name: 'path',
@@ -62,6 +76,7 @@ function withHelp(commands: readonly Command[]): readonly Command[] {
     {
       name: 'help',
       summary: 'Show the full usage of one command, or list the commands and the rules.',
+      program: CLOSED,
       fields: [
         {
           name: 'name',
@@ -78,6 +93,13 @@ export const filesCommands: readonly Command[] = withHelp([
   {
     name: 'read',
     summary: 'Read a UTF-8 text page with version and byte offsets.',
+    program: value(['text', 'offset_bytes', 'next_offset_bytes', 'eof', 'version'], {
+      text,
+      offset_bytes: integer,
+      next_offset_bytes: integer,
+      eof: flag,
+      version: text,
+    }),
     fields: [
       path,
       {
@@ -95,11 +117,13 @@ export const filesCommands: readonly Command[] = withHelp([
   {
     name: 'open',
     summary: 'Open one static PNG, JPEG or WebP picture so the model sees it.',
+    program: CLOSED,
     fields: [path],
   },
   {
     name: 'write',
     summary: 'Create or replace complete UTF-8 file bytes.',
+    program: WRITTEN,
     fields: [
       path,
       {
@@ -126,11 +150,13 @@ export const filesCommands: readonly Command[] = withHelp([
   {
     name: 'edit',
     summary: 'Replace exactly one original match and return a diff.',
+    program: WRITTEN,
     fields: [path, old, replacement],
   },
   {
     name: 'patch',
     summary: 'Preflight all exact edits before one batch submission.',
+    program: value(['published'], { published: { type: 'array', items: text } }),
     fields: [
       {
         name: 'edits',
@@ -141,10 +167,37 @@ export const filesCommands: readonly Command[] = withHelp([
       },
     ],
   },
-  { name: 'list', summary: 'List actual entry names and metadata.', fields: [path, offset, limit] },
+  {
+    name: 'list',
+    summary: 'List actual entry names and metadata.',
+    fields: [path, offset, limit],
+    program: value(['entries', 'next_offset'], {
+      entries: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['name', 'type', 'size_bytes'],
+          properties: { name: text, type: fileType, size_bytes: integer },
+        },
+      },
+      next_offset: { type: ['integer', 'null'] },
+    }),
+  },
   {
     name: 'find',
     summary: 'Find names or file content with facility pagination.',
+    program: value(['hits', 'next_offset', 'truncated'], {
+      hits: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['path', 'offset_bytes'],
+          properties: { path: text, offset_bytes: { type: ['integer', 'null'] } },
+        },
+      },
+      next_offset: { type: ['integer', 'null'] },
+      truncated: flag,
+    }),
     fields: [
       path,
       {
@@ -165,10 +218,21 @@ export const filesCommands: readonly Command[] = withHelp([
       limit,
     ],
   },
-  { name: 'info', summary: 'Observe metadata and a bounded binary sample.', fields: [path] },
+  {
+    name: 'info',
+    summary: 'Observe metadata and a bounded binary sample.',
+    fields: [path],
+    program: value(['type', 'size_bytes', 'modified_ms', 'version'], {
+      type: fileType,
+      size_bytes: integer,
+      modified_ms: { type: 'number' },
+      version: text,
+    }),
+  },
   ...['move', 'copy'].map(name => ({
     name,
     summary: `${name === 'move' ? 'Move' : 'Copy'} a path to an authorized destination.`,
+    program: value(['version'], { version: text }),
     fields: [
       path,
       {
@@ -186,10 +250,16 @@ export const filesCommands: readonly Command[] = withHelp([
       version,
     ],
   })),
-  { name: 'delete', summary: 'Remove the selected path.', fields: [path, recursive, version] },
+  {
+    name: 'delete',
+    summary: 'Remove the selected path.',
+    fields: [path, recursive, version],
+    program: value(['removed'], { removed: flag }),
+  },
   {
     name: 'mkdir',
     summary: 'Create a directory.',
+    program: value(['version'], { version: text }),
     fields: [
       path,
       { name: 'parents', kind: 'boolean', description: 'Create missing parents. Omit for false.' },
@@ -201,6 +271,7 @@ export const shellCommands: readonly Command[] = withHelp([
   {
     name: 'create_session',
     summary: 'Create a persistent terminal for subsequent calls in the current session.',
+    program: CLOSED,
     fields: [
       cwd,
       env,
@@ -219,6 +290,16 @@ export const shellCommands: readonly Command[] = withHelp([
   {
     name: 'execute',
     summary: 'Execute a script once or in the exact referenced terminal.',
+    program: {
+      ...value(['exit_code', 'signal', 'stdout', 'stderr', 'duration_ms'], {
+        exit_code: { type: ['integer', 'null'] },
+        signal: { type: ['string', 'null'] },
+        stdout: text,
+        stderr: text,
+        duration_ms: { type: 'number' },
+      }),
+      unless: ['terminal'],
+    },
     fields: [
       {
         name: 'script',
@@ -242,12 +323,14 @@ export const shellCommands: readonly Command[] = withHelp([
   {
     name: 'close_session',
     summary: 'Close the exact referenced terminal and report confirmation.',
+    program: CLOSED,
     fields: [{ ...terminal, required: true }],
   },
   {
     name: 'info',
     summary:
       'Show the current execution environment, live terminal sessions and retained processes.',
+    program: CLOSED,
     fields: [],
   },
 ])

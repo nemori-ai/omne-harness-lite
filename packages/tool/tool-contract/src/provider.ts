@@ -289,6 +289,13 @@ export type {
 } from './forwarding.ts'
 export { returnGuide } from './return-description.ts'
 export {
+  PROGRAM_FAILURE,
+  isProgramName,
+  programFunctions,
+  programSignature,
+  type ProgramFunction,
+} from './program-signature.ts'
+export {
   TOOL_ENTRY_SOURCES_POINT,
   isToolSourcePrefix,
   judgeToolSourceListing,

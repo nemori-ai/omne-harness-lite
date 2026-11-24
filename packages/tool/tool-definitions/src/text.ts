@@ -90,6 +90,10 @@ export class TextWindow {
       this.tailBytes = utf8Length(this.tail)
     }
   }
+  /** Everything appended, or null when it did not all fit the window. */
+  whole(): string | null {
+    return this.total <= this.maximum ? this.head : null
+  }
   render(maximum: number): string {
     if (this.total <= maximum) return this.head
     return truncateText(this.head, this.tail, this.total, maximum)

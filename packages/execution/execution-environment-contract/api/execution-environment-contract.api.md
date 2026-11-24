@@ -1911,6 +1911,7 @@ export declare const programConformanceNames: readonly [
     'program.syntax',
     'program.types-are-erased',
     'program.failures',
+    'program.thrown-lines',
     'program.abort',
     'program.answers',
     'program.refusals'

@@ -521,7 +521,7 @@ describe('currently disclosed known definitions after contribution retirement', 
     expect(await names(w.catalog)).toEqual(expected)
     expect(await names(w.catalog, { invocation: 'programmatic' })).toEqual([])
     const residents = Array.from({ length: 100 }, (_, index) =>
-      row(`known-resident${index}`, 'pear'),
+      row(`knownResident${index}`, 'pear'),
     )
     w.view = {
       ...w.view,
@@ -602,7 +602,7 @@ describe('currently disclosed known definitions after contribution retirement', 
             : {
                 knownDefinition:
                   mismatch === 'name'
-                    ? { ...entry.knownDefinition, name: 'different-name' }
+                    ? { ...entry.knownDefinition, name: 'different' }
                     : mismatch === 'adoption'
                       ? {
                           ...entry.knownDefinition,

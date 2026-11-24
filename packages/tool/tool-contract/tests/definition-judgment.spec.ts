@@ -19,10 +19,20 @@ describe('definition judgment', () => {
   })
 
   it('definition judgment: keeps an explicit programmable value', () => {
-    for (const programmable of [true, false]) {
-      const judged = judgeToolDefinition({ ...commandsDefinition(), programmable })
-      expect(judged).toEqual({ ok: { ...commandsDefinition(), programmable } })
+    const base = commandsDefinition()
+    if (base.kind !== 'commands') throw new Error('commands')
+    const open = { kind: 'open', unless: [] } as const
+    const declared = {
+      ...base,
+      name: 'Files',
+      commands: base.commands.map(one => ({ ...one, program: open })),
     }
+    expect(judgeToolDefinition({ ...declared, programmable: true })).toEqual({
+      ok: { ...declared, programmable: true },
+    })
+    expect(judgeToolDefinition({ ...base, programmable: false })).toEqual({
+      ok: { ...base, programmable: false },
+    })
   })
 
   it('definition judgment: rejects programmable "true" as a string and names the field', () => {

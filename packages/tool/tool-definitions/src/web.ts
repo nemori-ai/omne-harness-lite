@@ -1,26 +1,24 @@
 import type { JsonValue } from '@omne-harness/json-text'
-import { fail, succeed } from '@omne-harness/operation-result'
+import { fail } from '@omne-harness/operation-result'
 import type {
   CommandTable,
   ToolCommandRelease,
   ToolGate,
+  ToolProgramAccess,
   ToolSettingsDeclaration,
 } from '@omne-harness/tool-contract'
 import {
   commandGuide,
   defineCommandTool,
-  defineToolOperation,
   describedAdoption,
   type ToolExecutionContext,
   type ToolImplementationModule,
   type ToolMessageContentBlock,
   type ToolOperation,
-  type ToolOperationParameters,
 } from '@omne-harness/tool-contract/provider'
 import { resultMaximumField } from './files.ts'
+import { commandOperation, commandReturns, programAccess, type Answer } from './program-side.ts'
 import { adoption as vocabulary, parseConstruction, tree, type Field } from './protocol.ts'
-import { textReturns } from './returns.ts'
-import { bounded } from './text.ts'
 import { webAccessOf, type FetchedPage, type SearchHit, type WebFailure } from './web-port.ts'
 import {
   webAdoption,
@@ -31,8 +29,6 @@ import {
 } from './web-protocol.ts'
 
 const ENCODING = 'wrapped' as const
-const returns = textReturns(webAdoption)
-
 const WEB_GATES: readonly ToolGate[] = [
   { id: 'read', title: '查看', default: 'auto' },
   { id: 'fetch', title: '联网', default: 'ask' },
@@ -107,7 +103,8 @@ const menu: CommandTable = {
     name: command.name,
     summary: command.summary,
     parameters: { kind: 'declared', value: webContract(command.name) },
-    returns,
+    returns: commandReturns(`Web.${command.name}`, webAdoption, command.program),
+    ...(command.program === undefined ? {} : { program: programAccess(command.program) }),
   })),
 }
 
@@ -158,22 +155,40 @@ async function execute(
   args: WebArguments,
   execution: ToolExecutionContext,
   maxSearchResults: number,
-): Promise<string> {
+): Promise<Answer> {
   if (args.kind === 'help')
-    return `done Web help${args.name === undefined ? '' : ` ${args.name}`}\n${commandGuide(menu, args.name)}`
+    return {
+      text: `done Web help${args.name === undefined ? '' : ` ${args.name}`}\n${commandGuide(menu, args.name)}`,
+    }
   const access = webAccessOf(execution)
-  if (access === undefined)
-    return failureLine({
-      kind: 'unavailable',
-      diagnostic: 'Web access is not attached to this call',
-    })
+  if (access === undefined) {
+    const diagnostic = 'Web access is not attached to this call'
+    return { text: failureLine({ kind: 'unavailable', diagnostic }) }
+  }
   if (args.kind === 'search') {
     const limit = Math.min(args.limit ?? DEFAULT_SEARCH_RESULTS, maxSearchResults)
     const answer = await access.search({ query: args.query, limit }, execution.signal)
-    return 'failure' in answer ? failureLine(answer.failure) : searchText(args.query, answer.ok)
+    if ('failure' in answer) return { text: failureLine(answer.failure) }
+    const results = answer.ok.map(hit => ({
+      title: hit.title,
+      url: hit.url,
+      published_at: hit.publishedAt ?? null,
+      excerpt: hit.excerpt,
+    }))
+    return { text: searchText(args.query, answer.ok), data: { results } }
   }
   const answer = await access.fetch({ url: args.url }, execution.signal)
-  return 'failure' in answer ? failureLine(answer.failure) : fetchText(answer.ok)
+  if ('failure' in answer) return { text: failureLine(answer.failure) }
+  const page = answer.ok
+  return {
+    text: fetchText(page),
+    data: {
+      url: page.finalUrl,
+      media_type: page.mediaType,
+      markdown: page.markdown,
+      truncated: page.truncated,
+    },
+  }
 }
 
 export function createWebAuthor(
@@ -189,53 +204,19 @@ export function createWebAuthor(
       summary: string
       operation: ToolOperation<null, ToolMessageContentBlock>
       release: ToolCommandRelease
+      program?: ToolProgramAccess
     }
   > = {}
   for (const command of webCommands) {
     const { name } = command
-    const operation = defineToolOperation<
-      WebArguments,
-      string,
-      null,
-      ToolMessageContentBlock,
-      Extract<ToolOperationParameters, { kind: 'declared' }>
-    >({
-      parameters: { kind: 'declared', value: webContract(name) },
-      returns,
-      author: {
-        kind: 'ordinary',
-        parameters: webParameterCodec(name),
-        waits: [],
-        executor: {
-          async execute(args, _environment, execution) {
-            return bounded(await execute(args, execution, maxSearchResults), maximum)
-          },
-        },
-        codec: {
-          adoption: webAdoption,
-          encode(value: unknown) {
-            return typeof value === 'string'
-              ? succeed(new TextEncoder().encode(value))
-              : fail({ reason: 'text-required' })
-          },
-          decode(bytes) {
-            try {
-              return succeed(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
-            } catch {
-              return fail({ reason: 'invalid-utf8' })
-            }
-          },
-        },
-        output: {
-          adoption: webAdoption,
-          check: ({ value }: { value: unknown }) =>
-            typeof value === 'string' && new TextEncoder().encode(value).byteLength <= maximum
-              ? succeed(value)
-              : fail({ reason: 'bounded-text-required' }),
-        },
-        renderer: { render: (value: string) => succeed(value) },
-        program: { kind: 'none' },
-      },
+    const operation = commandOperation<WebArguments, null>({
+      entry: `Web.${name}`,
+      parameters: webContract(name),
+      arguments: webParameterCodec(name),
+      text: webAdoption,
+      side: command.program,
+      maximum,
+      run: (args, _environment, execution) => execute(args, execution, maxSearchResults),
     })
     if ('failure' in operation)
       return fail({ field: 'commands', reason: JSON.stringify(operation.failure) })
@@ -243,6 +224,7 @@ export function createWebAuthor(
       summary: command.summary,
       operation: operation.ok,
       release: webRelease(name),
+      ...(command.program === undefined ? {} : { program: programAccess(command.program) }),
     }
   }
   const author = defineCommandTool({

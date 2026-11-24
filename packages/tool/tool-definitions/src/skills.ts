@@ -1,20 +1,18 @@
 import type { JsonValue } from '@omne-harness/json-text'
-import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type { CommandTable } from '@omne-harness/tool-contract'
+import { fail, type Outcome } from '@omne-harness/operation-result'
+import type { CommandTable, ToolProgramAccess } from '@omne-harness/tool-contract'
 import {
   commandGuide,
   defineCommandTool,
-  defineToolOperation,
   describedAdoption,
   type ToolExecutionContext,
   type ToolImplementationModule,
   type ToolMessageContentBlock,
   type ToolOperation,
-  type ToolOperationParameters,
 } from '@omne-harness/tool-contract/provider'
 import { resultMaximumField } from './files.ts'
 import { parseConstruction } from './protocol.ts'
-import { textReturns } from './returns.ts'
+import { commandOperation, commandReturns, programAccess, type Answer } from './program-side.ts'
 import {
   skillsAccessOf,
   type SkillsEntry,
@@ -30,10 +28,8 @@ import {
   skillsParameterCodec,
   type SkillsArguments,
 } from './skills-protocol.ts'
-import { bounded } from './text.ts'
 
 const ENCODING = 'wrapped' as const
-const returns = textReturns(skillsAdoption)
 const DEFAULT_LIMIT = 10
 const MAX_LIMIT = 50
 const DESCRIPTION_SHOWN = 1024
@@ -49,7 +45,8 @@ function skillsMenu(): CommandTable {
       name: command.name,
       summary: command.summary,
       parameters: { kind: 'declared', value: skillsContract(command.name) },
-      returns,
+      returns: commandReturns(`Skills.${command.name}`, skillsAdoption, command.program),
+      ...(command.program === undefined ? {} : { program: programAccess(command.program) }),
     })),
   }
 }
@@ -116,24 +113,38 @@ function listText(skill: string, listing: SkillsListing): string {
   ].join('\n')
 }
 
-function rendered<T>(answer: Outcome<T, SkillsFailure>, render: (value: T) => string): string {
-  return 'failure' in answer ? failureLine(answer.failure) : render(answer.ok)
+function rendered<T>(
+  answer: Outcome<T, SkillsFailure>,
+  render: (value: T) => string,
+  data: (value: T) => unknown,
+): Answer {
+  return 'failure' in answer
+    ? { text: failureLine(answer.failure) }
+    : { text: render(answer.ok), data: data(answer.ok) }
 }
+const pageOf = (read: SkillsText) => ({
+  text: read.text,
+  start: read.start,
+  end: read.end,
+  total: read.total,
+  directory: read.directory ?? null,
+})
 
 async function execute(
   args: SkillsArguments,
   execution: ToolExecutionContext,
   maximum: number,
   menu: CommandTable,
-): Promise<string> {
+): Promise<Answer> {
   if (args.kind === 'help')
-    return `done Skills help${args.name === undefined ? '' : ` ${args.name}`}\n${commandGuide(menu, args.name)}`
+    return {
+      text: `done Skills help${args.name === undefined ? '' : ` ${args.name}`}\n${commandGuide(menu, args.name)}`,
+    }
   const access = skillsAccessOf(execution)
-  if (access === undefined)
-    return failureLine({
-      kind: 'unavailable',
-      reason: 'Skills access is not attached to this call',
-    })
+  if (access === undefined) {
+    const reason = 'Skills access is not attached to this call'
+    return { text: failureLine({ kind: 'unavailable', reason }) }
+  }
   const maxBytes = Math.max(1, maximum - Math.min(Math.floor(maximum / 2), HEAD_RESERVE))
   const { signal } = execution
   switch (args.kind) {
@@ -142,16 +153,34 @@ async function execute(
       return rendered(
         await access.search({ query: args.query, after: args.after, limit }, signal),
         page => searchText(args.query, page),
+        page => ({
+          entries: page.entries.map(entry => ({
+            name: entry.name,
+            description: entry.description ?? null,
+            disabled: entry.kind === 'disabled' ? entry.reason : null,
+          })),
+          next: page.next,
+        }),
       )
     }
     case 'read':
       return rendered(
         await access.read({ skill: args.skill, offset: args.offset, maxBytes }, signal),
         read => textResult(`read skill=${args.skill}`, read),
+        pageOf,
       )
     case 'list':
-      return rendered(await access.list({ skill: args.skill }, signal), listing =>
-        listText(args.skill, listing),
+      return rendered(
+        await access.list({ skill: args.skill }, signal),
+        listing => listText(args.skill, listing),
+        listing => ({
+          files: listing.files.map(file => ({
+            path: file.path,
+            size: file.size,
+            media_type: file.mediaType ?? null,
+          })),
+          directory: listing.directory ?? null,
+        }),
       )
     case 'read_file':
       return rendered(
@@ -160,6 +189,7 @@ async function execute(
           signal,
         ),
         read => textResult(`read_file skill=${args.skill} path=${args.path}`, read),
+        pageOf,
       )
   }
 }
@@ -173,57 +203,30 @@ export function createSkillsAuthor(
   const menu = skillsMenu()
   const operations: Record<
     string,
-    { summary: string; operation: ToolOperation<null, ToolMessageContentBlock> }
+    {
+      summary: string
+      operation: ToolOperation<null, ToolMessageContentBlock>
+      program?: ToolProgramAccess
+    }
   > = {}
   for (const command of skillsCommands) {
     const { name } = command
-    const operation = defineToolOperation<
-      SkillsArguments,
-      string,
-      null,
-      ToolMessageContentBlock,
-      Extract<ToolOperationParameters, { kind: 'declared' }>
-    >({
-      parameters: { kind: 'declared', value: skillsContract(name) },
-      returns,
-      author: {
-        kind: 'ordinary',
-        parameters: skillsParameterCodec(name),
-        waits: [],
-        executor: {
-          async execute(args, _environment, execution) {
-            return bounded(await execute(args, execution, maximum, menu), maximum)
-          },
-        },
-        codec: {
-          adoption: skillsAdoption,
-          encode(value: unknown) {
-            return typeof value === 'string'
-              ? succeed(new TextEncoder().encode(value))
-              : fail({ reason: 'text-required' })
-          },
-          decode(bytes) {
-            try {
-              return succeed(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
-            } catch {
-              return fail({ reason: 'invalid-utf8' })
-            }
-          },
-        },
-        output: {
-          adoption: skillsAdoption,
-          check: ({ value }: { value: unknown }) =>
-            typeof value === 'string' && new TextEncoder().encode(value).byteLength <= maximum
-              ? succeed(value)
-              : fail({ reason: 'bounded-text-required' }),
-        },
-        renderer: { render: (value: string) => succeed(value) },
-        program: { kind: 'none' },
-      },
+    const operation = commandOperation<SkillsArguments, null>({
+      entry: `Skills.${name}`,
+      parameters: skillsContract(name),
+      arguments: skillsParameterCodec(name),
+      text: skillsAdoption,
+      side: command.program,
+      maximum,
+      run: (args, _environment, execution) => execute(args, execution, maximum, menu),
     })
     if ('failure' in operation)
       return fail({ field: 'commands', reason: JSON.stringify(operation.failure) })
-    operations[name] = { summary: command.summary, operation: operation.ok }
+    operations[name] = {
+      summary: command.summary,
+      operation: operation.ok,
+      ...(command.program === undefined ? {} : { program: programAccess(command.program) }),
+    }
   }
   const author = defineCommandTool({
     implementation: {

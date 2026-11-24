@@ -15,6 +15,7 @@ import type {
 import type {
   ToolCallConditions,
   ToolCommandBackground,
+  ToolProgramAccess,
   ToolCommandRelease,
   ToolGate,
   ToolImplementationFacts,
@@ -27,6 +28,7 @@ import {
   commandName,
   callConditions,
   commandRelease,
+  programAccess,
   commandSummary,
   implementationDeclaration,
   judgeImplementationFacts,
@@ -317,32 +319,37 @@ export function defineFunctionTool<E, B extends ContentBlock>(
     implementation: ToolImplementationDeclaration
     operation: ToolOperation<E, B, Extract<ToolOperationParameters, { kind: 'declared' }>>
     conditions?: ToolCallConditions
+    program?: ToolProgramAccess
   }>,
 ): Outcome<ToolImplementation<E, B>, Rejection> {
   const checked = judgeUnknown(
     record(
       { implementation: implementationDeclaration, operation: operationHandle },
-      { conditions: callConditions },
+      { conditions: callConditions, program: programAccess },
     ),
     input,
     'input',
   )
   if ('failure' in checked) return checked
-  const { implementation, operation, conditions } = checked.ok
+  const { implementation, operation, conditions, program } = checked.ok
   if (operation.parameters.kind !== 'declared')
     return reject('operation.parameters.kind', 'executor-owned')
   const { value: parameters } = operation.parameters
-  const shape = { kind: 'function', parameters, returns: operation.returns } as const
-  return implement(implementation, conditions === undefined ? shape : { ...shape, conditions }, {
+  const shape = {
     kind: 'function',
-    operation,
-  })
+    parameters,
+    returns: operation.returns,
+    ...(conditions === undefined ? {} : { conditions }),
+    ...(program === undefined ? {} : { program }),
+  } as const
+  return implement(implementation, shape, { kind: 'function', operation })
 }
 
 const commandEntry = record(
   { summary: commandSummary, operation: operationHandle },
   {
     background: record({ unless: list(filled) }, { start: literal('launch') }),
+    program: programAccess,
     release: commandRelease,
     modalities: commandModalities,
     conditions: callConditions,
@@ -354,6 +361,7 @@ type CommandEntry = readonly [
     summary: string
     operation: ToolOperationSlot
     background?: ToolCommandBackground
+    program?: ToolProgramAccess
     release?: ToolCommandRelease
     modalities?: readonly Modality[]
     conditions?: ToolCallConditions
@@ -392,6 +400,7 @@ export function defineCommandTool<E, B extends ContentBlock>(
           summary: string
           operation: ToolOperation<E, B>
           background?: ToolCommandBackground
+          program?: ToolProgramAccess
           release?: ToolCommandRelease
           modalities?: readonly Modality[]
           conditions?: ToolCallConditions
@@ -431,7 +440,7 @@ export function defineCommandTool<E, B extends ContentBlock>(
       ...(guide === undefined ? {} : { guide }),
       ...(gates === undefined ? {} : { gates }),
       commands: commands.map(
-        ([name, { summary, operation, background, release, modalities, conditions }]) => ({
+        ([name, { summary, operation, background, program, release, modalities, conditions }]) => ({
           name,
           summary,
           parameters:
@@ -440,6 +449,7 @@ export function defineCommandTool<E, B extends ContentBlock>(
               : { kind: 'executor-owned' },
           returns: operation.returns,
           ...(background === undefined ? {} : { background }),
+          ...(program === undefined ? {} : { program }),
           ...(release === undefined ? {} : { release }),
           ...(modalities === undefined ? {} : { modalities }),
           ...(conditions === undefined ? {} : { conditions }),

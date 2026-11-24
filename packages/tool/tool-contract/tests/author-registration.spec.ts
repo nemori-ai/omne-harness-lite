@@ -216,6 +216,7 @@ describe('author registration', () => {
       schema: schema.identity,
       definition: parameters(['entries']),
       maxBytes: schema.maxBytes,
+      external: false,
     } as const
     const author = ordinaryAuthor()
     const program = {

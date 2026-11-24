@@ -14,6 +14,8 @@ import type {
   ToolDefinition,
   ToolGate,
   ToolImplementationFacts,
+  ToolImplementationShape,
+  ToolProgramAccess,
   ToolProgramDeclaration,
   ToolBodyDeclaration,
   ToolOffloadingDeclaration,
@@ -22,6 +24,7 @@ import type {
 } from './definitions.ts'
 import { COMMAND_CALL_ENCODINGS, flatConflict } from './command-call.ts'
 import { jsonObject, jsonValue } from './json-tree.ts'
+import { isProgramName } from './program-signature.ts'
 import {
   bool,
   filled,
@@ -63,6 +66,7 @@ export const programDeclaration: Check<ToolProgramDeclaration> = variant('kind',
     schema: schemaIdentity,
     definition: parameterContract,
     maxBytes: positiveSafeInteger,
+    external: bool,
   }),
 })
 
@@ -280,8 +284,13 @@ const conditionName: Check<string> = (value, at) => {
   return /^[a-z][a-z0-9-]{0,47}$/u.test(value) ? succeed(value) : reject(at, 'condition-name')
 }
 export const callConditions = nonEmpty(names(conditionName))
+export const programAccess: Check<ToolProgramAccess> = variant('kind', {
+  open: record({ kind: literal('open'), unless: names(filled) }),
+  closed: record({ kind: literal('closed') }),
+})
 const command = record(commandFields, {
   background: record({ unless: names(filled) }, { start: literal('launch') }),
+  program: programAccess,
   release: commandRelease,
   modalities: commandModalities,
   conditions: callConditions,
@@ -331,7 +340,7 @@ const functionShapeFields = {
   parameters: parameterContract,
   returns: returnDeclaration,
 }
-const functionShapeOptional = { conditions: callConditions }
+const functionShapeOptional = { conditions: callConditions, program: programAccess }
 const commandsShapeFields = {
   kind: literal('commands'),
   encoding: literal(...COMMAND_CALL_ENCODINGS),
@@ -365,24 +374,56 @@ function flatCallable<
   })
 }
 
-export const toolDefinition: Check<ToolDefinition> = variant('kind', {
-  function: record(
-    { ...metadataFields, ...functionShapeFields },
-    { ...metadataOptional, ...functionShapeOptional },
-  ),
-  commands: refine(
-    gatesNamed(
-      flatCallable(
-        record(
-          { ...metadataFields, ...commandsShapeFields },
-          { ...metadataOptional, ...commandsShapeOptional },
+// TL-72: a programmable tool says of every command how it faces a program, and a program can name it.
+function programDeclared(
+  value: Pick<ToolDefinition, 'name' | 'programmable'> & ToolImplementationShape,
+  at: string,
+): Readonly<{ field: string; reason: string }> | undefined {
+  if (value.programmable !== true) return undefined
+  if (value.kind === 'function') {
+    if (value.program === undefined) return { field: member(at, 'program'), reason: 'undeclared' }
+    if (value.program.kind !== 'open')
+      return { field: member(at, 'program'), reason: 'no-open-command' }
+    return isProgramName(value.name)
+      ? undefined
+      : { field: member(at, 'name'), reason: 'program-name' }
+  }
+  const commands = member(at, 'commands')
+  const missing = value.commands.findIndex(entry => entry.program === undefined)
+  if (missing >= 0)
+    return { field: member(item(commands, missing), 'program'), reason: 'undeclared' }
+  const open = value.commands.filter(entry => entry.program?.kind === 'open')
+  if (open.length === 0) return { field: commands, reason: 'no-open-command' }
+  if (!isProgramName(value.name)) return { field: member(at, 'name'), reason: 'program-name' }
+  const unnameable = value.commands.findIndex(
+    entry => entry.program?.kind === 'open' && !isProgramName(value.name, entry.name),
+  )
+  return unnameable < 0
+    ? undefined
+    : { field: member(item(commands, unnameable), 'name'), reason: 'program-name' }
+}
+
+export const toolDefinition: Check<ToolDefinition> = refine(
+  variant('kind', {
+    function: record(
+      { ...metadataFields, ...functionShapeFields },
+      { ...metadataOptional, ...functionShapeOptional },
+    ),
+    commands: refine(
+      gatesNamed(
+        flatCallable(
+          record(
+            { ...metadataFields, ...commandsShapeFields },
+            { ...metadataOptional, ...commandsShapeOptional },
+          ),
         ),
       ),
+      (value, at) =>
+        backgroundDeclared(value.backgroundAllowed, value.commands, member(at, 'commands')),
     ),
-    (value, at) =>
-      backgroundDeclared(value.backgroundAllowed, value.commands, member(at, 'commands')),
-  ),
-})
+  }),
+  programDeclared,
+)
 
 const implementationFacts: Check<ToolImplementationFacts> = refine(
   record({

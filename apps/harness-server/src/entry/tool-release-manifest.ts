@@ -193,6 +193,13 @@ export type ReleaseToolExport = (typeof RELEASE_TOOLS)[number]['export']
 export const RELEASE_UNGATED: Readonly<Partial<Record<string, readonly string[]>>> = Object.freeze({
   Ask: ['ask'],
 })
+/** The tools of the release a program may call. The commands they open are in their own definitions. */
+export const RELEASE_PROGRAMMABLE: readonly string[] = Object.freeze([
+  'Files',
+  'Web',
+  'Skills',
+  'Shell',
+])
 export function namedUngated(tool: string): readonly string[] {
   return RELEASE_UNGATED[tool] ?? []
 }
@@ -240,6 +247,7 @@ export const manifestSchema = z.strictObject({
     z.strictObject({
       asset: z.strictObject({ name: z.string().min(1), adoption: adoptionSchema }),
       requiredCapabilities: z.array(z.string()),
+      programmable: z.boolean(),
       module: z.strictObject({
         package: packageSchema,
         export: z.string().min(1),
@@ -387,10 +395,13 @@ export async function locateReleasePackages(from: string): Promise<ReleaseRoots>
   return roots as ReleaseRoots
 }
 
-export function governanceOf(entry: Pick<ToolReleaseEntry, 'asset' | 'requiredCapabilities'>) {
+export function governanceOf(
+  entry: Pick<ToolReleaseEntry, 'asset' | 'requiredCapabilities' | 'programmable'>,
+) {
   return Object.freeze({
     asset: entry.asset,
     requiredCapabilities: entry.requiredCapabilities,
+    ...(entry.programmable ? { programmable: true } : {}),
   }) satisfies ToolGovernance
 }
 
@@ -481,6 +492,7 @@ export function composeManifest(input: {
         },
       },
       requiredCapabilities: [...tool.capabilities],
+      programmable: RELEASE_PROGRAMMABLE.includes(tool.name),
       module,
       construction,
       settings: {

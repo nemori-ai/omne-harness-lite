@@ -70,6 +70,7 @@ export type {
   ToolGateDefault,
   ToolImplementationShape,
   ToolInvocation,
+  ToolProgramAccess,
   ToolProgramDeclaration,
   ToolOffloadingDeclaration,
   ToolPublishedSchema,

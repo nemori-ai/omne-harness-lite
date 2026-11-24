@@ -1,6 +1,7 @@
 import { judgeJsonValue, readJsonText, type JsonValue } from '@omne-harness/json-text'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { ParameterContract, ToolCommandBackground } from '@omne-harness/tool-contract'
+import type { ProgramSide } from './program-side.ts'
 import {
   createDefaultParameterCodec,
   describedAdoption,
@@ -43,6 +44,7 @@ export type Command = Readonly<{
   summary: string
   fields: readonly Field[]
   background?: ToolCommandBackground
+  program?: ProgramSide
 }>
 export type ExactEdit = Readonly<{ path: string; old_text: string; new_text: string }>
 export function tree(value: unknown): JsonValue {

@@ -152,6 +152,7 @@ export function functionDefinition(overrides: Partial<DefinitionMetadata> = {}):
     kind: 'function',
     parameters: parameters(),
     returns: ordinaryReturnFixture(adoption('codec')),
+    ...(overrides.programmable === true ? { program: { kind: 'open', unless: [] } } : {}),
   }
 }
 

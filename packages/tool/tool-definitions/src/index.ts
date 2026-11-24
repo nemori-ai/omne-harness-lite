@@ -1,4 +1,5 @@
 export { createFilesAuthor, filesToolModule } from './files.ts'
+export { PROGRAM_DATA_MAX_BYTES, type Answer, type ProgramSide } from './program-side.ts'
 export { createScreenAuthor, screenToolModule } from './screen.ts'
 export {
   SHELL_BACKGROUND_AFTER_DEFAULT_MS,

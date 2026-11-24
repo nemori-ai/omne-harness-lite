@@ -87,10 +87,12 @@ it('stops only the interrupted handle and preserves unconfirmed while another in
       },
     }),
   )
-  const [interrupted, other] = await Promise.all([
+  const [answered, other] = await Promise.all([
     operation.author.executor.execute(args, environment, scope.context),
     run(author, 'execute', { script: 'other' }, environment),
   ])
+  const interrupted = Reflect.get(Object(answered), 'text') as string
+  expect(answered).not.toHaveProperty('data')
   expect(interrupted).toContain('unknown')
   expect(interrupted).toContain('stop=unconfirmed')
   expect(other).toContain('done')

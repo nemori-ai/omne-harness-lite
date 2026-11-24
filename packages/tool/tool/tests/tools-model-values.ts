@@ -199,6 +199,7 @@ export async function modelHost(
                 descriptions: [],
               },
               maxBytes: options.replyMaxBytes,
+              external: false,
             }
           : { kind: 'none' },
     },
