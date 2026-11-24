@@ -40,8 +40,23 @@ export type KindsRead =
   | Readonly<{ kind: 'read'; kinds: readonly KindListing[] }>
   | Readonly<{ kind: 'unavailable' }>
 
+/** One kind as `place` takes it. While it is held, a withdrawal of its declaration waits for `leave`. */
+export type KindEntry =
+  | Readonly<{
+      kind: 'declared'
+      admit?: KindDeclaration['admit']
+      /** Whether this declaration is still the one declared under its name. */
+      declared(): boolean
+      leave(): void
+    }>
+  | Readonly<{ kind: 'undeclared' }>
+  | Readonly<{ kind: 'conflict'; by: readonly string[] }>
+  | Readonly<{ kind: 'unavailable' }>
+
 export interface CanvasKinds {
   read(): KindsRead
+  /** The one declaration of this name now, held until `leave`; or why there is none. */
+  enter(name: string): KindEntry
 }
 
 /** The canvas's own kind: a small app a plugin brings, by its name on `canvas.app-render`. */

@@ -1,25 +1,44 @@
 import { expect, it } from 'vitest'
 
-it('the root entry gives the schemas of the values, the canvas own kind and the reading of a look', async () => {
+it('the root entry gives the schemas of the values and requests, the readings, the table and the canvas own kind', async () => {
   const root = (await import('@omne-harness/canvas-contract')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual([
     'CANVAS_APP',
+    'CELLS',
     'MAIN_CANVAS',
+    'arrangeRequestSchema',
     'canvasAppKind',
     'canvasIdSchema',
+    'holderOf',
     'instantSchema',
+    'itemChangeSchema',
     'itemIdSchema',
     'itemSchema',
     'kindNameSchema',
+    'lockRequestSchema',
+    'lookAwayRequestSchema',
     'lookRequestSchema',
     'moverSchema',
+    'parseArrange',
+    'parseLock',
     'parseLook',
+    'parseLookAway',
+    'parsePile',
+    'parsePlace',
+    'parseScatter',
+    'parseTake',
+    'pileChangeSchema',
     'pileIdSchema',
+    'pileRequestSchema',
     'pileSchema',
+    'placeRequestSchema',
     'referenceSchema',
+    'scatterRequestSchema',
     'sheetSchema',
     'sizeSchema',
     'spotSchema',
+    'statusOf',
+    'takeRequestSchema',
     'tenantIdSchema',
   ])
 })
