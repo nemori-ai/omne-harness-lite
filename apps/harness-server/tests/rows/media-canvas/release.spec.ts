@@ -15,14 +15,8 @@ import {
   type ReleaseTree,
 } from '../../support/release-tree.ts'
 import { canvasCall, kindsOf, type CanvasReply } from '../canvas/support.ts'
-import {
-  MEDIA_ROWS_BUT_CANVAS,
-  faultyMediaKind,
-  holdsOf,
-  picture,
-  stateOf,
-  stranger,
-} from './support.ts'
+import { MEDIA_ROWS } from '../media-access/support.ts'
+import { faultyMediaKind, holdsOf, picture, stateOf, stranger } from './support.ts'
 
 const MEDIA = 'media.object'
 const NOT_ADMITTED = { outcome: 'conflict', body: { reason: 'not-admitted' } }
@@ -151,7 +145,7 @@ describe('the media-canvas row on the release tree', () => {
     'answers basis-unavailable without media, and still refuses a reference it cannot read',
     { tags: ['slow'], timeout: 300_000 },
     async () => {
-      const options = { script: toolCallsThenText(() => []), withoutRows: MEDIA_ROWS_BUT_CANVAS }
+      const options = { script: toolCallsThenText(() => []), withoutRows: MEDIA_ROWS }
       const exitCode = await onReleaseTree(options, async tree => {
         expect(Object.keys(await kindsOf(tree.port, tree.home))).toContain(MEDIA)
         const readable = referenceText({

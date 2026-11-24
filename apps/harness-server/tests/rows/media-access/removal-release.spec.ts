@@ -7,22 +7,7 @@ import {
   pollUntil,
   toolCallsThenText,
 } from '../../support/release-tree.ts'
-import { mediaClientOf } from './support.ts'
-
-const MEDIA_ROWS = [
-  'media-storage-sql',
-  'media-image',
-  'media',
-  'media-storage-local',
-  'media-sweep',
-  'media-intake',
-  'media-model-source',
-  'media-tool-store',
-  'media-converters',
-  'media-engine-transcribe',
-  'media-engine-pdf',
-  'media-access',
-]
+import { MEDIA_ROWS, mediaClientOf } from './support.ts'
 
 describe('the release tree without the media rows (C22)', () => {
   it(

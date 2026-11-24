@@ -17,21 +17,6 @@ import { uploaded, type Reference } from '../media-intake/support.ts'
 export type Held = Readonly<{ owner: string; work: string; position: string; purpose: string }>
 export type Uploaded = Readonly<{ ref: Reference; text: string }>
 
-export const MEDIA_ROWS_BUT_CANVAS = [
-  'media-storage-sql',
-  'media-image',
-  'media',
-  'media-storage-local',
-  'media-sweep',
-  'media-intake',
-  'media-model-source',
-  'media-tool-store',
-  'media-converters',
-  'media-engine-transcribe',
-  'media-engine-pdf',
-  'media-access',
-]
-
 /** Who holds the medium of the given key, read off every SQLite file of the tree. */
 export function holdsOf(storageRoot: string, key: string): Held[] {
   const held: Held[] = []
