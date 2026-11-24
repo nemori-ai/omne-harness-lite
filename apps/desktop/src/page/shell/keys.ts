@@ -23,6 +23,12 @@ export function bindRegionKeys(target: KeyTarget, root: Document = document): ()
   }
 }
 
+function turnsFace(event: KeyboardEvent, platform: SizeKeyPlatform): boolean {
+  const held =
+    platform === 'mac' ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey
+  return held && event.shiftKey && !event.altKey && event.key.toLowerCase() === 'p'
+}
+
 /** ⌘⇧P on the Mac, Ctrl+Shift+P elsewhere, on either face; it is not taken while there is no back to turn to. */
 export function bindFaceKeys(
   target: KeyTarget,
@@ -30,9 +36,7 @@ export function bindFaceKeys(
   platform: SizeKeyPlatform,
 ): () => void {
   const onKey = (event: KeyboardEvent): void => {
-    const held =
-      platform === 'mac' ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey
-    if (!held || !event.shiftKey || event.altKey || event.key.toLowerCase() !== 'p') return
+    if (!turnsFace(event, platform)) return
     if (event.defaultPrevented || event.isComposing || blockingOverlay() || !face.two.get()) return
     event.preventDefault()
     if (!event.repeat) face.turn()
