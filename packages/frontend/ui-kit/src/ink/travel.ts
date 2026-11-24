@@ -244,6 +244,45 @@ const toward = (here: Placement, there: Placement): Point => {
   return [(there.x - here.x) / span, (there.y - here.y) / span]
 }
 
+interface WayTiming {
+  readonly duration?: number
+  readonly leftDry?: number
+  readonly start?: number
+  readonly reached?: () => void
+  readonly along?: Readonly<{ from: number; to: number }>
+}
+
+const holdsAtEnd = (way: Timed | undefined): boolean =>
+  way?.hold === true || way?.along !== undefined
+
+function endsOf(
+  way: Timed | undefined,
+  corner: boolean,
+  leaving: Tip,
+  to: Placement,
+  landing: Tip,
+): Readonly<{ from: Tip; to: Tip }> {
+  const arriving = holdsAtEnd(way) ? { point: to, heading: toward(leaving.point, to) } : landing
+  const from = corner
+    ? { point: leaving.point, heading: toward(leaving.point, arriving.point) }
+    : leaving
+  return { from, to: arriving }
+}
+
+function timingOf(way: Timed | undefined, reached: () => void): WayTiming {
+  if (way === undefined) return {}
+  return {
+    ...(holdsAtEnd(way) && { reached }),
+    duration: way.ms,
+    leftDry: way.ms,
+    ...(way.start !== undefined && { start: way.start }),
+    ...(way.along !== undefined && { along: way.along }),
+  }
+}
+
+const stillWet = (way: Way): number =>
+  way.held && way.land !== null ? 1 - Math.min(0.6, HELD_INK / brushedOf(way.stroke).length) : 1
+
 type Listener = (remnants: readonly Remnant[]) => void
 
 export class Journeys {
@@ -287,7 +326,7 @@ export class Journeys {
       x: centre.x + ((x - CENTRE[0]) * size) / CANVAS,
       y: centre.y + ((y - CENTRE[1]) * size) / CANVAS,
     })
-    const corner = this.flying()?.holds === true
+    const corner = this.holding()
     const cut = this.cut()
     let leaving: Tip
     let left: Frame | null = null
@@ -300,26 +339,21 @@ export class Journeys {
     const circle = circleStroke(body.hand, freshSeed())
     const [a, b] = [circle.line[0]!, circle.line[1]!]
     const length = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1
-    const holds = way?.hold === true || way?.along !== undefined
-    const arriving: Tip = holds
-      ? { point: to, heading: toward(leaving.point, to) }
-      : { point: onScreen(to, a), heading: [(b[0] - a[0]) / length, (b[1] - a[1]) / length] }
-    if (corner) leaving = { point: leaving.point, heading: toward(leaving.point, arriving.point) }
+    const landing: Tip = {
+      point: onScreen(to, a),
+      heading: [(b[0] - a[0]) / length, (b[1] - a[1]) / length],
+    }
     this.go({
       left,
       at: from,
-      from: leaving,
-      to: arriving,
+      ...endsOf(way, corner, leaving, to, landing),
       weight: body.hand.weight,
       seed: freshSeed(),
       land: arrived => {
         body.arrive(circle, casual.around(WRITE.circle, BODY_CASUAL.landing))
         landed(arrived)
       },
-      ...(holds && { reached: () => landed(true) }),
-      ...(way !== undefined && { duration: way.ms, leftDry: way.ms }),
-      ...(way?.start !== undefined && { start: way.start }),
-      ...(way?.along !== undefined && { along: way.along }),
+      ...timingOf(way, () => landed(true)),
     })
   }
 
@@ -344,12 +378,7 @@ export class Journeys {
     readonly weight: number
     readonly seed: number
     readonly land: (arrived: boolean) => void
-    readonly duration?: number
-    readonly leftDry?: number
-    readonly start?: number
-    readonly reached?: () => void
-    readonly along?: Readonly<{ from: number; to: number }>
-  }): void {
+  } & WayTiming): void {
     const now = inkNow()
     const size = this.size
     if (left !== null) this.leaveBehind(left, at, leftDry)
@@ -471,6 +500,10 @@ export class Journeys {
     return this.ways.find(way => way.land !== null) ?? null
   }
 
+  private holding(): boolean {
+    return this.flying()?.holds === true
+  }
+
   private stopped(way: Way, now: number): void {
     const fade = ms(way.fade)
     if (!this.drying.has(way.remnant.id))
@@ -516,12 +549,8 @@ export class Journeys {
           if (way.passed[i]!.t <= time) return way.passed[i]!.share
         return null
       }
-      const wet =
-        way.held && way.land !== null
-          ? 1 - Math.min(0.6, HELD_INK / brushedOf(way.stroke).length)
-          : 1
-      const passedTo = at(now - linger)
-      const to = passedTo === null ? null : Math.min(wet, passedTo)
+      const wet = stillWet(way)
+      const to = at(now - linger)
       const gone = Math.max(way.gone, Math.min(wet, at(now - linger - fade * 4) ?? 0))
       const dt = now - way.last
       way.last = now
@@ -530,7 +559,7 @@ export class Journeys {
           ? null
           : {
               from: gone,
-              to,
+              to: Math.min(wet, to),
               alpha: 1 - Math.exp(-dt / Math.max(1, fade)),
               gone: [Math.max(0, way.gone - 0.002), gone],
             }

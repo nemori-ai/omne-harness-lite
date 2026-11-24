@@ -40,6 +40,19 @@ function landing(frame: PaperFrame, from: PaperBox, grip: Grip, by: PaperPoint):
     : resizeBox(from, grip.corner, by, frame.sheet, frame.limits, frame.magnet)
 }
 
+const pressed = (event: React.KeyboardEvent<HTMLElement>): boolean =>
+  !event.altKey && (event.key === 'Enter' || event.key === ' ')
+
+function arrowed(
+  event: React.KeyboardEvent<HTMLElement>,
+  direction: readonly [number, number],
+  step: number,
+): Readonly<{ grip: Grip; by: PaperPoint }> {
+  const grip: Grip = event.shiftKey ? { gesture: 'resize', corner: 'se' } : { gesture: 'move' }
+  const by = event.altKey ? 1 : step
+  return { grip, by: { x: direction[0] * by, y: direction[1] * by } }
+}
+
 function same(one: PaperBox, other: PaperBox): boolean {
   return (
     one.x === other.x &&
@@ -123,7 +136,7 @@ export function useCarry({
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLElement>): void => {
     if (event.metaKey || event.ctrlKey) return
-    if (!event.altKey && (event.key === 'Enter' || event.key === ' ')) {
+    if (pressed(event)) {
       event.preventDefault()
       onPress?.()
       return
@@ -132,9 +145,8 @@ export function useCarry({
     if (direction === undefined) return
     event.preventDefault()
     if (event.shiftKey && !resizable) return
-    const which: Grip = event.shiftKey ? { gesture: 'resize', corner: 'se' } : { gesture: 'move' }
-    const step = event.altKey ? 1 : frame.sheet.step
-    const next = landing(frame, box, which, { x: direction[0] * step, y: direction[1] * step })
+    const { grip: which, by } = arrowed(event, direction, frame.sheet.step)
+    const next = landing(frame, box, which, by)
     if (!same(next, box)) onPlace(next, which.gesture)
   }
 

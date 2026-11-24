@@ -57,6 +57,13 @@ type Listener = () => void
 
 const round = (value: number): number => Math.round(value * 100) / 100
 
+const wayOf = (leg: TurnLeg, from: Placement, start: number | undefined): Timed => ({
+  ms: leg.ms,
+  ...(start !== undefined && { start }),
+  ...(leg.hold === true && { hold: true }),
+  ...(leg.carry === true && { along: { from: from.x, to: leg.to.x } }),
+})
+
 const centreOf = (element: HTMLElement): Placement | null => {
   if (!element.isConnected || element.closest('[inert]') !== null) return null
   const box = element.getBoundingClientRect()
@@ -205,27 +212,19 @@ export class FigureStore {
     turning.index += 1
     const before = turning.legs[turning.index - 2]
     const from = before === undefined ? this.placement : before.to
-    const way: Timed = {
-      ms: leg.ms,
-      ...(start !== undefined && { start }),
-      ...(leg.hold === true && { hold: true }),
-      ...(leg.carry === true && { along: { from: from.x, to: leg.to.x } }),
+    this.go(leg.to, () => this.legDone(turning, leg), wayOf(leg, from, start))
+  }
+
+  private legDone(turning: Turning, leg: TurnLeg): void {
+    if (this.turning !== turning) return
+    if (leg.hold !== true) {
+      this.nextLeg(turning.ticket)
+      return
     }
-    this.go(
-      leg.to,
-      () => {
-        if (this.turning !== turning) return
-        if (leg.hold !== true) {
-          this.nextLeg(ticket)
-          return
-        }
-        const go = turning.go
-        turning.go = null
-        if (go === null) turning.holding = true
-        else this.nextLeg(ticket, go)
-      },
-      way,
-    )
+    const go = turning.go
+    turning.go = null
+    if (go === null) turning.holding = true
+    else this.nextLeg(turning.ticket, go)
   }
 
   private placeOnSeat(): void {
@@ -362,24 +361,28 @@ export class FigureStore {
       this.leave()
       return
     }
-    const phase = this.snapshot.phase
-    if (phase === 'seated') {
-      if (seat.id !== this.seat) {
-        this.fly()
-        return
-      }
-      const here = this.placement
-      if (Math.hypot(here.x - home.x, here.y - home.y) > 0.25) {
-        this.place(home)
-        this.set({ point: home })
-      }
-    } else {
-      const going = this.going
-      const shift = going === null ? Infinity : Math.hypot(going.x - home.x, going.y - home.y)
-      if (shift <= 0.5) return
-      if (shift < NEAR && this.journeys.travelling) return
+    if (this.snapshot.phase === 'seated') this.staySeated(seat, home)
+    else this.keepGoing(home)
+  }
+
+  private staySeated(seat: Seat, home: Placement): void {
+    if (seat.id !== this.seat) {
       this.fly()
+      return
     }
+    const here = this.placement
+    if (Math.hypot(here.x - home.x, here.y - home.y) > 0.25) {
+      this.place(home)
+      this.set({ point: home })
+    }
+  }
+
+  private keepGoing(home: Placement): void {
+    const going = this.going
+    const shift = going === null ? Infinity : Math.hypot(going.x - home.x, going.y - home.y)
+    if (shift <= 0.5) return
+    if (shift < NEAR && this.journeys.travelling) return
+    this.fly()
   }
 
   private leave(): void {

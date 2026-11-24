@@ -56,22 +56,38 @@ export function touched(command: Command): readonly string[] {
 
 export type Answer = Readonly<{ outcome: string; body?: unknown }>
 
-const CONFLICT_TEXT: Readonly<Record<string, string>> = {
-  locked: '它锁着，先解开才能动。',
-  taken: '它已经被拿走了。',
-  'in-pile': '它在一叠里，先从这一叠拿出来。',
-  'kind-undeclared': '这一类现在没有声明。',
-  full: '纸上摆满了，先拿走几样。',
-  'not-admitted': '它的拥有者没有接受它。',
-}
+const CONFLICT_TEXT = new Map([
+  ['locked', '它锁着，先解开才能动。'],
+  ['taken', '它已经被拿走了。'],
+  ['in-pile', '它在一叠里，先从这一叠拿出来。'],
+  ['kind-undeclared', '这一类现在没有声明。'],
+  ['full', '纸上摆满了，先拿走几样。'],
+  ['not-admitted', '它的拥有者没有接受它。'],
+])
 
-const INVALID_TEXT: Readonly<Record<string, string>> = {
-  size: '这个大小超出了能摆的范围。',
-  spot: '这个位置不在纸上。',
-}
+const INVALID_TEXT = new Map([
+  ['size', '这个大小超出了能摆的范围。'],
+  ['spot', '这个位置不在纸上。'],
+])
 
 export const UNKNOWN_TEXT = '不知道这一步做成了没有，纸上画的是刚读到的样子。'
 const NOT_UNDERSTOOD = '画布没读懂这一步。'
+
+type ByReason = Readonly<{ reasons: ReadonlyMap<string, string>; otherwise: string }>
+
+/** What each answer is said as: nothing when it was done, one sentence, or one sentence for each reason. */
+const SAID = new Map<string, undefined | string | ByReason>([
+  ['succeeded', undefined],
+  ['no-change', undefined],
+  ['conflict', { reasons: CONFLICT_TEXT, otherwise: '现在的样子不允许这一步。' }],
+  ['not-found', '纸上已经没有它了。'],
+  ['invalid', { reasons: INVALID_TEXT, otherwise: NOT_UNDERSTOOD }],
+  ['denied', '没有权限改这张画布。'],
+  ['basis-unavailable', '现在改不了画布，过一会再试。'],
+  ['unknown', UNKNOWN_TEXT],
+  ['uncertain', UNKNOWN_TEXT],
+  ['unavailable', '现在连不上画布，这一步没有发出去。'],
+])
 
 function reasonOf(body: unknown): string | undefined {
   if (typeof body !== 'object' || body === null) return undefined
@@ -81,28 +97,10 @@ function reasonOf(body: unknown): string | undefined {
 
 /** Why a command was not done, in one sentence; nothing when it was done or there was nothing to do. */
 export function whyNot(answer: Answer): string | undefined {
-  switch (answer.outcome) {
-    case 'succeeded':
-    case 'no-change':
-      return undefined
-    case 'conflict':
-      return CONFLICT_TEXT[reasonOf(answer.body) ?? ''] ?? '现在的样子不允许这一步。'
-    case 'not-found':
-      return '纸上已经没有它了。'
-    case 'invalid':
-      return INVALID_TEXT[reasonOf(answer.body) ?? ''] ?? NOT_UNDERSTOOD
-    case 'denied':
-      return '没有权限改这张画布。'
-    case 'basis-unavailable':
-      return '现在改不了画布，过一会再试。'
-    case 'unknown':
-    case 'uncertain':
-      return UNKNOWN_TEXT
-    case 'unavailable':
-      return '现在连不上画布，这一步没有发出去。'
-    default:
-      return NOT_UNDERSTOOD
-  }
+  if (!SAID.has(answer.outcome)) return NOT_UNDERSTOOD
+  const said = SAID.get(answer.outcome)
+  if (typeof said !== 'object') return said
+  return said.reasons.get(reasonOf(answer.body) ?? '') ?? said.otherwise
 }
 
 /** What putting a reference on the canvas came to: put there, lying there already, or not, and why. */

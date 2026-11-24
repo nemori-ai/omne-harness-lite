@@ -98,6 +98,14 @@ function writing(element: Element | null): boolean {
   )
 }
 
+const asksFinder = (event: KeyboardEvent): boolean =>
+  event.key === '@' &&
+  !event.defaultPrevented &&
+  !event.isComposing &&
+  !event.metaKey &&
+  !event.ctrlKey &&
+  !event.altKey
+
 /** `@` opens the finder while the sheet is shown and nothing is written in: at the pointer on bare paper, else mid-view. */
 export function FinderKey(
   props: Readonly<{
@@ -112,8 +120,7 @@ export function FinderKey(
   latest.current = { ...props, paperAt }
   useEffect(() => {
     const keydown = (event: KeyboardEvent): void => {
-      if (event.key !== '@' || event.defaultPrevented || event.isComposing) return
-      if (event.metaKey || event.ctrlKey || event.altKey) return
+      if (!asksFinder(event)) return
       const now = latest.current
       const element = now.root.current
       if (!now.closed || element === null || element.closest('[inert]') !== null) return

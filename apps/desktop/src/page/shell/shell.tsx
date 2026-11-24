@@ -49,7 +49,7 @@ import {
   type ThemeSwitch,
 } from './sidebar.tsx'
 import type { SidebarWidth } from './sidebar-motion.ts'
-import type { Face, ShellState } from './state.ts'
+import type { Face, PageFocus, ShellState } from './state.ts'
 import { ToldAtHome } from './told.tsx'
 
 export type { SizeSwitch, ThemeSwitch } from './sidebar.tsx'
@@ -329,6 +329,7 @@ function Back(props: {
   element: React.RefObject<HTMLElement | null>
 }) {
   const { item, conflict, scope, state } = props
+  if (item === undefined && conflict === undefined && props.away) return null
   return (
     <section
       ref={props.element}
@@ -352,6 +353,32 @@ function Back(props: {
           render={() => item.render({ scope, turn: state.face.turn, home: () => goHome(state) })}
         />
       ) : null}
+    </section>
+  )
+}
+
+function WorkspacePage(props: {
+  page: PageItem
+  shown: string | undefined
+  scope: string | undefined
+  focus: PageFocus | undefined
+  lacks: readonly Lack[]
+}) {
+  const { page, scope, focus, lacks } = props
+  const toPage = focus?.page === page.id ? { scope, subject: focus.subject } : { scope }
+  return (
+    <section
+      className="shell-page"
+      {...shellWorkspacePage.props}
+      aria-label={page.title}
+      data-page={page.id}
+      hidden={page.id !== props.shown}
+    >
+      {lacks.length > 0 ? (
+        <Lacks lacks={lacks} slot="pages" />
+      ) : (
+        <Item scope={scope} render={() => page.render(toPage)} />
+      )}
     </section>
   )
 }
@@ -415,39 +442,27 @@ function Workspace(
           <div className="shell-drag-strip" aria-hidden="true" />
           <StaleApp missing={props.missing} />
           <Fallen state={state} />
-          {pages.map(page => {
-            const lacks = lacksOf('pages', page.id)
-            const toPage = focus?.page === page.id ? { scope, subject: focus.subject } : { scope }
-            return (
-              <section
-                key={page.id}
-                className="shell-page"
-                {...shellWorkspacePage.props}
-                aria-label={page.title}
-                data-page={page.id}
-                hidden={page.id !== shown}
-              >
-                {lacks.length > 0 ? (
-                  <Lacks lacks={lacks} slot="pages" />
-                ) : (
-                  <Item scope={scope} render={() => page.render(toPage)} />
-                )}
-              </section>
-            )
-          })}
+          {pages.map(page => (
+            <WorkspacePage
+              key={page.id}
+              page={page}
+              shown={shown}
+              scope={scope}
+              focus={focus}
+              lacks={lacksOf('pages', page.id)}
+            />
+          ))}
         </main>
       </div>
-      {back !== undefined || backConflict !== undefined || onBack ? (
-        <Back
-          state={state}
-          scope={scope}
-          item={back}
-          conflict={backConflict}
-          away={!onBack}
-          leaving={leaving === 'back'}
-          element={backFace}
-        />
-      ) : null}
+      <Back
+        state={state}
+        scope={scope}
+        item={back}
+        conflict={backConflict}
+        away={!onBack}
+        leaving={leaving === 'back'}
+        element={backFace}
+      />
       <Float state={state} scope={scope} places={props.floats} inert={!wide && covered} />
       <FlipLayer
         flip={flip}
