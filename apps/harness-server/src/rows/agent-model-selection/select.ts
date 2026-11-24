@@ -1,5 +1,9 @@
 import type { Failure, ModelSelection } from '@omne-harness/agent-contract'
-import { supportedReasoningEfforts, type ModalityRequirement } from '@omne-harness/model-contract'
+import {
+  supportedReasoningEfforts,
+  type ModalityRequirement,
+  type ProfileResolution,
+} from '@omne-harness/model-contract'
 import type { ModelProfilesService } from '@omne-harness/model-cordis-contract/cordis'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
@@ -64,6 +68,16 @@ function fromProfiles(failure: ProfilesFailure): Failure {
   }
 }
 
+// A model the tenant turned off does not come back on its own: the Run ends rather than waits.
+function absentFailure(
+  route: string,
+  reason: Extract<ProfileResolution, { kind: 'absent' }>['reason'],
+): Failure {
+  return reason === 'excluded'
+    ? { kind: 'invalid', field: 'model', reason: 'not-enabled' }
+    : unavailable('modelProfiles', `route "${route}" has no profile (${reason})`)
+}
+
 export async function selectModel(
   ports: SelectionPorts,
   input: SelectInput,
@@ -96,13 +110,7 @@ export async function selectModel(
   if ('failure' in resolved) return fail(fromProfiles(resolved.failure))
 
   const resolution = resolved.ok
-  // A model the tenant turned off does not come back on its own: the Run ends rather than waits.
-  if (resolution.kind === 'absent' && resolution.reason === 'excluded')
-    return fail({ kind: 'invalid', field: 'model', reason: 'not-enabled' })
-  if (resolution.kind === 'absent')
-    return fail(
-      unavailable('modelProfiles', `route "${route}" has no profile (${resolution.reason})`),
-    )
+  if (resolution.kind === 'absent') return fail(absentFailure(route, resolution.reason))
   if (resolution.profile.identity.route !== route)
     return fail(
       unavailable('modelProfiles', `the answer for route "${route}" is for another route`),

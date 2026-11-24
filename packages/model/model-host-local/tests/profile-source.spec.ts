@@ -378,3 +378,61 @@ it('reads the preferences once per provider and with the access of the reader', 
   })).read({ principal, tenant: TENANT })
   expect(seen).toEqual([{ provider: 'openrouter', access: { principal, tenant: TENANT } }])
 })
+
+it('gives a different source evidence once a model is turned off, so no decision outlives the switch', async () => {
+  const on = await withPreferences(() => chosen(['on/route', 'off/route'])).read({
+    principal,
+    tenant: TENANT,
+  })
+  const off = await withPreferences(() => chosen(['on/route'])).read({ principal, tenant: TENANT })
+  const effort = await withPreferences(() =>
+    chosen(['on/route', 'off/route'], [['on/route', 'high']]),
+  ).read({
+    principal,
+    tenant: TENANT,
+  })
+  if ('failure' in on || 'failure' in off || 'failure' in effort) throw new Error('read failed')
+  expect(off.ok.source.digest).not.toBe(on.ok.source.digest)
+  expect(effort.ok.source.digest).not.toBe(on.ok.source.digest)
+  expect(on.ok.candidates[1]).not.toHaveProperty('defaultReasoningEffort')
+  expect(on.ok.candidates.map(candidate => candidate.credential)).toEqual([
+    'unavailable',
+    'unavailable',
+  ])
+})
+
+it('says the preferences were unreadable, as the dependency that failed', async () => {
+  const read = await withPreferences(() => ({
+    async read() {
+      return { failure: { kind: 'unavailable' } } as const
+    },
+  })).read({ principal, tenant: TENANT })
+  expect(read).toEqual({
+    failure: { kind: 'unavailable', dependency: 'model-preferences', diagnostic: 'unreadable' },
+  })
+})
+
+it('keeps a credential unavailable when custody denies it, cannot be asked, or is not there', async () => {
+  const source = (port: (() => unknown) | undefined) =>
+    createOfficialProfileSource(
+      { definitions: [definitionOf('on/route')], updatedAt: UPDATED_AT },
+      port as never,
+    )
+  const credentialWith = async (port: (() => unknown) | undefined) => {
+    const read = await source(port).read({ principal, tenant: TENANT })
+    if ('failure' in read) throw new Error('read failed')
+    return read.ok.candidates[0]?.credential
+  }
+  const answering = (kind: string) => () => ({
+    layerOf: () => ({ failure: { kind } }),
+    resolve: () => ({ failure: { kind } }),
+  })
+  expect(await credentialWith(answering('denied'))).toBe('unavailable')
+  expect(await credentialWith(answering('unavailable'))).toBe('unavailable')
+  expect(await credentialWith(() => undefined)).toBe('unavailable')
+  expect(
+    await credentialWith(() => {
+      throw new Error('custody is down')
+    }),
+  ).toBe('unavailable')
+})

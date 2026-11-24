@@ -109,26 +109,22 @@ const PREFERENCES_UNAVAILABLE = Object.freeze({
   },
 })
 
+const CREDENTIAL_STATES: Readonly<Record<string, CredentialState>> = {
+  missing: 'missing',
+  incomplete: 'missing',
+  revoked: 'missing',
+  unreadable: 'unreadable',
+}
+
 function credentialOf<P>(
   port: CredentialPort<P> | undefined,
   provider: ProviderName,
   access: Access<P>,
 ): CredentialState {
-  if (port === undefined) return 'unavailable'
   try {
-    const layer = port.layerOf({ provider, official: true, access })
-    if ('ok' in layer) return 'available'
-    switch (layer.failure.kind) {
-      case 'missing':
-      case 'incomplete':
-      case 'revoked':
-        return 'missing'
-      case 'unreadable':
-        return 'unreadable'
-      case 'denied':
-      case 'unavailable':
-        return 'unavailable'
-    }
+    const layer = port?.layerOf({ provider, official: true, access })
+    if (layer === undefined) return 'unavailable'
+    return 'ok' in layer ? 'available' : (CREDENTIAL_STATES[layer.failure.kind] ?? 'unavailable')
   } catch {
     return 'unavailable'
   }

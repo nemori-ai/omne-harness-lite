@@ -465,3 +465,27 @@ it('carries the default effort of the winning candidate into its resolution', as
   expect(await resolveOf(snapshot, 'alpha')).toMatchObject({ defaultReasoningEffort: 'high' })
   expect(await resolveOf(snapshot, 'beta')).not.toHaveProperty('defaultReasoningEffort')
 })
+
+it('does not list a withdrawn route as turned off, and turns off the active profile, not a withdrawn one', async () => {
+  const snapshot = snapshotOf(
+    [
+      candidateOf(profileOf({ route: 'gone', availability: 'withdrawn' })),
+      candidateOf(profileOf({ route: 'off' }), { excluded: true }),
+      candidateOf(
+        profileOf({ route: 'off', scope: organizationOf('2'), availability: 'withdrawn' }),
+        {
+          excluded: true,
+        },
+      ),
+    ],
+    { precedence: [factory, organizationOf('2')] },
+  )
+  const choices = await listOf(snapshot, null)
+  expect(
+    choices.choices.map(choice =>
+      choice.kind === 'resolved'
+        ? [choice.profile.identity.route, choice.profile.identity.scope]
+        : null,
+    ),
+  ).toEqual([['off', { kind: 'factory' }]])
+})

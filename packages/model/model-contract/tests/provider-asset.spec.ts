@@ -495,5 +495,6 @@ describe('the preferences of a tenant over the catalog (C4, C5, C7)', () => {
     expect(preferencesOf(catalog, [true], 'high')).toEqual(
       preferencesOf(catalog, undefined, undefined),
     )
+    expect(preferencesOf(catalog, null, null)).toEqual(preferencesOf(catalog, undefined, undefined))
   })
 })
