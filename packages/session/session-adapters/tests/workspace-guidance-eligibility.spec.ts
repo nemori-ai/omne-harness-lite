@@ -8,6 +8,8 @@ import {
   emptyGuidanceIndex,
   extendGuidanceIndex,
   guidanceBlocks,
+  guidanceProvenance,
+  missingGuidanceBlocks,
 } from '../src/cordis/guidance-window.ts'
 import type { Message } from '@omne-harness/message'
 import { judgeMessage } from '@omne-harness/message'
@@ -146,4 +148,56 @@ it('consumes native summary source identities without reading old log text, and 
   expect(await readGuidanceHistory({ readModelView }, access, 'tenant/session')).toMatchObject({
     ok: { summarizedScopes: [] },
   })
+})
+
+it('rechecks retained bytes independently of the original scope attestation', async () => {
+  const partition = 'tenant/session'
+  const scope = {
+    ...source,
+    state: 'attached' as const,
+    sources: [{ path: 'AGENTS.md', digest: 'digest', text: 'complete project instructions' }],
+  }
+  const [manifest, body] = guidanceBlocks(scope, [], partition)
+  if (!manifest || !body) throw new Error('expected manifest and body')
+  const reminder = (text: string): Message => ({
+    id: 'msg_original' as Message['id'],
+    role: 'system_reminder',
+    blocks: [manifest, { ...body, text }],
+  })
+  const provenance = guidanceProvenance(reminder(body.text), partition)
+  async function read(text: string) {
+    const message = reminder(text)
+    const readModelView: SessionHistory<string>['readModelView'] = async () => ({
+      ok: {
+        kind: 'page',
+        basis: { epoch: 'retained', upper: '1' },
+        next: null,
+        rows: [
+          {
+            entry: '1' as ModelViewRow['entry'],
+            seq: '1',
+            bytes: 1,
+            prefixDigest: 'p',
+            message,
+            provenance,
+          },
+        ],
+      },
+    })
+    return readGuidanceHistory({ readModelView }, access, partition)
+  }
+  for (const visible of [
+    body.text,
+    body.text.replace('complete project instructions', 'complete'),
+    body.text.slice(0, -5),
+  ]) {
+    const result = await read(visible)
+    if ('failure' in result) throw new Error(JSON.stringify(result.failure))
+    expect(result.ok.index.sourceScopes.get(body.id)).toEqual(source)
+    expect(missingGuidanceBlocks(scope, result.ok.index, partition)).toEqual(
+      visible === body.text ? [] : [body],
+    )
+  }
+  const conflicting = body.text.replace(source.instance, other.instance)
+  expect(await read(conflicting)).toMatchObject({ failure: { kind: 'unavailable' } })
 })

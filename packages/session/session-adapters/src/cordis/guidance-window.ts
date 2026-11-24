@@ -79,7 +79,7 @@ export function extendGuidanceIndex(
       if (
         part.id.startsWith(sourcePrefix) &&
         !previous.sources.has(part.id) &&
-        (part.id === blockId(sourcePrefix, partition, part.text) || attested !== undefined)
+        part.id === blockId(sourcePrefix, partition, part.text)
       ) {
         sources ??= new Set(previous.sources)
         sources.add(part.id)

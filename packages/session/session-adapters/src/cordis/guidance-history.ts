@@ -25,6 +25,19 @@ export type GuidanceHistory = Readonly<{
   index: GuidanceIndex
 }>
 
+/** A retained fragment can still belong to its attested scope when the scope text was clipped. */
+function visibleScope(text: string): WorkspaceGuidanceScope | null | undefined {
+  try {
+    const value: unknown = JSON.parse(text)
+    const body = workspaceGuidanceBodySchema.safeParse(value)
+    if (body.success) return body.data.scope
+    const manifest = workspaceGuidanceManifestSchema.safeParse(value)
+    return manifest.success ? manifest.data.scope : undefined
+  } catch {
+    return undefined
+  }
+}
+
 /** Every read requalifies. Only a verified prefix of the same effective epoch can satisfy a source. */
 export async function readGuidanceHistory<P>(
   history: Pick<SessionHistory<P>, 'readModelView'> & Partial<OriginalHistory<P>>,
@@ -101,6 +114,10 @@ export async function readGuidanceHistory<P>(
         if ('failure' in legacy) return legacy
         for (const scope of legacy.ok.scopes) summarized.set(JSON.stringify(scope), scope)
       }
+      const blocks =
+        row.message.role === 'system_reminder' && row.provenance?.length
+          ? new Map(row.message.blocks.map(block => [String(block.id), block]))
+          : undefined
       for (const source of row.provenance ?? []) {
         if (source.owner !== WORKSPACE_GUIDANCE_PROVENANCE) continue
         try {
@@ -111,19 +128,12 @@ export async function readGuidanceHistory<P>(
               diagnostic: 'compacted workspace guidance provenance is malformed',
             })
           if (summary) summarized.set(JSON.stringify(scope.data), scope.data)
-          else if (row.message.role === 'system_reminder') {
+          else if (blocks) {
             for (const id of source.blocks) {
-              const block = row.message.blocks.find(block => block.id === id)
+              const block = blocks.get(id)
               if (block?.kind !== 'text' || !block.visibility.toModel) continue
-              const raw = JSON.parse(block.text)
-              const content = workspaceGuidanceBodySchema.safeParse(raw)
-              const manifest = workspaceGuidanceManifestSchema.safeParse(raw)
-              const claimed = content.success
-                ? content.data.scope
-                : manifest.success
-                  ? manifest.data.scope
-                  : null
-              if (claimed === null || JSON.stringify(claimed) !== JSON.stringify(scope.data))
+              const claimed = visibleScope(block.text)
+              if (claimed !== undefined && JSON.stringify(claimed) !== JSON.stringify(scope.data))
                 return fail({
                   kind: 'unavailable',
                   diagnostic: 'workspace guidance author provenance conflicts with the block',
