@@ -35,7 +35,8 @@
   }
   .omne-session-items,
   .omne-archived-rows,
-  .omne-search-hits {
+  .omne-search-hits,
+  .omne-paper-picks {
     display: flex;
     flex-direction: column;
     margin: 0;
@@ -1018,5 +1019,37 @@
   .omne-search-detail {
     color: var(--omne-ink-muted);
     font-size: var(--omne-text-caption);
+  }
+  /* A session on the canvas, inside the frame the paper gives it: a page on the sheet, the page a pile
+   lets show, a line of the search. */
+  .omne-paper-session {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--omne-space-inline);
+    width: 100%;
+    min-width: 0;
+    padding: var(--omne-row-padding);
+    border: 0;
+    border-radius: var(--omne-radius-control);
+    background: transparent;
+    color: var(--omne-ink-primary);
+    text-align: left;
+  }
+  .omne-paper-session[data-frame='sheet'] .omne-session-item-title {
+    font-size: var(--omne-text-body);
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+  .omne-paper-session[data-frame='search'] {
+    flex-direction: row;
+    align-items: baseline;
+  }
+  .omne-paper-session-said,
+  .omne-paper-pick-none {
+    margin: 0;
+    color: var(--omne-ink-muted);
+    font-size: var(--omne-text-caption);
+    line-height: var(--omne-leading-wrapped);
   }
 }
