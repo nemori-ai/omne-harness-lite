@@ -165,6 +165,28 @@ describe('AG-31 a nested action that needs a person waits on its own card', () =
     expect(assembly.controls.cards.present.calls).toHaveLength(1)
   })
 
+  it('AG-31 refuses the action when the answer chosen would rewrite its arguments: what the program fixed is not changed', async () => {
+    const assembly = await waitingOnTool()
+    const rewrite = { option: 'once', effectiveArguments: JSON.stringify({ path: 'other.txt' }) }
+    assembly.controls.admission.admit.always(async call =>
+      call.nested !== undefined && call.decision === null
+        ? ask('Write somewhere else?', { proposedRewrite: rewrite })
+        : allow,
+    )
+    const answering = asked(assembly, 1)
+    await cardOut(assembly)
+    assembly.controls.cards.read.always(async () => ({ ok: chosen }))
+    assembly.controls.cards.changes.emit()
+    expect(await answering).toMatchObject({ kind: 'denied' })
+    // The admission is not asked with the rewritten arguments: the refusal comes before it.
+    expect(nestedCalls(assembly).map(call => call.effectiveArguments)).toEqual([
+      JSON.stringify({ path: 'a.txt' }),
+    ])
+    expect((await chainOf(assembly, 1))?.progress).toMatchObject({
+      conclusion: { output: { kind: 'veto' } },
+    })
+  })
+
   it('does not hold up another position: the second is allowed while the first still waits', async () => {
     const assembly = await oneAsks()
     const first = asked(assembly, 1)
