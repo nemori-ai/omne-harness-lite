@@ -43,3 +43,15 @@ export {
   type Typing,
   typing,
 } from './complete.ts'
+export {
+  type Asker,
+  type CatalogRead,
+  type CommandCatalog,
+  ENTRY_SOURCES_POINT,
+  type EntrySource,
+  type EntrySourceSlot,
+  judgeListing,
+  type ListingBreach,
+  type Origin,
+  type Taken,
+} from './source.ts'

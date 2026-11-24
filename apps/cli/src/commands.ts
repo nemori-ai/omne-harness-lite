@@ -2,6 +2,7 @@ import { modelProtocol } from '@omne-harness/model-protocol'
 import { identityProtocol } from '@omne-harness/identity-protocol'
 import { encodeTenantText, type TenantId } from '@omne-harness/public-contract'
 import { sessionProtocol, userMessage, type SessionProtocol } from '@omne-harness/session-protocol'
+import { slashCommandProtocol } from '@omne-harness/slash-command-protocol'
 import type { BodyOf } from '@omne-harness/sdk/core'
 import type { CliOutput, CommandEnvironment, CommandSpec, ExitCode } from './cli-types.ts'
 import {
@@ -499,6 +500,22 @@ const sessionRead = (name: SessionRead): ExistingCommand<ModeTarget> => ({
 
 const readPermissionMode = sessionRead('read-permission-mode')
 
+const listCommands: ExistingCommand<ModeTarget> = {
+  kind: 'existing',
+  name: 'list-commands',
+  accepted: ['--session', '--tenant', serverOption],
+  required: ['--session'],
+  parse: modeTarget,
+  target: ({ session, tenant }) => ({ session, tenant }),
+  build: ({ session }, { owner: tenant, newId }) => {
+    const messageId = newId()
+    return {
+      send: link => link.call(slashCommandProtocol, 'read-catalog', { tenant, session }, messageId),
+      echo: { messageId, tenant: encodeTenantText(tenant) },
+    }
+  },
+}
+
 const POSITION = /^(0|[1-9][0-9]*)$/u
 const DEFAULT_PENDING_LIMIT = 50
 
@@ -843,6 +860,13 @@ export const productionCommands: readonly CommandSpec[] = [
     usage: '--session <id> [--after <position>] [--limit <n>]',
     summary: 'List the inputs a session accepted that no run took yet, the oldest first.',
     run: (args, output, environment) => runSession(readPending, args, output, environment),
+  },
+  {
+    name: 'list-commands',
+    usage: '--session <id>',
+    summary:
+      'List what a session can name now: its Skills, prompt commands and system commands, and the sources it could not ask.',
+    run: (args, output, environment) => runSession(listCommands, args, output, environment),
   },
   {
     name: 'read-waiting-calls',

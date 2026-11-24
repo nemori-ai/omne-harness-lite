@@ -6,20 +6,28 @@
 
 ## 入口 `.` · `index.d.ts`
 
+- `Asker` · `source.d.ts`
 - `Catalog` · `names.d.ts`
+- `CatalogRead` · `source.d.ts`
 - `Command` · `recognize.d.ts`
+- `CommandCatalog` · `source.d.ts`
 - `CommandEntry` · `names.d.ts`
 - `Completion` · `complete.d.ts`
 - `CompletionIndex` · `complete.d.ts`
+- `ENTRY_SOURCES_POINT` · `source.d.ts`
 - `EntryKind` · `names.d.ts`
+- `EntrySource` · `source.d.ts`
+- `EntrySourceSlot` · `source.d.ts`
 - `Found` · `complete.d.ts`
 - `Item` · `complete.d.ts`
 - `Judgment` · `view.d.ts`
+- `ListingBreach` · `source.d.ts`
 - `Lookup` · `names.d.ts`
 - `Message` · `recognize.d.ts`
 - `NAME_MAX` · `names.d.ts`
 - `NamedEntry` · `names.d.ts`
 - `Note` · `recognize.d.ts`
+- `Origin` · `source.d.ts`
 - `Place` · `names.d.ts`
 - `RESERVED_SPACE` · `names.d.ts`
 - `Recognition` · `recognize.d.ts`
@@ -28,6 +36,7 @@
 - `SenderView` · `view.d.ts`
 - `Span` · `recognize.d.ts`
 - `TIERS` · `complete.d.ts`
+- `Taken` · `source.d.ts`
 - `Tier` · `complete.d.ts`
 - `Typing` · `complete.d.ts`
 - `Zone` · `names.d.ts`
@@ -39,6 +48,7 @@
 - `isFullName` · `names.d.ts`
 - `isName` · `names.d.ts`
 - `judge` · `view.d.ts`
+- `judgeListing` · `source.d.ts`
 - `lookupOf` · `names.d.ts`
 - `placeOf` · `names.d.ts`
 - `rankOf` · `names.d.ts`
@@ -108,6 +118,7 @@ export { type Catalog, type CommandEntry, type EntryKind, fullName, isFullName, 
 export { codeMask, type Command, type Message, type Note, type Recognition, recognize, type Reference, type Refusal, type Span, unescape, } from './recognize.ts';
 export { judge, type Judgment, sameView, type SenderView, viewOf } from './view.ts';
 export { accept, complete, type Completion, type CompletionIndex, type Found, indexOf, type Item, search, type Tier, TIERS, type Typing, typing, } from './complete.ts';
+export { type Asker, type CatalogRead, type CommandCatalog, ENTRY_SOURCES_POINT, type EntrySource, type EntrySourceSlot, judgeListing, type ListingBreach, type Origin, type Taken, } from './source.ts';
 ```
 
 ## 声明文件 `names.d.ts`
@@ -205,6 +216,64 @@ export declare function rightOk(text: string, end: number): boolean;
 export declare const firstInk: (text: string) => number;
 export declare function recognize(text: string, lookup: Lookup): Recognition;
 export declare function unescape(text: string, mask?: Uint8Array): string;
+```
+
+## 声明文件 `source.d.ts`
+
+```ts
+import type { TenantId } from '@omne-harness/legal-identity';
+import { type Outcome } from '@omne-harness/operation-result';
+import { type Catalog, type CommandEntry } from './names.ts';
+export declare const ENTRY_SOURCES_POINT = "slash-command.entry-sources";
+export type Asker<P> = Readonly<{
+    principal: P;
+    tenant: TenantId;
+    session: string;
+}>;
+export type Origin = Readonly<{
+    name: string;
+    layer: string;
+    version: string;
+    digest: string;
+}>;
+export type Taken = Readonly<{
+    kind: 'text';
+    text: string;
+    origin: Origin;
+}> | Readonly<{
+    kind: 'operation';
+    operation: string;
+    args: string;
+}>;
+export type EntrySource<P> = Readonly<{
+    name: string;
+    space: string;
+    list(asker: Asker<P>, signal: AbortSignal): Promise<Outcome<readonly CommandEntry[], 'unavailable'>>;
+    take(asker: Asker<P>, name: string, signal: AbortSignal): Promise<Outcome<Taken, 'unavailable' | 'not-listed'>>;
+    watch?(tenant: TenantId, changed: () => void): () => void;
+}>;
+export type EntrySourceSlot<P> = Readonly<{
+    source: EntrySource<P>;
+    official: boolean;
+}>;
+export type CatalogRead = Readonly<{
+    catalog: Catalog;
+    errors: readonly string[];
+}>;
+export type CommandCatalog<P> = Readonly<{
+    read(asker: Asker<P>, signal?: AbortSignal): Promise<CatalogRead>;
+    take(asker: Asker<P>, full: string, signal?: AbortSignal): Promise<Outcome<Taken, 'unavailable' | 'not-listed'>>;
+}>;
+export type ListingBreach = Readonly<{
+    name: string;
+    reason: 'outside-space' | 'reserved-space' | 'bad-name' | 'duplicate';
+}>;
+export declare function judgeListing(slot: Readonly<{
+    source: Readonly<{
+        space: string;
+    }>;
+    official: boolean;
+}>, entries: readonly CommandEntry[]): Outcome<readonly CommandEntry[], ListingBreach>;
 ```
 
 ## 声明文件 `view.d.ts`

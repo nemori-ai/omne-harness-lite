@@ -1,4 +1,4 @@
-import { type Lookup, NAME_MAX, type NamedEntry } from './names.ts'
+import { type Lookup, NAME_MAX } from './names.ts'
 
 export type Span = readonly [number, number]
 export type Reference = Readonly<{ name: string; span: Span; first: boolean }>
@@ -86,9 +86,9 @@ function* candidates(text: string, mask: Uint8Array, from: number): Generator<Ca
   }
 }
 
-function atHead(text: string, mask: Uint8Array, lookup: Lookup): Command | Refusal | null {
+function atHead(text: string, lookup: Lookup): Command | Refusal | null {
   const start = firstInk(text)
-  if (text[start] !== '/' || mask[start] === 1) return null
+  if (text[start] !== '/') return null
   const hit = nameAt(text, start + 1)
   if (hit === null || !rightOk(text, hit.end)) return null
   const span: Span = [start, hit.end]
@@ -113,42 +113,25 @@ function atHead(text: string, mask: Uint8Array, lookup: Lookup): Command | Refus
   }
 }
 
-function noteFor(
-  entry: NamedEntry | undefined,
-  other: NamedEntry | undefined,
-  candidate: Candidate,
-): Note | null {
-  if (entry !== undefined && entry.unavailable !== undefined)
-    return {
-      kind: 'unavailable',
-      name: entry.full,
-      span: candidate.span,
-      reason: entry.unavailable,
-    }
-  if (entry === undefined && other !== undefined)
-    return { kind: 'head-only', name: other.full, span: candidate.span }
-  return null
-}
-
 /** What one input means under one catalogue. The answer is data; nothing is sent here. */
 export function recognize(text: string, lookup: Lookup): Recognition {
   const mask = codeMask(text)
-  const head = atHead(text, mask, lookup)
+  const head = atHead(text, lookup)
   if (head !== null) return head
   const references: Reference[] = []
   const notes: Note[] = []
   const seen = new Set<string>()
-  const start = firstInk(text)
-  for (const candidate of candidates(text, mask, start)) {
-    const entry = lookup.mid.get(candidate.name)
-    if (entry !== undefined && entry.unavailable === undefined) {
-      references.push({ name: entry.full, span: candidate.span, first: !seen.has(entry.full) })
+  for (const { name, span } of candidates(text, mask, firstInk(text))) {
+    const entry = lookup.mid.get(name)
+    const other = lookup.head.get(name)
+    if (entry === undefined) {
+      if (other !== undefined) notes.push({ kind: 'head-only', name: other.full, span })
+    } else if (entry.unavailable !== undefined)
+      notes.push({ kind: 'unavailable', name: entry.full, span, reason: entry.unavailable })
+    else {
+      references.push({ name: entry.full, span, first: !seen.has(entry.full) })
       seen.add(entry.full)
-      continue
     }
-    const other = candidate.span[0] === start ? undefined : lookup.head.get(candidate.name)
-    const note = noteFor(entry, other, candidate)
-    if (note !== null) notes.push(note)
   }
   return { kind: 'message', text: unescape(text, mask), references, notes }
 }

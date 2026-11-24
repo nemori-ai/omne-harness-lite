@@ -633,6 +633,15 @@ describe('session commands', () => {
     })
   })
 
+  it('list-commands reads the list of one session over slash-command/1', async () => {
+    const service = await serve()
+    await loginOwningSession(service)
+    const listed = await cli(['list-commands', '--session', sessionId])
+    expect(listed.stderr).toBe('')
+    expect(service.seen.at(-1)?.path).toBe('/api/slash-command/v1/read-catalog')
+    expect(service.seen.at(-1)?.body).toEqual({ tenant: tenantText, session: sessionId })
+  })
+
   it('the reads refuse a limit that is not a page limit and a fate without its input, and send nothing', async () => {
     const service = await serve()
     await loginOwningSession(service)

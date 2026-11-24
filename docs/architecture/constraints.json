@@ -208,6 +208,46 @@
       "source": "docs/domains/boundaries.md#责任地图"
     },
     {
+      "id": "packages/slash-command/slash-command",
+      "paths": ["packages/slash-command/slash-command/src/**"],
+      "layer": "unknown",
+      "domains": ["slash-command"],
+      "status": "candidate",
+      "source": "packages/slash-command/SPEC.md"
+    },
+    {
+      "id": "packages/slash-command/slash-command-cordis-contract",
+      "paths": ["packages/slash-command/slash-command-cordis-contract/src/**"],
+      "layer": "unknown",
+      "domains": ["slash-command"],
+      "status": "candidate",
+      "source": "packages/slash-command/SPEC.md"
+    },
+    {
+      "id": "packages/slash-command/slash-command-protocol",
+      "paths": ["packages/slash-command/slash-command-protocol/src/**"],
+      "layer": "contract",
+      "domains": ["slash-command"],
+      "status": "adopted",
+      "source": "packages/slash-command/SPEC.md"
+    },
+    {
+      "id": "packages/slash-command/slash-command-access",
+      "paths": ["packages/slash-command/slash-command-access/src/**"],
+      "layer": "unknown",
+      "domains": ["slash-command"],
+      "status": "candidate",
+      "source": "packages/slash-command/SPEC.md"
+    },
+    {
+      "id": "packages/skills/skill-command-source",
+      "paths": ["packages/skills/skill-command-source/src/**"],
+      "layer": "unknown",
+      "domains": ["skills"],
+      "status": "candidate",
+      "source": "packages/skills/SPEC.md"
+    },
+    {
       "id": "packages/slash-command/slash-command-contract",
       "paths": ["packages/slash-command/slash-command-contract/src/**"],
       "layer": "contract",

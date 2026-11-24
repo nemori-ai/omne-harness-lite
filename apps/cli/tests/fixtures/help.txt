@@ -16,6 +16,7 @@ Commands
   omne search (--text <literal> | --words <words> | --regex <pattern>)                                                    Search the history of all sessions of the tenant.
   omne read-session-diagnostics --session <id>                                                                            Read the diagnostics of the runs of a session.
   omne read-pending --session <id> [--after <position>] [--limit <n>]                                                     List the inputs a session accepted that no run took yet, the oldest first.
+  omne list-commands --session <id>                                                                                       List what a session can name now: its Skills, prompt commands and system commands, and the sources it could not ask.
   omne read-waiting-calls --session <id>                                                                                  List the calls of a session that wait for a person to answer a card.
   omne read-input-fate --session <id> --input-id <id>                                                                     Read where one input is now: pending, taken, answered, settled or refused.
   omne cancel-run --session <id> --run <id>                                                                               Cancel a run.

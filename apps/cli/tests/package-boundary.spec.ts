@@ -18,6 +18,7 @@ const allowed = [
   '@omne-harness/sdk',
   '@omne-harness/session-diagnostics-protocol',
   '@omne-harness/session-protocol',
+  '@omne-harness/slash-command-protocol',
   '@omne-harness/tool-protocol',
   '@omne-harness/usage-protocol',
   '@omne-harness/workspace-protocol',
