@@ -1,6 +1,13 @@
 import type { EndpointName } from '@omne-harness/mcp-contract'
 import { commandMenu, type ToolDefinition } from '@omne-harness/tool-contract'
-import { commandGuide, judgeToolDefinition } from '@omne-harness/tool-contract/provider'
+import { writeJsonText } from '@omne-harness/json-text'
+import { jsonOf } from '@omne-harness/mcp-contract/testing'
+import {
+  commandGuide,
+  judgeToolDefinition,
+  programCallRefusal,
+  programFunctions,
+} from '@omne-harness/tool-contract/provider'
 import { describe, expect, it } from 'vitest'
 import {
   commandOf,
@@ -239,5 +246,77 @@ describe('the shape of a command declaration, compared at a call', () => {
       parameters: { kind: 'declared', value: { schema: { kind: 'boolean', value: true } } },
     }
     expect(commandShapeText(plain as never)).not.toBe(commandShapeText(declared(returns)))
+  })
+})
+
+// MC-26, TL-72: an endpoint is open to programs only when its holder opened it and a program can name it.
+describe('an endpoint its holder opened to programs', () => {
+  const sum = { type: 'object', properties: { sum: { type: 'number' } }, required: ['sum'] }
+  const total = action('total', { outputSchema: sum })
+  const opened = (name: string, ...actions: Parameters<typeof endpointTool>[1][number][]) => {
+    const made = endpointTool(name as EndpointName, actions, shape, true)
+    if ('failure' in made) throw new Error(`no tool: ${made.failure}`)
+    return commandsOf(made.ok.definition)
+  }
+  const programOf = (command: ReturnType<typeof opened>['commands'][number] | undefined) => {
+    if (command?.returns.program.kind !== 'json') throw new Error('the command gives no value')
+    return command.returns.program
+  }
+
+  it('is closed unless it is opened: no command faces a program and none declares a value for one', () => {
+    const closed = commandsOf(toolOf(total).definition)
+    expect(closed.programmable).toBeUndefined()
+    expect(closed.commands.map(command => [command.program, command.returns.program])).toEqual([
+      [undefined, { kind: 'none' }],
+    ])
+    expect(programFunctions(closed)).toEqual([])
+  })
+
+  it('opened: each command gives the output its action declares, or the list of content items', () => {
+    const definition = opened('docs', total, action('plain'))
+    expect(judgeToolDefinition(definition)).toHaveProperty('ok')
+    expect(definition.programmable).toBe(true)
+    expect(definition.commands.map(command => command.program)).toEqual([
+      { kind: 'open', unless: [] },
+      { kind: 'open', unless: [] },
+    ])
+    const [declared, listed] = definition.commands.map(programOf)
+    expect(declared).toMatchObject({ external: true, maxBytes: 4_194_304 })
+    expect(writeJsonText(declared!.definition.schema)).toBe(writeJsonText(jsonOf(sum)))
+    expect(writeJsonText(listed!.definition.schema)).toContain('"type":"array"')
+    expect(declared!.schema.digest).not.toBe(listed!.schema.digest)
+    expect(declared!.contract).toEqual(listed!.contract)
+    expect(programFunctions(definition).map(one => one.entry)).toEqual([
+      'mcp__docs.total',
+      'mcp__docs.plain',
+    ])
+    expect(definition.adoption).not.toEqual(toolOf(total, action('plain')).definition.adoption)
+  })
+
+  it('a command a program cannot name stays closed beside the ones it can', () => {
+    const definition = opened('docs', total, action('get-file'))
+    expect(judgeToolDefinition(definition)).toHaveProperty('ok')
+    expect(definition.commands.map(command => command.program?.kind)).toEqual(['open', 'closed'])
+  })
+
+  // TL-71: the acceptance of a call refuses a program by what the definition says, command by command.
+  it('a program call is refused for a closed endpoint and for a closed command, and for nothing else', () => {
+    const closed = toolOf(total).definition
+    expect(programCallRefusal(closed, 'total', [])).toBe('mcp__docs is not open to programs')
+    const definition = opened('docs', total, action('get-file'))
+    expect(programCallRefusal(definition, 'total', ['text'])).toBeNull()
+    expect(programCallRefusal(definition, 'get-file', [])).toEqual(expect.any(String))
+  })
+
+  it.each([
+    ['no action a program can name', 'docs', action('get-file')],
+    ['a name a program cannot write', 'my-docs', total],
+  ] as const)('opened with %s: it stays closed and its description says so', (_why, name, one) => {
+    const definition = opened(name, one)
+    expect(judgeToolDefinition(definition)).toHaveProperty('ok')
+    expect(definition.programmable).toBeUndefined()
+    expect(definition.commands.map(command => command.program)).toEqual([undefined])
+    expect(definition.description).toContain('A program cannot call this endpoint')
+    expect(toolOf(total).definition.description).not.toContain('A program cannot call')
   })
 })

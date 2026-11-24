@@ -4,6 +4,8 @@ import {
   type Access,
   type ProgramFunction,
   type Reply,
+  type ToolCatalog,
+  type ToolConsumerProfile,
   type ToolForwardIntent,
   type ToolInvokeRequest,
 } from '@omne-harness/tool-contract'
@@ -78,6 +80,26 @@ export function createProgramTargetRequests(ports: ProgramRequestPorts) {
   }
 }
 
+const SEARCH_PAGE = 50
+
+// TL-71: what the catalog offers a program now beyond the view, such as the entries of a source.
+async function outsideView(
+  catalog: ToolCatalog<unknown>,
+  access: Access<unknown>,
+  consumer: ToolConsumerProfile,
+): Reply<readonly ProgramFunction[]> {
+  const found: ProgramFunction[] = []
+  let after: string | null = null
+  do {
+    const asked = { ...access, query: '', consumer, invocation: 'programmatic', after } as const
+    const page = await catalog.search({ ...asked, limit: SEARCH_PAGE })
+    if ('failure' in page) return page
+    for (const entry of page.ok.entries) found.push(...programFunctions(entry.definition))
+    after = page.ok.next
+  } while (after !== null)
+  return succeed(found)
+}
+
 export function createProgramFunctions(ports: ProgramRequestPorts) {
   return async (parent: Parent): Reply<readonly ProgramFunction[]> => {
     const release = ports.release()
@@ -90,16 +112,17 @@ export function createProgramFunctions(ports: ProgramRequestPorts) {
     const listed = await view.read(access)
     if ('failure' in listed) return listed
     const names = [...new Set(listed.ok.entries.map(entry => entry.key.asset.name))]
-    const inspected = await catalog.inspectEach({
-      ...access,
-      names,
-      consumer: releaseToolConsumer(release),
-    })
+    const consumer = releaseToolConsumer(release)
+    const inspected = await catalog.inspectEach({ ...access, names, consumer })
     if ('failure' in inspected) return inspected
-    return succeed(
-      inspected.ok.flatMap(one =>
-        'ok' in one && one.ok.kind === 'available' ? programFunctions(one.ok.definition) : [],
-      ),
+    const viewed = inspected.ok.flatMap(one =>
+      'ok' in one && one.ok.kind === 'available' ? programFunctions(one.ok.definition) : [],
     )
+    const beyond = await outsideView(catalog, access, consumer)
+    if ('failure' in beyond) return beyond
+    const byEntry = new Map<string, ProgramFunction>()
+    for (const one of [...viewed, ...beyond.ok])
+      if (!byEntry.has(one.entry)) byEntry.set(one.entry, one)
+    return succeed([...byEntry.values()])
   }
 }

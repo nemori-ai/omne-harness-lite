@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { fail, succeed } from '@omne-harness/operation-result'
+import { testingSourceEntry } from '@omne-harness/tool-contract/testing'
 import {
   createProgramFunctions,
   createProgramTargetRequests,
@@ -134,6 +136,49 @@ describe('the functions a program can call now', () => {
       expect(entries).toContain('Shell.execute')
       expect(entries.filter(entry => /^(Tools|Code|Ask)\./u.test(entry))).toEqual([])
       expect(new Set(entries).size).toBe(entries.length)
+    }))
+
+  // TL-71: a program names a tool its session does not keep; the catalog lists those for a program.
+  it('include the tools no view lists that a program can name, read page by page', () =>
+    onWorld(async world => {
+      const open = testingSourceEntry({
+        name: 'probe__open',
+        category: 'probe',
+        program: { maxBytes: 1024 },
+      })
+      const found = {
+        kind: 'available',
+        definition: open.definition,
+        executor: open.executor,
+        layer: { kind: 'tenant', tenant: world.tenant },
+        resident: false,
+      }
+      const asked: unknown[] = []
+      const search = (async request => {
+        asked.push([request.invocation, request.query, request.after])
+        return request.after === null
+          ? succeed({ entries: [found], next: 'page-2' })
+          : succeed({ entries: [found], next: null })
+      }) as World['catalog']['search']
+      const catalog = { ...world.catalog, search }
+      const ports = portsOf(world, { catalog: () => catalog })
+      const functions = await createProgramFunctions(ports)(codeParent(world))
+      if ('failure' in functions) throw new Error(JSON.stringify(functions))
+      const entries = functions.ok.map(one => one.entry)
+      expect(entries).toContain('Files.read')
+      expect(entries.filter(entry => entry.startsWith('probe__'))).toEqual(['probe__open.run'])
+      expect(asked).toEqual([
+        ['programmatic', '', null],
+        ['programmatic', '', 'page-2'],
+      ])
+    }))
+
+  it('are not given when the tools outside the view cannot be listed', () =>
+    onWorld(async world => {
+      const failure = { kind: 'unavailable', dependency: 'catalog', diagnostic: 'down' } as const
+      const search = (async () => fail(failure)) as World['catalog']['search']
+      const ports = portsOf(world, { catalog: () => ({ ...world.catalog, search }) })
+      expect(await createProgramFunctions(ports)(codeParent(world))).toEqual({ failure })
     }))
 
   it('are not given to a call that is not the Code of the release, nor without a catalog', () =>

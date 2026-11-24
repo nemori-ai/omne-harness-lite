@@ -107,9 +107,7 @@ export async function forwardWorld() {
     inspectEach: async input => ({
       ok: await Promise.all(input.names.map(name => inspect({ ...input, name, command: null }))),
     }),
-    search: async () => ({
-      failure: { kind: 'unavailable', dependency: 'fixture', diagnostic: 'unused' },
-    }),
+    search: async () => ({ ok: { entries: [], next: null } }),
     usage: async () => ({
       failure: { kind: 'unavailable', dependency: 'fixture', diagnostic: 'unused' },
     }),

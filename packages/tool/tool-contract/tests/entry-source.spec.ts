@@ -150,6 +150,32 @@ describe('the listing of a tool entry source', () => {
     ).toEqual({ name: 'probe__a', reason: 'executor-owned-parameters' })
   })
 
+  // TL-71: the source hands over whether an entry is open to programs, and what it gives them.
+  it('stands with an entry that is open to programs and declares the value it gives them', () => {
+    const base = definition('probe__open')
+    if (base.kind !== 'commands') throw new Error('fixture')
+    const program = {
+      kind: 'json',
+      contract: adoption('program-data'),
+      schema: { id: 'probe/out', revision: '1', digest: 'sha256:out' },
+      definition: parameters(),
+      maxBytes: 1024,
+      external: true,
+    } as const
+    const open: ToolDefinition = {
+      ...base,
+      programmable: true,
+      commands: base.commands.map(command => ({
+        ...command,
+        program: { kind: 'open', unless: [] },
+        returns: { ...structuredReturns, program },
+      })),
+    }
+    expect(
+      breach({ entries: [entry('probe__open', { definition: open })], withheld: [] }),
+    ).toBeUndefined()
+  })
+
   it('is a breach when the prefix itself is not one', () => {
     expect(breach({ entries: [], withheld: [] }, 'probe')).toEqual({
       name: 'probe',

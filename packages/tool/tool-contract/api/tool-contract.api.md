@@ -2201,6 +2201,7 @@ export type ToolSourceCall<P> = Access<P> & Readonly<{
     declared: ToolCommandDeclaration | null;
     arguments: JsonValue;
     invocation: string;
+    program: boolean;
     signal: AbortSignal;
 }>;
 export type ToolEntrySource<P, B extends ContentBlock> = Readonly<{
@@ -5129,6 +5130,9 @@ export declare function testingSourceEntry(input: Readonly<{
     commands?: readonly string[];
     revision?: string;
     unavailable?: string;
+    program?: Readonly<{
+        maxBytes: number;
+    }>;
 }>): ToolSourceEntry;
 export type MemoryToolEntrySource<P, B extends ContentBlock> = ToolEntrySource<P, B> & Readonly<{
     calls: readonly ToolSourceCall<P>[];

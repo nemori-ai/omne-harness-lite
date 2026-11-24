@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import type { ContentBlock } from '@omne-harness/content-block'
+import type { JsonValue } from '@omne-harness/json-text'
 import { succeed } from '@omne-harness/operation-result'
-import type { ToolDefinition } from './definitions.ts'
+import type { ToolDefinition, ToolProgramDeclaration } from './definitions.ts'
 import {
   judgeToolSourceListing,
   type ToolEntrySource,
@@ -24,10 +25,26 @@ export function testingSourceEntry(
     commands?: readonly string[]
     revision?: string
     unavailable?: string
+    /** Opens the entry to programs: every command gives them one JSON value of at most this size. */
+    program?: Readonly<{ maxBytes: number }>
   }>,
 ): ToolSourceEntry {
   const commands = input.commands ?? ['run']
-  const facts = [input.name, commands, input.revision ?? '1']
+  const opened = input.program === undefined ? [] : [input.program]
+  const facts = [input.name, commands, input.revision ?? '1', ...opened]
+  const returns = structuredReturnFixture(adoption('ToolResult'))
+  const schema: JsonValue = { kind: 'object', entries: [] }
+  const program: ToolProgramDeclaration | undefined =
+    input.program === undefined
+      ? undefined
+      : {
+          kind: 'json',
+          contract: adoption('program-data'),
+          schema: { id: `${input.name}/program`, revision: '1', digest: digestOf([input.name]) },
+          definition: { schema, vocabulary: adoption('json-schema'), descriptions: [] },
+          maxBytes: input.program.maxBytes,
+          external: true,
+        }
   const definition: ToolDefinition = {
     adoption: {
       owner: 'conformance',
@@ -49,6 +66,7 @@ export function testingSourceEntry(
     },
     kind: 'commands',
     encoding: 'wrapped',
+    ...(program === undefined ? {} : { programmable: true }),
     commands: commands.map(command => ({
       name: command,
       summary: `Runs ${command}.`,
@@ -80,7 +98,8 @@ export function testingSourceEntry(
           descriptions: [{ path: 'text', text: 'The text value.' }],
         },
       },
-      returns: structuredReturnFixture(adoption('ToolResult')),
+      returns: program === undefined ? returns : { ...returns, program },
+      ...(program === undefined ? {} : { program: { kind: 'open' as const, unless: [] } }),
     })),
   }
   return {

@@ -467,7 +467,7 @@ const entrySourcesContract: Contract = Object.freeze({
   keyFrom: null,
   key: 'the name prefix the source owns, for example mcp__',
   gives:
-    'the asking principal and tenant; the entry name when one is selected; the command, arguments, fixed command declaration, call id and abort signal when one is executed',
+    'the asking principal and tenant; the entry name when one is selected; the command, arguments, fixed command declaration, call id, whether a program made the call, and abort signal when one is executed',
   item: Object.freeze({
     kind: 'effect',
     fields: Object.freeze({
@@ -482,7 +482,7 @@ const entrySourcesContract: Contract = Object.freeze({
   onError:
     'a source whose listing throws, times out or names an entry outside its prefix answers unavailable; the other sources and the registry answer as usual',
   version: 1,
-  revision: 1,
+  revision: 2,
   keys: 'public',
   conformance: null,
   summary:

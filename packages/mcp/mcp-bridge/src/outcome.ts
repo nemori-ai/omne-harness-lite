@@ -11,11 +11,12 @@ import {
   type TaskId,
   type UnavailableReason,
 } from '@omne-harness/mcp-contract'
-import type { ToolRenderedResult } from '@omne-harness/tool-contract'
+import type { ToolProgramDeclaration, ToolRenderedResult } from '@omne-harness/tool-contract'
 import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
 import { oneLine, PEER_TEXT_BEGIN, PEER_TEXT_END } from './convert.ts'
 
 export type BridgeResult = ToolRenderedResult<ToolMessageContentBlock>
+export type ProgramData = Extract<ToolProgramDeclaration, { kind: 'json' }>
 
 /** What one call to an endpoint came to, as the tool tells it. Nothing here is guessed as success. */
 export type Settlement =
@@ -169,10 +170,60 @@ function fitted(text: string, maxBytes: number): Readonly<{ text: string; cutFro
   return { text: points.slice(0, low).join(''), cutFrom: whole }
 }
 
+const record = (members: Readonly<Record<string, string | undefined>>): JsonValue => ({
+  kind: 'object',
+  entries: Object.entries(members).flatMap(([key, value]) =>
+    value === undefined ? [] : [{ key, value: { kind: 'string', value } }],
+  ),
+})
+
+function itemOf(item: DeliveredContent): JsonValue {
+  if (item.kind === 'invalid') return record({ type: 'undelivered', reason: item.reason })
+  if (item.kind === 'block') {
+    const { block } = item
+    if (block.kind === 'text') return record({ type: 'text', text: block.text })
+    return record({
+      type: block.kind,
+      mediaType: 'mediaType' in block ? block.mediaType : undefined,
+    })
+  }
+  if (item.type === 'resource_link')
+    return record({
+      type: item.type,
+      uri: textOf(memberOf(item.item, 'uri')),
+      name: textOf(memberOf(item.item, 'name')),
+    })
+  const resource = memberOf(item.item, 'resource')
+  return record({
+    type: item.type,
+    uri: resource === undefined ? undefined : textOf(memberOf(resource, 'uri')),
+    text: resource === undefined ? undefined : textOf(memberOf(resource, 'text')),
+  })
+}
+
+function programValue(outcome: Extract<CallOutcome, { kind: 'complete' | 'toolError' }>) {
+  if (outcome.kind !== 'complete') return undefined
+  if (outcome.output.kind === 'conforms') return outcome.structured
+  return outcome.output.kind === 'no-schema'
+    ? ({ kind: 'array', items: outcome.content.map(itemOf) } satisfies JsonValue)
+    : undefined
+}
+
+function dataOf(
+  outcome: Extract<CallOutcome, { kind: 'complete' | 'toolError' }>,
+  program: ProgramData | undefined,
+): BridgeResult['data'] {
+  const value = program === undefined ? undefined : programValue(outcome)
+  return program === undefined || value === undefined
+    ? { kind: 'none' }
+    : { kind: 'json', contract: program.contract, schema: program.schema, value }
+}
+
 function answered(
   head: string,
   outcome: Extract<CallOutcome, { kind: 'complete' | 'toolError' }>,
   maxBytes: number,
+  program: ProgramData | undefined,
 ): BridgeResult {
   const parts = outcome.content.map(deliveredText)
   const { structured } = outcome
@@ -201,7 +252,7 @@ function answered(
     throw new TypeError('the result text of the endpoint is not a text block')
   return {
     content: [judged.ok],
-    data: { kind: 'none' },
+    data: dataOf(outcome, program),
     original: { kind: 'none' },
     attachments: [],
   }
@@ -234,12 +285,16 @@ export function settle(
   action: string,
   result: InvokeResult,
   maxBytes: number,
+  program?: ProgramData,
 ): Settlement {
   if (result.kind === 'not-sent') return notStarted(tool, action, failureText(result.reason))
   const { outcome } = result
   switch (outcome.kind) {
     case 'complete':
-      return { effect: 'happened', result: answered(`done ${tool} ${action}`, outcome, maxBytes) }
+      return {
+        effect: 'happened',
+        result: answered(`done ${tool} ${action}`, outcome, maxBytes, program),
+      }
     case 'toolError':
       return {
         effect: 'happened',
@@ -247,6 +302,7 @@ export function settle(
           `${tool} ${action}: the endpoint reported that the action failed. Its report follows.`,
           outcome,
           maxBytes,
+          program,
         ),
       }
     case 'protocolError':

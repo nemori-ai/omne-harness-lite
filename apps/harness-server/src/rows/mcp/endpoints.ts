@@ -9,6 +9,7 @@ import {
   isMillis,
   mcpEndpointGates,
   parseEndpointBody,
+  PROGRAM_CALLS_SETTING,
   type EndpointRef,
   type EndpointSettings,
   type SettingValue,
@@ -137,6 +138,16 @@ async function settingsOf(
       kept.ok?.revision ?? '',
     ],
   })
+}
+
+export async function programCallsOpen(
+  facts: Pick<EndpointFacts, 'settings'>,
+  tenant: TenantId,
+  endpoint: string,
+): Promise<boolean> {
+  const items = await facts.settings(tenant, endpoint)
+  const read = items === 'unknown' ? undefined : items.get(PROGRAM_CALLS_SETTING)
+  return read?.kind === 'set' && read.value === true
 }
 
 async function adoptedOf(

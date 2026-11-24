@@ -51,6 +51,7 @@ export {
   mcpEndpointBodyContract,
   mcpEndpointGates,
   parseEndpointBody,
+  PROGRAM_CALLS_SETTING,
   type EndpointBodyRejection,
 } from './endpoint.ts'
 export {

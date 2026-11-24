@@ -38,6 +38,18 @@ const ECHO: PeerAction = {
 }
 const FAIL: PeerAction = { name: 'fail', description: 'Always refuses.', answer: 'error' }
 const HANG: PeerAction = { name: 'hang', description: 'Never answers.', answer: 'hang' }
+const COUNT: PeerAction = { name: 'count', description: 'Counts the text.', answer: 'length' }
+
+// What the model writes for `start: code <label>`: each program calls one action of the endpoint shop.
+const guarded = (call: string) =>
+  [
+    `try { return await ${call} }`,
+    'catch (error) { return { refused: String(error), kind: error.kind ?? null } }',
+  ].join('\n')
+const PROGRAMS: Readonly<Record<string, string>> = {
+  count: guarded('mcp__shop.count({ text: "four" })'),
+  plain: guarded('mcp__shop.echo({ text: "plain" })'),
+}
 
 const ownerOf = (name: string) => ({ kind: 'asset', category: 'mcp', name }) as const
 const text = (value: string): JsonValue => ({ kind: 'string', value })
@@ -74,6 +86,11 @@ function scripted() {
     const said = JSON.stringify(last.content)
     const call = /start: call ([a-z]+) ([a-z]+) ([a-z0-9-]+)/.exec(said)
     const inspect = /start: inspect ([a-z]+) ([a-z]+)/.exec(said)
+    const code = PROGRAMS[/start: code ([a-z]+)/.exec(said)?.[1] ?? '']
+    if (code !== undefined) {
+      const id = `code_${String(bodies.length)}`
+      return [{ id, tool: 'Code', arguments: JSON.stringify({ command: 'execute', code }) }]
+    }
     if (call !== null)
       return [
         toolsCall(`call_${call[3]}`, 'execute', {
@@ -154,6 +171,9 @@ async function registered(
   return holding
 }
 
+const treeOf = (value: unknown): JsonValue =>
+  typeof value === 'boolean' ? { kind: 'boolean', value } : text(value as string)
+
 async function configured(w: World, name: string, item: string, value: unknown, operation: string) {
   const current = await described(w, name, item)
   const written = await w.assets['set-setting']({
@@ -165,7 +185,7 @@ async function configured(w: World, name: string, item: string, value: unknown, 
     value:
       item === 'invoke'
         ? { kind: 'permission', pick: value as string }
-        : { kind: 'ordinary', value: text(value as string) as never },
+        : { kind: 'ordinary', value: treeOf(value) as never },
   })
   expect(written, `set ${item} of ${name}`).toMatchObject({ outcome: 'succeeded' })
 }
@@ -524,6 +544,63 @@ it(
         expect(
           await w.assets['describe-setting']({ tenant: w.tenant, owner: web, item: 'exa.apiKey' }),
         ).toMatchObject({ outcome: 'succeeded', body: { item: { own: 'available' } } })
+      }),
+    )
+    expect(exit).toBe(0)
+  },
+)
+
+it(
+  'MC-26 a program calls the actions of an endpoint only while its holder has program calls on: it gets the checked structured content, or the content items, and each call still asks',
+  { tags: ['slow'], timeout: 600_000 },
+  async () => {
+    const { script } = scripted()
+    const peer = await peerWith(COUNT, ECHO)
+    const exit = await onReleaseTree(options(script), tree =>
+      journey(tree, LIMIT_MS, async at => {
+        const w = world(tree)
+        const session = await tree.startSession('start: search')
+        await searched(tree, session, 1)
+        await registered(w, 'shop')
+        await configured(w, 'shop', 'target', peer.target, 'shop-target')
+        expect(await described(w, 'shop', 'program-calls')).toMatchObject({ kind: 'ordinary' })
+
+        at('a program names the endpoint while program calls are off')
+        await sendInput(tree, session, 'start: code count')
+        const closed = await lastResult(tree, session, 2)
+        expect(closed).toContain('refused')
+        expect(closed).toContain('"kind":null')
+        expect(peer.calls).toEqual([])
+        expect(await tree.cards({ sessionRef: session, states: ['pending'] })).toEqual([])
+
+        at('the holder turns program calls on: the call of the program asks, then answers')
+        await configured(w, 'shop', 'program-calls', true, 'shop-open')
+        await sendInput(tree, session, 'start: code count')
+        const card = await pendingCard(tree, session, 'the call the program made')
+        expect(card.question).toMatchObject({
+          kind: 'release',
+          target: { tool: 'mcp__shop', command: 'count' },
+          origin: { program: true },
+        })
+        expect(peer.calls).toEqual([])
+        await answerCard(tree, card, ['--option', 'allow-session'], 'reply-count')
+        const counted = await lastResult(tree, session, 3)
+        expect(counted).toContain('done Code execute')
+        expect(counted).toContain('"length":4')
+        expect(peer.calls).toEqual([{ action: 'count', text: 'four' }])
+
+        at('an action without an output schema gives the program its content items')
+        await sendInput(tree, session, 'start: code plain')
+        const plain = await lastResult(tree, session, 4)
+        expect(plain).toContain('"type":"text"')
+        expect(plain).toContain('echo answered plain')
+        expect(plain).not.toContain('refused')
+
+        at('the holder turns program calls off again')
+        await configured(w, 'shop', 'program-calls', false, 'shop-closed')
+        await sendInput(tree, session, 'start: code count')
+        expect(await lastResult(tree, session, 5)).toContain('"kind":null')
+        expect(peer.calls).toHaveLength(2)
       }),
     )
     expect(exit).toBe(0)
