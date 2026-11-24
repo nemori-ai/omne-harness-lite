@@ -83,7 +83,6 @@ function useRound(host: CanvasHost): number {
   return round
 }
 
-/** An item as text to tell whether it changed; its instant has no JSON form, so it is written out. */
 const itemText = (item: CanvasItemBody): string =>
   JSON.stringify({ ...item, when: encodeInstant(item.when) })
 
@@ -139,7 +138,6 @@ const letsGo = (event: React.KeyboardEvent, selected: Selection): boolean =>
   selected.size > 0 &&
   (event.target as Element).closest('[role="menu"]') === null
 
-/** How each kind stands, asked once a kind while the kinds read stay the same. */
 function useStanding(kinds: CanvasState['kinds']): (item: CanvasItemBody) => KindStanding {
   return useMemo(() => {
     const known = new Map<string, KindStanding>()

@@ -278,7 +278,6 @@ export const FACE_TEXT: Readonly<Record<Face, string>> = {
   back: '现在露着反面',
 }
 
-/** Whether a turn is playing; its phases and its frames do not draw the faces again. */
 function useTurning(flip: FaceFlip): boolean {
   return useSyncExternalStore(flip.subscribe, () => flip.current().phase !== 'idle')
 }
@@ -355,7 +354,6 @@ function Back(props: {
   )
 }
 
-/** What the back's item draws: drawn again when the item or the tenant changes, not when the face turns. */
 const BackBody = memo(function BackBody(props: {
   item: BackItem
   scope: string | undefined
@@ -370,7 +368,6 @@ const BackBody = memo(function BackBody(props: {
   )
 })
 
-/** A page of the front: drawn again when what it is given changes, not when the face turns. */
 const WorkspacePage = memo(function WorkspacePage(props: {
   page: PageItem
   shown: string | undefined
