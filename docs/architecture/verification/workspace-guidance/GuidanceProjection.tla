@@ -20,7 +20,7 @@ Allowed == IF qualification = 2 THEN {"BR"} ELSE Sources
 Required == IF generation = 1 THEN {"BR"}
             ELSE IF qualification = 2 THEN {}
             ELSE {"AR"} \cup (IF generation = 0 /\ receipts THEN {"AL"} ELSE {})
-Qualified(s) == SourcesKnown(s) /\ (Fault = "no-qualification" \/ s \subseteq Allowed)
+Qualified(s) == SourcesKnown(s) /\ s \subseteq Allowed
 ClaimedSummary(s) == IF Fault = "keep-mixed-summary" /\ qualification = 2
                         /\ {"AR", "BR"} \subseteq s
                      THEN {} ELSE s
@@ -141,7 +141,9 @@ Discard == /\ plan # NoPlan /\ ~CurrentPlan /\ plan' = NoPlan
 Send ==
   /\ request.ready /\ request.gen = generation
   /\ request.full = visible /\ request.sum = summary /\ request.need = Required
-  /\ Qualified(request.full \cup ClaimedSummary(request.sum))
+  /\ IF Fault = "no-qualification"
+        THEN SourcesKnown(request.full \cup ClaimedSummary(request.sum))
+        ELSE Qualified(request.full \cup ClaimedSummary(request.sum))
   /\ badSend' = (badSend \/ ~SourcesKnown(request.full \cup request.sum)
                 \/ ~(request.full \cup request.sum \subseteq Allowed)
                 \/ ~(Required \subseteq request.full))
