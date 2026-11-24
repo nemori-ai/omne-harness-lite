@@ -1,6 +1,8 @@
 import type { CanvasItemBody } from '@omne-harness/canvas-protocol'
 import {
   Ago,
+  AssistantIcon,
+  ContactIcon,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -12,17 +14,25 @@ import {
   IconButton,
   LockIcon,
   MoreIcon,
+  PaperQuiet,
 } from '@omne-harness/ui-kit'
 import { encodeInstant } from '@omne-harness/utc-instant'
 import { useRef, type JSX } from 'react'
 import { KEYS, shortcutOf, type KeyAct } from './keys.ts'
 
-/** Who last arranged it: a person, or an agent; never the full identifier of a session. */
+/**
+ * Who last arranged it: a person, or an agent; never the full identifier of a session. At rest only its mark shows;
+ * the words come out while the page is looked at.
+ */
 export function ByLine({ by, when }: Readonly<Pick<CanvasItemBody, 'by' | 'when'>>): JSX.Element {
-  const who = by.kind === 'human' ? '人' : 'agent'
+  const human = by.kind === 'human'
+  const Mark = human ? ContactIcon : AssistantIcon
   return (
-    <span className="canvas-by" title={by.kind === 'human' ? '最近由人摆放' : '最近由 agent 摆放'}>
-      {who} · <Ago at={encodeInstant(when)} />
+    <span className="canvas-by" title={human ? '最近由人摆放' : '最近由 agent 摆放'}>
+      <PaperQuiet>
+        {human ? '人' : 'agent'} · <Ago at={encodeInstant(when)} />
+      </PaperQuiet>
+      <Mark aria-hidden="true" className="canvas-by-mark" />
     </span>
   )
 }

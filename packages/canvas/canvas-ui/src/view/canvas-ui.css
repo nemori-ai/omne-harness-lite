@@ -56,8 +56,16 @@
   }
 
   .canvas-by {
+    display: flex;
+    align-items: center;
+    gap: var(--omne-space-inline);
     white-space: nowrap;
     color: var(--omne-ink-faint);
+  }
+  .canvas-by-mark {
+    flex: none;
+    width: var(--omne-icon-compact);
+    height: var(--omne-icon-compact);
   }
 
   .canvas-more {

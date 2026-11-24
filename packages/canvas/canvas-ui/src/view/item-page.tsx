@@ -89,8 +89,8 @@ export function ItemPage(props: ItemPageProps): JSX.Element {
         handleLabel={`挪动${name} ${item.reference.ref.slice(0, 8)}`}
         aside={
           <>
-            {item.locked ? <LockMark onUnlock={() => acts.act(item, 'lock')} /> : null}
             <ByLine by={item.by} when={item.when} />
+            {item.locked ? <LockMark onUnlock={() => acts.act(item, 'lock')} /> : null}
             {menu}
           </>
         }

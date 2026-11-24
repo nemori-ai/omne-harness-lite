@@ -81,6 +81,30 @@ describe('the sheet draws what was read', () => {
     expect(drawn.dataset['state']).toBe('closed')
   })
 
+  it('who placed a thing is a mark, a person apart from an agent, and the words stay there to be read', async () => {
+    const byAgent = item('b', {
+      at: { x: 400, y: 200 },
+      rank: 2,
+      by: { kind: 'agent', session: 's' },
+    })
+    await opened(
+      canvas([A, byAgent], [pile('p', { name: '周报', by: { kind: 'agent', session: 's' } })]),
+    )
+    const pileGroup = screen.getByRole('group', { name: '周报' })
+    const said = (where: HTMLElement, who: '人' | 'agent') => {
+      const line = within(where).getByTitle(who === '人' ? '最近由人摆放' : '最近由 agent 摆放')
+      const words = within(line).getByText(new RegExp(`^${who} ·`, 'u'))
+      expect(words.closest('[aria-hidden="true"]')).toBeNull()
+      const mark = line.querySelector('svg[data-icon]')?.getAttribute('data-icon')
+      expect(mark).toBeTruthy()
+      return mark
+    }
+    const person = said(page('a'), '人')
+    const agent = said(page('b'), 'agent')
+    expect(person).not.toBe(agent)
+    expect(said(pileGroup, 'agent')).toBe(agent)
+  })
+
   it('an open pile draws each page at its own size, or at the footprint when it has none', async () => {
     const sized = item('s', { pile: 'p', rank: 2, size: { width: 240, height: 144 } })
     const plain = item('n', { pile: 'p', rank: 1, size: null })
