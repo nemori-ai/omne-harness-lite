@@ -88,6 +88,7 @@ const EXCLUSIONS: Readonly<Record<PositionExclusion['kind'], Kind>> = {
   denied: 'denied',
   'not-accepted': 'unavailable',
   unavailable: 'unavailable',
+  closed: 'interrupted',
 }
 const EFFECTS: Readonly<Record<ProgramArrival['effect']['kind'], ProgramCallFailure['effect']>> = {
   'not-started': 'none',
@@ -202,7 +203,6 @@ function portsOf<P>(input: LocalProgramCallsInput<P>): Ports<P> | ProgramCallAns
   return { source, runtime, children, admission }
 }
 
-/** Everything that is checked before the position exists: a refusal here leaves nothing behind. */
 async function chosen<P>(
   run: Running<P>,
   ordinal: number,
@@ -331,6 +331,16 @@ async function settle<P>(run: Running<P>, calls: Calls): Reply<ProgramTable> {
   return table
 }
 
+/** TL-69: the program failed. The table is closed for every call, each is asked to stop once. */
+async function abandon<P>(run: Running<P>): Reply<ProgramTable> {
+  const children = run.input.children()
+  const { principal, tenant, call } = run.parent
+  const access = { principal, tenant, call }
+  if (children === undefined) return fail(ended('The position table is absent.'))
+  const closed = await children.close({ ...access, reach: 'all', cause: 'failed' })
+  return 'failure' in closed ? closed : children.dispose(access)
+}
+
 const ended = (diagnostic: string) =>
   ({ kind: 'unavailable', dependency: 'program-calls', diagnostic }) as const
 
@@ -382,6 +392,14 @@ export function createLocalProgramCalls<P>(input: LocalProgramCallsInput<P>): Lo
           return answer
         },
         settle: () => settle(run, calls),
+        table: async () => {
+          const { principal, tenant, call } = parent
+          const children = input.children()
+          return children === undefined
+            ? fail(ended('The position table is absent.'))
+            : children.table({ principal, tenant, call })
+        },
+        abandon: () => abandon(run),
       }
       return attachProgramTools(scope, {
         value,

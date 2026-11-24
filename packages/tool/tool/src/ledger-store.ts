@@ -37,6 +37,7 @@ import type {
   SuspensionRecord,
   ToolExecutionFact,
   PreparationRecord,
+  ProgramFence,
   ProgramPosition,
   ProgramTable,
   ToolCommands,
@@ -285,7 +286,7 @@ export type ReleaseBasis =
   | Readonly<{ kind: 'lost-continuity'; continuity: DurableEvidence }>
 
 /** The table of a program's positions: open until its body returns. */
-export type ProgramTableRecord = Readonly<{ phase: ProgramTable['phase'] }>
+export type ProgramTableRecord = Readonly<{ phase: ProgramTable['phase']; fence?: ProgramFence }>
 
 export type HostRecord = Readonly<{ key: string; value: unknown; request?: FixedToolRequest }>
 

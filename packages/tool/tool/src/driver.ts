@@ -12,7 +12,11 @@ import {
   type ToolOperationId,
   type ToolStartRecord,
 } from '@omne-harness/tool-contract'
-import { type CallAccess } from '@omne-harness/tool-contract/provider'
+import {
+  owesDisposal,
+  type CallAccess,
+  type ToolChildren,
+} from '@omne-harness/tool-contract/provider'
 import {
   type PreparationProgress,
   type PreparationRecord,
@@ -123,6 +127,17 @@ export type ToolDriverHandle<P> = ToolDriver<P> &
     later(input: Step<P>): void
   }>
 
+const after = (reply: Outcome<unknown, ToolFailure>): StepResult => {
+  if ('ok' in reply) return CONTINUE
+  return retryable(reply.failure) ? STALLED : { kind: 'failed', failure: reply.failure }
+}
+
+/** TL-70: a closed program whose positions still owe a step is taken one pass further. */
+const programDuty = <P>(children: ToolChildren<P>, step: CallAccess<P>, recovery: ToolRecovery) =>
+  recovery.program !== null && owesDisposal(recovery.program).length > 0
+    ? [{ key: 'program-fence', run: async () => after(await children.dispose(step)) }]
+    : []
+
 export function createToolDriver<P, B extends ContentBlock, E>(
   dependencies: ToolDependencies<P, B, E>,
   policy: DriverPolicy,
@@ -174,11 +189,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     suffix: Suffix,
   ) =>
     context(step, recovery, suffix, start.kind === 'start' ? recovery.admission : start.operation)
-
-  const after = (reply: Outcome<unknown, ToolFailure>): StepResult => {
-    if ('ok' in reply) return CONTINUE
-    return retryable(reply.failure) ? STALLED : { kind: 'failed', failure: reply.failure }
-  }
 
   const scheduleNow = async (tenant: TenantId, call: ToolCallId): Promise<boolean> => {
     try {
@@ -778,6 +788,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
   ) => readonly Duty[]
 
   const duties: readonly DutyRule[] = [
+    (step, recovery) => programDuty(dependencies.children, step, recovery),
     (step, recovery, cancelled) =>
       recovery.state.phase === 'settled' && owesQueue(recovery)
         ? [{ key: 'queue', run: () => repairRelease(step, recovery, cancelled) }]

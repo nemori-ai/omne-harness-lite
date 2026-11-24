@@ -21,6 +21,7 @@ import {
   ToolStartFenceService,
 } from '@omne-harness/tool-cordis-contract/cordis'
 import { createLocalToolLedgerGuards } from './ledger-guards.ts'
+import { createProgramDisposal, programFenceTarget, programGuardsOf } from './program-fence.ts'
 import { createLocalStartCoordinator } from './start-coordinator.ts'
 import type { RuntimeCompositionInput, RuntimeStages } from './runtime-composition.ts'
 
@@ -40,16 +41,18 @@ export function createRuntimeRecords(
   input: RuntimeCompositionInput,
   stages: RuntimeStages,
 ): RuntimeRecords {
+  // TL-66: a program call starts under the guard of its position and behind no barrier of its program.
+  const target = programFenceTarget(input.store, input.access.target)
   const authority = createLocalStartCoordinator({
     store: input.store,
     access: input.access.start,
-    ...(input.access.target === undefined ? {} : { target: input.access.target }),
-    guardsOf: input.guardsOf,
+    target,
+    guardsOf: request => [...input.guardsOf(request), ...programGuardsOf(request)],
     permitRequirements: input.permitRequirements,
     commitAttempts: input.configuration.ledgerCommitAttempts,
   })
   const guards = createLocalToolLedgerGuards({
-    access: input.access,
+    access: { ...input.access, target },
     sources: input.sources,
     bindings: stages.bindings,
     grants: input.grants,
@@ -79,6 +82,7 @@ export function createRuntimeRecords(
     access: input.access.guard,
     commitAttempts: input.configuration.ledgerCommitAttempts,
     lookup: ledger.reads.lookup,
+    ...createProgramDisposal({ authority, commands: ledger.commands }),
   })
   return { ledger, authority, accounts, children }
 }

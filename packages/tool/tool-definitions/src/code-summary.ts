@@ -30,7 +30,12 @@ function lineOf(position: ProgramPosition, answered: AnsweredFailure | undefined
   if (position.state === 'excluded')
     return { ordinal, entry, outcome, detail: `not made: ${position.exclusion.reason}` }
   const where = position.state === 'handed' && position.background ? 'in the background' : 'running'
-  return { ordinal, entry, outcome, detail: `still ${where}; its result is not in this program` }
+  const asked = position.state === 'handed' ? position.stop : undefined
+  const detail =
+    asked === undefined
+      ? `still ${where}; its result is not in this program`
+      : `asked to stop (${asked}); its result is not in this program`
+  return { ordinal, entry, outcome, detail }
 }
 
 /** TL-73: made from the position table; a failure the program caught and hid is still a line here. */

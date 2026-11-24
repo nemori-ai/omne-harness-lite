@@ -167,13 +167,7 @@ const refusal = (kind: ProgramCallFailureKind, message: string): ProgramCallAnsw
 type Handler = (args: Record<string, unknown>, ordinal: number) => Promise<ProgramCallAnswer>
 
 /** The capability a host would attach, scripted: what was called, in what order, how many at once. */
-type Faults = Readonly<{
-  functions?: boolean
-  settle?: boolean
-  none?: boolean
-  /** The call was stopped: settle no longer waits for what is still in flight. */
-  stopped?: AbortSignal
-}>
+type Faults = Readonly<{ functions?: boolean; settle?: boolean; none?: boolean }>
 const UNPLACED: ReadonlySet<string> = new Set(['unsupported', 'invalid', 'limit'])
 
 /** The position a real table would hold after this answer; none for a call refused before it had one. */
@@ -203,6 +197,15 @@ function scripted(handlers: Readonly<Record<string, Handler>>, faults: Faults = 
   let inFlight = 0
   let most = 0
   let settled = 0
+  let abandoned = 0
+  /** The table a real host would give: `asked` marks what was in flight as asked to stop. */
+  const tableNow = (phase: ProgramTable['phase'], asked?: string): ProgramTable => {
+    const positions = [...answers]
+      .sort(([left], [right]) => left - right)
+      .flatMap(([ordinal, [entry, answer]]) => positionOf(ordinal, entry, answer) ?? [])
+      .map(one => (one.state === 'handed' && asked !== undefined ? { ...one, stop: asked } : one))
+    return { phase, positions } as unknown as ProgramTable
+  }
   const tools: ProgramTools = {
     functions: async () =>
       faults.functions === true ? fail(down) : succeed(faults.none === true ? [] : FUNCTIONS),
@@ -221,21 +224,17 @@ function scripted(handlers: Readonly<Record<string, Handler>>, faults: Faults = 
       return answer
     },
     async settle() {
-      const stopped = new Promise<void>(resolve => {
-        if (faults.stopped?.aborted === true) resolve()
-        faults.stopped?.addEventListener('abort', () => resolve(), { once: true })
-      })
-      await Promise.race([Promise.allSettled(pending), stopped])
+      await Promise.allSettled(pending)
       settled += 1
-      const positions = [...answers]
-        .sort(([left], [right]) => left - right)
-        .flatMap(([ordinal, [entry, answer]]) => positionOf(ordinal, entry, answer) ?? [])
-      return faults.settle === true
-        ? fail(down)
-        : succeed({ phase: 'sealed', positions } as unknown as ProgramTable)
+      return faults.settle === true ? fail(down) : succeed(tableNow('sealed'))
+    },
+    table: async () => succeed(tableNow('closing')),
+    async abandon() {
+      abandoned += 1
+      return succeed(tableNow('closing', 'accepted'))
     },
   }
-  return { tools, calls, most: () => most, settled: () => settled }
+  return { tools, calls, most: () => most, settled: () => settled, abandoned: () => abandoned }
 }
 
 const LIMITS = {
@@ -505,8 +504,7 @@ return all.map(one => one.status === "fulfilled" ? one.value.text : [one.reason.
 
   it('stops the program when the call is stopped', async () => {
     const controller = new AbortController()
-    const held = { 'Files.read': () => new Promise<ProgramCallAnswer>(() => {}) }
-    const world = scripted(held, { stopped: controller.signal })
+    const world = scripted({ 'Files.read': () => new Promise<ProgramCallAnswer>(() => {}) })
     const answer = execute('await Files.read({ path: "a" })', world.tools, {
       signal: controller.signal,
     })
@@ -515,6 +513,8 @@ return all.map(one => one.status === "fulfilled" ? one.value.text : [one.reason.
     await expect(answer).rejects.toThrow(
       /kind=aborted\n.*\ncalls: 0 completed, 1 unsettled\n- #1 Files\.read unsettled, still running; its result is not in this program$/su,
     )
+    // A stopped program does not close the table itself: the control that stopped it did.
+    expect([world.settled(), world.abandoned()]).toEqual([0, 0])
   })
 
   it('stops at once when the call was already stopped, and fails when its calls cannot be settled', async () => {
@@ -538,6 +538,29 @@ return all.map(one => one.status === "fulfilled" ? one.value.text : [one.reason.
     await expect(execute('const b = = 2', world.tools)).rejects.toThrow(
       /^Error: Code execute failed kind=syntax line=1\nExpression expected\nNothing ran\.$/u,
     )
+  })
+
+  it('TL-69 a program that fails closes its table for every call and reports what was still in flight', async () => {
+    const world = scripted({
+      'Files.read': () => new Promise<ProgramCallAnswer>(() => {}),
+      Lookup: async () => valued({ found: true }),
+    })
+    await expect(
+      execute(
+        'await Lookup({ path: "a" })\nvoid Files.read({ path: "slow" })\nthrow new Error("gave up")',
+        world.tools,
+      ),
+    ).rejects.toThrow(
+      /kind=threw line=3\nError: gave up\n.*\ncalls: 1 completed, 1 unsettled\n- #2 Files\.read unsettled, asked to stop \(accepted\); its result is not in this program$/su,
+    )
+    expect(world.abandoned()).toBe(1)
+    expect(world.settled()).toBe(0)
+  })
+
+  it('a program that returns does not close its table: it waits for its calls', async () => {
+    const world = scripted(files())
+    await execute('return (await Lookup({ path: "a" })).found', world.tools)
+    expect([world.settled(), world.abandoned()]).toEqual([1, 0])
   })
 
   it('TL-73 a failure the program caught and hid is still a line of the summary', async () => {

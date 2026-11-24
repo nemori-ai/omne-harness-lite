@@ -175,9 +175,14 @@ async function outcomeOf(run: ProgramRun, signal: AbortSignal): Promise<ProgramO
   return run.outcome.finally(() => signal.removeEventListener('abort', abort))
 }
 
-/** TL-67, TL-73: no further position, every position settled, then the summary made from the table. */
-async function closed(tools: ProgramTools, seen: Answered) {
-  const table = await tools.settle()
+type Ending = 'returned' | 'stopped' | 'failed'
+
+/** TL-67, TL-69, TL-73: returned waits for its calls, stopped reads the table, failed closes it. */
+async function closed(tools: ProgramTools, seen: Answered, ending: Ending = 'returned') {
+  const table =
+    ending === 'returned'
+      ? await tools.settle()
+      : await (ending === 'stopped' ? tools.table() : tools.abandon())
   return 'failure' in table ? table : { ok: callsSummary(table.ok, seen.failures) }
 }
 
@@ -223,7 +228,8 @@ async function execute(
   handle.resolve(started.value)
   const outcome = await outcomeOf(started.value, execution.signal)
   if (outcome.kind === 'syntax') throw new Error(`${failed(outcome, source)}${fileOf(from)}`)
-  const calls = await closed(tools, seen)
+  const ending = outcome.kind === 'aborted' ? 'stopped' : 'failed'
+  const calls = await closed(tools, seen, outcome.kind === 'returned' ? 'returned' : ending)
   if (outcome.kind !== 'returned') {
     const tail = 'ok' in calls ? calls.ok : `calls: unknown (${calls.failure.kind})`
     throw new Error(`${failed(outcome, source)}\n${from}${tail}`)

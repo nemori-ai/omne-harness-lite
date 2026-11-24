@@ -248,13 +248,15 @@ export type {
   ToolOffloader,
   ToolReads,
 } from './custody.ts'
-export { attachProgramTools, isProgramSettled } from './program.ts'
+export { attachProgramTools, inReachOf, isProgramSettled, owesDisposal } from './program.ts'
 export type {
   NestedAdmission,
   NestedAdmissionInput,
   PositionExclusion,
+  PositionStop,
   PositionTarget,
   ProgramActionAdmission,
+  ProgramFence,
   ProgramParent,
   ProgramPosition,
   ProgramTable,

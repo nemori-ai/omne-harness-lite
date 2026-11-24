@@ -489,6 +489,9 @@ export declare abstract class ToolChildrenService<P> extends Service implements 
     abstract readonly background: ToolChildren<P>['background'];
     abstract readonly retain: ToolChildren<P>['retain'];
     abstract readonly seal: ToolChildren<P>['seal'];
+    abstract readonly close: ToolChildren<P>['close'];
+    abstract readonly stopping: ToolChildren<P>['stopping'];
+    abstract readonly dispose: ToolChildren<P>['dispose'];
     abstract readonly table: ToolChildren<P>['table'];
 }
 export declare const toolChildrenKey = "toolChildren";

@@ -2,8 +2,11 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { Effect, Reply, ToolFailure, ToolTerminal } from '@omne-harness/tool-contract'
 import {
   isProgramSettled,
+  owesDisposal,
   type PositionExclusion,
+  type PositionStop,
   type PositionTarget,
+  type ProgramFence,
   type ProgramPosition,
   type ProgramTable,
   type ToolChildren,
@@ -39,8 +42,10 @@ const ordinalOf = (value: number): Outcome<number, ToolFailure> =>
   Number.isSafeInteger(value) && value >= 0 ? succeed(value) : invalid('ordinal', 'whole-number')
 
 export function tableOf(snapshot: Snapshot): ProgramTable {
+  const fence = snapshot.program?.fence
   return {
     phase: snapshot.program?.phase ?? 'open',
+    ...(fence === undefined ? {} : { fence }),
     positions: [...snapshot.positions.values()].sort((a, b) => a.ordinal - b.ordinal),
   }
 }
@@ -69,6 +74,7 @@ export function decideRegister(snapshot: Snapshot, given: Registration): Answer<
     return same ? kept(known) : reply(fail({ kind: 'conflict', operation: known.admission }))
   }
   if (snapshot.program?.phase === 'sealed') return reply(refused('table-sealed'))
+  if (snapshot.program?.phase === 'closing') return reply(refused('table-closed'))
   const position: ProgramPosition = { ...given, state: 'registered' }
   const opened: readonly LedgerWrite[] =
     snapshot.program === null ? [put({ kind: 'program', program: { phase: 'open' } })] : []
@@ -112,7 +118,9 @@ export function decideHandOff(snapshot: Snapshot, ordinal: number): Answer<Progr
   const position = found.ok
   switch (position.state) {
     case 'registered':
-      return stored({ ...position, state: 'handed', background: false })
+      return snapshot.program?.phase === 'closing'
+        ? reply(refused('table-closed'))
+        : stored({ ...position, state: 'handed', background: false })
     case 'handed':
     case 'retained':
       return kept(position)
@@ -130,7 +138,6 @@ export function decideBackground(snapshot: Snapshot, ordinal: number): Answer<Pr
     : kept(position)
 }
 
-/** A result is retained at the position it was handed off from, whatever the table says by then. */
 export function decideRetain(
   snapshot: Snapshot,
   ordinal: number,
@@ -141,7 +148,7 @@ export function decideRetain(
   const position = found.ok
   switch (position.state) {
     case 'handed': {
-      const { background: _, ...base } = position
+      const { background: _, stop: _stop, ...base } = position
       return stored({ ...base, state: 'retained', ...given, late: false })
     }
     case 'retained':
@@ -154,9 +161,67 @@ export function decideRetain(
   }
 }
 
+const relationOf = (position: ProgramPosition): ProgramFence['cut'][number]['relation'] => {
+  if (position.state !== 'handed') return 'unplaced'
+  return position.background ? 'background' : 'foreground'
+}
+
+/** TL-69: the barrier this snapshot gets, or null when the one that stands already covers it. */
+export function fenceOver(
+  snapshot: Snapshot,
+  reach: ProgramFence['reach'],
+  cause: ProgramFence['cause'],
+): ProgramFence | null {
+  const standing = snapshot.program?.fence
+  if (standing !== undefined)
+    return standing.reach === 'all' || reach === 'foreground' ? null : { ...standing, reach }
+  const cut = [...snapshot.positions.values()]
+    .filter(position => position.state === 'registered' || position.state === 'handed')
+    .sort((a, b) => a.ordinal - b.ordinal)
+    .map(position => ({ ordinal: position.ordinal, relation: relationOf(position) }))
+  return { reach, cause, cut }
+}
+
+export function closingWrites(
+  snapshot: Snapshot,
+  reach: ProgramFence['reach'],
+  cause: ProgramFence['cause'],
+): readonly LedgerWrite[] {
+  if (snapshot.program === null && snapshot.positions.size === 0) return []
+  const fence = fenceOver(snapshot, reach, cause)
+  return fence === null ? [] : [put({ kind: 'program', program: { phase: 'closing', fence } })]
+}
+
+/** TL-66, TL-69: one commit closes registration and sets the reach, the cause and the cut. */
+export function decideClose(
+  snapshot: Snapshot,
+  reach: ProgramFence['reach'],
+  cause: ProgramFence['cause'],
+): Answer<ProgramTable> {
+  if (snapshot.call === null) return reply(invalid('call', 'unknown-call'))
+  const fence = fenceOver(snapshot, reach, cause)
+  if (fence === null) return reply(succeed(tableOf(snapshot)))
+  const closed = put({ kind: 'program', program: { phase: 'closing', fence } })
+  return commit([closed], { ...tableOf(snapshot), phase: 'closing', fence })
+}
+
+export function decideStopping(
+  snapshot: Snapshot,
+  ordinal: number,
+  progress: PositionStop,
+): Answer<ProgramPosition> {
+  const found = at(snapshot, ordinal)
+  if ('failure' in found) return reply(found)
+  const position = found.ok
+  return position.state === 'handed' && position.stop !== progress
+    ? stored({ ...position, stop: progress })
+    : kept(position)
+}
+
 export function decideSeal(snapshot: Snapshot): Answer<ProgramTable> {
   if (snapshot.call === null) return reply(invalid('call', 'unknown-call'))
   if (snapshot.program?.phase === 'sealed') return reply(succeed(tableOf(snapshot)))
+  if (snapshot.program?.phase === 'closing') return reply(succeed(tableOf(snapshot)))
   return commit([put({ kind: 'program', program: { phase: 'sealed' } })], {
     ...tableOf(snapshot),
     phase: 'sealed',
@@ -167,13 +232,19 @@ export type ToolPositionsInput<P> = Readonly<{
   store: Pick<ToolLedgerStore, 'read' | 'commit'>
   access: ToolAccessGuard<P>
   commitAttempts: number
-  /** Looks a child up under its own identity; a negative answer excludes its admission there. */
   lookup(
     input: CallInput<P> & Readonly<{ admission: ProgramPosition['admission'] }>,
   ): Reply<Readonly<{ kind: string }>>
+  bar?(
+    input: CallInput<P> & Readonly<{ parent: CallInput<P>['call']; ordinal: number }>,
+  ): Reply<unknown>
+  stop?(
+    input: CallInput<P> & Readonly<{ parent: CallInput<P>['call']; ordinal: number }>,
+  ): Promise<PositionStop>
 }>
 
-/** The position table of the ledger over this store: every method is one conditional commit. */
+const CLOSED: PositionExclusion = { kind: 'closed', reason: 'the program ended before this call' }
+
 export function createToolPositions<P>(input: ToolPositionsInput<P>): ToolChildren<P> {
   const { entry } = createLedgerAccess(input.access)
   const { transact } = createLedgerTransactions(input.store, input.commitAttempts)
@@ -247,6 +318,39 @@ export function createToolPositions<P>(input: ToolPositionsInput<P>): ToolChildr
         }),
       ),
     seal: input => write(input, decideSeal),
+    close: input => write(input, snapshot => decideClose(snapshot, input.reach, input.cause)),
+    async dispose(given) {
+      const context = await ports.entry(given, 'write')
+      if ('failure' in context) return context
+      const domain = domainOf(context.ok)
+      const read = () => ports.transact(domain, snapshot => reply(succeed(tableOf(snapshot))))
+      const table = await read()
+      if ('failure' in table) return table
+      for (const position of owesDisposal(table.ok)) {
+        const { ordinal, child: call, state } = position
+        const excluded = (unaccepted: boolean) =>
+          ports.transact(domain, snapshot => decideExclude(snapshot, ordinal, CLOSED, unaccepted))
+        if (state === 'registered') {
+          await excluded(false)
+          continue
+        }
+        // TL-66, TL-68: bar the start, then exclude the admission under its own identity, then the position.
+        const at = { ...context.ok, call, parent: context.ok.call, ordinal }
+        const barred = (await input.bar?.(at)) ?? succeed(null)
+        if ('failure' in barred) continue
+        const unaccepted = await ports.unaccepted(context.ok, position)
+        if ('failure' in unaccepted) continue
+        if (unaccepted.ok) {
+          await excluded(true)
+          continue
+        }
+        const progress = (await input.stop?.(at)) ?? 'unknown'
+        await ports.transact(domain, snapshot => decideStopping(snapshot, ordinal, progress))
+      }
+      return read()
+    },
+    stopping: input =>
+      placed(input, (snapshot, ordinal) => decideStopping(snapshot, ordinal, input.progress)),
     async table(input) {
       const context = await ports.entry(input, 'lookup')
       if ('failure' in context) return context

@@ -18,9 +18,11 @@ import type { Effect, Reply, ToolTerminal } from './results.ts'
 export type PositionTarget = Readonly<{ name: string; command: string | null; digest: string }>
 
 export type PositionExclusion = Readonly<{
-  kind: 'denied' | 'not-accepted' | 'unavailable'
+  kind: 'denied' | 'not-accepted' | 'unavailable' | 'closed'
   reason: string
 }>
+
+export type PositionStop = 'accepted' | 'refused' | 'unknown' | 'stopped'
 
 export type ProgramPosition = Readonly<{
   ordinal: number
@@ -30,7 +32,7 @@ export type ProgramPosition = Readonly<{
 }> &
   (
     | Readonly<{ state: 'registered' }>
-    | Readonly<{ state: 'handed'; background: boolean }>
+    | Readonly<{ state: 'handed'; background: boolean; stop?: PositionStop }>
     | Readonly<{ state: 'excluded'; exclusion: PositionExclusion }>
     | Readonly<{
         state: 'retained'
@@ -41,11 +43,23 @@ export type ProgramPosition = Readonly<{
       }>
   )
 
-/** The positions of one program. `sealed`: the body returned, no position is registered any more. */
+/** TL-69: the closing barrier. `reach` only widens, `cause` is never rewritten, `cut` is of that moment. */
+export type ProgramFence = Readonly<{
+  reach: 'foreground' | 'all'
+  cause: 'failed' | 'stopped' | 'withdrawn'
+  cut: readonly Readonly<{ ordinal: number; relation: 'foreground' | 'background' | 'unplaced' }>[]
+}>
+
 export type ProgramTable = Readonly<{
-  phase: 'open' | 'sealed'
+  phase: 'open' | 'sealed' | 'closing'
+  fence?: ProgramFence
   positions: readonly ProgramPosition[]
 }>
+
+export function inReachOf(fence: ProgramFence, ordinal: number): boolean {
+  if (fence.reach === 'all') return true
+  return fence.cut.find(one => one.ordinal === ordinal)?.relation !== 'background'
+}
 
 type At = Readonly<{ ordinal: number }>
 
@@ -67,6 +81,9 @@ export interface ToolChildren<P> {
       Readonly<{ result: ToolResultVersion; terminal: ToolTerminal; effect: Effect }>,
   ): Reply<ProgramPosition>
   seal(input: CallAccess<P>): Reply<ProgramTable>
+  close(input: CallAccess<P> & Pick<ProgramFence, 'reach' | 'cause'>): Reply<ProgramTable>
+  stopping(input: CallAccess<P> & At & Readonly<{ progress: PositionStop }>): Reply<ProgramPosition>
+  dispose(input: CallAccess<P>): Reply<ProgramTable>
   table(input: CallAccess<P>): Reply<ProgramTable>
 }
 
@@ -127,6 +144,19 @@ export interface ProgramTools {
   call(input: At & Readonly<{ entry: string; arguments: JsonValue }>): Promise<ProgramCallAnswer>
   /** The body returned: no further position, and the table once every position is excluded or retained. */
   settle(): Reply<ProgramTable>
+  table(): Reply<ProgramTable>
+  abandon(): Reply<ProgramTable>
+}
+
+export function owesDisposal(table: ProgramTable): readonly ProgramPosition[] {
+  const { fence } = table
+  if (table.phase !== 'closing' || fence === undefined) return []
+  return table.positions.filter(
+    position =>
+      inReachOf(fence, position.ordinal) &&
+      (position.state === 'registered' ||
+        (position.state === 'handed' && position.stop === undefined)),
+  )
 }
 
 const attached = new WeakMap<ToolExecutionContext, ProgramTools>()

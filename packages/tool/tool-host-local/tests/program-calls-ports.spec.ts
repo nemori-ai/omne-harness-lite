@@ -63,6 +63,7 @@ type Over = Partial<{
   admit: () => Promise<NestedAdmission>
   handOff: ToolFailure
   exclude: ToolFailure
+  close: ToolFailure
   invoke: ToolInvokeOutcome
   table: readonly ProgramPosition[]
   readTable: ToolFailure
@@ -100,6 +101,17 @@ function world(over: Over = {}) {
     },
     background: async () => succeed(at('handed')),
     retain: async () => succeed(at('handed')),
+    stopping: async () => succeed(at('handed')),
+    close: async given => {
+      log.push(`close:${given.reach}:${given.cause}`)
+      return over.close === undefined
+        ? succeed({ phase: 'closing', positions: over.table ?? [] })
+        : fail(over.close)
+    },
+    dispose: async () => {
+      log.push('dispose')
+      return succeed({ phase: 'closing', positions: [] })
+    },
     seal: async () => {
       log.push('seal')
       return succeed({ phase: 'sealed', positions: over.table ?? [] })
@@ -520,6 +532,26 @@ describe('one program position, port by port (TL-65, TL-68, TL-72)', () => {
         dependency: 'program-calls',
         diagnostic: 'The position table is absent.',
       },
+    })
+  })
+
+  it('TL-69 abandoning closes the table for every call with the cause failed, then disposes once', async () => {
+    const failing = world({ table: [at('handed')] })
+    expect(await failing.tools.abandon()).toEqual({ ok: { phase: 'closing', positions: [] } })
+    expect(failing.log).toEqual(['close:all:failed', 'dispose'])
+    const refused = world({ close: unavailable })
+    expect(await refused.tools.abandon()).toEqual({ failure: unavailable })
+    expect(refused.log).toEqual(['close:all:failed'])
+    const absent = { kind: 'unavailable', dependency: 'program-calls' }
+    expect(await world({ absent: 'children' }).tools.abandon()).toMatchObject({ failure: absent })
+  })
+
+  it('reads the table as it stands without closing or sealing it', async () => {
+    const standing = world({ table: [at('handed')] })
+    expect(await standing.tools.table()).toMatchObject({ ok: { positions: [{ state: 'handed' }] } })
+    expect(standing.log).toEqual([])
+    expect(await world({ absent: 'children' }).tools.table()).toMatchObject({
+      failure: { kind: 'unavailable', dependency: 'program-calls' },
     })
   })
 

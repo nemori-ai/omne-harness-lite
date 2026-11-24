@@ -257,11 +257,13 @@
 - `ParameterCodec` · `authoring.d.ts`
 - `ParsedToolArguments` · `parameter-codec.d.ts`
 - `PositionExclusion` · `program.d.ts`
+- `PositionStop` · `program.d.ts`
 - `PositionTarget` · `program.d.ts`
 - `PreparationProgress` · `records.d.ts`
 - `PreparationRecord` · `records.d.ts`
 - `PreparedEnvironment` · `ports.d.ts`
 - `ProgramActionAdmission` · `program.d.ts`
+- `ProgramFence` · `program.d.ts`
 - `ProgramParent` · `program.d.ts`
 - `ProgramPosition` · `program.d.ts`
 - `ProgramScheduling` · `records.d.ts`
@@ -470,6 +472,7 @@
 - `fixedRequestReference` · `request-reference.d.ts`
 - `foldResident` · `dynamics.d.ts`
 - `functionsSignature` · `program-signature.d.ts`
+- `inReachOf` · `program.d.ts`
 - `intentFault` · `command-call.d.ts`
 - `isProgramCall` · `program-call.d.ts`
 - `isProgramName` · `program-signature.d.ts`
@@ -492,6 +495,7 @@
 - `markProgramCall` · `program-call.d.ts`
 - `namesDefinition` · `request-reference.d.ts`
 - `needsIntent` · `command-call.d.ts`
+- `owesDisposal` · `program.d.ts`
 - `planAdoption` · `dynamics.d.ts`
 - `presentTool` · `catalog.d.ts`
 - `programCallRefusal` · `program-signature.d.ts`
@@ -3351,9 +3355,10 @@ export type PositionTarget = Readonly<{
     digest: string;
 }>;
 export type PositionExclusion = Readonly<{
-    kind: 'denied' | 'not-accepted' | 'unavailable';
+    kind: 'denied' | 'not-accepted' | 'unavailable' | 'closed';
     reason: string;
 }>;
+export type PositionStop = 'accepted' | 'refused' | 'unknown' | 'stopped';
 export type ProgramPosition = Readonly<{
     ordinal: number;
     child: ToolCallId;
@@ -3364,6 +3369,7 @@ export type ProgramPosition = Readonly<{
 }> | Readonly<{
     state: 'handed';
     background: boolean;
+    stop?: PositionStop;
 }> | Readonly<{
     state: 'excluded';
     exclusion: PositionExclusion;
@@ -3374,10 +3380,20 @@ export type ProgramPosition = Readonly<{
     effect: Effect;
     late: boolean;
 }>);
+export type ProgramFence = Readonly<{
+    reach: 'foreground' | 'all';
+    cause: 'failed' | 'stopped' | 'withdrawn';
+    cut: readonly Readonly<{
+        ordinal: number;
+        relation: 'foreground' | 'background' | 'unplaced';
+    }>[];
+}>;
 export type ProgramTable = Readonly<{
-    phase: 'open' | 'sealed';
+    phase: 'open' | 'sealed' | 'closing';
+    fence?: ProgramFence;
     positions: readonly ProgramPosition[];
 }>;
+export declare function inReachOf(fence: ProgramFence, ordinal: number): boolean;
 type At = Readonly<{
     ordinal: number;
 }>;
@@ -3398,6 +3414,11 @@ export interface ToolChildren<P> {
         effect: Effect;
     }>): Reply<ProgramPosition>;
     seal(input: CallAccess<P>): Reply<ProgramTable>;
+    close(input: CallAccess<P> & Pick<ProgramFence, 'reach' | 'cause'>): Reply<ProgramTable>;
+    stopping(input: CallAccess<P> & At & Readonly<{
+        progress: PositionStop;
+    }>): Reply<ProgramPosition>;
+    dispose(input: CallAccess<P>): Reply<ProgramTable>;
     table(input: CallAccess<P>): Reply<ProgramTable>;
 }
 export declare function isProgramSettled(table: ProgramTable): boolean;
@@ -3449,7 +3470,10 @@ export interface ProgramTools {
         arguments: JsonValue;
     }>): Promise<ProgramCallAnswer>;
     settle(): Reply<ProgramTable>;
+    table(): Reply<ProgramTable>;
+    abandon(): Reply<ProgramTable>;
 }
+export declare function owesDisposal(table: ProgramTable): readonly ProgramPosition[];
 export declare function programToolsOf(context: ToolExecutionContext): ProgramTools | undefined;
 export declare function attachProgramTools(scope: ToolExecutionScope, capability: Readonly<{
     value: ProgramTools;
@@ -3518,8 +3542,8 @@ export type { AvailabilityFacts, OutputCodec, ParameterCodec, TextResultFactory,
 export type { Checkpoint, ControlDispatch, DrainState, ExternalOperationResolution, FactBatch, FactProgress, FactReceipt, PreparationProgress, PreparationRecord, ProgramScheduling, ReleaseProgress, ReleaseRecord, StartGuard, StartPermit, StartProgress, SuspensionProgress, SuspensionRecord, TaskResolution, ToolRecoveryBinding, ToolResourceResponses, ToolStartAuthority, ToolTask, } from './records.ts';
 export type { ToolStartAcceptance, ToolStartFence } from './records.ts';
 export type { ToolAccounts, ToolUsageFact, ToolUsageOutcome, ToolUsagePage, ToolUsageQuery, ToolContentReader, ToolOffloader, ToolReads, } from './custody.ts';
-export { attachProgramTools, isProgramSettled } from './program.ts';
-export type { NestedAdmission, NestedAdmissionInput, PositionExclusion, PositionTarget, ProgramActionAdmission, ProgramParent, ProgramPosition, ProgramTable, ProgramTargetOutcome, ToolChildren, ToolProgramRuntime, ToolProgramSource, } from './program.ts';
+export { attachProgramTools, inReachOf, isProgramSettled, owesDisposal } from './program.ts';
+export type { NestedAdmission, NestedAdmissionInput, PositionExclusion, PositionStop, PositionTarget, ProgramActionAdmission, ProgramFence, ProgramParent, ProgramPosition, ProgramTable, ProgramTargetOutcome, ToolChildren, ToolProgramRuntime, ToolProgramSource, } from './program.ts';
 export { projectToolBackgroundCalls } from './background-calls-projection.ts';
 export type { ToolBackgroundCallSource, ToolBackgroundCallsSource, } from './background-calls-projection.ts';
 export { COMMAND_CALL_ENCODINGS, commandArguments, commandExample, commandGuide, commandSignature, decodeCommandCall, describeCommandArgumentsRejection, encodeCommandCall, INTENT_MAX_BYTES, intentFault, needsIntent, } from './command-call.ts';
