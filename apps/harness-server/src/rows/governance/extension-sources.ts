@@ -11,47 +11,77 @@ import { ExtensionSourcesService } from '@omne-harness/loop-extension-cordis-con
 import { evaluateSettings } from '@omne-harness/settings'
 import type { TenantSettingsAccess } from './tenant-runtime.ts'
 
-type Holdings = Readonly<{ assets: AssetsLocal; settings: TenantSettingsAccess }>
+type SettingsOf = () => Promise<TenantSettingsAccess | undefined>
 
 const UNAVAILABLE: RunSetting = { kind: 'unavailable' }
 
-/** What the assets and the settings of one tenant say of its loop extensions. Settings have no revision of the whole tenant: the basis counts the changes this process saw. */
-export function tenantExtensionSources(
-  input: Holdings &
-    Readonly<{
-      tenantRef: string
-      deploymentRef: string
-      layers: readonly AssetLayerSource[]
-      assetsChanged(listener: () => void): () => void
-    }>,
-): TenantExtensionSources {
-  const { assets, settings, tenantRef } = input
-  let settingsChanges = 0
-  settings.changes.subscribe(() => {
-    settingsChanges += 1
-  })
-  async function run(holdingRef: string): Promise<RunSetting> {
-    const target = { kind: 'asset' as const, holdingRef, scopeRef: tenantRef }
-    const basis = await settings.read({
-      deploymentRef: input.deploymentRef,
-      mode: 'management',
-      targets: [target],
-      selectionRef: null,
-    })
-    if ('kind' in basis || basis.completeness !== 'complete') return UNAVAILABLE
-    const view = basis.views.find(
-      item => item.target.kind === 'asset' && item.target.holdingRef === holdingRef,
-    )
-    if (view === undefined) return { kind: 'absent' }
-    const evaluated = evaluateSettings({ definition: view.definition, sources: view.state.sources })
-    if (evaluated.kind !== 'complete') return UNAVAILABLE
-    const value = evaluated.entries.find(entry => entry.itemId === RUN_SETTING)?.value
-    return value?.kind === 'value' && typeof value.value === 'boolean'
-      ? { kind: 'value', value: value.value }
-      : { kind: 'absent' }
+type TenantInput = Readonly<{
+  assets: AssetsLocal
+  settings: SettingsOf
+  tenantRef: string
+  deploymentRef: string
+  layers: readonly AssetLayerSource[]
+  assetsChanged(listener: () => void): () => void
+}>
+
+// The settings of a tenant are asked for when the run setting of a held extension is read, not
+// before: a tenant that holds none never opens them. They are watched from before the first read.
+function watchedSettings(settingsOf: SettingsOf) {
+  const listeners = new Set<() => void>()
+  let watched: TenantSettingsAccess | undefined
+  let changes = 0
+  return {
+    listeners,
+    watched: () => watched,
+    seen: () => changes,
+    async now(): Promise<TenantSettingsAccess | undefined> {
+      const settings = await settingsOf()
+      if (settings === undefined || settings === watched) return settings
+      watched = settings
+      settings.changes.subscribe(() => {
+        if (watched !== settings) return
+        changes += 1
+        for (const listener of listeners) listener()
+      })
+      return settings
+    },
   }
+}
+
+async function runSettingOf(
+  settings: TenantSettingsAccess,
+  input: Pick<TenantInput, 'tenantRef' | 'deploymentRef'>,
+  holdingRef: string,
+): Promise<RunSetting> {
+  const target = { kind: 'asset' as const, holdingRef, scopeRef: input.tenantRef }
+  const basis = await settings.read({
+    deploymentRef: input.deploymentRef,
+    mode: 'management',
+    targets: [target],
+    selectionRef: null,
+  })
+  if ('kind' in basis || basis.completeness !== 'complete') return UNAVAILABLE
+  const view = basis.views.find(
+    item => item.target.kind === 'asset' && item.target.holdingRef === holdingRef,
+  )
+  if (view === undefined) return { kind: 'absent' }
+  const evaluated = evaluateSettings({ definition: view.definition, sources: view.state.sources })
+  if (evaluated.kind !== 'complete') return UNAVAILABLE
+  const value = evaluated.entries.find(entry => entry.itemId === RUN_SETTING)?.value
+  return value?.kind === 'value' && typeof value.value === 'boolean'
+    ? { kind: 'value', value: value.value }
+    : { kind: 'absent' }
+}
+
+type Watching = Readonly<{ settingsWatched(): TenantSettingsAccess | undefined }>
+
+/** What the assets and the settings of one tenant say of its loop extensions. Settings have no revision of the whole tenant: the basis counts the changes this process saw. */
+export function tenantExtensionSources(input: TenantInput): TenantExtensionSources & Watching {
+  const { assets } = input
+  const settings = watchedSettings(input.settings)
   return {
     layers: input.layers,
+    settingsWatched: settings.watched,
     async body({ asset, version }) {
       const read = await assets.readVersion({ assetRef: asset, version })
       return read.kind === 'version' ? read.version.body : undefined
@@ -64,21 +94,24 @@ export function tenantExtensionSources(
       const held = await assets.readHeldCapability({ capability })
       if (held.kind === 'rejected') return UNAVAILABLE
       if (held.kind === 'absent') return { kind: 'absent' }
-      return run(held.holding.holdingRef)
+      const current = await settings.now()
+      return current === undefined
+        ? UNAVAILABLE
+        : runSettingOf(current, input, held.holding.holdingRef)
     },
     async basis() {
       const revision = await assets.domainRevision()
       return revision.kind === 'domain'
-        ? { assets: String(revision.revision), settings: `seen:${settingsChanges}` }
+        ? { assets: String(revision.revision), settings: `seen:${settings.seen()}` }
         : undefined
     },
     changes: {
       subscribe(listener) {
         const leaveAssets = input.assetsChanged(listener)
-        const leaveSettings = settings.changes.subscribe(listener)
+        settings.listeners.add(listener)
         return () => {
           leaveAssets()
-          leaveSettings()
+          settings.listeners.delete(listener)
         }
       },
     },
@@ -86,38 +119,43 @@ export function tenantExtensionSources(
 }
 
 type SourcesInput = Readonly<{
-  holdings(tenantRef: string): Promise<Holdings | undefined>
+  assets(tenantRef: string): Promise<AssetsLocal | undefined>
+  settings(tenantRef: string): Promise<TenantSettingsAccess | undefined>
   layers(tenantRef: string): readonly AssetLayerSource[]
   assetsChanged(tenantRef: string, listener: () => void): () => void
   deploymentRef: string
 }>
 
-/** The tenant sources of the loop extensions, from the governance of the tenant. The same object for as long as that governance stays open. */
+type Kept = Readonly<{ assets: AssetsLocal; sources: TenantExtensionSources & Watching }>
+
+/** The tenant sources of the loop extensions, from the assets of the tenant and, once a run setting was read, the settings of its governance. The same object for as long as both stay. */
 export class GovernanceExtensionSources extends ExtensionSourcesService<unknown> {
   private readonly input: SourcesInput
-  private readonly known = new Map<
-    string,
-    Readonly<{ holdings: Holdings; sources: TenantExtensionSources }>
-  >()
+  private readonly known = new Map<string, Kept>()
   constructor(ctx: Context, input: SourcesInput) {
     super(ctx)
     this.input = input
   }
+  private async current(tenantRef: string, kept: Kept | undefined, assets: AssetsLocal) {
+    if (kept?.assets !== assets) return false
+    const watched = kept.sources.settingsWatched()
+    return watched === undefined || (await this.input.settings(tenantRef)) === watched
+  }
   async of(access: Parameters<ExtensionSourcesService<unknown>['of']>[0]) {
     const tenant = tenantCodec.encode(access.tenant)
-    const holdings = tenant.ok ? await this.input.holdings(tenant.value) : undefined
-    if (!tenant.ok || holdings === undefined) return undefined
+    const assets = tenant.ok ? await this.input.assets(tenant.value) : undefined
+    if (!tenant.ok || assets === undefined) return undefined
     const kept = this.known.get(tenant.value)
-    if (kept?.holdings.assets === holdings.assets && kept.holdings.settings === holdings.settings)
-      return kept.sources
+    if (kept !== undefined && (await this.current(tenant.value, kept, assets))) return kept.sources
     const sources = tenantExtensionSources({
-      ...holdings,
+      assets,
+      settings: () => this.input.settings(tenant.value),
       tenantRef: tenant.value,
       deploymentRef: this.input.deploymentRef,
       layers: this.input.layers(tenant.value),
       assetsChanged: listener => this.input.assetsChanged(tenant.value, listener),
     })
-    this.known.set(tenant.value, { holdings, sources })
+    this.known.set(tenant.value, { assets, sources })
     return sources
   }
 }
@@ -129,11 +167,8 @@ export function provideExtensionSources(
   deploymentRef: string,
 ) {
   return new GovernanceExtensionSources(ctx, {
-    async holdings(tenantRef) {
-      const settings = await settingsOf(tenantRef)
-      const assets = settings === undefined ? undefined : await ctx.tenantAssets.open(tenantRef)
-      return assets === undefined || settings === undefined ? undefined : { assets, settings }
-    },
+    assets: tenantRef => ctx.tenantAssets.open(tenantRef),
+    settings: settingsOf,
     layers: tenantRef => ctx.tenantAssets.layerSources(tenantRef),
     assetsChanged: (tenantRef, listener) =>
       ctx.assetChanges.subscribe(tenantRef, { changed: listener, closed() {} }),
