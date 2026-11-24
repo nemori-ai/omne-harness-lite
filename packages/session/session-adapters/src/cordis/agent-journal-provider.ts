@@ -174,21 +174,26 @@ async function resolvedOn<P, T extends Readonly<{ execution: AgentExecutionId }>
     : fail<Failure>({ kind: 'denied', action: 'resolve' })
 }
 
+function rememberRoute<P>(
+  routes: Map<string, Route<P>>,
+  limit: number,
+  key: string,
+  route: Route<P>,
+): void {
+  routes.delete(key)
+  routes.set(key, route)
+  while (routes.size > limit) {
+    const oldest = routes.keys().next().value
+    if (oldest === undefined) break
+    routes.delete(oldest)
+  }
+}
+
 export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalOptions<P>) {
   const journals = createSessionLogJournal<P>(options)
   const limit = options.routeCacheEntries ?? ROUTE_CACHE_ENTRIES
   const routes = new Map<string, Route<P>>()
   let closed = false
-
-  function remember(key: string, route: Route<P>): void {
-    routes.delete(key)
-    routes.set(key, route)
-    while (routes.size > limit) {
-      const oldest = routes.keys().next().value
-      if (oldest === undefined) break
-      routes.delete(oldest)
-    }
-  }
 
   async function routeOf(scope: Scope, action: string): Promise<Outcome<Route<P>, Failure>> {
     if (closed) return fail(unavailable('the agentJournal plugin has stopped'))
@@ -201,7 +206,7 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     if ('failure' in indexed) return indexed
     const session = indexed.ok
     const route = { session, view: journals.forSession({ tenant: scope.tenant, session }) }
-    remember(key, route)
+    rememberRoute(routes, limit, key, route)
     return succeed(route)
   }
 

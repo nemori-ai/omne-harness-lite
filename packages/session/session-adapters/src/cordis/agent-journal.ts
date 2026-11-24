@@ -1,4 +1,5 @@
-import type { EnsureModelHistory } from './model-history-readiness.ts'
+import { terminalParticipant } from './agent-journal-participant.ts'
+import { createJournalHistoryReadiness } from './agent-journal-history.ts'
 import { historyCaller } from './history-caller.ts'
 import { jointCommandOf, joinsSession, type JointState } from '../joint-command.ts'
 import { sessionCommitCommands } from '@omne-harness/session-storage-sql/participants'
@@ -21,9 +22,7 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
-  cancellationDriveOf,
   commandDigest,
-  judgeCompletion,
   mutationAccessRequest,
   type InputId,
   type SessionAccessCheck,
@@ -779,53 +778,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     }
     if (decision.kind !== 'allowed') return fail(participationAccessFailure(decision, method))
     return succeed({ evidence: decision.evidence, digest: commandDigest(derived.ok) })
-  }
-
-  function terminalParticipant(
-    book: Book<P>,
-    cell: JournalCell<P>,
-    execution: AgentExecutionId,
-    control: string,
-  ) {
-    const unread = {
-      owner: OWNER,
-      record: `${book.tenantText}/${book.session}/participant/unread`,
-      revision: '0',
-      digest: 'unread',
-    }
-    const fact = (source: typeof unread, condition: { kind: 'ready' | 'changed' | 'unknown' }) => ({
-      owner: 'session',
-      protocol: {
-        owner: '@omne-harness/session-contract',
-        name: 'pa-02-terminal-participation',
-        revision: '1',
-        digest: 'session-log:pa-02',
-      },
-      source,
-      version: source,
-      condition,
-      purpose: {
-        owner: OWNER,
-        record: `${cell.namespace}/participant/judge-cancellation`,
-        revision: '0',
-        digest: 'purpose',
-      },
-    })
-    const snapshot = book.scratch?.snapshot ?? null
-    if (snapshot === null) return fact(unread, { kind: 'unknown' })
-    const judged = judgeCompletion(snapshot, execution)
-    switch (judged.kind) {
-      case 'allowed':
-        return fact(unread, { kind: 'ready' })
-      case 'blocked':
-        return fact(unread, { kind: 'unknown' })
-      case 'terminal':
-        return fact(judged.terminal.evidence, { kind: 'changed' })
-      case 'cancelled': {
-        const matches = cancellationDriveOf(judged.terminal, execution) === control
-        return fact(judged.terminal.evidence, { kind: matches ? 'ready' : 'changed' })
-      }
-    }
   }
 
   function build(book: Book<P>): Copy<P> {
@@ -1654,22 +1606,17 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     }
   }
 
-  const ensureModelHistory: EnsureModelHistory<P> = async input => {
-    const allowed = await options.sessionAccessCheck.check({
-      access: input,
-      operation: 'history.readModelView',
-      target: { kind: 'session', session: input.session },
-    })
-    if (allowed.kind === 'denied') return fail({ kind: 'denied', action: 'read-model-history' })
-    if (allowed.kind === 'unavailable') return fail(unavailable(allowed.diagnostic))
-    const book = bookOf(input.tenant, input.session)
-    if (book === null) return fail({ kind: 'denied', action: 'read-model-history' })
-    return serial(book, async () => {
-      const domain = await domainOf(book)
-      if ('failure' in domain) return domain
-      return telling.ensureHistory(book, domain.ok, input.principal, input.scope)
-    })
-  }
+  const ensureModelHistory = createJournalHistoryReadiness({
+    accessCheck: options.sessionAccessCheck,
+    bookOf,
+    run: (book, input) =>
+      serial(book, async () => {
+        const domain = await domainOf(book)
+        return 'failure' in domain
+          ? domain
+          : telling.ensureHistory(book, domain.ok, input.principal, input.scope)
+      }),
+  })
 
   return {
     forSession,

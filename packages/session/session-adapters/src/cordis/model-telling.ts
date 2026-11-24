@@ -8,17 +8,11 @@ import type {
   SessionId,
   WorkSnapshot,
 } from '@omne-harness/session-contract'
-import {
-  afterSessionCommit,
-  sessionCommandFacts,
-  sessionCommitCommands,
-} from '@omne-harness/session-storage-sql/participants'
 import type { DomainRef, SqlStorage } from '@omne-harness/sql-contract'
-import {
-  commitJournal,
-  type GenerationMemory,
-  type JournalCombination,
-  type JournalCommitResult,
+import type {
+  GenerationMemory,
+  JournalCombination,
+  JournalCommitResult,
 } from '../journal-commit.ts'
 import type { PublishedBatch } from '../journal/index.ts'
 import {
@@ -28,7 +22,7 @@ import {
   reminderReadFailure,
 } from './model-reminder-commit.ts'
 import type { ModelReminders } from './model-reminders.ts'
-import { workingDirectoryCommand } from './working-directory-commit.ts'
+import { createModelTellingSteps } from './model-telling-steps.ts'
 import type { StepDirectory } from './working-directory-step.ts'
 
 export type { ModelReminders } from './model-reminders.ts'
@@ -36,7 +30,7 @@ export type { ModelReminders } from './model-reminders.ts'
 // Before a step takes its inputs the model is told the runtime context: the reminder is its own
 // Session commit, and the step is written again on the revision it made.
 
-type Book = Readonly<{
+export type Book = Readonly<{
   tenant: TenantId
   tenantText: string
   session: SessionId
@@ -79,62 +73,8 @@ const down = (diagnostic: string) =>
   failed({ kind: 'unavailable', owner: 'session-log-journal', diagnostic })
 
 export function createModelTelling<P, B extends Book>(ports: ModelTellingPorts<P, B>) {
-  const { reminders, directory } = ports
-
-  async function commit(book: B, domain: DomainRef, command: SessionCommand) {
-    const outcome = await commitJournal({
-      storage: ports.storage,
-      domain,
-      combination: ports.combination,
-      operation: command.input.operation,
-      recall: undefined,
-      commands: sessionCommitCommands([sessionCommandFacts(command, [])]),
-      generations: ports.generations,
-    })
-    await afterSessionCommit({
-      storage: ports.storage,
-      domain,
-      tenant: book.tenantText,
-      session: book.session,
-      answer:
-        outcome.kind === 'committed'
-          ? { receipt: outcome.receipt, recalled: outcome.recalled }
-          : null,
-      journal: { published: book.published === null ? null : String(book.published) },
-    })
-    return outcome
-  }
-
-  async function refresh(
-    book: B,
-    domain: DomainRef,
-    principal: P,
-    snapshot: WorkSnapshot | null,
-    step: string,
-  ): Promise<Told> {
-    if (directory === undefined) return null
-    if (snapshot === null) return down('no Session snapshot to take the working directory from')
-    const scope = openContextScope({ tenant: book.tenant, session: book.session, snapshot })
-    if (scope === null) return down('the session has no open context scope')
-    const { tenant, session } = book
-    const refreshed = await directory.refresh({ principal, tenant, session, scope, snapshot })
-    if (refreshed.kind === 'refreshed') return null
-    if (refreshed.kind === 'unavailable') return down(refreshed.diagnostic)
-    const command = workingDirectoryCommand({
-      tenant,
-      session,
-      scope,
-      step,
-      at: snapshot.revision,
-      ...(refreshed.kind === 'guidance' ? { key: 'session.workspace-guidance' as const } : {}),
-      value: refreshed.value,
-    })
-    const settled = reminderOutcome(
-      await commit(book, domain, command),
-      'the working directory step commit',
-    )
-    return typeof settled === 'string' ? { kind: 'again' } : failed(settled)
-  }
+  const { reminders } = ports
+  const { commit, recover, refresh } = createModelTellingSteps(ports)
 
   async function prepareTell(
     book: B,
@@ -142,6 +82,8 @@ export function createModelTelling<P, B extends Book>(ports: ModelTellingPorts<P
     principal: P,
     snapshot: WorkSnapshot | null,
   ): Promise<Exclude<Told, null> | Readonly<{ kind: 'ready'; basis: ModelViewBasis | null }>> {
+    const recovery = await recover(book, domain)
+    if (recovery !== null) return recovery
     if (reminders === undefined) return { kind: 'ready', basis: null }
     if (snapshot === null) return down('no Session snapshot to tell the model from')
     const scope = openContextScope({ tenant: book.tenant, session: book.session, snapshot })
@@ -167,8 +109,7 @@ export function createModelTelling<P, B extends Book>(ports: ModelTellingPorts<P
       viewRevision: prepared.ok.viewRevision,
       message,
     })
-    const settled = reminderOutcome(await commit(book, domain, command))
-    if (settled === 'told') prepared.ok.advance()
+    const settled = reminderOutcome(await commit(book, domain, command, prepared.ok.advance))
     return typeof settled === 'string' ? { kind: 'again' } : failed(settled)
   }
 
