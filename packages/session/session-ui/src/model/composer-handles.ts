@@ -6,7 +6,6 @@ export type SendWay = 'send' | SendHow
 /** What the composer on show lets an action do: it stays the one owner of its words. */
 export type ComposerHandle = Readonly<{
   session: string
-  /** Whether a person could reach the composer now: not under a folded face. */
   reachable: () => boolean
   focus: () => void
   insert: (text: string) => void

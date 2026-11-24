@@ -170,7 +170,6 @@ export class DesktopShell extends ShellService {
     return withdraw
   }
 
-  /** The face and the page are drawn before this returns, so the caller can put the focus in the page. */
   navigate(pageId: string, subject?: string): void {
     flushSync(() => this.bringUp(pageId, subject, (id, about) => this.state.page.choose(id, about)))
   }
