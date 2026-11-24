@@ -6,13 +6,20 @@ import {
   createInvocationForwarding,
   TOOL_FORWARDING_OWNER,
   isPrincipalJson,
-  parseForward,
+  parseIssued,
 } from './invocation-forwarding.ts'
+import {
+  createInvocationPrograms,
+  createProgramReceiver,
+  TOOL_PROGRAM_OWNER,
+  type InvocationPrograms,
+} from './program-source.ts'
 import { createForwardingReceiver } from './forwarding-receiver.ts'
 import { fail } from '@omne-harness/operation-result'
 import type { Reply, ToolResultReceiver } from '@omne-harness/tool-contract'
 import type {
   CallAccess,
+  ToolChildren,
   ToolStartAuthority,
   ToolForwardSource,
 } from '@omne-harness/tool-contract/provider'
@@ -67,6 +74,10 @@ type TenantId = LedgerDomain['tenant']
 export { invocationSourceIdentities } from './source-identities.ts'
 
 const INVOCATION_SOURCE_OWNER = '@omne-harness/tool-host-local'
+const ISSUED_OWNERS: ReadonlyMap<string, 'forwarded' | 'program'> = new Map([
+  [TOOL_FORWARDING_OWNER, 'forwarded'],
+  [TOOL_PROGRAM_OWNER, 'program'],
+])
 
 export type PrincipalJson =
   | null
@@ -96,6 +107,11 @@ export type LocalInvocationSourceInput<P> = Readonly<{
       pageBytes: number
     }>
   }>
+  programs?: Readonly<{
+    authority(): ToolStartAuthority<P> | undefined
+    isParent(request: FixedToolRequest): boolean
+    children(): ToolChildren<P> | undefined
+  }>
 }>
 
 export type LocalInvocationSource<P, B extends ContentBlock = ContentBlock> = Readonly<{
@@ -103,6 +119,8 @@ export type LocalInvocationSource<P, B extends ContentBlock = ContentBlock> = Re
   guard: ToolSourceGuard<P>
   forwarding: ToolForwardSource<P>
   receiver: ToolResultReceiver<P, B>
+  programs: Pick<InvocationPrograms<P>, 'source' | 'prepare' | 'arrivals'> &
+    Readonly<{ receiver: ToolResultReceiver<P, B> }>
   forwardedResult: ToolInvocationQueries<P, ContentBlock>['readResult']
   recoverBinding(
     input: Omit<CallAccess<P>, 'principal'> &
@@ -310,6 +328,39 @@ async function bindSource(
   return null
 }
 
+type Issued = Readonly<{
+  recoverBinding(
+    access: Access<unknown> &
+      Readonly<{ call: ToolCallId; admission: ToolOperationId; request: FixedToolRequest }>,
+  ): Reply<unknown>
+}>
+
+/** A call this host issued itself is verified against its own stored source; any other is direct. */
+function routedGuard<P>(
+  direct: ToolSourceGuard<P>,
+  originOf: (issued: 'forwarded' | 'program') => Issued,
+): ToolSourceGuard<P> {
+  return {
+    async verify(access) {
+      const issued = ISSUED_OWNERS.get(access.request.consumer.owner)
+      if (issued === undefined) return direct.verify(access)
+      const diagnostic = `The ${issued} source cannot be verified.`
+      try {
+        const answer = await originOf(issued).recoverBinding({
+          ...access,
+          admission: access.operation,
+        })
+        if ('ok' in answer) return { kind: 'trusted' }
+        return answer.failure.kind === 'denied'
+          ? { kind: 'forged', reason: `${issued}-binding-mismatch` }
+          : { kind: 'unavailable', diagnostic }
+      } catch {
+        return { kind: 'unavailable', diagnostic }
+      }
+    },
+  }
+}
+
 export function createLocalInvocationSource<P, B extends ContentBlock = ContentBlock>(
   input: LocalInvocationSourceInput<P>,
 ): LocalInvocationSource<P, B> {
@@ -407,7 +458,7 @@ function buildInvocationSource<P, B extends ContentBlock>(
       const judged = judgeToolInvokeRequest(input.request)
       if ('failure' in judged) return rejected({ kind: 'invalid', ...judged.failure })
       const request = judged.ok
-      if (request.consumer.owner === TOOL_FORWARDING_OWNER) return rejected(denied)
+      if (ISSUED_OWNERS.has(request.consumer.owner)) return rejected(denied)
       const { principal, tenant } = input
       const refused = await admit(principal, tenant, request.consumer)
       if (refused !== null) return refused
@@ -469,28 +520,22 @@ function buildInvocationSource<P, B extends ContentBlock>(
     },
   }
 
+  const originOf = (issued: 'forwarded' | 'program'): Issued =>
+    issued === 'program' ? programs : forwards
+  const guard: ToolSourceGuard<P> = routedGuard(directGuard, originOf)
   const forwards = createInvocationForwarding(
     input,
-    directGuard,
+    guard,
+    invocationSourceIdentities,
+    resolveDefinition,
+  )
+  const programs = createInvocationPrograms(
+    input,
+    guard,
     invocationSourceIdentities,
     resolveDefinition,
   )
   const receiver = createForwardingReceiver(input, forwards)
-  const guard: ToolSourceGuard<P> = {
-    async verify(access) {
-      if (access.request.consumer.owner !== TOOL_FORWARDING_OWNER) return directGuard.verify(access)
-      try {
-        const answer = await forwards.recoverBinding({ ...access, admission: access.operation })
-        return 'ok' in answer
-          ? { kind: 'trusted' }
-          : answer.failure.kind === 'denied'
-            ? { kind: 'forged', reason: 'forwarding-binding-mismatch' }
-            : { kind: 'unavailable', diagnostic: 'The forwarding source cannot be verified.' }
-      } catch {
-        return { kind: 'unavailable', diagnostic: 'The forwarding source cannot be verified.' }
-      }
-    },
-  }
   const recoverBinding: LocalInvocationSource<P, B>['recoverBinding'] = async access => {
     const unavailable = () =>
       fail({
@@ -512,8 +557,9 @@ function buildInvocationSource<P, B extends ContentBlock>(
       const encoded = row.host.value.principal
       if (decodePrincipal(encoded) === null) return unavailable()
       const fixed = canonicalDigest(fixedRequestReference(access.request))
-      if (access.request.consumer.owner === TOOL_FORWARDING_OWNER) {
-        const stored = parseForward(row.host)
+      const issued = ISSUED_OWNERS.get(access.request.consumer.owner)
+      if (issued !== undefined) {
+        const stored = parseIssued(row.host, issued)
         if (
           stored === null ||
           stored.call !== access.call ||
@@ -555,6 +601,7 @@ function buildInvocationSource<P, B extends ContentBlock>(
     guard,
     forwarding: forwards.source,
     receiver,
+    programs: { ...programs, receiver: createProgramReceiver<P, B>(input, programs.arrivals) },
     forwardedResult: createForwardedResultReader(input, forwards),
     recoverBinding,
     releaseReceivedCopies: forwards.releaseReceivedCopies,

@@ -1,3 +1,4 @@
+import { tableOf } from './ledger-positions.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -117,7 +118,7 @@ export function readRecovery(snapshot: Snapshot): Outcome<ToolRecovery, ToolFail
     suspensions: [...snapshot.suspensions.values()].map(entry => entry.suspension),
     checkpointState: snapshot.checkpointState,
     tasks: snapshot.tasks,
-    program: null,
+    program: snapshot.program === null && snapshot.positions.size === 0 ? null : tableOf(snapshot),
     scheduling: null,
     streams: factProgress(snapshot),
   })

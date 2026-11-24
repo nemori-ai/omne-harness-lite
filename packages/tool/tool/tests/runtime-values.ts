@@ -642,7 +642,15 @@ export function harness(options: HarnessOptions = {}): Harness {
       'resolve',
     ]),
     catalog: stub(spies, 'catalog', ['inspect', 'usage', 'search']),
-    children: stub(spies, 'children', ['reserve', 'admitted', 'retain', 'close', 'confirmBarrier']),
+    children: stub(spies, 'children', [
+      'register',
+      'exclude',
+      'handOff',
+      'background',
+      'retain',
+      'seal',
+      'table',
+    ]),
     operationIdentities: identities.operationIdentities,
     sourceIssuer: source.issuer,
   }

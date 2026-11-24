@@ -165,3 +165,16 @@ export function programSignature(definition: ToolDefinition): string {
   ])
   return [`declare const ${definition.name}: {`, ...lines, '}'].join('\n')
 }
+
+/** TL-71: why a program may not make this call, or null when it may. `given` names the arguments it gives. */
+export function programCallRefusal(
+  definition: ToolDefinition,
+  command: string | null,
+  given: readonly string[],
+): string | null {
+  if (definition.programmable !== true) return `${definition.name} is not open to programs`
+  const open = programFunctions(definition).find(one => one.command === command)
+  if (open === undefined) return `${definition.name} ${command ?? ''} is not open to programs`
+  const closed = open.unless.find(name => given.includes(name))
+  return closed === undefined ? null : `${open.entry} with ${closed} is not open to programs`
+}

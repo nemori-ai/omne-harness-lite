@@ -3,8 +3,6 @@ import type { StartCoordinatorAccess } from './start-coordinator.ts'
 import { z } from 'zod'
 import type { ToolTargetAvailability } from './ledger-guards.ts'
 
-export const PROGRAMMATIC_NOT_IN_M2 = 'programmatic-not-in-m2'
-
 export type LocalStartGuardInput<P> = Readonly<{
   access: StartCoordinatorAccess<P>
   target?: ToolTargetAvailability<P>
@@ -38,8 +36,6 @@ export function createLocalStartGuard<P>(input: LocalStartGuardInput<P>): ToolSt
   if (typeof access?.qualify !== 'function') throw new TypeError('access.qualify: missing')
   const guard: ToolStartGuard<P> = {
     qualifyStart: async ({ principal, tenant, call, request }): Promise<StartVerdict> => {
-      if (request.invocation.kind !== 'direct')
-        return { kind: 'refused', reason: PROGRAMMATIC_NOT_IN_M2 }
       let verdict: AccessVerdict
       try {
         verdict = await access.qualify({ principal, tenant, call, action: 'start' })

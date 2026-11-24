@@ -32,6 +32,7 @@
 - `ToolLoadState` · `cordis.d.ts`
 - `ToolMediaStoreService` · `cordis.d.ts`
 - `ToolOffloaderService` · `cordis.d.ts`
+- `ToolProgramAdmissionService` · `cordis.d.ts`
 - `ToolPublication` · `cordis.d.ts`
 - `ToolPublicationAuthority` · `cordis.d.ts`
 - `ToolPublicationAuthorityService` · `cordis.d.ts`
@@ -67,6 +68,7 @@
 - `toolInstancesKey` · `cordis.d.ts`
 - `toolMediaStoreKey` · `cordis.d.ts`
 - `toolOffloaderKey` · `cordis.d.ts`
+- `toolProgramAdmissionKey` · `cordis.d.ts`
 - `toolPublicationAuthorityKey` · `cordis.d.ts`
 - `toolReadsKey` · `cordis.d.ts`
 - `toolReleaseDetailsKey` · `cordis.d.ts`
@@ -135,7 +137,7 @@ import type { Access, TenantId } from '@omne-harness/legal-identity';
 import { type ConsumerRef, type DurableEvidence, type SourceLayer, type ToolCallId, type ToolCatalog, type ToolReleaseDetails, type ToolRevision, type ToolResultReceiver, type ToolRuntime } from '@omne-harness/tool-contract';
 import { type DynamisService } from '@omne-harness/dynamis-cordis/cordis';
 import type { Plugin } from '@deepseek-ai/cordis';
-import { type ToolEntrySource, type ResultPolicy, type ToolAccounts, type ToolAuthority, type ToolBindingKey, type ToolBindingRegistry, type ToolBindingScope, type ToolBindings, type ToolChildren, type ToolClock, type ToolCommands, type ToolDecisionBridge, type ToolDirectory, type ToolEnvironment, type ToolInstanceHost, type ToolMediaStore, type ToolLoader, type ToolOffloader, type ToolReads, type ToolResourceResponses, type ToolStartAuthority, type ToolStartFence, type ToolShape } from '@omne-harness/tool-contract/provider';
+import { type ToolEntrySource, type ResultPolicy, type ToolAccounts, type ToolAuthority, type ToolBindingKey, type ToolBindingRegistry, type ToolBindingScope, type ToolBindings, type ProgramActionAdmission, type ToolChildren, type ToolClock, type ToolCommands, type ToolDecisionBridge, type ToolDirectory, type ToolEnvironment, type ToolInstanceHost, type ToolMediaStore, type ToolLoader, type ToolOffloader, type ToolReads, type ToolResourceResponses, type ToolStartAuthority, type ToolStartFence, type ToolShape } from '@omne-harness/tool-contract/provider';
 export declare abstract class ToolRuntimeService<P, B extends ContentBlock> extends Service implements ToolRuntime<P, B> {
     static readonly provide = "toolRuntime";
     private readonly resultReceivers;
@@ -481,16 +483,21 @@ export declare const toolResourceResponsesKey = "toolResourceResponses";
 export declare abstract class ToolChildrenService<P> extends Service implements ToolChildren<P> {
     static readonly provide = "toolChildren";
     constructor(ctx: Context);
-    abstract readonly reserve: ToolChildren<P>['reserve'];
-    abstract readonly admitted: ToolChildren<P>['admitted'];
+    abstract readonly register: ToolChildren<P>['register'];
+    abstract readonly exclude: ToolChildren<P>['exclude'];
+    abstract readonly handOff: ToolChildren<P>['handOff'];
+    abstract readonly background: ToolChildren<P>['background'];
     abstract readonly retain: ToolChildren<P>['retain'];
-    abstract readonly list: ToolChildren<P>['list'];
-    abstract readonly close: ToolChildren<P>['close'];
-    abstract readonly closure: ToolChildren<P>['closure'];
-    abstract readonly confirmBarrier: ToolChildren<P>['confirmBarrier'];
-    abstract readonly finish: ToolChildren<P>['finish'];
+    abstract readonly seal: ToolChildren<P>['seal'];
+    abstract readonly table: ToolChildren<P>['table'];
 }
 export declare const toolChildrenKey = "toolChildren";
+export declare abstract class ToolProgramAdmissionService<P> extends Service implements ProgramActionAdmission<P> {
+    static readonly provide = "toolProgramAdmission";
+    constructor(ctx: Context);
+    abstract readonly admit: ProgramActionAdmission<P>['admit'];
+}
+export declare const toolProgramAdmissionKey = "toolProgramAdmission";
 export declare abstract class ToolAccountsService<P> extends Service implements ToolAccounts<P> {
     static readonly provide = "toolAccounts";
     constructor(ctx: Context);
@@ -527,6 +534,7 @@ declare module '@deepseek-ai/cordis' {
         toolStartFence: ToolStartFenceService<unknown>;
         toolResourceResponses: ToolResourceResponsesService<unknown>;
         toolChildren: ToolChildrenService<unknown>;
+        toolProgramAdmission: ToolProgramAdmissionService<unknown>;
         toolAccounts: ToolAccountsService<unknown>;
         toolOffloader: ToolOffloaderService<unknown, ContentBlock>;
     }

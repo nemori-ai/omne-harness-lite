@@ -248,15 +248,20 @@ export type {
   ToolOffloader,
   ToolReads,
 } from './custody.ts'
+export { attachProgramTools, isProgramSettled } from './program.ts'
 export type {
-  ChildPosition,
-  ChildReservation,
-  ChildState,
-  ProgramClosure,
-  ProgramEnd,
-  ProgramToolResult,
-  ProgramTools,
+  NestedAdmission,
+  NestedAdmissionInput,
+  PositionExclusion,
+  PositionTarget,
+  ProgramActionAdmission,
+  ProgramParent,
+  ProgramPosition,
+  ProgramTable,
+  ProgramTargetOutcome,
   ToolChildren,
+  ToolProgramRuntime,
+  ToolProgramSource,
 } from './program.ts'
 
 export { projectToolBackgroundCalls } from './background-calls-projection.ts'
@@ -292,10 +297,10 @@ export { returnGuide } from './return-description.ts'
 export {
   PROGRAM_FAILURE,
   isProgramName,
+  programCallRefusal,
   programFunctions,
   programSignature,
   schemaType,
-  type ProgramFunction,
 } from './program-signature.ts'
 export {
   TOOL_ENTRY_SOURCES_POINT,

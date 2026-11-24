@@ -10,7 +10,7 @@ import {
   type ToolTiming,
   type WaitIntent,
 } from '@omne-harness/tool-contract'
-import type { ToolTask } from '@omne-harness/tool-contract/provider'
+import { programCallRefusal, type ToolTask } from '@omne-harness/tool-contract/provider'
 import { deliveryId, sameFactValue } from './evidence.ts'
 import type { CallRecord } from './ledger-store.ts'
 import { type StateBody } from './ledger-state.ts'
@@ -67,6 +67,19 @@ export function backgroundAllowed(
   if ('failure' in call || call.ok.command !== request.command) return false
   const given = new Set(call.ok.params.entries.map(entry => entry.key))
   return declared.background.unless.every(name => !given.has(name))
+}
+
+/** TL-71: why a program may not make this call, read from its definition, command and given parameters. */
+export function closedToPrograms(
+  request: Pick<FixedToolRequest, 'availability' | 'command' | 'arguments'>,
+): string | null {
+  const { definition } = request.availability
+  const call =
+    definition.kind === 'commands'
+      ? decodeCommandCallText(definition, request.arguments.effective)
+      : null
+  const given = call !== null && 'ok' in call ? call.ok.params.entries.map(entry => entry.key) : []
+  return programCallRefusal(definition, request.command, given)
 }
 
 /** A command that declares `start: 'launch'` is accepted in the background, whatever the request asks. */

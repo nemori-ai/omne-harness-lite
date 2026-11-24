@@ -42,6 +42,12 @@
 - `PhysicalExecution` · `records.d.ts`
 - `ProcessBlock` · `operations.d.ts`
 - `ProcessSnapshot` · `custody.d.ts`
+- `ProgramCallAnswer` · `program.d.ts`
+- `ProgramCallEffect` · `program.d.ts`
+- `ProgramCallFailure` · `program.d.ts`
+- `ProgramCallFailureKind` · `program.d.ts`
+- `ProgramFunction` · `program-signature.d.ts`
+- `ProgramTools` · `program.d.ts`
 - `ProtocolIdentity` · `records.d.ts`
 - `QueuePosition` · `records.d.ts`
 - `RawOutput` · `custody.d.ts`
@@ -193,6 +199,7 @@
 - `judgeToolDelivery` · `result-delivery.d.ts`
 - `offeredDefinition` · `conditions.d.ts`
 - `pinnedFiles` · `call-directory.d.ts`
+- `programToolsOf` · `program.d.ts`
 - `projectResidentReferences` · `resident-key.d.ts`
 - `readToolOperationRef` · `reference.d.ts`
 - `residentToolFacts` · `resident-key.d.ts`
@@ -230,9 +237,6 @@
 - `CallAccess` · `identity.d.ts`
 - `Checkpoint` · `records.d.ts`
 - `CheckpointedToolExecutor` · `checkpointed-author.d.ts`
-- `ChildPosition` · `program.d.ts`
-- `ChildReservation` · `program.d.ts`
-- `ChildState` · `program.d.ts`
 - `ControlDispatch` · `records.d.ts`
 - `DEFAULT_RELEASE_DETAIL_POLICY` · `release-detail.d.ts`
 - `DrainState` · `records.d.ts`
@@ -244,21 +248,25 @@
 - `INTENT_MAX_BYTES` · `command-call.d.ts`
 - `IndependentToolScopeInput` · `author-context.d.ts`
 - `Mutation` · `identity.d.ts`
+- `NestedAdmission` · `program.d.ts`
+- `NestedAdmissionInput` · `program.d.ts`
 - `OUTPUT_BODY_KEY` · `body-reads.d.ts`
 - `OutputCodec` · `authoring.d.ts`
 - `PREVIEW_MAX_CHARS` · `call-label.d.ts`
 - `PROGRAM_FAILURE` · `program-signature.d.ts`
 - `ParameterCodec` · `authoring.d.ts`
 - `ParsedToolArguments` · `parameter-codec.d.ts`
+- `PositionExclusion` · `program.d.ts`
+- `PositionTarget` · `program.d.ts`
 - `PreparationProgress` · `records.d.ts`
 - `PreparationRecord` · `records.d.ts`
 - `PreparedEnvironment` · `ports.d.ts`
-- `ProgramClosure` · `program.d.ts`
-- `ProgramEnd` · `program.d.ts`
-- `ProgramFunction` · `program-signature.d.ts`
+- `ProgramActionAdmission` · `program.d.ts`
+- `ProgramParent` · `program.d.ts`
+- `ProgramPosition` · `program.d.ts`
 - `ProgramScheduling` · `records.d.ts`
-- `ProgramToolResult` · `program.d.ts`
-- `ProgramTools` · `program.d.ts`
+- `ProgramTable` · `program.d.ts`
+- `ProgramTargetOutcome` · `program.d.ts`
 - `RefreshFacts` · `dynamics.d.ts`
 - `RefreshOutcome` · `dynamics.d.ts`
 - `ReleaseProgress` · `records.d.ts`
@@ -386,6 +394,8 @@
 - `ToolProcessUpdate` · `author-context.d.ts`
 - `ToolProgramContract` · `authoring.d.ts`
 - `ToolProgramOutput` · `authoring.d.ts`
+- `ToolProgramRuntime` · `program.d.ts`
+- `ToolProgramSource` · `program.d.ts`
 - `ToolProvider` · `ports.d.ts`
 - `ToolReads` · `custody.d.ts`
 - `ToolRecovery` · `execution.d.ts`
@@ -423,6 +433,7 @@
 - `WAIT_RESPONSE_MAX_BYTES` · `wait-contract.d.ts`
 - `WriteContext` · `execution.d.ts`
 - `actionPreview` · `call-label.d.ts`
+- `attachProgramTools` · `program.d.ts`
 - `attachToolsCapability` · `tools-capability.d.ts`
 - `authorDecision` · `checkpointed-author.d.ts`
 - `checkScriptArguments` · `script-tool.d.ts`
@@ -461,6 +472,7 @@
 - `intentFault` · `command-call.d.ts`
 - `isProgramCall` · `program-call.d.ts`
 - `isProgramName` · `program-signature.d.ts`
+- `isProgramSettled` · `program.d.ts`
 - `isToolSourcePrefix` · `entry-source.d.ts`
 - `judgeCommittedToolResult` · `result-policy.d.ts`
 - `judgeConsumerRef` · `judge-release.d.ts`
@@ -481,6 +493,7 @@
 - `needsIntent` · `command-call.d.ts`
 - `planAdoption` · `dynamics.d.ts`
 - `presentTool` · `catalog.d.ts`
+- `programCallRefusal` · `program-signature.d.ts`
 - `programFunctions` · `program-signature.d.ts`
 - `programSignature` · `program-signature.d.ts`
 - `projectToolBackgroundCalls` · `background-calls-projection.d.ts`
@@ -2208,7 +2221,7 @@ import type { FixedToolRequest } from './definitions.ts';
 import type { Access, Adoption, CallAccess, ConsumerRef, DurableEvidence, Mutation, ToolCallId, ToolCursor, ToolDeliveryId, ToolInstanceId, ToolOperationId, ToolResultVersion, ToolRevision, ToolWaitId } from './identity.ts';
 import type { ControlReceipt, Handoff, ProcessBlock, ToolControl } from './operations.ts';
 import type { ToolStartRecord } from './ports.ts';
-import type { ProgramClosure } from './program.ts';
+import type { ProgramTable } from './program.ts';
 import type { Checkpoint, ControlProgress, ControlRecord, FactBatch, FactProgress, FactReceipt, PreparationRecord, ProgramScheduling, ReleaseProgress, ReleaseRecord, ResponseProgress, ResponseRecord, StartProgress, SuspensionRecord, TaskResolution, ToolTask, WaitIntent, WaitRecord } from './records.ts';
 import type { DeliveryState, ReleasedDelivery, Effect, Reply, ToolResult, ToolRenderedResult, ToolState, ToolTerminal, WaitState } from './results.ts';
 export interface TextRenderer<R> {
@@ -2273,7 +2286,7 @@ export type ToolRecovery = Readonly<{
         state: string;
     }> | null;
     tasks: readonly ToolTask[];
-    program: ProgramClosure | null;
+    program: ProgramTable | null;
     scheduling: ProgramScheduling | null;
     streams: readonly FactProgress[];
 }>;
@@ -2632,6 +2645,9 @@ export type { ReleaseDescription, ReleaseDetail, ReleaseDetailAnswer, ReleaseDet
 export type { ToolActionGate } from './gates.ts';
 export type { ToolCallLabel } from './call-label.ts';
 export { toolsCapabilityOf } from './tools-capability.ts';
+export { programToolsOf } from './program.ts';
+export type { ProgramCallAnswer, ProgramCallEffect, ProgramCallFailure, ProgramCallFailureKind, ProgramTools, } from './program.ts';
+export type { ProgramFunction } from './program-signature.ts';
 export type { ToolsCapability, ToolsExecuteAnswer } from './tools-capability.ts';
 export type { ToolActionResolution, ToolActionTarget, ToolCallAction, ToolForwardIntent, } from './forwarding.ts';
 export type { SearchArguments, SearchPage, InspectArguments, ToolUsageView, ToolFixedReadArguments, ToolsReadArguments, } from './tools-protocol.ts';
@@ -3312,131 +3328,150 @@ export declare function isProgramName(tool: string, command?: string): boolean;
 export declare function programFunctions(definition: ToolDefinition): readonly ProgramFunction[];
 export declare function schemaType(schema: JsonValue): string;
 export declare function programSignature(definition: ToolDefinition): string;
+export declare function programCallRefusal(definition: ToolDefinition, command: string | null, given: readonly string[]): string | null;
 ```
 
 ## 声明文件 `program.d.ts`
 
 ```ts
-import type { ContentBlock } from '@omne-harness/content-block';
 import type { JsonValue } from '@omne-harness/json-text';
-import type { ContentPage, RawOutput } from './custody.ts';
-import type { FixedToolRequest } from './definitions.ts';
-import type { ToolExecutionRef } from './execution.ts';
-import type { CallAccess, DurableEvidence, Mutation, ToolCallId, ToolDeliveryId, ToolOperationId, ToolResultVersion } from './identity.ts';
-import type { Attachment, Effect, InterruptionCause, Reply, ResultPage, ToolLookup, ToolResult, ToolState, ToolTerminal } from './results.ts';
-export type ChildPosition = Readonly<{
-    program: DurableEvidence;
-    ordinal: string;
+import type { ToolExecutionContext, ToolExecutionScope } from './author-context.ts';
+import type { FixedToolRequest, ToolDefinition, ToolInvokeRequest } from './definitions.ts';
+import type { ToolStartRecord } from './ports.ts';
+import type { Adoption, CallAccess, ToolCallId, ToolOperationId, ToolResultVersion } from './identity.ts';
+import type { ProgramFunction } from './program-signature.ts';
+import type { ToolForwardSourceOutcome } from './forwarding.ts';
+import type { ToolInvokeOutcome } from './operations.ts';
+import type { Effect, Reply, ToolTerminal } from './results.ts';
+export type PositionTarget = Readonly<{
+    name: string;
+    command: string | null;
+    digest: string;
 }>;
-export type ChildReservation = Readonly<{
-    parent: ToolCallId;
-    position: ChildPosition;
+export type PositionExclusion = Readonly<{
+    kind: 'denied' | 'not-accepted' | 'unavailable';
+    reason: string;
+}>;
+export type ProgramPosition = Readonly<{
+    ordinal: number;
     child: ToolCallId;
     admission: ToolOperationId;
-    request: FixedToolRequest;
-    source: DurableEvidence;
-}>;
-export type ChildState = Readonly<{
-    reservation: ChildReservation;
+    target: PositionTarget;
 }> & (Readonly<{
-    kind: 'reserved' | 'unknown';
+    state: 'registered';
 }> | Readonly<{
-    kind: 'excluded';
-    evidence: DurableEvidence;
+    state: 'handed';
+    background: boolean;
 }> | Readonly<{
-    kind: 'admitted';
-    state: ToolState;
+    state: 'excluded';
+    exclusion: PositionExclusion;
 }> | Readonly<{
-    kind: 'retained';
-    state: ToolState;
-    result: ToolResultVersion;
-    custody: DurableEvidence;
-    release: DurableEvidence;
-}>);
-export type ProgramEnd = Readonly<{
-    kind: 'returned';
-    output: RawOutput;
-}> | Readonly<{
-    kind: 'stopped';
-    cause: InterruptionCause;
-}> | Readonly<{
-    kind: 'failed';
-    cause: 'exception' | 'resource-limit' | 'continuity-lost';
-    evidence: DurableEvidence;
-}>;
-export type ProgramClosure = Readonly<{
-    operation: ToolOperationId;
-    end: ProgramEnd;
-    pending: readonly ToolCallId[];
-}> & (Readonly<{
-    kind: 'closing';
-    barrier: null;
-}> | Readonly<{
-    kind: 'closed';
-    barrier: DurableEvidence;
-}>);
-export interface ToolChildren<P> {
-    reserve(input: Mutation<P> & Readonly<{
-        execution: ToolExecutionRef;
-        position: ChildPosition;
-        request: FixedToolRequest;
-    }>): Reply<ChildReservation>;
-    admitted(input: Mutation<P> & Readonly<{
-        reservation: ChildReservation;
-        outcome: ToolLookup;
-    }>): Reply<ChildState>;
-    retain(input: Mutation<P> & Readonly<{
-        child: ToolCallId;
-        result: ToolResultVersion;
-        delivery: ToolDeliveryId;
-        custody: DurableEvidence;
-        release: DurableEvidence;
-    }>): Reply<ChildState>;
-    list(input: CallAccess<P> & Readonly<{
-        after: string | null;
-        limit: number;
-    }>): Reply<Readonly<{
-        children: readonly ChildState[];
-        next: string | null;
-    }>>;
-    close(input: Mutation<P> & Readonly<{
-        end: ProgramEnd;
-    }>): Reply<ProgramClosure>;
-    closure(input: CallAccess<P>): Reply<ProgramClosure | null>;
-    confirmBarrier(input: Mutation<P> & Readonly<{
-        close: ToolOperationId;
-        evidence: DurableEvidence;
-    }>): Reply<ProgramClosure>;
-    finish(input: Mutation<P> & Readonly<{
-        output: RawOutput;
-    }>): Reply<DurableEvidence>;
-}
-export type ProgramToolResult<B extends ContentBlock> = Readonly<{
-    child: ToolCallId;
+    state: 'retained';
     result: ToolResultVersion;
     terminal: ToolTerminal;
     effect: Effect;
-    value: ToolResult<B>;
+    late: boolean;
+}>);
+export type ProgramTable = Readonly<{
+    phase: 'open' | 'sealed';
+    positions: readonly ProgramPosition[];
 }>;
-export interface ProgramTools<B extends ContentBlock> {
-    call(input: Readonly<{
+type At = Readonly<{
+    ordinal: number;
+}>;
+export interface ToolChildren<P> {
+    register(input: CallAccess<P> & At & Readonly<{
+        child: ToolCallId;
+        admission: ToolOperationId;
+        target: PositionTarget;
+    }>): Reply<ProgramPosition>;
+    exclude(input: CallAccess<P> & At & Readonly<{
+        exclusion: PositionExclusion;
+    }>): Reply<ProgramPosition>;
+    handOff(input: CallAccess<P> & At): Reply<ProgramPosition>;
+    background(input: CallAccess<P> & At): Reply<ProgramPosition>;
+    retain(input: CallAccess<P> & At & Readonly<{
+        result: ToolResultVersion;
+        terminal: ToolTerminal;
+        effect: Effect;
+    }>): Reply<ProgramPosition>;
+    seal(input: CallAccess<P>): Reply<ProgramTable>;
+    table(input: CallAccess<P>): Reply<ProgramTable>;
+}
+export declare function isProgramSettled(table: ProgramTable): boolean;
+export type ProgramParent<P> = CallAccess<P> & Readonly<{
+    start: Extract<ToolStartRecord, {
+        kind: 'start';
+    }>;
+    request: FixedToolRequest;
+}>;
+export type NestedAdmissionInput<P> = ProgramParent<P> & At & Readonly<{
+    target: Readonly<{
+        definition: Adoption;
         name: string;
         command: string | null;
-        arguments: JsonValue;
-    }>): Reply<ProgramToolResult<B>>;
-    read(input: Readonly<{
-        child: ToolCallId;
-        result: ToolResultVersion;
-        after: string | null;
-    }>): Reply<ResultPage<B>>;
-    attachment(input: Readonly<{
-        child: ToolCallId;
-        result: ToolResultVersion;
-        attachment: Attachment;
-        after: string | null;
-        maxBytes: number;
-    }>): Reply<ContentPage>;
+        arguments: string;
+    }>;
+}>;
+export type NestedAdmission = Readonly<{
+    kind: 'allowed';
+}> | Readonly<{
+    kind: 'denied';
+    reason: string;
+}> | Readonly<{
+    kind: 'unanswerable';
+    diagnostic: string;
+}>;
+export interface ProgramActionAdmission<P> {
+    admit(input: NestedAdmissionInput<P>, signal: AbortSignal): Promise<NestedAdmission>;
 }
+export type ProgramCallFailureKind = 'denied' | 'unsupported' | 'invalid' | 'limit' | 'unavailable' | 'failed' | 'interrupted' | 'no-response' | 'unknown';
+export type ProgramCallEffect = 'none' | 'occurred' | 'unknown';
+export type ProgramCallFailure = Readonly<{
+    kind: ProgramCallFailureKind;
+    effect: ProgramCallEffect;
+    message: string;
+}>;
+export type ProgramCallAnswer = Readonly<{
+    kind: 'value';
+    value: JsonValue | null;
+    external: boolean;
+}> | Readonly<{
+    kind: 'failure';
+    failure: ProgramCallFailure;
+}>;
+export interface ProgramTools {
+    functions(): Reply<readonly ProgramFunction[]>;
+    call(input: At & Readonly<{
+        entry: string;
+        arguments: JsonValue;
+    }>): Promise<ProgramCallAnswer>;
+    settle(): Reply<ProgramTable>;
+}
+export declare function programToolsOf(context: ToolExecutionContext): ProgramTools | undefined;
+export declare function attachProgramTools(scope: ToolExecutionScope, capability: Readonly<{
+    value: ProgramTools;
+    close(): Promise<void>;
+}>): ToolExecutionScope;
+export type ProgramTargetOutcome = Readonly<{
+    kind: 'target';
+    definition: ToolDefinition;
+    request: ToolInvokeRequest;
+}> | Readonly<{
+    kind: 'refused';
+    failure: ProgramCallFailure;
+}>;
+export interface ToolProgramSource<P> {
+    resolve(input: ProgramParent<P> & At & Readonly<{
+        target: ToolInvokeRequest;
+    }>): Promise<ToolForwardSourceOutcome>;
+}
+export interface ToolProgramRuntime<P> {
+    invoke(input: ProgramParent<P> & At & Readonly<{
+        target: ToolInvokeRequest;
+    }>): Promise<ToolInvokeOutcome>;
+}
+export {};
 ```
 
 ## 声明文件 `provider.d.ts`
@@ -3481,7 +3516,8 @@ export type { AvailabilityFacts, OutputCodec, ParameterCodec, TextResultFactory,
 export type { Checkpoint, ControlDispatch, DrainState, ExternalOperationResolution, FactBatch, FactProgress, FactReceipt, PreparationProgress, PreparationRecord, ProgramScheduling, ReleaseProgress, ReleaseRecord, StartGuard, StartPermit, StartProgress, SuspensionProgress, SuspensionRecord, TaskResolution, ToolRecoveryBinding, ToolResourceResponses, ToolStartAuthority, ToolTask, } from './records.ts';
 export type { ToolStartAcceptance, ToolStartFence } from './records.ts';
 export type { ToolAccounts, ToolUsageFact, ToolUsageOutcome, ToolUsagePage, ToolUsageQuery, ToolContentReader, ToolOffloader, ToolReads, } from './custody.ts';
-export type { ChildPosition, ChildReservation, ChildState, ProgramClosure, ProgramEnd, ProgramToolResult, ProgramTools, ToolChildren, } from './program.ts';
+export { attachProgramTools, isProgramSettled } from './program.ts';
+export type { NestedAdmission, NestedAdmissionInput, PositionExclusion, PositionTarget, ProgramActionAdmission, ProgramParent, ProgramPosition, ProgramTable, ProgramTargetOutcome, ToolChildren, ToolProgramRuntime, ToolProgramSource, } from './program.ts';
 export { projectToolBackgroundCalls } from './background-calls-projection.ts';
 export type { ToolBackgroundCallSource, ToolBackgroundCallsSource, } from './background-calls-projection.ts';
 export { COMMAND_CALL_ENCODINGS, commandArguments, commandExample, commandGuide, commandSignature, decodeCommandCall, describeCommandArgumentsRejection, encodeCommandCall, INTENT_MAX_BYTES, intentFault, needsIntent, } from './command-call.ts';
@@ -3490,7 +3526,7 @@ export { attachToolsCapability } from './tools-capability.ts';
 export { isProgramCall, markProgramCall } from './program-call.ts';
 export type { ToolForwardParent, ToolForwardBinding, ToolForwardSourceOutcome, ToolForwardSource, ToolForwardRuntime, } from './forwarding.ts';
 export { returnGuide } from './return-description.ts';
-export { PROGRAM_FAILURE, isProgramName, programFunctions, programSignature, schemaType, type ProgramFunction, } from './program-signature.ts';
+export { PROGRAM_FAILURE, isProgramName, programCallRefusal, programFunctions, programSignature, schemaType, } from './program-signature.ts';
 export { TOOL_ENTRY_SOURCES_POINT, isToolSourcePrefix, judgeToolSourceListing, type ToolCapabilityIdentity, type ToolEntrySource, type ToolSourceBreach, type ToolSourceCall, type ToolSourceEntry, type ToolSourceListing, type ToolSourceWithheld, } from './entry-source.ts';
 export { DEFAULT_RELEASE_DETAIL_POLICY, judgeReleaseDescription } from './release-detail.ts';
 export { SCRIPT_EXECUTOR, SCRIPT_MODULE, SCRIPT_TOOL_FILE, checkScriptArguments, readScriptConstruction, scriptConstructionOf, scriptParametersSchema, scriptToolAuthoring, scriptToolLayout, type ScriptConstruction, type ScriptParameters, type ScriptProperty, } from './script-tool.ts';
@@ -3508,7 +3544,6 @@ import type { ToolExecutionRef } from './execution.ts';
 import type { Access, Adoption, CallAccess, ConsumerRef, DurableEvidence, Mutation, ToolCallId, ToolDeliveryId, ToolOperationId, ToolResultVersion, ToolWaitId } from './identity.ts';
 import type { BackgroundSource, ToolControl } from './operations.ts';
 import type { DecisionValue, PreparedEnvironment, ToolExecutionFact, ToolStartLookup, ToolStartRecord } from './ports.ts';
-import type { ChildReservation, ProgramEnd } from './program.ts';
 import type { Reply, WaitState } from './results.ts';
 export type PhysicalExecution = Readonly<{
     kind: 'not-started';
@@ -3910,15 +3945,6 @@ export type ToolTask = Readonly<{
 }> | Readonly<{
     kind: 'queue' | 'settle' | 'account' | 'facts' | 'clock';
     basis: DurableEvidence;
-}> | Readonly<{
-    kind: 'child';
-    reservation: ChildReservation;
-    action: 'reconcile' | 'collect' | 'control';
-    cause: ProgramEnd | null;
-}> | Readonly<{
-    kind: 'program-fence';
-    end: ProgramEnd;
-    guard: StartGuard;
 }> | Readonly<{
     kind: 'resource-wait';
     wait: Extract<WaitIntent, {

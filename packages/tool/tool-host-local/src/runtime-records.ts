@@ -3,11 +3,16 @@ import { fail } from '@omne-harness/operation-result'
 import {
   createToolAccounts,
   createToolLedger,
+  createToolPositions,
   type ToolAccountsGuard,
   type ToolLedger,
   type ToolLedgerPorts,
 } from '@omne-harness/tool'
-import type { ToolAccounts, ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
+import type {
+  ToolAccounts,
+  ToolChildren,
+  ToolMessageContentBlock,
+} from '@omne-harness/tool-contract/provider'
 import {
   ToolAccountsService,
   ToolCommandsService,
@@ -23,6 +28,7 @@ export type RuntimeRecords = Readonly<{
   ledger: ToolLedger<unknown, ToolMessageContentBlock>
   authority: ReturnType<typeof createLocalStartCoordinator<unknown>>
   accounts: ToolAccounts<unknown>
+  children: ToolChildren<unknown>
 }>
 
 const NO_ACCOUNTS_GUARD: ToolAccountsGuard<unknown> = {
@@ -68,7 +74,13 @@ export function createRuntimeRecords(
   }
   const ledger = createToolLedger(input.store, guards, input.clock, input.configuration, ports)
   const accounts = createToolAccounts(input.store, input.access.accounts ?? NO_ACCOUNTS_GUARD)
-  return { ledger, authority, accounts }
+  const children = createToolPositions<unknown>({
+    store: input.store,
+    access: input.access.guard,
+    commitAttempts: input.configuration.ledgerCommitAttempts,
+    lookup: ledger.reads.lookup,
+  })
+  return { ledger, authority, accounts, children }
 }
 
 export function publishRuntimeRecords(ctx: Context, records: RuntimeRecords): void {

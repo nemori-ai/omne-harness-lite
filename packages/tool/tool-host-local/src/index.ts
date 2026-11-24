@@ -94,11 +94,7 @@ export {
 } from './invocation-source.ts'
 export type { LocalCurrentDefinitions } from './definition-resolution.ts'
 export { createLocalGrantVerifiers, type LocalGrantScope } from './grant-verifiers.ts'
-export {
-  createLocalStartGuard,
-  PROGRAMMATIC_NOT_IN_M2,
-  type LocalStartGuardInput,
-} from './start-guard.ts'
+export { createLocalStartGuard, type LocalStartGuardInput } from './start-guard.ts'
 export { createLocalTextResults } from './text-results.ts'
 export { createLocalToolBodySchemas } from './body-schemas.ts'
 export {
@@ -132,3 +128,10 @@ export { createLocalToolForwarding } from './tool-forwarding.ts'
 export type { LocalToolForwarding, LocalToolForwardingInput } from './tool-forwarding.ts'
 
 export { TOOL_FORWARDING_OWNER, forwardIntentOfCall } from './invocation-forwarding.ts'
+export {
+  createLocalArgumentsCheck,
+  createLocalProgramCalls,
+  type LocalProgramCalls,
+  type LocalProgramCallsInput,
+} from './program-calls.ts'
+export { TOOL_PROGRAM_OWNER } from './program-source.ts'

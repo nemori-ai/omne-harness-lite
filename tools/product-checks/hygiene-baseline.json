@@ -663,11 +663,11 @@
       },
       "packages/tool/tool-host-local/src/invocation-forwarding.ts": {
         "count": 1,
-        "longest": 281
+        "longest": 231
       },
       "packages/tool/tool-host-local/src/invocation-source.ts": {
         "count": 1,
-        "longest": 244
+        "longest": 240
       },
       "packages/tool/tool-host-local/src/recovery-scans.ts": {
         "count": 1,
@@ -683,7 +683,7 @@
       },
       "packages/tool/tool-host-local/src/runtime-cordis.ts": {
         "count": 1,
-        "longest": 204
+        "longest": 195
       },
       "packages/tool/tool-host-local/src/runtime-executor.ts": {
         "count": 1,

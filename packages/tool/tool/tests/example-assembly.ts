@@ -218,32 +218,6 @@ export function createDemo() {
           reason: 'No search in this tutorial',
         }),
     },
-    children: {
-      reserve: async () => {
-        throw new Error('No child calls in this tutorial')
-      },
-      admitted: async () => {
-        throw new Error('No child calls in this tutorial')
-      },
-      retain: async () => {
-        throw new Error('No child calls in this tutorial')
-      },
-      list: async () => {
-        throw new Error('No child calls in this tutorial')
-      },
-      close: async () => {
-        throw new Error('No child calls in this tutorial')
-      },
-      closure: async () => {
-        throw new Error('No child calls in this tutorial')
-      },
-      confirmBarrier: async () => {
-        throw new Error('No child calls in this tutorial')
-      },
-      finish: async () => {
-        throw new Error('No child calls in this tutorial')
-      },
-    },
     bindingsFor: executor => ({
       inspect: async () =>
         fail({

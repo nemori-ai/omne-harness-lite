@@ -1,3 +1,4 @@
+import { programUnsettled } from './ledger-positions.ts'
 import { settleResultBodies } from './ledger-result-uses.ts'
 import { checkBodyReferences } from './ledger-body-entries.ts'
 import type { ToolInstant } from '@omne-harness/tool-contract/provider'
@@ -99,6 +100,8 @@ export function checkSettlement(
     return invalid('final', 'not-original-final')
   if (call.state.relation === 'background' && saved.fact.terminal.kind === 'no-response')
     return invalid('terminal', 'background-no-response')
+  if (saved.fact.terminal.kind === 'completed' && programUnsettled(snapshot))
+    return invalid('program', 'positions-unsettled')
   return succeed({
     kind: 'fresh',
     call,
