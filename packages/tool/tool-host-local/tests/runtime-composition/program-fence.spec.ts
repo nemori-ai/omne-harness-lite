@@ -99,6 +99,48 @@ it('TL-69 stopping the call of a program closes its table in that commit and sto
   }
 })
 
+it("TL-69 stops the calls of a stopped program where no caller may move a start guard: barring a position is the host's own step", async () => {
+  const world: World = await programWorld({
+    callersMoveNoGuard: true,
+    script: async tools => {
+      await say(tools, 1, { text: 'done' })
+      await say(tools, 2, { text: 'slow', hold: 'never' })
+      return 'not reached as a completion'
+    },
+  })
+  try {
+    const reference = await world.start('stopped-in-a-release')
+    await expect.poll(() => world.said).toEqual(['done', 'slow'])
+    const stopped = await world.api.commands.control({
+      ...world.query(reference),
+      intent: { kind: 'stop' },
+    })
+    expect(stopped).toMatchObject({ kind: 'committed' })
+    await expect
+      .poll(() => rows(world, reference))
+      .toEqual([
+        [1, 'retained', 'completed'],
+        [2, 'retained', 'interrupted'],
+      ])
+    // The face other owners move their guards by stays closed to callers.
+    const authority = world.root.get('toolStartAuthority') as ToolStartAuthority<unknown>
+    const moved = await authority.invalidate({
+      ...world.query(reference),
+      operation: 'op-caller-moves-a-guard',
+      guard: {
+        owner: 'someone',
+        resource: 'thing',
+        revision: '0',
+        evidence: { owner: 'someone', record: 'thing', revision: '0', digest: 'd' },
+        scope: { kind: 'resource' },
+      },
+    } as never)
+    expect(moved).toMatchObject({ failure: { kind: 'unavailable' } })
+  } finally {
+    await world.close()
+  }
+})
+
 /** Holds the start of the calls whose text is given, at the point where the start is ordered. */
 function holdStarts(world: World) {
   const authority = world.root.get('toolStartAuthority') as ToolStartAuthority<unknown>

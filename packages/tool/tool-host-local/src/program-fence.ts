@@ -11,12 +11,11 @@ import {
   type CallAccess,
   type PositionStop,
   type ToolCommands,
-  type ToolStartAuthority,
 } from '@omne-harness/tool-contract/provider'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { ToolTargetAvailability } from './ledger-guards.ts'
 import { programPositionOf, TOOL_PROGRAM_OWNER } from './program-source.ts'
-import type { GuardResource } from './start-coordinator.ts'
+import type { GuardResource, OwnGuardMove } from './start-coordinator.ts'
 
 type Place = Readonly<{ parent: ToolCallId; ordinal: number }>
 
@@ -72,7 +71,8 @@ export function stopProgressOf(progress: ControlProgress): PositionStop {
 }
 
 export type ProgramDisposalInput<P, B extends ContentBlock> = Readonly<{
-  authority: Pick<ToolStartAuthority<P>, 'invalidate'>
+  /** The host's own move of the guard of a position: the caller already holds the write of the parent. */
+  moveGuard: OwnGuardMove
   commands: Pick<ToolCommands<P, B>, 'control'>
 }>
 
@@ -82,7 +82,7 @@ export function createProgramDisposal<P, B extends ContentBlock>(
 ) {
   type At = CallAccess<P> & Place
   return {
-    bar({ principal, tenant, parent, ordinal }: At) {
+    bar({ tenant, parent, ordinal }: At) {
       const guard = programGuard({ parent, ordinal })
       const operation = operationOf('program-bar', { parent, ordinal })
       const evidence = {
@@ -91,8 +91,7 @@ export function createProgramDisposal<P, B extends ContentBlock>(
         revision: '0',
         digest: operation,
       }
-      return input.authority.invalidate({
-        principal,
+      return input.moveGuard({
         tenant,
         operation,
         guard: { ...guard, revision: '0', evidence, scope: { kind: 'resource' } },

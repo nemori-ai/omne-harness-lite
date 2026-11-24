@@ -82,7 +82,7 @@ export function createRuntimeRecords(
     access: input.access.guard,
     commitAttempts: input.configuration.ledgerCommitAttempts,
     lookup: ledger.reads.lookup,
-    ...createProgramDisposal({ authority, commands: ledger.commands }),
+    ...createProgramDisposal({ moveGuard: authority.moveOwn, commands: ledger.commands }),
   })
   return { ledger, authority, accounts, children }
 }

@@ -44,7 +44,10 @@ const retained = (ordinal: number) => ({
 type Asked = Readonly<{ ordinal: number; call: string }>
 
 /** A parent call with a table, and the two things a host does for a position behind the barrier. */
-async function world(stop: (ordinal: number) => PositionStop = () => 'accepted') {
+async function world(
+  stop: (ordinal: number) => PositionStop = () => 'accepted',
+  unbarred: readonly number[] = [],
+) {
   const assembly = harness()
   ok(await assembly.ledger.admissions.admit(admission('call-1', 'op-1')))
   const barred: Asked[] = []
@@ -56,7 +59,9 @@ async function world(stop: (ordinal: number) => PositionStop = () => 'accepted')
     lookup: assembly.ledger.reads.lookup,
     bar: async input => {
       barred.push({ ordinal: input.ordinal, call: input.call })
-      return { ok: null }
+      return unbarred.includes(input.ordinal)
+        ? { failure: { kind: 'unavailable', dependency: 'start-guards', diagnostic: 'down' } }
+        : { ok: null }
     },
     stop: async input => {
       stopped.push({ ordinal: input.ordinal, call: input.call })
@@ -192,6 +197,25 @@ describe('TL-70 every position the barrier reaches gets its step', () => {
     ])
     expect(stopped).toEqual([{ ordinal: 2, call: 'child-2' }])
     expect(owesDisposal(ok(await children.table(parent)))).toEqual([])
+  })
+
+  it('a position whose start cannot be barred is not asked to stop, and the pass answers that failure: the others still get their step', async () => {
+    const { children, hand, states, stopped } = await world(() => 'accepted', [2])
+    await hand(1)
+    await hand(2)
+    await hand(3)
+    ok(await children.close({ ...parent, reach: 'all', cause: 'stopped' }))
+    expect(await children.dispose(parent)).toEqual({
+      failure: { kind: 'unavailable', dependency: 'start-guards', diagnostic: 'down' },
+    })
+    expect(await states()).toEqual([
+      [1, 'handed', 'accepted'],
+      [2, 'handed'],
+      [3, 'handed', 'accepted'],
+    ])
+    expect(stopped.map(one => one.ordinal)).toEqual([1, 3])
+    // What is still owed is exactly the position that was held, so the next pass takes it up again.
+    expect(owesDisposal(ok(await children.table(parent))).map(one => one.ordinal)).toEqual([2])
   })
 
   it('TL-68 excludes the admission of a call that was not accepted, under its own identity, before its position', async () => {

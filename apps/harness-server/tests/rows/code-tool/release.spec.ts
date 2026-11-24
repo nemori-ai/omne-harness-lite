@@ -43,6 +43,14 @@ const PROGRAMS: Readonly<Record<string, string>> = {
   hidden: ['try { await Files.read({ path: "missing.txt" }) } catch {}', 'return "all fine"'].join(
     '\n',
   ),
+  slow: [
+    'const quick = await Shell.execute({ script: "echo quick-done" })',
+    'const rest = await Promise.all([',
+    '  Shell.execute({ script: "sleep 45; echo a-done" }),',
+    '  Shell.execute({ script: "sleep 45; echo b-done" }),',
+    '])',
+    'return [quick.stdout, rest.length]',
+  ].join('\n'),
   loop: 'while (true) {}',
   memory:
     'const all = []\nwhile (true) all.push(new Array(100000).fill("x".repeat(64) + all.length))',
@@ -369,6 +377,51 @@ it('TL-73 a failure a program caught and hid is in the summary the model reads',
         'done Code execute\nresult:\n"all fine"\ncalls: 0 completed, 1 failed',
       )
       expect(result).toMatch(/\n- #1 Files\.read failed, effect /u)
+    },
+  )
+  expect(exit).toBe(0)
+})
+
+it('TL-69 stopping a program midway stops the calls it still has: each says stopped, and the one that completed stays', async () => {
+  const exit = await onReleaseTree(
+    { script: codeScript, permission: 'bypass-permissions' },
+    async tree => {
+      const session = await tree.startSession('start: code slow')
+      const reference = await pollUntil(
+        'the call of Code',
+        async () => toolCallReferences(tree.storageRoot, 'Code')[0],
+        found => found !== undefined,
+      )
+      if (reference === undefined) throw new Error('no call of Code')
+      await pollUntil(
+        'the two slow commands to run',
+        () => childrenOf(tree, reference),
+        listed => listed.items.filter(item => item.state === 'running').length === 2,
+      )
+      const stopped = await tree.cli([
+        'calls',
+        'stop',
+        '--session',
+        session,
+        '--call',
+        reference,
+        '--reason',
+        'stop the program midway',
+      ])
+      expect(stopped.status, stopped.stderr).toBe(0)
+      const started = Date.now()
+      const after = await pollUntil(
+        'every position to have an end',
+        () => childrenOf(tree, reference),
+        listed =>
+          listed.items.every(item => !['running', 'queued', 'waiting'].includes(item.state)),
+      )
+      expect(after.items.map(item => item.state)).toEqual(['completed', 'stopped', 'stopped'])
+      // Far sooner than the commands would have ended by themselves.
+      expect(Date.now() - started).toBeLessThan(30_000)
+      const { result } = await ended(tree, session, 'the stopped program')
+      expect(result).not.toContain('a-done')
+      expect(result).not.toContain('done Code execute')
     },
   )
   expect(exit).toBe(0)

@@ -73,6 +73,8 @@ export type ProgramWorldOptions = Readonly<{
   settle?: boolean
   /** How many calls of one tool may run at once; absent, eight. */
   concurrency?: number
+  /** `true`: no caller is qualified to move a start guard, as in the release. */
+  callersMoveNoGuard?: boolean
 }>
 
 const OPEN: ToolProgramAccess = { kind: 'open', unless: [] }
@@ -134,7 +136,12 @@ export async function programWorld(options: ProgramWorldOptions) {
     input.principal === principal && !lost(input.action ?? '')
       ? { kind: 'allowed' as const }
       : { kind: 'denied' as const, reason: 'fixture-denied' }
-  const access = { guard: { qualify }, start: { qualify } }
+  // As a deployment may have it: nobody who calls is qualified to move a start guard.
+  const start = async (input: { principal: unknown; action?: string }) =>
+    options.callersMoveNoGuard === true && input.action === 'invalidate'
+      ? { kind: 'unavailable' as const, diagnostic: 'no qualification source' }
+      : qualify(input)
+  const access = { guard: { qualify }, start: { qualify: start } }
   const fixed = request()
   if (fixed.availability.definition.kind !== 'function') throw new Error('function fixture')
   const { parameters, declarations } = fixed.availability.definition

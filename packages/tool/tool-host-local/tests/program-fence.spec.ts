@@ -112,11 +112,9 @@ describe('what a host does for one position behind the barrier', () => {
     const invalidated: unknown[] = []
     const controlled: unknown[] = []
     const made = createProgramDisposal<string, never>({
-      authority: {
-        invalidate: async input => {
-          invalidated.push(input)
-          return { ok: evidence }
-        },
+      moveGuard: async input => {
+        invalidated.push(input)
+        return { ok: evidence }
       },
       commands: {
         control: async input => {
@@ -142,6 +140,8 @@ describe('what a host does for one position behind the barrier', () => {
     await made.bar({ ...at, ordinal: 3 })
     const [first, again, other] = invalidated as { operation: string; guard: object }[]
     expect(first?.guard).toMatchObject(programGuard({ parent, ordinal: 2 }))
+    // It is the host's own step: the principal of the caller is not handed on to be asked again.
+    expect(first).not.toHaveProperty('principal')
     expect(again?.operation).toBe(first?.operation)
     expect(other?.operation).not.toBe(first?.operation)
   })

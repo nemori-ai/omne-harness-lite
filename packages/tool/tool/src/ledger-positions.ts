@@ -326,6 +326,7 @@ export function createToolPositions<P>(input: ToolPositionsInput<P>): ToolChildr
       const read = () => ports.transact(domain, snapshot => reply(succeed(tableOf(snapshot))))
       const table = await read()
       if ('failure' in table) return table
+      let held: Outcome<never, ToolFailure> | null = null
       for (const position of owesDisposal(table.ok)) {
         const { ordinal, child: call, state } = position
         const excluded = (unaccepted: boolean) =>
@@ -337,9 +338,12 @@ export function createToolPositions<P>(input: ToolPositionsInput<P>): ToolChildr
         // TL-66, TL-68: bar the start, then exclude the admission under its own identity, then the position.
         const at = { ...context.ok, call, parent: context.ok.call, ordinal }
         const barred = (await input.bar?.(at)) ?? succeed(null)
-        if ('failure' in barred) continue
-        const unaccepted = await ports.unaccepted(context.ok, position)
-        if ('failure' in unaccepted) continue
+        const unaccepted =
+          'failure' in barred ? barred : await ports.unaccepted(context.ok, position)
+        if ('failure' in unaccepted) {
+          held ??= unaccepted
+          continue
+        }
         if (unaccepted.ok) {
           await excluded(true)
           continue
@@ -347,7 +351,7 @@ export function createToolPositions<P>(input: ToolPositionsInput<P>): ToolChildr
         const progress = (await input.stop?.(at)) ?? 'unknown'
         await ports.transact(domain, snapshot => decideStopping(snapshot, ordinal, progress))
       }
-      return read()
+      return held ?? read()
     },
     stopping: input =>
       placed(input, (snapshot, ordinal) => decideStopping(snapshot, ordinal, input.progress)),
