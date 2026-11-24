@@ -18,8 +18,17 @@ type View = Readonly<{
   effective?: Readonly<{ value: Readonly<{ kind: 'set'; value: unknown } | { kind: 'unset' }> }>
 }>
 
+type Query = Readonly<{ tenant: string; category: string }>
+
+// The settings answer only the query the adapter must make: this tenant, the provider category.
 function ctxWith(items: (() => Promise<readonly View[] | 'unknown'>) | undefined): Context {
-  const service = items === undefined ? undefined : { items }
+  const service =
+    items === undefined
+      ? undefined
+      : {
+          items: async (query: Query) =>
+            query.tenant === 'tenant' && query.category === 'model-provider' ? items() : [],
+        }
   return { get: (key: string) => (key === tenantAssetSettingsKey ? service : undefined) } as never
 }
 

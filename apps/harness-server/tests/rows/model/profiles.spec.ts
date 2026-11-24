@@ -1,35 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import type { ModelProfile } from '@omne-harness/model-contract'
-import { decodeProviderName } from '@omne-harness/model-contract'
-import {
-  ModelProfilesService,
-  modelPreferencesKey,
-} from '@omne-harness/model-cordis-contract/cordis'
-import { officialCatalog } from '@omne-harness/model-host-local'
-import { serveModelPreferences } from '@omne-harness/model-host-local/cordis'
-import { defineRow } from '../../../src/row.ts'
+import { ModelProfilesService } from '@omne-harness/model-cordis-contract/cordis'
 import { rowDeclarationOf } from '../../../src/row.ts'
 import { modelProfilesRow } from '../../../src/rows/model-profiles/index.ts'
+import { everyModelOnRow } from '../../support/model-preferences.ts'
 import { serveOnce } from '../../fixtures/serve/harness.ts'
 import { TENANT, withLiveRows } from './support.ts'
 
-// Every catalog model on: these cases are about the profiles row, not about a tenant's choices.
-const everyModelOn = defineRow({
-  row: 'every-model-on',
-  implementation: 'real',
-  manifest: { provides: [modelPreferencesKey], injects: [], sameProviderGroup: null },
-  lifecycle: { kind: 'none' },
-  plugin: {
-    name: 'every-model-on',
-    apply(ctx) {
-      const openrouter = decodeProviderName('openrouter')
-      if (!('ok' in openrouter)) throw new Error('provider name')
-      const enabled = new Set(officialCatalog(openrouter.ok, () => true).map(entry => entry.model))
-      serveModelPreferences(ctx, { read: async () => ({ ok: { enabled, efforts: new Map() } }) })
-    },
-  },
-})
-const plugins = { modelProfilesRow, everyModelOn }
+const plugins = { modelProfilesRow, everyModelOnRow }
 const config = {
   retryPolicy: {
     owner: 'harness-server-release',
@@ -41,7 +19,7 @@ const config = {
   updatedAt: '2026-11-02T00:00:00Z',
 }
 const rows = [
-  { id: 'every-model-on', plugin: 'everyModelOn' },
+  { id: 'every-model-on', plugin: 'everyModelOnRow' },
   { id: 'model-profiles', plugin: 'modelProfilesRow', config },
 ]
 const REQUIRED = {
