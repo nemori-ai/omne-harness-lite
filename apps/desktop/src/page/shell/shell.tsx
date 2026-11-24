@@ -1,4 +1,5 @@
 import {
+  memo,
   useEffect,
   useLayoutEffect,
   useReducer,
@@ -277,14 +278,15 @@ export const FACE_TEXT: Readonly<Record<Face, string>> = {
   back: '现在露着反面',
 }
 
-function useFlipPhase(flip: FaceFlip): string {
-  return useSyncExternalStore(flip.subscribe, () => flip.current().phase)
+/** Whether a turn is playing; its phases and its frames do not draw the faces again. */
+function useTurning(flip: FaceFlip): boolean {
+  return useSyncExternalStore(flip.subscribe, () => flip.current().phase !== 'idle')
 }
 
 function useFaceFlipFor(state: ShellState): { flip: FaceFlip; leaving: Face | undefined } {
   const flip = useFaceFlip()
   const face = useWatched(state.face)
-  const turning = useFlipPhase(flip) !== 'idle'
+  const turning = useTurning(flip)
   useEffect(
     () => state.face.perform((to, swap) => flip.turn(to === 'back' ? 'right' : 'left', swap)),
     [state.face, flip],
@@ -308,7 +310,7 @@ function bindFigureTurn(state: ShellState): () => void {
 }
 
 function FaceSaid(props: { face: Face; flip: FaceFlip }) {
-  const turning = useFlipPhase(props.flip) !== 'idle'
+  const turning = useTurning(props.flip)
   const [first] = useState(props.face)
   const [turned, setTurned] = useState(false)
   if (!turned && props.face !== first) setTurned(true)
@@ -347,17 +349,29 @@ function Back(props: {
           {backConflictText(conflict.by)}
         </InlineNotice>
       ) : item !== undefined ? (
-        <Item
-          key={item.id}
-          scope={scope}
-          render={() => item.render({ scope, turn: state.face.turn, home: () => goHome(state) })}
-        />
+        <BackBody key={item.id} item={item} scope={scope} state={state} />
       ) : null}
     </section>
   )
 }
 
-function WorkspacePage(props: {
+/** What the back's item draws: drawn again when the item or the tenant changes, not when the face turns. */
+const BackBody = memo(function BackBody(props: {
+  item: BackItem
+  scope: string | undefined
+  state: ShellState
+}) {
+  const { item, scope, state } = props
+  return (
+    <Item
+      scope={scope}
+      render={() => item.render({ scope, turn: state.face.turn, home: () => goHome(state) })}
+    />
+  )
+})
+
+/** A page of the front: drawn again when what it is given changes, not when the face turns. */
+const WorkspacePage = memo(function WorkspacePage(props: {
   page: PageItem
   shown: string | undefined
   scope: string | undefined
@@ -381,7 +395,7 @@ function WorkspacePage(props: {
       )}
     </section>
   )
-}
+})
 
 function Workspace(
   props: SidebarProps & {
