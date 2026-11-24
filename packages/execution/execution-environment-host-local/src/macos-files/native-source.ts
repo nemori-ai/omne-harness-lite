@@ -31,9 +31,14 @@ int main(void) {
       output = open_memstream(&response, &response_size);
       if (!output) refuse("unknown");
       root r = open_root(&d, 0);
-      if (strcmp(operation, "observe") == 0) {
+      if (strcmp(operation, "observe") == 0 || strcmp(operation, "lookup") == 0) {
         location loc = locate(r);
-        struct stat s = entry_stat(loc);
+        struct stat s;
+        if (strcmp(operation, "lookup") == 0) {
+          if (fstatat(loc.parent, loc.name, &s, AT_SYMLINK_NOFOLLOW) != 0)
+            refuse(errno == ENOENT ? "notFound" : open_failure(errno));
+          if (!S_ISREG(s.st_mode)) refuse("unsupported");
+        } else s = entry_stat(loc);
         if (rooted && s.st_dev != r.dev) refuse("notAuthorized");
         fprintf(output, "{\"info\":"); metadata(output, &s, loc.name);
         result_defaults(output, 0); fputc('}', output);

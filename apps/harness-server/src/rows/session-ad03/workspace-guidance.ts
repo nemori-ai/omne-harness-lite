@@ -1,9 +1,11 @@
 import { createHash } from 'node:crypto'
-import { lstat } from 'node:fs/promises'
 import { join, relative, sep } from 'node:path'
 import { guidanceDirectories } from '@omne-harness/request-context-contract'
 import { originRef } from '@omne-harness/execution-environment-contract'
-import { createHostFiles, hostObjectToken } from '@omne-harness/execution-environment-host-local'
+import {
+  createHostFiles,
+  createHostFileLookup,
+} from '@omne-harness/execution-environment-host-local'
 import { access } from '@omne-harness/legal-identity'
 import type { WorkingDirectory, WorkspaceGuidance } from '@omne-harness/session-adapters'
 import type { StepDirectoryInput } from '@omne-harness/session-adapters/cordis'
@@ -21,13 +23,26 @@ export async function readWorkspaceGuidance(
       ? visit.directories
       : []
   const files = createHostFiles({ read: root, write: root })
+  const lookup = createHostFileLookup(root)
   const sources = []
-  for (const directory of guidanceDirectories(root, active)) {
-    const path = join(directory, 'AGENTS.md')
-    const source = await readSource(input, files, root, path).catch((cause: unknown) => {
-      throw new Error(`workspace guidance ${relative(root, path)}: ${String(cause)}`, { cause })
-    })
-    if (source !== null) sources.push(source)
+  const directories = guidanceDirectories(root, active)
+  // Each lookup can start a native helper. Bound concurrent processes and retain root-to-leaf order.
+  const width = 4
+  for (let offset = 0; offset < directories.length; offset += width) {
+    const results = await Promise.allSettled(
+      directories.slice(offset, offset + width).map(async directory => {
+        const path = join(directory, 'AGENTS.md')
+        try {
+          return await readSource(input, files, lookup, root, path)
+        } catch (cause) {
+          throw new Error(`workspace guidance ${relative(root, path)}: ${String(cause)}`, { cause })
+        }
+      }),
+    )
+    for (const result of results) {
+      if (result.status === 'rejected') throw result.reason
+      if (result.value !== null) sources.push(result.value)
+    }
   }
   return { state: 'attached', root, workspace: value.workspace, instance: value.instance, sources }
 }
@@ -35,25 +50,22 @@ export async function readWorkspaceGuidance(
 async function readSource(
   input: StepDirectoryInput<unknown>,
   files: ReturnType<typeof createHostFiles>,
+  lookup: ReturnType<typeof createHostFileLookup>,
   root: string,
   path: string,
 ) {
-  const stat = await lstat(path).catch((cause: unknown) => {
-    if (cause instanceof Error && 'code' in cause && cause.code === 'ENOENT') return null
-    throw cause
-  })
-  if (stat === null) return null
-  if (!stat.isFile())
-    throw new Error('workspace guidance must be a regular file inside the workspace')
+  const found = await lookup(path)
+  if (!found.ok) throw new Error('workspace guidance lookup: ' + found.failure)
+  if (found.value === null) return null
   const request = {
     path,
-    named: await hostObjectToken(path),
+    named: found.value.object,
     access: access(input.principal, input.tenant),
     binding: { kind: 'host_machine' as const },
     origin: originRef(input.scope.ref),
     requestId: 'workspace-guidance',
   }
-  const result = await files.read({ ...request, limitBytes: stat.size + 1 })
+  const result = await files.read({ ...request, limitBytes: found.value.size + 1 })
   if (result.kind !== 'done')
     throw new Error(
       'workspace guidance read: ' + (result.kind === 'rejected' ? result.reason : result.kind),

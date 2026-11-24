@@ -26,7 +26,7 @@ export type RunInput = Start &
     path: string
   }>
 
-export type IdentifyInput = Start & Final & Readonly<{ operation: 'identify' }>
+export type IdentifyInput = Start & Final & Readonly<{ operation: 'identify' | 'lookup' }>
 
 export type ChangeInput = Start &
   Readonly<{
@@ -146,6 +146,7 @@ export function parseReplyFrame(line: string): ReplyFrame | undefined {
 function failure(value: unknown): Failure {
   switch (value) {
     case 'notAuthorized':
+    case 'notFound':
     case 'unresolved':
     case 'unsupported':
     case 'busy':

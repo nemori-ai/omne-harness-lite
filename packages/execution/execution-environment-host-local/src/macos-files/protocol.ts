@@ -20,6 +20,7 @@ export type NativeInput = Endpoint &
       | 'move'
       | 'copy'
       | 'observe'
+      | 'lookup'
     named: string
     path: string
     rooted: boolean
@@ -95,6 +96,7 @@ function metadata(value: unknown): Metadata {
 
 function failure(value: unknown): Failure {
   switch (value) {
+    case 'notFound':
     case 'unresolved':
     case 'unsupported':
     case 'notAuthorized':

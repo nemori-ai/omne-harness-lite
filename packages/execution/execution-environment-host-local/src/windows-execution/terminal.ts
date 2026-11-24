@@ -217,6 +217,7 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
             kind: 'completed',
             exit: { kind: 'code', code: completion.code },
             durationMs: completion.elapsedMs,
+            observedCwd: completion.cwd,
             output,
           }
         : {

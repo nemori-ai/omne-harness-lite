@@ -32,6 +32,7 @@ public static partial class OmneFiles {
     {112,"capacity"},{39,"capacity"},
   };
   static Exception Error(uint code) {
+    if (code == 2) return new FileNotFoundException("unresolved");
     string reason;
     return new IOException(Reasons.TryGetValue(code,out reason)?reason:"unknown");
   }
@@ -192,13 +193,15 @@ public static partial class OmneFiles {
   // The object a path names, opened with access. directory: the path ends in a separator or a "." segment,
   // so it must name a directory; follow: it ends in a "." segment, so the last segment is resolved as a
   // directory. The last segment is not followed: a link there is unsupported unless link is true.
-  static IntPtr Final(string root,string expectedRoot,string[] segments,bool rooted,bool directory,bool follow,uint access,bool link,List<IntPtr> held) {
+  static IntPtr Final(string root,string expectedRoot,string[] segments,bool rooted,bool directory,bool follow,uint access,bool link,List<IntPtr> held,bool lookup=false) {
     IntPtr current=Root(root,expectedRoot,rooted,held);
     uint rootVolume=Information(current).volume;
     for(int i=0;i<segments.Length;i++) {
       if(i<segments.Length-1 || follow) { current=Step(current,root,segments,i,rooted,rootVolume,held); continue; }
       uint parentVolume=Information(current).volume;
-      current=OpenRelative(current,segments[i],access,false); held.Add(current);
+      try { current=OpenRelative(current,segments[i],access,false); }
+      catch(FileNotFoundException) { if(lookup) throw new IOException("notFound"); throw; }
+      held.Add(current);
       Info step=Information(current);
       if((step.attributes&0x400)!=0 && !link) throw new IOException("unsupported");
       if(step.volume!=(rooted?rootVolume:parentVolume)) throw new IOException("notAuthorized");
@@ -211,9 +214,9 @@ public static partial class OmneFiles {
     List<IntPtr> held=new List<IntPtr>();
     try {
       uint access=operation=="list" || operation=="search"?0x81u:operation=="read"?0x80000080u:0x80u;
-      IntPtr current=Final(root,expectedRoot,segments,rooted,directory,follow,access,operation=="identify",held);
+      IntPtr current=Final(root,expectedRoot,segments,rooted,directory,follow,access,operation=="identify",held,operation=="lookup");
       Info info=Information(current);
-      if(operation=="identify") return new { info=Metadata(current,""), bytes="", entries=new object[0], next=-1 };
+      if(operation=="identify" || operation=="lookup") return new { info=Metadata(current,""), bytes="", entries=new object[0], next=-1 };
       if(Token(current)!=named) throw new IOException("conflict");
       if(operation=="search") {
         if((info.attributes&16)==0) throw new IOException("unsupported");
