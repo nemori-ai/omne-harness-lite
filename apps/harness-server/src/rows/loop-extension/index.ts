@@ -1,0 +1,84 @@
+import { isAbsolute } from 'node:path'
+import type { Context } from '@deepseek-ai/cordis'
+import { agentExtensionsKey } from '@omne-harness/agent-cordis-contract/cordis'
+import { executionScopeBindingKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
+import {
+  loopExtensionBuiltinsKey,
+  loopExtensionRunLocationsKey,
+  loopExtensionViewsKey,
+} from '@omne-harness/loop-extension-cordis-contract/cordis'
+import { enabledExtensionsBlock } from '@omne-harness/loop-extension-host-local'
+import {
+  loopExtensionCategoryPlugin,
+  loopExtensionPlugin,
+} from '@omne-harness/loop-extension-host-local/cordis'
+import { runtimeContextTenantBlocksKey } from '@omne-harness/runtime-context-cordis-contract/cordis'
+import { z } from 'zod'
+import { EntryRunLocations } from '../../entry/loop-extensions.ts'
+import { currentScope, sessionWorkReaderOf } from '../../entry/tool-requests.ts'
+import { defineRow } from '../../row.ts'
+import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
+
+const absolutePath = z.string().refine(value => isAbsolute(value))
+
+/** The interpreter table is an operator setting: a command extension names an interpreter, this table says which program that is. */
+const rowConfig = z.strictObject({
+  commands: z
+    .strictObject({
+      interpreters: z.record(z.string(), absolutePath),
+      env: z.record(z.string(), z.string()),
+      stateDirectory: absolutePath,
+      workspace: absolutePath,
+    })
+    .optional(),
+})
+
+export const loopExtensionRow = defineRow({
+  row: 'loop-extension',
+  implementation: 'real',
+  manifest: {
+    provides: [
+      loopExtensionViewsKey,
+      loopExtensionBuiltinsKey,
+      loopExtensionRunLocationsKey,
+      agentExtensionsKey,
+    ],
+    injects: [runtimeContextTenantBlocksKey],
+    sameProviderGroup: null,
+  },
+  lifecycle: { kind: 'none' },
+  plugin: {
+    name: 'loopExtension',
+    Config: rowConfig,
+    async apply(ctx: Context, config: z.infer<typeof rowConfig>) {
+      const commands = config.commands
+      // The category is this domain's contribution: it waits for the category point and leaves with this row.
+      ctx.plugin(loopExtensionCategoryPlugin)
+      // The enabled extensions are a fact of the tenant: a block of the tenant-level scope. The view
+      // is asked for at each read; while it is away the block reads as unavailable.
+      ctx[runtimeContextTenantBlocksKey].register({
+        blocks: [
+          enabledExtensionsBlock<unknown>({
+            read: async access =>
+              (await ctx.get(loopExtensionViewsKey)?.read(access)) ?? {
+                kind: 'unavailable',
+                diagnostic: 'the loop extension views are away',
+              },
+          }),
+        ],
+      })
+      const scopePorts = {
+        readWork: sessionWorkReaderOf(ctx),
+        scopeBinding: () => ctx.get(executionScopeBindingKey),
+      }
+      new EntryRunLocations(ctx, {
+        verifier: () => toolRuntimeHolder(ctx).verifier(),
+        scope: (tenant, principal, session) => currentScope(scopePorts, tenant, principal, session),
+        workspace: () => commands?.workspace,
+      })
+      if (commands === undefined) return void (await ctx.plugin(loopExtensionPlugin, {}))
+      const { workspace: _workspace, ...host } = commands
+      await ctx.plugin(loopExtensionPlugin, { commands: host })
+    },
+  },
+})

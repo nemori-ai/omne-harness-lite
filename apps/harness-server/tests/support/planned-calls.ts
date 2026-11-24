@@ -33,6 +33,12 @@ export const extensions = (command: string, params: Record<string, unknown>): Pl
   params,
 })
 
+export const skills = (command: string, params: Record<string, unknown>): PlannedCall => ({
+  tool: 'Skills',
+  command,
+  params,
+})
+
 export const extensionPoints = (command: string, params: Record<string, unknown>): PlannedCall => ({
   tool: 'OmneExtensionPoints',
   command,

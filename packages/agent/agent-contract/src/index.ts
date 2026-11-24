@@ -1,5 +1,5 @@
 export { agentBodyContract, agentDefinitionCategoryDisplay } from './body-contract.ts'
-export { obligationCategoryOf } from './finishing.ts'
+export { endsWithUntakenInput, obligationCategoryOf } from './finishing.ts'
 export {
   AGENT_TYPES,
   ATTRIBUTE_ITEMS,

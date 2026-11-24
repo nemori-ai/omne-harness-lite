@@ -5,6 +5,8 @@ import {
   type AssetLayerSource,
   type BodyContract,
   type Candidate,
+  type OfficialAsset,
+  type OfficialAssets,
   type PackageReader,
 } from '@omne-harness/assets'
 import type { AssetsLocal } from '@omne-harness/assets-local'
@@ -70,7 +72,11 @@ export function candidateOfRevision(revision: string, version: string): Candidat
 
 type Judged = Readonly<{ body: JsonValue; digest: string }>
 
-async function bodyWithin(contract: BodyContract | undefined, from: PackageReader) {
+/** The body a directory category gives a package, and the digest of its files; undefined when the package cannot be read or judged. */
+export async function packageJudged(
+  contract: BodyContract | undefined,
+  from: PackageReader,
+): Promise<Judged | undefined> {
   const layout = contract?.layout
   if (layout === undefined) return undefined
   const listed = await from.manifest()
@@ -81,11 +87,24 @@ async function bodyWithin(contract: BodyContract | undefined, from: PackageReade
   return 'ok' in body ? { body: body.ok, digest: packageDigest(listed.ok.entries) } : undefined
 }
 
-/** The official and the tenant layer of one tenant; `contract` is of the category being read. */
+function officialAt(official: OfficialAssets, asset: string, version: string) {
+  try {
+    const all = official()
+    if (all === 'unavailable') return undefined
+    return all.find(each => each.asset === asset && each.version === version)
+  } catch {
+    return undefined
+  }
+}
+
+const filesOf = (found: OfficialAsset | undefined): PackageReader | undefined => found?.files
+
+/** The official and the tenant layer of one tenant; `contract` is of the category being read; an official asset gives its body and files as the one who brought it gave them. */
 export function tenantLayers(
   assets: AssetsLocal,
   sources: readonly AssetLayerSource[],
   contract: () => BodyContract | undefined,
+  official: OfficialAssets,
 ): TenantAssetLayers {
   const places = new Map<string, Within>()
   const judged = new Map<string, Judged>()
@@ -95,13 +114,15 @@ export function tenantLayers(
     async body(candidate) {
       const { asset, version, within } = candidate
       if (within === undefined) {
+        const brought = officialAt(official, asset, version)
+        if (brought !== undefined) return brought.body
         const read = await assets.readVersion({ assetRef: asset, version })
         return read.kind === 'version' ? read.version.body : undefined
       }
       const tag = `${asset}\n${version}\n${within}`
       const known =
         judged.get(tag) ??
-        (await bodyWithin(contract(), withinDirectory(whole(asset, version), within)))
+        (await packageJudged(contract(), withinDirectory(whole(asset, version), within)))
       if (known === undefined) return undefined
       judged.set(tag, known)
       places.set(`${asset}\n${known.digest}`, { version, within })
@@ -109,9 +130,8 @@ export function tenantLayers(
     },
     readerOf({ ref, digest }) {
       const at = places.get(`${ref}\n${digest}`)
-      return at === undefined
-        ? whole(ref, digest)
-        : withinDirectory(whole(ref, at.version), at.within)
+      if (at !== undefined) return withinDirectory(whole(ref, at.version), at.within)
+      return filesOf(officialAt(official, ref, digest)) ?? whole(ref, digest)
     },
     withinOf: (ref, digest) => places.get(`${ref}\n${digest}`),
   }

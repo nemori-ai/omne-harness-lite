@@ -43,6 +43,7 @@ import type { AgentDependencies } from '../construction.ts'
 import { canonical } from '../canonical.ts'
 import { json, plain } from '../receiving-values.ts'
 import { agentEvidence, toolConsumption, type Message } from './identities.ts'
+import { localFailure } from './node-failure.ts'
 import { readToolDeliveryMaterial } from '../tool-receiving-material.ts'
 
 type Ports<P> = Pick<AgentDependencies<P, ContentBlock>, 'admission' | 'toolRequests' | 'materials'>
@@ -191,7 +192,7 @@ export async function admitToolAction<P>(
   if ('failure' in described) return notAnswered('agentToolRequests', described.failure)
   if (described.ok.kind === 'answered')
     return answered(ports, access, execution, action, described.ok.text)
-  const { definition } = described.ok
+  const definition = described.ok.definition.adoption
   const admitted = await ports.admission.admit({
     ...input,
     advance,
@@ -752,4 +753,34 @@ export function deniedSlot(action: Action, evidence: DurableEvidence) {
 
 export function candidateDigest(message: Message): string {
   return `sha256:${createHash('sha256').update(canonical(message)).digest('hex')}`
+}
+
+export type AdmittedAction = Extract<ToolAdmission, { kind: 'judged' | 'allowed' }>
+
+export async function preserveAllowed<P>(
+  ports: Ports<P>,
+  access: Access<P>,
+  execution: AgentExecutionId,
+  answers: readonly AdmittedAction[],
+  scopeBudget: number | undefined,
+): Promise<Outcome<Action[], Failure>> {
+  const actions: Action[] = []
+  for (const answer of answers) {
+    if (answer.kind === 'judged') {
+      actions.push(answer.action)
+      continue
+    }
+    if (scopeBudget === undefined)
+      return fail(
+        localFailure('invariant', {
+          kind: 'unavailable' as const,
+          owner: '@omne-harness/agent',
+          diagnostic: 'toolConcurrency is unavailable',
+        }),
+      )
+    const preserved = await preserveAllowedRequest(ports, access, execution, answer, scopeBudget)
+    if ('failure' in preserved) return preserved
+    actions.push(preserved.ok)
+  }
+  return succeed(actions)
 }

@@ -45,6 +45,7 @@ import {
   routedSkills,
   tenantSkills,
   TenantSkillsHost,
+  type OfficialSkillPorts,
 } from '../../../src/rows/skills/tenant-skills.ts'
 import {
   domainRoot,
@@ -67,6 +68,7 @@ import {
 } from '../../skills/support.ts'
 
 const ranking = { k1: 1.2, b: 0.75 }
+const NO_OFFICIAL: OfficialSkillPorts = { assets: () => [], directoryOf: () => undefined }
 const NO_WORKSPACE = { sources: () => undefined, contractOf: () => undefined }
 const signal = new AbortController().signal
 const cleanups: (() => Promise<void> | void)[] = []
@@ -160,7 +162,7 @@ async function world() {
       const assets = await tenantAssets.open(tenantRef)
       return assets === undefined
         ? undefined
-        : tenantSkills(assets, tenant, ranking, NO_WORKSPACE, sourcesOf(tenantRef))
+        : tenantSkills(assets, tenant, ranking, NO_WORKSPACE, sourcesOf(tenantRef), NO_OFFICIAL)
     },
   })
   cleanups.push(() => host.close())
