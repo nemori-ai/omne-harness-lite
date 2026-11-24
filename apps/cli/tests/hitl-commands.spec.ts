@@ -193,6 +193,18 @@ describe('a release card on the human channel', () => {
     return cli(['read-card', ...ref])
   }
 
+  it('says when a program made the action, in one line after the gate', async () => {
+    const made = { ...release(), origin: { session: 'ses-1', agent: 'exe-1', program: true } }
+    const result = await reading(made)()
+    expect(result.code).toBe(0)
+    expect(result.stderr.split('\n').slice(0, 3)).toEqual([
+      '放行卡：Notifications send',
+      '关口：发送',
+      '来源：由程序发起',
+    ])
+    expect((await reading(release())()).stderr).not.toContain('来源')
+  })
+
   it('prints the call, its gate, what each option covers and the rows, and leaves the result as it was', async () => {
     const result = await reading(release(given))()
     expect(result.code).toBe(0)

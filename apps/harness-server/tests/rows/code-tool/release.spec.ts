@@ -174,6 +174,16 @@ it('HS-52 a tool that asks is asked for at each position of a program: releasing
         origin: { program: true },
       })
       expect(callsOf(tree, 'Shell')).toHaveLength(0)
+      // A person reads the card through the client protocol: it says a program made the action.
+      const listed = await tree.cli(['list-cards', '--session', session])
+      expect(listed.status, listed.stderr).toBe(0)
+      const [shown] = (
+        JSON.parse(listed.stdout) as {
+          body: { items: { card: { question: { origin: unknown } } }[] }
+        }
+      ).body.items
+      expect(shown?.card.question.origin).toMatchObject({ program: true })
+      expect(listed.stderr).toContain('来源：由程序发起')
       await answerCard(tree, first, ['--option', 'allow-once'], 'reply-first')
       const second = await pollUntil(
         'the card of the second position',

@@ -1,10 +1,11 @@
 {
   "digests": {
-    "1": "sha256:db4bd6352472a2bcd4b4ac323cf2b65a676afb367f98dee4364db9c23da9d026"
+    "1": "sha256:db4bd6352472a2bcd4b4ac323cf2b65a676afb367f98dee4364db9c23da9d026",
+    "2": "sha256:a1fd8ec5632fea9b6a0a8254759c8112bbc0413384dc60dd45806e389382dbcd"
   },
   "major": 1,
   "name": "human-intervention",
-  "revision": 1,
+  "revision": 2,
   "rules": {
     "observations": {
       "observe-cards": {
@@ -465,6 +466,16 @@
                                                   "rule": {
                                                     "kind": "text"
                                                   }
+                                                },
+                                                "program": {
+                                                  "optional": true,
+                                                  "rule": {
+                                                    "kind": "literal",
+                                                    "values": [
+                                                      true
+                                                    ]
+                                                  },
+                                                  "since": 2
                                                 },
                                                 "session": {
                                                   "rule": {
@@ -1024,6 +1035,16 @@
                                                     "kind": "text"
                                                   }
                                                 },
+                                                "program": {
+                                                  "optional": true,
+                                                  "rule": {
+                                                    "kind": "literal",
+                                                    "values": [
+                                                      true
+                                                    ]
+                                                  },
+                                                  "since": 2
+                                                },
                                                 "session": {
                                                   "rule": {
                                                     "kind": "text"
@@ -1406,6 +1427,16 @@
                                                   "rule": {
                                                     "kind": "text"
                                                   }
+                                                },
+                                                "program": {
+                                                  "optional": true,
+                                                  "rule": {
+                                                    "kind": "literal",
+                                                    "values": [
+                                                      true
+                                                    ]
+                                                  },
+                                                  "since": 2
                                                 },
                                                 "session": {
                                                   "rule": {
@@ -2364,6 +2395,16 @@
                                                   "kind": "text"
                                                 }
                                               },
+                                              "program": {
+                                                "optional": true,
+                                                "rule": {
+                                                  "kind": "literal",
+                                                  "values": [
+                                                    true
+                                                  ]
+                                                },
+                                                "since": 2
+                                              },
                                               "session": {
                                                 "rule": {
                                                   "kind": "text"
@@ -2922,6 +2963,16 @@
                                                   "kind": "text"
                                                 }
                                               },
+                                              "program": {
+                                                "optional": true,
+                                                "rule": {
+                                                  "kind": "literal",
+                                                  "values": [
+                                                    true
+                                                  ]
+                                                },
+                                                "since": 2
+                                              },
                                               "session": {
                                                 "rule": {
                                                   "kind": "text"
@@ -3304,6 +3355,16 @@
                                                 "rule": {
                                                   "kind": "text"
                                                 }
+                                              },
+                                              "program": {
+                                                "optional": true,
+                                                "rule": {
+                                                  "kind": "literal",
+                                                  "values": [
+                                                    true
+                                                  ]
+                                                },
+                                                "since": 2
                                               },
                                               "session": {
                                                 "rule": {
