@@ -30,6 +30,9 @@ it.each([
   ['a field more', TEXT.replace('}', ',"tenant":"t"}')],
   ['a field less', TEXT.replace(/,"digest":"[^"]*"/u, '')],
   ['a field that is not text', TEXT.replace('"2048"', '2048')],
+  ['a key that is a number', TEXT.replace('"0123456789abcdef0123456789abcdef"', '123')],
+  ['a media type that is true', TEXT.replace('"image/png"', 'true')],
+  ['a digest that is a number', TEXT.replace(/"sha256:[a-f]*"/u, '7')],
   ['a field that is null', TEXT.replace('"local"', 'null')],
   [
     'the fields in another order',
