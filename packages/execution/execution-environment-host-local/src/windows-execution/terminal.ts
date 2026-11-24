@@ -118,6 +118,13 @@ const envValid = (env: Readonly<Record<string, string>>) =>
   )
 const geometryValid = (value: number) => Number.isSafeInteger(value) && value > 0 && value <= 32767
 
+function sealedOutput(current: Leg) {
+  const counts = current.window.seal()
+  return Object.freeze(
+    current.between === undefined ? counts : { ...counts, between: current.between },
+  )
+}
+
 function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTerminalCapacity }) {
   const { settings, ledger, capacity } = input
   const terminal = Object.freeze({ id: randomUUID(), generation: randomUUID() })
@@ -205,10 +212,7 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
     current.foregroundCompleted = completion?.completed === true
     current.started.resolve(false)
     releaseScan()
-    const counts = current.window.seal()
-    const output = Object.freeze(
-      current.between === undefined ? counts : { ...counts, between: current.between },
-    )
+    const output = sealedOutput(current)
     spare = current.next
     leg = undefined
     current.outcome.resolve(

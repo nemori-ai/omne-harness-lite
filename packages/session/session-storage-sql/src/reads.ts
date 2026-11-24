@@ -289,6 +289,64 @@ async function beginHistory<P>(
   return inheritedRead(context, input, 'history.begin', { kinds, pageBytes, after: '0' })
 }
 
+/** The optional end cursor resumes a verified prefix on a fresh read. Epoch comparison belongs to the consumer. */
+function modelViewReader<P>(context: Context<P>): SessionHistory<P>['readModelView'] {
+  return async input => {
+    const decided = await qualify(context, readAccessRequest(input, 'history.readModelView'))
+    if ('failure' in decided) return decided
+    const domain = await domainOf(context, input.tenant)
+    if ('failure' in domain) return domain
+    const binding = { kind: 'model-view', tenant: domain.ok.text, session: input.session }
+    const prefix = modelViewPrefix(domain.ok.text, input.session)
+    if (input.basis !== null && !input.basis.epoch.startsWith(prefix))
+      return failure({ kind: 'invalid', field: 'basis', reason: 'another session' })
+    let after: string | null = null
+    if (input.after !== null) {
+      const state = await open<{ after: string }>(context.cursor, binding, input.after)
+      if ('failure' in state) return state
+      after = state.ok.after
+    }
+    if (!Number.isInteger(input.pageBytes) || input.pageBytes < 1)
+      return failure({ kind: 'invalid', field: 'pageBytes', reason: 'not a positive integer' })
+    const read = await sessionRead(context, input, 'history.readModelView', 'session.model-view', {
+      epoch: input.basis === null ? null : input.basis.epoch.slice(prefix.length),
+      upper: input.basis === null ? null : input.basis.upper,
+      after,
+      pageBytes: input.pageBytes,
+    })
+    if ('failure' in read) return read
+    const out = read.ok.out
+    const basisOf = (value: { epoch: string; upper: string }): ModelViewBasis => ({
+      epoch: `${prefix}${value.epoch}`,
+      upper: value.upper,
+    })
+    if (out['kind'] === 'epoch-changed')
+      return succeed({
+        kind: 'epoch-changed',
+        current: basisOf(out['current'] as { epoch: string; upper: string }),
+      } satisfies ModelViewRead)
+    if (out['kind'] === 'invalid-bounds')
+      return failure({ kind: 'invalid', field: 'basis', reason: 'invalid model view bounds' })
+    if (out['kind'] === 'unreadable')
+      return failure(unavailable('a segment of the model view cannot be read'))
+    const next = out['next'] as string | null
+    const basis = basisOf(out['basis'] as { epoch: string; upper: string })
+    const cursorPosition = next ?? (input.resumeAtEnd ? basis.upper : null)
+    const token =
+      cursorPosition === null
+        ? null
+        : await seal(context.cursor, binding, { after: cursorPosition })
+    if (token !== null && 'failure' in token) return token
+    return succeed({
+      kind: 'page',
+      basis,
+      rows: out['rows'] as never,
+      next: next === null ? null : (token?.ok ?? null),
+      ...(next === null && input.resumeAtEnd && token !== null ? { resume: token.ok } : {}),
+    } satisfies ModelViewRead)
+  }
+}
+
 export function historyFace<P>(context: Context<P>): SessionHistory<P> {
   return {
     readCompactionContext: async input => {
@@ -380,66 +438,7 @@ export function historyFace<P>(context: Context<P>): SessionHistory<P> {
       const epoch = `${modelViewPrefix(read.ok.tenant, input.session)}${point.epoch}`
       return succeed({ kind: 'point', point: { ...point, epoch } })
     },
-    readModelView: async input => {
-      const decided = await qualify(context, readAccessRequest(input, 'history.readModelView'))
-      if ('failure' in decided) return decided
-      const domain = await domainOf(context, input.tenant)
-      if ('failure' in domain) return domain
-      const binding = { kind: 'model-view', tenant: domain.ok.text, session: input.session }
-      const prefix = modelViewPrefix(domain.ok.text, input.session)
-      if (input.basis !== null && !input.basis.epoch.startsWith(prefix))
-        return failure({ kind: 'invalid', field: 'basis', reason: 'another session' })
-      let after: string | null = null
-      if (input.after !== null) {
-        const state = await open<{ after: string }>(context.cursor, binding, input.after)
-        if ('failure' in state) return state
-        after = state.ok.after
-      }
-      if (!Number.isInteger(input.pageBytes) || input.pageBytes < 1)
-        return failure({ kind: 'invalid', field: 'pageBytes', reason: 'not a positive integer' })
-      const read = await sessionRead(
-        context,
-        input,
-        'history.readModelView',
-        'session.model-view',
-        {
-          epoch: input.basis === null ? null : input.basis.epoch.slice(prefix.length),
-          upper: input.basis === null ? null : input.basis.upper,
-          after,
-          pageBytes: input.pageBytes,
-        },
-      )
-      if ('failure' in read) return read
-      const out = read.ok.out
-      const basisOf = (value: { epoch: string; upper: string }): ModelViewBasis => ({
-        epoch: `${prefix}${value.epoch}`,
-        upper: value.upper,
-      })
-      if (out['kind'] === 'epoch-changed')
-        return succeed({
-          kind: 'epoch-changed',
-          current: basisOf(out['current'] as { epoch: string; upper: string }),
-        } satisfies ModelViewRead)
-      if (out['kind'] === 'invalid-bounds')
-        return failure({ kind: 'invalid', field: 'basis', reason: 'invalid model view bounds' })
-      if (out['kind'] === 'unreadable')
-        return failure(unavailable('a segment of the model view cannot be read'))
-      const next = out['next'] as string | null
-      const basis = basisOf(out['basis'] as { epoch: string; upper: string })
-      const cursorPosition = next ?? (input.resumeAtEnd ? basis.upper : null)
-      const token =
-        cursorPosition === null
-          ? null
-          : await seal(context.cursor, binding, { after: cursorPosition })
-      if (token !== null && 'failure' in token) return token
-      return succeed({
-        kind: 'page',
-        basis,
-        rows: out['rows'] as never,
-        next: next === null ? null : (token?.ok ?? null),
-        ...(next === null && input.resumeAtEnd && token !== null ? { resume: token.ok } : {}),
-      } satisfies ModelViewRead)
-    },
+    readModelView: modelViewReader(context),
   }
 }
 

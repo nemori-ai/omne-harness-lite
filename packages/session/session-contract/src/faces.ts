@@ -421,7 +421,6 @@ export type ModelViewRead =
       kind: 'page'
       basis: ModelViewBasis
       rows: readonly ModelViewRow[]
-      /** Requested tail cursor for continuing an index in the same epoch. */
       resume?: string
       next: string | null
     }>

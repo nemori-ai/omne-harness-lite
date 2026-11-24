@@ -92,12 +92,6 @@ function emptyAdoption(adoption: Adoption): boolean {
   )
 }
 
-function emptyEvidence(evidence: DurableEvidence): boolean {
-  return [evidence.owner, evidence.record, evidence.revision, evidence.digest].some(
-    part => part.length === 0,
-  )
-}
-
 function mintedWorkspace(workspace: WorkspaceId): boolean {
   return workspaceCodec.encode(workspace).ok
 }
@@ -409,7 +403,7 @@ function decideFinishRun(
     if (!snapshot.pending.includes(rejects.input))
       return invalid('bounded.input', 'the first input is no longer pending')
   }
-  if (emptyEvidence(basis.evidence)) return invalid(basis.field, 'incomplete evidence')
+  if (!completeEvidence(basis.evidence)) return invalid(basis.field, 'incomplete evidence')
   if (rejects !== null)
     out.push(
       encodeEntry(
@@ -514,7 +508,7 @@ function decideHandover(
   if (fact.result.kind === 'accepted' && snapshot.handed.includes(fact.input))
     return invalid('fact.input', 'the input was already handed over')
   const evidence = fact.result.kind === 'accepted' ? fact.result.receipt : fact.result.rejection
-  if (emptyEvidence(evidence)) return invalid('fact.result', 'incomplete evidence')
+  if (!completeEvidence(evidence)) return invalid('fact.result', 'incomplete evidence')
   return entries([
     encodeEntry(
       {
