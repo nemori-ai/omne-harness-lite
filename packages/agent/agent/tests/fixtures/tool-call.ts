@@ -1,3 +1,4 @@
+import { testToolDefinition } from '@omne-harness/agent/testing'
 import { judgeBlockIdentity, type ContentBlock } from '@omne-harness/content-block'
 import type { ActionToolCall, ExecutionSnapshot, PendingCall } from '@omne-harness/agent-contract'
 import {
@@ -80,11 +81,11 @@ export async function toolAssembly(
   configuration: Parameters<typeof controlAssembly>[2] = {},
   journal: Parameters<typeof controlAssembly>[0] = {},
   requests: Partial<ToolRequests> | null = {},
-  wrap: Parameters<typeof controlAssembly>[1] = dependencies => dependencies,
+  wrap: NonNullable<Parameters<typeof controlAssembly>[1]> = dependencies => dependencies,
 ) {
   const source: ToolRequests = {
     async describe() {
-      return { ok: { kind: 'tool', definition: adoption('read_file') } }
+      return { ok: { kind: 'tool', definition: testToolDefinition(adoption('read_file')) } }
     },
     async prepare(input) {
       return { ok: fixedToolRequest(input.consumer) }

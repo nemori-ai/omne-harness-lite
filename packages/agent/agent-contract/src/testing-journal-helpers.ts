@@ -636,6 +636,51 @@ export function failedContent(name: string): Partial<FinishCandidateContent> {
   return { conclusion: { kind: 'fail', cause: evidence(`cause/${name}`) } }
 }
 
+export function nodeFailedContent(name: string): Partial<FinishCandidateContent> {
+  return {
+    ...failedContent(name),
+    failure: {
+      kind: 'node-failed',
+      node: 'E4',
+      category: 'invariant',
+      failureKind: 'unavailable',
+      step: null,
+      at: '2026-11-06T00:00:00Z',
+      source: evidence(`node-failure/${name}`),
+    },
+  }
+}
+
+function extensionStopContent(name: string): Partial<FinishCandidateContent> {
+  return {
+    ...failedContent(name),
+    failure: {
+      kind: 'extension-stop',
+      passage: identity(decodePassageId('step-0/execution_started/call/0'), 'passage'),
+      reason: 'the extension asked to stop',
+      step: null,
+      at: '2026-11-06T00:00:00Z',
+      source: evidence(`extension-stop/${name}`),
+    },
+  }
+}
+
+/** The candidate of each kind that may end while an accepted input was not taken. */
+export function untakenInputContent(
+  kind: 'node-failed' | 'extension-stop' | 'ordinary-fail' | 'complete',
+): Partial<FinishCandidateContent> {
+  switch (kind) {
+    case 'node-failed':
+      return nodeFailedContent(kind)
+    case 'extension-stop':
+      return extensionStopContent(kind)
+    case 'ordinary-fail':
+      return failedContent(kind)
+    case 'complete':
+      return { ...nodeFailedContent(kind), conclusion: { kind: 'complete' } }
+  }
+}
+
 export async function prepareOrdinaryEnd<P>(
   opened: AgentJournalCoreOpened<P>,
   name: string,

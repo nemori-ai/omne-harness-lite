@@ -605,7 +605,10 @@ it('S2 NA-F4-1: SIGKILL preserves registered and pending terminal observations w
       null,
       registration.observed,
     ])
-    expect(second.calls.map(call => call.path.join('.'))).not.toContain('journal.tryFinish')
+    const resumed = second.calls.map(call => call.path.join('.'))
+    expect(resumed).not.toContain('journal.tryFinish')
+    // The pending observer is asked for again; its implementation is not there, so it stays pending.
+    expect(resumed).toContain('extensions.resolve')
     expect(
       second.calls
         .filter(call => call.path[0] === 'models')

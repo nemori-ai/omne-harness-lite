@@ -111,7 +111,7 @@ export function checkpoint(position = 'E3', passages: readonly Passage[] = []): 
     compaction: null,
     adoptedContext: null,
     guard: null,
-    completedPassages: [],
+    chain: null,
     priorConditions: null,
     currentHandoff: null,
     replyAdmissionRead: { kind: 'unverified' },

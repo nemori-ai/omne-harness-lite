@@ -13,7 +13,16 @@ import { join, resolve } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { parseArgs } from 'node:util'
 import { writeHeapSnapshot } from 'node:v8'
+import type { Context } from '@deepseek-ai/cordis'
+import type { BuiltinExtensions } from '@omne-harness/loop-extension-contract'
 import { userTextMessage } from '@omne-harness/session-protocol'
+import type { SessionId, SessionWorkPrincipals } from '@omne-harness/session-contract'
+import { sessionWorkPrincipalsKey } from '@omne-harness/session-cordis-contract/cordis'
+import { runtimeContextTenantScopeKey } from '@omne-harness/runtime-context-cordis-contract/cordis'
+import { createEnabledExtensions } from '../../src/entry/loop-extensions.ts'
+import { tenantScopePrincipalsKey } from '../../src/entry/tenant-scope-principals.ts'
+import { tenantOf as extensionTenantOf } from '../rows/loop-extension/support.ts'
+import type { EntryEnv } from '../../src/types.ts'
 import { startAssembly } from '../history-cost/assembly.ts'
 import { PAYLOAD_FILE } from '../history-cost/payload.ts'
 import { bodyOf, savedTenant } from '../r9/support.ts'
@@ -45,6 +54,7 @@ const { values: args } = parseArgs({
     rounds: { type: 'string', default: '200' },
     control: { type: 'string' },
     'heap-snapshots': { type: 'string' },
+    extensions: { type: 'string', default: '0' },
   },
 })
 if (args.out === undefined) throw new Error('give --out <new directory>')
@@ -62,6 +72,9 @@ const heapSnapshotRounds = new Set(
     .map(Number),
 )
 if (control !== null && control !== 'growth') throw new Error('--control takes only growth')
+const extensions = Number(args.extensions)
+if (!Number.isSafeInteger(extensions) || extensions < 0)
+  throw new Error('--extensions must be a count of observing loop extensions')
 
 type Segment = Readonly<{ owner: string; name: string; endMs: number; durationMs: number }>
 type Entry = Readonly<{ kind?: string; payload?: { terminal?: { outcome?: string } } }>
@@ -150,9 +163,26 @@ const count = installWorkerCount()
 const tap = createTelemetryTap()
 let round = 0
 const retained: Buffer[] = []
+let scope: Context | undefined
+let entryEnv: EntryEnv | undefined
+let workPrincipals: (() => SessionWorkPrincipals<unknown> | undefined) | undefined
+let trusted: (<K extends keyof Context & string>(name: K) => Context[K] | undefined) | undefined
+const PROBE = -4
+const PROBE_FIRST = -5
+const PROBE_READS = 50
+const extensionCalls = { count: 0 }
 const assembly = await startAssembly('inline', undefined, {
   historyKinds: [...VISIBLE_KINDS, 'run.terminal'],
   record: tap.record,
+  onScope: (given, env) => {
+    scope = given
+    entryEnv = env
+    workPrincipals = () =>
+      env.readTrusted(sessionWorkPrincipalsKey).get(sessionWorkPrincipalsKey) as
+        | SessionWorkPrincipals<unknown>
+        | undefined
+    trusted = name => env.readTrusted(name).get(name) as never
+  },
   ...(control === 'growth'
     ? { script: () => `sleep ${((round * 2) / 1000).toFixed(3)}; cat ${PAYLOAD_FILE}` }
     : {}),
@@ -197,6 +227,74 @@ async function visibleHistory(session: string) {
   }
 }
 
+// How many storage reads one read of the tenant-enabled extensions costs after the first one.
+async function probeReads(session: string) {
+  if (scope === undefined) throw new Error('the scope of the serving tree was not given')
+  const issued = await workPrincipals?.()?.forSession({
+    actor: 'coordinator',
+    tenant: tenantOf(savedTenant(home)),
+    session: session as SessionId,
+  })
+  if (issued === undefined || 'failure' in issued)
+    throw new Error(`no session-work principal: ${JSON.stringify(issued)}`)
+  const tree = scope
+  const port = createEnabledExtensions({
+    scope: () => tree.get(runtimeContextTenantScopeKey),
+    principal: tenant => trusted?.(tenantScopePrincipalsKey)?.forTenant(tenant),
+  })
+  const read = () =>
+    port.read({
+      principal: issued.ok,
+      tenant: tenantOf(savedTenant(home)),
+      execution: 'probe' as never,
+      position: 'before_model_call',
+      dimension: null,
+      purpose: 'main',
+    })
+  count.setPhase(PROBE_FIRST)
+  const first = await read()
+  if ('failure' in first) throw new Error(`probe read: ${JSON.stringify(first.failure)}`)
+  const firstReads = count.phase(PROBE_FIRST).reads
+  count.setPhase(PROBE)
+  for (let index = 0; index < PROBE_READS; index += 1) {
+    const answer = await read()
+    if ('failure' in answer) throw new Error(`probe read: ${JSON.stringify(answer.failure)}`)
+  }
+  const counted = count.phase(PROBE)
+  count.setPhase(BETWEEN)
+  const perRead = Object.fromEntries(
+    Object.entries(reads(counted)).map(([handler, value]) => [handler, value / PROBE_READS]),
+  )
+  writeFileSync(
+    join(out, 'probe.json'),
+    `${JSON.stringify({ firstReadStorageReads: firstReads, reads: PROBE_READS, storageReadsPerRead: counted.reads / PROBE_READS, perRead, commits: counted.commits })}\n`,
+  )
+}
+
+// Installs observing builtin extensions for the tenant, before the model call: every round passes there twice. Published and turned on through the entries a tenant uses.
+async function installObservers(): Promise<void> {
+  if (scope === undefined || entryEnv === undefined)
+    throw new Error('the scope of the serving tree was not given')
+  const builtins = scope.get('loopExtensionBuiltins') as BuiltinExtensions | undefined
+  if (builtins === undefined) throw new Error('the loop-extension row is not there')
+  const tree = { scope, env: entryEnv, home }
+  const tenant = await extensionTenantOf(tree)
+  for (let index = 0; index < extensions; index += 1) {
+    const name = `observer-${String(index)}`
+    builtins.register(name, async () => {
+      extensionCalls.count += 1
+      return { kind: 'output', value: { kind: 'observed' } }
+    })
+    await tenant.publish({
+      name,
+      position: 'before_model_call',
+      power: 'observe',
+      implementation: { kind: 'builtin', builtinName: name },
+    })
+    await tenant.run(name, true)
+  }
+}
+
 const machine = {
   platform: platform(),
   release: release(),
@@ -217,6 +315,7 @@ try {
     bodyOf(await assembly.cli(home, ['create-session', '--definition', 'coding']))['session'],
   )
   const tenant = tenantOf(savedTenant(home))
+  if (extensions > 0) await installObservers()
 
   const calibrateAndSnapshot = async (at: number): Promise<Record<string, number>> => {
     count.setPhase(CALIBRATION - at * 1000)
@@ -282,6 +381,7 @@ try {
         modelMs,
         ownOverheadMs: endToEndMs - modelMs,
         modelRequests: model.requests,
+        extensionCalls: extensionCalls.count,
         polls,
         ...tap.between(wallStart, wallEnd),
         memory: {
@@ -339,6 +439,7 @@ try {
     if (heapSnapshotRounds.has(round))
       writeHeapSnapshot(join(out, `heap-${String(round)}.heapsnapshot`))
   }
+  await probeReads(session)
   outcome = { ok: true }
 } catch (error) {
   outcome = { ok: false, error: String(error), stderr: assembly.stderr.slice(-20) }
@@ -352,6 +453,7 @@ try {
     exitCode,
     rounds,
     control,
+    extensions,
     startedAt,
     endedAt: new Date().toISOString(),
     machine,

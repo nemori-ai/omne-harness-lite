@@ -7,7 +7,7 @@ import type {
   Preparation,
 } from '@omne-harness/agent-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
-import { readyPreparation } from '@omne-harness/agent/testing'
+import { readyPreparation, testToolDefinition } from '@omne-harness/agent/testing'
 import { succeed } from '@omne-harness/operation-result'
 import {
   decodeToolCallId,
@@ -91,7 +91,7 @@ async function toolRound(
       ...dependencies,
       toolRequests: {
         async describe() {
-          return { ok: { kind: 'tool', definition: adoption('read_file') } }
+          return { ok: { kind: 'tool', definition: testToolDefinition(adoption('read_file')) } }
         },
         async prepare(input: Readonly<{ consumer: Parameters<typeof fixedToolRequest>[0] }>) {
           return { ok: fixedToolRequest(input.consumer) }

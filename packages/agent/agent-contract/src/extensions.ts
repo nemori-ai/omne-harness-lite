@@ -34,15 +34,7 @@ export type ErrorPolicy = 'ignore' | 'record' | 'treat_as_veto'
 export type UnavailabilityPolicy = 'skip' | 'veto'
 export type ExtensionImplementationDeclaration =
   | Readonly<{ kind: 'builtin'; builtinName: string }>
-  | Readonly<{
-      kind: 'command'
-      host: 'claude_code' | 'codex'
-      dialect: string
-      event: string
-      command: string
-      matcher?: string
-      timeout?: string
-    }>
+  | Readonly<{ kind: 'command'; interpreter: string; entry: string; timeout: string }>
 export type NeedDeclaration = Readonly<{ name: string; schema: Adoption; required: boolean }>
 export type LoopExtensionDeclaration = Readonly<{
   name: string

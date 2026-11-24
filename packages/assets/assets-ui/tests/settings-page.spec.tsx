@@ -160,6 +160,42 @@ it('文本的填好再点「设置」：值是填的文本；没填时不能交'
   })
 })
 
+const flag = (own: unknown) =>
+  ordinary(CALENDAR, CALENDAR_GROUP, 'strict', '严格模式', schema({ type: text('boolean') }), own)
+
+it('布尔的拨开关再点「设置」：值是拨到的那一边；没拨时不能交', async () => {
+  const fake = await opened([flag({ kind: 'unset' })])
+  const strict = within(row('严格模式'))
+  const set = strict.getByRole('button', { name: '设置' }) as HTMLButtonElement
+  const toggle = strict.getByRole('switch', { name: '严格模式：开或关' })
+  expect(set.disabled).toBe(true)
+  expect(toggle.getAttribute('aria-checked')).toBe('false')
+  fireEvent.click(toggle)
+  expect(strict.getByText('开')).toBeTruthy()
+  fireEvent.click(set)
+  const write = await fake.next('set-setting')
+  expect(write.body).toMatchObject({
+    owner: CALENDAR,
+    item: 'strict',
+    value: { kind: 'ordinary', value: { kind: 'boolean', value: true } },
+  })
+})
+
+it('布尔的这一层已经设成开：开关是开的，拨回关才能交，写的是关', async () => {
+  const fake = await opened([flag({ kind: 'set', value: { kind: 'boolean', value: true } })])
+  const strict = within(row('严格模式'))
+  const set = strict.getByRole('button', { name: '设置' }) as HTMLButtonElement
+  const toggle = strict.getByRole('switch', { name: '严格模式：开或关' })
+  expect(toggle.getAttribute('aria-checked')).toBe('true')
+  expect(set.disabled).toBe(true)
+  fireEvent.click(toggle)
+  fireEvent.click(set)
+  const write = await fake.next('set-setting')
+  expect(write.body).toMatchObject({
+    value: { kind: 'ordinary', value: { kind: 'boolean', value: false } },
+  })
+})
+
 it('读不了时一句话与「重试」，重试从头再读；没有一项时一句话', async () => {
   const fake = createFakeClient()
   render(<SettingsPage client={fake.client} tenant={TENANT_TEXT} />)

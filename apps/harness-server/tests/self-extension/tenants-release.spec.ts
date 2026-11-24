@@ -3,6 +3,7 @@
 import { existsSync, mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import type { ExtensionSources } from '@omne-harness/loop-extension-contract'
 import { describe, expect, it } from 'vitest'
 import { tenantAssetsKey } from '../../src/rows/tenant-assets/service.ts'
 import {
@@ -85,10 +86,15 @@ describe('two tenants that publish a tool and a definition under the same names,
   )
 
   it(
-    'does not answer that there is none while what a tenant holds cannot be read: the turn goes on with the tools of the release, and each asking is told the basis cannot be read',
+    'does not answer that there is none while what a tenant holds cannot be read: the tools do not hold the turn up, a tool of the release runs, and each asking is told the basis cannot be read',
     { tags: ['slow'], timeout: 240_000 },
     async () => {
       await inWorkspace(async (ask, tree, project) => {
+        // The loop extensions the tenant enabled stay readable: a turn waits while they cannot be read, whatever its tools are.
+        const extensionSources = tree.scope.get('loopExtensionSources') as ExtensionSources<unknown>
+        const present = extensionSources.of.bind(extensionSources)
+        let seen: Awaited<ReturnType<typeof present>>
+        extensionSources.of = async access => (seen = (await present(access)) ?? seen)
         const mine = await ask(made('MARK-ALPHA', COUNT_PY), published)
         expect(mine.match(/done OmneExtensions publish/gu)).toHaveLength(2)
 
