@@ -102,7 +102,19 @@ describe('the sheet draws what was read', () => {
     const person = said(page('a'), '人')
     const agent = said(page('b'), 'agent')
     expect(person).not.toBe(agent)
-    expect(said(pileGroup, 'agent')).toBe(agent)
+    const pileMark = within(pileGroup).getByRole('img', { name: /^最近由 agent 摆放 · \S/u })
+    expect(pileMark.querySelector('svg[data-icon]')?.getAttribute('data-icon')).toBe(agent)
+  })
+
+  it('a pile says who placed it by its mark alone: the words are its tip and its name, not part of the line', async () => {
+    await opened(canvas([], [pile('p', { name: '周报' })]))
+    const line = screen
+      .getByRole('group', { name: '周报' })
+      .querySelector<HTMLElement>(':scope > .omne-paper-name')
+    if (line === null) throw new Error('no name line')
+    expect(line.textContent).not.toMatch(/人 ·|agent ·|前|刚刚/u)
+    const mark = within(line).getByRole('img', { name: /^最近由人摆放 · \S/u })
+    expect(mark.getAttribute('title')).toBe(mark.getAttribute('aria-label'))
   })
 
   it('an open pile draws each page at its own size, or at the footprint when it has none', async () => {

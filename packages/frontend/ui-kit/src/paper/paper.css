@@ -88,7 +88,11 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.omne-paper-page:not(.omne-paper-pile) > .omne-paper-name > :is(.omne-paper-handle, .omne-paper-name-text) {
+  min-width: 2em;
+}
 .omne-paper-count {
+  flex: none;
   font-variant-numeric: tabular-nums;
 }
 .omne-paper-quiet {
@@ -102,9 +106,23 @@
 }
 .omne-paper-aside {
   display: flex;
-  flex: none;
+  flex: 0 1 auto;
   align-items: center;
+  min-width: 0;
   margin-block: calc(var(--spacing) * -1.25);
+}
+.omne-paper-aside > :not(.omne-paper-quiet, :has(.omne-paper-quiet)),
+.omne-paper-name > [data-slot='paper-pile-toggle'] {
+  flex: none;
+}
+.omne-paper-aside > :has(.omne-paper-quiet) {
+  min-width: 0;
+}
+.omne-paper-aside .omne-paper-quiet {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .omne-paper-leaf {
