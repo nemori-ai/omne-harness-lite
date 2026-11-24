@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 
-it('Cordis 入口给出界面模块与读法的小模块、三个位置标识、七个拓展点与它们的名字、交模型与工作区列表的两个口、交回附件的口与读法的口和来源', async () => {
+it('Cordis 入口给出界面模块与读法的小模块、三个位置标识、八个拓展点与它们的名字、交模型与工作区列表的两个口、交回附件的口与读法的口和来源', async () => {
   const cordis = (await import('@omne-harness/session-ui/cordis')) as Record<string, unknown>
   expect(Object.keys(cordis).sort()).toEqual([
     'CONVERSATION_PAGE',
@@ -9,6 +9,7 @@ it('Cordis 入口给出界面模块与读法的小模块、三个位置标识、
     'SESSION_COMPOSER_ATTACHMENTS',
     'SESSION_DOCK',
     'SESSION_LIST',
+    'SESSION_RUN_FAILURE',
     'SESSION_SIDE',
     'SESSION_STATUS',
     'SESSION_TOOL_CALL',
@@ -21,6 +22,7 @@ it('Cordis 入口给出界面模块与读法的小模块、三个位置标识、
     'sessionParts',
     'sessionReadsSourceKey',
     'sessionReadsUiModule',
+    'sessionRunFailure',
     'sessionSide',
     'sessionStatus',
     'sessionToolCall',
@@ -38,4 +40,6 @@ it('Cordis 入口给出界面模块与读法的小模块、三个位置标识、
   })
   expect(cordis['SESSION_DOCK']).toBe('session.dock')
   expect(cordis['sessionCallDetail']).toMatchObject({ name: 'session.call-detail' })
+  expect(cordis['SESSION_RUN_FAILURE']).toBe('session.run-failure')
+  expect(cordis['sessionRunFailure']).toMatchObject({ name: 'session.run-failure' })
 })

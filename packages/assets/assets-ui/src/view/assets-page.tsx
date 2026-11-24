@@ -15,6 +15,8 @@ export type AssetsPageProps = Readonly<{
   categorySlot?: (category: string) => ReactNode
   holdingSlot?: (category: string, name: string) => ReactNode
   pages?: (layout: AttachedLayout) => ReactNode
+  /** The category the shell points at: it is chosen when it is there, nothing is opened. */
+  pointAt?: string
 }>
 
 const nothing = (): null => null
@@ -96,6 +98,7 @@ export function AssetsPage(props: AssetsPageProps): JSX.Element {
         extras={extras}
         pages={props.pages ?? noPages}
         generic={generic}
+        pointAt={props.pointAt}
       />
     </PageColumn>
   )
@@ -111,10 +114,14 @@ type OverviewProps = Readonly<{
   extras: Extras
   pages: (layout: AttachedLayout) => ReactNode
   generic: (category: string) => ReactNode
+  pointAt: string | undefined
 }>
 
-function Overview({ categories, extras, pages, generic }: OverviewProps) {
-  const [chosen, setChosen] = useState<string | null>(null)
+function Overview({ categories, extras, pages, generic, pointAt }: OverviewProps) {
+  const [chosen, setChosen] = useState<string | null>(pointAt ?? null)
+  useEffect(() => {
+    if (pointAt !== undefined) setChosen(pointAt)
+  }, [pointAt])
   const data = categories.kind === 'read' ? [...categories.names.keys()].sort(byCodeUnit) : []
   return pages(entries => (
     <Tabs

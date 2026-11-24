@@ -30,11 +30,13 @@ import { WorkspaceSelectionStore, type WorkspaceChoiceSource } from './model/wor
 import {
   sessionBlockRender,
   sessionCallDetail,
+  sessionRunFailure,
   sessionComposerAttachments,
   sessionDock,
   sessionSide,
   sessionStatus,
   sessionToolCall,
+  type SessionRunFailureSubject,
 } from './points.ts'
 import { ArchiveAction, ArchivedSessions } from './view/archive.tsx'
 import { BackgroundHint, SideWithBackground } from './view/background-pane.tsx'
@@ -78,6 +80,7 @@ const SESSION_POINTS = [
   sessionComposerAttachments,
   sessionBlockRender,
   sessionToolCall,
+  sessionRunFailure,
 ]
 
 function blockDrawer(shell: ShellService, reads: BlockReads, scope: string | undefined) {
@@ -129,6 +132,16 @@ function toolCallDrawer(shell: ShellService) {
 
 const fragments = (entries: readonly Readonly<{ id: string; node: ReactNode }>[]) =>
   entries.map(entry => <Fragment key={entry.id}>{entry.node}</Fragment>)
+
+/** The places of the open session whose items stand one after another, as the page draws them. */
+function placesOf(shell: ShellService) {
+  return {
+    dock: (session: string) => sessionDock.slot(shell, { session }, fragments),
+    status: (session: string) => sessionStatus.slot(shell, { session }, fragments),
+    failure: (subject: SessionRunFailureSubject) =>
+      sessionRunFailure.slot(shell, subject, fragments),
+  }
+}
 
 // The composer reads how many calls wait for a person from what the session work last read; it asks nothing.
 function waitingCallsOf(held: SessionWorkStore) {
@@ -278,8 +291,7 @@ const apply: UiModuleDefinition<ReturnType<typeof needsOf>>['apply'] = (
               )
             }
             waitingCalls={waitingCalls}
-            dock={session => sessionDock.slot(shell, { session }, fragments)}
-            status={session => sessionStatus.slot(shell, { session }, fragments)}
+            {...placesOf(shell)}
             drafts={drafts}
             attachments={(session, draft) =>
               sessionComposerAttachments.slot(shell, { session, draft }, fragments)

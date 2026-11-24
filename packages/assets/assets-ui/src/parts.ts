@@ -98,22 +98,49 @@ export const assetsItem = definePart({
   when: '这一类有资产时',
 })
 
-export const assetsItemDetail = definePart({
-  name: 'assets.item.detail',
-  label: '资产详情',
-  summary: '点开一份之后的内容',
-  within: 'assets.item',
+export const assetsAsset = definePart({
+  name: 'assets.asset',
+  label: '一份资产的页',
+  summary: '点进一份之后的整页',
+  within: 'assets.category',
   depths: ['tokens', 'style'],
-  when: '点开一份之后',
+  when: '点进一份之后',
 })
 
-export const assetsItemActions = definePart({
-  name: 'assets.item.actions',
+export const assetsAssetToolbar = definePart({
+  name: 'assets.asset.toolbar',
+  label: '资产页头',
+  summary: '回到列表、它在哪一类、它的动作',
+  within: 'assets.asset',
+  depths: ['tokens', 'style'],
+  when: '点进一份之后',
+})
+
+export const assetsAssetActions = definePart({
+  name: 'assets.asset.actions',
   label: '资产的动作',
   summary: '禁用、启用、移除',
-  within: 'assets.item.detail',
+  within: 'assets.asset.toolbar',
   depths: ['tokens', 'style'],
-  when: '点开一份之后',
+  when: '点进一份本租户的资产之后',
+})
+
+export const assetsAssetSettings = definePart({
+  name: 'assets.asset.settings',
+  label: '资产的设置',
+  summary: '这一份能改的设置',
+  within: 'assets.asset',
+  depths: ['tokens', 'style'],
+  when: '点进一份之后',
+})
+
+export const assetsAssetDetail = definePart({
+  name: 'assets.asset.detail',
+  label: '资产的详情',
+  summary: '版本、来源、原始定义',
+  within: 'assets.asset',
+  depths: ['tokens', 'style'],
+  when: '点进一份之后',
 })
 
 export const assetsSetting = definePart({
@@ -162,8 +189,11 @@ export const assetsParts = [
   assetsCreateSubmit,
   assetsList,
   assetsItem,
-  assetsItemDetail,
-  assetsItemActions,
+  assetsAsset,
+  assetsAssetToolbar,
+  assetsAssetActions,
+  assetsAssetSettings,
+  assetsAssetDetail,
   assetsSetting,
   assetsSettingControl,
   assetsSettingsPage,

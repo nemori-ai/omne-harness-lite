@@ -44,9 +44,10 @@ export function releaseConverters(): readonly ReleaseConverter[] {
 
 /** The release's converters as the items its row brings on the point of the category. */
 export function officialConverterItems() {
-  return releaseConverters().map(({ name, version }) => ({
+  return releaseConverters().map(({ name, version, body }) => ({
     name,
     item: officialItem(CONVERTER_CATEGORY, name, version),
+    body,
   }))
 }
 

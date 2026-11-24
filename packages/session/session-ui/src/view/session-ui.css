@@ -659,6 +659,13 @@
   .omne-waiting-note {
     color: var(--omne-ink-muted);
   }
+  /* What the domain that knows the reason puts under it: its sentence, then the way to set it right. */
+  .omne-waiting-remedy {
+    display: grid;
+    justify-items: start;
+    gap: var(--omne-space-inline);
+    margin-top: var(--omne-space-inline);
+  }
   .omne-transcript-row {
     flex-shrink: 0;
     min-width: 0;

@@ -21,7 +21,7 @@ const at = { principal, tenant: A, asset: WEB, item: ITEM }
 const TEXT = {
   title: 'Exa API key',
   purpose: 'The key search sends to Exa.',
-  appliesAt: 'Applies from the next read of the item.',
+  appliesAt: '下一次读到这一项时起生效。',
   clearEffect: 'Search is unconfigured until a key is set again.',
   group: { id: 'web', title: 'Web', description: 'Web search' },
 }

@@ -15,6 +15,12 @@ import { boundRow } from './view/setting-row.tsx'
 import { SettingsPage } from './view/settings-page.tsx'
 
 export const ASSETS_PAGE_ORDER = 15
+export const ASSETS_PAGE = 'assets'
+
+/** Where the page of one category is: the shell's navigate takes these two, and the page chooses that category. */
+export function assetsPageTarget(category: string): Readonly<{ page: string; subject: string }> {
+  return { page: ASSETS_PAGE, subject: category }
+}
 export const SETTINGS_PAGE_ORDER = 20
 
 const inOrder: AttachedLayout = entries =>
@@ -34,16 +40,17 @@ export const assetsUiModule = defineUiModule({
     const categoryNames = createCategoryNames(client, server.get())
     provide(assetGovernanceKey, governancePort(governance, boundRow(shell)))
     shell.contribute('pages', {
-      id: 'assets',
+      id: ASSETS_PAGE,
       title: '资产',
       order: ASSETS_PAGE_ORDER,
       icon: 'resource',
-      render: ({ scope }) =>
+      render: ({ scope, subject }) =>
         scope === undefined ? null : (
           <ControlDrawContext.Provider value={shell}>
             <AssetsPage
               governance={governance}
               tenant={scope}
+              {...(subject === undefined ? {} : { pointAt: subject })}
               categoryNames={categoryNames}
               categorySlot={category => assetsCategory.slot(shell, category, { category }, inOrder)}
               holdingSlot={(category, name) =>

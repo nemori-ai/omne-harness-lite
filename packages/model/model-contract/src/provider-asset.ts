@@ -113,8 +113,8 @@ export function modelProviderBodyContract(): BodyContract {
           {
             id: CREDENTIALS_GROUP,
             parentId: null,
-            title: 'Credentials',
-            description: `The credentials the model provider ${provider.name} needs.`,
+            title: '凭据',
+            description: `模型供应商 ${provider.name} 要的凭据。`,
             order: 0,
           },
         ],

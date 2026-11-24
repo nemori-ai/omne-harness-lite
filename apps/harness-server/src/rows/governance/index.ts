@@ -47,7 +47,7 @@ import {
 } from './session-permission-backend-service.ts'
 import { createToolGovernanceDefinitionSource } from './tool-definition-source.ts'
 import { prepareInstalledTenantGovernance } from './tenant-installation.ts'
-import { createToolAssetCategory } from './tool-assets.ts'
+import { createToolAssetCategory, toolAssetPublication } from './tool-assets.ts'
 import { officialItem } from '../../assets/official-holdings.ts'
 import {
   provideTenantIndependentSettings,
@@ -176,9 +176,10 @@ export const governanceRow = defineRow({
     )
     ctx.assetCategories.bring(
       toolToolsPoint.name,
-      release.manifest.entries.map(({ asset }) => ({
-        name: asset.name,
-        item: officialItem('tool', asset.name, asset.adoption.digest),
+      release.manifest.entries.map(entry => ({
+        name: entry.asset.name,
+        item: officialItem('tool', entry.asset.name, entry.asset.adoption.digest),
+        body: toolAssetPublication(entry).pinned.body,
       })),
     )
     const categories = ctx.assetCategories.view

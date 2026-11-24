@@ -77,6 +77,7 @@ it('每个点由一个宿主声明，点的名字以宿主开头', async () => {
     'session.composer-attachments',
     'session.composer-intake',
     'session.dock',
+    'session.run-failure',
     'session.side',
     'session.status',
     'session.tool-call',

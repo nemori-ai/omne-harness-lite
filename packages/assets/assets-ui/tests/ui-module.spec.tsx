@@ -222,14 +222,17 @@ it('M4 declares its parts', async () => {
   const read = partsOn(shell.registry())
   expect(read.kind === 'read' && read.conflicts).toEqual([])
   expect(read.kind === 'read' && read.parts.map(part => [part.name, part.within ?? null])).toEqual([
+    ['assets.asset', 'assets.category'],
+    ['assets.asset.actions', 'assets.asset.toolbar'],
+    ['assets.asset.detail', 'assets.asset'],
+    ['assets.asset.settings', 'assets.asset'],
+    ['assets.asset.toolbar', 'assets.asset'],
     ['assets.category', 'assets.panel'],
     ['assets.category.create', 'assets.category.head'],
     ['assets.category.head', 'assets.category'],
     ['assets.create', 'assets.category'],
     ['assets.create.submit', 'assets.create'],
     ['assets.item', 'assets.list'],
-    ['assets.item.actions', 'assets.item.detail'],
-    ['assets.item.detail', 'assets.item'],
     ['assets.list', 'assets.category'],
     ['assets.page', 'shell.workspace.page'],
     ['assets.panel', 'assets.page'],

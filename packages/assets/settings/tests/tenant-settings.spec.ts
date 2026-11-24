@@ -667,7 +667,7 @@ describe('list and describe', () => {
       declaration: {
         title: presentation.title,
         purpose: presentation.description,
-        appliesAt: 'Applies from the next read of the item.',
+        appliesAt: '下一次读到这一项时起生效。',
         clearEffect: presentation.clear,
         group: GROUP,
       },
@@ -686,7 +686,7 @@ describe('list and describe', () => {
       declaration: {
         title: presentation.title,
         purpose: presentation.description,
-        appliesAt: 'Applies from the next read of the item.',
+        appliesAt: '下一次读到这一项时起生效。',
         clearEffect: presentation.clear,
         group: GROUP,
       },

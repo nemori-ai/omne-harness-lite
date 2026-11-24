@@ -27,9 +27,10 @@ const plugin: Plugin.Object = {
       broughtDefinitionsPlugin(
         'model-providers-official',
         modelProvidersPoint.name,
-        releaseProviders().map(({ body, version }) => ({
+        releaseProviders().map(({ body, document, version }) => ({
           name: body.name,
           item: officialItem(MODEL_PROVIDER_CATEGORY, body.name, version),
+          body: document,
         })),
       ),
     )

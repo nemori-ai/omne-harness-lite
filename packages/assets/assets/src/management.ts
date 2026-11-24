@@ -4,6 +4,17 @@ import type { CapabilityId, JsonValue } from './identity.ts'
 import { collectCandidates, type AssetEntry, type AssetLayerSource } from './layers.ts'
 import { MAX_ASSET_PAGE } from './layers.ts'
 import type { PackageReader } from './package.ts'
+import {
+  officialCursor,
+  officialOf,
+  officialRow,
+  officialSettings,
+  readListCursor,
+  readOfficial,
+  sameCapability,
+  tenantCursor,
+  type OfficialAssets,
+} from './official.ts'
 import { copyTree } from './read-body.ts'
 import {
   creationRefusal,
@@ -265,9 +276,10 @@ export type TenantManagement<P> = Readonly<{
 
 type Ports<P> = Readonly<{
   acting: TenantActing<P>
-  categories: Pick<CategoryView, 'describe'>
+  categories: Pick<CategoryView, 'describe' | 'lookup'>
   publishing: TenantPublishing<P>
   storeOf(tenant: string): Promise<TenantLayerStore | undefined>
+  official: OfficialAssets
 }>
 type StoreFor<P> = (
   scope: Scope<P>,
@@ -361,33 +373,78 @@ function publisherOf<P>(ports: Ports<P>): Publish<P> {
 
 async function list<P>(
   storeFor: StoreFor<P>,
-  categories: Ports<P>['categories'],
+  ports: Ports<P>,
   input: Parameters<TenantManagement<P>['list']>[0],
 ): Promise<ManagedList> {
   const store = await storeFor(input)
   if ('kind' in store) return store
-  const listing = categories.describe(input.category)
+  const listing = ports.categories.describe(input.category)
   if (listing === undefined) return { kind: 'unknown-category' }
   if ('unusable' in listing) return UNAVAILABLE
   if (!Number.isInteger(input.limit) || input.limit < 1 || input.limit > MAX_ASSET_PAGE)
     return { kind: 'invalid' }
+  const cursor = readListCursor(input.after)
+  if (cursor === undefined) return { kind: 'invalid' }
+  const { category, limit } = input
   try {
-    const { category, after, limit } = input
-    const read = await store.list({ category, after, limit })
-    return read.kind === 'page' ? { ...read, completeness: 'complete' } : read
+    return cursor.part === 'tenant'
+      ? await tenantPage(store, category, cursor.after, limit, [])
+      : await officialPage(store, ports, category, cursor.after, limit)
   } catch {
     return UNAVAILABLE
   }
 }
 
+async function officialPage<P>(
+  store: TenantLayerStore,
+  ports: Ports<P>,
+  category: string,
+  after: string | null,
+  limit: number,
+): Promise<ManagedList> {
+  const all = readOfficial(ports.official)
+  if (all === undefined) return UNAVAILABLE
+  const rows: AssetRow[] = []
+  for (const asset of officialOf(all, category, after)) {
+    const held = await store.held(asset.capability)
+    if (held.kind === 'unavailable') return UNAVAILABLE
+    if (held.kind === 'held' && held.row.origin === 'official') continue
+    rows.push(officialRow(ports.categories, asset))
+  }
+  if (rows.length > limit) {
+    const kept = rows.slice(0, limit)
+    const last = kept.at(-1)
+    const next = last === undefined ? null : officialCursor(last.capability.name)
+    return { kind: 'page', items: kept, next, completeness: 'complete' }
+  }
+  if (rows.length === limit)
+    return { kind: 'page', items: rows, next: tenantCursor(null), completeness: 'complete' }
+  return tenantPage(store, category, null, limit - rows.length, rows)
+}
+
+async function tenantPage(
+  store: TenantLayerStore,
+  category: string,
+  after: string | null,
+  limit: number,
+  before: readonly AssetRow[],
+): Promise<ManagedList> {
+  const read = await store.list({ category, after, limit })
+  if (read.kind !== 'page') return read
+  const next = read.next === null ? null : tenantCursor(read.next)
+  return { kind: 'page', items: [...before, ...read.items], next, completeness: 'complete' }
+}
+
 async function describe<P>(
   storeFor: StoreFor<P>,
+  ports: Ports<P>,
   input: Parameters<TenantManagement<P>['describe']>[0],
 ): Promise<ManagedAsset> {
   const store = await storeFor(input)
   if ('kind' in store) return store
   try {
     const held = await store.held(input.capability)
+    if (held.kind === 'absent') return await describeOfficial(store, ports, input.capability)
     if (held.kind !== 'held') return held
     const layers = await collectCandidates(store.layers, input.capability)
     const { row, revision, content, settings } = held
@@ -398,21 +455,56 @@ async function describe<P>(
   }
 }
 
+async function describeOfficial<P>(
+  store: TenantLayerStore,
+  ports: Ports<P>,
+  capability: CapabilityId,
+): Promise<ManagedAsset> {
+  const all = readOfficial(ports.official)
+  if (all === undefined) return UNAVAILABLE
+  const asset = all.find(each => sameCapability(each.capability, capability))
+  if (asset === undefined) return { kind: 'absent' }
+  const layers = await collectCandidates(store.layers, capability)
+  return {
+    kind: 'asset',
+    row: officialRow(ports.categories, asset),
+    revision: 0,
+    content: { kind: 'data', body: asset.body },
+    standing: standingOf(evaluate({ layers, eligible: () => 'yes' }), asset),
+    settings: officialSettings(ports.categories, asset),
+  }
+}
+
 async function files<P>(
   storeFor: StoreFor<P>,
+  official: OfficialAssets,
   input: Parameters<TenantManagement<P>['files']>[0],
 ): Promise<HeldFiles | Readonly<{ kind: 'denied' }>> {
   const store = await storeFor(input)
   if ('kind' in store) return store
   try {
-    return await store.files(input.capability)
+    const read = await store.files(input.capability)
+    if (read.kind !== 'absent') return read
+    const all = readOfficial(official)
+    if (all === undefined) return UNAVAILABLE
+    const asset = all.find(each => sameCapability(each.capability, input.capability))
+    return asset === undefined ? read : { kind: 'body', version: asset.version, body: asset.body }
   } catch {
     return UNAVAILABLE
   }
 }
 
+function officialChange(official: OfficialAssets, holdingRef: string): HoldingOutcome {
+  const all = readOfficial(official)
+  if (all === undefined) return UNAVAILABLE
+  return all.some(asset => asset.asset === holdingRef)
+    ? { kind: 'not-writable', reason: 'official' }
+    : { kind: 'absent' }
+}
+
 async function changeHolding<P>(
   storeFor: StoreFor<P>,
+  official: OfficialAssets,
   scope: Scope<P> & Readonly<{ operationId: string; holding: string }>,
   change: HoldingChange,
 ): Promise<HoldingOutcome> {
@@ -424,6 +516,7 @@ async function changeHolding<P>(
     const recalled = await store.recall({ operationId, holdingRef, change })
     if (recalled.kind !== 'not-found') return storeOutcome(recalled, operationId)
     const holding = await store.holding(holdingRef)
+    if (holding.kind === 'absent') return officialChange(official, holdingRef)
     if (holding.kind !== 'holding') return { kind: holding.kind }
     const refused = decided(holding, change)
     if (refused !== undefined) return refused
@@ -593,12 +686,15 @@ export function createTenantManagement<P>(ports: Ports<P>): TenantManagement<P> 
   const storeFor = storeForOf(ports)
   const publish = publisherOf(ports)
   return Object.freeze({
-    list: input => list(storeFor, ports.categories, input),
-    describe: input => describe(storeFor, input),
-    files: input => files(storeFor, input),
+    list: input => list(storeFor, ports, input),
+    describe: input => describe(storeFor, ports, input),
+    files: input => files(storeFor, ports.official, input),
     setEnabled: input =>
-      changeHolding(storeFor, input, { kind: 'setEnabled', enabled: input.enabled }),
-    remove: input => changeHolding(storeFor, input, { kind: 'remove' }),
+      changeHolding(storeFor, ports.official, input, {
+        kind: 'setEnabled',
+        enabled: input.enabled,
+      }),
+    remove: input => changeHolding(storeFor, ports.official, input, { kind: 'remove' }),
     createFromData: input => {
       const body = copyTree(input.body, true)
       if (body === undefined) return Promise.resolve(BODY_NOT_READ)
