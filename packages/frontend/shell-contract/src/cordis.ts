@@ -182,12 +182,13 @@ export abstract class ShellService extends Service implements ShellSlots {
     part: string,
     tokens: Readonly<Record<string, string>>,
     scope: Scope = [],
+    files?: string,
   ): () => unknown {
-    return this.ctx.dynamis.put([tokensEntry(part, tokens, scope)])
+    return this.ctx.dynamis.put([tokensEntry(part, tokens, scope, false, files)])
   }
 
-  putStyle(part: string, style: PartStyle, scope: Scope = []): () => unknown {
-    return this.ctx.dynamis.put([styleEntry(part, style, scope)])
+  putStyle(part: string, style: PartStyle, scope: Scope = [], files?: string): () => unknown {
+    return this.ctx.dynamis.put([styleEntry(part, style, scope, files)])
   }
 
   putRender<P>(part: string, render: PartRender<P>, scope: Scope = []): () => unknown {

@@ -15,7 +15,10 @@ import {
 import { writeJsonText } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
+  IMAGE_HEAD_BYTES,
+  IMAGE_SUFFIXES,
   MANIFEST_FILE,
+  imageFault,
   judgePackage,
   membersOf,
   readManifest,
@@ -142,6 +145,22 @@ async function judgeMember(
 const UNAVAILABLE = fail({ kind: 'source-failed', failure: 'unavailable' } as const)
 const invalid = (reason: string) => fail({ kind: 'invalid-package', reason } as const)
 
+type Rejected = ReturnType<typeof invalid> | Outcome<never, PackageRejection>
+
+async function falseImage(
+  pkg: PackageReader,
+  entries: readonly Readonly<{ path: string; digest: string }>[],
+): Promise<Rejected | null> {
+  for (const { path, digest } of entries) {
+    if (!IMAGE_SUFFIXES.some(suffix => path.endsWith(suffix))) continue
+    const opened = await pkg.open(path, digest)
+    if (!('ok' in opened)) return fail({ kind: 'source-failed', failure: opened.failure })
+    const fault = imageFault(path, opened.ok.subarray(0, IMAGE_HEAD_BYTES))
+    if (fault !== null) return invalid(fault)
+  }
+  return null
+}
+
 async function readPackage(
   pkg: PackageReader,
   fault: Fault,
@@ -157,6 +176,8 @@ async function readPackage(
   if (read.kind === 'refused') return invalid(read.reason)
   const held = judgePackage(read.manifest, listed.ok.entries)
   if (!held.ok) return invalid(held.reason)
+  const untrue = await falseImage(pkg, listed.ok.entries)
+  if (untrue !== null) return untrue
   const unfit = fault(read.manifest)
   if (unfit !== null) return invalid(unfit)
   const body = readBodyText(text, BODY_LIMITS)

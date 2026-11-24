@@ -104,6 +104,7 @@ export const assembly: Assembly = {
         given: { React, ui },
         load: (name, version, path) =>
           import(/* @vite-ignore */ pluginFilePath(name, version, path)),
+        files: (name, version) => pluginFilePath(name, version, ''),
       },
     }),
   ],

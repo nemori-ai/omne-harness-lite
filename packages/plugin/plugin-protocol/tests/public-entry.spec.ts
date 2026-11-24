@@ -4,6 +4,8 @@ it('the root entry gives the plugin/v1 contract, the manifest, the judgment of a
   const root = (await import('@omne-harness/plugin-protocol')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual([
     'FILE_SUFFIXES',
+    'IMAGE_HEAD_BYTES',
+    'IMAGE_SUFFIXES',
     'MANIFEST_FILE',
     'MANIFEST_SCHEMA',
     'NO_FLOOR',
@@ -11,7 +13,9 @@ it('the root entry gives the plugin/v1 contract, the manifest, the judgment of a
     'bindPorts',
     'createLoader',
     'fiberOf',
+    'fileRefs',
     'heldOf',
+    'imageFault',
     'insidePackage',
     'judgePackage',
     'memberDigest',
