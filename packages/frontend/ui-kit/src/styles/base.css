@@ -155,6 +155,10 @@
     --tw-ring-offset-shadow: 0 0 #0000;
   }
 
+  [data-slot='input'][data-variant='line']:focus-visible {
+    outline: none;
+  }
+
   :is(
     [data-slot='dropdown-menu-content'],
     [data-slot='dropdown-menu-sub-content'],

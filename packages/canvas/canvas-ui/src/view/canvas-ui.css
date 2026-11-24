@@ -135,9 +135,7 @@
     width: calc(var(--spacing) * 90);
     max-height: calc(var(--spacing) * 120);
     padding: var(--omne-space-block);
-    border-radius: var(--omne-radius-card);
     background-color: var(--omne-surface-page);
-    box-shadow: var(--omne-elevation-overlay);
   }
   .canvas-finder-found {
     display: flex;

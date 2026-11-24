@@ -218,6 +218,7 @@ export function Finder(props: FinderProps): JSX.Element {
         onKeyDown={onKeyDown}
       >
         <Input
+          variant="line"
           autoFocus
           aria-label="查找要摆上来的东西"
           placeholder="查找要摆上来的东西"

@@ -91,6 +91,7 @@ describe('the finder lists what each kind lets a person pick, a group a kind', (
     await put(world.root, 'cards-ui', CARD, picker('card', CARD))
     await find(world)
     expect(document.activeElement).toBe(line())
+    expect(line().dataset['variant']).toBe('line')
     fireEvent.change(line(), { target: { value: 'tea' } })
     expect(within(group('便签')!).getByRole('button').textContent).toBe('note:tea')
     expect(within(group('卡片')!).getByRole('button').textContent).toBe('card:tea')
