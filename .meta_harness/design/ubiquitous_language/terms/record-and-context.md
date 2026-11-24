@@ -257,26 +257,18 @@
 
 ### UL-origin-tag · 来路标记 · Origin Tag
 
-> **中**：**一块文本身上记着的「这段文字是从哪条路来的」**——人敲[斜杠命令](capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command)时附带的参数、
-> 受理时从命令展开出来的那段正文（① 型的提示词正文、② 型逐字装进来的 skill 正文），还是原命令本身的留痕。
-> **它是[内容块](#ul-content-block--内容块--content-block)上的一项属性，不是另一类块**：原命令与展开后的全文一起留在同一条消息里，靠它分得出哪块是哪个。
-> 它只说出处——不说这块给谁看，也不代表任何资格已经判过。**本版只有斜杠命令的受理会打上它**；取值怎么划分归规格。
+> **中**：**一块文字身上记着的「这段字不是人打的，它来自哪一份」**：受理时随[斜杠引用](interaction-and-dispatch.md#ul-slash-reference--斜杠引用--slash-reference)装进来的 Skill 正文，记着那份 Skill 的全名、来源层、版本与包摘要。
+> **它是[内容块](#ul-content-block--内容块--content-block)上的一项属性，不是另一类块**：人的话与装进来的正文在同一条消息里各成一块，靠它分得出哪块是哪个。
+> 它只说出处——不说这块给谁看，也不代表任何资格已经判过。只有受理时解析人的话的那一步能写它，发送方带来的被拒。
 >
-> **EN**: **The mark on a text block recording which path the text came by** — the arguments a person attached
-> when typing a slash command, the text expanded from that command at intake (a type-① prompt body, a type-② skill
-> body copied verbatim), or the record of the command itself as typed. **It is an attribute of a content block, not
-> another kind of block**: the original command and the expanded text sit together in one message, and this mark tells
-> them apart. It states provenance only — nothing about who reads the block, and no entitlement is implied by it.
-> **In this version only slash-command intake writes it**; how its values are divided belongs to the specification.
+> **EN**: **The mark on a text block recording "this text was not typed by the person; it comes from this item"**: the skill body brought in at intake by a slash reference carries the skill's full name, source layer, version and package digest. **It is an attribute of a content block, not another kind of block**: the person's words and the brought-in body sit in one message as separate blocks, and this mark tells them apart. It states provenance only — nothing about who reads the block, and no entitlement is implied by it. Only the step of intake that resolves the person's words may write it; a sender that brings one is refused.
 
 - **形态**：属性
-- **出处**：[PF-014 §5.10 斜杠命令在受理时分两路走](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#510-斜杠命令在受理时分两路走) ·
-  [§5.6「消息落盘之前」那一刻，看得到什么](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#56-消息落盘之前那一刻看得到什么)（rev 14）
-- **⚠️ 别混 ①**：**不是[来源标记](#ul-source-tag--来源标记--source-tag)**——那是入站到达与提醒上的「谁捎来的」，挂在到达与消息那一层；来路标记挂在一块文本上，说的是这段字怎么来的
-- **别混 ②**：**不是[块标注](#ul-block-annotation--块标注--block-annotation)**——标注答「给人看吗、给模型看吗」；来路标记不改变标注，留痕块与展开物各给不给模型读，由受理那一方定
+- **出处**：[Slash Command 用户的话不被改写](../../product/slash-commands/design.md#用户的话不被改写) · [J-SC04](../../product/slash-commands/design.md#j-sc04-在一句话里引用一份-skill)（rev 4）
+- **⚠️ 别混 ①**：**不是[来源标记](#ul-source-tag--来源标记--source-tag)**——那是入站到达与提醒上的「谁捎来的」，挂在到达与消息那一层；来路标记挂在一块文字上，说的是这段字怎么来的
+- **别混 ②**：**不是[块标注](#ul-block-annotation--块标注--block-annotation)**——标注答「给人看吗、给模型看吗」；来路标记不改变标注
 - **别混 ③**：**不是[资产来源](circulation-and-entitlement.md#ul-asset-origin--资产来源--asset-origin)**（official / customized）
-- **注意**：正文的叙述说法是「原命令的标注」（PF-014 §5.6、§5.10）——那里的「标注」指的是它，不是块标注
-- **待裁决**：上面出处所引的封存章节标题含已移除的位置名。斜杠命令的受理、展开与脱敏改落在哪里，由 slash-commands 产品负责人裁定，见 [C-61](../conflicts.md#c-61斜杠命令受理依赖已移除的位置)；本词条只说出处，不替它定位置
+- **注意**：给模型看时，请求上下文按它加一行固定的标头，存着的正文逐字不变
 
 ### UL-content-block · 内容块 · Content Block
 

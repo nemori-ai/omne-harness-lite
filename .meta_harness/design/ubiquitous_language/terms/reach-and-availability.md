@@ -384,4 +384,26 @@
 - **别混 ②**：**不是资产**。对端动作随接入点一起被持有、授权与治理，见 [MCP](capabilities-and-composition.md#ul-mcp--mcp--mcp)
 - **注意**：裸写「已知动作」不作术语，跨 topic 写全称
 
+### UL-command-entry · 入口项 · Command Entry
+
+> **中**：一个会话此刻能用一个名字点名的一件事，是这个会话的清单里的一项。入口项恰有三种：引用型（一份 Skill，写在一句话的任何位置）、提示词命令与系统命令（这两种只写在开头）。能写在哪里由种类决定。每一项带着它的[全名与短名](interaction-and-dispatch.md#ul-command-name--全名与短名--command-name)、给人看的一句话、此刻能不能用及原因。清单按发问的那个租户、主体与会话此刻的事实现算，不存。
+>
+> **EN**: One thing a session can name right now, as one item of that session's list. A command entry is one of exactly three kinds: a reference (a skill, written anywhere in a sentence), a prompt command, or a system command (these two are written only at the start). The kind decides where it may be written. Each item carries its full and short name, one line for people, and whether it can be used now and why not. The list is computed from the facts of the asking tenant, subject and session at that moment; it is not stored.
+
+- **形态**：视图
+- **出处**：[Slash Command 入口项与它的位置](../../product/slash-commands/design.md#入口项与它的位置) · [J-SC06](../../product/slash-commands/design.md#j-sc06-清单跟着事实走不等刷新)（rev 4）
+- **别混**：不是[斜杠命令](capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command)这一类资产——提示词命令是资产，Skill 与系统命令不是；入口项是它们在一个会话里能被点名的那一面。也不是[工具条目](#ul-tool-entry--工具条目--tool-entry)：工具条目给 agent 调，入口项给人点名
+- **注意**：客户端的控制与界面动作不在服务端的清单里，它们是[外壳动作](interaction-and-dispatch.md#ul-shell-action--外壳动作--shell-action)
+
+### UL-command-entry-source · 入口来源 · Command Entry Source
+
+> **中**：另一个领域在与命令的关系里扮演的角色：它向命令登记，被问到时按发问的租户、主体与会话此刻的事实交出一批[入口项](#ul-command-entry--入口项--command-entry)，被点名时交出这一项的内容或一个操作请求。Skill 领域是一个来源，交出可取用的 Skill；资产交出提示词命令；各流程的拥有者交出自己的系统命令。一个来源一个名字空间。
+>
+> **EN**: The role another domain plays toward commands: it registers with them and, when asked, hands over a set of command entries computed from the asking tenant's, subject's and session's facts at that moment; when one of its entries is named, it hands over that entry's content or an operation request. The skill domain is one source and hands over the skills that can be used; assets hand over prompt commands; each flow owner hands over its own system commands. One source has one namespace.
+
+- **形态**：属性
+- **出处**：[Slash Command 入口项与它的位置](../../product/slash-commands/design.md#入口项与它的位置)（rev 4）
+- **别混**：不是[工具条目来源](#ul-tool-entry-source--工具条目来源--tool-entry-source)，那是对工具入口的同一种角色；两者同构，各归各的入口。来源不把任何东西存进命令，命令也不认识来源是谁
+- **注意**：一个来源此刻答不出，清单里只有它那一部分写明无法判断，不当成空
+
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

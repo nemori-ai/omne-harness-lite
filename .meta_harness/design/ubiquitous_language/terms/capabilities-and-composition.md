@@ -464,46 +464,46 @@
 
 ### UL-slash-command · 斜杠命令 · Slash Command
 
-> **中**：**人主动发起某件事的入口**，人在交付面敲 `/什么` 触发；**只由交付面识别、只对人**，模型不调用它。
-> 它**绑定**要做的事，**绑定目标恰有三种**：**一段自定义提示词**；**装配的一个 skill**（其正文直接成为消息里的一个内容块）；
-> **一条系统业务流程**（命令服务或查询服务的某一个动作，不进队列、不成为消息）。
-> **命令本身不是做事的东西，它是指路牌**。**不含键盘控制或 shell 命令。**
+> **中**：**人在交付面写 `/名字` 点名一个[入口项](reach-and-availability.md#ul-command-entry--入口项--command-entry)的那种写法，以及这样点名的总称。**写在开头的是命令（提示词命令或系统命令），后面整段是它的参数；写在一句话任何位置的是[斜杠引用](interaction-and-dispatch.md#ul-slash-reference--斜杠引用--slash-reference)，只能绑到 Skill。只对人：模型不调用它，只有成员本人经交付面发的输入才这样识别。**命令本身不是做事的东西，它是指路牌。**
 >
-> **EN**: **An entry point through which a person initiates something**, triggered by
-> typing `/something` on a delivery surface; **recognized only by the delivery surface and
-> only for people** — the model never invokes it. It **binds** to the thing to be done, and
-> **the binding target is exactly one of three**: **a custom prompt**; **an assembled skill**
-> (whose text becomes one content block of the message); or **a system business flow** (one
-> action of a command or query service, which enters no queue and becomes no message).
-> **The command is not the doing; it is a signpost.** It covers **no keyboard control and no
-> shell commands.**
+> **EN**: **The spelling `/name` with which a person names a command entry on a delivery surface, and the general term for naming things this way.** Written at the start it is a command (a prompt command or a system command), and everything after it is the command's argument; written anywhere in a sentence it is a slash reference, which binds only to a skill. It is for people only: the model never invokes it, and only input a member sends through a delivery surface is recognized this way. **The command is not the doing; it is a signpost.**
 
-- **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-002 §4 Slash Command](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#slash-command)（rev 32）
-- **别混**：Skill 是方法本身，Slash Command 是**发起它的入口**。绑定是**多对多**——一个 skill 可以有多个入口，也可以完全没有
-- **注意 ①**：**名字**——交付面自己的动作名与系统业务流程型命令名是**系统保留名**，**一律在 `omne-official` 前缀下**；前两种绑定的命令**不得使用这个前缀**；同能力标识按资产替换规则
-- **注意 ②**：**为什么单独是一类资产**：为将来的可编程性留口子——出处同上
-- **注意 ③**：一个会话认得哪些，是它的[会话斜杠命令集](#ul-session-slash-command-set--会话斜杠命令集--session-slash-command-set)——**没有权限用的，对这个会话就不存在**
-- **注意 ④**：**绑定目标与[参数声明](#ul-command-parameter-declaration--命令参数声明--command-parameter-declaration)是这条命令本身，不是设置**——各层配不出不同的值；想改一条命令展开什么，换一份同名的
-- **能组合**：Skill（绑定）
+- **形态**：总称
+- **出处**：[Slash Command 入口项与它的位置](../../product/slash-commands/design.md#入口项与它的位置) · [斜杠怎样被认出来](../../product/slash-commands/design.md#斜杠怎样被认出来)（rev 4）
+- **别混**：Skill 是方法本身，斜杠引用是**点名它的一种写法**；Skill 不需要谁为它创作命令，可取用的就自动是入口项
+- **注意 ①**：**名字**——见[全名与短名](interaction-and-dispatch.md#ul-command-name--全名与短名--command-name)；系统命令在保留空间 `omne-official` 下，提示词命令与 Skill 不能占用它
+- **注意 ②**：一个会话认得哪些，是它的[会话斜杠命令集](#ul-session-slash-command-set--会话斜杠命令集--session-slash-command-set)——**没有权限用的，对这个会话就不存在**
+- **注意 ③**：按键、命令面板、按钮是同一条命令的别的触发；键只绑[外壳动作](interaction-and-dispatch.md#ul-shell-action--外壳动作--shell-action)
+- **能组合**：Skill（引用）
 
 ### UL-command-parameter-declaration · 命令参数声明 · Command Parameter Declaration
 
-> **中**：**一条[斜杠命令](#ul-slash-command--斜杠命令--slash-command)可选带的那份参数说明，每个参数配一句给人看的提示。**
+> **中**：**一条命令型[入口项](reach-and-availability.md#ul-command-entry--入口项--command-entry)可选带的那份参数说明，每个参数配一句给人看的提示。**
 > 它是这条命令本身的一部分，**不是设置**——不随持有它的那一层配出不同的值。
-> **声明了的，按声明解析**，解析不通过就当场明说哪里不对、不发送；**没声明的，命令名之后的整段文本作一个自由参数**。三种绑定目标一条规则。
+> **声明了的，按声明解析**，解析不通过就当场明说哪里不对、不发送；**没声明的，命令名之后的整段文本作一个自由参数**。
 >
-> **EN**: **The optional description of a slash command's parameters, each carrying a short hint for
+> **EN**: **The optional description of a command-kind entry's parameters, each carrying a short hint for
 > the person typing it.** It is part of the command itself, **not a setting** — no holding layer can give
 > it a different value. **Where declared, input is parsed against it**, and a failed parse is reported on
 > the spot, saying what is wrong, and nothing is sent; **where not, everything after the command name is
-> one free-form argument**. The same rule holds for all three binding targets.
+> one free-form argument**.
 
 - **形态**：属性
-- **出处**：[PF-002 §4 Slash Command](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#slash-command)（rev 32） ·
-  [PF-016 §5.7 人要做的事分三族](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)（rev 13）
+- **出处**：[Slash Command J-SC01](../../product/slash-commands/design.md#j-sc01-发布一条提示词命令)（rev 4）
 - **别混**：**不是工具调用的参数**——那是模型给出、按工具定义收齐之后才解析的；这里解析的是人敲进交付面的那一行
-- **注意**：② 型命令里，人附带的参数**另成一个内容块**，不拼进 skill 的正文
+- **注意**：斜杠引用没有参数；引用所在的整句话原样是人的消息
+
+
+### UL-prompt-command · 提示词命令 · Prompt Command
+
+> **中**：**资产的一个类别：一个名字、给人看的一句话、一段提示词与可选的[参数声明](#ul-command-parameter-declaration--命令参数声明--command-parameter-declaration)。**人在开头敲 `/名字 参数`，提示词代入参数，形成人的一条消息。它在名字空间 `prompt` 下，不能占用保留空间。
+>
+> **EN**: **One category of asset: a name, one line for people, a prompt and an optional parameter declaration.** A person types `/name arguments` at the start; the arguments are put into the prompt, and the result becomes one message from the person. It lives in the namespace `prompt` and cannot take the reserved namespace.
+
+- **形态**：变体（父：[资产](#ul-asset--资产--asset)）
+- **出处**：[Slash Command J-SC01](../../product/slash-commands/design.md#j-sc01-发布一条提示词命令) · [J-SC03](../../product/slash-commands/design.md#j-sc03-用提示词命令发出一条消息)（rev 4）
+- **别混**：不是系统提示词，也不是 Agent 定义里的提示词；它展开成的是人的一条消息
+- **注意**：同名替换、持有与锁定照资产的规则；改它是一次修订，不是设置
 
 ### UL-plugin · 插件 · Plugin
 
@@ -813,27 +813,15 @@
 
 ### UL-session-slash-command-set · 会话斜杠命令集 · Session Slash-Command Set
 
-> **中**：**一个会话此刻认得的那批[斜杠命令](#ul-slash-command--斜杠命令--slash-command)**：
-> 这个会话[装配](agent-runtime-loop.md#ul-agent-assembly--agent-装配--agent-assembly)时从求值结果里取出、
-> 会话所属的那个人有权使用的那些，再去掉此后被收回了权限的。
-> 交付面只按它识别命令——**不在里面的名字，对这个会话就是不存在**，
-> 不论那条命令在别处有没有、这个人为什么用不了。
-> 它住在会话的一张注册表里；资产的增删与禁用不会让它自己变，**要等人发对应的 reload 热更新那张注册表**（③ 型失败后系统自动刷新；一次完整的重新装配也会重填它）。
+> **中**：**一个会话此刻能点名的全部[入口项](reach-and-availability.md#ul-command-entry--入口项--command-entry)**：按发问的租户、主体与会话，向每个[入口来源](reach-and-availability.md#ul-command-entry-source--入口来源--command-entry-source)现问得到的那些。交付面与受理都只按它识别——**不在里面的名字，对这个会话就是不存在**，不论它在别处有没有、这个人为什么用不了。它不存：资产或 Skill 一变，下一次读就是新的；某个来源此刻答不出，只有它那一部分写明无法判断。
 >
-> **EN**: **The slash commands a session recognizes right now**: those taken from the
-> evaluation result when the session is assembled and that the person the session belongs
-> to is permitted to use, less any whose permission has been withdrawn since. The delivery
-> surface recognizes commands against this set alone — **a name outside it does not exist
-> for this session**, whether or not such a command exists elsewhere and whatever the
-> reason the person cannot use it. Adding, removing or disabling assets does not change it
-> by itself; it lives in a session registry and **changes only when the matching reload hot-updates that registry** (refreshed automatically after a type-③ failure; a full re-assembly refills it too).
+> **EN**: **All the command entries a session can name right now**: those obtained by asking every command entry source, at that moment, on behalf of the asking tenant, subject and session. The delivery surface and intake recognize names against this set alone — **a name outside it does not exist for this session**, whether or not it exists elsewhere and whatever the reason the person cannot use it. It is not stored: when an asset or a skill changes, the next read is the new one; when a source cannot answer now, only its part is marked as undecidable.
 
 - **形态**：视图
-- **出处**：[PF-002 §4 会话认得哪些命令，什么时候变](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变)（rev 32）
+- **出处**：[Slash Command J-SC06](../../product/slash-commands/design.md#j-sc06-清单跟着事实走不等刷新) · [J-SC02](../../product/slash-commands/design.md#j-sc02-在输入框里找到能点名的东西)（rev 4）
 - **别混**：[动作空间](#ul-action-space--动作空间--action-space)在权限变了时**不变**，agent 因此知道「存在，只是不许」；
   会话斜杠命令集**恰好相反**——无权使用的**就不在里面**，人得到的回答是「没有这个命令」
-- **注意**：**收窄即时，放宽要等 reload**——权限一收回，那条命令此刻起就不在；
-  会话进行中新得到权限的，要等下一次 reload 或重新装配才进来
+- **注意**：收窄与放宽都从下一次读起生效，不等重新加载，也不重新装配 agent
 
 ### UL-meta-capability · meta 能力 · Meta Capability
 
