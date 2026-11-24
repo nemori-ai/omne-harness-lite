@@ -19,6 +19,7 @@ import { COMBINATION_VERSION } from '../../src/rows/agent-journal/config.ts'
 import {
   LOCAL_OPEN_LIMITS,
   LOCAL_SCREEN_LIMITS,
+  LOCAL_STORAGE_JSON_MEMBERS,
   LOCAL_TOKENIZERS,
   LOCAL_TOOL_RESULT_BYTES,
 } from '../../src/local/operator-defaults.ts'
@@ -417,6 +418,7 @@ export function operatorLayer(options: {
           closeDeadlineMs: deadline - 1000,
           maxResponseBytes: 1_048_576,
           maxJsonDepth: options.maxJsonDepth ?? releaseMaxJsonDepth(),
+          maxJsonMembers: LOCAL_STORAGE_JSON_MEMBERS,
         }),
       },
       {
