@@ -42,15 +42,16 @@
     "@omne-harness/assets-cordis-contract": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "catalog:",
-    "typescript": "catalog:",
-    "vitest": "catalog:",
-    "@omne-harness/sqlite-provider": "workspace:*",
-    "@omne-harness/settings-local": "workspace:*",
     "@omne-harness/identity": "workspace:*",
     "@omne-harness/identity-sql": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",
     "@omne-harness/scrypt": "workspace:*",
-    "@omne-harness/utc-instant": "workspace:*"
+    "@omne-harness/settings-local": "workspace:*",
+    "@omne-harness/sqlite-provider": "workspace:*",
+    "@omne-harness/time-source": "workspace:*",
+    "@omne-harness/utc-instant": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

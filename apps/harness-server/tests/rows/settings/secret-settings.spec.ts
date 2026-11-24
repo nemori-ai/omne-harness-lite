@@ -5,7 +5,7 @@ import type {
   SettingsSecretItems,
 } from '@omne-harness/settings'
 import { describe, expect, it } from 'vitest'
-import type { SystemInstant } from '../../../src/entry/session-clock.ts'
+import type { SystemInstant } from '../../../src/entry/time.ts'
 import type { SettingsVerdict } from '../../../src/rows/authorization/settings-access.ts'
 import { createSecretSettings } from '../../../src/rows/settings/secret-settings.ts'
 import { fixtureTenant } from '../../entry/support.ts'

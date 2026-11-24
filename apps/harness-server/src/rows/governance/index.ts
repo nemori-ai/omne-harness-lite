@@ -37,7 +37,8 @@ import { monotonicClock } from '../../shutdown.ts'
 import { governanceInstallationPrincipalsKey } from '../../entry/governance-installation-principals.ts'
 import { governanceDirectoryPrincipalsKey } from '../../entry/governance-directory-principals.ts'
 import { releaseOf } from '../../entry/tool-release.ts'
-import { readSystemInstant, epochMillisOf } from '../../entry/session-clock.ts'
+import { epochMillisOf } from '../../entry/session-clock.ts'
+import { instantTextOf } from '../../entry/time.ts'
 import { categoryGateTemplatesSchema } from '../../entry/category-gates.ts'
 import { productionStorageCatalog } from '../storage/production-catalog.ts'
 import { LOCAL_GOVERNANCE_OPENING } from '../../local/operator-defaults.ts'
@@ -86,14 +87,6 @@ const configSchema = z.strictObject({
 const releasedNames =
   (release: { manifest: { entries: readonly { asset: { name: string } }[] } }) => (name: string) =>
     release.manifest.entries.some(entry => entry.asset.name === name)
-
-const SETTINGS_CLOCK = {
-  now() {
-    const instant = readSystemInstant()
-    if (!instant.ok) throw new Error('governance Settings clock unavailable')
-    return epochMillisOf(instant.text)
-  },
-}
 
 function governedOf(ctx: Context, tenantRef: string) {
   return {
@@ -257,7 +250,9 @@ export const governanceRow = defineRow({
           destination: 'harness.governance',
           identity,
           registry,
-          clock: SETTINGS_CLOCK,
+          clock: {
+            now: () => epochMillisOf(instantTextOf(ctx, 'governance Settings')),
+          },
           cursorLifetimeMs: 60_000,
           grants: [
             {

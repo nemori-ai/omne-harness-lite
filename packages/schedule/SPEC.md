@@ -8,7 +8,7 @@
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | `schedule-contract`        | 安排定义、规则、工作意图、候选、操作回执、读值与服务端口长什么样；共同编码与指纹算法。纯数据与 schema，不依赖 Cordis 与存储 |
 | `schedule`                 | 规则计算与预测、安排的管理决定、只读查询；时隙的分拣与接受的判定、Job 的推进、调度者这一轮怎样走。不依赖 Cordis，不选存储后端，不认识 Session 与 Agent |
-| `schedule-cordis-contract` | 日程在这套系统里以哪些服务出现：命令、查询等服务的定义与键                                                                  |
+| `schedule-cordis-contract` | 日程在这套系统里以哪些服务出现：命令、查询的服务定义与键；程序、执行方、成果与通知承接者三个登记面 |
 | `schedule-local`           | 本机的 SQL 管理后端与原操作恢复、调度状态与 Job 的存储、历史的读、计算工作线程、本地应用组合、日历环境投影，以及 Cordis 提供者 |
 | `schedule-tools`           | 给 agent 的两个多命令工具：`Schedules` 管安排，`Jobs` 管 Job 与成果上报。参数与结果、关口的声明、放行详情、按调用绑定日程服务并核对租户 |
 | `schedule-protocol`        | 公开协议 `schedule/v2` 的协议契约：日程的列表、详情、修订、日程表、预览、创建与管理及其认回；Job 的列表、详情、取消、直接发起及其认回；一条「可能变了」的观察。纯数据 |
@@ -247,13 +247,13 @@
 - 族与多重：列表加阅读，用共用件的[页的骨架](../frontend/SPEC.md#页的骨架)。日程是一类要浏览、阅读的东西；安排只读，没有编辑面，唯一的写操作是取消一份 Job。目录栏的行是过程行的轻重，阅读面是正文的轻重。
 - 骨架：`ListReadingPage`：页头「日程」，说明一行「命令行与 agent 建的日程，要改用 omne schedule。」；页头右边一个只有图标的「刷新」（重试的字形），重读列表与开着的那一条，因为列表不随服务端自己更新。下面是工作区：左边是目录栏，顶上是分段控件「范围」（「当前的」「全部，含已结束的」），放在目录栏顶上搜索的位置，用目录栏的内边距（来源事项页的日期窗口也这样放）；下面是日程的行。右边是阅读面。页面上没有任何看起来能改的控件。
 - 一行：`ListReadingRow`。记号是弱墨的 `time` 图标；标题是名字（没有名字写「未命名」）；事实一行只在不正常时写一个词：控制状态不是生效时写它的词（草稿、暂停、已停止、已到期、已丢弃、已被取代），生效而暂时受阻写「暂时受阻」，生效而永久失效写「永久失效」；生效而且能按时运行时不写。时间是下一次，写成租户时区里的「年-月-日 时:分」，没有下一次写「没有下一次」。选中的行是选中的底。还有下一页时，列表的末尾进了视野就接着读下一页，不放「更多」。
-- 阅读面：工具条是返回（「回到列表」，返回的字形）与名字。下面的文档：名字作大标题，用阅读字体；标题下一行弱墨的说明「谁建的 · 建了多久」（如「你建的 · 3 天前」，精确的时刻在提示里）；再下面一张事实表：状态（与那一行相同的词，正常时写「生效」；状态胶囊，暂时受阻是琥珀，永久失效是失败色，别的中性）、能否运行、下一次（写法与行里的相同，后面括号里是日历与版本）、修订。再下面一节「接下来几次」：一列时间，表格数字，写法与行里的相同；每个时间后面括号里的日历与版本是弱墨。只能确定几次就列几次，这时末尾一句「只列出了能确定的几次。」。不画成日历格子。
+- 阅读面：工具条是返回（「回到列表」，返回的字形）与名字。下面的文档：名字作大标题，用阅读字体；标题下一行弱墨的说明「谁建的 · 建了多久」（如「你建的 · 3 天前」，精确的时刻在提示里）；再下面一张事实表：状态（与那一行相同的词，正常时写「生效」；状态胶囊，暂时受阻是琥珀，永久失效是失败色，别的中性）、能否运行、下一次（写法与行里的相同，后面括号里是日历与版本）、修订。再下面一节「执行」（见下面「一份安排的执行」）：它的「接下来」是一列时间，表格数字，写法与行里的相同；每个时间后面括号里的日历与版本是弱墨。只能确定几次就列几次，这时末尾一句「只列出了能确定的几次。」。不画成日历格子。
 - 选一行不是换页：列表、滚动位置与范围都留着，只有阅读面到达一次。没有选中时，阅读面是 `ReadingState` 里的一句「选一个日程看它的安排。」，上面一个弱墨的 `time` 图标，在左上，不居中。窗口窄于 1100px 时，目录栏与阅读面并成一栏：开着一条时只有阅读面，按返回回到列表。
-- 加载：目录栏、阅读面的文档与「接下来几次」各自读，读的时候各用一个加载状态，词是「读取中」。「刷新」与「重试」重读时，那一块回到加载状态，读到再画。
-- 空：列表空时目录栏里除了范围什么都不写，阅读面的那一句换成「命令行与 agent 建的日程会列在这里。」，图标相同，没有新建的动作；窗口窄于 1100px 时，这一句就是这一页（工作区的 `empty`）。「接下来几次」为空时写「没有接下来的时间。」。
+- 加载：目录栏、阅读面的文档、「接下来」与「已发生」各自读，读的时候各用一个加载状态，词是「读取中」。「刷新」与「重试」重读时，那一块回到加载状态，读到再画。
+- 空：列表空时目录栏里除了范围什么都不写，阅读面的那一句换成「命令行与 agent 建的日程会列在这里。」，图标相同，没有新建的动作；窗口窄于 1100px 时，这一句就是这一页（工作区的 `empty`）。「接下来」为空时写「没有接下来的时间。」。
 - 读不出与被拒：写在出事的那一块里，是一条 `InlineNotice`，用下面的句子与语气；读不出的都带「重试」（重试的字形加这个词），领域答的拒绝不带。外壳给的租户读不懂时，页头下面一条「读不懂当前的租户。」，不发调用。
 - 内容过长：名字在行里与阅读面的标题里都换行；工具条里的名字一行截断。
-- 反馈：这一页没有写入，所以没有回执。分段控件自己就是回执：换范围就重读列表，选中的那一条留着。选一行只有阅读面到达。
+- 反馈：唯一的写入是 Job 详情里的「取消这一次」，它的回执是 Job 重读之后的状态。分段控件自己就是回执：换范围就重读列表，选中的那一条留着。选一行只有阅读面到达。
 - 用的件：`ListReadingPage`、`ListReadingWorkspace`、`ListReadingDirectory`、`ListReadingRow`、`ListReadingMain`、`ReadingToolbar`、`ReadingDocument`、`ReadingState`；`Segmented`；`Section`；`FactList`、`FactRow`；`StatusPill`；`Ago`；`IconButton`；`LoadingState`、`EmptyState`、`InlineNotice`。状态的词不经 `StateWord`：日程的控制状态与能否运行不在共用件的状态词表里，`StateWord` 自带的词会被状态词的门数成违例。
 
 **一份安排的执行**（日程页阅读面里的一节，标识 `schedule-runs`）
@@ -261,7 +261,7 @@
 - 族与多重：仍是列表加阅读的阅读面，不换页。这一节在事实表下面：先是「接下来」（预测，每行标「计划中」；表格数字，每项是本地时间加日历与版本），再是「已发生」，按原定时刻倒序。
 - 已发生的一行：原定时刻（表格数字）、状态词、一句事实（执行中写已跑多久，收场写用时，补跑、跳过、错过、拒绝写原因）。接受了的行可以点，到 Job 详情；跳过、错过、拒绝的行不可点。「接下来」的行也不可点：它们还不是 Job，这一小节的标题旁一句弱墨的话写明「到点时按当时的定义重新核」。一段漏过区间是一行：「这一段共 N 次没有补」加原因；没有逐个算时写「这一段没有逐个算，都没有补」。
 - 安排受阻时，这一节顶上一条 `InlineNotice`，写原因与恢复的条件，例如「这份安排要发通知，通知还没有接上」。
-- 加载、空、读不出照日程页的规矩。空写「还没有到点。」。更早的经「更早的」续读。
+- 加载、空、读不出照日程页的规矩。空写「还没有到点。」。更早的在「已发生」的末尾进了视野时接着读下一页，不放「更多」。
 - 这一节随观察重读，不用手动刷新。
 
 **Job 详情**（阅读面的第二层）
@@ -301,6 +301,7 @@
 | 控制状态的词 | 控制状态不是生效 | 中性 |
 | Job 的状态词「计划中」「等前一次」「在等它停下」「已跳过」「没有补」 | 预测；等待前序；停止未确认；重叠跳过；漏过 | 中性 |
 | Job 的状态词「执行中」 | 执行方答执行中 | 中性 |
+| Job 的状态词「待开始」 | 受理了而执行方还没答执行中 | 中性 |
 | Job 的状态词「完成」 | 主动作成功 | 好的语气（`good`） |
 | Job 的状态词「失败」「被拒绝」 | 主动作失败；准入拒绝 | 失败 |
 | Job 的状态词「已取消」 | 取消成立 | 中性 |
@@ -326,27 +327,27 @@
 | INV-SJ04 | 时间规则只有声明的形状；不存在的月日或位置跳过不扣次数                                 | 库的缺省改变产品语义                 | `calculation/recurrence`、`calculation/boundaries` 用例；`schedule-contract` 的 `definition` 用例                                                 |
 | INV-SJ05 | 计算顺序唯一；结果被排除即丢弃；缺覆盖不猜；夏令时缺口跳过、重复取第一次               | 平移后越界或被排除仍执行             | `prediction/prediction` 用例                                                                                                                      |
 | INV-SJ06 | 预览只读；同依据的引用与展开等价；合法空与预算用尽、故障分开                           | 预览产生副作用；「没有下一次」是假的 | `prediction/budgets`、`input-boundary`、`calendar-identity` 用例；`schedule-local` 的 `assembly/seeded-calendar`、`real-calendar` 用例            |
-| INV-SJ07 | 接受前按最新依据重核；Job、次数、处置与责任在确认时一致可恢复                          | 接受过时的结果；先报成功再补账       | 模型 `CalendarScheduleBoundary` 的 `EnvironmentCoherence`、`LatestAtAcceptance`、`ControlAtAcceptance`、`PinnedVersionIdentity`；模型 `ScheduleSlotDisposition` 的 `AcceptedWhileActive`；实现部分只有文字 |
-| INV-SJ08 | 同一来源至多一个 Job；碰撞不回填；两种次数独立并如实计量                               | 重复工作；次数多计或漏计             | 模型 `CalendarScheduleBoundary` 的 `AtMostOneJob`；模型 `ScheduleSlotDisposition` 的 `AtMostOneJob`、`DispositionFixed`、`EligibleBound`、`JobBound`；`prediction/prediction` 的次数用例；接受侧只有文字 |
+| INV-SJ07 | 接受前按最新依据重核；Job、次数、处置与责任在确认时一致可恢复                          | 接受过时的结果；先报成功再补账       | 模型 `CalendarScheduleBoundary` 的 `EnvironmentCoherence`、`LatestAtAcceptance`、`ControlAtAcceptance`、`PinnedVersionIdentity`；模型 `ScheduleSlotDisposition` 的 `AcceptedWhileActive`；接受的判定 `schedule` 的 `dispatch/admission` 用例；锁内重算 `schedule-local` 的 `dispatch/store`、`dispatch/admission` 用例 |
+| INV-SJ08 | 同一来源至多一个 Job；碰撞不回填；两种次数独立并如实计量                               | 重复工作；次数多计或漏计             | 模型 `CalendarScheduleBoundary` 的 `AtMostOneJob`；模型 `ScheduleSlotDisposition` 的 `AtMostOneJob`、`DispositionFixed`、`EligibleBound`、`JobBound`；`prediction/prediction` 的次数用例；接受侧 `schedule-local` 的 `dispatch/admission`（两个调度者、次数与耗尽）、`dispatch/store`、`dispatch/crash` 用例 |
 | INV-SJ09 | 已接受 Job 的要求与依据固定，之后的变化不回写                                          | 已接受的工作被静默改期或改内容       | 模型 `CalendarScheduleBoundary` 的 `FrozenBasis`；实现只有文字 |
 | INV-SJ10 | 控制与既有工作分责：暂停与结束只管新接受，不自动取消旧 Job；结束不能恢复               | 暂停时误取消；结束的安排被复活       | `management/decision` 用例；模型 `ControlAtAcceptance`；模型 `ScheduleSlotDisposition` 的 `StoppedIsFinal` |
-| INV-SJ11 | 补跑是同一漏过区间的有界选择，同一区间不分页补光，等待中的 Job 不占 N                  | 恢复后无界补跑                       | 模型 `ScheduleSlotDisposition` 的 `CatchUpBounded`、`InOrder`；实现只有文字 |
-| INV-SJ12 | 重叠作用于实际前序；替换只在真实停止证据之后开始新工作                                 | 偷偷并行；把停止请求当停止           | 模型 `ScheduleJobExecution` 的 `PredecessorEnded`、`StopIsReal`；实现只有文字 |
+| INV-SJ11 | 补跑是同一漏过区间的有界选择，同一区间不分页补光，等待中的 Job 不占 N                  | 恢复后无界补跑                       | 模型 `ScheduleSlotDisposition` 的 `CatchUpBounded`、`InOrder`；分拣 `schedule` 的 `dispatch/classify` 用例；`schedule-local` 的 `dispatch/watch` 用例（一个月只补 N 个、再扫一轮不多补、超预算一个都不补） |
+| INV-SJ12 | 重叠作用于实际前序；替换只在真实停止证据之后开始新工作                                 | 偷偷并行；把停止请求当停止           | 模型 `ScheduleJobExecution` 的 `PredecessorEnded`、`StopIsReal`；`schedule-local` 的 `dispatch/jobs` 等待与替换用例（替换看停止与开始的次序） |
 | INV-SJ13 | 三种承接路径完整区分；`existing` 失效不退回 `new`；`new` 每 Job 只建一次会话           | 投错会话；重复建会话                 | `schedule-contract` 的工作意图 schema；模型 `ScheduleJobExecution` 的 `StartAtMostOnce`；承接只有文字 |
-| INV-SJ14 | 上报归原 Job；目标达成要独立依据                                                       | Run 结束被当成目标达成               | 模型 `ScheduleJobExecution` 的 `SuccessHasEvidence`；实现只有文字 |
+| INV-SJ14 | 上报归原 Job；目标达成要独立依据                                                       | Run 结束被当成目标达成               | 模型 `ScheduleJobExecution` 的 `SuccessHasEvidence`；`schedule` 的 `dispatch/job` 结局表用例（没有成果记失败） |
 | INV-SJ15 | 机械工作以真实功能成功为完成；不可用的工具调用不当成功                                 | 触发成功被当成完成                   | 只有文字                                                                                                                                          |
 | INV-SJ16 | 通知义务只由本次选中的实际事件产生，每事件一次                                         | 伪造开始或成功通知                   | 只有文字                                                                                                                                          |
 | INV-SJ17 | 整份成功不混淆执行与交付；投递失败不倒写执行结局                                       | 执行失败因通知送达被报成功           | 只有文字                                                                                                                                          |
 | INV-SJ18 | 取消只声明实际效果边界；已发送的不承诺撤回                                             | 把未知改写成取消                     | 模型 `ScheduleJobExecution` 的 `CancelIsReal`、`StopIsReal`；实现只有文字 |
-| INV-SJ19 | 取消、启动与终结确定判序，跨重启可认回；已取消的不复活                                 | 取消后又启动                         | 模型 `ScheduleJobExecution` 的 `CancelIsReal`、`OutcomeFixed`；实现只有文字 |
+| INV-SJ19 | 取消、启动与终结确定判序，跨重启可认回；已取消的不复活                                 | 取消后又启动                         | 模型 `ScheduleJobExecution` 的 `CancelIsReal`、`OutcomeFixed`；`schedule` 的 `dispatch/job`、`schedule-local` 的 `dispatch/jobs` 取消用例 |
 | INV-SJ20 | 取消后的通知义务与迟到事实保留在原 Job                                                 | 迟到结果把已取消的工作改成成功       | 只有文字                                                                                                                                          |
-| INV-SJ21 | 恢复接续原执行与原调用，不变成业务重跑                                                 | 重启后重复建 Job、会话或调用         | `schedule-local` 的 `storage/recovery` 用例（管理命令）；模型 `ScheduleJobExecution` 的 `StartAtMostOnce`、`RunningIsReal`、`FailureIsReal`；Job 侧的实现只有文字 |
+| INV-SJ21 | 恢复接续原执行与原调用，不变成业务重跑                                                 | 重启后重复建 Job、会话或调用         | `schedule-local` 的 `storage/recovery` 用例（管理命令）；模型 `ScheduleJobExecution` 的 `StartAtMostOnce`、`RunningIsReal`、`FailureIsReal`；Job 侧：`schedule` 的 `dispatch/coordinate`（开始意图先提交）、`schedule-local` 的 `dispatch/jobs`（换一代记被中断） |
 | INV-SJ22 | 历史不因结束、归档、失权或换代清除；查询不成为副作用入口                               | 历史丢失；读面触发补跑               | `queries/application`、`queries/limits`、`queries/request-integrity` 用例；`storage/reads` 用例                                                   |
 | INV-SJ23 | 停止先关准入再交接；实例只撤自己的贡献；晚到结果归原身份                               | 无人负责的窗口；删了新实例的资源     | `schedule-local` 的 `assembly/cordis`、`calculation-worker/lifecycle` 用例                                                                        |
 | INV-SJ24 | 配置与集成条件真实：缺依赖或无效配置拒绝或受阻，不静默缺省；监听失败不倒写事实         | 静默选参数或通道                     | `schedule-local` 的 `assembly/application`、`cordis-entry` 用例                                                                                   |
 | SC-1     | 本地操作的完成资格：代际变了失效，过期不因民用时间回拨恢复，关闭后的晚到读取不判为合格 | 过期或失效的结果被当作有效           | 模型 `ScheduleClockBoundary` 的 `NoEpochReuse`、`NoExpiredRead`、`NoClosedRead`；`prediction/budgets` 用例                                        |
-| SC-2     | 存储的未知不改成失败；只有完整否定证据才答没有提交；同一业务地址只有一次业务操作       | 重复写入或把已提交当失败             | `schedule-local` 的 `storage/persistence`、`recovery`、`corruption`、`crash` 用例；`schedule-contract` 的 `operation` 用例                        |
+| SC-2     | 存储的未知不改成失败；只有完整否定证据才答没有提交；同一业务地址只有一次业务操作       | 重复写入或把已提交当失败             | `schedule-local` 的 `storage/persistence`、`recovery`、`corruption`、`crash` 用例；接受的提交另有 `dispatch/store`、`dispatch/crash` 用例；`schedule-contract` 的 `operation` 用例                        |
 | INV-SJ25 | 本组的契约、存储与协议里没有放行、同意依据与授权引用；每条安排有创建者，agent 创建的带会话与工具调用；之后权限设置变了不回头改写已生效的安排 | 许不许有了第二个判断处或第二份记录；查不到一条安排是谁建的 | `schedule-tools` 的关口归属用例；创建者的用例；依赖规则 |
 | SC-3     | 工具结果超限明确失败，不再次执行业务；长结果由 Tool 保管，按当前资格读回                 | 截断冒充完整；无权读到旧缓存         | `schedule-tools` 的 `consent` 用例（超限）；Tool 的结果保管用例                                                                                   |
-| INV-SJ26 | 一个时隙是漏过还是迟到，只看它到期时有没有人连续看着这份安排，与进程重启与否无关；定时器丢了、重复了，结局不变 | 机器睡了三小时，醒来把三小时的时隙当迟到全做一遍；丢一次唤醒就漏做 | 模型 `ScheduleSlotDisposition` 的 `CatchUpBounded`、`AllSettled`；实现只有文字 |
-| INV-SJ27 | 所选的承接者有一项不在，这份工作不被接受，受阻记在安排上；承接者回来之后这一段按漏过分拣 | 放进一份做不完的 Job；承接者一回来把攒下的全做一遍 | 只有文字 |
+| INV-SJ26 | 一个时隙是漏过还是迟到，只看它到期时有没有人连续看着这份安排，与进程重启与否无关；定时器丢了、重复了，结局不变 | 机器睡了三小时，醒来把三小时的时隙当迟到全做一遍；丢一次唤醒就漏做 | 模型 `ScheduleSlotDisposition` 的 `CatchUpBounded`、`AllSettled`；`schedule-local` 的 `dispatch/watch` 用例（停机按心跳断开分拣，暂停与依赖恢复各按自己的成因）；随机丢掉与重复提示的 property 用例：只有文字 |
+| INV-SJ27 | 所选的承接者有一项不在，这份工作不被接受，受阻记在安排上；承接者回来之后这一段按漏过分拣 | 放进一份做不完的 Job；承接者一回来把攒下的全做一遍 | 受阻：`schedule` 的 `dispatch/admission`、`schedule-local` 的 `dispatch/admission` 用例；回来之后按漏过分拣：`schedule-local` 的 `dispatch/admission`「missing carrier」用例 |

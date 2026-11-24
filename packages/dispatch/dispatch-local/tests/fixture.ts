@@ -30,17 +30,17 @@ export const policy = (overrides: Partial<DispatchPolicy> = {}): DispatchPolicy 
   ...overrides,
 })
 
-/** Timers that fire only when a test says so. */
+/** Waits that fire only when a test says so. */
 export function manualTimers() {
   const pending = new Map<number, { run: () => void; delayMs: number }>()
   let next = 0
   const timers: Timers = {
-    set(run, delayMs) {
+    after(delayMs, run) {
       next += 1
-      pending.set(next, { run, delayMs })
-      return next
+      const id = next
+      pending.set(id, { run, delayMs })
+      return () => void pending.delete(id)
     },
-    clear: timer => void pending.delete(timer as number),
   }
   return {
     timers,

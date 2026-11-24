@@ -21,7 +21,7 @@ const tick = () => new Promise(resolve => setTimeout(resolve, 0))
 beforeAll(stubAnimation)
 afterEach(cleanup)
 
-it('M0 declares its nine parts, whether or not the protocol is served', async () => {
+it('M0 declares its thirteen parts, whether or not the protocol is served', async () => {
   const { root, shell } = await startShell()
   await root.plugin(scheduleUiModule)
   const read = partsOn(shell.registry())
@@ -29,11 +29,15 @@ it('M0 declares its nine parts, whether or not the protocol is served', async ()
   expect(read.kind === 'read' && read.parts.map(part => [part.name, part.within])).toEqual([
     ['schedule.activation', 'human-intervention.paper.card.detail'],
     ['schedule.filter', 'schedule.list'],
+    ['schedule.happened', 'schedule.reading'],
+    ['schedule.job', 'schedule.reading'],
+    ['schedule.job.cancel', 'schedule.reading'],
     ['schedule.list', 'schedule.page'],
     ['schedule.list.row', 'schedule.list'],
     ['schedule.page', 'shell.workspace.page'],
     ['schedule.reading', 'schedule.page'],
     ['schedule.refresh', 'schedule.page'],
+    ['schedule.run', 'schedule.reading'],
     ['schedule.title', 'schedule.reading'],
     ['schedule.upcoming', 'schedule.reading'],
   ])

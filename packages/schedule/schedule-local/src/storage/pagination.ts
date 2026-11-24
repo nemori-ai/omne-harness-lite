@@ -4,6 +4,7 @@ import type { SqlValue } from '@omne-harness/sql-contract/worker'
 import { ScheduleIdSchema, scheduleAuthorIdentity } from '@omne-harness/schedule-contract'
 import { canonical, digest } from './encoding.ts'
 import type { PageRequest } from './read-schema.ts'
+import { SHOWN_STANDING } from './dispatch-standing.ts'
 const cursorSchema = z.strictObject({
   version: z.literal('schedule-management-cursor/1'),
   binding: z.string().regex(/^[0-9a-f]{64}$/),
@@ -37,7 +38,7 @@ export function pageRelation(input: PageRequest): Relation {
   const filters = [
     [input.request.agentRef, 'agent_ref'],
     [input.request.control, 'control'],
-    [input.request.standing, 'standing'],
+    [input.request.standing, SHOWN_STANDING],
     [input.request.createdBy, 'created_by'],
     [input.request.targetDeviceRef, 'device_ref'],
     [input.request.calendarId, 'calendar_id'],

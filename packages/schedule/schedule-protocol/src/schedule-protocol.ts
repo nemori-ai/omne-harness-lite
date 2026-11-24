@@ -59,6 +59,8 @@ const detail = object({
   ...card.fields,
   createdAt: { rule: instant },
   definition: { rule: json },
+  /** Why it cannot run now, while its standing is not ready. */
+  reasons: { rule: array(text), optional: true, since: 2 },
 })
 
 const revision = object({
@@ -110,6 +112,79 @@ const manage = object({
   action: { rule: action },
 })
 
+const jobState = literal('accepted', 'waiting', 'startPending', 'running', 'blocked', 'concluded')
+
+/** A Job as a history row shows it. */
+const jobCard = object({
+  job: { rule: text },
+  state: { rule: jobState },
+  outcome: { rule: nullable(literal('succeeded', 'failed', 'cancelled')) },
+  stop: { rule: literal('none', 'requested', 'pending', 'confirmed', 'unknown') },
+  origin: { rule: literal('due', 'catchUp', 'human', 'agent', 'system') },
+  acceptedAt: { rule: instant },
+  startedAt: { rule: nullable(instant) },
+  endedAt: { rule: nullable(instant) },
+})
+
+/** One row of history: a disposed slot, a missed stretch, or a Job started outside any schedule. */
+const historyRow = oneOf(
+  object({
+    kind: { rule: literal('slot') },
+    row: { rule: text },
+    schedule: { rule: text },
+    at: { rule: instant },
+    local: { rule: text },
+    disposition: { rule: text },
+    reason: { rule: text },
+    job: { rule: nullable(jobCard) },
+  }),
+  object({
+    kind: { rule: literal('lapse') },
+    row: { rule: text },
+    schedule: { rule: text },
+    at: { rule: instant },
+    through: { rule: instant },
+    cause: { rule: text },
+    reason: { rule: text },
+    count: { rule: nullable(count) },
+    selected: { rule: count },
+  }),
+  object({
+    kind: { rule: literal('direct') },
+    row: { rule: text },
+    at: { rule: instant },
+    job: { rule: jobCard },
+  }),
+)
+
+/** One Job read in full: its fixed work, where it runs, why it stands where it is, and each step. */
+const jobDetail = object({
+  ...jobCard.fields,
+  schedule: { rule: nullable(text) },
+  slot: { rule: nullable(instant) },
+  local: { rule: nullable(text) },
+  calendar: { rule: nullable(text) },
+  version: { rule: nullable(text) },
+  revision: { rule: count },
+  work: { rule: json },
+  reason: { rule: nullable(text) },
+  where: {
+    rule: nullable(
+      object({
+        kind: { rule: literal('program') },
+        program: { rule: text },
+        execution: { rule: text },
+      }),
+    ),
+  },
+  events: {
+    rule: array(object({ seq: { rule: positive }, kind: { rule: text }, at: { rule: instant } })),
+  },
+})
+
+const cancelJob = object({ ...ofTenant, actionId: { rule: text }, job: { rule: text } })
+const startJob = object({ ...ofTenant, startId: { rule: text }, work: { rule: json } })
+
 const refused = {
   invalid: ruleCodec(object({ code: { rule: text } })),
   unsupported: ruleCodec(object({ code: { rule: text } })),
@@ -120,6 +195,7 @@ const refused = {
 
 const read = { identity: 'login', effect: 'read', limit: 'small', countsAsAccess: true } as const
 const write = { identity: 'login', effect: 'commit', limit: 'small', countsAsAccess: true } as const
+const since2 = { since: 2 } as const
 
 export const scheduleProtocol = defineProtocol({
   name: 'schedule',
@@ -232,8 +308,78 @@ export const scheduleProtocol = defineProtocol({
         'not-visible': refused['not-visible'],
       },
     },
+    'list-jobs': {
+      ...read,
+      ...since2,
+      body: ruleCodec(
+        object({
+          ...ofTenant,
+          schedule: { rule: nullable(text) },
+          cursor: { rule: nullable(text) },
+          limit: { rule: pageLimit },
+        }),
+      ),
+      outcomes: {
+        succeeded: ruleCodec(page(historyRow)),
+        invalid: refused.invalid,
+        'not-visible': refused['not-visible'],
+      },
+    },
+    'read-job': {
+      ...read,
+      ...since2,
+      body: ruleCodec(object({ ...ofTenant, job: { rule: text } })),
+      outcomes: { succeeded: ruleCodec(jobDetail), 'not-visible': refused['not-visible'] },
+    },
+    'cancel-job': {
+      ...write,
+      ...since2,
+      body: ruleCodec(cancelJob),
+      outcomes: {
+        succeeded: ruleCodec(object({ changed: { rule: boolean }, job: { rule: jobDetail } })),
+        'not-visible': refused['not-visible'],
+      },
+    },
+    'query-cancel-job': {
+      ...read,
+      ...since2,
+      body: ruleCodec(cancelJob),
+      outcomes: {
+        succeeded: ruleCodec(jobDetail),
+        'not-committed': ruleCodec(object({})),
+        'not-visible': refused['not-visible'],
+      },
+    },
+    'start-job': {
+      ...write,
+      ...since2,
+      body: ruleCodec(startJob),
+      outcomes: {
+        succeeded: ruleCodec(jobDetail),
+        invalid: refused.invalid,
+        conflict: refused.conflict,
+      },
+    },
+    'query-start-job': {
+      ...read,
+      ...since2,
+      body: ruleCodec(startJob),
+      outcomes: {
+        succeeded: ruleCodec(jobDetail),
+        'not-committed': ruleCodec(object({})),
+        conflict: refused.conflict,
+      },
+    },
   },
-  observations: {},
+  observations: {
+    'observe-jobs': {
+      identity: 'login',
+      ...since2,
+      open: ruleCodec(object({ ...ofTenant })),
+      frame: ruleCodec(object({ kind: { rule: literal('changed') } })),
+      ends: [],
+    },
+  },
 })
 
 export type ScheduleProtocol = typeof scheduleProtocol

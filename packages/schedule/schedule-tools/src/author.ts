@@ -68,7 +68,7 @@ const guide = [
   'Failures are one line, <kind> reason=<why> code=<code>: not_found, conflict, limited, invalid, coverage_insufficient, not_configured, unavailable.',
 ].join('\n\n')
 
-const returns = {
+export const returns = {
   kind: 'ordinary',
   value: {
     kind: 'encoded-value',
@@ -163,7 +163,34 @@ export const schedulesExecutor = {
     execute(args, context),
 }
 
-function resultMaxBytesOf(construction: JsonValue): number | undefined {
+/** A text result: UTF-8 bytes, checked against the tool's resultMaxBytes. */
+export function textResult(tool: string, maximum: number) {
+  return {
+    codec: {
+      adoption: schedulesAdoption,
+      encode: (value: unknown) =>
+        typeof value === 'string' ? succeed(utf8(value)) : fail({ reason: 'text-required' }),
+      decode(bytes: Uint8Array) {
+        try {
+          return succeed(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
+        } catch {
+          return fail({ reason: 'invalid-utf8' })
+        }
+      },
+    },
+    output: {
+      adoption: schedulesAdoption,
+      check: ({ value }: { value: unknown }) =>
+        typeof value === 'string' && utf8(value).byteLength <= maximum
+          ? succeed(value)
+          : fail({ reason: `the ${tool} result exceeds resultMaxBytes` }),
+    },
+    renderer: { render: (value: string) => succeed(value) },
+    program: { kind: 'none' as const },
+  }
+}
+
+export function resultMaxBytesOf(construction: JsonValue): number | undefined {
   if (construction.kind !== 'object' || construction.entries.length !== 1) return undefined
   const [entry] = construction.entries
   if (entry?.key !== 'resultMaxBytes' || entry.value.kind !== 'number') return undefined
@@ -205,27 +232,7 @@ export function createSchedulesAuthor(
         parameters: schedulesParameterCodec(name),
         waits: [],
         executor: schedulesExecutor,
-        codec: {
-          adoption: schedulesAdoption,
-          encode: (value: unknown) =>
-            typeof value === 'string' ? succeed(utf8(value)) : fail({ reason: 'text-required' }),
-          decode(bytes) {
-            try {
-              return succeed(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
-            } catch {
-              return fail({ reason: 'invalid-utf8' })
-            }
-          },
-        },
-        output: {
-          adoption: schedulesAdoption,
-          check: ({ value }: { value: unknown }) =>
-            typeof value === 'string' && utf8(value).byteLength <= maximum
-              ? succeed(value)
-              : fail({ reason: 'the Schedules result exceeds resultMaxBytes' }),
-        },
-        renderer: { render: (value: string) => succeed(value) },
-        program: { kind: 'none' },
+        ...textResult('Schedules', maximum),
       },
     })
     if ('failure' in operation)

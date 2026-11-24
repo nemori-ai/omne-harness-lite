@@ -10,7 +10,6 @@ export {
 } from './storage/store.ts'
 export {
   createDispatchLocalApplication,
-  realTimers,
   type DispatchLocalApplication,
   type DispatchLocalOptions,
   type Timers,

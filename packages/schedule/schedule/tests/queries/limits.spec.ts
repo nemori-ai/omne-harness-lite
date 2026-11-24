@@ -45,6 +45,7 @@ it('returns at most 5000 rows and marks the 5001st history row as a budget senti
   if (!record || !candidate) throw new Error('Missing fixture record')
   f.state.rows = Array.from({ length: 5001 }, (_, index) =>
     ScheduleExecutionRowSchema.parse({
+      kind: 'slot',
       rowRef: `row:${String(index).padStart(5, '0')}`,
       occurrenceKey: `occ:${index}`,
       scheduleId: record.view.scheduleId,
@@ -53,6 +54,7 @@ it('returns at most 5000 rows and marks the 5001st history row as a budget senti
       preparation: null,
       receipt: null,
       job: null,
+      run: null,
       notification: null,
     }),
   )

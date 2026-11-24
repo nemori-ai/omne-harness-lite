@@ -9,7 +9,6 @@ it('exports the SQL materials, the store, the application and the policy on the 
     'dispatchPersistenceParticipant',
     'dispatchPolicySchema',
     'dispatchSqlMaterials',
-    'realTimers',
   ])
 })
 

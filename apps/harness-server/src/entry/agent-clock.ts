@@ -5,8 +5,8 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import { parseInstant } from '@omne-harness/utc-instant'
 import type { EntryObjectModule, EntryTime } from '../types.ts'
 import { waitUntil as waitUntilEpoch } from '@omne-harness/time-source'
-import { epochMillisOf, readInstant } from './session-clock.ts'
-import { timeOf } from './time.ts'
+import { epochMillisOf } from './session-clock.ts'
+import { readInstant, timeOf } from './time.ts'
 
 export function createAgentClock(time: EntryTime): AgentClock {
   const now: AgentClock['now'] = () => {
